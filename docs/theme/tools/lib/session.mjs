@@ -25,7 +25,7 @@ export async function login(page, env) {
   await page.fill('#login-password', env.password);
   await page.press('#login-password', 'Enter');
   await page.waitForFunction(() => !location.pathname.startsWith('/login'), null, { timeout: 30000 });
-  await page.waitForSelector('.app-topbar', { timeout: 30000 });
+  await page.waitForSelector('.shell__header, .app-topbar', { timeout: 30000 });
 }
 
 /** Client-side navigation. The access token lives in memory, so a full reload would drop the session. */
@@ -38,8 +38,9 @@ export async function goto(page, url) {
 
 export async function setTheme(page, theme) {
   await page.evaluate(t => {
-    const b = [...document.querySelectorAll('.app-topbar button')].find(x => x.textContent.trim().toLowerCase() === t);
-    if (!b) throw new Error(`theme button not found: ${t}`);
+    if (document.documentElement.getAttribute('data-theme') === t) return;
+    const b = document.querySelector('[data-theme-switch]');
+    if (!b) throw new Error('theme switch not found');
     b.click();
   }, theme);
   await page.waitForFunction(t => document.documentElement.getAttribute('data-obc-theme') === t, theme);

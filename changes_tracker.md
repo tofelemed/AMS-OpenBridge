@@ -5341,3 +5341,26 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15). **On release:** every user with a stored Bright theme moves to Day once.
+
+## CHG-112 — CPA redesign Phase 2: shell, navigation, context and routing (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** CPA-UI-PRM-004 Phase 2 (SPEC §2, §6.1): one header, seven destinations, one URL context.
+
+**Changed**
+- New shell (`ui/shell/`): 64 px header with plant selector, search, time range with zone, environment indicator, Day/Night switch and user menu; 220 px sidebar, 64 px rail below 1280 px, drawer below 1024 px; skip link; one `main` (three nested ones removed).
+- Sidebar: seven destinations replace 19 entries (RD1). Task-group labels are gone. Setup and System show only to holders of their permissions (RD4). Trend moves to the palette (RD6). Administration is reached from System and the user menu.
+- New routes `/cpm/loop`, `/cpm/setup`, `/cpm/system`, and Evidence gains tabs. Each hosts its old pages until its phase replaces them. Old URLs still work.
+- `cpa/redirects.ts` holds the whole SPEC §2.3 table. Every row is off until the phase that ships its destination.
+- `cpaHref()` and `useCpaContext()` carry plant scope, time range, window kind and loop. `useContextCarry` bridges the old literal links until they are replaced.
+- A refused route now says "Not available for your role" instead of redirecting silently, including Administration's tabs. **Who can open what is unchanged.**
+- Old formatters print the resolved site zone, not the browser zone (39 files through `fmtDateTime`). 23 direct calls remain until their pages are replaced.
+- `App.tsx` went from 819 to 323 lines. The old shell, guards and routes moved to `app/`.
+
+**New gates.** `check-redirects.mjs` (18 SPEC routes, 24 cases), `check-geometry.mjs` (RD9, 7 viewports, both themes), T11 active on new code.
+
+**Verified.** tsc 0, lint 0, 675 tests in 120 files, build OK, lint:theme 0 on 385 files, redirects 0 failures, geometry 14 of 14. Context walks: 24 tasks, 29 click hops, 0 lost, every sidebar selection correct. 3 task steps need lab findings that do not exist and were not walked. Restricted state: 6 of 6 refused routes, **simulated role**; the real viewer account check is pending (UI-027).
+
+**Limits.** The header time range has no effect on old pages until they are rebuilt (UI-020). Loop shows two rows of tabs until Phase 5. No logo file exists, so the header uses text (UI-016).
+
+**Services updated:** `ams-frontend` (when released). **No migration.** **Config:** optional build argument `VITE_ENV_LABEL`.
+**Plant:** nothing yet. This branch is not released (RD15).

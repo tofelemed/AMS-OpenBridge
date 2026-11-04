@@ -40,7 +40,10 @@ export const configHref = (q: { site?: string; scope?: ScopeKind; ref?: string; 
   return `/cpm/config${s ? `?${s}` : ''}`;
 };
 
-export const GateConfigurationWorkspace: React.FC = () => {
+export const GateConfigurationWorkspace: React.FC<{
+  /** Inside the Setup destination `tab` belongs to the host, so this page reads `sub` (SPEC §2.3). */
+  tabParam?: string;
+}> = ({ tabParam = 'tab' }) => {
   const [params, setParams] = useSearchParams();
   const scope = useCpmScope();
   const loops = useCpmLoops();
@@ -51,7 +54,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const viewParam = params.get('view') as ConfigView | null;
   const view: ConfigView | 'overview' = bundleId && viewParam === 'editor' ? 'editor' : loopId ? (viewParam && VIEWS.includes(viewParam) && viewParam !== 'editor' ? viewParam : 'effective') : 'overview';
   const gate = params.get('gate') || 'G0';
-  const tab: ConfigTab = TABS.includes(params.get('tab') as ConfigTab) ? (params.get('tab') as ConfigTab) : 'properties';
+  const tab: ConfigTab = TABS.includes(params.get(tabParam) as ConfigTab) ? (params.get(tabParam) as ConfigTab) : 'properties';
 
   const perms = {
     read: useAuthStore(s => s.hasPermission('cpm.config.read')), draft: useAuthStore(s => s.hasPermission('cpm.config.draft')),

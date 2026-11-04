@@ -35,11 +35,17 @@
 .cpm-tone-muted { --cpm-tone: var(--element-neutral-color); }
 
 /* ── Layout scaffolding ── */
+:root {
+  /* Page padding around a .cpm-screen. The Traverse shell sets these to 24 px and 0. */
+  --cpa-page-pad: var(--spacing-4, 16px);
+  --cpa-screen-pad: 16px;
+}
+
 .cpm-screen {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  padding: var(--cpa-screen-pad);
   color: var(--element-active-color);
 }
 

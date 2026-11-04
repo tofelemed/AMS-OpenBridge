@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
+import { activeZone } from '../../cpa/activeZone';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
 import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
 
@@ -23,7 +24,7 @@ export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
  * data error. One formatter, always naming the zone.
  */
 export const fmtDateTime = (ts: string | number | null | undefined): string =>
-  ts != null && ts !== '' ? new Date(ts).toLocaleString(undefined, { timeZoneName: 'short' }) : '\u2014';
+  ts != null && ts !== '' ? new Date(ts).toLocaleString(undefined, { timeZoneName: 'short', timeZone: activeZone() }) : '\u2014';
 
 /**
  * A window ending "now", quantized to `tickMs`, that ADVANCES.

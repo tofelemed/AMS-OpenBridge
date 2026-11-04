@@ -1,0 +1,231 @@
+/* The application frame (SPEC §6.1, skill §7). Values come from the Traverse tokens only. */
+
+.shell {
+  /* Old pages sit inside this padding until their phase replaces them (see cpm.css). */
+  --cpa-page-pad: var(--traverse-size-content-padding);
+  --cpa-screen-pad: 0px;
+  display: grid;
+  grid-template-rows: var(--traverse-size-header) minmax(0, 1fr);
+  grid-template-columns: var(--traverse-size-sidebar-expanded) minmax(0, 1fr);
+  grid-template-areas: 'header header' 'sidebar main';
+  height: 100vh;
+  overflow: hidden;
+  background: var(--traverse-surface-page);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-body);
+}
+.shell--rail { grid-template-columns: var(--traverse-size-sidebar-rail) minmax(0, 1fr); }
+.shell--drawer {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'header' 'main';
+}
+
+.shell__skip {
+  position: absolute;
+  top: var(--traverse-space-2);
+  left: var(--traverse-space-2);
+  z-index: 80;
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  background: var(--traverse-action-primary);
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-action-on);
+  transform: translateY(-200%);
+}
+.shell__skip:focus { transform: none; outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
+
+.shell__header {
+  grid-area: header;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  min-width: 0;
+  padding: 0 var(--traverse-space-4);
+  background: var(--traverse-surface-page);
+  border-bottom: 1px solid var(--traverse-border-subtle);
+}
+
+.shell__brand {
+  display: inline-flex;
+  align-items: baseline;
+  flex: none;
+  gap: var(--traverse-space-2);
+  margin-inline-end: var(--traverse-space-3);
+  color: var(--traverse-text-primary);
+  text-decoration: none;
+}
+.shell__brand:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
+.shell__wordmark { font-size: var(--traverse-type-section-title); font-weight: 700; }
+.shell__module { color: var(--traverse-action-primary); font-size: var(--traverse-type-key); font-weight: 600; }
+
+.shell-trigger { max-width: 260px; }
+.shell-trigger__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-trigger__zone { flex: none; color: var(--traverse-text-muted); font-size: var(--traverse-type-metadata); white-space: nowrap; }
+.shell-trigger--range { max-width: 380px; }
+.shell-trigger--user { max-width: 260px; }
+
+.shell__search {
+  flex: 1 1 220px;
+  min-width: var(--traverse-size-control-min-height);
+  max-width: 420px;
+  color: var(--traverse-text-muted);
+  text-align: start;
+}
+.shell__search.ui-control--icon { flex: none; color: var(--traverse-text-secondary); }
+.shell__search-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell__kbd {
+  flex: none;
+  padding: 0 var(--traverse-space-1);
+  border: 1px solid var(--traverse-border-subtle);
+  border-radius: var(--traverse-radius-control);
+  font-family: inherit;
+  font-size: var(--traverse-type-metadata);
+}
+
+.shell__env {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-inline-start: auto;
+  height: 28px;
+  padding: 0 var(--traverse-space-2);
+  background: var(--traverse-surface-selected);
+  border: 1px solid var(--traverse-action-primary);
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-action-primary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+}
+.shell__header > .shell__env + button { margin-inline-start: 0; }
+.shell__header > .ui-popover:has(.shell-trigger--range) + [data-theme-switch] { margin-inline-start: auto; }
+
+.shell__sidebar {
+  grid-area: sidebar;
+  display: flex;
+  min-height: 0;
+  background: var(--traverse-surface-page);
+  border-inline-end: 1px solid var(--traverse-border-subtle);
+}
+
+.shell__main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+}
+.shell__main > .page-content { padding: var(--cpa-page-pad); }
+
+.shell-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--traverse-space-2);
+  overflow-y: auto;
+}
+.shell-nav--rail { overflow: visible; }
+.shell-nav__module { flex: 1; }
+.shell-nav__module-name {
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.shell-nav--rail .shell-nav__module-name { padding-inline: 0; text-align: center; }
+.shell-nav__list { display: grid; gap: var(--traverse-space-1); margin: 0; padding: 0; list-style: none; }
+.shell-nav__entry { position: relative; }
+.shell-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--traverse-space-3);
+  height: var(--traverse-size-control-min-height);
+  padding: 0 var(--traverse-space-3);
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-text-secondary);
+  text-decoration: none;
+}
+.shell-nav__item:hover { background: var(--traverse-surface-hover); color: var(--traverse-text-primary); }
+.shell-nav__item:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: -2px; }
+.shell-nav__item[aria-current='page'] {
+  --element-active-color: var(--traverse-action-primary);
+  background: var(--traverse-surface-selected);
+  box-shadow: inset var(--traverse-size-nav-indicator) 0 0 var(--traverse-action-primary);
+  color: var(--traverse-action-primary);
+  font-weight: 600;
+}
+.shell-nav--rail .shell-nav__item { justify-content: center; padding: 0; }
+.shell-nav--rail .shell-nav__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.shell-nav__tip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + var(--traverse-space-2));
+  z-index: 50;
+  display: none;
+  width: 240px;
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  background: var(--traverse-surface-panel);
+  border: 1px solid var(--traverse-border-strong);
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 400;
+  transform: translateY(-50%);
+}
+.shell-nav__tip strong { display: block; color: var(--traverse-text-primary); font-size: var(--traverse-type-body); }
+/* The rail has no visible label, so its tip is the name. An expanded list shows the name already. */
+.shell-nav--rail .shell-nav__entry:hover .shell-nav__tip,
+.shell-nav--rail .shell-nav__item:focus-visible + .shell-nav__tip { display: block; }
+.shell-nav--tips-off .shell-nav__tip { display: none !important; }
+
+.shell-nav__toggle {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: var(--traverse-space-3);
+  height: var(--traverse-size-control-min-height);
+  padding: 0 var(--traverse-space-3);
+  border: 0;
+  border-radius: var(--traverse-radius-control);
+  background: transparent;
+  color: var(--traverse-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.shell-nav__toggle:hover { background: var(--traverse-surface-hover); }
+.shell-nav__toggle:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: -2px; }
+.shell-nav--rail .shell-nav__toggle { justify-content: center; padding: 0; }
+
+.shell-form { display: grid; gap: var(--traverse-space-3); }
+.shell-range { display: grid; gap: var(--traverse-space-3); width: max-content; max-width: 100%; }
+.shell-user { display: grid; gap: var(--traverse-space-2); }
+.shell-user__name { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-body); font-weight: 600; }
+
+.shell-drawer { position: fixed; inset: 0; z-index: 70; }
+.shell-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--traverse-surface-page) 60%, transparent);
+}
+.shell-drawer__panel {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--traverse-size-sidebar-expanded);
+  background: var(--traverse-surface-panel);
+  border-inline-end: 1px solid var(--traverse-border-subtle);
+}
+.shell-drawer__close { align-self: flex-end; margin: var(--traverse-space-2); }
+
+/* Between the rail and the drawer the header drops text it can repeat elsewhere. */
+@media (max-width: 1279.98px) {
+  .shell__kbd { display: none; }
+  .shell-trigger { max-width: 180px; }
+  .shell-trigger--range { max-width: 280px; }
+  .shell-trigger--user .shell-trigger__text { max-width: 96px; }
+}

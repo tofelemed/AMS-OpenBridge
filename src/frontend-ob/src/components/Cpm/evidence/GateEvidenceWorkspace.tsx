@@ -209,7 +209,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
       {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
-        <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
+        <div className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
           <div id="cpm-conclusion">
             <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline} />
           </div>
@@ -243,7 +243,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
             </CollapsibleSection>
           ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
           <WindowFlags row={currentOption?.flags} inputs={inputContextOf(loop)} />
-        </main>
+        </div>
         <ExplainPanel gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} state={state} status={status} reason={reason}
           eligibilityDetail={eligibilityDetail} timeZone={timeZone} inputs={inputContextOf(loop)} collapsed={explainCollapsed} onToggle={toggleExplain} />
       </div>

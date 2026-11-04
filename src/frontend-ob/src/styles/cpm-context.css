@@ -8,14 +8,14 @@
    nothing scrolls past at the edges. */
 .cpm-loop-context {
   position: sticky;
-  top: calc(-1 * var(--spacing-4, 16px));
+  top: calc(-1 * var(--cpa-page-pad));
   z-index: 6;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 24px;
-  margin: -8px calc(-16px - var(--spacing-4, 16px)) 0;
-  padding: 8px calc(16px + var(--spacing-4, 16px));
+  margin: -8px calc(-1 * var(--cpa-screen-pad) - var(--cpa-page-pad)) 0;
+  padding: 8px calc(var(--cpa-screen-pad) + var(--cpa-page-pad));
   background: var(--container-section-color);
   border-bottom: 1px solid var(--border-outline-color);
   color: var(--element-active-color);

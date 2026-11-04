@@ -14,6 +14,7 @@ import { SystemSettingsConfig }  from './SystemSettingsConfig';
 import AuditExplorer             from './AuditExplorer';
 import { useAuthStore }          from '../../store/authStore';
 import { HOME_PATH, isSliceAdminTab } from '../../productSlice';
+import { RestrictedRoute } from '../../app/guards';
 import { T } from '../../styles/theme';
 // obi-* icons (closest-semantic — no exact shield/lock icon exists in OpenBridge).
 import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
@@ -129,25 +130,25 @@ const Administration: React.FC = () => {
         <Routes>
           <Route
             path="users"
-            element={canManageUsers ? <UserManagementConfig /> : <Navigate to={fallback} replace />}
+            element={canManageUsers ? <UserManagementConfig /> : <RestrictedRoute />}
           />
           <Route
             path="roles"
-            element={canManageRbac ? <RolesConfig /> : <Navigate to={fallback} replace />}
+            element={canManageRbac ? <RolesConfig /> : <RestrictedRoute />}
           />
           <Route path="alarm-feed"    element={isSliceAdminTab('/admin/alarm-feed') ? <AlarmFeedConfig /> : <Navigate to={fallback} replace />} />
           <Route path="opc-servers"   element={isSliceAdminTab('/admin/alarm-feed') ? <AlarmFeedConfig /> : <Navigate to={fallback} replace />} />
           <Route
             path="data-sources"
-            element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <Navigate to={fallback} replace />}
+            element={hasPermission('ingestion.view') ? <DataSourcesConfig /> : <RestrictedRoute />}
           />
           <Route
             path="plant-model"
-            element={hasPermission('asset.view') ? <PlantModelConfig /> : <Navigate to={fallback} replace />}
+            element={hasPermission('asset.view') ? <PlantModelConfig /> : <RestrictedRoute />}
           />
           <Route
             path="aliases"
-            element={hasPermission('asset.view') ? <AliasConfig /> : <Navigate to={fallback} replace />}
+            element={hasPermission('asset.view') ? <AliasConfig /> : <RestrictedRoute />}
           />
           <Route path="alarm-rules"   element={isSliceAdminTab('/admin/alarm-rules') ? <AlarmRulesConfig /> : <Navigate to={fallback} replace />} />
           <Route path="notifications" element={isSliceAdminTab('/admin/notifications') ? <NotificationsConfig /> : <Navigate to={fallback} replace />} />

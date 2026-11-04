@@ -64,7 +64,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
 
   return (
     <div className="cpm-config-columns">
-      <main className="cpm-config-centre">
+      <div className="cpm-config-centre">
         {catalogue.isError && <QueryError error={catalogue.error} retry={() => void catalogue.refetch()} />}
         <section className="cpm-surface">
           <PanelHead eyebrow={`${b.scopeKind}${b.scopeRef ? ` ${b.scopeRef}` : ` ${b.site}`} · v${b.version}`} title={tab === 'properties' ? `Properties · ${gate}` : TAB_TITLE[tab]}
@@ -91,7 +91,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
               onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
           )}
         </section>
-      </main>
+      </div>
 
       <aside className="cpm-config-side">
         <LifecyclePanel bundle={b} perms={{ validate: perms.validate, shadow: perms.shadow, approve: perms.approve, activate: perms.activate, rollback: perms.rollback }}

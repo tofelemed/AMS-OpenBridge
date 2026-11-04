@@ -15,14 +15,14 @@
    so showing / hiding it never shifts the page. Spans the screen padding like the context bar. */
 .cpm-conclusion-strip {
   position: sticky;
-  top: calc(var(--cpm-context-h, 0px) - var(--spacing-4, 16px));
+  top: calc(var(--cpm-context-h, 0px) - var(--cpa-page-pad));
   z-index: 5;
   height: 0;
-  margin: 0 calc(-16px - var(--spacing-4, 16px));
+  margin: 0 calc(-1 * var(--cpa-screen-pad) - var(--cpa-page-pad));
 }
 .cpm-conclusion-strip__inner {
   display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 12px;
-  padding: 6px calc(16px + var(--spacing-4, 16px));
+  padding: 6px calc(var(--cpa-screen-pad) + var(--cpa-page-pad));
   background: var(--container-backdrop-color);
   border-bottom: 1px solid var(--border-outline-color);
   visibility: hidden; opacity: 0; transition: opacity 120ms ease;

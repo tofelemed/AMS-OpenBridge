@@ -7,7 +7,7 @@
    inner scroll container: the page itself scrolls. */
 .cpm-table-head--sticky {
   position: sticky;
-  top: calc(var(--cpm-context-h, 0px) - var(--spacing-4, 16px));
+  top: calc(var(--cpm-context-h, 0px) - var(--cpa-page-pad));
   z-index: 4;
   align-items: center;
   background: var(--container-backdrop-color);

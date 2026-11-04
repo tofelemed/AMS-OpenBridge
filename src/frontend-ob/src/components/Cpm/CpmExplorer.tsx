@@ -31,16 +31,20 @@ import { useCpmLoops } from '../../hooks/useCpm';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, windowKindOf } from './useWindowKind';
 
-export const CpmExplorer: React.FC = () => {
+export const CpmExplorer: React.FC<{
+  /** Inside the Loop destination `tab` belongs to the host, so this page uses `sub`. */
+  tabParam?: string;
+  defaultTab?: ExplorerTab;
+}> = ({ tabParam = 'tab', defaultTab = 'Summary' }) => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
   // Validate rather than cast: `?tab=Foo` used to satisfy the cast, match none
   // of the render branches, and leave an empty workspace with no explanation —
   // which is what a stale bookmark from a renamed tab produces.
-  const rawTab = params.get('tab');
+  const rawTab = params.get(tabParam);
   const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab)
-    ? (rawTab as ExplorerTab) : 'Summary';
+    ? (rawTab as ExplorerTab) : defaultTab;
 
   // The fused window kind every tab evaluates; same name and default as Performance (`?window=`), so a hand-off between
   // the two keeps the window. CHG-089: 12h by default, chosen at the top of the page; a gate picked on the other window
@@ -127,7 +131,7 @@ export const CpmExplorer: React.FC = () => {
             loop={loop}
             tab={tab}
             windowKind={windowKind}
-            onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })}
+            onTab={t => setParams(p => { p.set(tabParam, t); return p; }, { replace: true })}
           />
         ) : missingLoop ? (
           <section className="cpm-surface">

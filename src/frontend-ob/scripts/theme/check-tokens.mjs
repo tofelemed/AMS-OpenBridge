@@ -13,7 +13,7 @@ const ts = createRequire(path.join(app, 'package.json'))('typescript');
 const rel = f => path.relative(src, f).replaceAll('\\', '/');
 
 // Phase of the current build. Raise it as gates activate.
-const PHASE = Number(process.env.THEME_PHASE ?? 1);
+const PHASE = Number(process.env.THEME_PHASE ?? 2);
 const NEW_CODE = /^(ui|pages\/cpa|help|charts|theme|cpa)\//;
 const ACTIVE = {
   T1: r => (PHASE >= 8 ? true : NEW_CODE.test(r)),

@@ -1,0 +1,48 @@
+{
+ "simulated": true,
+ "sidebar": [
+  "Overview",
+  "Performance",
+  "Episodes",
+  "Loop",
+  "Evidence"
+ ],
+ "routes": [
+  {
+   "url": "/cpm/system",
+   "finalUrl": "/cpm/system",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  },
+  {
+   "url": "/cpm/pipeline",
+   "finalUrl": "/cpm/pipeline",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  },
+  {
+   "url": "/cpm/governance",
+   "finalUrl": "/cpm/governance",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  },
+  {
+   "url": "/cpm/setup?tab=configuration",
+   "finalUrl": "/cpm/setup?tab=configuration",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  },
+  {
+   "url": "/cpm/config",
+   "finalUrl": "/cpm/config",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  },
+  {
+   "url": "/admin/users",
+   "finalUrl": "/admin/users",
+   "state": "Not available for your role\n\nYour role does not include this page. An administrator can change your role.\n\nGo to Overview",
+   "goHome": 1
+  }
+ ]
+}

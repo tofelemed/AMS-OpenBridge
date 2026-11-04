@@ -133,7 +133,7 @@ export const ResponseWorkspace: React.FC = () => {
           hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => navigate(responseHref(loopId, { event: e.eventId }))}
           censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored} />
 
-        <main className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
+        <div className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
           {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
           {!eventParam && !methodRunParam && (noEvents ? (
             // SME #21 (CHG-057): nothing to choose — say why and where to go, instead of "choose an event on the left"
@@ -173,7 +173,7 @@ export const ResponseWorkspace: React.FC = () => {
             <ModelHistoryBody models={models.data?.models ?? []} timeZone={timeZone} pvUnit={loop?.engineering?.pvUnit} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />
           )}
           {!canReview && <p className="cpm-copy">Model review needs the cpm.model.review permission.</p>}
-        </main>
+        </div>
 
         <aside className="cpm-response-detail">
           {eventParam && result && (

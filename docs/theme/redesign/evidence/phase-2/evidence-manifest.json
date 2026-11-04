@@ -1,0 +1,62 @@
+{
+ "phase": "2",
+ "capturedAt": "2026-11-04T15:51:55.446Z",
+ "base": "http://localhost:4173",
+ "sizes": [
+  "1440x1024",
+  "1280x800",
+  "1024x768"
+ ],
+ "routes": {
+  "overview": {
+   "url": "/cpm",
+   "finalUrl": "/cpm",
+   "stable": true,
+   "ms": 1101,
+   "shots": [
+    "screenshots/day/1440x1024/overview.png",
+    "screenshots/day/1280x800/overview.png",
+    "screenshots/day/1024x768/overview.png",
+    "screenshots/night/1440x1024/overview.png",
+    "screenshots/night/1280x800/overview.png",
+    "screenshots/night/1024x768/overview.png"
+   ]
+  },
+  "explorer": {
+   "url": "/cpm/explorer?loop=FIC10302",
+   "finalUrl": "/cpm/explorer?loop=FIC10302",
+   "stable": false,
+   "ms": 15166,
+   "shots": [
+    "screenshots/day/1440x1024/explorer.png",
+    "screenshots/day/1280x800/explorer.png",
+    "screenshots/day/1024x768/explorer.png",
+    "screenshots/night/1440x1024/explorer.png",
+    "screenshots/night/1280x800/explorer.png",
+    "screenshots/night/1024x768/explorer.png"
+   ]
+  },
+  "evidence": {
+   "url": "/cpm/evidence?loop=FIC10302",
+   "finalUrl": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "stable": true,
+   "ms": 4848,
+   "shots": [
+    "screenshots/day/1440x1024/evidence.png",
+    "screenshots/day/1280x800/evidence.png",
+    "screenshots/day/1024x768/evidence.png",
+    "screenshots/night/1440x1024/evidence.png",
+    "screenshots/night/1280x800/evidence.png",
+    "screenshots/night/1024x768/evidence.png"
+   ]
+  }
+ },
+ "log": {
+  "blocked": [],
+  "http429": 0,
+  "apiCalls": 25
+ },
+ "consoleErrors": [
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+ ]
+}

@@ -12,6 +12,7 @@
  * Read-only by design: each page keeps its own loop picker. Renders nothing
  * when no loop is selected.
  */
+import { activeZone } from '../../../cpa/activeZone';
 import React, { useLayoutEffect, useRef } from 'react';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmLoops } from '../../../hooks/useCpm';
@@ -29,7 +30,8 @@ export function fmtLocation(loop: Pick<CpmLoop, 'site' | 'area' | 'unit'>): stri
   return locationPath(loop);
 }
 
-const validZone = (tz: string | undefined): string | undefined => {
+const validZone = (requested: string | undefined): string | undefined => {
+  const tz = requested ?? activeZone();
   if (!tz) return undefined;
   try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }); return tz; } catch { return undefined; }
 };
@@ -64,8 +66,8 @@ export function fmtInstant(v: string | number | null | undefined, timeZone?: str
 
 /**
  * `24h fused window · 4 Oct 16:15 → 5 Oct 16:15 UTC`. The zone is always named
- * (the P2-13 rule), once, after the end. `timeZone` defaults to the browser's,
- * the zone every other CPM timestamp is shown in.
+ * (the P2-13 rule), once, after the end. `timeZone` defaults to the site zone the
+ * shell resolved, the zone the header names.
  */
 export function fmtPeriod(period: LoopPeriod, timeZone?: string): string {
   const tz = validZone(timeZone);

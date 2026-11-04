@@ -15,6 +15,7 @@
  * - The Evidence Workbench opens an IMMUTABLE run via `evidence/selection.ts`
  *   (`workbenchHref`); `evidenceHref` here is the loop-level landing only.
  */
+import { DESTINATIONS } from '../../cpa/destinations';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import type { RowFilter } from './gateStatus';
 
@@ -29,6 +30,29 @@ const build = (path: string, query: Query): string => {
   const s = p.toString();
   return s ? `${path}?${s}` : path;
 };
+
+const RANGES = new Set(['8h', '24h', '7d', '30d', 'custom']);
+const WINDOW_KINDS = new Set(['12h', '24h']);
+
+/**
+ * The link helper for the seven destinations (SPEC §2.2): carries plant scope, time range, and, where
+ * the destination takes them, the window kind and the loop. A `window` that is an evaluated END on an
+ * older page is not a kind, so it stays behind. `extra` wins over anything carried.
+ */
+export function cpaHref(path: string, current: URLSearchParams | string = '', extra: Query = {}): string {
+  const q = typeof current === 'string' ? new URLSearchParams(current) : current;
+  const dest = DESTINATIONS.find(d => d.path === path);
+  const carried: Query = { site: q.get('site'), area: q.get('area'), unit: q.get('unit') };
+  const from = q.get('from');
+  const to = q.get('to');
+  const range = q.get('range');
+  if (from && to && (range === 'custom' || range == null)) Object.assign(carried, { range: 'custom', from, to });
+  else if (range && range !== 'custom' && RANGES.has(range)) carried.range = range;
+  const window = q.get('window');
+  if (dest?.carriesWindow && window && WINDOW_KINDS.has(window)) carried.window = window;
+  if (dest?.carriesLoop) carried.loop = q.get('loop');
+  return build(path, { ...carried, ...extra });
+}
 
 /** The loop hub. `gate` pre-selects a gate on the Summary strip; `kind` is the fused window kind the strip evaluates (`?window=`, as on Performance). */
 export const explorerHref = (loop: string, opts: { tab?: ExplorerTab; gate?: string | null; kind?: string | null } = {}) =>

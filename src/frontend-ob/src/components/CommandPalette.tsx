@@ -13,7 +13,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import * as cpm from '../api/cpmApi';
 import { useAuthStore } from '../store/authStore';
+import { DESTINATIONS } from '../cpa/destinations';
+import { cpaHref } from './Cpm/cpaHref';
 import { cpmNavHref } from './nav/cpmTasks';
+
+const OPEN_EVENT = 'cpa:open-palette';
+
+/** Opens the palette from a visible control, as Ctrl+K does. */
+export const openCommandPalette = (): void => { window.dispatchEvent(new Event(OPEN_EVENT)); };
 
 export interface PaletteNavItem {
   path: string;
@@ -53,8 +60,13 @@ export const CommandPalette: React.FC<{ navItems: PaletteNavItem[] }> = ({ navIt
         setOpen(false);
       }
     };
+    const onOpen = () => { setOpen(true); setQuery(''); setCursor(0); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
   useEffect(() => {
@@ -105,7 +117,9 @@ export const CommandPalette: React.FC<{ navItems: PaletteNavItem[] }> = ({ navIt
     if (!entry) return;
     setOpen(false);
     // A menu entry keeps the selected loop and plant scope, as in the sidebar.
-    navigate(entry.kind === 'nav' ? cpmNavHref(entry.path, location.pathname, location.search) : entry.path);
+    if (entry.kind !== 'nav') navigate(entry.path);
+    else if (DESTINATIONS.some(d => d.path === entry.path)) navigate(cpaHref(entry.path, location.search));
+    else navigate(cpmNavHref(entry.path, location.pathname, location.search));
   };
 
   if (!open) return null;

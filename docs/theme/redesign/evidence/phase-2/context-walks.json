@@ -1,0 +1,487 @@
+{
+ "context": {
+  "site": "hdpe",
+  "range": "7d",
+  "window": "24h"
+ },
+ "walks": [
+  {
+   "id": "OP1",
+   "task": "Find the loops that need review on my unit and why",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "no such control",
+     "wanted": "/^Open analysis|^Review evidence/",
+     "url": "/cpm?site=hdpe&loop=FIC10302&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "OP2",
+   "task": "See the current PV, SP, output and mode of a loop",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&loop=FIC10302&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Loop",
+     "url": "/cpm/loop?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "OP3",
+   "task": "See whether a loop spent the shift in AUTO",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "— Time in normal mode not measured in this window",
+     "url": "/cpm/historical?loop=FIC10302&from=2026-11-03T12%3A15%3A00.000Z&to=2026-11-04T12%3A15%3A00%2B00%3A00&kind=24h&window=2026-11-04T12%3A15%3A00%2B00%3A00&signals=pv%2Csp%2Cop&focus=Time+in+normal+mode&site=hdpe",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "OP4",
+   "task": "List loops in manual now",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "0 In manual mode 0 % of 0 loops with a measured manual share",
+     "url": "/cpm/kpi?kpi=manual-mode&site=hdpe&window=24h&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "OP5",
+   "task": "Find why a loop is not evaluated",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC00701&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Open Window Inspector ›",
+     "url": "/cpm/windows?loop=FIC00701&site=hdpe&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "OP6",
+   "task": "Check open episodes on a unit",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "All events ›",
+     "url": "/cpm/events?site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN1",
+   "task": "Confirm whether a loop oscillation is valve-related",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10301&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Loop",
+     "url": "/cpm/loop?site=hdpe&range=7d&window=24h&loop=FIC10301",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Evidence",
+     "url": "/cpm/evidence?site=hdpe&range=7d&window=24h&loop=FIC10301&methodRun=da35f016-7fdc-56d9-9cf8-96631a708a4f&gate=G15&mode=FIXED",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN2",
+   "task": "Compare loops gate by gate",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/performance?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "G0 Data quality: 161 failed, 1 need attention. Show only the",
+     "url": "/cpm/performance?site=hdpe&range=7d&window=24h&fg=G0",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN3",
+   "task": "Read how a metric was calculated",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&tab=Calculations&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "no such control",
+     "wanted": "/Control error|Good-error/",
+     "url": "/cpm/calculations?loop=FIC10302&metric=CPLM-010&site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN4",
+   "task": "Replay the raw samples behind a verdict",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/evidence?loop=FIC10302&site=hdpe&range=7d&window=24h&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Replay",
+     "url": "/cpm/evidence?loop=FIC10302&site=hdpe&range=7d&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED&tab=replay",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN5",
+   "task": "See PV, SP, output and mode for a past period",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Open in Historical ›",
+     "url": "/cpm/historical?loop=FIC10302&from=2026-11-04T08%3A04%3A00.000Z&to=2026-11-04T16%3A04%3A00.000Z&site=hdpe",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Open in Trend ›",
+     "url": "/trend?tags=hdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.pv%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.sp%2Chdpe%2Fsection_100%2Fu1001_polymerization_reactor_1%2Ffic10302.op&range=8h&from=2026-11-04T08%3A04%3A00.000Z&to=2026-11-04T16%3A04%3A00.000Z",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "EN6",
+   "task": "Check the process model of a loop",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Loop",
+     "url": "/cpm/loop?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE1",
+   "task": "List suspected valve problems",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "0 Suspected valve problem 0 % of 0 assessed loops",
+     "url": "/cpm/kpi?kpi=valve&site=hdpe&window=24h&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE2",
+   "task": "Check instrument health on a loop",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Loop",
+     "url": "/cpm/loop?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE3",
+   "task": "Follow up an episode",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/events?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "FIC10302 ›",
+     "url": "/cpm/explorer?loop=FIC10302&tab=Summary&site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE4",
+   "task": "Find loops with excessive actuator effort",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "0 Excessive actuator effort 0 % of 0 assessed loops",
+     "url": "/cpm/kpi?kpi=effort&site=hdpe&window=24h&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE5",
+   "task": "Find loops with no valve position mapped",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Open Loop Registry ›",
+     "url": "/cpm/registry?site=hdpe&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "RE6",
+   "task": "See alarm context for a loop",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "no such control",
+     "wanted": "/Alarm/",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD1",
+   "task": "Onboard a loop and see what is degraded",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/registry?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Add loop",
+     "url": "/cpm/registry?site=hdpe&range=7d&window=24h&loop=FIC10302",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD2",
+   "task": "See readiness of one loop",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/registry?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "opened",
+     "url": "/cpm/registry?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD3",
+   "task": "Check whether the pipeline is producing verdicts",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "System",
+     "url": "/cpm/system?site=hdpe&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD4",
+   "task": "See the thresholds a loop runs under",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "Effective configuration ›",
+     "url": "/cpm/explorer?loop=FIC10302&site=hdpe&range=7d&window=24h",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD5",
+   "task": "Review who changed what",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "System",
+     "url": "/cpm/system?site=hdpe&range=7d",
+     "lost": []
+    }
+   ]
+  },
+  {
+   "id": "AD6",
+   "task": "Find a user and their role",
+   "hops": [
+    {
+     "how": "opened",
+     "url": "/cpm?site=hdpe&range=7d&window=24h",
+     "lost": []
+    },
+    {
+     "how": "clicked",
+     "control": "System",
+     "url": "/cpm/system?site=hdpe&range=7d",
+     "lost": []
+    }
+   ]
+  }
+ ],
+ "sidebar": [
+  {
+   "label": "Overview",
+   "url": "/cpm?site=hdpe&range=7d&window=24h",
+   "current": "Overview",
+   "lost": []
+  },
+  {
+   "label": "Performance",
+   "url": "/cpm/performance?site=hdpe&range=7d&window=24h",
+   "current": "Performance",
+   "lost": []
+  },
+  {
+   "label": "Episodes",
+   "url": "/cpm/events?site=hdpe&range=7d&window=24h",
+   "current": "Episodes",
+   "lost": []
+  },
+  {
+   "label": "Loop",
+   "url": "/cpm/loop?site=hdpe&range=7d&window=24h",
+   "current": "Loop",
+   "lost": []
+  },
+  {
+   "label": "Evidence",
+   "url": "/cpm/evidence?site=hdpe&range=7d&window=24h",
+   "current": "Evidence",
+   "lost": []
+  },
+  {
+   "label": "Setup",
+   "url": "/cpm/setup?site=hdpe&range=7d",
+   "current": "Setup",
+   "lost": []
+  },
+  {
+   "label": "System",
+   "url": "/cpm/system?site=hdpe&range=7d",
+   "current": "System",
+   "lost": []
+  }
+ ],
+ "summary": {
+  "tasks": 24,
+  "failed": 0,
+  "hops": 50,
+  "clicked": 22,
+  "lost": 0,
+  "noControl": 3,
+  "sidebarHops": 7,
+  "sidebarLost": 0,
+  "sidebarWrongSelection": 0
+ },
+ "log": {
+  "blocked": 0,
+  "http429": 0
+ }
+}

@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, requireEnv, login, goto, trackNetwork, waitStable } from './lib/session.mjs';
+import { chromium, requireEnv, login, goto, setTheme, trackNetwork, waitStable } from './lib/session.mjs';
 import { installGuard } from './lib/guard.mjs';
 import { ENTRIES } from './lib/entries.mjs';
 
@@ -20,13 +20,8 @@ const log = { blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null }
 const entries = ENTRIES.filter(e => (only ? only.includes(e.slug) : e.level === 'route'));
 
 async function selectTheme(page, theme) {
-  await page.evaluate(t => {
-    const buttons = [...document.querySelectorAll('button')];
-    const b = buttons.find(x => (x.getAttribute('aria-label') ?? x.textContent ?? '').trim().toLowerCase().includes(t) && x.closest('.app-topbar, header'));
-    b?.click();
-  }, theme);
-  await page.waitForFunction(t => document.documentElement.getAttribute('data-theme') === t, theme, { timeout: 5000 }).catch(() => {});
-  await page.waitForTimeout(450);
+  await setTheme(page, theme);
+  await page.waitForTimeout(50);
 }
 
 async function main() {

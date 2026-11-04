@@ -28,6 +28,7 @@ import './styles/app.css';
 // detail panels, context menus, and forms
 import './styles/hmi-dialogs.css';
 import './styles/cpm.css';
+import './ui/ui.css';
 import './styles/cpm-evidence.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';
