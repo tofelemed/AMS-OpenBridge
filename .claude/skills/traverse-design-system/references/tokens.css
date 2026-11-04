@@ -5,7 +5,7 @@
  * Groups marked (ext) are this skill's extension of the guide's convention; reconcile with the
  * Lead's tokens JSON when supplied.
  * Verified: scripts/contrast.py — see contrast-report.md.
- * Skill revision: R1.1 (2026-11-04) — base block no longer sets root font-size/font-family.
+ * Skill revision: R1.2 (2026-11-04) — colour only: no root font-size/font-family (R1.1), no scrollbar width/radius (R1.2).
  *
  * Usage: set data-theme="day" or data-theme="night" on the themed root (<html>).
  * Day is the initial default. Components consume tokens only.
@@ -201,9 +201,9 @@ html {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* Scrollbars follow the theme */
+/* Scrollbars follow the theme — colour only. Width and radius are geometry: keep the host
+   application's existing values (R1.2). */
 * { scrollbar-color: var(--traverse-border-strong) var(--traverse-surface-page); }
-::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--traverse-surface-page); }
-::-webkit-scrollbar-thumb { background: var(--traverse-border-strong); border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: var(--traverse-border-strong); }
 ::-webkit-scrollbar-thumb:hover { background: var(--traverse-text-muted); }

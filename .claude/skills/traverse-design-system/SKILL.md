@@ -15,7 +15,7 @@ description: >
 
 # Traverse Design System — build rules
 
-> Skill revision **R1.1** (2026-11-04). Change from R1.0: `tokens.css` and `shadcn-bridge.css` are colour-only; root font-size, font family and `--radius` moved to the optional `references/shadcn-bridge.geometry.css`. Token values are unchanged.
+> Skill revision **R1.2** (2026-11-04). R1.1: `tokens.css` and `shadcn-bridge.css` are colour-only; root font-size, font family and `--radius` moved to the optional `references/shadcn-bridge.geometry.css`. R1.2: scrollbar width and radius moved there too. Token values are unchanged since R1.0.
 
 **Every colour, surface, border, text, focus and chart value comes from the Traverse
 semantic tokens in `references/tokens.css`. No raw hex, no Tailwind palette classes
