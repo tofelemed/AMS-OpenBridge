@@ -52,8 +52,10 @@ ams-api writes them, as before.
 
 | Reader | Since | Notes |
 |---|---|---|
-| **Loop KPI stream** (`/kpis`) older than the oldest Postgres row | **CHG-102 3** | tiered; `source` per row, `degraded` if IoTDB fails. **Active only with `IotDb:Layout=v2`** (after the CHG-101 move); until then Postgres only |
-| **Verdict history summaries** (`/gates?projection=summary`) older than Postgres | **CHG-102 3** | same condition |
+| **Loop KPI stream** (`/kpis`) older than the oldest Postgres row | **CHG-102 3** | tiered; `source` per row, `degraded` if IoTDB fails. Needs `IotDb:Layout=v2`: **active on the lab since 2026-11-04**; at the plant after the CHG-101 move |
+| **Verdict history summaries** (`/gates?projection=summary`) older than Postgres | **CHG-102 3** | same condition; these windows appear in the Workbench list as "history only - use Evaluate a window to open" (IoTDB keeps summaries, not run ids) |
+
+History copied from the old layout has no per-gate statuses (it never stored them): diagnosis, severity, confidence and metrics are there, gates read UNKNOWN. Rows written after the v2 switch carry all gates.
 
 ### Still in Postgres (not IoTDB)
 
@@ -130,4 +132,5 @@ Lab-only slowness: the first open of a run (compressed hypertables; the plant's 
 - Plant check DONE 2026-11-04: raw values are 32-bit (60,000 sampled values on 14 loops, 100 % exact in FLOAT). The v2 FLOAT cast loses nothing on those loops and trace references can match; a loop that differs stays inline.
 - SME D7 (compact archive after 90 d — not built); D5 (backups carry the archive or not).
 - Consider On-Demand job parallelism 2 if several engineers evaluate at once (a burst queues; one evaluation ≈ 1.3 s).
+- **Layout v2 at the plant (activates tiered reads):** proven on the lab 2026-11-04. Full move: 28.1 M points verified, tiered reads through the API and UI. Do it inside the v2.9.0 release, because the frontend bakes the prefix at build time. Decide whether to backfill gate statuses of the last 14 d from Postgres before the switch (see section 3).
 - Lab FIC10401: Nov 2–3 is a 24 h-shifted copy of its own Nov 3–4 samples (test data for the Workbench); its evaluated evidence expires about Nov 7.

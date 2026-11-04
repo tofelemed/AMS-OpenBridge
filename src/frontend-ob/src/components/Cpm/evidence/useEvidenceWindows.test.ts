@@ -72,3 +72,10 @@ describe('navigation over options', () => {
     expect(resolveLanding(short, 'G5')).toEqual({ methodRunId: 'a', gate: 'G0' });
   });
 });
+
+it('a historian window says how to open it, not pre-v2.5 (CHG-102 Phase 3)', () => {
+  const [o] = fusedOptions([summary({ methodRunIds: {}, source: 'historian' })], NOW, 'UTC');
+  expect(o.hasRunIds).toBe(false);
+  expect(o.label).toContain('history only - use Evaluate a window to open');
+  expect(o.label).not.toContain('pre-v2.5');
+});

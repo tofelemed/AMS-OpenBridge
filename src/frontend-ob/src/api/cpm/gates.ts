@@ -100,6 +100,8 @@ export const getLatestGates = (loopId: string, windowKind = '12h', signal?: Abor
  * without run ids predates v2.5 and cannot be opened in the workbench.
  */
 export interface CpmWindowSummary {
+  /** CHG-102 Phase 3: where the row was read: `postgres`, or `historian` beyond the Postgres window (a summary, no run ids). */
+  source?: string | null;
   loopId: string;
   windowKind: string;
   windowStart: string | null;

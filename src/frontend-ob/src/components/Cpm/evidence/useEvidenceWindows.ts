@@ -42,6 +42,8 @@ export interface WindowOption {
 const age = (endIso: string, now: number) => Math.max(0, now - Date.parse(endIso));
 // CHG-065: the shared age format (verdictAge)
 const NO_IDS = ' · no run identity (pre-v2.5)';
+// CHG-102 Phase 3: older than Postgres, a verdict summary read from IoTDB: no run ids, so the window opens through Evaluate
+const HISTORIAN_NO_IDS = ' · history only - use Evaluate a window to open';
 
 export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: string): WindowOption[] {
   return rows.map(r => {
@@ -55,7 +57,7 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
     const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
     return {
       windowEnd: r.windowEnd, windowStart: r.windowStart, kind: r.windowKind, tier: 'fused',
-      label: `${windowLabel({ windowKind: r.windowKind, windowEnd: r.windowEnd }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
+      label: `${windowLabel({ windowKind: r.windowKind, windowEnd: r.windowEnd }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : r.source === 'historian' ? HISTORIAN_NO_IDS : NO_IDS}`,
       tone, ageMs: ms, sampleCount: r.sampleCount, methodRunIds: ids, hasRunIds,
       gates: (r.gates ?? []).map(g => ({ key: g.key, status: g.status, reason: g.reason })),
       flags: { observabilityFlags: r.observabilityFlags ?? [], familyDisqualifiers: r.familyDisqualifiers ?? [], insufficientEvidenceReason: r.insufficientEvidenceReason ?? null },
