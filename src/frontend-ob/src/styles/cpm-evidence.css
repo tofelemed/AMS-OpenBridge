@@ -426,3 +426,12 @@
 .cpm-step__outputs .cpm-kv__value { text-align: left; max-width: 100%; }
 .cpm-response-quantities { grid-template-columns: 1fr; }
 .cpm-table td .cpm-mono { overflow-wrap: anywhere; }
+
+/* CHG-102 5c: "Evaluate a window from the historian" (EvaluateWindow.tsx) */
+.cpm-evaluate-window { display: flex; flex-direction: column; gap: 8px; }
+.cpm-evaluate-window__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.cpm-evaluate-window__title { margin: 0; font-size: inherit; font-weight: 600; color: var(--element-active-color); }
+.cpm-evaluate-window__hint,
+.cpm-evaluate-window__range { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
+.cpm-evaluate-window__range { align-self: center; }
+.cpm-evaluate-window__status { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

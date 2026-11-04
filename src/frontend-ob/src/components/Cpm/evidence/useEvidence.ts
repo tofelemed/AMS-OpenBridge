@@ -10,10 +10,11 @@ import { loadArtifact, type DecodedArtifact } from './artifactCodec';
 import { bundledChunkFetcher } from './chunkSource';
 import { loadManifest } from './manifestBatcher';
 
-export function useMethodRun(methodRunId: string | undefined) {
+/** CHG-102 5c: `analysisRunId` = the EVALUATE run the window was opened from (its own row, not the live one). */
+export function useMethodRun(methodRunId: string | undefined, analysisRunId?: string) {
   return useQuery({
-    queryKey: ['cpm', 'method-run', methodRunId ?? ''],
-    queryFn: ({ signal }) => getMethodRun(methodRunId!, signal),
+    queryKey: ['cpm', 'method-run', methodRunId ?? '', analysisRunId ?? ''],
+    queryFn: ({ signal }) => getMethodRun(methodRunId!, signal, analysisRunId),
     enabled: !!methodRunId,
     staleTime: Infinity,                                   // immutable
   });

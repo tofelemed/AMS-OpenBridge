@@ -194,7 +194,8 @@ public sealed class EvidenceManifestReader
                     WHERE m.provenance->>'analysis_run_id' = a.analysis_run_id::text AND m.method_run_id <> @rid
                     LIMIT 1) AS rebuilt_as
             FROM analytics.analysis_run a
-            WHERE a.purpose = 'EVIDENCE_RECONSTRUCTION' AND (a.manifest->>'reconstructs' = @id OR a.analysis_run_id = ANY(@owning))
+            -- CHG-102 5c: an EVALUATE run's artifacts are historian rebuilds under the window's run ids - listed the same way
+            WHERE a.purpose IN ('EVIDENCE_RECONSTRUCTION', 'EVALUATE') AND (a.manifest->>'reconstructs' = @id OR a.analysis_run_id = ANY(@owning))
             ORDER BY a.created_at DESC
             LIMIT 5
             """, new { id = methodRunId.ToString(), rid = methodRunId, owning });

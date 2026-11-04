@@ -16,9 +16,11 @@ export const EvidenceBasisBar: React.FC<{
   onView: (analysisRunId: string | null) => void;
   /** Opens another method run in the workbench (a rebuild that landed under a new run identity). */
   onOpenRun?: (methodRunId: string) => void;
-}> = ({ manifest, view, timeZone, onView, onOpenRun }) => {
+  /** CHG-102 5c: the run on screen is an EVALUATE run (its verdict came from the evaluation, not the live engine). */
+  evaluated?: boolean;
+}> = ({ manifest, view, timeZone, onView, onOpenRun, evaluated }) => {
   if (!manifest) return null;
-  const basis = basisOf(manifest, view, timeZone);
+  const basis = basisOf(manifest, view, timeZone, evaluated);
   const newest = manifest.reconstructions?.[0];
   // nothing to switch to when the rebuild is all there is (REBUILT_LOST)
   const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST';

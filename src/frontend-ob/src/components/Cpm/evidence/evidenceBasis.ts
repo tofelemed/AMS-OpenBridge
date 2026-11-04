@@ -69,10 +69,15 @@ export function reconstructionSummary(r: EvidenceReconstruction, timeZone: strin
 }
 
 /** What the evidence on screen is, in words. */
-export function basisOf(m: EvidenceManifest | undefined, view: string | null | undefined, timeZone: string): EvidenceBasis {
+export function basisOf(m: EvidenceManifest | undefined, view: string | null | undefined, timeZone: string, evaluated = false): EvidenceBasis {
   if (!m || (m.artifacts.length === 0 && !m.reconstructions?.some(x => x.artifacts.length > 0))) return { kind: 'NONE', label: 'No arrays held', detail: 'Neither retained proof nor a reconstruction is stored for this run.', tone: 'muted' };
   const eff = effectiveView(m, view);
   const r = reconstructionOf(m, eff.id);
+  // CHG-102 5c: a window evaluated on request - the verdict on screen is the evaluation's own, not the live engine's
+  if (r && eff.auto && evaluated) {
+    return { kind: 'REBUILT_LOST', label: 'Evaluated from the historian', tone: 'warn',
+      detail: `This window was evaluated on request from the historian with the engine the live verdicts use; the verdict and the arrays shown are that evaluation's, kept 3 days. ${reconstructionSummary(r, timeZone, false)}.` };
+  }
   if (r && eff.auto) {
     return { kind: 'REBUILT_LOST', label: 'Rebuilt evidence', tone: 'warn',
       detail: `No retained proof is held for this run, so the rebuilt arrays are shown. ${reconstructionSummary(r, timeZone, false)}. Verdicts come only from the live engine; a rebuild re-creates the arrays, not the verdict.` };

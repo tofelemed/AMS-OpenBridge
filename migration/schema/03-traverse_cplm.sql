@@ -1131,3 +1131,70 @@ BEGIN
         GRANT ALL ON analytics.evidence_archive, analytics.evidence_archive_run TO ams_user;
     END IF;
 END $$;
+
+-- CHG-102 Phase 5c: on-demand EVALUATE analysis runs (database/scripts/68; plant: scripts/cpm-20).
+-- analysis_run.purpose gains EVALUATE. The inline CHECK of cpm-07 / 53_ has a generated name; every CHECK on the table
+-- that names purpose is replaced by ONE named constraint (NOT VALID, then VALIDATE: no long lock on a busy table).
+DO $$
+DECLARE c record;
+BEGIN
+    FOR c IN SELECT conname FROM pg_constraint
+             WHERE conrelid = 'analytics.analysis_run'::regclass AND contype = 'c'
+               AND pg_get_constraintdef(oid) LIKE '%purpose%'
+               AND pg_get_constraintdef(oid) NOT LIKE '%EVALUATE%'
+    LOOP
+        EXECUTE format('ALTER TABLE analytics.analysis_run DROP CONSTRAINT %I', c.conname);
+    END LOOP;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                   WHERE conrelid = 'analytics.analysis_run'::regclass AND conname = 'analysis_run_purpose_check') THEN
+        ALTER TABLE analytics.analysis_run ADD CONSTRAINT analysis_run_purpose_check
+            CHECK (purpose IN ('REPLAY', 'SHADOW', 'EVIDENCE_RECONSTRUCTION', 'EVALUATE')) NOT VALID;
+    END IF;
+END $$;
+ALTER TABLE analytics.analysis_run VALIDATE CONSTRAINT analysis_run_purpose_check;
+
+-- the reuse probe of POST EVALUATE (same loop and window: finished with evidence held, or in flight)
+CREATE INDEX IF NOT EXISTS ix_analysis_run_evaluate_window
+    ON analytics.analysis_run (lower(loop_id), requested_from_ms, requested_to_ms) WHERE purpose = 'EVALUATE';
+-- the per-user in-flight count and the timeout sweep (a handful of rows)
+CREATE INDEX IF NOT EXISTS ix_analysis_run_evaluate_open
+    ON analytics.analysis_run (created_by) WHERE purpose = 'EVALUATE' AND state IN ('QUEUED', 'RUNNING');
+
+COMMENT ON COLUMN analytics.analysis_run.purpose IS
+    'REPLAY | SHADOW | EVIDENCE_RECONSTRUCTION | EVALUATE (CHG-102 5c: one loop over one window, evaluated from the historian by the always-running on-demand Flink job; states QUEUED -> RUNNING -> FINISHED | FAILED).';
+
+-- CHG-102 Phase 5c: episodes and pins keep archived SETS past their day (database/scripts/68b; plant: scripts/cpm-20b).
+ALTER TABLE analytics.evidence_archive_run ADD COLUMN IF NOT EXISTS kept boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN analytics.evidence_archive_run.kept IS
+    'CHG-102 Phase 5c: the set outlived its day partition - its pack was moved to analytics.evidence_archive_kept (pinned, or overlapping an episode). The row stays until the keep is released.';
+
+CREATE TABLE IF NOT EXISTS analytics.evidence_archive_kept (
+    boundary_set_id uuid         PRIMARY KEY,
+    window_end      timestamptz  NOT NULL,
+    loop_id         varchar(256) NOT NULL,
+    window_kind     varchar(16)  NOT NULL,
+    codec           varchar(16)  NOT NULL,
+    artifact_count  int          NOT NULL,
+    payload_bytes   int          NOT NULL,
+    payload_sha256  text         NOT NULL,
+    payload         bytea        NOT NULL,
+    created_at      timestamptz  NOT NULL,
+    kept_reason     varchar(16)  NOT NULL CHECK (kept_reason IN ('PINNED', 'EPISODE')),
+    kept_at         timestamptz  NOT NULL DEFAULT now()
+);
+ALTER TABLE analytics.evidence_archive_kept ALTER COLUMN payload SET STORAGE EXTERNAL;
+CREATE INDEX IF NOT EXISTS ix_evidence_archive_kept_end ON analytics.evidence_archive_kept (window_end);
+COMMENT ON TABLE analytics.evidence_archive_kept IS
+    'CHG-102 Phase 5c: archived boundary sets kept past their day partition - pinned by an investigation (until unpinned) or overlapping an episode (open, or closed less than retention_policy EVIDENCE_ARCHIVE_EPISODE days ago; those rows are capped by its max_bytes, oldest first). Same columns as analytics.evidence_archive; moved there by cplm-api just before the partition is dropped.';
+
+-- days after the episode closes (NULL = while the episode row exists, 0 = episodes keep nothing); max_bytes caps the episode-kept packs
+INSERT INTO analytics.retention_policy (record_class, days, max_bytes) VALUES ('EVIDENCE_ARCHIVE_EPISODE', 30, 4294967296)
+    ON CONFLICT (record_class) DO NOTHING;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ams_user') THEN
+        ALTER TABLE analytics.evidence_archive_kept OWNER TO ams_user;
+        GRANT ALL ON analytics.evidence_archive_kept TO ams_user;
+    END IF;
+END $$;

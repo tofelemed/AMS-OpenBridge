@@ -75,6 +75,10 @@ $ensureTopics = @(
     @{ Name = "traverse.cpa.clpm.condition.v1"; Partitions = 8; Config = "retention.ms=$retentionMs,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # v2.5 (Task 1G.3): evidence manifests + chunks (<= 256 KiB gzip, base64 in JSON), keyed by method_run_id; 6 h (plant floor, 2026-09-25).
     @{ Name = "traverse.cpa.clpm.gate.evidence.v1"; Partitions = 8; Config = "retention.ms=21600000,segment.ms=$segmentMs,cleanup.policy=delete,max.message.bytes=1048576,min.insync.replicas=$minIsr" },
+    # CHG-102 5c: on-demand evaluation requests (cplm-api -> CplmOnDemandEvaluationJob, keyed by loop_id) and their
+    # RUNNING / SUCCEEDED / FAILED status (keyed by analysis_run_id); requests 1 d, status 3 d, delete - as migration/kafka/topics.txt.
+    @{ Name = "traverse.cpa.clpm.evaluation.requests.v1"; Partitions = 4; Config = "retention.ms=86400000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
+    @{ Name = "traverse.cpa.clpm.evaluation.status.v1"; Partitions = 2; Config = "retention.ms=259200000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # v2.5 (Task 2B.1): G12 response results (one record per captured event), keyed by loop_id; 3 d.
     @{ Name = "traverse.cpa.clpm.response.results.v1"; Partitions = 8; Config = "retention.ms=259200000,segment.ms=$segmentMs,cleanup.policy=delete,min.insync.replicas=$minIsr" },
     # v2.5 (Task 1H.2): Instrumental NE107 health observations (gateway-wrapped, keyed by device_id; 3 d) and their DLQ.

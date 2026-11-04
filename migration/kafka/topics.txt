@@ -29,6 +29,9 @@ traverse.cpa.clpm.gate.results.v1	8	delete	259200000	lz4	traverse.cpa.clpm.gate.
 traverse.cpa.clpm.condition.v1	8	delete	86400000	-	traverse.cpa.clpm.condition.v1
 traverse.cpa.clpm.gate.evidence.v1	8	delete	3600000	-	traverse.cpa.clpm.gate.evidence.v1
 traverse.cpa.clpm.response.results.v1	8	delete	259200000	-	traverse.cpa.clpm.response.results.v1
+# CHG-102 5c: on-demand evaluation - cplm-api -> request -> the always-running Flink on-demand job -> status -> cplm-api (small; 1 d / 3 d)
+traverse.cpa.clpm.evaluation.requests.v1	4	delete	86400000	-	traverse.cpa.clpm.evaluation.requests.v1
+traverse.cpa.clpm.evaluation.status.v1	2	delete	259200000	-	traverse.cpa.clpm.evaluation.status.v1
 traverse.cpa.instrument.health.v1	8	delete	259200000	-	traverse.cpa.instrument.health.v1
 traverse.ingestion.health-dlq	2	delete	259200000	-	traverse.ingestion.health-dlq
 traverse.cpa.context.instrument-health.v1	8	compact		-	traverse.cpa.context.instrument-health.v1

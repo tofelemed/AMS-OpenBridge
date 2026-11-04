@@ -98,6 +98,12 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmRecomputeService,
     Traverse.CplmApi.Services.CplmRecomputeService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.ICplmAuditEmitter,
     Traverse.CplmApi.Services.CplmAuditEmitter>();
+// CHG-102 Phase 5c: POST /analysis-runs {purpose: EVALUATE} - a request topic read by the always-running on-demand job.
+builder.Services.Configure<Traverse.CplmApi.Services.OnDemand.EvaluationOptions>(
+    config.GetSection(Traverse.CplmApi.Services.OnDemand.EvaluationOptions.SectionName));
+builder.Services.AddSingleton<Traverse.CplmApi.Services.OnDemand.IEvaluationRequestPublisher,
+    Traverse.CplmApi.Services.OnDemand.KafkaEvaluationRequestPublisher>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.OnDemand.EvaluationService>();
 
 // ── CPLM write path (Phase 4 — the hard cutover) ───────────────────────────
 // Both consumers use the SAME group ids as their AMS.Api originals so committed
@@ -187,6 +193,9 @@ if (config.GetValue("Cplm:ConsumersEnabled", false))
     // (Cplm:EvidenceArchive options are bound above, for the read side as well - CHG-102 Phase 5b-2)
     builder.Services.AddSingleton<Traverse.CplmApi.Services.EvidenceArchiveStats>();
     builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.EvidenceArchiveJob>();
+    // CHG-102 Phase 5c: the on-demand job's status records -> analytics.analysis_run (own group, single member;
+    // Cplm:OnDemand:Enabled=false leaves it idle).
+    builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.EvaluationStatusConsumerService>();
 }
 
 // CHG-032: shelves end when their expiry passes (SHELVED -> EXPIRED once a minute), consumers or not.

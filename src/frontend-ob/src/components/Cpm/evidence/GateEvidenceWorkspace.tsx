@@ -14,6 +14,7 @@ import { useCpmLoops, useCpmResolutions, useGateCatalogue } from '../../../hooks
 import { useCpmScope } from '../plantScope';
 import { PROFILE_SECONDS } from '../windows/windowMath';
 import { EvidenceToolbar, type WindowKindOption } from './EvidenceToolbar';
+import { EvaluateWindow } from './EvaluateWindow';
 import { EvidenceHeaderStrip } from './EvidenceHeaderStrip';
 import { GateChipStrip, chipsOf } from './GateChipStrip';
 import { VerdictCard, WindowFlags } from './VerdictCard';
@@ -57,7 +58,9 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const loops = useCpmLoops();
   const resolutions = useCpmResolutions();
   const catalogue = useGateCatalogue();
-  const run = useMethodRun(selection?.methodRunId);
+  // CHG-102 5c: ?analysisRun= names the EVALUATE run the window was opened from (its own verdict, not the live row)
+  const analysisRunParam = params.get('analysisRun')?.trim() || undefined;
+  const run = useMethodRun(selection?.methodRunId, analysisRunParam);
   const reconstruct = useReconstruct(selection?.methodRunId);
   // A reconstruction lands in ~20 s at the plant; poll while one is pending so the charts appear by themselves
   // (the hook stops polling once readiness is COMPLETE). Without a pending request the manifest is not polled.
@@ -101,10 +104,11 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const windows = useEvidenceWindows(loopId, kind, tier, timeZone, before);
 
   /** Navigate to a run, keeping the scope / kind / before params (push = a history entry; replace = the automatic landing). */
-  const goTo = useCallback((methodRunId: string, gate: string, replace = false) => {
+  const goTo = useCallback((methodRunId: string, gate: string, replace = false, analysisRun?: string | null) => {
     const p = new URLSearchParams(params);
     p.set('loop', loopId ?? ''); p.set('methodRun', methodRunId); p.set('gate', gate); p.set('mode', selection?.mode ?? 'FIXED');
     if (kindParam) p.set('kind', kindParam);
+    if (analysisRun === null) p.delete('analysisRun'); else if (analysisRun) p.set('analysisRun', analysisRun);   // undefined = keep (same window)
     navigate(`?${p.toString()}`, { replace });
   }, [params, loopId, selection?.mode, kindParam, navigate]);
 
@@ -112,16 +116,22 @@ export const GateEvidenceWorkspace: React.FC = () => {
   useEffect(() => {
     if (selection || !loopId || windows.isLoading || windows.options.length === 0) return;
     const target = resolveLanding(windows.options, wantedGate);
-    if (target) goTo(target.methodRunId, target.gate, true);
+    if (target) goTo(target.methodRunId, target.gate, true, null);
   }, [selection, loopId, windows.isLoading, windows.options, wantedGate, goTo]);
 
   const optionIndex = findOptionOfRun(windows.options, selection?.methodRunId);
   const currentOption: WindowOption | undefined = optionIndex >= 0 ? windows.options[optionIndex] : undefined;
   const nav = neighbours(windows.options, optionIndex);
+  // CHG-102 5c: an evaluated window opens on the gate being looked at (its run of that window), else on the fused G15
+  const openEvaluated = useCallback((verdict: string, ids: Record<string, string>, analysisRunId: string) => {
+    const gate = selection?.gate && ids[selection.gate] ? selection.gate : 'G15';
+    goTo(ids[gate] ?? verdict, gate, false, analysisRunId);
+  }, [selection?.gate, goTo]);
+
   const openWindow = (w: WindowOption | null) => {
     if (!w || !selection) return;
     const t = runInWindow(w, selection.gate);
-    if (t) goTo(t.methodRunId, t.gate);
+    if (t) goTo(t.methodRunId, t.gate, false, null);
   };
 
   const entry = catalogue.data?.gates.find(g => g.gate === selection?.gate);
@@ -157,12 +167,15 @@ export const GateEvidenceWorkspace: React.FC = () => {
       onWindow={openWindow}
       onJump={iso => setParams(p => { p.set('before', iso); return p; }, { replace: true })} />
   );
+  // CHG-102 5c: any window the historian holds, evaluated on demand; the result opens on its fused (G15) run
+  const evaluate = loopId ? <EvaluateWindow loopId={loopId} timeZone={timeZone} kindHint={kind} onOpen={openEvaluated} /> : null;
 
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
         <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: `${kind} windows (none opened)` }} />
         {toolbar}
+        {evaluate}
         {!loopId && <EmptyState title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
         {loopId && windows.isLoading && <EmptyState title="Listing the evaluated windows…" />}
         {loopId && windows.error != null && <QueryError error={windows.error} retry={windows.refetch} />}
@@ -185,6 +198,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <SelectionSummary summary={loopId && currentOption
         ? `${loop?.loopId ?? loopId} · ${currentOption.label}` : null}>
         {toolbar}
+        {evaluate}
       </SelectionSummary>
       <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}
         readiness={manifest.data?.readiness}
@@ -192,7 +206,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
           newest: windows.options[0] ? () => openWindow(windows.options[0]) : null, atNewest: optionIndex === 0, inList: optionIndex >= 0 }}
         reconstruct={run.data?.reconstruction.supported ? { onClick: () => reconstruct.mutate(), busy: reconstruct.isPending } : undefined} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
-        onOpenRun={id => goTo(id, selection.gate)} />
+        evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
       {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
         <main className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>

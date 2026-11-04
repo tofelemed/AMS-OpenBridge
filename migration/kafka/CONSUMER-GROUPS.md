@@ -9,6 +9,7 @@ Code now uses these names (Phase 5). Prefixes avoid Instrumental `instrument-*-s
 | `traverse-cpa-flink-cplm-live-rbe` | `traverse.cpa.loop.samples.v1` | `LoopLiveRbeJob` (appends `-live-rbe` to the base id) |
 | `traverse-cpa-cplm-results` | short + long + gate | `cplm-api` — **exactly one member** |
 | `traverse-cpa-cplm-results-frames` | gate results | `cplm-api` — **exactly one member** |
+| `traverse-cpa-evaluation-status` | `traverse.cpa.clpm.evaluation.status.v1` | `cplm-api` `EvaluationStatusConsumerService` (CHG-102 5c, `Cplm:OnDemand:ConsumerGroupId`) — **exactly one member** |
 | `traverse-cpa-iotdb-raw-loop` | `traverse.cpa.loop.samples.v1` | slim `ams-api` `RawLoopIotDbConsumer` |
 | `traverse-sparkplug-edge` | `traverse.cpa.live.loop.metrics`, `traverse.alarm.live.alarms`, `traverse.live.metrics` | `ams-sparkplug-edge-node` (container name unchanged) |
 | `traverse-cpa-audit` | `traverse.cpa.audit-events` | `audit-service` |

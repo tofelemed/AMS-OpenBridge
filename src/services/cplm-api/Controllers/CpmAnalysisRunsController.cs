@@ -12,22 +12,31 @@ namespace Traverse.CplmApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/cpm/analysis-runs")]
-public sealed class CpmAnalysisRunsController : ControllerBase
+public sealed partial class CpmAnalysisRunsController : ControllerBase
 {
     /// <param name="Source">kafka (default: the retained samples topic) | iotdb (the historian between FromMs and ToMs).</param>
     /// <param name="Source">kafka (default: the retained samples topic) | iotdb (the historian between FromMs and ToMs).</param>
     /// <param name="MethodRunId">EVIDENCE_RECONSTRUCTION only (2C.2): the run whose evidence is rebuilt over exactly its support.</param>
+    /// <param name="WindowKind">EVALUATE only (CHG-102 5c): 4h | 12h | 24h, default 12h.</param>
+    /// <param name="EndMs">EVALUATE only: the window end (epoch ms), default now floored to 15 min.</param>
     public sealed record CreateRequest(string? LoopId, string? Purpose, bool? HasStepTest, bool? HasPeerLinks,
-        string? Source = null, long? FromMs = null, long? ToMs = null, Guid? MethodRunId = null);
+        string? Source = null, long? FromMs = null, long? ToMs = null, Guid? MethodRunId = null,
+        string? WindowKind = null, long? EndMs = null);
 
     private readonly ICplmRecomputeService _recompute;
     private readonly ICpmLoopRegistryService _registry;
     private readonly MethodRunResolver _resolver;
     private readonly ILogger<CpmAnalysisRunsController> _logger;
+    private readonly Traverse.CplmApi.Services.OnDemand.EvaluationService _evaluation;
+    private readonly int _historianRetentionDays;
 
     public CpmAnalysisRunsController(ICplmRecomputeService recompute, ICpmLoopRegistryService registry,
-        MethodRunResolver resolver, ILogger<CpmAnalysisRunsController> logger)
+        MethodRunResolver resolver, ILogger<CpmAnalysisRunsController> logger,
+        Traverse.CplmApi.Services.OnDemand.EvaluationService evaluation,
+        Microsoft.Extensions.Options.IOptions<EvidenceArchiveOptions> archive)
     {
+        _evaluation = evaluation;
+        _historianRetentionDays = archive.Value.HistorianRetentionDays;
         _recompute = recompute;
         _registry = registry;
         _resolver = resolver;
@@ -39,9 +48,10 @@ public sealed class CpmAnalysisRunsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateRequest req, CancellationToken ct)
     {
         var purpose = (req.Purpose ?? "REPLAY").Trim().ToUpperInvariant();
-        if (purpose is not ("REPLAY" or "SHADOW" or "EVIDENCE_RECONSTRUCTION"))
-            return BadRequest(new { error = $"Unknown purpose '{req.Purpose}'", allowed = new[] { "REPLAY", "SHADOW", "EVIDENCE_RECONSTRUCTION" } });
+        if (purpose is not ("REPLAY" or "SHADOW" or "EVIDENCE_RECONSTRUCTION" or "EVALUATE"))
+            return BadRequest(new { error = $"Unknown purpose '{req.Purpose}'", allowed = new[] { "REPLAY", "SHADOW", "EVIDENCE_RECONSTRUCTION", "EVALUATE" } });
         if (purpose == "EVIDENCE_RECONSTRUCTION") return await Reconstruct(req, ct);
+        if (purpose == "EVALUATE") return await Evaluate(req, ct);
         if (string.IsNullOrWhiteSpace(req.LoopId)) return BadRequest(new { error = "loopId is required" });
         var loop = await _registry.GetAsync(req.LoopId, ct);
         if (loop is null) return NotFound(new { error = $"Loop '{req.LoopId}' is not registered" });
@@ -137,6 +147,13 @@ public sealed class CpmAnalysisRunsController : ControllerBase
     [Authorize(Policy = "analytics.view")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
+        // CHG-102 5c: an EVALUATE run has its own body (window, method runs, verdict evidence url)
+        if (await _evaluation.ReadAsync(id, ct) is { } evaluation)
+        {
+            var site = (await _registry.GetAsync(evaluation.LoopId, ct))?.Site;
+            if (!SiteScope.Allows(Request, site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(site));
+            return Ok(Traverse.CplmApi.Services.OnDemand.EvaluationService.View(evaluation));
+        }
         var run = await _recompute.GetAnalysisRunAsync(id, ct);
         return run is null ? NotFound(new { error = $"No analysis run {id}" }) : Ok(run);
     }

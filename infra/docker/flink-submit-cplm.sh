@@ -148,9 +148,20 @@ submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   "${EVIDENCE_CLOCK[@]}" \
   --job-name "AMS - CPLM Gate Fusion Engine"
 
+# CHG-102 5c: on-demand evaluation (cplm-api purpose=EVALUATE); IoTDB credentials from the TaskManager's env.
+submit_if_missing "AMS - CPLM On-Demand Evaluation" \
+  com.ams.flink.cplm.CplmOnDemandEvaluationJob \
+  --bootstrap.servers "${KAFKA_BROKERS}" \
+  --request-topic "${CPLM_EVALUATION_REQUEST_TOPIC:-traverse.cpa.clpm.evaluation.requests.v1}" \
+  --status-topic "${CPLM_EVALUATION_STATUS_TOPIC:-traverse.cpa.clpm.evaluation.status.v1}" \
+  --output-topic "${OUTPUT_TOPIC}" \
+  --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}" \
+  --iotdb-host "${IOTDB_HOST:-iotdb}" --iotdb-port "${IOTDB_PORT:-6667}" \
+  --iotdb-root-prefix "${LOOP_ROOT_PREFIX:-root.site1.cpm}"
+
 sleep 5
 fail=0
-for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Condition Engine" "AMS - CPLM Instrument Context Engine" "AMS - CPLM Response Engine" "AMS - CPLM Gate Fusion Engine"; do
+for name in "AMS - CPLM Short Feature Engine" "AMS - CPLM Long Diagnostics Engine" "AMS - CPLM Condition Engine" "AMS - CPLM Instrument Context Engine" "AMS - CPLM Response Engine" "AMS - CPLM Gate Fusion Engine" "AMS - CPLM On-Demand Evaluation"; do
   if job_running "$name"; then
     echo "[CPLM Submit] OK: '${name}' RUNNING."
   else

@@ -112,8 +112,9 @@ export const getAnalysisRun = (analysisRunId: string, signal?: AbortSignal) =>
   apiJson<{ analysisRunId: string; state: string; jobState?: string | null; error?: string | null }>(
     `${CPM_BASE}/analysis-runs/${encodeURIComponent(analysisRunId)}`, { signal });
 
-export const getMethodRun = (methodRunId: string, signal?: AbortSignal) =>
-  apiJson<MethodRun>(`${CPM_BASE}/method-runs/${encodeURIComponent(methodRunId)}`, { signal });
+/** CHG-102 5c: `analysisRunId` opens the row that EVALUATE run wrote even where the live engine holds the same window. */
+export const getMethodRun = (methodRunId: string, signal?: AbortSignal, analysisRunId?: string) =>
+  apiJson<MethodRun>(`${CPM_BASE}/method-runs/${encodeURIComponent(methodRunId)}${analysisRunId ? `?analysisRun=${encodeURIComponent(analysisRunId)}` : ''}`, { signal });
 
 export const getEvidenceManifest = (methodRunId: string, signal?: AbortSignal) =>
   apiJson<EvidenceManifest>(`${CPM_BASE}/method-runs/${encodeURIComponent(methodRunId)}/evidence`, { signal });

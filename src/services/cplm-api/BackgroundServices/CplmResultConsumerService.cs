@@ -280,8 +280,21 @@ public sealed class CplmResultConsumerService : BackgroundService
         // CHG-066: absent / null confidence is stored NULL (was 0.0, shown as "evidence score 0")
         cmd.Parameters.AddWithValue("confidence", GetDoubleOrNull(root, "confidence"));
         cmd.Parameters.Add(new NpgsqlParameter("payload", NpgsqlDbType.Jsonb) { Value = json });
-        cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
+        cmd.Parameters.AddWithValue("source", ResultSource(GetString(root, "purpose"), GetString(root, "calculation_source")));
         AddIdentityParameters(cmd, root);
+    }
+
+    /// <summary>
+    /// CHG-102 5c: the upsert key is (loop, window kind, window end, source, bundle) and the update overwrites purpose, so a
+    /// non-LIVE result under the streaming source "flink" would REPLACE the live verdict of the same window (an on-demand
+    /// EVALUATE of the newest 12 h window names exactly that window). Such a row gets its own source; LIVE is untouched.
+    /// </summary>
+    public static string ResultSource(string? purpose, string? calculationSource)
+    {
+        var source = string.IsNullOrWhiteSpace(calculationSource) ? "flink" : calculationSource;
+        var p = string.IsNullOrWhiteSpace(purpose) ? "LIVE" : purpose.Trim().ToUpperInvariant();
+        if (p == "LIVE" || source != "flink") return source;
+        return p == "EVALUATE" ? "flink-on-demand-evaluation" : "flink-" + p.ToLowerInvariant().Replace('_', '-');
     }
 
     /// <summary>v2.5 (1G.3): the run identity every result carries (pre-v2.5 payloads: legacy defaults).</summary>
@@ -353,7 +366,7 @@ public sealed class CplmResultConsumerService : BackgroundService
         // "flink", so an A8 recompute overwrote streaming KPI rows in place with
         // no trace, and /gates returned the same windowEnd twice (different
         // sources) while the feature tables could not represent that at all.
-        cmd.Parameters.AddWithValue("source", GetString(root, "calculation_source") ?? "flink");
+        cmd.Parameters.AddWithValue("source", ResultSource(GetString(root, "purpose"), GetString(root, "calculation_source")));
         AddIdentityParameters(cmd, root);
         await cmd.ExecuteNonQueryAsync(ct);
 

@@ -29,4 +29,10 @@ public final class CplmTopics {
     public static final String RESPONSE_RESULTS = "traverse.cpa.clpm.response.results.v1";
     public static final String GATE_CONFIG = "traverse.cpa.context.gate-config.v1";
     public static final String GATE_CONFIG_ACKS = "traverse.cpa.context.gate-config.acks.v1";
+
+    // ── CHG-102 5c: on-demand evaluation (cplm-api POST analysis-runs purpose=EVALUATE -> the always-running job) ──
+    /** Requests, keyed by loop_id (schema cplm.evaluation.request.v1). */
+    public static final String EVALUATION_REQUESTS = "traverse.cpa.clpm.evaluation.requests.v1";
+    /** RUNNING / SUCCEEDED / FAILED per request, keyed by analysis_run_id (schema cplm.evaluation.status.v1). */
+    public static final String EVALUATION_STATUS = "traverse.cpa.clpm.evaluation.status.v1";
 }

@@ -191,6 +191,22 @@ CORE_JOBS = CORE_JOBS + (
         entry_class="com.ams.flink.cplm.CplmGateFusionStreamJob",
         extra_args=_CPLM_COMMON_ARGS + _CPLM_EVIDENCE_CLOCK_ARGS + ("--job-name", "AMS - CPLM Gate Fusion Engine"),
     ),
+    # CHG-102 5c: on-demand evaluation (cplm-api purpose=EVALUATE) - standing job on the request topic. IoTDB
+    # credentials come from the TaskManager's env (IOTDB_USER / IOTDB_PASS); a request names its device.
+    FlinkJobSpec(
+        name="AMS - CPLM On-Demand Evaluation",
+        entry_class="com.ams.flink.cplm.CplmOnDemandEvaluationJob",
+        extra_args=(
+            "--bootstrap.servers", KAFKA_BROKERS,
+            "--request-topic", "traverse.cpa.clpm.evaluation.requests.v1",
+            "--status-topic", "traverse.cpa.clpm.evaluation.status.v1",
+            "--output-topic", "traverse.cpa.clpm.gate.results.v1",
+            "--evidence-topic", "traverse.cpa.clpm.gate.evidence.v1",
+            "--iotdb-host", IOTDB_HOST,
+            "--iotdb-port", IOTDB_PORT,
+            "--iotdb-root-prefix", os.getenv("LOOP_ROOT_PREFIX", "root.site1.cpm"),
+        ),
+    ),
     # Phase 6.1 - live loop metrics. --live-topic is passed explicitly, though the
     # compiled default now matches it; it used to be mandatory because the default
     # was traverse.live.metrics, which already carries LiveStateJob's alarm payload.

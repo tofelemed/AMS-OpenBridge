@@ -38,7 +38,7 @@ import java.util.List;
  */
 public final class CplmHistoricalReplayJob {
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final long EVALUATION_PERIOD_MS = 5_000L;
+    static final long EVALUATION_PERIOD_MS = 5_000L;
 
     private CplmHistoricalReplayJob() {
     }
@@ -63,7 +63,7 @@ public final class CplmHistoricalReplayJob {
     }
 
     /** The first non-empty value among {@code names} in {@code env}, else {@code fallback}. */
-    static String envFirst(java.util.Map<String, String> env, String fallback, String... names) {
+    public static String envFirst(java.util.Map<String, String> env, String fallback, String... names) {
         for (String n : names) {
             String v = env.get(n);
             if (v != null && !v.isEmpty()) return v;
@@ -239,35 +239,9 @@ public final class CplmHistoricalReplayJob {
             boolean hasPeerLinks,
             CplmDynamicsParameterSetSupport.Lookup lookup,
             com.ams.flink.cplm.replay.BoundedBundle bundle) {
-        // audit-jobs.md C-F7: the grid was hardcoded to 5 s regardless of the
-        // loop's real publish rate — a 1 s loop was decimated 5:1 and a 30 s loop
-        // up-sampled 6:1 (inflating sample_count/completeness, depressing stds),
-        // so a recompute was computed on a different sample set than streaming by
-        // construction. Use the window's own median inter-sample period, clamped
-        // to a sane band, with the design default as fallback.
-        long periodMs = medianPeriodMs(samples, EVALUATION_PERIOD_MS);
-        List<CplmNormalizedSample> evaluationSamples = materializeEvaluationSamples(
-                samples, windowStart, windowEnd, periodMs);
-        CplmNormalizedSample first = evaluationSamples.isEmpty()
-                ? null : evaluationSamples.get(0);
-        CplmLoopDynamicsProfile profile = CplmDynamicsParameterSetSupport.resolve(
-                first == null ? null : first.loopId,
-                first == null ? null : first.loopType,
-                first == null ? null : first.assetUuid,
-                lookup);
-        if (bundle != null) profile = bundle.apply(profile);
-        for (CplmNormalizedSample s : evaluationSamples) s.resolvedProfile = profile;
-        CplmGateResult result = CplmGateFusionEngine.fuseFromSamples(
-                evaluationSamples, windowStart, windowEnd, "24h", hasStepTest, hasPeerLinks, profile);
-        // audit-jobs.md C-F1: streaming caps a single-window SUSPECTED/CONFIRMED
-        // at DETECTED/0.54 unless 2-of-3 prior windows agree; this batch path
-        // skipped applyPersistence, so a recompute could return CONFIRMED at 0.95
-        // for a window streaming would have published at 0.54 — directly
-        // contradicting the recompute contract ("matches the streamed one").
-        // Batch has no window history, which is exactly a first-seen family:
-        // apply persistence with an empty history so the same cap applies.
-        CplmGateFusionEngine.applyPersistence(result, new ArrayList<>(), profile);
-        return result;
+        // audit-jobs.md C-F7 (median-period grid) and C-F1 (persistence with an empty history) - both live in
+        // WindowEvaluation now (CHG-102 5c), which the on-demand evaluation job shares so the two never drift.
+        return WindowEvaluation.evaluate(samples, windowStart, windowEnd, "24h", hasStepTest, hasPeerLinks, lookup, bundle).fused;
     }
 
     /** Median inter-sample gap of the source events, clamped to [1 s, 60 s]. */
@@ -358,12 +332,24 @@ public final class CplmHistoricalReplayJob {
             String purpose,
             String analysisRunId,
             boolean historianAssumed) throws Exception {
+        return withLineage(result, replayId, inputTopic, purpose, analysisRunId, historianAssumed, "flink-historical-replay");
+    }
+
+    /** The replay lineage on a fused result; CHG-102 5c: the on-demand evaluation job stamps its own calculation_source. */
+    public static String withLineage(
+            CplmGateResult result,
+            String replayId,
+            String inputTopic,
+            String purpose,
+            String analysisRunId,
+            boolean historianAssumed,
+            String calculationSource) throws Exception {
         if (historianAssumed && !result.observabilityFlags.contains(com.ams.flink.cplm.replay.IotDbBoundedSource.OBSERVABILITY_FLAG)) {
             result.observabilityFlags.add(com.ams.flink.cplm.replay.IotDbBoundedSource.OBSERVABILITY_FLAG);
         }
         ObjectNode root = (ObjectNode) MAPPER.readTree(result.toJson());
         root.put("replay_id", replayId);
-        root.put("calculation_source", "flink-historical-replay");
+        root.put("calculation_source", calculationSource);
         root.put("replay_input_topic", inputTopic);
         root.put("purpose", purpose == null || purpose.isEmpty() ? "REPLAY" : purpose);
         if (analysisRunId == null || analysisRunId.isEmpty()) root.putNull("analysis_run_id");

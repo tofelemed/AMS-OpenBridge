@@ -54,6 +54,9 @@ public sealed class MethodRunResolver
     /// The row of a result table that carries the run. The containment probe runs in a MATERIALIZED CTE so the
     /// planner answers it from the GIN index; with the probe inline under ORDER BY created_at LIMIT 1 it walked
     /// the created_at index and filtered every row of every chunk on a miss (and most probes miss).
+    /// CHG-102 5c: the LIVE row first - an EVALUATE (or REPLAY) of the same window under the same configuration carries
+    /// the same run ids, and the operator's verdict is the live one; the historian rebuild is listed as a reconstruction.
+    /// An explicit analysis run (@arun, the workbench opened from "Evaluate a window") puts that run's own row first.
     /// </summary>
     public static string LookupSql(string table) => $"""
         WITH hits AS MATERIALIZED (
@@ -64,17 +67,21 @@ public sealed class MethodRunResolver
                r.method_run_ids::text AS method_run_ids, r.bundle_hash, r.context_revision, r.result_revision, r.purpose, r.analysis_run_id,
                r.source_commit, r.jar_sha256, r.dataset_hash, r.source, l.site
         FROM hits r LEFT JOIN cpm.loop_registry l ON l.loop_id = r.loop_id
-        ORDER BY r.created_at DESC LIMIT 1
+        ORDER BY (r.analysis_run_id IS NOT DISTINCT FROM CAST(@arun AS uuid) AND CAST(@arun AS uuid) IS NOT NULL) DESC,
+                 (r.purpose = 'LIVE') DESC, r.created_at DESC LIMIT 1
         """;
 
-    public async Task<MethodRunLocation?> ResolveAsync(Guid id, CancellationToken ct)
+    public Task<MethodRunLocation?> ResolveAsync(Guid id, CancellationToken ct) => ResolveAsync(id, null, ct);
+
+    /// <summary>As above; <paramref name="analysisRunId"/> = prefer the row that analysis run wrote (CHG-102 5c EVALUATE).</summary>
+    public async Task<MethodRunLocation?> ResolveAsync(Guid id, Guid? analysisRunId, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
         var fromEvent = await ResolveEventAsync(conn, id);
         if (fromEvent is not null) return fromEvent;
         foreach (var (tier, table) in ProbeOrder.Where(p => p.tier != "response"))
         {
-            var row = await conn.QueryFirstOrDefaultAsync(LookupSql(table), new { id });
+            var row = await conn.QueryFirstOrDefaultAsync(LookupSql(table), new { id, arun = analysisRunId });
             if (row is null) continue;
             var gate = GateOf((string)row.method_run_ids, id) ?? "";
             return new MethodRunLocation(tier, gate,

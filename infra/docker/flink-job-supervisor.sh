@@ -4,7 +4,7 @@
 # The one-shot flink-submit-* containers are restart:"no": after a JobManager
 # restart or a Docker daemon bounce (twice on 2026-08-05 alone) every job is
 # gone and nothing brings them back — there is no JM HA. This container loops
-# forever, re-submitting any of the TEN standing jobs that is not RUNNING.
+# forever, re-submitting any of the standing jobs that is not RUNNING.
 #
 # Keep this list in step with scripts/ensure_flink_jobs.py CORE_JOBS — the two
 # drifted once already (AnalysisExecutionJob existed only in the Python script,
@@ -143,6 +143,16 @@ ensure_all() {
     --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}"
   submit_if_missing "AMS - CPLM Gate Fusion Engine" com.ams.flink.cplm.CplmGateFusionStreamJob \
     "${CPLM_ARGS[@]}" "${EVIDENCE_CLOCK[@]}" --job-name "AMS - CPLM Gate Fusion Engine"
+  # CHG-102 5c: on-demand evaluation (cplm-api purpose=EVALUATE) - one standing job instead of a BATCH job per click.
+  # IoTDB credentials come from the TaskManager's env (IOTDB_USER / IOTDB_PASS), never a program argument.
+  submit_if_missing "AMS - CPLM On-Demand Evaluation" com.ams.flink.cplm.CplmOnDemandEvaluationJob \
+    --bootstrap.servers "${KAFKA_BROKERS}" \
+    --request-topic "${CPLM_EVALUATION_REQUEST_TOPIC:-traverse.cpa.clpm.evaluation.requests.v1}" \
+    --status-topic "${CPLM_EVALUATION_STATUS_TOPIC:-traverse.cpa.clpm.evaluation.status.v1}" \
+    --output-topic traverse.cpa.clpm.gate.results.v1 \
+    --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}" \
+    --iotdb-host "${IOTDB_HOST}" --iotdb-port "${IOTDB_PORT}" \
+    --iotdb-root-prefix "${LOOP_ROOT_PREFIX:-root.site1.cpm}"
   # Phase 6.1 — live loop metrics (report-by-exception) for HMI badges.
   # Decision C-A put loop metrics on their own topic rather than adding a third
   # schema to a topic that already carries two. The compiled default is now

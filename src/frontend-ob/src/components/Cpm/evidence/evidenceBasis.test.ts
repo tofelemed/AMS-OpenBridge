@@ -58,6 +58,11 @@ describe('nothing retained: the rebuild is shown, labelled (CHG-099)', () => {
   it('shows the newest reconstruction by default when no original is complete', () => {
     const m = M({ artifacts: [art('o1', 'cycle_scores', { readiness: 'EXPIRED' })], readiness: 'EXPIRED' });
     expect(basisOf(m, null, 'UTC')).toMatchObject({ kind: 'REBUILT_LOST', label: 'Rebuilt evidence' });
+    // CHG-102 5c: an evaluated window's verdict is the evaluation's own - the "live engine only" sentence would be wrong
+    const e = basisOf(m, null, 'UTC', true);
+    expect(e).toMatchObject({ kind: 'REBUILT_LOST', label: 'Evaluated from the historian' });
+    expect(e.detail).toMatch(/verdict and the arrays shown are that evaluation's/);
+    expect(e.detail).not.toMatch(/Verdicts come only from the live engine/);
     const v = viewedManifest(m, null)!;
     expect(v.artifacts.map(a => a.artifactId)).toEqual(['r1']);
     expect(v.readiness).toBe('COMPLETE');

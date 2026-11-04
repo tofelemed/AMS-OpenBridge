@@ -3,12 +3,8 @@ package com.ams.flink.cplm.replay;
 import com.ams.flink.cplm.CplmNormalizedSample;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.session.Session;
-import org.apache.iotdb.tsfile.read.common.Field;
-import org.apache.iotdb.tsfile.read.common.RowRecord;
 
-import java.util.List;
 
 /**
  * v2.5 Task 1G.4 (spec v6 R19; NR-056): a BOUNDED source that reads one loop's samples from the
@@ -26,7 +22,6 @@ public final class IotDbBoundedSource extends RichSourceFunction<CplmNormalizedS
     private static final long serialVersionUID = 1L;
     public static final String QUALITY_PROTOCOL = "HISTORIAN_ASSUMED";
     public static final String OBSERVABILITY_FLAG = "HISTORIAN_QUALITY_ASSUMED";
-    private static final long PAGE_MS = 6L * 3600 * 1000;
 
     private final String host;
     private final int port;
@@ -96,100 +91,16 @@ public final class IotDbBoundedSource extends RichSourceFunction<CplmNormalizedS
         session.open(false);
         try {
             String device = this.device != null && !this.device.isEmpty() ? this.device : devicePath(site, loopId);
-            long emitted = 0;
-            for (long pageStart = fromMs; running && pageStart < toMs; pageStart += PAGE_MS) {
-                long pageEnd = Math.min(toMs, pageStart + PAGE_MS);
-                String sql = "SELECT pv, sp, op, vp, mode FROM " + device
-                        + " WHERE time >= " + pageStart + " AND time < " + pageEnd + " ORDER BY time ASC";
-                SessionDataSet ds = session.executeQueryStatement(sql);
-                try {
-                    List<String> columns = ds.getColumnNames();   // Time, device.pv, device.sp, ...
-                    int iPv = indexOf(columns, ".pv"), iSp = indexOf(columns, ".sp"), iOp = indexOf(columns, ".op");
-                    int iVp = indexOf(columns, ".vp"), iMode = indexOf(columns, ".mode");
-                    while (running && ds.hasNext()) {
-                        RowRecord row = ds.next();
-                        List<Field> f = row.getFields();
-                        Double pv = dbl(f, iPv), sp = dbl(f, iSp), op = dbl(f, iOp);
-                        if (pv == null || sp == null || op == null) continue;   // an incomplete row is not a tuple
-                        CplmNormalizedSample s = new CplmNormalizedSample();
-                        s.loopId = loopId;
-                        s.loopType = loopType;
-                        s.eventTsMs = row.getTimestamp();
-                        s.pv = pv;
-                        s.sp = sp;
-                        s.op = op;
-                        s.vp = dbl(f, iVp);
-                        String mode = str(f, iMode);
-                        s.mode = mode == null || mode.isEmpty() ? "AUT" : mode;
-                        s.quality = "GOOD";                       // explicit assumption, see class doc
-                        s.isValid = true;
-                        stampRoles(s);
-                        synchronized (ctx.getCheckpointLock()) {
-                            ctx.collectWithTimestamp(s, s.eventTsMs);
-                        }
-                        emitted++;
-                    }
-                } finally {
-                    ds.closeOperationHandle();
+            // CHG-102 5c: the read loop is shared with the on-demand evaluation job (IotDbLoopReader)
+            long emitted = new IotDbLoopReader(device, loopId, loopType, fromMs, toMs).read(IotDbLoopReader.session(session), s -> {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collectWithTimestamp(s, s.eventTsMs);
                 }
-            }
+            }, () -> running, Long.MAX_VALUE);
             System.out.println("IOTDB_SOURCE_DONE loop=" + loopId + " from=" + fromMs + " to=" + toMs + " emitted=" + emitted);
         } finally {
             session.close();
         }
-    }
-
-    private static void stampRoles(CplmNormalizedSample s) {
-        for (String role : new String[]{"pv", "sp", "op", "vp", "mode"}) {
-            if ("vp".equals(role) && s.vp == null) continue;
-            com.ams.flink.cplm.contract.RoleObservation r = new com.ams.flink.cplm.contract.RoleObservation();
-            r.role = role;
-            switch (role) {
-                case "pv": r.value = s.pv; break;
-                case "sp": r.value = s.sp; break;
-                case "op": r.value = s.op; break;
-                case "vp": r.value = s.vp; break;
-                default: r.stringValue = s.mode; r.modeNative = s.mode; break;
-            }
-            r.sampleTsMs = s.eventTsMs;
-            r.verifiedTsMs = s.eventTsMs;
-            r.quality = "GOOD";
-            r.qualityNative = QUALITY_PROTOCOL;       // the assumption is written where the native word would be
-            r.provenance = "HISTORIAN";
-            r.held = false;
-            r.ageMs = 0;
-            s.roles.put(role, r);
-        }
-    }
-
-    private static int indexOf(List<String> columns, String suffix) {
-        for (int i = 0; i < columns.size(); i++) if (columns.get(i).endsWith(suffix)) return i - 1;   // fields exclude Time
-        return -1;
-    }
-
-    private static Double dbl(List<Field> f, int i) {
-        if (i < 0 || i >= f.size()) return null;
-        Field x = f.get(i);
-        if (x == null || x.getDataType() == null) return null;
-        try {
-            switch (x.getDataType()) {
-                case DOUBLE: return x.getDoubleV();
-                case FLOAT: return (double) x.getFloatV();
-                case INT32: return (double) x.getIntV();
-                case INT64: return (double) x.getLongV();
-                case TEXT: return Double.parseDouble(x.getStringValue());
-                default: return null;
-            }
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static String str(List<Field> f, int i) {
-        if (i < 0 || i >= f.size()) return null;
-        Field x = f.get(i);
-        if (x == null || x.getDataType() == null) return null;
-        return x.getStringValue();
     }
 
     @Override

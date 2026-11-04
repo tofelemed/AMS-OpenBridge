@@ -5,7 +5,9 @@ using Npgsql;
 namespace Traverse.CplmApi.Services;
 
 /// <summary>What one archive retention pass did.</summary>
-public sealed record ArchiveRetentionResult(int Created, int DroppedByAge, int DroppedByBytes, int KeptPinned, long BytesAfter);
+/// <summary>KeptPinned = whole days kept past retention (cpm-19 behaviour, without cpm-20b); Keep = the per-set keep (cpm-20b), else null.</summary>
+public sealed record ArchiveRetentionResult(int Created, int DroppedByAge, int DroppedByBytes, int KeptPinned, long BytesAfter,
+    ArchiveKeepResult? Keep = null);
 
 /// <summary>
 /// CHG-102 Phase 5b-1 — the day partitions of analytics.evidence_archive (<c>evidence_archive_pYYYYMMDD</c>, UTC days of
@@ -13,7 +15,10 @@ public sealed record ArchiveRetentionResult(int Created, int DroppedByAge, int D
 /// Retention (retention_policy EVIDENCE_ARCHIVE): DROP every partition whose day ended more than <c>days</c> ago; then,
 /// while the partitions together exceed <c>max_bytes</c>, DROP the oldest one (never today's or a future day's). A
 /// partition holding evidence an investigation pins (investigation_reference.pinned, by evidence id or method run id) is
-/// never dropped, by age or by bytes. The run rows of a dropped day go in the same transaction. NULL days = keep forever,
+/// never dropped, by age or by bytes - unless cpm-20b is applied: then only the sets that must outlive the day (pinned, or
+/// overlapping an episode) are moved to analytics.evidence_archive_kept in the drop's transaction and the day is dropped
+/// (<see cref="EvidenceArchiveKeep"/>, CHG-102 Phase 5c). The run rows of a dropped day go in the same transaction (a
+/// kept set's run row stays). NULL days = keep forever,
 /// NULL max_bytes = no cap; a missing row = the defaults (30 d, 12 GiB).
 /// </summary>
 public static class EvidenceArchiveRetention
@@ -97,6 +102,9 @@ public static class EvidenceArchiveRetention
             if (await EnsureDayAsync(conn, today.AddDays(i), lockTimeoutSeconds, ct)) created++;
 
         var (days, maxBytes) = await PolicyAsync(conn);
+        var keep = await EvidenceArchiveKeep.InstalledAsync(conn);
+        int? episodeDays = keep ? (await EvidenceArchiveKeep.PolicyAsync(conn)).Days : null;
+        var moved = 0;
         var existing = await ExistingDaysAsync(conn);
         int byAge = 0, byBytes = 0, pinned = 0;
         var keptPinned = new HashSet<DateOnly>();
@@ -105,8 +113,8 @@ public static class EvidenceArchiveRetention
             var cutoff = today.AddDays(-Math.Max(1, d));                 // a day whose end (day + 1) is at or before the cutoff
             foreach (var day in existing.Where(x => x.AddDays(1) <= cutoff).ToList())
             {
-                if (await IsPinnedAsync(conn, day)) { keptPinned.Add(day); continue; }
-                await DropAsync(conn, day, lockTimeoutSeconds, ct);
+                if (!keep && await IsPinnedAsync(conn, day)) { keptPinned.Add(day); continue; }
+                moved += await DropAsync(conn, day, lockTimeoutSeconds, keep, episodeDays, ct);
                 existing.Remove(day);
                 byAge++;
             }
@@ -120,8 +128,8 @@ public static class EvidenceArchiveRetention
             foreach (var day in existing.Where(x => x < today).ToList())
             {
                 if (total <= cap) break;
-                if (keptPinned.Contains(day) || await IsPinnedAsync(conn, day)) { keptPinned.Add(day); continue; }
-                await DropAsync(conn, day, lockTimeoutSeconds, ct);
+                if (!keep && (keptPinned.Contains(day) || await IsPinnedAsync(conn, day))) { keptPinned.Add(day); continue; }
+                moved += await DropAsync(conn, day, lockTimeoutSeconds, keep, episodeDays, ct);
                 total -= sizes[day];
                 byBytes++;
             }
@@ -131,18 +139,27 @@ public static class EvidenceArchiveRetention
         }
         pinned = keptPinned.Count;
         if (pinned > 0) log?.LogInformation("Evidence archive: {Pinned} day partition(s) past retention kept - they hold pinned investigation evidence", pinned);
-        return new ArchiveRetentionResult(created, byAge, byBytes, pinned, total);
+        var kept = keep ? await EvidenceArchiveKeep.SweepAsync(conn, moved, lockTimeoutSeconds, log, ct) : null;
+        if (kept is { Moved: > 0 } or { Released: > 0 })
+            log?.LogInformation("Evidence archive: {Moved} set(s) kept past their day (pinned or episode), {Released} released; {Kept} kept, {Mb} MiB",
+                kept.Moved, kept.Released + kept.ReleasedByBytes, kept.Kept, kept.KeptBytes >> 20);
+        return new ArchiveRetentionResult(created, byAge, byBytes, pinned, total, kept);
     }
 
     private static async Task<bool> IsPinnedAsync(NpgsqlConnection conn, DateOnly day) =>
         await conn.ExecuteScalarAsync<bool>(PinnedSql, new { day = Iso(day) });
 
-    private static async Task DropAsync(NpgsqlConnection conn, DateOnly day, int lockTimeoutSeconds, CancellationToken ct)
+    /// <summary>Drops one day partition and its run rows; with the keep (cpm-20b) its protected sets are moved out first. Returns the sets moved.</summary>
+    private static async Task<int> DropAsync(NpgsqlConnection conn, DateOnly day, int lockTimeoutSeconds, bool keep, int? episodeDays, CancellationToken ct)
     {
         await using var tx = await conn.BeginTransactionAsync(ct);
         await conn.ExecuteAsync($"SET LOCAL lock_timeout = '{Math.Max(1, lockTimeoutSeconds)}s'", transaction: tx);
-        await conn.ExecuteAsync("DELETE FROM analytics.evidence_archive_run WHERE partition_day = @day::date", new { day = Iso(day) }, tx);
+        var moved = keep ? await EvidenceArchiveKeep.MoveDayAsync(conn, tx, Iso(day), episodeDays) : 0;
+        await conn.ExecuteAsync(keep
+            ? "DELETE FROM analytics.evidence_archive_run WHERE partition_day = @day::date AND NOT kept"
+            : "DELETE FROM analytics.evidence_archive_run WHERE partition_day = @day::date", new { day = Iso(day) }, tx);
         await conn.ExecuteAsync($"DROP TABLE IF EXISTS analytics.{PartitionName(day)}", transaction: tx);
         await tx.CommitAsync(ct);
+        return moved;
     }
 }

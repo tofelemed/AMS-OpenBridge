@@ -82,6 +82,10 @@ OPS_FILES = [
     "scripts/cpm-18-kpi-daily.rollback.sql",       # CHG-102     - rollback: both tables + the row dropped (history lost; trend falls back to 14 d live)
     "scripts/cpm-19-evidence-archive.sql",         # CHG-102     - evidence_archive (day partitions) + run lookup + EVIDENCE_ARCHIVE 30 d / 12 GiB (online, BEFORE the swap)
     "scripts/cpm-19-evidence-archive.rollback.sql",  # CHG-102   - rollback: archive tables, index, row and max_bytes dropped (archived sets lost)
+    "scripts/cpm-20-on-demand-evaluation.sql",     # CHG-102     - analysis_run.purpose EVALUATE + reuse / in-flight indexes (online, BEFORE the swap)
+    "scripts/cpm-20-on-demand-evaluation.rollback.sql",  # CHG-102 - rollback: EVALUATE runs + their gate rows deleted, CHECK back to 3 purposes
+    "scripts/cpm-20b-evidence-archive-keep.sql",   # CHG-102     - evidence_archive_kept: pinned / episode sets outlive their day; EVIDENCE_ARCHIVE_EPISODE 30 d / 4 GiB (online, BEFORE the swap)
+    "scripts/cpm-20b-evidence-archive-keep.rollback.sql",  # CHG-102 - rollback: keep table, kept column and row dropped (kept sets lost)
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source

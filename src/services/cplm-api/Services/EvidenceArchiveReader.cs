@@ -97,6 +97,17 @@ public static class EvidenceArchiveReader
         catch (PostgresException ex) when (ex.SqlState == UndefinedTable) { return null; }
     }
 
+    private static async Task<dynamic?> KeptAsync(NpgsqlConnection conn, Guid setId, CancellationToken ct)
+    {
+        try
+        {
+            return await conn.QueryFirstOrDefaultAsync(new CommandDefinition(
+                "SELECT codec, payload, payload_sha256 FROM analytics.evidence_archive_kept WHERE boundary_set_id = @setId",
+                new { setId }, cancellationToken: ct));
+        }
+        catch (PostgresException ex) when (ex.SqlState == UndefinedTable) { return null; }
+    }
+
     /// <summary>Every artifact of one archived set; the pack's own SHA-256 is checked before it is unpacked.</summary>
     public static async Task<List<ArchivedArtifact>> LoadAsync(NpgsqlConnection conn, Guid setId, DateTime windowEnd, CancellationToken ct)
     {
@@ -104,6 +115,8 @@ public static class EvidenceArchiveReader
             SELECT codec, payload, payload_sha256 FROM analytics.evidence_archive
             WHERE boundary_set_id = @setId AND window_end = @windowEnd
             """, new { setId, windowEnd }, cancellationToken: ct));
+        // CHG-102 Phase 5c: a set kept past its day (pinned / episode, cpm-20b) is served from the keep table
+        if (r is null) r = await KeptAsync(conn, setId, ct);
         if (r is null) return new();       // the run row outlived its partition (a drop in progress): not archived any more
         // CHG-102 Phase 5b-2: cpax2 trace-form artifacts come back un-rebuilt (EvidenceTraceRehydrator serves them)
         if ((string)r.codec is not (EvidenceArchivePack.Codec or EvidenceArchivePack.Codec2)) throw new InvalidDataException($"evidence archive codec {(string)r.codec} is not supported");

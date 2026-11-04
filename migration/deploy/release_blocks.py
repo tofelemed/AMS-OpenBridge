@@ -8,7 +8,7 @@ deploy.sh --prod already recreates every changed service.
 from __future__ import annotations
 
 DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18",
-              "chg102-cpm19"}
+              "chg102-cpm19", "chg102-cpm20"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -122,10 +122,33 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select
 """
 
 
+def chg102_cpm20(release: str) -> str:
+    # CHG-102 Phase 5c: analysis_run.purpose allows EVALUATE (+ two partial indexes); the old image never writes EVALUATE.
+    return f"""
+# 4h. CHG-102 on-demand evaluation (analysis_run.purpose EVALUATE + reuse / in-flight indexes) - BEFORE the cplm-api swap
+#     (step 6 deploy.sh). Online, additive, re-runnable (lock_timeout 10 s: if it fires, re-run). The two Kafka topics
+#     traverse.cpa.clpm.evaluation.requests.v1 / .status.v1 come from kafka/topics.txt (04-create-kafka-topics.sh).
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-20-on-demand-evaluation.sql
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select pg_get_constraintdef(oid) from pg_constraint where conname = 'analysis_run_purpose_check'"
+#     expected: CHECK ((purpose = ANY (ARRAY['REPLAY'::text, 'SHADOW'::text, 'EVIDENCE_RECONSTRUCTION'::text, 'EVALUATE'::text])))
+#     cpm-20b: episodes and pins keep archived SETS past their day (evidence_archive_kept; EVIDENCE_ARCHIVE_EPISODE = 30 d
+#     after close / 4 GiB). Without it the new image keeps the cpm-19 behaviour (a pinned day kept whole). Needs cpm-19.
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-20b-evidence-archive-keep.sql
+docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select record_class, days, max_bytes from analytics.retention_policy where record_class = 'EVIDENCE_ARCHIVE_EPISODE'"
+#     expected: EVIDENCE_ARCHIVE_EPISODE|30|4294967296
+#     After the swap and the on-demand Flink job: the Workbench "Evaluate window" (or POST /api/v1/cpm/analysis-runs
+#     {{"purpose":"EVALUATE","loopId":"<loop>","windowKind":"12h"}}) ends FINISHED within seconds:
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select state, count(*), max(created_at) from analytics.analysis_run where purpose = 'EVALUATE' group by 1"
+#     Rollback (online; roll the cplm-api image back first - EVALUATE runs and their gate rows are deleted):
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-20-on-demand-evaluation.rollback.sql
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-20b-evidence-archive-keep.rollback.sql   (kept sets lost)
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
           "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
-          "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19}
-PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19"}
+          "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19, "chg102-cpm20": chg102_cpm20}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:

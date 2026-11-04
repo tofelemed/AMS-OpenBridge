@@ -128,3 +128,51 @@ def test_chg102_cpm19_sql_is_idempotent_and_mirrored():
     for mirror in ("database/scripts/67_cplm_evidence_archive.sql", "migration/schema/03-traverse_cplm.sql"):
         m = (root / mirror).read_text(encoding="utf-8")
         assert "CREATE TABLE IF NOT EXISTS analytics.evidence_archive_run" in m and "('EVIDENCE_ARCHIVE', 30, 12884901888)" in m, mirror
+
+
+# ── CHG-102 Phase 5c: on-demand EVALUATE runs (cpm-20) ──────────────────────
+def test_chg102_cpm20_scripts_ship_and_the_directive_is_a_pre_swap_block():
+    for rel in ("scripts/cpm-20-on-demand-evaluation.sql", "scripts/cpm-20-on-demand-evaluation.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (HERE.parent.parent / rel).is_file()
+    assert "chg102-cpm20" in br.release_blocks.DIRECTIVES and "chg102-cpm20" in br.release_blocks.PRE_SWAP
+
+
+def test_chg102_cpm20_block_runs_online_after_cpm19_and_before_the_load_and_the_swap():
+    assert "cpm-20-on-demand-evaluation.sql" not in chg102_steps(set())
+    s = chg102_steps({"chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20"})
+    blk = s[s.index("# 4h. CHG-102"):s.index("\n# 4. load")]
+    assert s.index("# 4g. CHG-102") < s.index("# 4h. CHG-102") < s.index("\n# 4. load") < s.index("deploy.sh --prod")
+    assert "docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/v0.0.0-test/ops/cpm-20-on-demand-evaluation.sql" in blk
+    assert not any(l.startswith(("docker stop", "docker start")) for l in blk.splitlines())
+    assert "'EVALUATE'::text" in blk and "cpm-20-on-demand-evaluation.rollback.sql" in blk and '{"purpose":"EVALUATE"' in blk
+
+
+def test_chg102_cpm20_sql_is_idempotent_mirrored_and_the_topics_are_listed():
+    root = HERE.parent.parent
+    sql = (root / "scripts/cpm-20-on-demand-evaluation.sql").read_text(encoding="utf-8")
+    assert "CHG-102" in sql and "ONLINE" in sql and "BEFORE the cplm-api image swap" in sql and "\\c " not in sql
+    assert "'EVALUATE')) NOT VALID" in sql and "VALIDATE CONSTRAINT analysis_run_purpose_check" in sql
+    assert "CREATE INDEX IF NOT EXISTS ix_analysis_run_evaluate_window" in sql and "CONCURRENTLY" not in sql
+    rb = (root / "scripts/cpm-20-on-demand-evaluation.rollback.sql").read_text(encoding="utf-8")
+    assert "DELETE FROM analytics.analysis_run WHERE purpose = 'EVALUATE'" in rb and "\\c " not in rb
+    for mirror in ("database/scripts/68_cplm_on_demand_evaluation.sql", "migration/schema/03-traverse_cplm.sql"):
+        assert "ix_analysis_run_evaluate_window" in (root / mirror).read_text(encoding="utf-8"), mirror
+    topics = (root / "migration/kafka/topics.txt").read_text(encoding="utf-8")
+    for t in ("traverse.cpa.clpm.evaluation.requests.v1", "traverse.cpa.clpm.evaluation.status.v1"):
+        assert f"\n{t}\t" in topics, t
+
+
+def test_chg102_cpm20b_archive_keep_ships_runs_in_the_4h_block_and_is_mirrored():
+    root = HERE.parent.parent
+    for rel in ("scripts/cpm-20b-evidence-archive-keep.sql", "scripts/cpm-20b-evidence-archive-keep.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (root / rel).is_file()
+    s = chg102_steps({"chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20"})
+    blk = s[s.index("# 4h. CHG-102"):s.index("\n# 4. load")]
+    assert s.index("ops/cpm-20-on-demand-evaluation.sql") < s.index("ops/cpm-20b-evidence-archive-keep.sql") < s.index("\n# 4. load")
+    assert "EVIDENCE_ARCHIVE_EPISODE|30|4294967296" in blk and "cpm-20b-evidence-archive-keep.rollback.sql" in blk
+    sql = (root / "scripts/cpm-20b-evidence-archive-keep.sql").read_text(encoding="utf-8")
+    assert "ONLINE" in sql and "\\c " not in sql and "ON CONFLICT (record_class) DO NOTHING" in sql
+    for mirror in ("database/scripts/68b_cplm_evidence_archive_keep.sql", "migration/schema/03-traverse_cplm.sql"):
+        assert "evidence_archive_kept" in (root / mirror).read_text(encoding="utf-8"), mirror

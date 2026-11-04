@@ -35,9 +35,10 @@ public sealed class CpmMethodRunsController : ControllerBase
     }
 
     [HttpGet("method-runs/{id:guid}")]
-    public async Task<IActionResult> GetMethodRun(Guid id, CancellationToken ct)
+    public async Task<IActionResult> GetMethodRun(Guid id, CancellationToken ct, [FromQuery] Guid? analysisRun = null)
     {
-        var loc = await _resolver.ResolveAsync(id, ct);
+        // CHG-102 5c: ?analysisRun= opens the row an EVALUATE run wrote even when the live engine holds the same window
+        var loc = await _resolver.ResolveAsync(id, analysisRun, ct);
         if (loc is null) return NotFound(new { error = $"No result carries method run {id}" });
         if (!SiteScope.Allows(Request, loc.Site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(loc.Site));
 

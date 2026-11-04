@@ -13,7 +13,12 @@ namespace Traverse.CplmApi.Tests;
 public sealed class ArchiveRetentionCplmDb : PlainCplmDb
 {
     public ArchiveRetentionCplmDb() : base("cplm_evidence_archive_ret_test") { }
-    protected override Task AfterCpm10bAsync() => ApplyAsync(RepoFile("scripts", "cpm-19-evidence-archive.sql"));
+    // CHG-102 5c: these tests pin the cpm-19 behaviour (a pinned day kept whole), so the fresh schema's cpm-20b keep is rolled back
+    protected override async Task AfterCpm10bAsync()
+    {
+        await ApplyAsync(RepoFile("scripts", "cpm-19-evidence-archive.sql"));
+        await ApplyAsync(RepoFile("scripts", "cpm-20b-evidence-archive-keep.rollback.sql"));
+    }
 }
 
 [Trait("Category", "Integration")]

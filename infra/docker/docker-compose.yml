@@ -1600,6 +1600,7 @@ services:
       CPLM_INPUT_TOPIC:      traverse.cpa.loop.samples.v1
       PLANT_TIME_ZONE:       ${PLANT_TIME_ZONE:-local}          # CHG-102: same plant day as cplm-api
       CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
+      LOOP_ROOT_PREFIX:      ${LOOP_ROOT_PREFIX:-root.site1.cpm}   # CHG-102 5c: on-demand evaluation fallback device
     volumes:
       - ./flink-submit-cplm.sh:/opt/flink-submit-cplm.sh:ro
       - /etc/localtime:/etc/localtime:ro
@@ -1646,6 +1647,8 @@ services:
       # CHG-102: the long + fusion jobs' boundary evidence follows the SAME plant day as cplm-api
       PLANT_TIME_ZONE:             ${PLANT_TIME_ZONE:-local}
       CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
+      # CHG-102 5c: the on-demand evaluation job's fallback device prefix (a request names its device)
+      LOOP_ROOT_PREFIX:            ${LOOP_ROOT_PREFIX:-root.site1.cpm}
     volumes:
       - ./flink-job-supervisor.sh:/opt/flink-job-supervisor.sh:ro
       - /etc/localtime:/etc/localtime:ro

@@ -209,6 +209,24 @@ failures, unrelated). Lab Postgres for tests is on **5436** (5433 = ProAct). Lon
 
 ### Phase 5 — Evidence: boundary archive + on-demand evaluation · ~5–7 days
 
+Status (2026-11-04): **5a, 5b-1, 5b-2, 5c DONE, lab-tested** (5a 84ad288a/b3978f82, 5b-1 6b2b62a5, 5b-2 125e6865, 5c this
+change). Compact form after 90 d (D7) not built - pending the SME decision.
+**5c - on-demand evaluation:** always-running Flink job `AMS - CPLM On-Demand Evaluation` (`CplmOnDemandEvaluationJob`,
+request topic `traverse.cpa.clpm.evaluation.requests.v1` -> status `...evaluation.status.v1`; historian read via the shared
+`IotDbLoopReader`; short + long + fusion over the window via the shared `WindowEvaluation`, the replay's own path; the
+registry parameter set loaded at start and refreshed in the background). `POST /analysis-runs {purpose: EVALUATE, loopId,
+windowKind 4h|12h|24h, endMs}` -> QUEUED / RUNNING / FINISHED | FAILED; the live run's governed bundle is forwarded so the
+evaluated identity equals the live one; a finished window with evidence held is returned `cached`; per-user in-flight cap 3;
+timeout 5 min (`NO_RESPONSE_FROM_EVALUATION_JOB`). EVALUATE gate rows are isolated (`purpose`, own `source`); evidence is
+stored beside the live run (STANDARD, 3 d; identical bytes not stored twice). Workbench: "Evaluate a window from the
+historian" under Change; the result opens with `?analysisRun=` so the evaluation's own verdict is shown. Migration
+**cpm-20** (`analysis_run.purpose` EVALUATE + indexes). Lab, measured: warm 0.9-1.2 s in the job, verdict on screen 1-3 s;
+first request after a job start ~14 s (JIT + parameter load).
+**5c - episodes reference boundary sets:** before an archive day partition is dropped, only its pinned sets and the sets an
+episode overlaps (open, or closed < `EVIDENCE_ARCHIVE_EPISODE` 30 d) move to `analytics.evidence_archive_kept` (cap 4 GiB
+for the episode-kept ones, oldest first; pinned never); a pin no longer keeps a whole day. Migration **cpm-20b**; without it
+the cpm-19 behaviour stays.
+
 | Change | Files |
 |---|---|
 | Flink: long tier always emits on boundary windows (12 h at 00/12, 24 h at 00, plant-time offset), bypassing throttle/policy; **flapping fix** (one emission per finding change, not per 15-min tick) | `cplm/evidence/EvidencePolicy.java:83-118`, `EvidenceThrottle.java:22-31`, `CplmLongDiagnosticsStreamJob.java:36-62,166` |

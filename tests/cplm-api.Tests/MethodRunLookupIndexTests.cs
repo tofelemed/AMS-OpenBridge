@@ -42,7 +42,7 @@ public sealed class MethodRunLookupIndexTests : IAsyncLifetime
     public async Task The_run_containment_probe_is_answered_from_a_gin_index(string table)
     {
         await using var conn = await _db.OpenConnectionAsync();
-        var plan = string.Join(NL, await conn.QueryAsync<string>("EXPLAIN " + MethodRunResolver.LookupSql(table), new { id = Guid.NewGuid() }));
+        var plan = string.Join(NL, await conn.QueryAsync<string>("EXPLAIN " + MethodRunResolver.LookupSql(table), new { id = Guid.NewGuid(), arun = (Guid?)null }));
         // a compressed TimescaleDB chunk (lab only; prod tables are plain) is decompressed, never indexed, and the
         // planner rightly reads a tiny chunk sequentially - no chunk of any size must be walked row by row
         var walked = plan.Split(NL).Where(l => l.Contains("Seq Scan on") && !l.Contains("compress_hyper") && RowsOf(l) >= 1000).ToList();
