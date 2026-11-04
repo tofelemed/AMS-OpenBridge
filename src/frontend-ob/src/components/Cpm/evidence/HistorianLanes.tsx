@@ -12,7 +12,6 @@ import { loopSeries } from '../../../utils/loopSeries';
 import { CpmChart, type CpmSeries } from './CpmChart';
 import { IntervalLane, type LaneInterval } from './views/primitives/IntervalLane';
 
-const PENS = { pv: 'good', sp: 'grey', op: 'amber', vp: 'pink' } as const;
 const SOURCE_TAG = 'historian (not the run\'s own qualification)';
 
 /** One role of the bucketed trend as a series; null when the role has no value at all (e.g. VP not mapped). */
@@ -21,7 +20,7 @@ export function trendRoleSeries(points: CpmTrendPoint[], key: 'pv' | 'sp' | 'op'
   const y = rows.map(p => (typeof p[key] === 'number' && Number.isFinite(p[key] as number) ? (p[key] as number) : null));
   if (!y.some(v => v != null)) return null;
   return {
-    id: `hist-${key}`, label: `${key.toUpperCase()} (historian)`, unit, x: rows.map(p => p.ts as number), y, pen: PENS[key],
+    id: `hist-${key}`, label: `${key.toUpperCase()} (historian)`, unit, x: rows.map(p => p.ts as number), y, pen: key, dashed: key === 'sp',
     meta: i => {
       const lo = rows[i][`${key}_min`], hi = rows[i][`${key}_max`];
       return [typeof lo === 'number' && typeof hi === 'number' ? `bucket min ${lo} · max ${hi}` : 'bucket average', `bucket ${timeFmt(rows[i].ts as number)}`];

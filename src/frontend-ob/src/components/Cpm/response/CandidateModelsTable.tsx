@@ -46,7 +46,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
       )}
       {delayCurve && delayCurve.n > 0 && (
         <CpmChart title="Delay objective curve (best candidate)" xKind="value" xLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
-          series={[{ id: 'objective', label: 'objective J(θ)', unit: delayCurve.units.y ?? 'PV_EU^2', x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'accent', markers: true }]} />
+          series={[{ id: 'objective', label: 'objective J(θ)', unit: delayCurve.units.y ?? 'PV_EU^2', x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
       )}
       {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay profile was recorded for the best candidate.</p>}
       {intervals && (

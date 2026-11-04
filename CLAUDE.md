@@ -108,6 +108,7 @@ These are settled decisions (`MIGRATION_LOG.md` "Recorded Decisions", `src/Unifi
 
 `openbridge-agent-rules.md` is the canonical UI rulebook — read it before writing any UI. Key points:
 
+- **CPA rule (CPA-UI-DEC-002 RD2): OpenBridge `ObcButton` and passive components behind the Traverse bridge; all other controls are CPA components built to the Traverse contracts; all colour values from the Traverse design system.** Where this section and that rule differ, the rule wins.
 - **Import only from `@oicl/openbridge-webcomponents-react`, per-path** (`ObcTopBar` from `.../components/top-bar/top-bar`). Never hand-write raw `<obc-*>` custom-element tags in JSX; never guess an import path.
 - **Resolve any component/prop/slot/event from `node_modules/@oicl/openbridge-webcomponents/custom-elements.json`.** If it isn't in the manifest, it doesn't exist — ask rather than invent.
 - **Drive all color/size/spacing from OpenBridge CSS tokens**; no raw hex, px font sizes, or bespoke spacing. Theme is set via `data-obc-theme` (`day`/`dusk`/`night`/`bright`) on the root.

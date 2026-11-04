@@ -9,8 +9,8 @@ import { pvAxisName } from '../trend/trendOption';
 import { escapeHtml } from '../../../utils/escapeHtml';
 import ReactECharts from 'echarts-for-react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
-import { cpmChartColors, fmtDateTime } from '../shared';
-import { useObcTheme } from '../../../hooks/useObcTheme';
+import { axisChrome, chartPalette, plainOption, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
+import { fmtDateTime } from '../shared';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
@@ -20,7 +20,7 @@ export interface ReplayChartInput {
   points: CpmTrendPoint[];
   cursorTs: number | null;
   phasePlane: boolean;
-  pens: { good: string; amber: string; grey: string; accent: string; pink: string };
+  palette: ChartPalette;
   /** CHG-047: the registered PV unit; blank = not set (never a fake "EU"). */
   pvUnit: string;
   timeZone: string;
@@ -30,32 +30,40 @@ export interface ReplayChartInput {
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
 export function buildReplayOption(i: ReplayChartInput) {
-  const { points, cursorTs, pens, pvUnit, timeZone } = i;
-  const { good, amber, grey, accent, pink } = pens;
+  const { points, cursorTs, palette, pvUnit, timeZone } = i;
+  const { pv, sp, op, vp, tick } = palette;
+  const overlayPen = palette.pens[4];
+  const base = plainOption(palette);
+  const axis = axisChrome(palette);
+  const faintGrid = { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } };
+  const axisName = { ...axis.nameTextStyle, fontSize: 12 };
   const zoom = i.zoom ?? FULL_ZOOM;
   if (i.phasePlane) {
     const pairs = points.map(p => ({ ts: p.ts, pv: num(p.pv), op: num(p.op) })).filter(p => p.pv != null && p.op != null);
     return {
+      ...base,
       animation: false,
       grid: { left: 52, right: 16, top: 36, bottom: 34 },
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, zoom),
-      tooltip: { trigger: 'item' as const },
-      xAxis: { type: 'value' as const, name: 'OP (%)', scale: true, axisLabel: { color: grey } },
-      yAxis: { type: 'value' as const, name: `PV (${pvUnit || 'unit not set'})`, scale: true, axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
+      tooltip: { ...base.tooltip, trigger: 'item' as const },
+      xAxis: { ...axis, type: 'value' as const, name: 'OP (%)', scale: true },
+      yAxis: { ...axis, type: 'value' as const, name: `PV (${pvUnit || 'unit not set'})`, scale: true, splitLine: faintGrid },
       series: [
-        { name: 'trajectory', type: 'scatter' as const, symbolSize: 3, itemStyle: { color: grey, opacity: 0.35 },
+        { name: 'trajectory', type: 'scatter' as const, symbolSize: 3, itemStyle: { color: tick, opacity: 0.35 },
           data: pairs.filter(p => cursorTs == null || p.ts > cursorTs).map(p => [p.op, p.pv]) },
-        { name: 'up to cursor', type: 'scatter' as const, symbolSize: 4, itemStyle: { color: accent, opacity: 0.8 },
+        { name: 'up to cursor', type: 'scatter' as const, symbolSize: 4, itemStyle: { color: overlayPen, opacity: 0.8 },
           data: pairs.filter(p => cursorTs != null && p.ts <= cursorTs).map(p => [p.op, p.pv]) },
       ],
     };
   }
   const hasVp = points.some(p => num(p.vp) != null);
   return {
+    ...base,
     animation: false,
     grid: { left: 56, right: 56, top: 40, bottom: 34 }, // room for the named axes (CHG-047)
     ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, zoom),
     tooltip: {
+      ...base.tooltip,
       trigger: 'axis' as const,
       formatter: (params: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
         if (!params.length) return '';
@@ -66,20 +74,20 @@ export function buildReplayOption(i: ReplayChartInput) {
         return [`<strong>${formatInZone(ts, timeZone)} — ${zoneLabel(timeZone, ts)}</strong>`, ...rows].join('<br/>');
       },
     },
-    xAxis: { type: 'time' as const, axisLabel: { color: grey } },
+    xAxis: { ...axis, type: 'time' as const },
     yAxis: [
-      { type: 'value' as const, name: pvAxisName(pvUnit), scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 12 }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, axisLabel: { color: grey }, nameTextStyle: { color: grey, fontSize: 12 }, splitLine: { show: false } },
+      { ...axis, type: 'value' as const, name: pvAxisName(pvUnit), scale: true, nameTextStyle: axisName, splitLine: faintGrid },
+      { ...axis, type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, nameTextStyle: axisName, splitLine: { show: false } },
     ],
     series: [
-      { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 1.5 },
+      { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: pv, lineStyle: { color: pv, width: 1.5 },
         data: points.map(p => [p.ts, num(p.pv)]),
-        markLine: cursorTs != null ? { symbol: 'none', label: { show: false }, lineStyle: { color: accent, width: 2 }, data: [{ xAxis: cursorTs }] } : undefined },
-      { name: 'SP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' as const },
+        markLine: cursorTs != null ? { symbol: 'none', label: { show: false }, lineStyle: { color: overlayPen, width: 2 }, data: [{ xAxis: cursorTs }] } : undefined },
+      { name: 'SP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: sp, lineStyle: { color: sp, width: 1, type: 'dashed' as const },
         data: points.map(p => [p.ts, num(p.sp)]) },
-      { name: 'OP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: amber, lineStyle: { color: amber, width: 1 },
+      { name: 'OP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: op, lineStyle: { color: op, width: 1 },
         data: points.map(p => [p.ts, num(p.op)]) },
-      ...(hasVp ? [{ name: 'VP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: pink, lineStyle: { color: pink, width: 1 },
+      ...(hasVp ? [{ name: 'VP', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 1, color: vp, lineStyle: { color: vp, width: 1 },
         data: points.map(p => [p.ts, num(p.vp)]) }] : []),
     ],
   };
@@ -96,10 +104,10 @@ export const ReplayChart: React.FC<{
 }> = ({ points, phasePlane, cursorPct, onCursor, truncated, timeZone, pvUnit = '' }) => {
   const cursorTs = points.length > 0 ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts : null;
   const box = useBoxZoom({ hasY: true });
-  const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
-  const option = useMemo(() => buildReplayOption({ points, cursorTs, phasePlane, pens: cpmChartColors(), pvUnit, timeZone, zoom: box.zoom }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-    [points, cursorTs, phasePlane, pvUnit, timeZone, obcTheme, box.zoom]);
+  const theme = useChartTheme();
+  const option = useMemo(() => buildReplayOption({ points, cursorTs, phasePlane, palette: chartPalette(), pvUnit, timeZone, zoom: box.zoom }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+    [points, cursorTs, phasePlane, pvUnit, timeZone, theme, box.zoom]);
   useKeepSelecting(box, option);
   return (
     <>

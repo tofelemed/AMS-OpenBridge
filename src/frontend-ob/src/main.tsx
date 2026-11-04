@@ -14,7 +14,11 @@ import './styles/fonts.css';
 // OpenBridge Design System - Global CSS (must be imported before any components)
 import '@oicl/openbridge-webcomponents/dist/openbridge.css';
 
-// Phase H — AMS design tokens (single source: alarm + trend colors, day/night palettes)
+// Traverse tokens, then the bridge that assigns OpenBridge variables from them (CD1, CD5).
+import './styles/traverse-tokens.css';
+import './styles/openbridge-bridge.css';
+
+// Compatibility aliases for names the older stylesheets use.
 import './components/Designer/designTokens.css';
 
 // Application-specific styles (extends OpenBridge tokens)

@@ -2,7 +2,7 @@
 
 // Phase J — the trend engine, extracted from Phase C's TrendChart so it can be driven by a plain
 // list of tags instead of a CanvasItem. Same machinery as Phase C (historian fetch + MQTT live tail,
-// time-bar with live/historical stepping, echarts cross-cursor, dataZoom, --ams-pen-* tokens); the
+// time-bar with live/historical stepping, echarts cross-cursor, dataZoom, the chart palette); the
 // only additions are PI-Vision presentation: per-pen Y-axes and a legend that reads each pen's value
 // at the cursor. Consumed by: TrendChart (canvas symbol), TrendDialog (ad-hoc), TrendPage (/trend).
 //
@@ -14,10 +14,10 @@ import ReactECharts from 'echarts-for-react';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
 import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
-import { useObcTheme } from '../../hooks/useObcTheme';
+import { chartPalette, penStyle, resolveColorLiteral, useChartTheme } from '../../charts/chartTheme';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import {
-  AXIS_OPTS, CLOCK_OPTS, FETCH_FAILED, PEN_TOKENS, resolveColor, splitIoTPath, unitFor,
+  AXIS_OPTS, CLOCK_OPTS, FETCH_FAILED, splitIoTPath, unitFor,
   type Pen, type PenSpec, type TrendPoint,
 } from './trend/trendSupport';
 import { buildTrendOption } from './trend/trendOption';
@@ -230,16 +230,10 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     return () => clearInterval(id);
   }, [isControlled, live, playing, box.selecting]);
 
-  // Theme colors: resolved ONCE per theme, not 9× per render.
-  const theme = useObcTheme();
-  const { penColors, cText, cBorder, cGrid } = useMemo(() => ({
-    penColors: PEN_TOKENS.map(t => resolveColor(`var(${t})`)),
-    cText: resolveColor('var(--ams-text-dim)'),
-    cBorder: resolveColor('var(--ams-border)'),
-    cGrid: resolveColor('var(--ams-grid-line)'),
-    // theme is intentionally a dep: chart colors re-derive on theme change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [theme]);
+  // Theme colors: resolved ONCE per theme, not on every render.
+  const theme = useChartTheme();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  const palette = useMemo(() => chartPalette(), [theme]);
 
   // Merged (history + live tail) data per pen — also what the legend reads at the cursor.
   // Tail while live: internally live, or externally live when a window is driving us.
@@ -253,10 +247,10 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     return hist.concat(liveTail);
   });
 
-  // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned token.
+  // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned pen.
   const penColor = (i: number) => {
     const c = pens[i]?.color;
-    return c ? resolveColor(c) : penColors[i % penColors.length];
+    return c ? resolveColorLiteral(c) : penStyle(palette, i).color;
   };
 
   // Per-pen Y-axis (PI Vision) when units differ, unless explicitly overridden.
@@ -265,7 +259,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   const manualScale = scale && scale.auto === false ? { min: scale.min, max: scale.max } : null;
 
   const option = buildTrendOption({
-    pens, penData, hiddenPens, penColor, colors: { cText, cBorder, cGrid }, perAxis, manualScale,
+    pens, penData, hiddenPens, penColor, palette, perAxis, manualScale,
     stepped, regression, windowStart, windowEnd, fmtAxis, zoom: box.zoom,
   });
   useKeepSelecting(box, option);

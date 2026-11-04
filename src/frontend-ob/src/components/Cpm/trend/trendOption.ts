@@ -16,6 +16,7 @@
  */
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import type { CpmEngineeringRange } from '../../../api/cpmApi';
+import { axisChrome, baseOption, type ChartPalette } from '../../../charts/chartTheme';
 import { fmtDateTime } from '../shared';
 import { escapeHtml } from '../../../utils/escapeHtml';
 
@@ -28,11 +29,9 @@ const BAND_BASE = 'pv-band-base';
 
 export const pvAxisName = (pvUnit: string | null | undefined) => `PV / SP (${pvUnit?.trim() || 'unit not set'})`;
 
-export interface TrendPens { good: string; amber: string; grey: string; pink: string }
-
 export interface SignalTrendInput {
   points: CpmTrendPoint[];
-  pens: TrendPens;
+  palette: ChartPalette;
   hasVp?: boolean;
   pvUnit?: string | null;
   scale: TrendScale;
@@ -70,8 +69,10 @@ export function axisBounds(scale: TrendScale, r: CpmEngineeringRange | null | un
 const fmtVal = (v: number | null, unit: string) => (v == null ? '—' : `${Number(v.toFixed(2))} ${unit}`.trim());
 
 export function signalTrendOption(i: SignalTrendInput) {
-  const { points, pens, hasVp, pvUnit, scale, range, zoom, xRange, evaluated, yBounds } = i;
-  const { good, amber, grey, pink } = pens;
+  const { points, palette, hasVp, pvUnit, scale, range, zoom, xRange, evaluated, yBounds } = i;
+  const { pv, sp, op, vp, tick } = palette;
+  const base = baseOption(palette);
+  const axis = axisChrome(palette);
   // Tooltip HTML only (axis names are canvas text): a registry unit is user input.
   const unit = escapeHtml(pvUnit?.trim() || '');
   const fitted = axisBounds(scale, range);
@@ -83,29 +84,32 @@ export function signalTrendOption(i: SignalTrendInput) {
   // The evaluated window as a band on the PV series; ECharts clips it to the x range.
   const markArea = evaluated ? {
     silent: true,
-    itemStyle: { color: grey, opacity: 0.12, borderColor: grey, borderWidth: 1, borderType: 'dashed' },
-    label: { show: true, position: 'insideTop', color: grey, fontSize: 12, formatter: evaluated.label },
+    itemStyle: { color: tick, opacity: 0.12, borderColor: tick, borderWidth: 1, borderType: 'dashed' },
+    label: { show: true, position: 'insideTop', color: tick, fontSize: 12, formatter: evaluated.label },
     data: [[{ xAxis: evaluated.startMs }, { xAxis: evaluated.endMs }]],
   } : undefined;
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));
   const axisStyle = (colour: string) => ({
+    ...axis,
     nameTextStyle: { color: colour, fontSize: 12 },
-    axisLabel: { color: grey },
     axisLine: { show: true, lineStyle: { color: colour } },
   });
 
   return {
+    ...base,
     animation: false,
     // The legend sits under the time axis so the two axis titles own the top edge (on the right, "OP (%)"
     // and a top-right legend overlapped).
     grid: { left: 52, right: 52, top: 36, bottom: 56 },
     ...zoom,
     legend: {
+      ...base.legend,
       data: ['PV', BAND_LABEL, 'SP', 'OP', ...(hasVp ? ['VP'] : [])],
-      bottom: 0, left: 'center', textStyle: { color: grey }, inactiveColor: grey,
+      bottom: 0, left: 'center',
     },
     tooltip: {
+      ...base.tooltip,
       trigger: 'axis',
       formatter: (ps: Array<{ seriesName: string; marker: string; value: [number, number | null] }>) => {
         if (!ps.length) return '';
@@ -120,36 +124,36 @@ export function signalTrendOption(i: SignalTrendInput) {
       },
     },
     // Day boundaries read "5 Oct", not ECharts' bare day number "5".
-    xAxis: { type: 'time', axisLine: { lineStyle: { color: grey } },
+    xAxis: { ...axis, type: 'time',
       ...(xRange ? { min: xRange.fromMs, max: xRange.toMs } : {}),
-      axisLabel: { color: grey, hideOverlap: true,
+      axisLabel: { ...axis.axisLabel, hideOverlap: true,
         formatter: { year: '{yyyy}', month: '{MMM} {yyyy}', day: '{d} {MMM}', hour: '{HH}:{mm}', minute: '{HH}:{mm}', second: '{HH}:{mm}:{ss}', millisecond: '{HH}:{mm}:{ss}', none: '{HH}:{mm}' } } },
     yAxis: [
-      { type: 'value', name: pvAxisName(pvUnit), position: 'left', ...bounds.pv, ...axisStyle(good),
-        splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value', name: hasVp ? 'OP / VP (%)' : 'OP (%)', position: 'right', ...bounds.op, ...axisStyle(amber),
+      { type: 'value', name: pvAxisName(pvUnit), position: 'left', ...bounds.pv, ...axisStyle(pv),
+        splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
+      { type: 'value', name: hasVp ? 'OP / VP (%)' : 'OP (%)', position: 'right', ...bounds.op, ...axisStyle(op),
         splitLine: { show: false } },
     ],
     series: [
       // The band: min as an invisible base, (max − min) stacked and filled — the honest rendering of
       // oscillation inside each decimation bucket. Toggling its legend entry hides it.
       { name: BAND_BASE, type: 'line', stack: 'pv-band', yAxisIndex: 0, silent: true, symbol: 'none',
-        lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
+        color: pv, lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
       { name: BAND_LABEL, type: 'line', stack: 'pv-band', yAxisIndex: 0, silent: true, symbol: 'none',
-        color: good, lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
+        color: pv, lineStyle: { width: 0 }, areaStyle: { color: pv, opacity: 0.18 },
         data: points.map(p => {
           const lo = num(p.pv_min); const hi = num(p.pv_max);
           return [p.ts, lo != null && hi != null ? hi - lo : null];
         }) },
-      { name: 'PV', type: 'line', yAxisIndex: 0, symbol: 'none', color: good, lineStyle: { color: good, width: 2 },
+      { name: 'PV', type: 'line', yAxisIndex: 0, symbol: 'none', color: pv, lineStyle: { color: pv, width: 2 },
         ...(markArea ? { markArea } : {}),
         data: points.map(p => [p.ts, at(p, 'pv_avg', 'pv')]) },
-      { name: 'SP', type: 'line', yAxisIndex: 0, symbol: 'none', color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
+      { name: 'SP', type: 'line', yAxisIndex: 0, symbol: 'none', color: sp, lineStyle: { color: sp, width: 1, type: 'dashed' },
         data: points.map(p => [p.ts, at(p, 'sp')]) },
-      { name: 'OP', type: 'line', yAxisIndex: 1, symbol: 'none', color: amber, lineStyle: { color: amber, width: 1.5 },
+      { name: 'OP', type: 'line', yAxisIndex: 1, symbol: 'none', color: op, lineStyle: { color: op, width: 1.5 },
         data: points.map(p => [p.ts, at(p, 'op_avg', 'op')]) },
       ...(hasVp ? [
-        { name: 'VP', type: 'line', yAxisIndex: 1, symbol: 'none', color: pink, lineStyle: { color: pink, width: 1.5 },
+        { name: 'VP', type: 'line', yAxisIndex: 1, symbol: 'none', color: vp, lineStyle: { color: vp, width: 1.5 },
           data: points.map(p => [p.ts, at(p, 'vp_avg', 'vp')]) },
       ] : []),
     ],

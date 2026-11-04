@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer, toast } from 'react-toastify';
@@ -10,6 +10,12 @@ import { useAuthStore } from './store/authStore';
 import { useMqttStore } from './store/mqttStore';
 import { HubConnectionState } from '@microsoft/signalr';
 
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
+
+// Legacy pages still import this from here.
+export { useTheme };
+
+import type { Theme } from './theme/theme';
 import { navItems } from './components/nav/navItems';
 import Sidebar from './components/nav/Sidebar';
 
@@ -85,15 +91,6 @@ const Login            = React.lazy(() => import('./components/Login/Login'));
 import { LiveEventStream } from './components/shared/LiveEventStream';
 import { FloodAlertBanner } from './components/shared/FloodAlertBanner';
 import { LiveEventsContext } from './context/LiveEventsContext';
-
-// Theme Context — Day, Bright, Night (Phase H: night = control-room high-contrast)
-type Theme = 'day' | 'bright' | 'night';
-const ThemeContext = createContext<{
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-}>({ theme: 'day', setTheme: () => {} });
-
-export const useTheme = () => useContext(ThemeContext);
 
 // Shell palette. These are applied via inline style={{}}, which beats every stylesheet — so when they
 // were raw hex the app shell could never follow the day/night theme. They are now OpenBridge tokens
@@ -186,22 +183,7 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => {
   const [ready, setReady] = useState(false);
-  // F: persist the theme — a night-shift control room reverting to 'day' on every
-  // reload is hostile. Mirrors the LiveEvents preference idiom.
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const t = localStorage.getItem('ams-theme');
-      if (t === 'day' || t === 'bright' || t === 'night') return t;
-    } catch { /* ignore */ }
-    return 'day';
-  });
-
   const authStatus = useAuthStore((s) => s.status);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-obc-theme', theme);
-    try { localStorage.setItem('ams-theme', theme); } catch { /* ignore */ }
-  }, [theme]);
 
   // Restore an existing session (silent refresh via the httpOnly cookie) once on load.
   useEffect(() => {
@@ -300,7 +282,7 @@ const App: React.FC = () => {
   if (!ready) return <LoadingScreen />;
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <ToastContainer
@@ -312,7 +294,7 @@ const App: React.FC = () => {
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme={theme === 'night' ? 'dark' : 'light'}
+            theme="light"
           />
           {/* Why the session ended (idle/absolute) — survives the redirect to /login. */}
           <SessionTimeoutDialog />
@@ -477,7 +459,7 @@ const App: React.FC = () => {
           </DialogProvider>
         </BrowserRouter>
       </QueryClientProvider>
-    </ThemeContext.Provider>
+    </ThemeProvider>
   );
 };
 
@@ -609,16 +591,17 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </button>
             )}
 
-            {/* Theme: Day | Bright */}
+            {/* Theme: Day | Night */}
             <div style={{
               display: 'inline-flex', alignItems: 'center',
               background: TB.bg, border: `1px solid ${TB.border}`,
               borderRadius: TB.radiusSm, padding: '3px', gap: '2px',
             }}>
-              {(['day', 'bright', 'night'] as Theme[]).map(t => (
+              {(['day', 'night'] as Theme[]).map(t => (
                 <button
                   key={t}
                   type="button"
+                  aria-pressed={theme === t}
                   onClick={() => setTheme(t)}
                   style={{
                     padding: '5px 14px', fontSize: '12px', fontWeight: 700,

@@ -224,3 +224,10 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
   variable, never on the `docker exec` command line. The IoTDB client tools take the password only as `-pw`, so the java process
   inside the container carries it as an argument while it runs (host `ps`, i.e. the operators who can read `migration/.env`).
 - **Daily check 7b** flags a missing, older-than-30 h or incomplete run.
+
+## CPA theme (CHG-111, unreleased, branch feat/cpa-redesign)
+
+- **Themes:** Day and Night only, in `localStorage['ams-theme']`. Old values migrate on first load (`bright`/`light` to `day`, `dark` to `night`).
+- **First paint:** an inline script in `index.html` sets the theme. **If a Content-Security-Policy is ever added at nginx or the gateway, it must allow this script (by hash), or Night users see a white flash.** None exists today.
+- **OpenBridge is pinned to exactly 1.0.1.** `styles/openbridge-bridge.css` remaps that version's variables. After any upgrade run `node scripts/theme/bridge-coverage.mjs` and `docs/theme/tools/obc-fit-probe.mjs --assert` before shipping.
+- **Lab auth CORS:** `CORS_ORIGIN` allows :3000 and :5174 only, and any other browser origin gets HTTP 500, not 403. A new server's frontend URL must be in that list or login fails with "Internal server error".

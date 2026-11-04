@@ -2,7 +2,7 @@
  * Login page — split layout: plant visual on the left, credential column on the right.
  *
  * Every colour, border and radius here resolves to an OpenBridge token, so the page
- * re-themes with `data-obc-theme` (day / dusk / night / bright) like the rest of the app.
+ * re-themes with `data-theme` (day / night) like the rest of the app.
  * The input surface deliberately mirrors the exact tokens `obc-text-input-field` uses
  * (`--normal-*`, `--on-normal-*`, `--border-focus-color`) — see Login.tsx for why the
  * credential fields stay native <input> elements.
@@ -85,12 +85,8 @@
 
 /* Dark themes: the render is near-white. Left untouched it is a wall of glare in a
    darkened control room, which is exactly what ISA-101 asks us not to build. */
-:root[data-obc-theme='night'] .login__visual-img {
+:root[data-theme='night'] .login__visual-img {
   filter: brightness(0.34) contrast(1.06) saturate(0.7);
-}
-
-:root[data-obc-theme='dusk'] .login__visual-img {
-  filter: brightness(0.62) contrast(1.03) saturate(0.85);
 }
 
 /* ── Deployment identity over the visual ─────────────────────────────────

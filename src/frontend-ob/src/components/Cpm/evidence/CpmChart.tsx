@@ -3,20 +3,24 @@
  * One y axis per unit group (never mixed units on an axis), `connectNulls: false` always (no filled
  * line across unsupported gaps), `step: 'end'` for held series, times in the site zone with the zone
  * in the axis name, bands labelled with their meaning, and an on-demand CSV export of
- * the same values the chart draws. Colours come from the CPM pens (OpenBridge tokens), never literals.
+ * the same values the chart draws. Colours come from the chart palette (charts/chartTheme.ts), never literals.
  * Phase 5 (cpa-ui-fix-plan): rectangle zoom on x and on every unit axis, from the title bar.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { cpmChartColors } from '../shared';
+import { axisChrome, baseOption, chartPalette, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
 import { axisTimeFormatter, formatInZone, zoneLabel } from './timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
 
-export type Pen = 'good' | 'amber' | 'grey' | 'accent' | 'pink' | 'bad';
-export type Pens = Record<Pen, string>;
+/** What a series is drawn as. `sp` is for setpoints; `neutral` is a reference mark that is not a signal. */
+export type Pen = 'pv' | 'sp' | 'op' | 'vp' | 'overlay' | 'neutral' | 'danger';
+
+const penColors = (p: ChartPalette): Record<Pen, string> => ({
+  pv: p.pv, sp: p.sp, op: p.op, vp: p.vp, overlay: p.pens[4], neutral: p.tick, danger: p.danger,
+});
 
 export interface CpmSeries {
   id: string;
@@ -45,7 +49,7 @@ export interface CpmChartInput {
   timeZone?: string;
   xLabel?: string;
   xUnit?: string;
-  pens: Pens;
+  palette: ChartPalette;
   height?: number;
   logY?: boolean;
   /** The drawn width in px when known (measured by CpmChart): the legend's row count depends on it. */
@@ -74,7 +78,10 @@ export function legendRowsFor(names: string[], width: number | undefined): numbe
 
 /** Pure option builder (tested): one axis per unit group, no null bridging, stepped holds, labelled bands. */
 export function buildCpmChartOption(input: CpmChartInput) {
-  const { series, xKind, timeZone = 'UTC', pens } = input;
+  const { series, xKind, timeZone = 'UTC', palette } = input;
+  const pens = penColors(palette);
+  const base = baseOption(palette);
+  const axis = axisChrome(palette);
   const units: string[] = [];
   for (const s of series) if (!units.includes(s.unit)) units.push(s.unit);
   const firstX = series.find(s => s.x.length > 0)?.x[0] ?? Date.now();
@@ -82,13 +89,14 @@ export function buildCpmChartOption(input: CpmChartInput) {
   for (const s of series) for (let i = 0; i < s.x.length; i++) { if (s.x[i] < minX) minX = s.x[i]; if (s.x[i] > maxX) maxX = s.x[i]; }
   const tick = axisTimeFormatter(Number.isFinite(maxX - minX) ? maxX - minX : 0, timeZone);
   const xAxis = xKind === 'time'
-    ? { type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { color: pens.grey, hideOverlap: true, formatter: tick }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false } }
-    : { type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { color: pens.grey, hideOverlap: true }, axisLine: { lineStyle: { color: pens.grey } }, splitLine: { show: false }, scale: true };
+    ? { ...axis, type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
+        axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: tick }, splitLine: { show: false } }
+    : { ...axis, type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
+        axisLabel: { ...axis.axisLabel, hideOverlap: true }, splitLine: { show: false }, scale: true };
   const yAxis = units.map((u, i) => ({
+    ...axis,
     type: (input.logY ? 'log' : 'value') as 'log' | 'value', name: u, position: i % 2 === 0 ? 'left' : 'right', offset: Math.floor(i / 2) * 48,
-    scale: true, axisLabel: { color: pens.grey }, nameTextStyle: { color: pens.grey }, splitLine: { show: i === 0, lineStyle: { opacity: 0.2 } },
+    scale: true, splitLine: { show: i === 0, lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } },
   }));
   const echartsSeries = series.map(s => {
     const data: Array<[number, number | null]> = [];
@@ -120,13 +128,15 @@ export function buildCpmChartOption(input: CpmChartInput) {
   // margin reserves the rows the legend will take, estimated from the label widths against the drawn width
   const legendRows = legendRowsFor(echartsSeries.map(s => s.name), input.width);
   return {
+    ...base,
     animation: false,
     grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
     ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: units.map((_, i) => i) }, input.zoom ?? FULL_ZOOM),
     xAxis,
     yAxis,
-    legend: { bottom: 0, textStyle: { color: pens.grey }, itemGap: 14 },
+    legend: { ...base.legend, bottom: 0, itemGap: 14 },
     tooltip: {
+      ...base.tooltip,
       trigger: 'axis' as const,
       formatter: (params: unknown) => {
         const items = (Array.isArray(params) ? params : [params]) as Array<{ seriesId: string; seriesName: string; value: [number, number | null]; dataIndex: number }>;
@@ -187,8 +197,8 @@ export function csvFileName(title: string | undefined, loopId: string | null | u
   return `${loopId ? `${loopId}-` : ''}${slug}${when}.csv`;
 }
 
-export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
-  const pens: Pens = cpmChartColors();
+export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
+  const theme = useChartTheme();
   // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | undefined>(undefined);
@@ -200,7 +210,9 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'pens' | 'width' | 'zoom'> &
     return () => ro.disconnect();
   }, []);
   const box = useBoxZoom({ hasY: true });
-  const option = useMemo(() => buildCpmChartOption({ ...props, pens, width, zoom: box.zoom }), [props, pens, width, box.zoom]);
+  const option = useMemo(() => buildCpmChartOption({ ...props, palette: chartPalette(), width, zoom: box.zoom }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+    [props, theme, width, box.zoom]);
   useKeepSelecting(box, option);
   const onEvents = useMemo(() => ({
     click: (e: { seriesId?: string; dataIndex?: number }) => { if (props.onClick && e.seriesId != null && e.dataIndex != null) props.onClick(e.seriesId, e.dataIndex); },

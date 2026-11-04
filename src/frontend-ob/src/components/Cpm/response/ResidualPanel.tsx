@@ -30,11 +30,11 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
       )}
       {residuals && (
         <CpmChart title="Residuals" xKind="time" timeZone={timeZone} height={200}
-          series={[{ id: 'residual', label: 'residual (y − ŷ)', unit: residuals.units.y ?? residuals.meta.y.unit ?? '', x: epochMs(residuals), y: Array.from(residuals.columns.y), pen: 'accent' }]} />
+          series={[{ id: 'residual', label: 'residual (y − ŷ)', unit: residuals.units.y ?? residuals.meta.y.unit ?? '', x: epochMs(residuals), y: Array.from(residuals.columns.y), pen: 'overlay' }]} />
       )}
       {acf && (
         <CpmChart title="Residual autocorrelation" xKind="value" xLabel="lag" xUnit={acf.units.x ?? acf.meta.x.unit ?? 'samples'} height={200}
-          series={[{ id: 'acf', label: 'residual ACF', unit: acf.units.y ?? 'dimensionless', x: acf.columns.x, y: Array.from(acf.columns.y), pen: 'grey', markers: true }]} />
+          series={[{ id: 'acf', label: 'residual ACF', unit: acf.units.y ?? 'dimensionless', x: acf.columns.x, y: Array.from(acf.columns.y), pen: 'neutral', markers: true }]} />
       )}
       <p className="cpm-copy">Free-run and one-step prediction errors are reported separately: a flexible predictor with the wrong plant can pass one-step and fail free-run.</p>
     </section>

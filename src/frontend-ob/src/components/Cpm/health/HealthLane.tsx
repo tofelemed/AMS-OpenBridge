@@ -7,7 +7,8 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { HealthHistoryRow } from '../../../api/cpm/health';
-import { cpmToneColors, resolveCssColor, type CpmTone } from '../shared';
+import { axisChrome, chartPalette, plainOption, toneColors, useChartTheme } from '../../../charts/chartTheme';
+import type { CpmTone } from '../shared';
 import { laneRenderer, type Segment } from '../historical/chartOption';
 import { eligibilityTone } from './TransmitterHealthPanel';
 import { codeLabel } from '../vocabulary';
@@ -39,19 +40,24 @@ export const HealthLane: React.FC<{
   height?: number;
 }> = ({ rows, from, to, role = 'PV', height = 28 }) => {
   const segments = useMemo(() => healthSegments(rows, from, to, role), [rows, from, to, role]);
+  const theme = useChartTheme();
   const option = useMemo(() => {
-    const tones = cpmToneColors();
-    const grey = resolveCssColor('--on-surface-passive-color', '#888');
+    const palette = chartPalette();
+    const tones = toneColors(palette);
+    const base = plainOption(palette);
+    const axis = axisChrome(palette);
     return {
+      ...base,
       animation: false,
       grid: [{ left: 60, right: 24, top: 2, height: height - 4 }],
       tooltip: {
+        ...base.tooltip,
         trigger: 'item' as const,
         formatter: (p: { dataIndex: number }) => segments[p.dataIndex]?.label ?? '',
       },
       xAxis: [{
-        type: 'time' as const, gridIndex: 0, min: from.getTime(), max: to.getTime(),
-        axisLabel: { show: false }, axisLine: { show: false, lineStyle: { color: grey } }, axisTick: { show: false }, splitLine: { show: false },
+        ...axis, type: 'time' as const, gridIndex: 0, min: from.getTime(), max: to.getTime(),
+        axisLabel: { ...axis.axisLabel, show: false }, axisLine: { ...axis.axisLine, show: false }, axisTick: { ...axis.axisTick, show: false }, splitLine: { show: false },
       }],
       yAxis: [{ type: 'value' as const, gridIndex: 0, min: 0, max: 1, show: false }],
       series: [{
@@ -60,7 +66,8 @@ export const HealthLane: React.FC<{
         data: segments.map(s => [s.startMs, 0.5]),
       }],
     };
-  }, [segments, from, to, height]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  }, [segments, from, to, height, theme]);
   return (
     <div className="cpm-health-lane" role="img" aria-label={`${role} instrument eligibility timeline`}>
       {segments.length === 0

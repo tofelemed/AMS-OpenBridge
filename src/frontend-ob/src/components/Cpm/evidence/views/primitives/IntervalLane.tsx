@@ -5,7 +5,8 @@
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { cpmToneColors, type CpmTone } from '../../../shared';
+import { axisChrome, chartPalette, plainOption, toneColors, useChartTheme, type ChartPalette } from '../../../../../charts/chartTheme';
+import type { CpmTone } from '../../../shared';
 import { formatInZone, formatTimeInZone, zoneLabel } from '../../timezone';
 
 export interface LaneInterval {
@@ -21,17 +22,22 @@ export interface IntervalLaneInput {
   fromMs: number;
   toMs: number;
   timeZone: string;
-  tones: Record<CpmTone, string>;
+  palette: ChartPalette;
 }
 
 export function buildIntervalLaneOption(i: IntervalLaneInput) {
-  const { intervals, fromMs, toMs, timeZone, tones } = i;
+  const { intervals, fromMs, toMs, timeZone, palette } = i;
+  const tones = toneColors(palette);
+  const base = plainOption(palette);
+  const axis = axisChrome(palette);
   return {
+    ...base,
     animation: false,
     grid: { left: 64, right: 24, top: 6, bottom: 24 },
-    xAxis: { type: 'time' as const, min: fromMs, max: toMs, axisLabel: { formatter: (v: number) => formatTimeInZone(v, timeZone) }, splitLine: { show: false } },
+    xAxis: { ...axis, type: 'time' as const, min: fromMs, max: toMs, axisLabel: { ...axis.axisLabel, formatter: (v: number) => formatTimeInZone(v, timeZone) }, splitLine: { show: false } },
     yAxis: { type: 'value' as const, min: 0, max: 1, show: false },
     tooltip: {
+      ...base.tooltip,
       trigger: 'item' as const,
       formatter: (p: { dataIndex: number }) => {
         const s = intervals[p.dataIndex];
@@ -55,9 +61,10 @@ export function buildIntervalLaneOption(i: IntervalLaneInput) {
   };
 }
 
-export const IntervalLane: React.FC<Omit<IntervalLaneInput, 'tones'> & { height?: number; empty?: string }> = (props) => {
-  const tones = cpmToneColors();
-  const option = useMemo(() => buildIntervalLaneOption({ ...props, tones }), [props, tones]);
+export const IntervalLane: React.FC<Omit<IntervalLaneInput, 'palette'> & { height?: number; empty?: string }> = (props) => {
+  const theme = useChartTheme();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  const option = useMemo(() => buildIntervalLaneOption({ ...props, palette: chartPalette() }), [props, theme]);
   return (
     <div className="cpm-lane" data-lane={props.title}>
       <span className="cpm-eyebrow">{props.title}</span>

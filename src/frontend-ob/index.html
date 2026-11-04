@@ -1,6 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" data-obc-theme="day">
+<html lang="en">
   <head>
+    <!-- Sets the theme before anything paints (CD4). Keep in step with src/theme/theme.ts. -->
+    <script>
+      (function () {
+        var stored = null;
+        try { stored = localStorage.getItem('ams-theme'); } catch (e) { /* storage unavailable */ }
+        var theme = stored === 'night' || stored === 'dark' ? 'night' : 'day';
+        var root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.setAttribute('data-obc-theme', theme);
+        try { if (stored !== theme) localStorage.setItem('ams-theme', theme); } catch (e) { /* storage unavailable */ }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <!-- Inline data-URI favicon: /vite.svg never existed (404 on every load) and
          an external file is one more asset to verify on an air-gapped plant. -->

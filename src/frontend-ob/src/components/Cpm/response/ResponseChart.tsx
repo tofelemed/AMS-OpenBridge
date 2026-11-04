@@ -27,25 +27,25 @@ export const ResponseChartBody: React.FC<{
   const one = (k: string) => byKind[k]?.[0];
   const samples = one('accepted_samples');
   const output: CpmSeries[] = [];
-  if (samples) output.push(timeSeries(samples, 'pv', 'PV (accepted)', 'good', { masked: true }));
+  if (samples) output.push(timeSeries(samples, 'pv', 'PV (accepted)', 'pv', { masked: true }));
   const baseline = one('baseline');
-  if (baseline) output.push(timeSeries(baseline, 'baseline', 'baseline y0 (pre-event median)', 'grey', { dashed: true }));
+  if (baseline) output.push(timeSeries(baseline, 'baseline', 'baseline y0 (pre-event median)', 'neutral', { dashed: true }));
   const target = one('target');
-  if (target) output.push(timeSeries(target, 'target', 'reference r1 (target)', 'amber', { dashed: true }));
+  if (target) output.push(timeSeries(target, 'target', 'reference r1 (target)', 'op', { dashed: true }));
   const fit = one('y_fit');
-  if (fit) output.push(timeSeries(fit, 'y_fit', 'model fit (training)', 'accent', { masked: true }));
+  if (fit) output.push(timeSeries(fit, 'y_fit', 'model fit (training)', 'overlay', { masked: true }));
   const predict = one('y_predict');
-  if (predict) output.push(timeSeries(predict, 'y_predict', 'holdout prediction (free run)', 'pink', { masked: true }));
+  if (predict) output.push(timeSeries(predict, 'y_predict', 'holdout prediction (free run)', 'vp', { masked: true }));
   const band = one('prediction_interval');
   if (band) {
     const meaning = bandMeaningText(prov(band, 'band_meaning'));
-    output.push(timeSeries(band, 'pi_upper', 'upper', 'pink', { bandMeaning: meaning }));
-    if (band.columns.lower) output.push(timeSeries(band, 'pi_lower', 'lower', 'pink', { bandMeaning: meaning, column: 'lower' }));
+    output.push(timeSeries(band, 'pi_upper', 'upper', 'vp', { bandMeaning: meaning }));
+    if (band.columns.lower) output.push(timeSeries(band, 'pi_lower', 'lower', 'vp', { bandMeaning: meaning, column: 'lower' }));
   }
   const rt = one('response_times');
-  if (rt) output.push({ id: 'response_times', label: 'response time (progress level)', unit: rt.units.y ?? '%', x: afterT0Ms(rt, t0Ms), y: Array.from(rt.columns.y), pen: 'amber', markers: true });
+  if (rt) output.push({ id: 'response_times', label: 'response time (progress level)', unit: rt.units.y ?? '%', x: afterT0Ms(rt, t0Ms), y: Array.from(rt.columns.y), pen: 'op', markers: true });
   const input = one('input_reconstruction');
-  const inputSeries: CpmSeries[] = input ? [timeSeries(input, 'u_applied', 'applied input (reconstructed, held)', 'accent', { held: true, masked: true })] : [];
+  const inputSeries: CpmSeries[] = input ? [timeSeries(input, 'u_applied', 'applied input (reconstructed, held)', 'overlay', { held: true, masked: true })] : [];
 
   return (
     <section className="cpm-surface">

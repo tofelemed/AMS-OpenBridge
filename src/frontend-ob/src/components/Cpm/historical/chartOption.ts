@@ -18,6 +18,7 @@
  * signals grid only; the box components, the slider and the wheel share state.
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
+import { axisChrome, plainOption, toneColors, zoomChrome, type ChartPalette } from '../../../charts/chartTheme';
 import { pvAxisName } from '../trend/trendOption';
 import { escapeHtml } from '../../../utils/escapeHtml';
 import type { CpmTone } from '../shared';
@@ -61,8 +62,7 @@ export interface ChartInput {
   healthSegments?: Segment[];
   from: Date;
   to: Date;
-  pens: { good: string; amber: string; grey: string; accent: string; pink: string };
-  tones: Record<CpmTone, string>;
+  palette: ChartPalette;
   /** v2.5 (2E.2, R14): the PV engineering unit for the EU axis (SP shares it); 'EU' when the registry declares none. */
   pvUnit?: string;
   /** v2.5 (2E.2): the site zone every time is shown in (UTC when undeclared). */
@@ -110,9 +110,14 @@ export function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>
 export function buildChartOption(input: ChartInput) {
   const {
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments,
-    from, to, pens, tones,
+    from, to, palette,
   } = input;
-  const { good, amber, grey, accent, pink } = pens;
+  const { pv, sp, op, vp, tick } = palette;
+  const overlayPen = palette.pens[4];
+  const tones = toneColors(palette);
+  const base = plainOption(palette);
+  const axis = axisChrome(palette);
+  const axisName = { ...axis.nameTextStyle, fontSize: 12 };
 
   const domain = { min: from.getTime(), max: to.getTime() };
   const hasHealth = healthSegments != null;
@@ -160,12 +165,13 @@ export function buildChartOption(input: ChartInput) {
   // Every lane pins the SAME min/max, which is what makes a vertical read
   // across them valid even where one lane has no data at all.
   const timeAxis = (gridIndex: number, showLabels: boolean) => ({
+    ...axis,
     type: 'time' as const,
     gridIndex,
     ...domain,
-    axisLabel: { show: showLabels, color: grey },
-    axisLine: { show: showLabels, lineStyle: { color: grey } },
-    axisTick: { show: showLabels },
+    axisLabel: { ...axis.axisLabel, show: showLabels },
+    axisLine: { ...axis.axisLine, show: showLabels },
+    axisTick: { ...axis.axisTick, show: showLabels },
     splitLine: { show: false },
   });
 
@@ -174,6 +180,7 @@ export function buildChartOption(input: ChartInput) {
   });
 
   return {
+    ...base,
     animation: false,
     grid: [
       { left: 60, right: 60, top: LANES.signals.top, height: LANES.signals.height },
@@ -185,20 +192,21 @@ export function buildChartOption(input: ChartInput) {
     // The point of the rebuild: one crosshair, four lanes.
     axisPointer: { link: [{ xAxisIndex: 'all' as const }], snap: false },
     graphic: [
-      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: grey, font: '12px sans-serif' } },
-      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: grey, font: '12px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: tick, font: '12px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: tick, font: '12px sans-serif' } },
     ],
     toolbox: box.toolbox,
     dataZoom: [
       ...box.dataZoom,
       {
+        ...zoomChrome(palette),
         type: 'slider', xAxisIndex: zoomAxes, filterMode: 'none',
         start: (input.zoom ?? FULL_ZOOM).x.start, end: (input.zoom ?? FULL_ZOOM).x.end,
         height: LANES.slider.height, bottom: LANES.slider.bottom,
-        borderColor: grey, textStyle: { color: grey },
       },
     ],
     tooltip: {
+      ...base.tooltip,
       trigger: 'axis',
       formatter: (
         params: Array<{ seriesName: string; marker: string; value: [number, number | null] }>,
@@ -235,22 +243,22 @@ export function buildChartOption(input: ChartInput) {
       ? [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, false), timeAxis(4, true)]
       : [timeAxis(0, false), timeAxis(1, false), timeAxis(2, false), timeAxis(3, true)],
     yAxis: [
-      { type: 'value', gridIndex: 0, scale: !normalize, ...(normalize ? { min: 0, max: 1 } : {}),
-        name: normalize ? 'fraction of own span (normalised)' : pvAxisName(pvUnit), nameTextStyle: { color: grey, fontSize: 12 },
-        axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-      { type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: { color: grey, fontSize: 12 }, axisLabel: { color: grey }, splitLine: { show: false } },
+      { ...axis, type: 'value', gridIndex: 0, scale: !normalize, ...(normalize ? { min: 0, max: 1 } : {}),
+        name: normalize ? 'fraction of own span (normalised)' : pvAxisName(pvUnit), nameTextStyle: axisName,
+        splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
+      { ...axis, type: 'value', gridIndex: 1, scale: true, name: overlay.unit, nameTextStyle: axisName, splitLine: { show: false } },
       laneY(2),
       laneY(3),
       ...(hasHealth ? [laneY(4)] : []),
       // the percentage-point axis of the signals grid (OP / VP), on the right; absent when normalised
-      ...(normalize ? [] : [{ type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'OP / VP (%)',
-        nameTextStyle: { color: grey, fontSize: 12 }, axisLabel: { color: grey }, splitLine: { show: false } }]),
+      ...(normalize ? [] : [{ ...axis, type: 'value' as const, gridIndex: 0, scale: true, position: 'right' as const, name: 'OP / VP (%)',
+        nameTextStyle: axisName, splitLine: { show: false } }]),
     ],
     series: [
       ...(input.highlight ? [{
-        name: 'selected-window', type: 'line', silent: true, xAxisIndex: 0, yAxisIndex: 0, data: [] as Array<[number, number]>,
-        markArea: { silent: true, itemStyle: { color: input.pens.accent, opacity: 0.1 },
-          label: { show: true, position: 'insideTop' as const, color: grey, fontSize: 12 },
+        name: 'selected-window', type: 'line', silent: true, xAxisIndex: 0, yAxisIndex: 0, color: overlayPen, data: [] as Array<[number, number]>,
+        markArea: { silent: true, itemStyle: { color: overlayPen, opacity: 0.1 },
+          label: { show: true, position: 'insideTop' as const, color: tick, fontSize: 12 },
           data: [[{ name: input.highlight.label, xAxis: input.highlight.startMs }, { xAxis: input.highlight.endMs }]] },
       }] : []),
       // PV keeps its envelope: the band is the honest rendering of oscillation
@@ -258,32 +266,32 @@ export function buildChartOption(input: ChartInput) {
       // healthy valve, VP staircasing against a smooth OP is stiction.
       ...(signals.includes('pv') && !normalize ? [
         { name: 'pv-min', type: 'line', stack: 'pv-band', silent: true, symbol: 'none', connectNulls: false,
-          lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
+          color: pv, lineStyle: { width: 0 }, data: points.map(p => [p.ts, num(p.pv_min)]) },
         { name: 'pv-band', type: 'line', stack: 'pv-band', silent: true, symbol: 'none', connectNulls: false,
-          lineStyle: { width: 0 }, areaStyle: { color: good, opacity: 0.18 },
+          color: pv, lineStyle: { width: 0 }, areaStyle: { color: pv, opacity: 0.18 },
           data: points.map(p => {
             const lo = num(p.pv_min); const hi = num(p.pv_max);
             return [p.ts, lo != null && hi != null ? hi - lo : null];
           }) },
       ] : []),
       ...(signals.includes('pv') ? [
-        { name: sig('PV'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: good, lineStyle: { color: good, width: 2 },
+        { name: sig('PV'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: pv, lineStyle: { color: pv, width: 2 },
           data: dataOf(pvGet, spans.pv) },
       ] : []),
       ...(signals.includes('sp') ? [
-        { name: sig('SP'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: grey, lineStyle: { color: grey, width: 1, type: 'dashed' },
+        { name: sig('SP'), type: 'line', symbol: 'none', connectNulls: false, yAxisIndex: 0, color: sp, lineStyle: { color: sp, width: 1, type: 'dashed' },
           data: dataOf(spGet, spans.sp) },
       ] : []),
       ...(signals.includes('op') ? [
-        { name: sig('OP'), type: 'line', symbol: 'none', connectNulls: false, color: amber, lineStyle: { color: amber, width: 1.5 },
+        { name: sig('OP'), type: 'line', symbol: 'none', connectNulls: false, color: op, lineStyle: { color: op, width: 1.5 },
           ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(opGet, spans.op) },
       ] : []),
       ...(signals.includes('vp') ? [
-        { name: sig('VP'), type: 'line', symbol: 'none', connectNulls: false, color: pink, lineStyle: { color: pink, width: 1.5 },
+        { name: sig('VP'), type: 'line', symbol: 'none', connectNulls: false, color: vp, lineStyle: { color: vp, width: 1.5 },
           ...(normalize ? {} : { yAxisIndex: ppAxisIndex }), data: dataOf(vpGet, spans.vp) },
       ] : []),
       { name: overlay.label, type: 'line', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle', connectNulls: false,
-        symbolSize: 5, lineStyle: { color: accent, width: 1.5 }, itemStyle: { color: accent },
+        symbolSize: 5, lineStyle: { color: overlayPen, width: 1.5 }, itemStyle: { color: overlayPen },
         data: overlayData },
       {
         name: 'mode-track', type: 'custom', xAxisIndex: 2, yAxisIndex: 2, silent: true,

@@ -17,43 +17,6 @@ import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
 
 /**
- * Resolve a CSS color (incl. var() chains) to a concrete rgb() for echarts, which
- * renders to canvas and can't consume var(). A hidden span in the live DOM resolves
- * against the CURRENT theme cascade — more reliable than
- * getComputedStyle(documentElement).getPropertyValue, which returns empty whenever
- * the theme tokens are scoped to a selector documentElement doesn't match (the cause
- * of the CPM loop trends rendering with washed-out / missing colors).
- */
-export function resolveCssColor(value: string, fallback: string): string {
-  if (typeof document === 'undefined') return fallback;
-  const el = document.createElement('span');
-  el.style.color = value;
-  el.style.display = 'none';
-  document.body.appendChild(el);
-  const resolved = getComputedStyle(el).color;
-  el.remove();
-  return resolved || fallback;
-}
-
-/**
- * Shared CPM trend palette — the SAME pen colors the Trend page (TrendCore) uses, so
- * loop trends on Historical / Investigation / Replay / Overview read consistently
- * (PI-Vision style) and stay visible in every theme. PV=green, OP=amber, SP/axis=
- * neutral, overlay/cursor=violet. Call inside the chart useMemo (keyed on obcTheme)
- * so it re-resolves on a theme switch.
- */
-export function cpmChartColors() {
-  return {
-    good:   resolveCssColor('var(--ams-pen-2)', '#40c057'),          // PV line + envelope band
-    amber:  resolveCssColor('var(--ams-pen-3)', '#fab005'),          // OP line
-    grey:   resolveCssColor('var(--element-neutral-color)', '#9aa6af'), // axis, grid, SP
-    accent: resolveCssColor('var(--ams-pen-5)', '#7048e8'),          // overlay / evidence cursor
-    pink:   resolveCssColor('var(--ams-pen-4)', '#e64980'),          // VP (valve position) pen
-    bad:    resolveCssColor('var(--alert-alarm-color)', '#e30019'),  // v2.5 evidence views: excluded / rejected / out-of-band
-  };
-}
-
-/**
  * P2-13 - every CPM timestamp render used bare toLocaleString() with no zone
  * label, while the CSV exports write raw UTC ISO. An operator at UTC+5 saw
  * 16:49 on screen and 11:49:00Z in the export and read the 5-hour gap as a
@@ -263,22 +226,6 @@ export function toneFor(value: string | null | undefined): CpmTone {
   // amber on some screens and grey on others):
   // "we did not judge this" must not look like a verdict either way.
   return 'muted';
-}
-
-/**
- * Concrete rgb() for the four tone tokens, for canvas renderers (echarts cannot
- * consume var()). Same tone vocabulary as the CSS in styles/cpm.css — resolved
- * here so a canvas lane and a DOM pill can never disagree about what "warn"
- * looks like. Call inside a useMemo keyed on obcTheme so it re-resolves on a
- * theme switch.
- */
-export function cpmToneColors(): Record<CpmTone, string> {
-  return {
-    good: resolveCssColor('var(--alert-running-color)', '#008300'),
-    warn: resolveCssColor('var(--alert-caution-color)', '#ffdb42'),
-    bad: resolveCssColor('var(--alert-alarm-color)', '#e30019'),
-    muted: resolveCssColor('var(--element-neutral-color)', '#9aa6af'),
-  };
 }
 
 /**

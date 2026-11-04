@@ -3,17 +3,17 @@
 // the tooltip names every value's unit and shows the sample time in the site zone; an explicit
 // Normalise toggle puts everything on "fraction of own span" and SAYS so.
 import { describe, it, expect } from 'vitest';
+import { chartPalette } from '../../../charts/chartTheme';
 import { buildChartOption, type ChartInput } from './chartOption';
 
-const pens = { good: '#0f0', amber: '#fa0', grey: '#888', accent: '#00f', pink: '#f0f', bad: '#f00' };
-const tones = { good: '#0f0', warn: '#ff0', bad: '#f00', muted: '#888' };
+const palette = chartPalette();
 
 function input(over: Partial<ChartInput> = {}): ChartInput {
   const t0 = Date.UTC(2026, 8, 16, 12, 0, 0);
   return {
     points: [0, 1, 2].map(i => ({ ts: t0 + i * 60_000, pv: 400 + i, pv_avg: 400 + i, sp: 401, op: 40 + i, op_avg: 40 + i, vp: 39 + i })),
     kpiRows: [], overlay: { key: 'iae', label: 'IAE', unit: 'EU·s' }, signals: ['pv', 'sp', 'op', 'vp'],
-    modeSegments: [], verdictSegments: [], from: new Date(t0), to: new Date(t0 + 180_000), pens, tones,
+    modeSegments: [], verdictSegments: [], from: new Date(t0), to: new Date(t0 + 180_000), palette,
     pvUnit: '°C', timeZone: 'Asia/Dubai',
     ...over,
   };

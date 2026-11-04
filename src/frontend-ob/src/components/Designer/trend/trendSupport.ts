@@ -1,7 +1,7 @@
 /**
  * Trend engine support (split out of TrendCore, cpa-ui-fix-plan Phase 5): pen
- * types, ranges, unit guesses, path splitting, the regression fit and the theme
- * token resolver. Pure helpers only; TrendCore owns the state.
+ * types, ranges, unit guesses, path splitting and the regression fit. Pure
+ * helpers only; TrendCore owns the state.
  */
 
 /** P2-23 - sentinel distinguishing "fetch failed" from a legitimately empty series. */
@@ -12,7 +12,7 @@ export interface PenSpec {
   path: string;
   label?: string;
   // Phase 6 — per-trace styling (E1.2–E1.4). All optional; defaults reproduce the prior look exactly.
-  color?: string;                                   // overrides the auto-assigned pen token
+  color?: string;                                   // overrides the auto-assigned pen colour
   lineWidth?: number;                               // default 1.5
   lineStyle?: 'solid' | 'dashed' | 'dotted';        // default solid
   showMarkers?: boolean;                            // default false
@@ -43,20 +43,6 @@ export function regressionLine(pts: TrendPoint[]): Array<[number, number]> | nul
   const intercept = (sy - slope * sx) / n;
   const x0 = pts[0].ts, x1 = pts[n - 1].ts;
   return [[x0, slope * x0 + intercept], [x1, slope * x1 + intercept]];
-}
-
-// Phase H tokens — echarts renders to canvas and can't consume var(), so resolve to a concrete
-// color (this also resolves the nested --ams-pen-1 → --ams-crit, so ONE token drives alarms and pen 1).
-export const PEN_TOKENS = ['--ams-pen-1', '--ams-pen-2', '--ams-pen-3', '--ams-pen-4', '--ams-pen-5', '--ams-pen-6'];
-export function resolveColor(cssColor: string): string {
-  if (typeof document === 'undefined') return cssColor;
-  const el = document.createElement('span');
-  el.style.color = cssColor;
-  el.style.display = 'none';
-  document.body.appendChild(el);
-  const c = getComputedStyle(el).color;
-  el.remove();
-  return c || cssColor;
 }
 
 export const RANGES = [

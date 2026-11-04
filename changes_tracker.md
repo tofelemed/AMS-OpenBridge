@@ -5319,3 +5319,25 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-111 — CPA redesign Phase 1: Traverse tokens, Day and Night, one chart theme (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** CPA-UI-PRM-004 Phase 1 (PRM-002 Phases 1 and 2): every colour in CPA now comes from the Traverse tokens, and the app has two themes.
+
+**Changed**
+- `styles/traverse-tokens.css` is the R1.2 token file, verbatim. `styles/openbridge-bridge.css` maps all 132 OpenBridge colour variables to Traverse tokens. The packages stay; only their values change (`html:root[data-theme]` outranks the library's own selector).
+- Themes are Day and Night. Bright and Dusk are removed. A stored `bright` or `light` becomes `day`, a stored `dark` becomes `night`.
+- A blocking script in `index.html` sets the theme before first paint. Proof on a production build: 0 bright frames in a Night load, 37 with the script removed.
+- `charts/chartTheme.ts` is the one chart theme builder. 11 charts now use it and rebuild on a theme switch without a reload. PV, SP, OP and VP keep fixed roles (CD12). Night tooltips and sliders no longer draw white (CD14).
+- `check-tokens.mjs` (T1 to T11), `contrast.mjs` and `bridge-coverage.mjs` run with `npm run lint:theme`.
+
+**Removed.** `styles/ag-theme-openbridge.css`, `styles/alarm-console.css`, root `Designer.css`, `hooks/useObcTheme.ts`; `cpmChartColors`, `cpmToneColors`, `resolveCssColor`, `PEN_TOKENS`.
+
+**Pinned.** OpenBridge packages to exactly `1.0.1`: the bridge maps the variables of this version, so a new version needs a fresh coverage run.
+
+**Verified.** tsc 0, lint 0, 583 tests in 118 files, build OK, `lint:theme` 0 matches on 329 live files, contrast 121 of 126 (min text 4.587, chart pairings 30 of 30), adapter probe 9 of 9, 0 unbridged variables. 24 routes captured in Day and Night, blocked 0, HTTP 429 0. No Content-Security-Policy exists on the image, so the inline script runs in production.
+
+**Limits.** The box-zoom selection rectangle keeps the ECharts default colour. The pages still have their old layout: that is Phases 2 to 7.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15). **On release:** every user with a stored Bright theme moves to Day once.

@@ -20,6 +20,36 @@ const tooling = path.join(here, '.tooling');
 const out = path.join(repo, 'docs/theme/deep/data/openbridge-fit-probe.json');
 const esbuild = createRequire(path.join(app, 'package.json'))('esbuild');
 
+/**
+ * --assert: the gate for RD2. The adapter relies on variables and parts that OpenBridge does not
+ * document, so an upgrade could drop them silently. This reads the installed package and fails if
+ * the pin moved or anything the bridge depends on is gone. No browser needed.
+ */
+function assertAdapter() {
+  const version = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8')).version;
+  const text = name => fs.readFileSync(path.join(pkg, 'dist/components', name), 'utf8');
+  const button = text('button/button.js') + text('button/button.css.js');
+  const icon = text('icon-button/icon-button.js');
+  const option = text('toggle-button-option/toggle-button-option.js');
+  const theme = fs.readFileSync(css, 'utf8');
+  const checks = [
+    ['package version is exactly 1.0.1', version === '1.0.1'],
+    ['ObcButton reads --ui-components-button-visual-size', /--ui-components-button-visual-size/.test(button + theme)],
+    ['ObcButton reads --ui-components-button-touch-target-size', /--ui-components-button-touch-target-size/.test(button + theme)],
+    ['ObcButton reads its corner radius variables', /--ui-components-button-border-radius-top-left/.test(button + theme)],
+    ['--global-typography-ui-button-font-size exists', /--global-typography-ui-button-font-size/.test(theme + button)],
+    ['ObcButton exposes part wrapper', /part=["']?wrapper/.test(button)],
+    ['ObcButton exposes part visible-wrapper', /part=["']?visible-wrapper/.test(button)],
+    ['ObcIconButton exposes part visible-wrapper', /visible-wrapper/.test(icon)],
+    ['Toggle option exposes part visible-wrapper', /visible-wrapper/.test(option)],
+  ];
+  const failed = checks.filter(([, ok]) => !ok);
+  for (const [name, ok] of checks) console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}`);
+  console.log(`obc-probe assert: ${checks.length - failed.length} of ${checks.length}`);
+  process.exit(failed.length ? 1 : 0);
+}
+if (process.argv.includes('--assert')) assertAdapter();
+
 const corners = (prefix, v) => ['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(c => `${prefix}-${c}: ${v};`).join('\n');
 // Inherited custom properties only. No selector reaches into a shadow tree.
 const VARS_ONLY = `:root {

@@ -9,7 +9,7 @@ import { CpmChart, type CpmSeries } from './CpmChart';
 
 afterEach(cleanup);
 
-const pv: CpmSeries = { id: 'pv', label: 'PV', unit: '°C', x: [0, 60_000, 120_000], y: [400, 401, 402], pen: 'good' };
+const pv: CpmSeries = { id: 'pv', label: 'PV', unit: '°C', x: [0, 60_000, 120_000], y: [400, 401, 402], pen: 'pv' };
 
 describe('CpmChart data access', () => {
   it('offers the CSV on demand and never renders a data table', () => {

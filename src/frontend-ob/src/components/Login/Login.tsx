@@ -20,7 +20,7 @@ import './Login.css';
  *
  * Split layout: the plant visual carries the left column, the credential column
  * on the right holds identity, the authorized-use notice, the two fields, and a
- * live status strip. Everything themes off `data-obc-theme` — see Login.css.
+ * live status strip. Everything themes off `data-theme`: see Login.css.
  *
  * Authenticates against the auth service; the access token lands in the auth
  * store and the refresh token in an httpOnly cookie.

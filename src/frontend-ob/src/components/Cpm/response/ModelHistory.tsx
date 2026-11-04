@@ -32,11 +32,11 @@ export const ModelHistoryBody: React.FC<{
         const label = paramLabel(param);
         const meaning = uncertaintyMeaning(param);
         const series: CpmSeries[] = [
-          { id: param, label, unit, x, y: points.map(p => p.value), pen: 'accent', markers: true,
+          { id: param, label, unit, x, y: points.map(p => p.value), pen: 'overlay', markers: true,
             meta: i => [`model ${points[i].modelId.slice(0, 8)} · ${codeLabel(points[i].state)}`,
               points[i].upper != null ? `interval ${fmt(points[i].lower!)} … ${fmt(points[i].upper!)} (${meaning})` : 'no uncertainty reported'] },
-          { id: `${param}_upper`, label: 'Interval upper', bandMeaning: meaning, unit, x, y: points.map(p => p.upper), pen: 'grey', markers: true, symbol: 'rect' },
-          { id: `${param}_lower`, label: 'Interval lower', bandMeaning: meaning, unit, x, y: points.map(p => p.lower), pen: 'grey', markers: true, symbol: 'rect' },
+          { id: `${param}_upper`, label: 'Interval upper', bandMeaning: meaning, unit, x, y: points.map(p => p.upper), pen: 'neutral', markers: true, symbol: 'rect' },
+          { id: `${param}_lower`, label: 'Interval lower', bandMeaning: meaning, unit, x, y: points.map(p => p.lower), pen: 'neutral', markers: true, symbol: 'rect' },
         ];
         return <CpmChart key={param} title={unit ? `${label} (${unit})` : label} series={series} xKind="time" timeZone={timeZone} height={280} />;
       })}

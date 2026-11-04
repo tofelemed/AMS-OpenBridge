@@ -2,13 +2,13 @@
  * KPI Phase 5: one KPI per day (14 days up to 3 years, CHG-102), one bar per plant day (its share at the day's end, same rules). Clicking a bar
  * shows that day's loops in the list below — so every point on the trend is provable like the card. Bars, not a line, so a
  * day is a large click target; a day with nothing to judge is an empty slot labelled "no data", never 0 %.
- * Colours from OpenBridge tokens via cpmChartColors (re-derived on a theme switch).
+ * Colours from the chart palette (rebuilt on a theme switch).
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { FleetKpiKey, FleetKpiTrend } from '../../../api/cpm/fleetKpis';
-import { cpmChartColors, fmtDateTime } from '../shared';
-import { useObcTheme } from '../../../hooks/useObcTheme';
+import { axisChrome, chartPalette, plainOption, useChartTheme } from '../../../charts/chartTheme';
+import { fmtDateTime } from '../shared';
 import { kpiSeries, plantDayLabel, pointLabel } from './kpiTrend';
 
 export const KpiTrendChart: React.FC<{
@@ -19,18 +19,22 @@ export const KpiTrendChart: React.FC<{
   /** null = today (the live list). */
   onPick: (asOf: string | null) => void;
 }> = ({ trend, kpi, selected, onPick }) => {
-  const theme = useObcTheme();
+  const theme = useChartTheme();
   const days = useMemo(() => kpiSeries(trend, kpi), [trend, kpi]);
   const option = useMemo(() => {
-    const c = cpmChartColors();
+    const palette = chartPalette();
+    const base = plainOption(palette);
+    const axis = axisChrome(palette);
     const lastIdx = days.length - 1;
     const long = days.length > 120;   // CHG-102: past ~4 months the axis names the year
     const when = (d: (typeof days)[number]) => d.day ? `${pointLabel(d, true)} (${plantDayLabel(trend)}, as of ${fmtDateTime(d.asOf)})` : fmtDateTime(d.asOf);
     return {
+      ...base,
       animation: false,
       grid: { left: 52, right: 12, top: 12, bottom: 28 },   // room for "100 %" at phone width
       tooltip: {
-        trigger: 'axis', axisPointer: { type: 'shadow' },
+        ...base.tooltip,
+        trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: palette.cursor } },
         formatter: (ps: Array<{ dataIndex: number }>) => {
           const d = days[ps[0]?.dataIndex ?? 0];
           if (!d) return '';
@@ -38,19 +42,19 @@ export const KpiTrendChart: React.FC<{
         },
       },
       xAxis: {
-        type: 'category', data: days.map(d => pointLabel(d, long)),
-        axisLabel: { color: c.grey, hideOverlap: true }, axisLine: { lineStyle: { color: c.grey } },
+        ...axis, type: 'category', data: days.map(d => pointLabel(d, long)),
+        axisLabel: { ...axis.axisLabel, hideOverlap: true },
       },
       yAxis: {
-        type: 'value', min: 0, max: 100, axisLabel: { color: c.grey, formatter: '{value} %' },
-        splitLine: { lineStyle: { color: c.grey, opacity: 0.2 } },
+        ...axis, type: 'value', min: 0, max: 100, axisLabel: { ...axis.axisLabel, formatter: '{value} %' },
+        splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } },
       },
       series: [{
         type: 'bar', barMaxWidth: 28,
         data: days.map((d, i) => ({
           value: d.pct,
           itemStyle: {
-            color: (selected ? d.asOf === selected : i === lastIdx) ? c.accent : c.grey,
+            color: (selected ? d.asOf === selected : i === lastIdx) ? palette.pens[4] : palette.tick,
             opacity: (selected ? d.asOf === selected : i === lastIdx) ? 1 : 0.55,
             borderRadius: [3, 3, 0, 0],
           },

@@ -41,10 +41,10 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
         <KvRow label="phase crossings (rad/s)">{provList(bode, 'phase_crossings').join(', ') || 'none'}</KvRow>
       </div>
       <CpmChart title="|L(jω)|" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} logY height={220}
-        series={[{ id: 'mag', label: '|L| = |C·G|', unit: bode.units.y ?? 'dimensionless', x: omega, y: Array.from(bode.columns.y), pen: 'accent' }]} />
+        series={[{ id: 'mag', label: '|L| = |C·G|', unit: bode.units.y ?? 'dimensionless', x: omega, y: Array.from(bode.columns.y), pen: 'overlay' }]} />
       {bode.columns.phase_deg && (
         <CpmChart title="∠L(jω)" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} height={200}
-          series={[{ id: 'phase', label: 'phase', unit: bode.units.phase_deg ?? 'degree', x: omega, y: Array.from(bode.columns.phase_deg), pen: 'pink' }]} />
+          series={[{ id: 'phase', label: 'phase', unit: bode.units.phase_deg ?? 'degree', x: omega, y: Array.from(bode.columns.phase_deg), pen: 'vp' }]} />
       )}
       <p className="cpm-copy">{phrase(prov(bode, 'note') ?? 'MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE')}: margins hold inside the model's validated domain and are not a safety guarantee.</p>
     </section>

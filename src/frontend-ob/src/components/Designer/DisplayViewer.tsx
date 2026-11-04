@@ -159,7 +159,7 @@ export const DisplayViewer: React.FC<{
   // highlighted "day" and clicking "day" did nothing (state unchanged → no effect → no DOM write).
   // The viewer renders inside ThemeContext, so it drives the SAME state as the rest of the app.
   const { theme, setTheme } = useTheme();
-  const applyTheme = (t: string) => setTheme(t as 'day' | 'bright' | 'night');
+  const applyTheme = (t: string) => setTheme(t === 'night' ? 'night' : 'day');
 
   /** The asset a link passes to its target, per the authored mode (PI Vision's IncludeAsset). */
   const resolveLinkAsset = (link: NavigationLink, item?: CanvasItem): string | undefined => {

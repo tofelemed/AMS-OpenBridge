@@ -23,10 +23,10 @@ export const G0Body: React.FC<{ roles: DecodedArtifact[]; timeZone: string }> = 
     {roles.map(d => {
       const role = d.meta.roleOrPath ?? '?';
       const excl = labelsOf(d, 'exclusion_reason');
-      const value = col(d, 'y', `${role} value`, role === 'PV' ? 'good' : role === 'SP' ? 'grey' : role === 'OP' ? 'amber' : 'pink', { masked: true, held: labelsOf(d, 'hold_kind').some(h => h !== 'NONE') });
-      const rejected: CpmSeries = { id: 'rejected', label: `${role} rejected`, unit: value.unit, x: d.columns.x, y: Array.from(d.columns.y, (v, i) => (d.mask && !d.mask[i] ? v : null)), pen: 'bad', markers: true };
-      const age = col(d, 'age_s', 'age', 'accent', { unit: 's' });
-      const dt = col(d, 'delta_t_s', 'interval', 'grey', { unit: 's', dashed: true });
+      const value = col(d, 'y', `${role} value`, role === 'PV' ? 'pv' : role === 'SP' ? 'sp' : role === 'OP' ? 'op' : 'vp', { dashed: role === 'SP', masked: true, held: labelsOf(d, 'hold_kind').some(h => h !== 'NONE') });
+      const rejected: CpmSeries = { id: 'rejected', label: `${role} rejected`, unit: value.unit, x: d.columns.x, y: Array.from(d.columns.y, (v, i) => (d.mask && !d.mask[i] ? v : null)), pen: 'danger', markers: true };
+      const age = col(d, 'age_s', 'age', 'overlay', { unit: 's' });
+      const dt = col(d, 'delta_t_s', 'interval', 'neutral', { unit: 's', dashed: true });
       return (
         <section key={role} className="cpm-surface" data-role={role}>
           <PanelHead eyebrow="G0 role ribbon" title={`${role} — ${d.meta.provenance?.role ?? role}`}
@@ -52,7 +52,7 @@ export const G1Body: React.FC<{ mode: DecodedArtifact; intervals: DecodedArtifac
     <section className="cpm-surface">
       <PanelHead eyebrow="G1" title="Mode, authority and the applied input" />
       <IntervalLane title="mode_normalized (state intervals)" intervals={lane} fromMs={fromMs} toMs={toMs} timeZone={timeZone} empty="No state_intervals artifact retained." />
-      <CpmChart title="op_requested vs u_applied (pp lane)" series={[col(mode, 'op_requested', 'op_requested', 'amber', { unit: 'pp' }), col(mode, 'u_applied', 'u_applied', 'pink', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={180} />
+      <CpmChart title="op_requested vs u_applied (pp lane)" series={[col(mode, 'op_requested', 'op_requested', 'op', { unit: 'pp' }), col(mode, 'u_applied', 'u_applied', 'vp', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={180} />
       <KvRow label="controlling_authority">{counts(labelsOf(mode, 'controlling_authority'))}</KvRow>
       <KvRow label="mode_native → normalized">{counts(labelsOf(mode, 'mode_native'))} → {counts(labelsOf(mode, 'mode_normalized'))}</KvRow>
       <KvRow label="selector / selected / tracking">{mode.meta.provenance?.selector_id ?? '—'} / {mode.meta.provenance?.selected ?? '—'} / {mode.meta.provenance?.tracking ?? '—'} (unknown mapping stays unknown)</KvRow>
@@ -68,13 +68,13 @@ export const G1ModeAuthority: React.FC<GateViewProps & { fromMs?: number; toMs?:
 
 // ── G2 ─────────────────────────────────────────────────────────────────────────────────────────
 export const G2Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG12?: () => void }> = ({ d, timeZone, onOpenG12 }) => {
-  const events = markersWhere(d, 'event_id', 'y', 'SP change events', 'bad', d.units.y);
+  const events = markersWhere(d, 'event_id', 'y', 'SP change events', 'danger', d.units.y);
   const eventCount = Array.from(d.columns.event_id ?? []).filter(v => v > 0).length;
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="G2" title="Set-point activity" right={<TonePill tone={eventCount > 0 ? 'warn' : 'good'}>{eventCount} event(s)</TonePill>} />
-      <CpmChart title="SP / PV (shared EU pane) with event markers" series={[col(d, 'y', 'SP', 'grey'), col(d, 'pv', 'PV', 'good'), events]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="d_sp_dt (SP rate pane)" series={[col(d, 'd_sp_dt', 'd_sp_dt', 'accent', { unit: d.units.d_sp_dt ?? 'EU/s' })]} xKind="time" timeZone={timeZone} height={140} />
+      <CpmChart title="SP / PV (shared EU pane) with event markers" series={[col(d, 'y', 'SP', 'sp', { dashed: true }), col(d, 'pv', 'PV', 'pv'), events]} xKind="time" timeZone={timeZone} height={200} />
+      <CpmChart title="d_sp_dt (SP rate pane)" series={[col(d, 'd_sp_dt', 'd_sp_dt', 'overlay', { unit: d.units.d_sp_dt ?? 'EU/s' })]} xKind="time" timeZone={timeZone} height={140} />
       <KvRow label="trigger_threshold">{d.meta.provenance?.trigger_threshold ?? '—'} ({d.meta.provenance?.trigger_threshold_source ?? 'source not declared'})</KvRow>
       <KvRow label="event_type">{counts(labelsOf(d, 'event_type'))} — no step metrics are computed here; a ramp is not a step</KvRow>
       {onOpenG12 && eventCount > 0 && <ObcButton variant="normal" onClick={onOpenG12}>Open the response analysis of this support (G12) ›</ObcButton>}
@@ -123,16 +123,16 @@ export const G2rOperatingRegion: React.FC<GateViewProps> = ({ manifest, gate, ti
 export const G3Body: React.FC<{ d: DecodedArtifact; timeZone: string }> = ({ d, timeZone }) => {
   const band = Number(d.meta.provenance?.tolerance_band);
   const bandSeries: CpmSeries[] = Number.isFinite(band) ? [
-    { id: 'band+', label: 'tolerance band', unit: d.units.y ?? 'EU', x: d.columns.x, y: Array.from(d.columns.x, () => band), pen: 'grey', bandMeaning: `|error| <= ${band} EU (${d.meta.provenance?.objective_id ?? 'objective'})` },
-    { id: 'band-', label: 'tolerance band (−)', unit: d.units.y ?? 'EU', x: d.columns.x, y: Array.from(d.columns.x, () => -band), pen: 'grey', bandMeaning: `|error| <= ${band} EU` },
+    { id: 'band+', label: 'tolerance band', unit: d.units.y ?? 'EU', x: d.columns.x, y: Array.from(d.columns.x, () => band), pen: 'neutral', bandMeaning: `|error| <= ${band} EU (${d.meta.provenance?.objective_id ?? 'objective'})` },
+    { id: 'band-', label: 'tolerance band (−)', unit: d.units.y ?? 'EU', x: d.columns.x, y: Array.from(d.columns.x, () => -band), pen: 'neutral', bandMeaning: `|error| <= ${band} EU` },
   ] : [];
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="G3" title="Error against the objective" />
-      <CpmChart title="error and tolerance band (samples outside the band are unmasked)" series={[col(d, 'y', 'error', 'good'), ...bandSeries]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="cumulative_iae" series={[col(d, 'cumulative_iae', 'cumulative IAE', 'accent')]} xKind="time" timeZone={timeZone} height={130} />
-      <CpmChart title="cumulative_ise" series={[col(d, 'cumulative_ise', 'cumulative ISE', 'accent')]} xKind="time" timeZone={timeZone} height={130} />
-      <CpmChart title="cumulative_itae" series={[col(d, 'cumulative_itae', 'cumulative ITAE', 'accent')]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title="error and tolerance band (samples outside the band are unmasked)" series={[col(d, 'y', 'error', 'pv'), ...bandSeries]} xKind="time" timeZone={timeZone} height={200} />
+      <CpmChart title="cumulative_iae" series={[col(d, 'cumulative_iae', 'cumulative IAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title="cumulative_ise" series={[col(d, 'cumulative_ise', 'cumulative ISE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title="cumulative_itae" series={[col(d, 'cumulative_itae', 'cumulative ITAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
       <KvRow label="eligible_duration">{d.meta.provenance?.eligible_duration ?? '—'} s</KvRow>
       <KvRow label="objective_id / benchmark_interval">{d.meta.provenance?.objective_id ?? '—'} / {d.meta.provenance?.benchmark_interval ?? '—'} — no objective means performance without a health pass</KvRow>
     </section>
@@ -146,13 +146,13 @@ export const G3ObjectiveError: React.FC<GateViewProps> = ({ manifest, gate, time
 
 // ── G4 ─────────────────────────────────────────────────────────────────────────────────────────
 export const G4Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG10?: () => void }> = ({ d, timeZone, onOpenG10 }) => {
-  const reversals: CpmSeries = { id: 'reversals', label: 'reversal markers', unit: d.units.y ?? 'pp', x: d.columns.x, y: Array.from(d.columns.y, (v, i) => (d.mask && d.mask[i] ? v : null)), pen: 'bad', markers: true };
+  const reversals: CpmSeries = { id: 'reversals', label: 'reversal markers', unit: d.units.y ?? 'pp', x: d.columns.x, y: Array.from(d.columns.y, (v, i) => (d.mask && d.mask[i] ? v : null)), pen: 'danger', markers: true };
   const vpMapped = Array.from(d.columns.vp ?? []).some(v => Number.isFinite(v));
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="G4" title="Control activity" right={<TonePill tone="muted">{Array.from(reversals.y).filter(v => v != null).length} reversals</TonePill>} />
-      <CpmChart title={`u_applied${vpMapped ? ' and vp' : ''} (pp lane) with reversal markers`} series={[col(d, 'y', 'u_applied', 'amber'), ...(vpMapped ? [col(d, 'vp', 'vp', 'pink', { unit: 'pp' })] : []), reversals]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="delta_u per sample" series={[col(d, 'delta_u', 'delta_u', 'accent', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title={`u_applied${vpMapped ? ' and vp' : ''} (pp lane) with reversal markers`} series={[col(d, 'y', 'u_applied', 'op'), ...(vpMapped ? [col(d, 'vp', 'vp', 'vp', { unit: 'pp' })] : []), reversals]} xKind="time" timeZone={timeZone} height={200} />
+      <CpmChart title="delta_u per sample" series={[col(d, 'delta_u', 'delta_u', 'overlay', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={130} />
       <KvRow label="command_total_variation / measured_travel_variation">{d.meta.provenance?.command_total_variation ?? '—'} pp / {d.meta.provenance?.measured_travel_variation ?? '—'} — OP travel is not valve travel</KvRow>
       <KvRow label="sigma_u_norm / sigma_pv_norm">{d.meta.provenance?.sigma_u_norm ?? '—'} / {d.meta.provenance?.sigma_pv_norm ?? '—'} ({d.meta.provenance?.activity_basis ?? 'basis not declared'})</KvRow>
       <KvRow label="baseline_activity (warn ratio)">{d.meta.provenance?.baseline_activity ?? '—'} — high activity cannot directly confirm friction</KvRow>

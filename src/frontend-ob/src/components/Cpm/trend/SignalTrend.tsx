@@ -14,12 +14,12 @@ import ReactECharts from 'echarts-for-react';
 import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
 import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
+import { chartPalette, useChartTheme } from '../../../charts/chartTheme';
 import { useCpmLoops } from '../../../hooks/useCpm';
-import { useObcTheme } from '../../../hooks/useObcTheme';
 import { boxZoomOption } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
-import { EmptyState, cpmChartColors } from '../shared';
+import { EmptyState } from '../shared';
 import { BAND_NOTE, hasPvRange, hasSignalValues, signalTrendOption, type TrendScale } from './trendOption';
 
 export const SignalTrend: React.FC<{
@@ -45,14 +45,14 @@ export const SignalTrend: React.FC<{
   const scale: TrendScale = rangeUsable ? chosen : 'fit';
 
   const box = useBoxZoom({ hasY: true });
-  const obcTheme = useObcTheme(); // re-derive chart colours on a theme switch
+  const theme = useChartTheme();
   const option = useMemo(
     () => signalTrendOption({
-      points, pens: cpmChartColors(), hasVp, pvUnit, scale, range, xRange, evaluated, yBounds,
+      points, palette: chartPalette(), hasVp, pvUnit, scale, range, xRange, evaluated, yBounds,
       zoom: boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: pen colours are read from CSS vars that change with the theme.
-    [points, hasVp, pvUnit, scale, range, xRange, evaluated, yBounds, obcTheme, box.zoom],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+    [points, hasVp, pvUnit, scale, range, xRange, evaluated, yBounds, theme, box.zoom],
   );
   useKeepSelecting(box, option);
 

@@ -14,13 +14,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader,
-  cpmChartColors, fmtDuration,
+  fmtDuration,
 } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
 } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
-import { useObcTheme } from '../../hooks/useObcTheme';
+import { axisChrome, baseOption, chartPalette, useChartTheme } from '../../charts/chartTheme';
 import { boxZoomOption } from '../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
@@ -92,29 +92,33 @@ export const CpmPipeline: React.FC = () => {
   }, [metrics.data]);
 
   const box = useBoxZoom({ hasY: true }); // Phase 5: rectangle zoom on the accumulated telemetry
-  const obcTheme = useObcTheme(); // C: re-derive chart colors on theme switch
+  const theme = useChartTheme();
   const telemetryOption = useMemo(() => {
-    const { good, amber, grey } = cpmChartColors();
+    const palette = chartPalette();
+    const { pv, op } = palette;
+    const base = baseOption(palette);
+    const axis = axisChrome(palette);
     return {
+      ...base,
       animation: false,
       grid: { left: 48, right: 48, top: 24, bottom: 24 },
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
-      tooltip: { trigger: 'axis' },
-      legend: { textStyle: { color: grey }, top: 0 },
-      xAxis: { type: 'time', axisLabel: { color: grey } },
+      tooltip: { ...base.tooltip, trigger: 'axis' },
+      legend: { ...base.legend, top: 0 },
+      xAxis: { ...axis, type: 'time' },
       yAxis: [
-        { type: 'value', name: 'ckpt age (s)', axisLabel: { color: grey }, splitLine: { lineStyle: { opacity: 0.2 } } },
-        { type: 'value', name: 'ckpt dur (ms)', axisLabel: { color: grey }, splitLine: { show: false } },
+        { ...axis, type: 'value', name: 'ckpt age (s)', splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
+        { ...axis, type: 'value', name: 'ckpt dur (ms)', splitLine: { show: false } },
       ],
       series: [
-        { name: 'Max checkpoint age', type: 'line', symbol: 'none',
-          lineStyle: { color: good, width: 2 }, data: telemetry.map(s => [s.t, s.ckptAgeSec]) },
-        { name: 'Max checkpoint duration', type: 'line', symbol: 'none', yAxisIndex: 1,
-          lineStyle: { color: amber, width: 1.5 }, data: telemetry.map(s => [s.t, s.ckptDurMs]) },
+        { name: 'Max checkpoint age', type: 'line', symbol: 'none', color: pv,
+          lineStyle: { color: pv, width: 2 }, data: telemetry.map(s => [s.t, s.ckptAgeSec]) },
+        { name: 'Max checkpoint duration', type: 'line', symbol: 'none', yAxisIndex: 1, color: op,
+          lineStyle: { color: op, width: 1.5 }, data: telemetry.map(s => [s.t, s.ckptDurMs]) },
       ],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  }, [telemetry, obcTheme, box.zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  }, [telemetry, theme, box.zoom]);
   useKeepSelecting(box, telemetryOption);
 
   // E2E verification: a real recompute round-trip on a reference loop.

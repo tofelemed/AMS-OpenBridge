@@ -1,0 +1,281 @@
+/*
+ * OpenBridge bridge (CD1, amended by DEC-002 RD2).
+ *
+ * OpenBridge components stay for ObcButton and passive parts, so their variables are assigned here
+ * from Traverse tokens. This file assigns; it never defines a --traverse-* name.
+ *
+ * Selector: html:root[data-theme] outranks OpenBridge's :root[data-obc-theme="..."] (0,2,1 against
+ * 0,2,0), so load order alone cannot bring an OpenBridge value back.
+ *
+ * Colour variables read inside obc-* shadow roots are listed by scripts/theme/bridge-coverage.mjs,
+ * which fails if one is left unassigned.
+ */
+
+html:root[data-theme] {
+  /* Surfaces */
+  --container-global-color: var(--traverse-surface-page);
+  --container-backdrop-color: var(--traverse-surface-page);
+  --container-background-color: var(--traverse-surface-panel);
+  --container-section-color: var(--traverse-surface-raised);
+  --base-background-color: var(--traverse-surface-panel);
+  --base-border-color: var(--traverse-border-subtle);
+  --base-blue-500: var(--traverse-action-primary);
+  --base-blue-600: var(--traverse-action-hover);
+
+  /* Text and icons */
+  --element-active-color: var(--traverse-text-primary);
+  --element-active-inverted-color: var(--traverse-action-on);
+  --element-neutral-color: var(--traverse-text-secondary);
+  --element-inactive-color: var(--traverse-text-muted);
+  --element-disabled-color: var(--traverse-text-muted);
+  --element-symbol-color: var(--traverse-text-secondary);
+
+  /* Borders. Control boundaries are strong, decoration is subtle (guide p.3). */
+  --border-divider-color: var(--traverse-border-subtle);
+  --border-silhouette-color: var(--traverse-border-subtle);
+  --border-outline-color: var(--traverse-border-strong);
+  --border-focus-color: var(--traverse-focus);
+
+  /* Primary action (D7) */
+  --instrument-enhanced-primary-color: var(--traverse-action-primary);
+  --instrument-enhanced-secondary-color: var(--traverse-text-secondary);
+  --instrument-regular-primary-color: var(--traverse-text-secondary);
+  --instrument-regular-secondary-color: var(--traverse-text-muted);
+  --instrument-starboard-primary-color: var(--traverse-action-primary);
+  --instrument-frame-primary-color: var(--traverse-border-strong);
+  --instrument-frame-secondary-color: var(--traverse-border-subtle);
+  --instrument-frame-tertiary-color: var(--traverse-border-subtle);
+
+  /* Raised = primary button */
+  --raised-enabled-background-color: var(--traverse-action-primary);
+  --raised-enabled-border-color: var(--traverse-action-primary);
+  --raised-hover-background-color: var(--traverse-action-hover);
+  --raised-hover-border-color: var(--traverse-action-hover);
+  --raised-pressed-background-color: var(--traverse-action-active);
+  --raised-pressed-border-color: var(--traverse-action-active);
+  --raised-focused-background-color: var(--traverse-action-primary);
+  --raised-disabled-background-color: var(--traverse-surface-raised);
+  --raised-disabled-border-color: var(--traverse-border-subtle);
+  --on-raised-active-color: var(--traverse-action-on);
+  --on-raised-neutral-color: var(--traverse-action-on);
+  --on-raised-disabled-color: var(--traverse-text-muted);
+
+  /* Amplified is the same emphasis as primary */
+  --amplified-enabled-background-color: var(--traverse-action-primary);
+  --amplified-enabled-border-color: var(--traverse-action-primary);
+  --amplified-hover-background-color: var(--traverse-action-hover);
+  --amplified-hover-border-color: var(--traverse-action-hover);
+  --amplified-pressed-background-color: var(--traverse-action-active);
+  --amplified-pressed-border-color: var(--traverse-action-active);
+  --amplified-focused-background-color: var(--traverse-action-primary);
+  --amplified-disabled-background-color: var(--traverse-surface-raised);
+  --amplified-disabled-border-color: var(--traverse-border-subtle);
+  --on-amplified-active-color: var(--traverse-action-on);
+  --on-amplified-disabled-color: var(--traverse-text-muted);
+
+  /* Normal = outline control */
+  --normal-enabled-background-color: var(--traverse-surface-panel);
+  --normal-enabled-border-color: var(--traverse-border-strong);
+  --normal-hover-background-color: var(--traverse-surface-hover);
+  --normal-hover-border-color: var(--traverse-border-strong);
+  --normal-pressed-background-color: var(--traverse-surface-selected);
+  --normal-pressed-border-color: var(--traverse-border-strong);
+  --normal-activated-background-color: var(--traverse-surface-selected);
+  --normal-activated-border-color: var(--traverse-action-primary);
+  --normal-focused-border-color: var(--traverse-focus);
+  --normal-disabled-background-color: var(--traverse-surface-raised);
+  --normal-disabled-border-color: var(--traverse-border-subtle);
+  --on-normal-active-color: var(--traverse-text-primary);
+  --on-normal-neutral-color: var(--traverse-text-secondary);
+  --on-normal-disabled-color: var(--traverse-text-muted);
+
+  /* Flat = ghost */
+  --flat-enabled-background-color: transparent;
+  --flat-enabled-border-color: transparent;
+  --flat-hover-background-color: var(--traverse-surface-hover);
+  --flat-hover-border-color: transparent;
+  --flat-pressed-background-color: var(--traverse-surface-selected);
+  --flat-pressed-border-color: transparent;
+  --flat-activated-background-color: var(--traverse-surface-selected);
+  --flat-activated-border-color: transparent;
+  --flat-disabled-background-color: transparent;
+  --flat-disabled-border-color: transparent;
+  --on-flat-active-color: var(--traverse-text-secondary);
+  --on-flat-neutral-color: var(--traverse-text-secondary);
+  --on-flat-disabled-color: var(--traverse-text-muted);
+
+  /* Indent = input field. Field surface differs by theme, below. */
+  --indent-enabled-border-color: var(--traverse-border-strong);
+  --indent-hover-background-color: var(--traverse-surface-hover);
+  --indent-hover-border-color: var(--traverse-text-secondary);
+  --indent-pressed-background-color: var(--traverse-surface-selected);
+  --indent-pressed-border-color: var(--traverse-border-strong);
+  --indent-focused-border-color: var(--traverse-border-strong);
+  --indent-disabled-background-color: var(--traverse-surface-raised);
+  --indent-disabled-border-color: var(--traverse-border-subtle);
+  --on-indent-active-color: var(--traverse-text-primary);
+  --on-indent-neutral-color: var(--traverse-text-secondary);
+  --on-indent-disabled-color: var(--traverse-text-muted);
+
+  /* Selected */
+  --selected-enabled-background-color: var(--traverse-surface-selected);
+  --selected-enabled-border-color: var(--traverse-action-primary);
+  --selected-hover-background-color: var(--traverse-surface-selected);
+  --selected-hover-border-color: var(--traverse-action-hover);
+  --selected-pressed-background-color: var(--traverse-surface-selected);
+  --selected-pressed-border-color: var(--traverse-action-active);
+  --selected-focused-background-color: var(--traverse-surface-selected);
+  --selected-focused-border-color: var(--traverse-action-primary);
+  --selected-disabled-background-color: var(--traverse-surface-raised);
+  --selected-disabled-border-color: var(--traverse-border-subtle);
+  --on-selected-active-color: var(--traverse-action-primary);
+  --on-selected-disabled-color: var(--traverse-text-muted);
+
+  /* Integration family follows normal and selected */
+  --integration-normal-enabled-background-color: var(--traverse-surface-panel);
+  --integration-normal-enabled-border-color: var(--traverse-border-strong);
+  --integration-normal-hover-background-color: var(--traverse-surface-hover);
+  --integration-normal-hover-border-color: var(--traverse-border-strong);
+  --integration-normal-pressed-background-color: var(--traverse-surface-selected);
+  --integration-normal-pressed-border-color: var(--traverse-border-strong);
+  --integration-normal-disabled-background-color: var(--traverse-surface-raised);
+  --integration-normal-disabled-border-color: var(--traverse-border-subtle);
+  --integration-on-normal-neutral-color: var(--traverse-text-secondary);
+  --integration-on-normal-disabled-color: var(--traverse-text-muted);
+  --integration-selected-enabled-background-color: var(--traverse-surface-selected);
+  --integration-selected-enabled-border-color: var(--traverse-action-primary);
+  --integration-selected-hover-background-color: var(--traverse-surface-selected);
+  --integration-selected-hover-border-color: var(--traverse-action-hover);
+  --integration-selected-pressed-background-color: var(--traverse-surface-selected);
+  --integration-selected-pressed-border-color: var(--traverse-action-active);
+  --integration-selected-disabled-background-color: var(--traverse-surface-raised);
+  --integration-selected-disabled-border-color: var(--traverse-border-subtle);
+  --integration-on-selected-disabled-color: var(--traverse-text-muted);
+
+  /* Status, interim. The colliding uses are split by StatusBadge in Phase 3 (CD7). */
+  --alert-alarm-color: var(--traverse-status-danger-fg);
+  --alert-alarm-outline-color: var(--traverse-status-danger-fg);
+  --alert-alarm-container-background-color: var(--traverse-status-danger-bg);
+  --alert-alarm-container-border-color: var(--traverse-status-danger-fg);
+  --alert-error-color: var(--traverse-status-danger-fg);
+  --alert-error-outline-color: var(--traverse-status-danger-fg);
+  --alert-caution-color: var(--traverse-status-warning-fg);
+  --alert-caution-outline-color: var(--traverse-status-warning-fg);
+  --alert-caution-container-background-color: var(--traverse-status-warning-bg);
+  --alert-caution-container-border-color: var(--traverse-status-warning-fg);
+  --alert-warning-color: var(--traverse-status-warning-fg);
+  --alert-warning-outline-color: var(--traverse-status-warning-fg);
+  --alert-warning-container-background-color: var(--traverse-status-warning-bg);
+  --alert-running-color: var(--traverse-status-success-fg);
+  --alert-running-outline-color: var(--traverse-status-success-fg);
+  --alert-running-container-background-color: var(--traverse-status-success-bg);
+  --alert-running-container-border-color: var(--traverse-status-success-fg);
+  --alert-limit-secondary-color: var(--traverse-status-unknown-fg);
+  --on-alarm-color: var(--traverse-status-danger-bg);
+  --on-alarm-active-color: var(--traverse-status-danger-bg);
+  --on-caution-color: var(--traverse-status-warning-bg);
+  --on-warning-color: var(--traverse-status-warning-bg);
+  --on-warning-active-color: var(--traverse-status-warning-bg);
+  --on-running-color: var(--traverse-status-success-bg);
+
+  --shadow-floating-color: color-mix(in srgb, var(--traverse-text-primary) 18%, transparent);
+
+  /* Dialog system (styles/hmi-dialogs.css) */
+  --hmi-blue: var(--traverse-action-primary);
+  --hmi-blue-dark: var(--traverse-action-hover);
+  --hmi-blue-darker: var(--traverse-action-active);
+  --hmi-blue-light: var(--traverse-surface-selected);
+  --hmi-blue-focus-ring: color-mix(in srgb, var(--traverse-focus) 22%, transparent);
+  --hmi-blue-hover: var(--traverse-action-hover);
+  --hmi-surface: var(--traverse-surface-panel);
+  --hmi-body-bg: var(--traverse-surface-panel);
+  --hmi-header-bg: var(--traverse-surface-panel);
+  --hmi-footer-bg: var(--traverse-surface-panel);
+  --hmi-border: var(--traverse-border-subtle);
+  --hmi-border-hover: var(--traverse-border-strong);
+  --hmi-border-focus: var(--traverse-focus);
+  --hmi-border-strong: var(--traverse-border-strong);
+  --hmi-text: var(--traverse-text-primary);
+  --hmi-text-secondary: var(--traverse-text-secondary);
+  --hmi-text-muted: var(--traverse-text-muted);
+  --hmi-text-label: var(--traverse-text-secondary);
+  --hmi-text-hint: var(--traverse-text-muted);
+  --hmi-option-bg: var(--traverse-surface-panel);
+
+  /* Toasts */
+  --toastify-color-light: var(--traverse-surface-panel);
+  --toastify-color-dark: var(--traverse-surface-panel);
+  --toastify-text-color-light: var(--traverse-text-primary);
+  --toastify-text-color-dark: var(--traverse-text-primary);
+  --toastify-color-info: var(--traverse-status-info-fg);
+  --toastify-color-success: var(--traverse-status-success-fg);
+  --toastify-color-warning: var(--traverse-status-warning-fg);
+  --toastify-color-error: var(--traverse-status-danger-fg);
+  --toastify-icon-color-info: var(--traverse-status-info-fg);
+  --toastify-icon-color-success: var(--traverse-status-success-fg);
+  --toastify-icon-color-warning: var(--traverse-status-warning-fg);
+  --toastify-icon-color-error: var(--traverse-status-danger-fg);
+  --toastify-color-progress-light: var(--traverse-action-primary);
+  --toastify-color-progress-dark: var(--traverse-action-primary);
+  --toastify-color-progress-info: var(--traverse-status-info-fg);
+  --toastify-color-progress-success: var(--traverse-status-success-fg);
+  --toastify-color-progress-warning: var(--traverse-status-warning-fg);
+  --toastify-color-progress-error: var(--traverse-status-danger-fg);
+}
+
+/* Field surface: panel by Day, raised by Night (skill components.md, Inputs). */
+html:root[data-theme='day'] {
+  color-scheme: light;
+  --indent-enabled-background-color: var(--traverse-surface-panel);
+  --indent-focused-background-color: var(--traverse-surface-panel);
+}
+
+html:root[data-theme='night'] {
+  color-scheme: dark;
+  --indent-enabled-background-color: var(--traverse-surface-raised);
+  --indent-focused-background-color: var(--traverse-surface-raised);
+}
+
+/*
+ * Panels sit on the page, so the app's backdrop token means "panel" inside .cpm-surface.
+ * A global remap would collide: the same variable is the page behind it.
+ */
+.cpm-surface {
+  --container-backdrop-color: var(--traverse-surface-panel);
+}
+
+/* Outline buttons are transparent; other uses of the normal family keep the panel surface. */
+obc-button {
+  --normal-enabled-background-color: transparent;
+
+  /* RD9: 40 px painted, 48 px hit area. The box is content-box with a 1 px border, so 38 paints 40. */
+  --ui-components-button-visual-size: 38px;
+  --global-typography-ui-button-font-size: var(--traverse-type-body);
+  --ui-components-button-border-radius-top-left: var(--traverse-radius-control);
+  --ui-components-button-border-radius-top-right: var(--traverse-radius-control);
+  --ui-components-button-border-radius-bottom-left: var(--traverse-radius-control);
+  --ui-components-button-border-radius-bottom-right: var(--traverse-radius-control);
+}
+
+/* Ghost hover: OpenBridge has no hover text variable, so the host re-points the active one. */
+obc-button:hover {
+  --on-flat-active-color: var(--traverse-text-primary);
+}
+
+/* Focus gap (RD2: no waiver). These parts are undocumented; obc-fit-probe --assert guards them. */
+obc-button::part(visible-wrapper),
+obc-icon-button::part(visible-wrapper),
+obc-toggle-button-option::part(visible-wrapper) {
+  outline-offset: var(--traverse-focus-offset);
+}
+
+/* A wrapped label grows the box instead of spilling out of a fixed height. */
+obc-button::part(wrapper) {
+  height: auto;
+  min-height: var(--traverse-size-control-min-height);
+}
+
+obc-button::part(visible-wrapper) {
+  height: auto;
+  min-height: 38px;
+}

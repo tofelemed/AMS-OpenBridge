@@ -8,7 +8,8 @@
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { KvRow, PanelHead, TonePill, cpmChartColors } from '../../shared';
+import { baseOption, chartPalette, useChartTheme, type ChartPalette } from '../../../../charts/chartTheme';
+import { KvRow, PanelHead, TonePill } from '../../shared';
 import type { DecodedArtifact } from '../artifactCodec';
 import { useGateArtifacts, type GateArtifacts } from '../useGateArtifacts';
 import type { GateViewProps } from '../EvidenceArtifactRenderer';
@@ -33,30 +34,35 @@ export function peerRows(d: DecodedArtifact): PeerRow[] {
   });
 }
 
-export function buildRelationshipGraph(loopId: string, peers: PeerRow[], pens: Record<string, string>) {
-  const nodes = [{ id: loopId, name: loopId, symbolSize: 28, itemStyle: { color: pens.accent }, category: 0 },
-    ...peers.map(p => ({ id: p.id, name: p.id, symbolSize: 18, itemStyle: { color: p.associated ? pens.amber : p.state === 'ANALYSED' ? pens.grey : pens.bad }, category: p.associated ? 1 : 2 }))];
+export function buildRelationshipGraph(loopId: string, peers: PeerRow[], palette: ChartPalette) {
+  const { op, tick, danger } = palette;
+  const loopPen = palette.pens[4];
+  const base = baseOption(palette);
+  const nodes = [{ id: loopId, name: loopId, symbolSize: 28, itemStyle: { color: loopPen }, category: 0 },
+    ...peers.map(p => ({ id: p.id, name: p.id, symbolSize: 18, itemStyle: { color: p.associated ? op : p.state === 'ANALYSED' ? tick : danger }, category: p.associated ? 1 : 2 }))];
   const links = peers.map(p => ({
     source: p.direction === 'PEER_LEADS_LOOP' ? p.id : loopId, target: p.direction === 'PEER_LEADS_LOOP' ? loopId : p.id,
-    lineStyle: { color: p.associated ? pens.amber : pens.grey, width: p.associated ? 2 : 1, type: p.associated ? 'solid' : 'dashed', opacity: p.state === 'ANALYSED' ? 0.9 : 0.4 },
-    label: { show: true, formatter: p.associated ? `${phrase(p.direction)} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: pens.grey, fontSize: 12 },
+    lineStyle: { color: p.associated ? op : tick, width: p.associated ? 2 : 1, type: p.associated ? 'solid' : 'dashed', opacity: p.state === 'ANALYSED' ? 0.9 : 0.4 },
+    label: { show: true, formatter: p.associated ? `${phrase(p.direction)} · lag ${p.lagS ?? '—'} s · coh ${p.coherence?.toFixed(2) ?? '—'}` : p.state.toLowerCase().replace(/_/g, ' '), color: tick, fontSize: 12 },
     symbol: p.associated && p.direction !== 'SIMULTANEOUS' ? ['none', 'arrow'] : ['none', 'none'],
   }));
   return {
+    ...base,
     animation: false,
-    tooltip: { show: false },
-    legend: { data: ['loop', 'associated peer', 'not associated / not analysed'], textStyle: { color: pens.grey }, top: 0 },
-    series: [{ type: 'graph', layout: 'force', roam: false, force: { repulsion: 260, edgeLength: 140 }, categories: [{ name: 'loop' }, { name: 'associated peer' }, { name: 'not associated / not analysed' }],
-      data: nodes, links, label: { show: true, color: pens.grey, position: 'bottom' }, edgeSymbolSize: 8, lineStyle: { curveness: 0 } }],
+    tooltip: { ...base.tooltip, show: false },
+    legend: { ...base.legend, data: ['loop', 'associated peer', 'not associated / not analysed'], top: 0 },
+    series: [{ type: 'graph', layout: 'force', roam: false, force: { repulsion: 260, edgeLength: 140 }, categories: [{ name: 'loop', itemStyle: { color: loopPen } }, { name: 'associated peer', itemStyle: { color: op } }, { name: 'not associated / not analysed', itemStyle: { color: tick } }],
+      data: nodes, links, label: { show: true, color: tick, position: 'bottom' }, edgeSymbolSize: 8, lineStyle: { curveness: 0 } }],
   };
 }
 
 export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d, loopId }) => {
-  const pens = cpmChartColors();
+  const theme = useChartTheme();
   const peers = peerRows(d);
   const state = P(d, 'capability_state') ?? P(d, 'state') ?? 'UNAVAILABLE';
   const reason = P(d, 'capability_reason') ?? P(d, 'reason') ?? '';
-  const graph = useMemo(() => buildRelationshipGraph(loopId, peers, pens), [loopId, peers, pens]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  const graph = useMemo(() => buildRelationshipGraph(loopId, peers, chartPalette()), [loopId, peers, theme]);
   const associated = peers.filter(p => p.associated).sort((a, b) => (a.lagS ?? 0) - (b.lagS ?? 0));
   return (
     <section className="cpm-surface">
@@ -96,8 +102,8 @@ export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d,
 export const G13PeerPanes: React.FC<{ aligned: DecodedArtifact; xcorr: DecodedArtifact | undefined; coherence: DecodedArtifact | undefined; timeZone: string }> = ({ aligned, xcorr, coherence, timeZone }) => {
   const peerId = aligned.meta.roleOrPath ?? P(aligned, 'peer_id') ?? 'peer';
   const series: CpmSeries[] = [
-    col(aligned, 'own_pv', 'loop PV', 'good', { masked: true }),
-    col(aligned, 'y', `${peerId} PV`, 'accent', { masked: true }),
+    col(aligned, 'own_pv', 'loop PV', 'pv', { masked: true }),
+    col(aligned, 'y', `${peerId} PV`, 'overlay', { masked: true }),
   ];
   return (
     <section className="cpm-surface" data-peer={peerId}>
@@ -105,12 +111,12 @@ export const G13PeerPanes: React.FC<{ aligned: DecodedArtifact; xcorr: DecodedAr
       <CpmChart title={`aligned series — ${peerId}`} series={series} xKind="time" timeZone={timeZone} height={220} />
       {xcorr && (
         <CpmChart title={`cross-correlation — ${(P(xcorr, 'lag_sign_convention') ? phrase(P(xcorr, 'lag_sign_convention')) : 'lag')}`} xKind="value" xLabel="lag" xUnit={xcorr.units.x ?? 's'} height={200}
-          series={[{ id: 'xcorr', label: `r(lag) · peak ${Number(P(xcorr, 'peak_xcorr') ?? NaN).toFixed(2)} at ${P(xcorr, 'lag_at_peak_s') ?? '—'} s`, unit: '1', x: xcorr.columns.x, y: Array.from(xcorr.columns.y), pen: 'pink' }]} />
+          series={[{ id: 'xcorr', label: `r(lag) · peak ${Number(P(xcorr, 'peak_xcorr') ?? NaN).toFixed(2)} at ${P(xcorr, 'lag_at_peak_s') ?? '—'} s`, unit: '1', x: xcorr.columns.x, y: Array.from(xcorr.columns.y), pen: 'vp' }]} />
       )}
       {coherence && (
         <CpmChart title={`coherence — band ${Number(P(coherence, 'band_low_hz') ?? 0).toExponential(2)}…${Number(P(coherence, 'band_high_hz') ?? 0).toExponential(2)} Hz · max in band ${Number(P(coherence, 'coherence_band_max') ?? NaN).toFixed(2)}`}
           xKind="value" xLabel="frequency" xUnit={coherence.units.x ?? 'Hz'} height={200}
-          series={[{ id: 'coh', label: 'magnitude-squared coherence', unit: '1', x: coherence.columns.x, y: Array.from(coherence.columns.y), pen: 'amber' }]} />
+          series={[{ id: 'coh', label: 'magnitude-squared coherence', unit: '1', x: coherence.columns.x, y: Array.from(coherence.columns.y), pen: 'op' }]} />
       )}
     </section>
   );

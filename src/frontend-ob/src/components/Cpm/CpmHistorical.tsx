@@ -20,7 +20,7 @@ import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, QueryError, WorkspaceHeader,
-  classifyMode, cpmChartColors, cpmToneColors, diagnosisBand, fmtDateTime, loopTrendHref,
+  classifyMode, diagnosisBand, fmtDateTime, loopTrendHref,
 } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { useCpmScope } from './plantScope';
@@ -30,7 +30,7 @@ import {
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { useHistoryExports } from './historical/useHistoryExports';
-import { useObcTheme } from '../../hooks/useObcTheme';
+import { chartPalette, useChartTheme } from '../../charts/chartTheme';
 import RangeToolbar, { SIGNAL_KEYS } from './historical/RangeToolbar';
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import { CHART_HEIGHT, buildChartOption, type Segment } from './historical/chartOption';
@@ -191,7 +191,7 @@ export const CpmHistorical: React.FC = () => {
     () => healthHistory.data ? toHealthSegments(healthHistory.data.intervals, from, to, 'PV') : undefined,
     [healthHistory.data, from, to]);
 
-  const obcTheme = useObcTheme(); // re-derive chart colors on theme switch
+  const theme = useChartTheme();
   // v2.5 (2E.2, R14): the chart's units and zone come from the registry (PV unit is not declared
   // there yet - 'EU' until 2G adds it); Normalise is an explicit URL choice (?normalize=1).
   const normalize = params.get('normalize') === '1';
@@ -208,12 +208,12 @@ export const CpmHistorical: React.FC = () => {
   const box = useBoxZoom({ hasY: true });
   const option = useMemo(() => buildChartOption({
     points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthSegments: healthLane, from, to,
-    pens: cpmChartColors(), tones: cpmToneColors(), pvUnit: loop?.engineering?.pvUnit ?? '', timeZone, normalize, zoom: box.zoom,
+    palette: chartPalette(), pvUnit: loop?.engineering?.pvUnit ?? '', timeZone, normalize, zoom: box.zoom,
     // CHG-097 (SME review 2 #26): a chosen window (verdict lane, KPI card, finding) is shaded where the signals are read
     highlight: highlight,
   }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- obcTheme is a recompute trigger: chart colors are read from CSS vars that change with the theme.
-  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, obcTheme, timeZone, normalize, box.zoom, highlight]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
+  [points, kpiRows, overlay, signals, modeSegments, verdictSegments, healthLane, from, to, theme, timeZone, normalize, box.zoom, highlight]);
   useKeepSelecting(box, option);
 
   // Zoom explores; Apply commits. Any zoom (slider, wheel or box) filters what is

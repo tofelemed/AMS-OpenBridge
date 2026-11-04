@@ -15,7 +15,7 @@ import { IntervalLane, type LaneInterval } from './views/primitives/IntervalLane
 import type { CpmTone } from '../shared';
 import { HistorianLanes, laneSource } from './HistorianLanes';
 
-const ROLE_PENS = { PV: 'good', SP: 'grey', OP: 'amber', VP: 'pink' } as const;
+const ROLE_PENS = { PV: 'pv', SP: 'sp', OP: 'op', VP: 'vp' } as const;
 
 /** One G0 role artifact as a chart series: excluded samples become gaps, held values step, the tooltip states quality / hold / times. */
 export function roleSeries(d: DecodedArtifact, role: 'PV' | 'SP' | 'OP' | 'VP', timeFmt: (ms: number) => string): CpmSeries {
@@ -26,7 +26,7 @@ export function roleSeries(d: DecodedArtifact, role: 'PV' | 'SP' | 'OP' | 'VP', 
   const heldAny = hold.some(h => h !== 'NONE');
   return {
     id: role.toLowerCase(), label: role, unit: d.units.y ?? (role === 'OP' || role === 'VP' ? 'pp' : 'EU'), x: d.columns.x, y,
-    pen: ROLE_PENS[role], held: heldAny,
+    pen: ROLE_PENS[role], dashed: role === 'SP', held: heldAny,
     meta: i => [
       `quality ${quality[i] ?? '—'} · hold ${hold[i] ?? '—'}${excl[i] && excl[i] !== 'NONE' ? ` · excluded: ${excl[i]}` : ''}`,
       `sample ${timeFmt(d.columns.x[i])} · verified ${d.columns.verified_time ? timeFmt(d.columns.verified_time[i]) : '—'}`,

@@ -26,11 +26,11 @@ export function genericSeries(d: DecodedArtifact): CpmSeries[] {
   const isTime = d.meta.x.unit === 'ms_epoch';
   const yLabel = d.meta.y.quantity ?? 'y';
   const y: Array<number | null> = Array.from(d.columns.y, (v, i) => (d.mask ? d.mask[i] : true) ? v : null);
-  out.push({ id: 'y', label: yLabel, unit: d.units.y ?? d.meta.y.unit ?? '', x: d.columns.x, y, pen: 'good', markers: !isTime && d.n < 64 });
+  out.push({ id: 'y', label: yLabel, unit: d.units.y ?? d.meta.y.unit ?? '', x: d.columns.x, y, pen: 'pv', markers: !isTime && d.n < 64 });
   for (const [name, col] of Object.entries(d.columns)) {
     if (name === 'x' || name === 'y' || name === 'mask') continue;
     if (d.legends[name]) continue;                                     // coded columns are labels, not curves
-    out.push({ id: name, label: name, unit: d.units[name] ?? '', x: d.columns.x, y: Array.from(col), pen: 'accent', dashed: true });
+    out.push({ id: name, label: name, unit: d.units[name] ?? '', x: d.columns.x, y: Array.from(col), pen: 'overlay', dashed: true });
   }
   return out;
 }

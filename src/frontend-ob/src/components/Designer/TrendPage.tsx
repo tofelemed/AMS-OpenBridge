@@ -18,6 +18,9 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import TrendCore, { type PenSpec, RANGES } from './TrendCore';
 import './Designer.css';
 
+/** A setpoint pen is dashed (CD14). The URL carries no role, so the tag's measurement name decides. */
+const isSetpointTag = (path: string) => /\.sp$/i.test(path);
+
 const toLocalInput = (d: Date) => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -30,7 +33,10 @@ export const TrendPage: React.FC = () => {
     // Dedupe: two identical tags in the URL produced two pens with the same path — duplicate React
     // keys, both reading the same history, and removing one removed both (onRemovePen filters by path).
     const tags = [...new Set((params.get('tags') ?? '').split(',').map(t => t.trim()).filter(Boolean))];
-    return tags.map(path => ({ path, label: path.split('/').pop() ?? path }));
+    return tags.map(path => ({
+      path, label: path.split('/').pop() ?? path,
+      ...(isSetpointTag(path) ? { lineStyle: 'dashed' as const } : {}),
+    }));
   }, [params]);
 
   const initialRangeMs = useMemo(() => {
