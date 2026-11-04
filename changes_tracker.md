@@ -5409,3 +5409,21 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-115 — CPA redesign: core page design restored, colours only (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** Owner's direction: keep the core design and change colours only. **This supersedes the page rebuilds in CHG-114.**
+
+**Changed**
+- Overview, Performance and Episodes are back to their Phase 3 design. `/cpm/kpi` keeps its own page again, and no old URL redirects.
+- Kept from Phase 4, because the owner asked for them or they are defects: one definition of signal colours (`--signal-*`), PV blue and controller output cyan; gate icons from one vocabulary; exclusion wording per cause (D-15); the checks T13 and `lint:signals`.
+
+**Fixed**
+- **Signal quality misread.** With no quality metric, the PV reading was read as an OPC code: a PV of 45 showed BAD and 250 showed GOOD. New `liveQuality` uses the quality metric or the PV sample's own quality, and otherwise says Unknown. **The same defect is on feat/v25-next-release, the code at the plant.**
+
+**Set aside, not lost.** Phase 4 pages in history at 17a51062. The unfinished Loop page and KPI cards on local branch `wip/cpa-page-rebuilds`.
+
+**Verified.** Against Phase 3, page code differs in 7 files only: colour roles, gate wording and the quality fix.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

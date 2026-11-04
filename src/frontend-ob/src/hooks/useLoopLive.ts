@@ -78,6 +78,16 @@ export function useLoopLive(loopId: string | undefined): LoopLiveState {
   }, [pv, sp, op, vp, mode, quality]);
 }
 
+/**
+ * The loop's signal quality: its quality metric, else the PV sample's own quality field. Never the PV
+ * reading: read as an OPC code, a PV of 45 is BAD and a PV of 250 is GOOD, whatever the signal is doing.
+ * With neither, the answer is unknown.
+ */
+export function liveQuality(live: Pick<LoopLiveState, 'quality' | 'pv'>): ReturnType<typeof qualityLabel> {
+  if (live.quality) return qualityLabel(live.quality);
+  return qualityLabel(live.pv && { ...live.pv, value: '' });
+}
+
 /** OPC/Sparkplug quality number → NAMUR-style label + tone. */
 export function qualityLabel(q: LiveMetric | undefined): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } {
   if (!q) return { label: 'NO SIGNAL', tone: 'muted' };

@@ -19,6 +19,9 @@ const SoePanel         = React.lazy(() => import('../components/Soe/SoePanel'));
 // CPLM Phase 7 — Loop Performance screens (built slice by slice; see
 // docs/cplm-intake/phase7-frontend-checklist.md)
 const CpmLoopRegistry  = React.lazy(() => import('../components/Cpm/LoopRegistry'));
+const CpmEvents        = React.lazy(() => import('../components/Cpm/CpmEvents'));
+const CpmOverview      = React.lazy(() => import('../components/Cpm/CpmOverview'));
+const CpmPerformance   = React.lazy(() => import('../components/Cpm/CpmPerformance'));
 const CpmKpiDrilldown  = React.lazy(() => import('../components/Cpm/CpmKpiDrilldown'));   // CHG-082
 const CpmExplorer      = React.lazy(() => import('../components/Cpm/CpmExplorer'));
 const CpmCalculations  = React.lazy(() => import('../components/Cpm/CpmCalculations'));
@@ -37,10 +40,7 @@ const DisplayList      = React.lazy(() => import('../components/Designer/Display
 const TrendPage        = React.lazy(() => import('../components/Designer/TrendPage'));
 // Published-HMI launcher (Phase K) — the Operator/Viewer entry point into the runtime viewer.
 const DisplayLauncher  = React.lazy(() => import('../components/Designer/DisplayLauncher'));
-// The destinations. Loop, Evidence, Setup and System host old pages until their phase replaces them.
-const OverviewPage     = React.lazy(() => import('../pages/cpa/overview/OverviewPage'));
-const PerformancePage  = React.lazy(() => import('../pages/cpa/performance/PerformancePage'));
-const EpisodesPage     = React.lazy(() => import('../pages/cpa/episodes/EpisodesPage'));
+// The destinations that host old pages until their phase replaces them.
 const LoopPage         = React.lazy(() => import('../pages/cpa/LoopPage'));
 const EvidencePage     = React.lazy(() => import('../pages/cpa/EvidencePage'));
 const SetupPage        = React.lazy(() => import('../pages/cpa/SetupPage'));
@@ -70,8 +70,8 @@ export const AppRoutes: React.FC = () => (
         <Route path="/analytics"    element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
 
         {/* ── Loop Performance (CPLM) ─────────────────── */}
-        <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><OverviewPage /></RequirePermission>} />
-        <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><PerformancePage /></RequirePermission>} />
+        <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><CpmOverview /></RequirePermission>} />
+        <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><CpmPerformance /></RequirePermission>} />
         <Route path="/cpm/kpi"         element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmKpiDrilldown /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/explorer"     element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmExplorer /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/calculations" element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmCalculations /></LegacyRoute></RequirePermission>} />
@@ -92,7 +92,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="/cpm/pipeline"  element={<RequirePermission permission="system.manage"><LegacyRoute><CpmPipeline /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/governance" element={<RequirePermission permission="system.manage"><LegacyRoute><CpmGovernance /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmLoopRegistry /></LegacyRoute></RequirePermission>} />
-        <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><EpisodesPage /></RequirePermission>} />
+        <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
         {/* Published-HMI launcher — every role with display.view */}
         <Route path="/displays"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />
         {/* HMI Designer — authoring, Admin/Engineer only */}

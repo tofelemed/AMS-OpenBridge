@@ -1,0 +1,48 @@
+{
+ "phase": "5",
+ "capturedAt": "2026-11-04T19:45:26.266Z",
+ "base": "http://localhost:4173",
+ "sizes": [
+  "1440x1024"
+ ],
+ "routes": {
+  "overview": {
+   "url": "/cpm",
+   "finalUrl": "/cpm",
+   "stable": true,
+   "ms": 983,
+   "shots": [
+    "screenshots/day/1440x1024/overview.png",
+    "screenshots/night/1440x1024/overview.png"
+   ]
+  },
+  "performance": {
+   "url": "/cpm/performance",
+   "finalUrl": "/cpm/performance",
+   "stable": true,
+   "ms": 1167,
+   "shots": [
+    "screenshots/day/1440x1024/performance.png",
+    "screenshots/night/1440x1024/performance.png"
+   ]
+  },
+  "events": {
+   "url": "/cpm/events",
+   "finalUrl": "/cpm/events",
+   "stable": true,
+   "ms": 1197,
+   "shots": [
+    "screenshots/day/1440x1024/events.png",
+    "screenshots/night/1440x1024/events.png"
+   ]
+  }
+ },
+ "log": {
+  "blocked": [],
+  "http429": 0,
+  "apiCalls": 16
+ },
+ "consoleErrors": [
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+ ]
+}

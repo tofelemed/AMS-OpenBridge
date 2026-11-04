@@ -61,3 +61,7 @@ Text touching safety context: none. Definitions verbatim (RD10)
 **Not met:** the header range does not filter Episodes (UI-043)
 Deferred / C3: UI-048
 Change tracker: CHG-114
+
+## Phase 4 withdrawn (UI-049)
+
+The owner directed that the core page design stays and only colours change. Overview, Performance and Episodes returned to their Phase 3 design in CHG-115. The figures in the Phase 4 report describe the withdrawn pages. Phases 5 to 8 of PRM-004 are stopped until the owner decides what remains.
