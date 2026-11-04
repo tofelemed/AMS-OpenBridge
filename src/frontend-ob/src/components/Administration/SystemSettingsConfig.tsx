@@ -37,7 +37,7 @@ export const SystemSettingsConfig: React.FC = () => {
           disabled
           title="Not connected to a backend yet — changes cannot be saved"
           style={{
-            background: T.textMuted, color: '#fff', border: 'none',
+            background: T.textMuted, color: 'var(--traverse-action-on)', border: 'none',
             borderRadius: T.radiusSm, padding: '8px 20px',
             fontSize: '13px', fontWeight: 600,
             cursor: 'not-allowed', fontFamily: 'inherit',

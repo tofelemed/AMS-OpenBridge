@@ -5453,3 +5453,17 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-118 — CPA: remaining colours on Traverse (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The strict colour gates had run on new code only. Run across the whole live app, they found a few real colours outside Traverse.
+
+**Fixed**
+- **Dialog headers in Night.** The text was hard-coded white on the light cyan accent, about 1.7:1. It now follows the accent: 6.12:1 in Day and 10.84:1 in Night, measured on a real dialog.
+- Three dialog backdrops were plain black. They now use the Traverse overlay.
+- One hard-coded white on System Settings.
+
+**Left as is.** Neutral shadows, which carry no hue. The login hero text, which sits on a photo in both themes. Unused `var()` fallbacks, since those variables are always set. Legacy modules, which are off in this build.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

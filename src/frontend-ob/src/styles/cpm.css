@@ -234,7 +234,7 @@
 /* ── Modal / drawer scaffolding ── */
 .cpm-modal-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--traverse-overlay);
   z-index: 1000;
   display: flex; align-items: center; justify-content: center;
 }

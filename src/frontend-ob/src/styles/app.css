@@ -1615,7 +1615,7 @@ select.ob-input option {
 /* ── Command palette (Phase 7 F0.4) — OpenBridge tokens only ── */
 .cmdk-backdrop {
   position: fixed; inset: 0; z-index: 1200;
-  background: var(--modal-backdrop-color, rgba(0, 0, 0, 0.45));
+  background: var(--traverse-overlay);
 }
 .cmdk {
   position: fixed; z-index: 1201;

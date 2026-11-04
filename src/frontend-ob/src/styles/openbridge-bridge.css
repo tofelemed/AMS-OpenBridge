@@ -181,6 +181,7 @@ html:root[data-theme] {
   --shadow-floating-color: color-mix(in srgb, var(--traverse-text-primary) 18%, transparent);
 
   /* Dialog system (styles/hmi-dialogs.css) */
+  --hmi-on-accent: var(--traverse-action-on);
   --hmi-blue: var(--traverse-action-primary);
   --hmi-blue-dark: var(--traverse-action-hover);
   --hmi-blue-darker: var(--traverse-action-active);
