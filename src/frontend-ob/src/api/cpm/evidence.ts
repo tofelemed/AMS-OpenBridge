@@ -30,6 +30,8 @@ export interface MethodRun {
   identity: MethodRunIdentity;
   /** The gate's cell of the fused row (fusion tier only). */
   cell: { key: string; name: string; tier: string; status: string; reason: string | null } | null;
+  /** CHG-102 5c: every gate of this run's fused row (absent for a tier row and on an older cplm-api). */
+  cells?: Array<{ key: string; status: string | null; reason: string | null }> | null;
   verdictV2: unknown;
   /** The tier row's payload (short / long) or the response event's result JSON. */
   result: Record<string, unknown> | null;

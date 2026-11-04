@@ -3,7 +3,7 @@
 // artifacts' provenance with labels and formatted values; the identity block is one list, not prose.
 import { describe, expect, it } from 'vitest';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
-import { gateReasonOf, gateStatusOf, identityOf, parametersOf } from './gateFacts';
+import { chipCells, gateReasonOf, gateStatusOf, identityOf, parametersOf } from './gateFacts';
 
 const run = (over: Partial<MethodRun>): MethodRun => ({
   methodRunId: 'r', tier: 'short', gate: 'G3', loopId: 'FIC10302', site: 'hdpe', windowKind: '5m', gateResultId: null,
@@ -47,5 +47,23 @@ describe('gate facts', () => {
     expect(rows.map(r => r.label)).toEqual(['Run', 'Build commit', 'Jar', 'Bundle', 'Dataset', 'Source', 'Purpose', 'Revisions']);
     expect(rows[0].value).toBe('r');
     expect(rows[7].value).toBe('context r0 · result r1');
+  });
+});
+
+describe('chipCells (CHG-102 5c)', () => {
+  const listed = [{ key: 'G5', status: 'NOT_EVALUATED', reason: null }];
+  const own = [{ key: 'G5', status: 'WARN', reason: 'BANDWIDTH' }, { key: 'G9', status: 'PASS', reason: null }];
+  const run = { cell: { key: 'G9', name: 'G9', tier: 'fusion', status: 'PASS', reason: null }, cells: own } as unknown as MethodRun;
+  it('an evaluation named in the URL shows its own gates, not the live row of the window list', () => {
+    expect(chipCells(listed, run, 'run-1')).toBe(own);
+  });
+  it('a live window keeps the list row', () => {
+    expect(chipCells(listed, run, undefined)).toBe(listed);
+  });
+  it('a window outside the list shows the gates of the run itself, else only the opened gate (older cplm-api)', () => {
+    expect(chipCells(undefined, run, undefined)).toBe(own);
+    const older = { ...run, cells: undefined } as unknown as MethodRun;
+    expect(chipCells(undefined, older, undefined)).toEqual([{ key: 'G9', status: 'PASS', reason: null }]);
+    expect(chipCells(listed, older, 'run-1')).toBe(listed);
   });
 });

@@ -42,7 +42,7 @@ public sealed class CpmMethodRunsController : ControllerBase
         if (loc is null) return NotFound(new { error = $"No result carries method run {id}" });
         if (!SiteScope.Allows(Request, loc.Site)) return StatusCode(StatusCodes.Status403Forbidden, SiteScope.Forbidden(loc.Site));
 
-        object? cell = null, verdictV2 = null;
+        object? cell = null, verdictV2 = null, cells = null;
         JsonElement? result = null;
         if (loc.Tier == "fusion")
         {
@@ -51,6 +51,8 @@ public sealed class CpmMethodRunsController : ControllerBase
             {
                 var matrix = GateMatrixProjection.Build(row);
                 cell = ((List<object>)matrix["gates"]!).Cast<dynamic>().FirstOrDefault(g => (string)g.key == loc.Gate);
+                // CHG-102 5c: every gate of THIS row: an evaluated window has no entry in the (LIVE) window list
+                cells = matrix["gates"];
                 verdictV2 = matrix["verdictV2"];
             }
         }
@@ -74,6 +76,7 @@ public sealed class CpmMethodRunsController : ControllerBase
                 analysisRunId = loc.AnalysisRunId, sourceCommit = loc.SourceCommit, jarSha256 = loc.JarSha256, datasetHash = loc.DatasetHash, source = loc.Source,
             },
             cell,
+            cells,
             verdictV2,
             result,
             methodRunIds = loc.MethodRunIds ?? new Dictionary<string, string>(),

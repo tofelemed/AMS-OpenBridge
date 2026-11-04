@@ -11,6 +11,21 @@ export const GATE_ORDER = ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4', 'G5', 'G6', 'G7'
 /** gateN_status / gateN_reason key of the tier payloads (G2r spells gate2r). */
 const payloadKey = (gate: string, suffix: 'status' | 'reason') => `gate${gate.replace(/^G/, '').toLowerCase()}_${suffix}`;
 
+type ChipCell = { key: string; status: string | null; reason: string | null };
+
+/**
+ * CHG-102 5c: which gate results the chip strip shows. An evaluation named in the URL shows its OWN gates - the window list
+ * holds the live row, whose gates can differ. Otherwise the list's row; a window outside the list (older than it, or an
+ * evaluated window) the run's own cells, else only the opened gate.
+ */
+export function chipCells(listed: ChipCell[] | undefined, run: MethodRun | undefined, analysisRun: string | undefined): ChipCell[] | undefined {
+  const own = run?.cells ?? undefined;
+  if (analysisRun && own?.length) return own;
+  if (listed) return listed;
+  if (own?.length) return own;
+  return run?.cell ? [{ key: run.cell.key, status: run.cell.status, reason: run.cell.reason }] : undefined;
+}
+
 export function gateStatusOf(run: MethodRun | undefined, gate: string): string | null {
   if (!run) return null;
   if (run.cell && run.cell.key === gate) return run.cell.status ?? null;

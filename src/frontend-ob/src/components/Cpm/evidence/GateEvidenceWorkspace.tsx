@@ -32,7 +32,7 @@ import { TERMINAL_RUN_STATES, reconstructRefusal, reconstructionSettled, viewedM
 const RECONSTRUCTION_POLL_MS = 10_000;
 import { useGateArtifacts } from './useGateArtifacts';
 import { findOptionOfRun, neighbours, resolveLanding, runInWindow, useEvidenceWindows, type WindowOption, type WindowTier } from './useEvidenceWindows';
-import { gateReasonOf, gateStatusOf } from './gateFacts';
+import { chipCells, gateReasonOf, gateStatusOf } from './gateFacts';
 import { verdictSentence } from './verdictCopy';
 import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf } from './timezone';
@@ -152,10 +152,10 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const sentence = selection ? verdictSentence({ gate: selection.gate, name: entry?.name ?? selection.gate, status, reason, headline, eligibilityDetail }) : '';
   const chips = useMemo(() => chipsOf({
     siblings: run.data?.methodRunIds ?? {},
-    cells: currentOption?.gates ?? (run.data?.cell ? [{ key: run.data.cell.key, status: run.data.cell.status, reason: run.data.cell.reason }] : undefined),
+    cells: chipCells(currentOption?.gates, run.data, analysisRunParam),
     result: run.data?.result ?? null, catalogue: catalogue.data,
     inputFlags: effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)),
-  }), [run.data, currentOption, catalogue.data, loop]);
+  }), [run.data, currentOption, catalogue.data, loop, analysisRunParam]);
 
   const toolbar = (
     <EvidenceToolbar scope={scope} loops={loops.data?.loops ?? []} loopId={loopId} kind={kind} kinds={kinds}
