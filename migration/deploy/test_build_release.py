@@ -222,7 +222,7 @@ def test_v261_steps_set_the_env_switches_before_the_flink_swap_and_do_not_resubm
     assert steps.index(evidence) < swap and steps.index(parallel) < swap
     assert steps.index("tar -xzf") < steps.index(evidence)
     assert "flink cancel" not in steps[steps.index("deploy.sh --prod"):]     # 6c must not cancel again (step 5 cancels before the swap)
-    assert "SEVEN" in steps
+    assert "EIGHT" in steps                                                # CHG-102 5c: + On-Demand Evaluation
     assert steps.index("docker rm -f ams-flink-taskmanager ams-flink-jobmanager") < swap
     assert "slots-available" in steps
 
@@ -361,7 +361,7 @@ def test_v266_manifest_ships_only_the_flink_image():
 
 def test_v266_steps_cancel_before_removal_and_sweep_the_retained_short_tree():
     steps = br.vm_steps("v2.6.6", "abc1234", COMBINED_ROWS, True, ["flink-jobmanager"], False, False, False, False, True)
-    assert "7 x RUNNING" in steps and "4 x RUNNING" not in steps          # seven standing jobs at the plant
+    assert "8 x RUNNING" in steps and "4 x RUNNING" not in steps          # eight standing jobs at the plant (CHG-102 5c)
     assert "taskHeap" in steps and "cplm-short-windows" in steps and "delete_on_cancellation" in steps
     assert "free -g" in steps
     # the overlay (TaskManager 3584m) arrives with the source tree, which must land BEFORE step 5 recreates the TM

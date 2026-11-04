@@ -1,0 +1,8 @@
+# install: sudo mkdir -p /var/backups/ams/iotdb && sudo cp migration/cron.d/cpa-iotdb-backup /etc/cron.d/ && sudo chmod 644 /etc/cron.d/cpa-iotdb-backup
+# CHG-102 Phase 8: nightly online IoTDB export (migration/backup-iotdb.sh) of the last 26 h of every database - one plant
+# day + 2 h overlap, so consecutive nights cover the history without gaps; the newest 30 runs are kept (~a month rolling).
+# Runs at 01:40 host time (after the plant-day KPI store and the 00:00 boundary archive); IOTDB_PASSWORD from migration/.env.
+# A FULL export (everything inside the 90 d / 1 y TTLs, several GB) is a manual step, copied OFF the box:
+#   /opt/AMS-open/migration/backup-iotdb.sh --full --out /var/backups/ams/iotdb-full   (prod_decision.md, IoTDB backup)
+# The daily check (section 7b) flags a missing, old (> 30 h) or incomplete run.
+40 1 * * * root /opt/AMS-open/migration/backup-iotdb.sh --hours 26 --keep 30 --out /var/backups/ams/iotdb >>/var/log/cpa-iotdb-backup.log 2>&1

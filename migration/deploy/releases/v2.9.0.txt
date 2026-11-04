@@ -1,0 +1,26 @@
+# Release v2.9.0 (DRAFT, name and scope pending the user) - CHG-102 historian-first storage, on top of plant v2.8.0.1
+# (43d1948e, deployed 2026-10-16). ams-open-cf's CHG-101 (IoTDB tree move, tool + runbook) and CHG-103 (ingestion) are NOT in
+# this list; add traverse-ingestion-service here if CHG-103 ships with it.
+# Consumed by: python migration/deploy/build-release.py --release v2.9.0        (the jar IS rebuilt: no --skip-jar)
+#
+#   flink-jobmanager   (the TaskManager uses the same image) CHG-102 5a plant-boundary evidence (12 h at local 00:00 / 12:00,
+#                      24 h at 00:00) + the flapping fix; 5c NEW job "AMS - CPLM On-Demand Evaluation". Full swap: cancel every
+#                      job, rm -f JM + TM, deploy, 04b (8 RUNNING, 5 slots free). PLANT_TIME_ZONE=IR in migration/.env first.
+#   cplm-api           CHG-102 phases 2-6, 8: tiered KPI / verdict reads from IoTDB, hourly short partitions (6 h by DROP),
+#                      3-year fleet KPI history, evidence boundary archive (+ trace references with layout v2), on-demand
+#                      EVALUATE runs + status consumer, episode / pin-kept archive sets.
+#   ams-frontend       KPI history ranges 14 d / 90 d / 1 y / 3 y with plant-day labels, archived-evidence source, Workbench
+#                      "Evaluate a window from the historian".
+#   ams-api            CHG-102 phase 1 raw writer (aligned / templated; behaviour changes only with IOTDB_LAYOUT=v2).
+#
+# Schema (all online, BEFORE the swaps): ops/cpm-17 (4e, stops cplm-api itself), cpm-18 (4f), cpm-19 (4g), cpm-20 + cpm-20b (4h).
+# Topics: traverse.cpa.clpm.evaluation.requests.v1 / .status.v1 (04-create-kafka-topics.sh).
+# After: install migration/cron.d/cpa-iotdb-backup (mkdir -p /var/backups/ams/iotdb); next morning daily check 7b.
+!chg102-cpm17
+!chg102-cpm18
+!chg102-cpm19
+!chg102-cpm20
+flink-jobmanager
+cplm-api
+ams-frontend
+ams-api

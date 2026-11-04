@@ -383,7 +383,8 @@ docker exec instrumental-kafka-1 kafka-topics --bootstrap-server kafka-1:9092 --
 """
     # The plant runs SEVEN jobs since v2.5. v2.7.1 shipped none of the flags below, and the old "FOUR" default made the
     # orphan sweep's guard `-ge 4`: with 4 of 7 jobs listed it would delete the checkpoints of the 3 still starting.
-    job_count = "SEVEN"
+    # CHG-102 5c: EIGHT - the "AMS - CPLM On-Demand Evaluation" job (one slot) joins the seven engine jobs.
+    job_count = "EIGHT"
     flink = ""
     if has_flink:
         flink = f"""
@@ -403,11 +404,11 @@ cp /tmp/{release}/{FLINK_JAR.name} /opt/AMS-open/src/flink/target/{FLINK_JAR.nam
 for id in $(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep -oE '[0-9a-f]{{32}}'); do docker exec ams-flink-jobmanager flink cancel -m localhost:8081 $id 2>/dev/null; done
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager
 {zk_guard}{ams_api_env}bash migration/deploy/deploy.sh --prod 2>&1 | tail -8          # 04b resubmits all {job_count} jobs
-docker exec ams-flink-jobmanager flink list -m localhost:8081  # 7 x RUNNING (4 + Condition, Instrument Context, Response), start times = now
+docker exec ams-flink-jobmanager flink list -m localhost:8081  # 8 x RUNNING (4 + Condition, Instrument Context, Response, On-Demand Evaluation), start times = now
 #
 #    orphaned checkpoints of the jobs just replaced (running ids are excluded; run it ~2 min after the resubmit):
 docker exec ams-flink-jobmanager flink list -m localhost:8081 | grep -oE '[0-9a-f]{{32}}' | sort > /tmp/{release}/running-jobs.txt   # stderr stays visible on purpose
-[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge 7 ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
+[ "$(wc -l < /tmp/{release}/running-jobs.txt)" -ge 8 ] || {{ echo "flink list returned fewer ids than jobs - NOT sweeping (JM REST not ready?)"; false; }}
 for id in $(docker exec ams-minio sh -c 'ls /data/ams-flink/checkpoints/' | sort | comm -23 - /tmp/{release}/running-jobs.txt); do docker exec ams-minio rm -rf /data/ams-flink/checkpoints/$id; done
 docker exec ams-minio sh -c 'du -sh /data/ams-flink/checkpoints'                           # the running jobs' checkpoints only
 #    Do NOT run `compose up flink-job-submit-cplm` here: that service is profiled
@@ -427,7 +428,7 @@ docker exec ams-flink-taskmanager sh -c 'test -n "$CPLM_GATE_CONFIG_KEY" && echo
         if v26:
             flink += f"""#    v2.6.1: the Short job takes CPLM_SHORT_PARALLELISM from .env (patch 2) and its own evidence switch (default none);
 #    the switches were written in step 4a, BEFORE this resubmission:
-docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 6: 16 slots, seven jobs, the Short job on 4
+docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 5: 16 slots, eight jobs, the Short job on 4
 grep ams-flink /tmp/{release}/SHA256SUMS.txt | cut -c1-16                                              # the jar every worker must announce (GET /api/v1/cpm/capabilities: config.jarSha256s)
 """
         if chg039:
@@ -437,7 +438,7 @@ docker exec ams-flink-jobmanager curl -s localhost:8081/taskmanagers | grep -o '
 ID=$(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep 'Short Feature' | awk '{{print $4}}')
 docker exec ams-flink-jobmanager curl -s localhost:8081/jobs/$ID | grep -o 'cplm-short-windows' | head -1                 # the single buffer operator
 docker exec ams-flink-jobmanager curl -s localhost:8081/jobs/$ID/checkpoints/config | grep -o '"delete_on_cancellation":[a-z]*'   # true
-docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 6: 16 slots, seven jobs, the Short job on 4
+docker exec ams-flink-jobmanager curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*'   # 5: 16 slots, eight jobs, the Short job on 4
 grep ams-flink /tmp/{release}/SHA256SUMS.txt | cut -c1-16                                              # the jar every worker must announce (GET /api/v1/cpm/capabilities: config.jarSha256s)
 """
     ops_block ="\n".join(f"#      ops/{Path(o).name}" for o in OPS_FILES)
@@ -480,7 +481,7 @@ cp /opt/AMS-open/migration/.env /tmp/{release}/env-backup-$(date +%Y%m%d%H%M)   
 tar -xzf /tmp/{release}/src-{commit}.tar.gz -C /opt/AMS-open
 echo {commit} > /opt/AMS-open/RELEASE-COMMIT                            # provenance: the tree now IS this commit
 grep -c CPLM_GATE_CONFIG_KEY migration/deploy/docker-compose.marun.yml   # 2 (JM + TM)
-grep -c submit_if_missing migration/04b-submit-flink-jobs.sh             # >= 8 (7 jobs + the function)
+grep -c submit_if_missing migration/04b-submit-flink-jobs.sh             # >= 9 (8 jobs + the function)
 # 4b. v2.5 schema + permissions - ALL BEFORE the image swap (additive, re-runnable):
 docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-07-v25-schema.sql
 #    cpm-07b swaps the result unique keys (old key -> key + bundle_hash). The OLD consumer needs the old key and the

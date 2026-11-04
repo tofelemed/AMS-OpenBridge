@@ -73,7 +73,8 @@ restart it). Nothing within 10 s: the gateway is silent; that is the OT side.
 
 ## 4. Flink jobs
 
-Seven jobs `RUNNING` and six slots free (the Short job uses four). Each running job's checkpoints:
+Eight jobs `RUNNING` and five slots free (the Short job uses four; CHG-102 added the one-slot
+"AMS - CPLM On-Demand Evaluation" job). Each running job's checkpoints:
 `ok` must climb day over day and `failed` stay near 0. A job whose `failed` is close to or above `ok`
 is in the checkpoint restart loop (seen 3 October: a backlog after an ingestion stop made every
 checkpoint expire, the job restored and rewound every 10 minutes and never caught up). Fix, for the
@@ -176,6 +177,18 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select c
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "TRUNCATE analytics.evidence_chunk, analytics.evidence_manifest"
 ```
 Back on: `episodes` instead of `none` in the first line, then the same cancel and resubmit.
+
+## 7b. Evidence archive, on-demand evaluation, KPI history, IoTDB backup (CHG-102)
+
+| Line | Healthy | When not |
+|---|---|---|
+| `archive: newest boundary set N h old` | <= 14 h (a set every plant 00:00 / 12:00, archived 15-20 min later) | Long or Fusion job not emitting boundaries (check `jm flink list`, the CAPABILITY jar, `--plant-time-zone` in the job args), or cplm-api's archiver stopped: `docker logs traverse-cplm-api 2>&1 \| grep -i "evidence archive" \| tail` (an "apply cpm-19" line = migration missing) |
+| `archive payload within 90 % of its cap` | yes | the cap (`retention_policy EVIDENCE_ARCHIVE max_bytes`, 12 GiB) drops the oldest days first - expected; raise the cap only with free disk (section 1) |
+| `kept past their day` | small; grows with long open episodes | episode-kept sets are capped at 4 GiB (`EVIDENCE_ARCHIVE_EPISODE`), pinned sets are never released - unpin in Investigation to release them |
+| `on-demand: no evaluation timed out` | 0 | the On-Demand Evaluation job is down or stuck: next line; resubmit with `ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh` (it skips running jobs) |
+| `On-Demand Evaluation job RUNNING` | yes | as above; the rest of the platform is unaffected - only the Workbench "Evaluate a window" waits and then says the job did not answer |
+| `KPI daily history: newest plant day` | 0 or 1 day back | `FleetKpiDailyJob` in cplm-api: `docker logs traverse-cplm-api 2>&1 \| grep "KPI daily" \| tail` |
+| `IoTDB backup` | newest run < 30 h old, `N of N database(s) complete` | none: install `migration/cron.d/cpa-iotdb-backup`; old: `tail /var/log/cpa-iotdb-backup.log`; incomplete: the run's `MANIFEST.txt` and `<db>.export.log` (a `301: not enough memory` line = add `--window-hours 6`) |
 
 ## 8. Partitions and retention rows
 

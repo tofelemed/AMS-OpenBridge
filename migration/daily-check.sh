@@ -46,8 +46,9 @@ if [ "$d" -ge 500 ]; then ok "samples +$d/min"; elif [ "$d" -gt 0 ]; then warn "
 auth=$(docker logs --since 24h traverse-ingestion-service 2>&1 | grep -ci 'not authori'); [ "$auth" -eq 0 ] && ok "ingestion: no authorisation errors (24 h)" || act "ingestion: $auth 'not authorised' lines - the broker user vanished (MARUN-CONTEXT 13)"
 
 echo "== 4. Flink jobs"
-run=$(jm flink list -m localhost:8081 | grep -c '(RUNNING)'); [ "$run" -eq 7 ] && ok "7 jobs RUNNING" || act "$run jobs RUNNING, expected 7: jm flink list; resubmit with 04b"
-slots=$(jm curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*' | cut -d: -f2); [ "$slots" = "6" ] && ok "slots-available 6 (Short on 4)" || warn "slots-available $slots (expected 6)"
+# CHG-102 5c: 8 jobs = the 7 engine jobs + "AMS - CPLM On-Demand Evaluation" (1 slot)
+run=$(jm flink list -m localhost:8081 | grep -c '(RUNNING)'); [ "$run" -eq 8 ] && ok "8 jobs RUNNING" || act "$run jobs RUNNING, expected 8: jm flink list; resubmit with 04b"
+slots=$(jm curl -s localhost:8081/overview | grep -o '"slots-available":[0-9]*' | cut -d: -f2); [ "$slots" = "5" ] && ok "slots-available 5 (Short on 4)" || warn "slots-available $slots (expected 5)"
 # per-job checkpoints: a job whose failed count rivals its completed count is in the restart loop (MARUN-DAILY-CHECK.md 4)
 jm curl -s localhost:8081/jobs/overview | python3 -c '
 import sys, json, subprocess
@@ -98,6 +99,39 @@ ep=$(pg "select count(*) filter (where opened_at > now()-interval '24 hours')||'
 # CHG-049: the files, not the payload sum - DELETE never shrinks them (2026-10-06: 1.9 GB payload "within budget", 3.7 GB on disk)
 evmb=$(pg "select (pg_total_relation_size('analytics.evidence_chunk')+pg_total_relation_size('analytics.evidence_manifest'))/1048576")
 if [ "${evmb:-0}" -gt 3072 ]; then act "evidence tables ${evmb} MB on disk - MARUN-DAILY-CHECK.md 7"; elif [ "${evmb:-0}" -gt 1536 ]; then warn "evidence tables ${evmb} MB on disk"; else ok "evidence tables ${evmb} MB on disk"; fi
+
+echo "== 7b. CHG-102: evidence archive, on-demand evaluation, KPI history, IoTDB backup"
+if [ "$(pg "select to_regclass('analytics.evidence_archive_run') is not null")" != "t" ]; then warn "evidence archive not installed (cpm-19) - boundary evidence ages out with the live rows"
+else
+  echo "      archive: $(pg "select count(*)||' sets, '||pg_size_pretty(coalesce(sum(payload_bytes),0))||' packed, oldest day '||coalesce(min(partition_day)::text,'-')||', newest window '||coalesce(to_char(max(window_end) at time zone 'utc','MM-DD HH24:MI'),'-')||' UTC' from analytics.evidence_archive_run")"
+  # a boundary set every 12 h (plant 00:00 / 12:00) + 15 min settle + 5 min pass: none newer than 14 h = boundary emission or the archiver stopped
+  age=$(pg "select coalesce(extract(epoch from now()-max(window_end))::int/3600, 999) from analytics.evidence_archive_run")
+  [ "${age:-999}" -le 14 ] && ok "archive: newest boundary set ${age} h old" || act "archive: newest boundary set ${age} h old (> 14 h) - Long/Fusion boundary emission or the cplm-api archiver: MARUN-DAILY-CHECK.md 7b"
+  ab=$(pg "select coalesce(sum(payload_bytes),0) from analytics.evidence_archive_run"); cap=$(pg "select coalesce(max_bytes,0) from analytics.retention_policy where record_class='EVIDENCE_ARCHIVE'")
+  [ "${cap:-0}" -eq 0 ] || [ "${ab:-0}" -le $(( ${cap:-0} * 9 / 10 )) ] && ok "archive payload within 90 % of its cap" || warn "archive payload above 90 % of its cap - the oldest days go first; MARUN-DAILY-CHECK.md 7b"
+  if [ "$(pg "select to_regclass('analytics.evidence_archive_kept') is not null")" = "t" ]; then
+    echo "      kept past their day (pins / episodes): $(pg "select count(*)||' sets ('||count(*) filter (where kept_reason='PINNED')||' pinned), '||pg_size_pretty(coalesce(sum(payload_bytes),0)) from analytics.evidence_archive_kept")"
+  else warn "evidence_archive_kept not installed (cpm-20b) - a pin keeps its whole archive day"; fi
+fi
+if [ "$(pg "select exists (select 1 from pg_constraint where conname='analysis_run_purpose_check' and pg_get_constraintdef(oid) like '%EVALUATE%')")" = "t" ]; then
+  echo "      on-demand evaluations 24 h: $(pg "select coalesce(string_agg(state||'='||n, ' '),'none') from (select state, count(*) n from analytics.analysis_run where purpose='EVALUATE' and created_at > now()-interval '24 hours' group by 1) s")"
+  nr=$(pg "select count(*) from analytics.analysis_run where purpose='EVALUATE' and created_at > now()-interval '24 hours' and error like 'NO_RESPONSE_FROM_EVALUATION_JOB%'")
+  [ "${nr:-0}" -eq 0 ] && ok "on-demand: no evaluation timed out in 24 h" || act "on-demand: $nr evaluation(s) got no answer in 24 h - is 'AMS - CPLM On-Demand Evaluation' RUNNING? MARUN-DAILY-CHECK.md 7b"
+else warn "on-demand evaluation not installed (cpm-20)"; fi
+jm flink list -m localhost:8081 | grep '(RUNNING)' | grep -q 'CPLM On-Demand Evaluation' && ok "On-Demand Evaluation job RUNNING" || warn "On-Demand Evaluation job not RUNNING - the Workbench 'Evaluate a window' times out; resubmit with 04b"
+if [ "$(pg "select to_regclass('analytics.cplm_kpi_daily') is not null")" = "t" ]; then
+  kd=$(pg "select coalesce((current_date - max(day))::text, 'none') from analytics.cplm_kpi_daily")
+  case "$kd" in 0|1) ok "KPI daily history: newest plant day ${kd} day(s) back";; none) warn "KPI daily history: empty (cpm-18 applied, the hourly job has not stored a day yet)";; *) act "KPI daily history: newest day $kd days back - FleetKpiDailyJob stopped? MARUN-DAILY-CHECK.md 7b";; esac
+fi
+# CHG-102 Phase 8: the historian is the only copy of history beyond the Postgres hot window (cron.d/cpa-iotdb-backup)
+bk=$(ls -1d /var/backups/ams/iotdb/iotdb-backup-* 2>/dev/null | sort | tail -1)
+if [ -z "$bk" ]; then act "IoTDB backup: none under /var/backups/ams/iotdb - install cron.d/cpa-iotdb-backup (MARUN-DAILY-CHECK.md 7b)"
+else
+  bage=$(( ( $(date +%s) - $(stat -c %Y "$bk") ) / 3600 ))
+  if [ "$bage" -gt 30 ]; then act "IoTDB backup: newest $(basename "$bk") is ${bage} h old (> 30 h)"
+  elif awk '/^result:/ { exit !($2 == $4) } END { if (NR == 0) exit 1 }' "$bk/MANIFEST.txt" 2>/dev/null && grep -q '^result:' "$bk/MANIFEST.txt"; then ok "IoTDB backup: $(basename "$bk") $(grep '^result:' "$bk/MANIFEST.txt" | cut -d' ' -f2-) ($(du -sh "$bk" | cut -f1))"
+  else warn "IoTDB backup: $(basename "$bk") incomplete - $bk/MANIFEST.txt"; fi
+fi
 
 echo "== 8. partitions and retention rows"
 pg "select record_class||'='||coalesce(days::text,'never') from analytics.retention_policy order by 1" | tr '\n' ' ' | sed 's/^/      /'; echo

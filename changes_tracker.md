@@ -5215,3 +5215,65 @@ logged ("Loop registry refresh failed: ... keeping previous map") and retried on
 **Services updated:** `traverse-ingestion-service` (image). **No migration, no config.**
 **Plant:** load the image, `deploy.sh --prod` (ingestion-service only), then check `/api/ingestion/stats` shows `registryLoops` > 0
 and `tuplesEmitted` rising.
+
+## CHG-102 — Historian-first storage: IoTDB layout v2, PG hot window, evidence archive, on-demand evaluation, 3-year KPI history (2026-11-01..04, lab-proven, unreleased)
+
+**Why.** The plant disk (96 GB, shared) bounded history to days: live evidence 6 h, verdicts 14 d, no KPI history beyond 14 d,
+features deleted by a cron. The SME asked for 24 h evidence for years and every other window on demand. The plan and the
+measurements are in `docs/next-release/plan-iotdb-postgres.md`, `docs/next-release/evidence-retention-current-and-target.md` and
+`docs/next-release/storage-architecture-iotdb-postgres.md`.
+
+**What changed, by phase (commits on `feat/v25-next-release`, unpushed):**
+- **1-2 IoTDB layout v2 + LIVE-only KPI history** (9c974675): `infra/docker/iotdb-layout-v2.sh` (aligned raw template, KPI
+  databases `root.hdpe.kpi` / `root.hdpe.kpis`; sourced when `IOTDB_LAYOUT=v2`); ams-api raw writer aligned / templated;
+  cplm-api KPI history writes LIVE rows only. The plant switch rides on ams-open-cf's CHG-101 move (`--layout v2`).
+- **3 Tiered reads** (9261bda5): cplm-api `/kpis` and `/gates?projection=summary` continue into IoTDB past the oldest Postgres row
+  (`source` per row, `degraded` on an IoTDB failure).
+- **4 Postgres hot window by DROP** (9c62583f): short features in hourly partitions kept 6 h, long 1 d; `retention_policy.hours`;
+  migration **cpm-17**; the `cpa-prune-short-features` cron is removed by the release block.
+- **6 Fleet KPI daily, 3 years** (545405f2, 6e83ec55, 1d20c449): `analytics.cplm_kpi_daily` (+ run ledger), hourly
+  `FleetKpiDailyJob`, `/cpm/kpi` 14 d / 90 d / 1 y / 3 y with the loop drilldown; plant day from `PLANT_TIME_ZONE`
+  (`local` | `UTC` | `IR` | IANA | `+HH:MM`); migration **cpm-18**.
+- **5a Boundary evidence** (84ad288a, b3978f82): Long + Fusion jobs always emit the 12 h (local 00:00 / 12:00) and 24 h
+  (00:00) windows with a `boundary_set_id`; the throttle no longer re-emits a flapping finding every tick.
+- **5b-1 Evidence archive** (6b2b62a5): one packed, lossless row per boundary set in `analytics.evidence_archive` (daily
+  partitions, 30 d / 12 GiB); the Workbench reads it when the live rows are gone (same bytes, same ETag); migration **cpm-19**.
+- **5b-2 Trace references** (125e6865): raw columns proven bit-identical to IoTDB are archived as a verified reference
+  (`cpax2`), AUTO only with `IotDb:Layout=v2`; rules in `prod_decision.md` (Loop historian namespace row).
+- **5c On-demand evaluation + episode-kept sets** (7087cfea): Flink job "AMS - CPLM On-Demand Evaluation" + `POST
+  /analysis-runs {purpose: EVALUATE}` + Workbench "Evaluate a window from the historian" (lab: 0.9-1.2 s warm);
+  `analytics.evidence_archive_kept` keeps only pinned / episode-overlapped sets past their day; migrations **cpm-20**, **cpm-20b**.
+- **8 Ops**: `migration/backup-iotdb.sh` (online per-device TsFile export, restore drill passed on the lab) + cron
+  `migration/cron.d/cpa-iotdb-backup` (nightly 26 h, 30 kept); `migration/daily-check.sh` section 7b + 8 jobs / 5 slots;
+  `migration/MARUN-DAILY-CHECK.md` 7b; release text EIGHT jobs.
+
+**Services updated:**
+- `cplm-api` (image) - phases 2-6, 8.
+- `ams-flink` (jar + image: Long, Fusion and the replay change; NEW job "AMS - CPLM On-Demand Evaluation") - full Flink swap.
+- `ams-frontend` (image) - KPI history ranges, plant-day labels, evidence source, Evaluate a window.
+- `ams-api` (image) - phase 1 raw writer (only matters once `IOTDB_LAYOUT=v2`).
+- Files from the source tarball: `migration/04b-submit-flink-jobs.sh` (8 jobs), `infra/docker/*` (iotdb-layout-v2.sh, compose
+  env), `migration/daily-check.sh`, `migration/backup-iotdb.sh`, `migration/cron.d/cpa-iotdb-backup`, `migration/kafka/topics.txt`.
+
+**Migrations (all online, before the image swap - release PRE_SWAP steps 4e..4h):**
+`ops/cpm-17-hot-window-partitions.sql` (cplm-api STOPPED for this one; the block handles it) -> `ops/cpm-18-kpi-daily.sql` ->
+`ops/cpm-19-evidence-archive.sql` -> `ops/cpm-20-on-demand-evaluation.sql` -> `ops/cpm-20b-evidence-archive-keep.sql`.
+Each has a `.rollback.sql`. Fresh installs: `database/scripts/65_`..`68b_` and `migration/schema/03-traverse_cplm.sql`.
+
+**New Kafka topics** (`04-create-kafka-topics.sh` from `topics.txt`): `traverse.cpa.clpm.evaluation.requests.v1` (4 p, 1 d),
+`traverse.cpa.clpm.evaluation.status.v1` (2 p, 3 d). New consumer group `traverse-cpa-evaluation-status` (cplm-api, one member).
+
+**`migration/.env` before the swap:** `PLANT_TIME_ZONE=IR` (Marun); `CPLM_EVIDENCE_BOUNDARY_KINDS` unset (= `12h,24h`);
+`LOOP_ROOT_PREFIX` / `IOTDB_LAYOUT` only with the CHG-101 move.
+
+**Run order at the plant:** build `python migration/deploy/build-release.py --release <name>` -> copy -> the generated VM steps:
+backup (`backup-cplm-db.sh --gzip`) -> PRE_SWAP cpm-17..20b -> topics -> **full Flink swap** (cancel all, image, 04b submits 8 jobs)
+-> `deploy.sh --prod` (cplm-api, ams-frontend, ams-api) -> install `cron.d/cpa-iotdb-backup` -> next morning: daily check 7b
+(archive newest set <= 14 h, On-Demand job RUNNING, KPI daily day 0-1, IoTDB backup complete).
+
+**Tests:** cplm-api suites for every phase (latest: 79/79 archive + keep + trace + evaluation; method-run 39/40, the known lab-data
+flake); Flink 388 (one mini-cluster start failure under the build's memory cap, passes alone); frontend 146; release tests 63;
+browser checks of KPI history, Evidence Workbench (archive, evaluation; day / night; 1440 / 768 px).
+
+**Still open:** plant check that raw values are 32-bit before trace references (5b-2); SME D7 (compact archive after 90 d, not
+built); D5 (whether backups carry the archive); the release build itself.
