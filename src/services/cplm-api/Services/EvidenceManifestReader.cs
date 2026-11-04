@@ -95,10 +95,15 @@ public sealed class EvidenceManifestReader
         // ArtifactOf from the archived manifest columns, so the artifacts and the ETag are what the live rows produced
         var rowList = rows.ToList();
         Dictionary<Guid, IReadOnlyList<EvidenceChunkSpec>>? archived = null;
-        if (rowList.All(r => (string)r.readiness == "EXPIRED")
+        // the run's OWN rows decide (CHG-102 E2E 2026-11-04): a reconstruction or an EVALUATE stored beside the run carries
+        // the same method_run_id, and counting it hid the archived proof - the screen said "no retained proof" and showed
+        // the rebuild. When the own rows are gone, the archive is served and the rebuilds stay listed beside it.
+        var own = rowList.Where(r => r.reconstruction_of is null).ToList();
+        if (own.All(r => (string)r.readiness == "EXPIRED")
             && await EvidenceArchiveReader.ForMethodRunAsync(conn, methodRunId, ct, _traces) is { Count: > 0 } arch)
         {
-            rowList = arch.Select(a => (dynamic)a.Manifest.ToRow()).ToList();
+            rowList = arch.Select(a => (dynamic)a.Manifest.ToRow())
+                .Concat(rowList.Where(r => r.reconstruction_of is not null)).ToList();
             archived = arch.ToDictionary(a => a.Manifest.EvidenceId, a => a.Chunks);
         }
         var metas = new List<ArtifactMeta>();

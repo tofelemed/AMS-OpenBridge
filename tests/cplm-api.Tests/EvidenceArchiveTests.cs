@@ -131,6 +131,44 @@ public sealed class EvidenceArchiveTests : IClassFixture<ArchiveCplmDb>, IAsyncL
     }
 
     [Fact]
+    public async Task A_rebuild_stored_beside_a_swept_run_does_not_hide_its_archived_proof()
+    {
+        // CHG-102 E2E 2026-11-04: an EVALUATE (or "Reconstruct evidence") of a window whose live rows were swept stores its
+        // artifacts beside the run under the same method_run_id; the reader counted them and never fell back to the archive
+        var set = await EvidenceArchiveSeed.SeedSetAsync(Db, "ARCH_FIC100", "12h", DateTime.UtcNow.AddMinutes(-30), runs: 1, perRun: 3);
+        var run = set.MethodRuns[0];
+        var before = await ReadRunAsync(run);
+        (await EvidenceArchiveSeed.Archiver(Db).RunOnceAsync(DateTime.UtcNow, CancellationToken.None)).SetsArchived.Should().Be(1);
+        await EvidenceArchiveSeed.SweepLiveAsync(Db, set);
+
+        var analysisRun = Guid.NewGuid();
+        await using (var conn = await Db.OpenConnectionAsync())
+            await conn.ExecuteAsync("""
+                INSERT INTO analytics.analysis_run (analysis_run_id, loop_id, purpose, state, created_by, manifest)
+                VALUES (@id, 'ARCH_FIC100', 'EVIDENCE_RECONSTRUCTION', 'FINISHED', 'test', '{}'::jsonb)
+                """, new { id = analysisRun });
+        var bytes = EvidenceArchiveSeed.ArtifactBytes(300, 2, 777);
+        var rebuilt = JsonSerializer.SerializeToElement(new Dictionary<string, object?>
+        {
+            ["evidence_id"] = set.EvidenceIds[0].ToString(), ["method_run_id"] = run.ToString(), ["gate_id"] = "G9",
+            ["artifact_kind"] = "kind_0", ["role_or_path"] = "PV", ["data_type"] = "f64", ["columns"] = new[] { "x", "y" },
+            ["encoding"] = "f64le+gzip", ["calculation_samples"] = 300, ["display_points"] = 300, ["chunk_count"] = 1,
+            ["total_bytes"] = bytes.Length, ["sha256"] = EvidenceArchiveSeed.Sha(bytes), ["chunk_sha256"] = new[] { EvidenceArchiveSeed.Sha(bytes) },
+            ["provenance"] = new Dictionary<string, object?> { ["purpose"] = "EVIDENCE_RECONSTRUCTION", ["analysis_run_id"] = analysisRun.ToString() },
+        });
+        (await new PostgresEvidenceBlobStore(Db).UpsertManifestAsync(rebuilt, CancellationToken.None)).Should().NotBeNull("stored beside the swept original");
+
+        var after = await ReadRunAsync(run);
+        after.Source.Should().Be("ARCHIVE", "the run's own rows are gone: its archived proof is served, not the rebuild");
+        after.Artifacts.Should().Be(before.Artifacts);
+        after.Bundle.Should().Equal(before.Bundle);
+        await using var c2 = await Db.OpenConnectionAsync();
+        var reader = new EvidenceManifestReader(new MethodRunResolver(Db));
+        var m = await reader.ReadAsync(c2, run, Site, CancellationToken.None);
+        JsonSerializer.SerializeToElement(m.ToResponse()).GetProperty("reconstructions").GetArrayLength().Should().Be(1, "the rebuild stays listed beside the proof");
+    }
+
+    [Fact]
     public async Task A_second_pass_changes_nothing_and_the_set_is_listed_for_its_loop()
     {
         var end = EvidenceArchiveSeed.BoundaryEnd(1, 12);

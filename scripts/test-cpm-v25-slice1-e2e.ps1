@@ -114,7 +114,8 @@ Step 'the newest LIVE fused verdict carries fusion v2 + run identity + health la
     $p = $row -split '\|'
     Assert ($p[0] -eq 'EVIDENCE_SCORE_UNCALIBRATED') "score_semantics: $($p[0])"
     Assert ($p[1] -ne 'missing') 'health_lanes missing from the fused verdict (fusion job not on the 1H.5 jar)'
-    Assert ($p[2] -like 'profile:*') "bundle_hash: $($p[2])"
+    # a profile hash, or the content hash of a governed bundle when one is published (v2.5 3B; the lab has one)
+    Assert ($p[2] -like 'profile:*' -or $p[2] -match '^[0-9a-f]{64}$') "bundle_hash: $($p[2])"
     Assert ($p[3] -eq 'LIVE') "purpose: $($p[3])"
     Assert ([int]$p[4] -ge 15) "method_run_ids on a fused row: $($p[4])"
 }
