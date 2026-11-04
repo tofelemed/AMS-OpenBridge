@@ -159,6 +159,8 @@ export interface TrendPanelProps {
   context?: ReactNode;
   /** Page controls placed before the zoom buttons (series toggles, range, export). */
   toolbar?: ReactNode;
+  /** For a narrow host such as an inspector: no panel frame and no zoom buttons. The value table stays. */
+  compact?: boolean;
   /** Panels with the same group share a cursor (`echarts.connect`). They need the same window. */
   group?: string;
   selectedBandId?: string | null;

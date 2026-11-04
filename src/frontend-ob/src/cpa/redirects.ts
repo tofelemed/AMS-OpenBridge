@@ -5,7 +5,7 @@
  */
 
 /** The last phase that shipped destinations. Raise it when a phase replaces its pages. */
-export const SHIPPED_PHASE = 2;
+export const SHIPPED_PHASE = 4;
 
 type Rewrite = (q: URLSearchParams) => { path: string; query: URLSearchParams };
 

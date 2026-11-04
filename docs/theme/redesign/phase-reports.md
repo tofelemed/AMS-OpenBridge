@@ -45,3 +45,19 @@ Label register: 3 rows
 Text touching safety context: none. Definitions are verbatim (RD10)
 Deferred / C3: UI-037 (metric link mapping, raw placeholders, definition length, implementation terms, normalised tooltip, zoom slider)
 Change tracker: CHG-113
+
+## Phase 4 — Overview, Performance, Episodes
+
+Files changed: see the phase commits
+Destinations / components delivered: Overview, Performance, Episodes; `GateBadge`, `GateKey`, `useGridFocus`; DataTable grouped headings and grid
+Redirects switched on: `/cpm/kpi` → `/cpm?review=`
+Functions verified (SPEC §8): fleet KPIs, KPI drill-down and proof, KPI daily trend with day pick, priority queue, loop focus, readiness, event trail; gate roll-up, matrix, checks, guide; episode ledger, detail, history, conditions, notes; acknowledge, shelve, unshelve and note by unit test only, because the guard blocks writes on the shared lab
+Gates: tsc ✓ (0) | lint ✓ | test ✓ | build ✓ | lint:theme ✓ (T1 to T11, T13, 0 matches) | contrast ✓ (121/126) | obc-probe ✓ (9/9) | redirects ✓ | a11y ✓ (12 scans, 0 critical or serious) | geometry ✓ | signals ✓
+Evidence: `evidence/phase-4/` (`proof.json` 45 of 45, `axe.json`, `context-walks.json`, `geometry.json`; three pages in Day and Night at 1440, 1280 and 1024)
+Walks: OP1, OP4, OP6, EN2, RE1, RE4 all reached their destination by clicks. All 24 tasks: 0 context lost
+CPA01: strip, ranked table, stated basis and condition filter pass. Unassessed loops are listed with their reason. Sortable headings are partial: KPI lists sort only when they fit one page (UI-048). A2 to A5 cannot be fully judged on this lab, which has 0 current findings
+Label register: 19 rows
+Text touching safety context: none. Definitions verbatim (RD10)
+**Not met:** the header range does not filter Episodes (UI-043)
+Deferred / C3: UI-048
+Change tracker: CHG-114

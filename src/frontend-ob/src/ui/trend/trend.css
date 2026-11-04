@@ -14,6 +14,13 @@
   font-size: var(--traverse-type-body);
 }
 
+.trend--compact {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 .trend__head {
   display: flex;
   flex-wrap: wrap;

@@ -1,0 +1,222 @@
+/* SPEC §5.2. Values come from the Traverse tokens only. Status colour paints only roll-up marks (CD13). */
+.perf { display: flex; flex-direction: column; gap: var(--traverse-size-panel-gap); min-width: 0; }
+.perf-panel {
+  min-width: 0;
+  padding: var(--traverse-size-panel-padding);
+  background: var(--traverse-surface-panel);
+  border: 1px solid var(--traverse-border-subtle);
+  border-radius: var(--traverse-radius-panel);
+}
+.perf-panel__title {
+  display: flex;
+  align-items: center;
+  gap: var(--traverse-space-1);
+  margin: 0 0 var(--traverse-space-2);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-section-title);
+  font-weight: 600;
+}
+.perf-head { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+.perf-code { font-family: var(--traverse-font-mono); font-weight: 400; text-transform: none; }
+
+/* Roll-up. The padding keeps the focus ring inside the scroll box. */
+.perf-rollup {
+  display: flex;
+  gap: var(--traverse-space-3);
+  margin: calc(-1 * var(--traverse-space-2));
+  padding: var(--traverse-space-2);
+  overflow-x: auto;
+}
+.perf-rollup__tier { display: flex; flex-direction: column; flex: var(--perf-tier-columns) 1 0; min-width: 0; gap: var(--traverse-space-1); min-width: 0; }
+.perf-rollup__tier-label {
+  padding-block-end: var(--traverse-space-1);
+  border-bottom: 1px solid var(--traverse-border-subtle);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.perf-rollup__columns {
+  display: grid;
+  flex: 1;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--traverse-space-1);
+}
+.perf-rollup__column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--traverse-space-1);
+  padding: var(--traverse-space-1);
+  background: none;
+  border: 0;
+  border-block-end: var(--traverse-size-nav-indicator) solid transparent;
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.perf-rollup__column:hover { background: var(--traverse-surface-hover); }
+.perf-rollup__column[aria-disabled='true'] { color: var(--traverse-text-muted); cursor: default; }
+.perf-rollup__column[aria-disabled='true']:hover { background: none; }
+.perf-rollup__column[data-active] {
+  background: var(--traverse-surface-selected);
+  border-block-end-color: var(--traverse-action-primary);
+  font-weight: 600;
+}
+.perf-rollup__track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: var(--traverse-size-control-min-height);
+  border-bottom: 1px solid var(--traverse-border-strong);
+}
+.perf-rollup__bar { display: flex; flex-direction: column; width: var(--traverse-space-5); }
+.perf-rollup__seg { flex-basis: 0; }
+.perf-rollup__seg[data-tone='danger'] { background: var(--traverse-status-danger-fg); }
+.perf-rollup__seg[data-tone='warning'] { background: var(--traverse-status-warning-fg); }
+.perf-rollup__seg[data-tone='info'] { background: var(--traverse-status-info-fg); }
+.perf-rollup__seg[data-tone='unknown'] { background: var(--traverse-status-unknown-fg); }
+.perf-rollup__seg[data-tone='neutral'] {
+  background: var(--traverse-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--traverse-border-strong);
+}
+.perf-rollup__count { font-size: var(--traverse-type-body); font-variant-numeric: tabular-nums; font-weight: 600; }
+.perf-rollup__parts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--traverse-space-1);
+  min-height: var(--traverse-space-4);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-variant-numeric: tabular-nums;
+}
+.perf-rollup__name,
+.perf-rollup__code { font-size: var(--traverse-type-metadata); text-align: center; }
+/* Long gate names hyphenate. They never break at an arbitrary letter. */
+.perf-rollup__name { max-width: 100%; color: var(--traverse-text-secondary); hyphens: auto; overflow-wrap: normal; }
+.perf-rollup__code { color: var(--traverse-text-muted); font-family: var(--traverse-font-mono); }
+
+/* Filters. */
+.perf-filters { display: flex; flex-direction: column; gap: var(--traverse-space-2); min-width: 0; }
+.perf-filters__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.perf-filters__sort { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+.perf-filters__find { flex: 1 1 200px; max-width: 280px; }
+
+/* Primary table. The scroll padding keeps a focused cell clear of the sticky headings and columns. */
+.perf-table .ui-table__scroll { scroll-padding: 96px 0 0 180px; }
+.perf-table[data-view='matrix'] .ui-table__scroll { scroll-padding-inline-end: 180px; }
+.perf-table[data-view='matrix'] td { padding-inline: var(--traverse-space-1); }
+.perf-table[data-view='matrix'] tbody td:last-child,
+.perf-table[data-view='matrix'] thead tr:first-child th:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  border-inline-start: 1px solid var(--traverse-border-subtle);
+}
+.perf-table[data-view='matrix'] thead tr:first-child th:last-child { z-index: 3; }
+.perf-gate-head {
+  display: flex;
+  flex-direction: column;
+  min-width: 112px;
+  padding-block: var(--traverse-space-1);
+  white-space: normal;
+}
+.perf-loop {
+  display: flex;
+  flex-direction: column;
+  min-width: 148px;
+  max-width: 200px;
+  padding: var(--traverse-space-1) var(--traverse-space-2);
+  color: var(--traverse-text-primary);
+  text-decoration: none;
+}
+.perf-loop:hover .perf-loop__tag { text-decoration: underline; }
+.perf-loop__tag { color: var(--traverse-action-primary); font-family: var(--traverse-font-mono); }
+.perf-loop__name {
+  overflow: hidden;
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.perf-cell,
+.perf-check {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--traverse-size-control-min-height);
+  background: none;
+  border-radius: var(--traverse-radius-control);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.perf-cell { width: 100%; padding: 0 var(--traverse-space-1); border: 0; }
+.perf-check {
+  gap: var(--traverse-space-2);
+  padding: 0 var(--traverse-space-2);
+  border: 1px solid var(--traverse-border-subtle);
+  font-size: var(--traverse-type-metadata);
+}
+.perf-cell:hover,
+.perf-check:hover { background: var(--traverse-surface-hover); }
+
+/* Selected: a frame as well as the row's colour, so selection is never colour alone (G05). */
+.perf-cell[data-selected],
+.perf-check[data-selected] { box-shadow: inset 0 0 0 2px var(--traverse-action-primary); }
+
+.perf-loop:focus-visible,
+.perf-cell:focus-visible,
+.perf-check:focus-visible,
+.perf-rollup__column:focus-visible {
+  outline: 2px solid var(--traverse-focus);
+  outline-offset: 3px;
+}
+.perf-checks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); padding-block: var(--traverse-space-1); }
+.perf-check__gate { color: var(--traverse-text-secondary); white-space: nowrap; }
+.perf-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--traverse-space-1);
+  min-width: 148px;
+  max-width: 220px;
+  padding-block: var(--traverse-space-1);
+}
+.perf-result .ui-badge { white-space: normal; }
+
+/*
+ * Inspector. Beside the table it stays in view while the page scrolls, with its action reachable.
+ * Only there: sticky makes a stacking context, which would trap the drawer below the shell header.
+ */
+.perf-inspector-slot { min-width: 0; }
+@media (min-width: 1280px) {
+  .perf-inspector-slot { position: sticky; top: var(--traverse-space-4); }
+  .perf-inspector-slot .ui-inspector { max-height: calc(100vh - var(--traverse-size-header) - 2 * var(--traverse-space-4)); }
+}
+.perf-inspector { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
+.perf-inspector__nav { display: flex; align-items: center; gap: var(--traverse-space-1); }
+.perf-inspector__loop { display: flex; flex-direction: column; margin: 0; color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); }
+.perf-inspector__loop .perf-code { color: var(--traverse-text-primary); }
+.perf-inspector__section { display: flex; flex-direction: column; gap: var(--traverse-space-1); align-items: flex-start; }
+.perf-inspector__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--traverse-space-1);
+  margin: 0;
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-body);
+  font-weight: 600;
+}
+.perf-inspector__text { margin: 0; color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); }
+.perf-inspector__steps { margin: 0; padding-inline-start: var(--traverse-space-5); color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); }
+.perf-inspector__steps li + li { margin-block-start: var(--traverse-space-2); }
+.perf-inspector__flags { display: flex; flex-wrap: wrap; gap: var(--traverse-space-1); }
+.perf-inspector__links { display: flex; flex-wrap: wrap; gap: var(--traverse-space-3); }
+.perf-facts { display: flex; flex-direction: column; gap: var(--traverse-space-1); width: 100%; margin: 0; font-size: var(--traverse-type-body); }
+.perf-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--traverse-space-3); }
+.perf-facts dt { color: var(--traverse-text-secondary); }
+.perf-facts dd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); margin: 0; color: var(--traverse-text-primary); font-variant-numeric: tabular-nums; }

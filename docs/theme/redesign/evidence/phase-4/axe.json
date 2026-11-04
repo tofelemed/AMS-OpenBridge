@@ -1,0 +1,90 @@
+[
+ {
+  "name": "Overview",
+  "url": "/cpm",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview",
+  "url": "/cpm",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Overview, filtered",
+  "url": "/cpm?review=stale",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview, filtered",
+  "url": "/cpm?review=stale",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Overview, loop selected",
+  "url": "/cpm?review=stale&loop=FIC10302",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview, loop selected",
+  "url": "/cpm?review=stale&loop=FIC10302",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Performance",
+  "url": "/cpm/performance",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Performance",
+  "url": "/cpm/performance",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Performance, matrix",
+  "url": "/cpm/performance?view=matrix",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Performance, matrix",
+  "url": "/cpm/performance?view=matrix",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Episodes",
+  "url": "/cpm/events",
+  "theme": "day",
+  "violations": [
+   {
+    "id": "landmark-unique",
+    "impact": "moderate",
+    "count": 1,
+    "target": ".episodes__panel.episodes__ledger[aria-label=\"Episode ledger\"]",
+    "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+   }
+  ]
+ },
+ {
+  "name": "Episodes",
+  "url": "/cpm/events",
+  "theme": "night",
+  "violations": [
+   {
+    "id": "landmark-unique",
+    "impact": "moderate",
+    "count": 1,
+    "target": ".episodes__panel.episodes__ledger[aria-label=\"Episode ledger\"]",
+    "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+   }
+  ]
+ }
+]

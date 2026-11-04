@@ -92,7 +92,30 @@
   border-radius: var(--traverse-radius-control);
 }
 .ui-state-wrap { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
-.ui-state-wrap .ui-state { max-width: none; margin: 0; padding: var(--traverse-space-3); text-align: start; }
+/* A notice above retained content is one line, so the data stays above the fold. */
+.ui-state-wrap .ui-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-1) var(--traverse-space-3);
+  max-width: none;
+  margin: 0;
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  text-align: start;
+}
+.ui-state-wrap .ui-state__title { font-size: var(--traverse-type-key); }
+.ui-state-wrap .ui-state__reason { flex: 1 1 auto; margin: 0; }
+.ui-state-wrap .ui-state__action { margin: 0; }
+
+/* Inside a panel a state is part of the panel, not a card of its own. */
+.ui-table .ui-state,
+.ov-panel .ui-state,
+.perf-panel .ui-state {
+  background: none;
+  border: 0;
+}
+.ui-state a,
+.ui-metric__link a { color: var(--traverse-action-primary); }
 .ui-state--stale,
 .ui-state--partial { border-inline-start: var(--traverse-size-nav-indicator) solid var(--traverse-status-warning-fg); }
 .ui-state--bad-quality,

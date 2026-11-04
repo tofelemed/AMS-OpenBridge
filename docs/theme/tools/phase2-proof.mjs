@@ -14,7 +14,7 @@ import { installGuard } from './lib/guard.mjs';
 import { TASKS } from './lib/tasks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = path.resolve(here, '../redesign/evidence/phase-2');
+const out = path.resolve(here, `../redesign/evidence/phase-${process.env.CPA_PHASE ?? 2}`);
 const env = requireEnv();
 const log = { blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null };
 const newLog = () => ({ blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null });

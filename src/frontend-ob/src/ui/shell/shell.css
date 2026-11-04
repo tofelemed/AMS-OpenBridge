@@ -1,6 +1,7 @@
 /* The application frame (SPEC §6.1, skill §7). Values come from the Traverse tokens only. */
 
 .shell {
+  position: relative;
   /* Old pages sit inside this padding until their phase replaces them (see cpm.css). */
   --cpa-page-pad: var(--traverse-size-content-padding);
   --cpa-screen-pad: 0px;

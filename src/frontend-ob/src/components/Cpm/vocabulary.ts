@@ -9,6 +9,7 @@
  * Advanced sections.
  */
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../api/cpm/verdict';
+import { reasonLabel } from './kpi/fleetKpiView';
 
 /** Abbreviations that stay upper case when a code is humanised. */
 const ACRONYMS = new Set(['op', 'pv', 'sp', 'vp', 'acf', 'fft', 'pid', 'vfd', 'eu', 'sse', 'dcs', 'opc', 'id', 'ne107', 'cpa', 'pem']);
@@ -162,6 +163,24 @@ export function g15StatusFor(diagnosis: string | null | undefined, served: strin
 }
 
 /** `CONFIRMED_OSCILLATION` → "Oscillation confirmed"; the not-judged states say why. */
+/** The fleet KPI reason that names each exclusion's cause, so the same cause reads the same everywhere. */
+const EXCLUSION_REASON: Readonly<Record<string, string>> = {
+  EXCLUDED_OPERATING_REGION: 'OUTSIDE_OPERATING_REGION',
+  EXCLUDED_REGION: 'OUTSIDE_OPERATING_REGION',
+  EXCLUDED_INSTRUMENT_HEALTH: 'INSTRUMENT_HEALTH',
+  EXCLUDED_SENSOR: 'SENSOR_FAULT',
+  EXCLUDED_DATA_QUALITY: 'DATA_QUALIFICATION',
+};
+
+/** RD11 D-15: each exclusion keeps its own cause. A frozen transmitter is not a loop out of automatic. */
+export function exclusionLabel(code: string | null | undefined): string {
+  const c = (code ?? '').trim().toUpperCase();
+  if (c === 'EXCLUDED_MODE') return 'Excluded: loop not in automatic';
+  const reason = EXCLUSION_REASON[c];
+  if (reason) return `Excluded: ${reasonLabel(reason)}`;
+  return c.startsWith('EXCLUDED_') ? `Excluded: ${c.slice('EXCLUDED_'.length).toLowerCase().replace(/_/g, ' ')}` : 'Excluded';
+}
+
 export function diagnosisLabel(diagnosis: string | null | undefined): string {
   const d = (diagnosis ?? '').trim().toUpperCase();
   if (!d || d === 'NOT_EVALUATED') return 'Not evaluated yet';
@@ -169,7 +188,7 @@ export function diagnosisLabel(diagnosis: string | null | undefined): string {
   // evidence threshold. INSUFFICIENT_EVIDENCE used to read "not enough data", which is INSUFFICIENT_DATA's meaning.
   if (d === 'NO_CALL' || d === 'INSUFFICIENT_EVIDENCE') return 'No fault identified';
   if (d.startsWith('INSUFFICIENT')) return 'Not evaluated: not enough data';
-  if (d.startsWith('EXCLUDED')) return 'Excluded: loop not in automatic';
+  if (d.startsWith('EXCLUDED')) return exclusionLabel(d);
   if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return 'No problem found';
   const m = d.match(/^(CONFIRMED|SUSPECTED|DETECTED|CLASSIFIED)_(.+)$/);
   if (m) {

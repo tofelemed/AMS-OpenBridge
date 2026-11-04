@@ -1,0 +1,28 @@
+{
+ "phase": "4",
+ "capturedAt": "2026-11-04T17:20:58.722Z",
+ "base": "http://localhost:4173",
+ "sizes": [
+  "1440x1024"
+ ],
+ "routes": {
+  "historical": {
+   "url": "/cpm/historical?loop=FIC10302",
+   "finalUrl": "/cpm/historical?loop=FIC10302",
+   "stable": true,
+   "ms": 3242,
+   "shots": [
+    "screenshots/day/1440x1024/historical.png",
+    "screenshots/night/1440x1024/historical.png"
+   ]
+  }
+ },
+ "log": {
+  "blocked": [],
+  "http429": 0,
+  "apiCalls": 10
+ },
+ "consoleErrors": [
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+ ]
+}

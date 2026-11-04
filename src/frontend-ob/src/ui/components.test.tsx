@@ -66,6 +66,13 @@ describe('CD8 tones', () => {
     expect(registryTone('Degraded').tone).toBe('warning');
   });
 
+  it('gives a diagnosis the same symbol as the gate that reached it', () => {
+    expect(diagnosisTone('CONFIRMED_STICTION').glyph).toBe('▲');
+    expect(diagnosisTone('SUSPECTED').glyph).toBe('△');
+    expect(diagnosisTone('DETECTED').glyph).toBe('△');
+    expect(diagnosisTone('RULED_OUT').glyph).toBe('◇');
+  });
+
   it('never makes an unrecognised value look healthy', () => {
     for (const fn of [diagnosisTone, episodeTone, qualityTone, jobTone, registryTone]) {
       expect(fn('SOMETHING_NEW').tone).toBe('unknown');
@@ -116,6 +123,8 @@ describe('GateBadge: one symbol per meaning, everywhere', () => {
     expect(gateBadgeTone('attention', 'warn')).toBe('warning');
     expect(gateBadgeTone('none', 'muted')).toBe('unknown');
     expect(gateBadgeTone('confirmed', 'bad')).toBe('warning');
+    expect(gateBadgeTone('suspected', 'warn')).toBe('info');
+    expect(gateBadgeTone('excluded', 'muted')).toBe('neutral');
   });
 
   it('keys every mark in the legend', () => {

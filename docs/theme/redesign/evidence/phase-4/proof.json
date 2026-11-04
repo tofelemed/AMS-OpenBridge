@@ -1,0 +1,369 @@
+{
+ "summary": {
+  "total": 45,
+  "failed": 0,
+  "blocked": 0,
+  "http429": 0
+ },
+ "cost": [
+  {
+   "id": "overview",
+   "firstTable": 290,
+   "calls": 11,
+   "fold": 579,
+   "failed": [],
+   "top": [
+    [
+     "/api/v1/cpm/fleet/kpis/loops",
+     3
+    ],
+    [
+     "/api/v1/cpm/fleet/kpis/trend",
+     2
+    ],
+    [
+     "/api/assets/filters/sites",
+     1
+    ],
+    [
+     "/api/v1/cpm/loops",
+     1
+    ],
+    [
+     "/api/v1/cpm/events/page",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "performance",
+   "firstTable": 255,
+   "calls": 8,
+   "fold": 904,
+   "failed": [],
+   "top": [
+    [
+     "/api/assets/filters/sites",
+     1
+    ],
+    [
+     "/api/v1/cpm/fleet/kpis/trend",
+     1
+    ],
+    [
+     "/api/v1/cpm/loops",
+     1
+    ],
+    [
+     "/api/v1/cpm/fleet/kpis",
+     1
+    ],
+    [
+     "/api/v1/cpm/fleet/summary",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "episodes",
+   "firstTable": 237,
+   "calls": 5,
+   "fold": 505,
+   "failed": [],
+   "top": [
+    [
+     "/api/assets/filters/sites",
+     1
+    ],
+    [
+     "/api/v1/cpm/fleet/kpis/trend",
+     1
+    ],
+    [
+     "/api/v1/cpm/loops",
+     1
+    ],
+    [
+     "/api/v1/cpm/events/page",
+     1
+    ],
+    [
+     "/api/v1/cpm/conditions",
+     1
+    ]
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "id": "overview",
+   "name": "no server error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "overview",
+   "name": "primary panel above the fold",
+   "pass": true,
+   "detail": "579"
+  },
+  {
+   "id": "performance",
+   "name": "no server error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "performance",
+   "name": "primary panel above the fold",
+   "pass": true,
+   "detail": "904"
+  },
+  {
+   "id": "episodes",
+   "name": "no server error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "episodes",
+   "name": "primary panel above the fold",
+   "pass": true,
+   "detail": "505"
+  },
+  {
+   "id": "redirect",
+   "name": "/cpm/kpi goes to /cpm?review=",
+   "pass": true,
+   "detail": "/cpm?site=hdpe&review=stale"
+  },
+  {
+   "id": "overview",
+   "name": "one h1, one main, breadcrumb",
+   "pass": true,
+   "detail": "{\"h1\":1,\"mains\":1,\"crumbs\":true}"
+  },
+  {
+   "id": "overview",
+   "name": "no purpose sentence or engine term",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "overview",
+   "name": "no raw placeholder shown",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "performance",
+   "name": "one h1, one main, breadcrumb",
+   "pass": true,
+   "detail": "{\"h1\":1,\"mains\":1,\"crumbs\":true}"
+  },
+  {
+   "id": "performance",
+   "name": "no purpose sentence or engine term",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "performance",
+   "name": "no raw placeholder shown",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "episodes",
+   "name": "one h1, one main, breadcrumb",
+   "pass": true,
+   "detail": "{\"h1\":1,\"mains\":1,\"crumbs\":true}"
+  },
+  {
+   "id": "episodes",
+   "name": "no purpose sentence or engine term",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "episodes",
+   "name": "no raw placeholder shown",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "overview",
+   "name": "every link keeps the plant scope",
+   "pass": true,
+   "detail": "31 links, "
+  },
+  {
+   "id": "overview",
+   "name": "a click selects a loop, in the URL",
+   "pass": true,
+   "detail": "?review=stale&loop=G13_LOOP_A"
+  },
+  {
+   "id": "overview",
+   "name": "inspector shows the loop",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "overview",
+   "name": "Enter opens the loop, keeping the context (SPEC 5.1)",
+   "pass": true,
+   "detail": "/cpm/loop?loop=G13_LOOP_A&window=12h&range=custom&from=2026-08-13T07%3A30%3A00.000Z&to=2026-08-13T19%3A30%3A00.000Z"
+  },
+  {
+   "id": "overview",
+   "name": "review=assessed is accepted",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "performance",
+   "name": "matrix renders cells",
+   "pass": true,
+   "detail": "[\"Open FIC00701 Flow controller FIC00701 (FCS0102)\",\"FIC00701, Data quality · G0: window not usable for this check⊘window not usable for this check: Not usable\",\"FIC00701, Mode / service · G1: not evaluated—not evaluated"
+  },
+  {
+   "id": "performance",
+   "name": "gate key visible",
+   "pass": true,
+   "detail": "1"
+  },
+  {
+   "id": "performance",
+   "name": "cells reachable by keyboard",
+   "pass": true,
+   "detail": "450"
+  },
+  {
+   "id": "episodes",
+   "name": "says what the list covers",
+   "pass": true,
+   "detail": "CPA\nEpisodes\nEpisodes\nAll plant areas · All retained episodes. The 24 h range does not filter this list.\nOpen\n325\nAll re"
+  },
+  {
+   "id": "episodes",
+   "name": "Enter selects, in the URL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1440 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1280 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1024 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1440 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1280 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "overview",
+   "name": "no sideways page scroll 1024 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1440 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1280 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1024 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1440 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1280 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "performance",
+   "name": "no sideways page scroll 1024 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1440 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1280 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1024 day",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1440 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1280 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "episodes",
+   "name": "no sideways page scroll 1024 night",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "all",
+   "name": "no uncaught page error",
+   "pass": true,
+   "detail": ""
+  }
+ ]
+}

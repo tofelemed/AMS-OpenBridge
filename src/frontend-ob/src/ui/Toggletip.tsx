@@ -81,15 +81,26 @@ const CalculationLink: React.FC<{ metric: string; onNavigate: () => void }> = ({
   );
 };
 
+/** Puts served values into a registry text's `{x}` placeholders (UI-037). One with no value stays as written. */
+export function fillPlaceholders(text: string, values?: Record<string, string | number>): string {
+  if (!values) return text;
+  return text.replace(/\{([^{}]+)\}/g, (whole, key: string) => (key in values ? String(values[key]) : whole));
+}
+
 /** The fixed template (CD16). The registry's text is shown as it stands (RD10). */
-const Definition: React.FC<{ entry: HelpEntry; calculation?: string; onNavigate: () => void }> = ({ entry, calculation, onNavigate }) => (
+const Definition: React.FC<{
+  entry: HelpEntry;
+  calculation?: string;
+  values?: Record<string, string | number>;
+  onNavigate: () => void;
+}> = ({ entry, calculation, values, onNavigate }) => (
   <>
     {entry.status === 'as-implemented' && <p className="ui-toggletip__status">As implemented, pending approval</p>}
     <dl className="ui-toggletip__fields">
       {FIELDS.filter(f => entry[f.key]).map(f => (
         <div key={f.key}>
           <dt>{f.label}</dt>
-          <dd>{entry[f.key]}</dd>
+          <dd>{fillPlaceholders(entry[f.key], values)}</dd>
         </div>
       ))}
     </dl>
@@ -261,12 +272,14 @@ export interface ToggletipProps {
   variant?: 'info' | 'how-to';
   /** The `?metric=` value when it is not the `M-###` id. */
   calculation?: string;
+  /** Served values for the entry's `{x}` placeholders. */
+  values?: Record<string, string | number>;
   /** Free content in place of the template. */
   children?: React.ReactNode;
 }
 
 /** Renders nothing for an unknown id with no free content: a help button must have help behind it. */
-export const Toggletip: React.FC<ToggletipProps> = ({ metric, label, variant, calculation, children }) => {
+export const Toggletip: React.FC<ToggletipProps> = ({ metric, label, variant, calculation, values, children }) => {
   const entry = helpFor(metric);
   if (!entry && children == null) return null;
   const kind = variant ?? (entry ? 'info' : 'how-to');
@@ -276,7 +289,7 @@ export const Toggletip: React.FC<ToggletipProps> = ({ metric, label, variant, ca
     <Tip name={name} heading={subject ?? HOW_TO} variant={kind}>
       {close => (children != null
         ? <div className="ui-toggletip__body">{children}</div>
-        : entry && <Definition entry={entry} calculation={calculation} onNavigate={close} />)}
+        : entry && <Definition entry={entry} calculation={calculation} values={values} onNavigate={close} />)}
     </Tip>
   );
 };

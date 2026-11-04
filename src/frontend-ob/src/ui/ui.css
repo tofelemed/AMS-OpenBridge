@@ -68,6 +68,7 @@
   border: 1px solid var(--traverse-border-strong);
   border-radius: var(--traverse-radius-control);
 }
+.ui-segmented--wrap { display: flex; flex-wrap: wrap; }
 .ui-segmented__option {
   height: calc(var(--traverse-size-control-min-height) - 2px);
   padding: 0 var(--traverse-space-3);

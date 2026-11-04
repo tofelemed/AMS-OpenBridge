@@ -70,11 +70,11 @@ export const TimeRangeControl: React.FC<{ compact: boolean }> = ({ compact }) =>
         <button
           type="button"
           className={`ui-control shell-trigger shell-trigger--range${compact ? ' ui-control--icon' : ''}`}
-          aria-label={`Time range: ${summary}. Times in ${zone.abbr}`}
+          aria-label={`Time range: ${summary} Times in ${zone.abbr}`}
           {...t}
         >
           <span className="ui-icon"><ObiTime /></span>
-          {!compact && <span className="shell-trigger__text">{summary}</span>}
+          {!compact && <span className="shell-trigger__text">{summary}</span>}{' '}
           {!compact && <span className="shell-trigger__zone">Times in {zone.abbr}</span>}
           {!compact && <span className="ui-icon ui-icon--small"><ObiChevronDownGoogle /></span>}
         </button>

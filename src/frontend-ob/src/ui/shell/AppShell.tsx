@@ -95,19 +95,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </button>
         )}
         <Link to={cpaHref('/cpm', location.search)} className="shell__brand" aria-label="Traverse CPA, Overview">
-          <span className="shell__wordmark">Traverse</span>
+          <span className="shell__wordmark">Traverse</span>{' '}
           <span className="shell__module">CPA</span>
         </Link>
         <PlantSelector compact={compact} />
         <button
           type="button"
           className={`ui-control shell__search${compact ? ' ui-control--icon' : ''}`}
-          aria-label="Search loops, tags and records"
+          aria-label={compact ? 'Search loops, tags and records' : undefined}
           aria-keyshortcuts="Control+K"
           onClick={openCommandPalette}
         >
           <span className="ui-icon"><ObiSearch /></span>
-          {!compact && <span className="shell__search-text">Search loops, tags and records</span>}
+          {!compact && <span className="shell__search-text">Search loops, tags and records</span>}{' '}
           {!compact && <kbd className="shell__kbd">Ctrl K</kbd>}
         </button>
         <TimeRangeControl compact={compact} />

@@ -4,6 +4,8 @@
  * state this code cannot name must never look healthy. Gates are not here: they use GateBadge, which
  * reads the one gate vocabulary in components/Cpm/gateStatus.ts.
  */
+import { gateMark } from '../components/Cpm/gateStatus';
+
 export type BadgeTone = 'danger' | 'warning' | 'success' | 'info' | 'unknown' | 'neutral';
 
 export interface ToneResult {
@@ -17,9 +19,11 @@ const UNKNOWN: ToneResult = { tone: 'unknown' };
 
 export function diagnosisTone(value: string | null | undefined): ToneResult {
   const v = norm(value);
-  if (v.startsWith('CONFIRMED')) return { tone: 'warning' }; // condition open; pending control engineering (CD8)
-  if (v.startsWith('SUSPECTED') || v.startsWith('DETECTED') || v.startsWith('CLASSIFIED')) return { tone: 'info' };
-  if (v.startsWith('RULED_OUT') || v === 'NO_FAULT' || v === 'NONE_FOUND') return { tone: 'neutral' };
+  // A diagnosis and the gate that reached it say the same thing, so they carry the same symbol (UI-039).
+  if (v.startsWith('CONFIRMED')) return { tone: 'warning', glyph: gateMark('CONFIRMED').glyph }; // condition open; pending control engineering (CD8)
+  if (v.startsWith('SUSPECTED') || v.startsWith('DETECTED') || v.startsWith('CLASSIFIED')) return { tone: 'info', glyph: gateMark('SUSPECTED').glyph };
+  if (v.startsWith('RULED_OUT')) return { tone: 'neutral', glyph: gateMark('CONTRADICTED').glyph };
+  if (v === 'NO_FAULT' || v === 'NONE_FOUND') return { tone: 'neutral' };
   return UNKNOWN;
 }
 

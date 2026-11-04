@@ -6,7 +6,8 @@
   align-items: flex-end;
   gap: var(--traverse-space-3);
 }
-.ui-table__scroll { max-height: 70vh; overflow: auto; }
+/* Positioned, so hidden text in off-screen columns stays inside the scroll box. */
+.ui-table__scroll { position: relative; max-height: 70vh; overflow: auto; }
 .ui-table__scroll:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
 .ui-table__footer { display: flex; justify-content: flex-end; }
 
@@ -48,6 +49,11 @@
 .ui-table__cell--mono { font-family: var(--traverse-font-mono); }
 .ui-table__cell--sticky { position: sticky; left: 0; z-index: 1; }
 .ui-table th.ui-table__cell--sticky { z-index: 3; }
+
+/* Grouped headings: the second row sits under the first while the body scrolls. */
+.ui-table thead tr + tr th { top: var(--traverse-size-row-compact); }
+.ui-table__group { border-inline-start: 1px solid var(--traverse-border-subtle); text-align: center; }
+.ui-table .ui-table__cell--group { border-inline-start: 1px solid var(--traverse-border-subtle); }
 
 .ui-table__sort {
   display: inline-flex;

@@ -14,13 +14,15 @@ export interface SegmentOption<T extends string> {
   reason?: string;
 }
 
-export function SegmentedControl<T extends string>({ label, options, value, onChange, ignoreReselect }: {
+export function SegmentedControl<T extends string>({ label, options, value, onChange, ignoreReselect, wrap }: {
   label: string;
   options: ReadonlyArray<SegmentOption<T>>;
   value: T;
   onChange: (next: T) => void;
   /** Stay quiet when the option already selected is chosen again. */
   ignoreReselect?: boolean;
+  /** Lets a long option set run onto further rows. */
+  wrap?: boolean;
 }): React.ReactElement {
   const groupRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
@@ -46,7 +48,7 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
 
   return (
     <>
-      <div ref={groupRef} role="group" aria-label={label} className="ui-segmented">
+      <div ref={groupRef} role="group" aria-label={label} className={`ui-segmented${wrap ? ' ui-segmented--wrap' : ''}`}>
         {options.map((o, i) => (
           <button
             key={o.value}

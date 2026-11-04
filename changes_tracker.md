@@ -5389,3 +5389,23 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-114 — CPA redesign Phase 4: Overview, Performance, Episodes (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** CPA-UI-PRM-004 Phase 4 (SPEC §5.1 to §5.3). The owner also directed that signal colours and gate icons be the same everywhere.
+
+**Changed**
+- Overview, Performance and Episodes rebuilt on the shared components, in `pages/cpa/`. `/cpm/kpi` redirects to `/cpm?review=`.
+- **Overview** absorbs the KPI drill-down: one review table, a filter per KPI, the rule and daily trend in the inspector. Recent episodes now respect the plant scope, which the old trail ignored.
+- **Signal colours** are one definition (`--signal-*`). PV moves to blue and OP to cyan. No published standard assigns them: ISA-101 asks for consistency, reserved alarm colours and a documented site style. The change was measured: PV/SP in Day went from 6.0 to 11.4, and from 1.3 to 11.1 for colour-blind users.
+- **Gate icons** are one vocabulary, the SME-reviewed `gateMark`. A diagnosis carries the same symbol as its gate. Exclusion wording is fixed once, in `vocabulary.ts`, so old pages gain it too.
+- D-08, D-15, D-20, D-23, D-37 and D-39 fixed.
+
+**New gates.** `check-a11y.mjs`, `npm run lint:signals`, T13. Each proven on a real or planted failure.
+
+**Verified.** tsc 0, lint 0, full test suite, build OK, lint:theme 0 with every gate active, contrast 121/126, probe 9/9, redirects with one row live, geometry 14/14, a11y 12 scans 0 critical or serious, R4 proof 45 of 45, signal gate lowest 5.4. Primary panel at 1440 × 1024: Overview 579 px, Performance table 904 px, Episodes table 505 px. First table in 161 to 320 ms, 5 to 11 API calls, no server error. Walks: 22 task hops and 7 sidebar hops, 0 context lost. Three steps not walked (EN3, RE5, RE6): EN3 and RE6 need data or pages from later phases.
+
+**Limits.** **The header range does not filter Episodes** (UI-043): the endpoint takes no dates, and API changes are out of scope. The page says so. Other open items are in UI-048. 
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

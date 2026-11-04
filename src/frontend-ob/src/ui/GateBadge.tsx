@@ -9,11 +9,14 @@ import { StatusBadge } from './StatusBadge';
 import type { BadgeTone } from './statusTones';
 
 /**
- * The old tone names mapped to status roles. A passed check is neutral: it is a computed check, not
- * a recorded outcome (CD8). A confirmed condition is warning, pending control engineering (CD8).
+ * The old tone names mapped to status roles (CD8). A passed check is neutral: it is a computed check,
+ * not a recorded outcome. A hypothesis is info. An exclusion is neutral, because it is deliberate. A
+ * confirmed condition is warning, pending control engineering.
  */
 export function gateBadgeTone(meaning: GateMeaning, tone: GateGlyph['tone']): BadgeTone {
   if (meaning === 'confirmed') return 'warning';
+  if (meaning === 'detected' || meaning === 'classified' || meaning === 'suspected') return 'info';
+  if (meaning === 'excluded') return 'neutral';
   if (tone === 'bad') return 'danger';
   if (tone === 'warn') return 'warning';
   return tone === 'good' ? 'neutral' : 'unknown';

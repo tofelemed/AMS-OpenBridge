@@ -42,7 +42,7 @@ const StateText: React.FC<{ state: Exclude<TrendState, { kind: 'ready' | 'stale'
 
 export const TrendPanel: React.FC<TrendPanelProps> = ({
   heading, headingLevel = 2, zone, panes, lanes, plotWindow, x, gapStepMs, noSample, marks, scale, source, aggregation,
-  state = READY, context, toolbar, group, selectedBandId, onSelectBand, cursorAt, onCursorChange,
+  state = READY, context, toolbar, compact, group, selectedBandId, onSelectBand, cursorAt, onCursorChange,
 }) => {
   const id = useId();
   const model = useMemo(() => prepareTrend({ panes, lanes, plotWindow, x, gapStepMs, noSample }), [panes, lanes, plotWindow, x, gapStepMs, noSample]);
@@ -90,7 +90,7 @@ export const TrendPanel: React.FC<TrendPanelProps> = ({
   const Heading = `h${headingLevel}` as 'h2';
 
   return (
-    <section className="trend" aria-labelledby={`${id}-heading`}>
+    <section className={`trend${compact ? ' trend--compact' : ''}`} aria-labelledby={`${id}-heading`}>
       <header className="trend__head">
         <div className="trend__titles">
           <Heading id={`${id}-heading`} className="trend__title">{heading}</Heading>
@@ -100,12 +100,16 @@ export const TrendPanel: React.FC<TrendPanelProps> = ({
           {toolbar}
           {showsChart && (
             <>
-              <ObcButton variant="flat" onClick={zoomIn}>Zoom in</ObcButton>
-              <ObcButton variant={box.selecting ? 'normal' : 'flat'} onClick={() => box.toggleSelect()}>
-                {box.selecting ? 'Zoom area: on' : 'Zoom area'}
-              </ObcButton>
-              <ObcButton variant="flat" disabled={!box.canUndo} onClick={box.undo}>Undo zoom</ObcButton>
-              <ObcButton variant="flat" disabled={!box.zoomed} onClick={box.reset}>Reset</ObcButton>
+              {!compact && (
+                <>
+                  <ObcButton variant="flat" onClick={zoomIn}>Zoom in</ObcButton>
+                  <ObcButton variant={box.selecting ? 'normal' : 'flat'} onClick={() => box.toggleSelect()}>
+                    {box.selecting ? 'Zoom area: on' : 'Zoom area'}
+                  </ObcButton>
+                  <ObcButton variant="flat" disabled={!box.canUndo} onClick={box.undo}>Undo zoom</ObcButton>
+                  <ObcButton variant="flat" disabled={!box.zoomed} onClick={box.reset}>Reset</ObcButton>
+                </>
+              )}
               <ObcButton variant={tableOpen ? 'normal' : 'flat'} onClick={() => setTableOpen(v => !v)}>
                 {tableOpen ? 'Hide value table' : 'Show value table'}
               </ObcButton>
