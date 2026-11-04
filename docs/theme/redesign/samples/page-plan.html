@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample: CPA page plan, 24 screens in 8 pages</title>
+<style>
+  /* Traverse tokens and the owner's core trend colours. A sample only: nothing here is in the product. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --warning:#8A5700; --warning-bg:#FFF3D6; --info:#1764C0; --info-bg:#E9F1FC; --pv:#40c057; --sp:#535353; --op:#fab005; }
+  [data-theme="night"] { --page:#0B1220; --panel:#111C2E; --raised:#18263B; --hover:#213149; --selected:#143540; --border:#2A3A52; --strong:#6F849F; --text:#EAF1FA; --text2:#A8B7CC; --muted:#8D9FB7; --action:#54D6E8; --warning:#F5C451; --warning-bg:#332A16; --info:#7EB1FF; --info-bg:#1B2D46; --pv:#51cf66; --sp:#9a9a9a; --op:#ffd43b; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.4 Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--action); outline-offset: 3px; }
+  .top { height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+  .brand { font-size: 16px; font-weight: 700; white-space: nowrap; } .brand b { color: var(--action); }
+  .fake { height: 40px; display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); white-space: nowrap; }
+  .search { flex: 0 1 420px; min-width: 0; overflow: hidden; }
+  .zone { font-size: 12px; color: var(--text2); white-space: nowrap; }
+  .spacer { flex: 1; }
+  .theme { height: 40px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); }
+  .body { display: flex; min-height: calc(100vh - 64px); }
+  nav { width: 220px; flex: none; padding: 12px 8px; background: var(--panel); border-right: 1px solid var(--border); }
+  nav h2 { margin: 8px 12px; font-size: 12px; color: var(--text2); }
+  nav button { display: block; width: 100%; height: 40px; margin-bottom: 4px; padding: 0 12px; text-align: start; background: none; border: 0; border-inline-start: 3px solid transparent; border-radius: 6px; color: var(--text2); }
+  nav button:hover { background: var(--hover); }
+  nav button[aria-current="page"] { background: var(--selected); color: var(--action); border-inline-start-color: var(--action); font-weight: 600; }
+  main { flex: 1; min-width: 0; padding: 24px; }
+  .plan { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 14px; background: var(--info-bg); color: var(--text); border-inline-start: 3px solid var(--info); border-radius: 6px; font-size: 13px; }
+  .plan strong { color: var(--info); } .plan span { color: var(--text2); }
+  .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .head h1 { margin: 0; font-size: 24px; } .help { width: 20px; text-align: center; font-weight: 700; color: var(--text2); }
+  .eyebrow { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--text2); }
+  .right { margin-inline-start: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .picker { height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .seg { display: inline-flex; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; } .seg span { padding: 9px 12px; } .seg span:first-child { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 0 -2px 0 var(--action); }
+  .scope { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; color: var(--text2); }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tabs button { padding: 10px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text2); white-space: nowrap; }
+  .tabs button:hover { background: var(--hover); }
+  .tabs button[aria-selected="true"] { color: var(--action); border-bottom-color: var(--action); font-weight: 600; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .block { grid-column: span 6; min-width: 0; padding: 16px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .s2 { grid-column: span 2; } .s3 { grid-column: span 3; } .s4 { grid-column: span 4; }
+  .bh { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+  .bh strong { font-size: 14px; } .from { font-size: 12px; color: var(--muted); white-space: nowrap; } .from.moved { color: var(--warning); }
+  .lines i { display: block; height: 8px; margin: 8px 0; background: var(--raised); border-radius: 4px; } .lines i:nth-child(2) { width: 82%; } .lines i:nth-child(3) { width: 64%; }
+  .tbl { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .tbl div { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; padding: 8px 10px; background: var(--panel); font-size: 12px; color: var(--text2); overflow: hidden; } .tbl div:first-child { font-weight: 600; text-transform: uppercase; font-size: 11px; }
+  .tbl i { display: block; height: 8px; margin: 3px 0; background: var(--raised); border-radius: 4px; }
+  svg.tr { display: block; width: 100%; height: 96px; } svg.tr polyline { fill: none; stroke-width: 2; }
+  .cards { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .card { display: flex; flex-direction: column; min-height: 118px; padding: 12px 14px; background: var(--panel); text-align: start; border: 1px solid var(--border); border-radius: 12px; } button.card:hover { border-color: var(--strong); }
+  .card b { font-weight: 600; } .card em { margin-top: 6px; font-size: 24px; font-weight: 700; font-style: normal; line-height: 1.3; font-variant-numeric: tabular-nums; } .card small { color: var(--text2); } .card u { margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--action); text-decoration: none; } .card.warn { box-shadow: inset 3px 0 0 var(--warning); }
+  .bar { display: flex; height: 12px; margin-top: 12px; border-radius: 6px; overflow: hidden; } .bar i { background: var(--warning); flex: 165; } .bar i + i { background: var(--raised); flex: 76; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; } .chips span { padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text2); }
+  .back { margin-bottom: 8px; background: none; border: 0; padding: 0; color: var(--action); text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 1100px) { nav { display: none; } .s2, .s3, .s4 { grid-column: span 6; } .cards { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } .search { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">Traverse <b>CPA</b></span><span class="fake">All sites</span>
+  <span class="fake search">Search loops, tags and records</span><span class="zone">Times in UTC</span>
+  <span class="spacer"></span><button class="theme" id="theme" type="button">Night</button>
+</header>
+<div class="body">
+  <nav aria-label="CPA"><h2>CPA</h2><div id="nav"></div></nav>
+  <main id="main"></main>
+</div>
+<script>
+const L = 'Loop explorer', I = 'Investigation', H = 'Historical', R = 'System response', W = 'Evidence workbench', P = 'Evidence replay', N = 'Window inspector', C = 'Calculations', G = 'Gate configuration', A = 'Administration', O = 'Operations overview', K = 'KPI drill-down', S = 'Governance', Y = 'Pipeline health';
+// [block name, the screen it comes from, how it looks, width in sixths]
+const KPIS = [['Performing acceptably', 0, '0 % of 241 monitored loops'], ['In auto mode', 0, '0 % of 0 loops with a measured mode'], ['In manual mode', 0, '0 % of 0 loops with a measured mode'], ['Oscillating', 0, '0 % of 0 assessed loops'], ['Suspected valve problem', 0, '0 % of 0 assessed loops'], ['Excessive actuator effort', 0, '0 % of 0 assessed loops'], ['Saturated / at limit', 0, '0 % of 0 loops with a measured OP'], ['Not assessable', 0, '0 % of monitored'], ['Stale', 165, '68 % of monitored · +4 pp', 1], ['Never evaluated', 76, '32 % of monitored']];
+const PAGES = [
+  { name: 'Overview', eyebrow: 'Find problems', title: 'Operations overview', win: 1, scope: 1, replaces: [O, K], note: 'Open a KPI card: its drill-down opens here, in place.', blocks: [
+    ['Operating picture', O, 'kpis', 6], ['Priority queue: loops requiring review', O, 'table', 4], ['Loop focus: live, readiness, gates, evidence path', O, 'text', 2],
+    ['Event trail', O, 'text', 3], ['Configuration limits and readiness', O, 'text', 3]] },
+  { name: 'Performance', eyebrow: 'Find problems', title: 'Performance', win: 1, scope: 1, replaces: ['Performance'], note: 'Unchanged.', blocks: [
+    ['Data-issue chips', 'Performance', 'chips', 6], ['Good-error time · Median error · Periodic diagnosis · Diagnostic capability', 'Performance', 'text', 6],
+    ['Gate status by loop: pathway and matrix', 'Performance', 'table', 6], ['Loops needing attention', 'Performance', 'table', 6]] },
+  { name: 'Episodes', eyebrow: 'Find problems', title: 'Loop events', replaces: ['Loop events'], note: 'Unchanged.', blocks: [
+    ['Filters: All, Open, Unobservable, Unacknowledged, Acknowledged, Shelved, Shelf expired, Closed', 'Loop events', 'chips', 6],
+    ['Episode ledger', 'Loop events', 'table', 4], ['Episode, provenance, review and shelf, notes', 'Loop events', 'text', 2], ['Fast conditions: G10 limit dwell, G11 freeze', 'Loop events', 'table', 6]] },
+  { name: 'Loop', eyebrow: 'Understand one loop', title: 'Loop', win: 1, loop: 1, replaces: [L, H, I, R], note: 'One row of tabs, one loop picker. Today Loop has tabs inside tabs, and Signals appears twice.', tabs: {
+    Summary: [['Readiness bar', L, 'chips', 6], ['Operating state and trend', L, 'chart', 4], ['Loop model', L, 'text', 2], ['Loop KPIs', L, 'text', 6], ['Gate strip and gate detail', L, 'table', 6], ['Long and short windows', L, 'table', 6]],
+    Historical: [['Range bar and exports: signal samples, evaluated windows, windows', H, 'chips', 6], ['Signals, overlay, mode and verdict', H, 'chart', 4], ['Inspect', H, 'text', 2]],
+    Diagnosis: [['Final conclusion', I, 'text', 6], ['Analysis cases', I, 'table', 6], ['Numeric evidence on this window', I, 'table', 3], ['Signals over the evaluated window', I, 'chart', 3], ['Reasoning chain', I, 'text', 3], ['Hypothesis comparison', I, 'text', 3], ['Recent windows', I, 'table', 4], ['Loop notes', I, 'text', 2]],
+    Model: [['Response events', R, 'table', 6], ['Key results', R, 'text', 2], ['Steps A to H, subgates', R, 'table', 4], ['Candidate models', R, 'table', 3], ['Frequency response', R, 'chart', 3], ['Residuals, uncertainty, model history, model review', R, 'text', 6]],
+    Signals: [['Role map, open signals in Trend', L + ' › Signals', 'table', 6], ['Source → loop → calculations → outputs', L + ' › Relationships', 'text', 3], ['Loop links', L + ' › Relationships', 'text', 3]],
+    History: [['Episodes by condition, with the pager', L + ' › History', 'table', 6]],
+    Calculations: [['Window size selector', L + ' › Calculations', 'chips', 6], ['Gate outcomes and per-window values, Full catalogue ›', L + ' › Calculations', 'table', 6]] } },
+  { name: 'Evidence', eyebrow: 'Prove it', title: 'Evidence', loop: 1, replaces: [W, P, N, C], note: 'The four tabs exist today. New: one loop picker for all four.', tabs: {
+    Gates: [['Evaluate a window from the historian', W, 'text', 6], ['Window list, jump to date, load older', W, 'chips', 6], ['Gate views G0 to G15', W, 'table', 4], ['Explain panel', W, 'text', 2], ['Historian lanes', W, 'chart', 6]],
+    Replay: [['Diagnosis band and export package', P, 'chart', 6], ['Where this evidence came from', P, 'text', 3], ['Re-run this window, recompute from history', P, 'text', 3], ['Loop notes', P, 'text', 6]],
+    Windows: [['Window list and latest results', N, 'table', 6], ['Window detail: contract, coverage, density, boundaries', N, 'text', 6]],
+    Calculations: [['Summary figures', C, 'text', 6], ['Full catalogue, calculation drawer', C, 'table', 6]] } },
+  { name: 'Setup', eyebrow: 'Set it up', title: 'Setup', replaces: ['Loop registry', G, 'Plant model', 'Data sources', 'Tag aliases'], note: 'Decision 1: three Administration sections join Setup, because they describe the plant.', tabs: {
+    Loops: [['Loop registry, add, bulk import', 'Loop registry', 'table', 4], ['Profile panel, roles per gate', 'Loop registry', 'text', 2]],
+    Configuration: [['Overview, effective, bundles', G, 'table', 6], ['Gate editors G0 to G15, layer stack', G, 'table', 4], ['Diff, validation, approval, shadow, deployments', G, 'text', 2]],
+    'Plant model': [['Tree, add, edit, delete, CSV import', A, 'table', 6]], 'Data sources': [['Sources and their wizard', A, 'table', 6]], 'Tag aliases': [['Aliases, add, import, delete', A, 'table', 6]] } },
+  { name: 'System', eyebrow: 'Keep it running', title: 'System', replaces: [Y, S, 'Users', 'Roles', 'Audit log', 'System settings'], note: 'Decision 1: real tabs replace the list of links that leaves System today.', tabs: {
+    Pipeline: [['One row per supervised job', Y, 'table', 6], ['Checkpoint behaviour', Y, 'chart', 3], ['E2E round trip', Y, 'text', 3], ['Where a sample becomes a verdict', Y, 'text', 6]],
+    Governance: [['Governance events, verify chain', S, 'table', 6], ["What is producing today's verdicts", S, 'text', 3], ['Configuration awaiting approval', S, 'text', 3], ['Permission matrix', S, 'table', 6]],
+    Users: [['Users, add, bulk import, edit, delete', A, 'table', 6]], Roles: [['Roles, permissions, custom roles', A, 'table', 6]], 'Audit log': [['Audit explorer', A, 'table', 6]], Settings: [['System settings', A, 'text', 6]] } },
+  { name: 'Trend', eyebrow: 'Any tag', title: 'Trend', replaces: ['Trend'], note: 'Unchanged.', blocks: [['Pens, window, trend, value table', 'Trend', 'chart', 6]] },
+];
+const DRILL = [['How this number is calculated', K, 'text', 3], ['How this number has moved: 14 d, 90 d, 1 y, 3 y', K, 'chart', 3], ['165 loop(s): the value behind each, with its proof', K, 'table', 6]];
+const line = pts => pts.map((y, x) => `${x * 40},${y}`).join(' ');
+const body = {
+  text: () => '<div class="lines"><i></i><i></i><i></i></div>',
+  chips: t => `<div class="chips">${t.split(/[:,]/).slice(1).map(s => `<span>${s.trim()}</span>`).join('') || '<span>Controls as today</span>'}</div>`,
+  chart: () => `<svg class="tr" viewBox="0 0 400 96" preserveAspectRatio="none" aria-hidden="true"><polyline style="stroke:var(--sp)" points="${line([48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48])}"/><polyline style="stroke:var(--pv)" points="${line([52, 44, 50, 40, 54, 46, 42, 52, 44, 50, 46])}"/><polyline style="stroke:var(--op)" points="${line([72, 66, 70, 62, 74, 68, 60, 72, 66, 70, 64])}"/></svg>`,
+  table: () => `<div class="tbl"><div><span>Column</span><span>Column</span><span>Column</span></div>${'<div><i></i><i></i><i></i></div>'.repeat(3)}</div>`,
+  kpis: () => `<div class="cards">${KPIS.map(([t, n, s, w]) => `<button type="button" class="card${w ? ' warn' : ''}" data-kpi="${t}"><b>${t}</b><em>${n}</em><small>${s}</small><u>View loops</u></button>`).join('')}</div><div class="bar"><i></i><i></i></div>`,
+};
+const blocks = list => `<div class="grid">${list.map(([t, from, kind, w]) => {
+  const moved = from === K || from === A;
+  return `<section class="block${w < 6 ? ` s${w}` : ''}"><div class="bh"><strong>${t}</strong><span class="from${moved ? ' moved' : ''}">from ${from}</span></div>${body[kind](t)}</section>`;
+}).join('')}</div>`;
+let page = 0, tab = null, kpi = null;
+function draw() {
+  const p = PAGES[page], names = p.tabs ? Object.keys(p.tabs) : [];
+  const t = tab && names.includes(tab) ? tab : names[0];
+  document.getElementById('nav').innerHTML = PAGES.map((x, i) => `<button type="button" data-page="${i}"${i === page ? ' aria-current="page"' : ''}>${x.name}</button>`).join('');
+  const inner = kpi
+    ? `<button type="button" class="back" data-back>← Overview</button><div class="head"><h1>${kpi}</h1><span class="help">?</span></div>${blocks(DRILL)}`
+    : `<div class="eyebrow">${p.eyebrow}</div><div class="head"><h1>${p.title}</h1><span class="help">?</span><div class="right">${p.loop ? '<span class="picker">B2_027PIC ▾</span>' : ''}${p.win ? '<span class="seg"><span>12h</span><span>24h</span></span>' : ''}</div></div>
+       ${p.scope ? '<div class="scope"><span class="fake">All sites</span><span class="fake">Area</span><span class="fake">Unit</span><span>243 loop(s) in scope</span></div>' : ''}
+       ${names.length ? `<div class="tabs" role="tablist">${names.map(n => `<button type="button" role="tab" data-tab="${n}" aria-selected="${n === t}">${n}</button>`).join('')}</div>` : ''}
+       ${blocks(p.tabs ? p.tabs[t] : p.blocks)}`;
+  document.getElementById('main').innerHTML = `<div class="plan"><strong>Replaces:</strong> ${p.replaces.join(', ')}. ${p.note} <span>This sample shows where each block goes, not its size. Inside a page or tab, the layout stays as it is today.</span></div>${inner}`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.page) { page = +b.dataset.page; tab = null; kpi = null; }
+  else if (b.dataset.tab) tab = b.dataset.tab;
+  else if (b.dataset.kpi) kpi = b.dataset.kpi;
+  else if ('back' in b.dataset) kpi = null;
+  else if (b.id === 'theme') {
+    const night = document.documentElement.dataset.theme === 'day';
+    document.documentElement.dataset.theme = night ? 'night' : 'day';
+    b.textContent = night ? 'Day' : 'Night';
+  } else return;
+  draw();
+});
+draw();
+</script>
+</body>
+</html>
