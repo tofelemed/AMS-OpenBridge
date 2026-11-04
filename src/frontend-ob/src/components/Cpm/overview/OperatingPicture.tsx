@@ -13,6 +13,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import type { CpmFleetScope } from '../../../api/cpmApi';
 import type { FleetKpiFigure, FleetKpis, FleetKpiScope } from '../../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { kpiHref } from '../cpaHref';
 import { useFleetKpis } from '../kpi/useFleetKpis';
 import { KpiCard } from '../kpi/KpiCard';
@@ -41,8 +42,11 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
 
   return (
     <section className="cpm-surface cpm-op" aria-label="Operating picture">
-      <PanelHead eyebrow={`Operating picture · latest ${k?.basis.windowKind ?? windowKind ?? '12h'} results`}
+      <PanelHead eyebrow="Operating picture"
         title={k ? `${k.monitored} loop(s) monitored` : 'Loading…'}
+        help={k && k.monitored > 0
+          ? <Toggletip variant="how-to" label="How this is counted"><p>{basisText(k)}. Each card opens the loops behind it.</p></Toggletip>
+          : undefined}
         right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)} · change vs 24 h ago</span> : undefined} />
       {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}
       {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
@@ -85,7 +89,6 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
               </ul>
             </div>
           </div>
-          <p className="cpm-op__basis">{basisText(k)}. Each card opens the loops behind it.</p>
         </>
       )}
     </section>

@@ -8,7 +8,7 @@
  *  - left axis  = PV and SP, in the loop's PV unit ("unit not set" until the registry has one);
  *  - right axis = OP (and VP), in %;
  *  - each axis is named, and its name and line are drawn in its signal's pen colour;
- *  - the shaded band has a legend entry (BAND_LABEL) and the chart a caption (BAND_NOTE);
+ *  - the shaded band has a legend entry (BAND_LABEL) and the chart a ? holding its note (BAND_NOTE);
  *  - the tooltip prints units;
  *  - two scale modes, as on DCS / PI trends: 'fit' (autorange to the data — shows the SHAPE, the
  *    default here) and 'range' (the registered engineering range — shows where the loop sits in

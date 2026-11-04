@@ -65,7 +65,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   return (
     <div>
       <PanelHead
-        eyebrow={live.hasData ? 'Live operating state' : 'Last stored samples'}
+        eyebrow={live.hasData ? 'Live' : 'Last stored samples'}
         title="Operating state"
       />
 
@@ -132,7 +132,8 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           </div>
           {/* "Trend range", not "Window": this is the rolling historian envelope,
               not an engine evaluation window (the gate strip below names its
-              evaluated window separately). */}
+              evaluated window separately). The dates stay although the period bar
+              below has them: only this line reads them in the site zone and names it. */}
           <p className="cpm-copy cpm-source-line">
             {(() => {
               const sq = liveSignalQuality(liveQuality(live), live.lastSourceTs);
@@ -142,8 +143,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 </FacetPill>
               );
             })()}
-            {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
-            {range.live ? ' · rolling 8 h' : ' · fixed period'}, not an evaluated window
+            {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}, not an evaluated window
           </p>
         </>
       )}

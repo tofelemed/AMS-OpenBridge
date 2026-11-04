@@ -106,8 +106,8 @@ export const LoopSummaryCard: React.FC<{
       <div className="cpm-loop-summary__head">
         <div>
           <span className="cpm-eyebrow">
-            Loop summary · latest {windowKind} evaluated window
-            {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
+            Loop summary
+            {windowAge && <strong className="cpm-loop-summary__stale"> · window ended {windowAge}</strong>}
           </span>
           <h2 className="cpm-loop-summary__condition">{condition.label}</h2>
         </div>
@@ -193,7 +193,7 @@ export const LoopSummaryCard: React.FC<{
                   )}
                   <Row label="Data">
                     {matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples · ` : ''}
-                    {fmtPeriod({ label: `${windowKind} window`, start: matrix.windowStart, end: matrix.windowEnd })}
+                    {fmtPeriod({ label: 'window', start: matrix.windowStart, end: matrix.windowEnd })}
                     {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
                   </Row>
                   {limits.length > 0 && (

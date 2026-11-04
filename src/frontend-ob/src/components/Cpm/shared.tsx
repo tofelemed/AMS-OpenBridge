@@ -12,6 +12,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
 import { activeZone } from '../../cpa/activeZone';
+import { Toggletip } from '../../ui/Toggletip';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
 import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
 
@@ -295,8 +296,10 @@ export const WorkspaceHeader: React.FC<{
   <header className="cpm-workspace-header">
     <div>
       {eyebrow && <span className="cpm-eyebrow">{eyebrow}</span>}
-      <h1 className="cpm-title">{title}</h1>
-      {copy && <p className="cpm-copy">{copy}</p>}
+      <div className="cpm-title-row">
+        <h1 className="cpm-title">{title}</h1>
+        {copy && <Toggletip variant="how-to" label={title}><p>{copy}</p></Toggletip>}
+      </div>
     </div>
     {actions && <div className="cpm-workspace-header__actions">{actions}</div>}
   </header>
@@ -307,11 +310,16 @@ export const PanelHead: React.FC<{
   eyebrow: string;
   title: string;
   right?: React.ReactNode;
-}> = ({ eyebrow, title, right }) => (
+  /** A ? Toggletip beside the title, for what would otherwise be a sentence under it. */
+  help?: React.ReactNode;
+}> = ({ eyebrow, title, right, help }) => (
   <div className="cpm-panel-head">
     <div>
       <span className="cpm-eyebrow">{eyebrow}</span>
-      <h2 className="cpm-panel-title">{title}</h2>
+      <div className="cpm-title-row">
+        <h2 className="cpm-panel-title">{title}</h2>
+        {help}
+      </div>
     </div>
     {right && <div className="cpm-panel-head__right">{right}</div>}
   </div>

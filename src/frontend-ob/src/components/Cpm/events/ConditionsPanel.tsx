@@ -8,6 +8,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { CpmCondition } from '../../../api/cpm/conditions';
 import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { ageText } from '../verdictAge';
 import { codeLabel, phrase } from '../vocabulary';
 
@@ -57,7 +58,7 @@ export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: 
     return (
       <section className="cpm-surface">
         <PanelHead eyebrow="Fast conditions · G10 limit dwell / G11 freeze" title={`Conditions${rows.length ? ` · ${open} open` : ''}`}
-          right={<span className="cpm-copy">detected within a minute, before the next fused window</span>} />
+          help={<Toggletip variant="how-to" label="About fast conditions"><p>Detected within a minute, before the next fused window.</p></Toggletip>} />
         {isLoading && <EmptyState title="Loading the fast conditions…" />}
         {error != null && <QueryError title="Conditions unavailable" error={error} retry={onRetry} />}
         {!isLoading && error == null && rows.length === 0 && (

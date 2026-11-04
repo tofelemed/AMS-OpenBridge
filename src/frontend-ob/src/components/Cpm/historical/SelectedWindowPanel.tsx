@@ -45,9 +45,7 @@ export const SelectedWindowPanel: React.FC<{
   noWindows: boolean;
   onWiden: () => void;
   onReplay: (windowEnd: string | null) => void;
-  /** The fused window kind on screen (12h / 24h) — never a hard-coded one. */
-  windowKind?: string;
-}> = ({ loopId, window: win, fellBack, noWindows, onWiden, onReplay, windowKind = '12h' }) => {
+}> = ({ loopId, window: win, fellBack, noWindows, onWiden, onReplay }) => {
   const navigate = useNavigate();
   const run = win ? windowRun(win) : null;
   return (
@@ -55,7 +53,7 @@ export const SelectedWindowPanel: React.FC<{
       <PanelHead
         eyebrow="Selected period"
         title={win?.windowEnd
-          ? `${windowKind} window ending ${fmtDateTime(win.windowEnd)}`
+          ? `Window ending ${fmtDateTime(win.windowEnd)}`
           : noWindows ? 'Nothing to inspect in this range' : 'No window selected'}
       />
 
@@ -64,7 +62,7 @@ export const SelectedWindowPanel: React.FC<{
           a way out. */}
       {!win && noWindows && (
         <EmptyState
-          title={`This loop completed no ${windowKind} windows in this range`}
+          title="This loop completed no evaluated windows in this range"
           copy="Fused verdicts exist only where a full evaluation window closed."
           action={{ label: 'Widen to 30 days', onClick: onWiden }}
         />

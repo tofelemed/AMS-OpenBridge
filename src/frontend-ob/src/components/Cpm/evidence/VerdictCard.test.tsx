@@ -21,10 +21,13 @@ describe('VerdictCard', () => {
     expect(screen.getByText('33')).toBeTruthy();
   });
 
-  it('names a non-ready state in one line instead of tiles', () => {
+  it('draws no tiles for a non-ready state: the state panel under the card names it, once', () => {
     const notRetained: GateState = { kind: 'NOT_RETAINED', title: 'Evidence not retained for this run', detail: 'd', stillValid: 's', action: 'RECONSTRUCT', tone: 'muted' };
-    render(<VerdictCard gate="G3" name="Base performance" status="PASS" reason={null} state={notRetained} sentence="G3 Base performance: PASS." headline={[]} />);
-    expect(screen.getByText('Evidence not retained for this run')).toBeTruthy();
+    render(<VerdictCard gate="G3" name="Base performance" status="PASS" reason={null} state={notRetained} sentence="G3 Base performance: PASS."
+      headline={[{ label: 'MAE', value: '1.2' }]} />);
+    expect(screen.getByText('G3 Base performance: PASS.')).toBeTruthy();
+    expect(screen.queryByText('MAE')).toBeNull();
+    expect(screen.queryByText('Evidence not retained for this run')).toBeNull();
   });
 });
 

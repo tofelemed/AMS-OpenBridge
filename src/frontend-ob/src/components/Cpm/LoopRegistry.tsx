@@ -20,6 +20,7 @@ import ProfileAside from './ProfileAside';
 import AddLoopWizard from './AddLoopWizard';
 import BulkImportDialog from './BulkImportDialog';
 import { vpCellLabel } from './optionalInputs';
+import { Toggletip } from '../../ui/Toggletip';
 
 // ── screen ──
 
@@ -68,9 +69,13 @@ export const LoopRegistry: React.FC = () => {
       />
 
       <div className="cpm-banner">
-        <strong>Readiness-gated configuration.</strong>&nbsp;A loop is only as good as its
-        signal mappings: on a loop that has a valve position but no VP tag mapped, G14 cannot confirm a
-        final-element fault (SUSPECTED at most), and missing peer links leaves G13 unevaluated. The readiness report after save lists exactly what is degraded.
+        <strong>Readiness-gated configuration.</strong>&nbsp;The readiness report after save lists exactly what is degraded.
+        <Toggletip variant="how-to" label="About readiness-gated configuration">
+          <p>
+            A loop is only as good as its signal mappings: on a loop that has a valve position but no VP tag mapped, G14 cannot
+            confirm a final-element fault (SUSPECTED at most), and missing peer links leaves G13 unevaluated.
+          </p>
+        </Toggletip>
       </div>
 
       <PlantScopeFilter scope={scope}

@@ -7,6 +7,7 @@
  * the aside's key results; this panel is the picture.)
  */
 import React from 'react';
+import { Toggletip } from '../../../ui/Toggletip';
 import { PanelHead, TonePill } from '../shared';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
@@ -49,13 +50,14 @@ export const ResponseChartBody: React.FC<{
 
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G12" title="Response" right={<TonePill tone="muted">{samples?.meta.roleOrPath ?? '—'}</TonePill>} />
+      <PanelHead eyebrow="G12" title="Response"
+        help={<Toggletip variant="how-to" label="How to read this chart"><p>Rejected samples are gaps, never bridged. The band is a prediction interval of the output; parameter confidence is a separate table.</p></Toggletip>}
+        right={<TonePill tone="muted">{samples?.meta.roleOrPath ?? '—'}</TonePill>} />
       {output.length > 0 && <CpmChart title="Output" series={output} xKind="time" timeZone={timeZone} height={320} />}
       {inputSeries.length > 0 && <CpmChart title="Input" series={inputSeries} xKind="time" timeZone={timeZone} height={180} />}
       {healthExclusions.length > 0 && (
         <p className="cpm-copy" data-list="health-exclusions">Health exclusions: {healthExclusions.join(' · ')}</p>
       )}
-      <p className="cpm-copy">Rejected samples are gaps, never bridged. The band is a prediction interval of the output; parameter confidence is a separate table.</p>
     </section>
   );
 };

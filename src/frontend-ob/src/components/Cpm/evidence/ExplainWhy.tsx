@@ -98,7 +98,7 @@ export const ExplainWhy: React.FC<{
         <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
       ) : (
         <p className="cpm-copy">
-          {run?.support.sampleCount != null ? `${run.support.sampleCount.toLocaleString('en-GB')} samples` : 'The samples'} of this run's {run?.windowKind ?? ''} window
+          {run?.support.sampleCount != null ? `${run.support.sampleCount.toLocaleString('en-GB')} samples` : 'The samples'} of this run's window
           {manifest ? `, ${manifest.artifacts.filter(a => a.gate === gate).length} retained artifact(s) — shown in the evidence section` : ''}.
         </p>
       )}

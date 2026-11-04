@@ -4,6 +4,7 @@
  * (R3). The normalise grid comes from the engine's own sample period when the KPI row carries one.
  */
 import React from 'react';
+import { Toggletip } from '../../../ui/Toggletip';
 
 export const stageLabels = (gridS: number | null) => [
   'Raw historian',
@@ -22,9 +23,10 @@ export const TransformationStepper: React.FC<{ gridS: number | null; hasVerdict:
           {i + 1}. {s}
         </span>
       ))}
+      <Toggletip variant="how-to" label="About these stages"><p>Stages are the pipeline's fixed shape.</p></Toggletip>
     </div>
     <p className="cpm-copy">
-      Stages are the pipeline's fixed shape; the chart below shows the raw historian slice this window drew from
+      The chart below shows the raw historian slice this window drew from
       {phasePlane ? ' as a PV–OP phase plane (the shape this gate scores)' : ''}.
     </p>
   </>

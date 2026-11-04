@@ -51,7 +51,7 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
       )}
       {!gates.isLoading && !gates.data && (!gates.isError || isNoVerdictYet(gates.error)) && (
         // CHG-098 (SME review 2 #29): the next step when the verdict is overdue.
-        <EmptyState title={`No fused ${windowKind} verdict yet`}
+        <EmptyState title="No fused verdict yet"
           copy={`Fusion fires on ${firesOnLabel} windows; outcomes appear once one has been evaluated. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue.`}
           next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
       )}
@@ -91,7 +91,7 @@ const ShortWindowLatest: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
           error={kpis.error} retry={() => void kpis.refetch()} />
       )}
       {!kpis.isLoading && !kpis.isError && !row && (
-        <EmptyState title={`No ${windowKind} windows stored yet`}
+        <EmptyState title="No windows stored yet"
           copy="Rows appear once the analysis engine has evaluated a window of this size. Check Pipeline Health if they are overdue."
           next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
       )}
@@ -124,7 +124,7 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
   return (
     <div>
       <PanelHead
-        eyebrow={isFused ? `Latest fused ${active} window` : `Latest ${active} short window`}
+        eyebrow={isFused ? 'Latest fused window' : 'Latest short window'}
         title={isFused ? 'Gate outcomes' : 'Per-window features'}
         right={
           <div className="cpm-filter-row">

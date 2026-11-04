@@ -87,7 +87,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({ loop, gate
   return (
     <section className={`cpm-summary-detail cpm-tone-${tone}`} aria-label={`${gate} on the latest ${windowKind} window`}>
       <PanelHead
-        eyebrow={`Evaluated ${windowKind} window${matrix.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
+        eyebrow="Evaluated window"
         title={`${gate} · ${name}`}
         right={
           <span className="cpm-filter-row">

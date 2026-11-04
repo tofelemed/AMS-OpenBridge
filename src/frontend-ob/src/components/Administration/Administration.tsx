@@ -63,9 +63,6 @@ const Administration: React.FC = () => {
           <h1 style={{ fontSize: '28px', fontWeight: 600, margin: 0, color: T.textPrimary, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
             System Administration
           </h1>
-          <p style={{ color: T.textSecondary, fontSize: '13.5px', margin: '5px 0 0' }}>
-            User management, plant model, data sources, and audit
-          </p>
         </div>
       </div>
 

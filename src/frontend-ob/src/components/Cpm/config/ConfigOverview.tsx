@@ -12,6 +12,7 @@ import { usePagedSlice } from '../../shared/ListPager';
 import type { BundleSummary, EffectiveSummaryLoop } from '../../../api/cpm/config';
 import { bundleLabel, bundleStateTone, shortHash } from './configSupport';
 import { codeLabel, locationLabel } from '../vocabulary';
+import { Toggletip } from '../../../ui/Toggletip';
 
 const PAGE = 20;
 const SETTLED = new Set(['ACTIVE_VERIFIED', 'SUPERSEDED', 'ROLLED_BACK']);
@@ -90,7 +91,8 @@ export const ConfigOverview: React.FC<ConfigOverviewProps> = ({ loops, loopsLoad
       </section>
 
       <section className="cpm-surface">
-        <PanelHead eyebrow="Lifecycle" title="Bundles in progress" right={<span className="cpm-copy">drafts, validated, shadowed, approved or failed - active and superseded ones live on their loop's page</span>} />
+        <PanelHead eyebrow="Lifecycle" title="Bundles in progress"
+          help={<Toggletip variant="how-to" label="What this list holds"><p>Drafts, validated, shadowed, approved or failed - active and superseded ones live on their loop's page.</p></Toggletip>} />
         {bundlesLoading && bundles.length === 0 && <div className="cpm-skeleton" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the bundles…</span></div>}
         {bundlesError != null && <QueryError title="Bundles unavailable" error={bundlesError} retry={onRetry} />}
         {!bundlesLoading && bundlesError == null && inProgress.length === 0 && <p className="cpm-copy">Nothing in progress in this scope.</p>}

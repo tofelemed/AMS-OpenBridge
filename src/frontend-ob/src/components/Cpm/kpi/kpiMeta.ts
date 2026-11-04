@@ -25,7 +25,6 @@ export interface KpiMeta {
 }
 
 const pc = (v: number) => `${Math.round(v * 100)} %`;
-const fresh = (b: FleetKpiBasis) => `newest ${b.windowKind} result ≤ ${Math.round(b.freshSeconds / 60)} min old`;
 
 export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
   acceptable: { Icon: ObiSpeedGood, higherIsBetter: true,
@@ -65,7 +64,7 @@ export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
     threshold: () => 'No result yet' },
 };
 
-export const basisShort = (b: FleetKpiBasis): string => `${b.windowKind} window · ${fresh(b)}`;
+export const basisShort = (b: FleetKpiBasis): string => `Newest result ≤ ${Math.round(b.freshSeconds / 60)} min old`;
 
 export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; title: string }
 

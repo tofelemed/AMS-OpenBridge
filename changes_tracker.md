@@ -5440,3 +5440,16 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-117 — CPA: redundant text removed, `?` help added (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** Owner's direction: no repeating what is already on screen, such as the 12 h window below the control that selects it, and `?` help where it is useful. Layouts are unchanged.
+
+**Changed.** About 40 text blocks across all pages. The full list is in `docs/theme/redesign/text-changes.md`, with every safety-relevant sentence. The page title sentence is now a `?` beside the title.
+
+**Verified.** tsc 0, lint 0, 1,108 tests, build OK, lint:theme 0, geometry 14 of 14. 24 routes captured in both themes, blocked 0. In the diff, no control, link, input or handler was removed.
+
+**Open.** Three defects found and left for the owner: see the end of `text-changes.md`.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

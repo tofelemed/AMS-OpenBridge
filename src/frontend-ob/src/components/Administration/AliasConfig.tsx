@@ -19,6 +19,7 @@ import { apiFetch, apiJson, ApiError } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'react-toastify';
 import { T } from '../../styles/theme';
+import { Toggletip } from '../../ui/Toggletip';
 
 const ALIAS_API = '/api/aliases';
 
@@ -227,12 +228,14 @@ export const AliasConfig: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
+        <div className="cpm-title-row">
           <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Tag Aliases</h3>
-          <p style={{ fontSize: '13px', color: T.textSecondary, margin: '4px 0 0' }}>
-            OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this
-            table; a tag without an alias parks as unknown instead of flowing.
-          </p>
+          <Toggletip variant="how-to" label="About tag aliases">
+            <p>
+              OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this
+              table; a tag without an alias parks as unknown instead of flowing.
+            </p>
+          </Toggletip>
         </div>
         {canEdit && (
           <span style={{ display: 'inline-flex', gap: 8 }}>

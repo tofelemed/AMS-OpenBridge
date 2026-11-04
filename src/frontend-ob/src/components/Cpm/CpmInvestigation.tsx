@@ -48,7 +48,7 @@ import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
 import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
 import { MetricValue } from './MetricValue';
-import { windowEnds, windowLabel, windowSize } from './windowLabel';
+import { windowLabel, windowSize } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
@@ -168,14 +168,14 @@ export const CpmInvestigation: React.FC = () => {
         page="/cpm/investigation"
         title="Investigation"
       />
-      <LoopContextBar loopId={loopId} period={matrix ? { label: `${windowKind} fused window${mode === 'historical' ? ' (selected)' : ' (latest)'}`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
+      <LoopContextBar loopId={loopId} period={matrix ? { label: `${mode === 'historical' ? 'Selected' : 'Latest'} window`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
       {/* SME #13 (CHG-050): the diagnosis stays in view while the reasoning below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!matrix} label="Final conclusion"
         tone={toneFor(matrix?.diagnosis)} text={diagnosisLabel(matrix?.diagnosis)} />
       {/* CHG-098 (SME review 2 #21): the recommendation is shown once, under "Next-best action" in the conclusion */}
       {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
       <SelectionSummary summary={loopId && matrix
-        ? `${loop?.loopId ?? loopId} · ${windowSize({ windowKind })} fused window · ${windowEnds({ windowEnd: matrix.windowEnd })} (${mode === 'historical' ? 'selected' : 'latest'})`
+        ? `${windowSize({ windowKind })} fused window`
         : null}>
         <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
         <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}
@@ -210,7 +210,7 @@ export const CpmInvestigation: React.FC = () => {
         <section className="cpm-surface">
           {/* CHG-098 (SME review 2 #29): routes to the loop's readiness and to the engine. */}
           <EmptyState title="No fused verdict for this loop"
-            copy={`Verdicts appear once the loop completes a ${windowKind} evaluation window, or after a recompute. The loop's summary shows what it is still missing; Pipeline Health shows whether the analysis engine is running.`}
+            copy="Verdicts appear once the loop completes an evaluation window, or after a recompute. The loop's summary shows what it is still missing; Pipeline Health shows whether the analysis engine is running."
             next={[
               { label: 'Open the loop', to: explorerHref(loopId, { tab: 'Summary', kind: windowKind }) },
               { label: 'Pipeline Health', to: pipelineHref() },
@@ -245,7 +245,7 @@ export const CpmInvestigation: React.FC = () => {
               )}
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
-                {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'} ({matrix.windowKind})
+                {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}
               </KvRow>
               {/* audit F4: the newest window is what is shown; an older verdict is named as older, with its age */}
               {matrix.lastVerdict && (

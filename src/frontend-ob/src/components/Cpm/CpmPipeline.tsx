@@ -25,6 +25,7 @@ import { boxZoomOption } from '../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
 import { ReasonedButton } from './ReasonedButton';
+import { Toggletip } from '../../ui/Toggletip';
 
 const fmtUptime = (sec: number | null | undefined) => {
   if (sec == null) return '—';
@@ -175,9 +176,9 @@ export const CpmPipeline: React.FC = () => {
 
       <section className="cpm-surface">
         <PanelHead eyebrow="Required jobs" title="One row per supervised job"
-          right={<span className="cpm-copy">
-            Latency / backpressure / parallelism are not exposed by the proxy — shown as “—”, not estimated.
-          </span>} />
+          help={<Toggletip variant="how-to" label="What this table leaves out">
+            <p>Latency / backpressure / parallelism are not exposed by the proxy — shown as “—”, not estimated.</p>
+          </Toggletip>} />
         {metrics.isLoading && <EmptyState title="Reading the analysis engine's job metrics…" />}
         {/* The empty branch used to catch fetch FAILURES too, so a metrics proxy
             that never answered rendered "No required jobs matched the overview"
@@ -231,11 +232,13 @@ export const CpmPipeline: React.FC = () => {
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead eyebrow="Runtime telemetry" title="Checkpoint behaviour while this page is open"
+            help={<Toggletip variant="how-to" label="Where this history comes from">
+              <p>
+                There is no server-side history for these metrics; the chart accumulates live
+                snapshots from the moment this page opened — it does not pretend to know the past.
+              </p>
+            </Toggletip>}
             right={<span className="cpm-copy">{telemetry.length} sample(s) · 20 s cadence</span>} />
-          <p className="cpm-copy">
-            There is no server-side history for these metrics; the chart accumulates live
-            snapshots from the moment this page opened — it does not pretend to know the past.
-          </p>
           {telemetry.length < 2
             ? <EmptyState title="Collecting…" copy="The chart needs at least two readings; it draws on its own as they arrive — keep this page open." />
             : (
@@ -258,7 +261,6 @@ export const CpmPipeline: React.FC = () => {
             Submits an A8 recompute on <strong>{refLoop?.loopId ?? '—'}</strong>
             {refLoop?.monitoringEnabled ? ' (first monitored loop)' : ''} and waits for the
             batch verdict: historian read → normalize → gates → fused result in Postgres.
-            {!canManage && ' Requires the cpm.manage permission.'}
           </p>
           <div className="cpm-filter-row">
             <ReasonedButton variant="raised" disabled={!refLoop || !canManage || e2eBusy}

@@ -64,6 +64,6 @@ describe('DeploymentStatus', () => {
     unmount();
     render(<DeploymentStatus deployment={d} canRollback={false} rollbackPending={false} onRollback={() => {}} />);
     expect((screen.getByText('Roll back to the previous bundle') as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/needs cpm.config.rollback/)).toBeTruthy();
+    expect(screen.getByText('Needs the cpm.config.rollback permission')).toBeTruthy();
   });
 });

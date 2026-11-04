@@ -3,7 +3,7 @@
 /**
  * Explorer › the selected loop's workspace.
  *
- * Three changes over the previous version:
+ * Two changes over the previous version:
  *
  * 1. Real tabs. Five ObcButtons in a flex row are not a tablist — no
  *    aria-selected, no arrow-key movement, five tab stops, and no stated
@@ -12,8 +12,8 @@
  *    answers itself without a click.
  * 2. One readiness banner instead of four repetitions of the same prose, with
  *    each cause routed to the surface that can fix it.
- * 3. A breadcrumb. "CONTROL LOOP · SITE1" did not say where in the hierarchy
- *    you were, which is the one thing an asset-centric screen owes you.
+ *
+ * The plant location is the loop context bar's: the page states it once.
  */
 import React from 'react';
 import { Tabs, tabPanelProps } from '../../../ui/Tabs';
@@ -33,7 +33,6 @@ import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
 import RelationshipsTab from './RelationshipsTab';
 import HistoryTab, { HISTORY_QUERY } from './HistoryTab';
-import { locationLabel } from '../vocabulary';
 
 export const TABS: ExplorerTab[] = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'];
 
@@ -78,8 +77,6 @@ export const LoopWorkspace: React.FC<{
   };
   const tabs = TABS.map(t => ({ value: t, label: t, badge: counts[t] }));
 
-  const crumbs = [locationLabel(loop.site, { site: true }), locationLabel(loop.area), locationLabel(loop.unit)].filter(Boolean);
-
   // v2.5 (1H.6): transmitter health beside the verdict. The pill is the worst-of across bound
   // roles; NOT CONFIGURED is an unavailable state (never OK). Click opens the drawer.
   const instrumentHealth = useInstrumentHealth(loop.loopId);
@@ -88,17 +85,6 @@ export const LoopWorkspace: React.FC<{
 
   return (
     <section className="cpm-surface">
-      <nav className="cpm-crumbs" aria-label="Plant location">
-        {crumbs.map((c, i) => (
-          <React.Fragment key={`${c}-${i}`}>
-            {i > 0 && <span className="cpm-crumbs__sep" aria-hidden>›</span>}
-            <span>{c}</span>
-          </React.Fragment>
-        ))}
-        {crumbs.length > 0 && <span className="cpm-crumbs__sep" aria-hidden>›</span>}
-        <strong>{loop.loopId}</strong>
-      </nav>
-
       <PanelHead
         eyebrow={loop.displayName}
         title={loop.loopId}

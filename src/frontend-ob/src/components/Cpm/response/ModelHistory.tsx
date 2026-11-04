@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { ReasonedButton } from '../ReasonedButton';
+import { Toggletip } from '../../../ui/Toggletip';
 import { EmptyState, PanelHead, TonePill } from '../shared';
 import type { SystemModel } from '../../../api/cpm/response';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
@@ -23,7 +24,15 @@ export const ModelHistoryBody: React.FC<{
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Models" title="Model history (as-of now)" />
+      <PanelHead eyebrow="Models" title="Model history (as-of now)"
+        help={(
+          <Toggletip variant="how-to" label="How to read the model history">
+            <p>Markers, not a line: each model is an estimate from its own event.</p>
+            <p>The grey bars above and below each estimate mark its interval: ± 1 standard error of the fit; for a dead time the fit could not pin down, ± half the range of delays that fit equally well.</p>
+            <p>Units are the loop's PV unit and the input the model was identified from (% OP or % VP).</p>
+            <p>A baseline is chosen by review, never by recency.</p>
+          </Toggletip>
+        )} />
       {charts.map(({ param, points }) => {
         // CHG-097 (SME review 2 #15): engineering name and the loop's units; the interval as caps above and below each
         // estimate, named for what it is (1 standard error, or the delay grid's resolution for dead time)
@@ -67,7 +76,6 @@ export const ModelHistoryBody: React.FC<{
         </tbody>
       </table>
       </div>
-      <p className="cpm-copy">Markers, not a line: each model is an estimate from its own event. The grey bars above and below each estimate mark its interval: ± 1 standard error of the fit; for a dead time the fit could not pin down, ± half the range of delays that fit equally well. Units are the loop's PV unit and the input the model was identified from (% OP or % VP). A baseline is chosen by review, never by recency.</p>
     </section>
   );
 };

@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { KvRow, TonePill } from '../../shared';
+import { Toggletip } from '../../../../ui/Toggletip';
 import type { CpmLoopModel, CpmRegistryContract } from '../../../../api/cpmApi';
 
 export interface ModelForm {
@@ -70,10 +71,12 @@ export const ClassificationStep: React.FC<{ loopType: string; contract: CpmRegis
           </label>
         ))}
       </div>
-      <div className="cpm-field__label" style={{ marginTop: 18 }}>Acquisition contract</div>
-      <p className="cpm-copy" style={{ marginBottom: 10 }}>
-        What the source delivers bounds what a method can claim: a grid too coarse for the fastest period makes G5/G6/G12 LIMITED (bandwidth), and an RBE source's held values are holds, not process values.
-      </p>
+      <div className="cpm-field__label" style={{ marginTop: 18, marginBottom: 10 }}>
+        Acquisition contract{' '}
+        <Toggletip variant="how-to" label="About the acquisition contract">
+          <p>What the source delivers bounds what a method can claim: a grid too coarse for the fastest period makes G5/G6/G12 LIMITED (bandwidth), and an RBE source's held values are holds, not process values.</p>
+        </Toggletip>
+      </div>
       <div className="cpm-wizard-grid">
         <label className="cpm-field">
           <span className="cpm-field__label">Mode</span>

@@ -10,6 +10,7 @@ import React, { useMemo, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
 import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
+import { Toggletip } from '../../../ui/Toggletip';
 
 const GATE_ORDER = ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'G14', 'G15'];
 const gateRank = (g: string) => { const i = GATE_ORDER.indexOf(g); return i < 0 ? 99 : i; };
@@ -54,7 +55,8 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
 
       {!compact && (
         <>
-          <PanelHead eyebrow="How the values resolve" title="Layer stack" right={<span className="cpm-copy">a layer above sets a property, or leaves the one below</span>} />
+          <PanelHead eyebrow="How the values resolve" title="Layer stack"
+            help={<Toggletip variant="how-to" label="How the layers combine"><p>A layer above sets a property, or leaves the one below.</p></Toggletip>} />
           <ol className="cpm-config-layers" aria-label="Layers">
             {stack.map(l => (
               <li key={l.kind} className={`cpm-config-layer${l.present ? '' : ' cpm-config-layer--absent'}`} data-layer={l.kind}>

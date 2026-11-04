@@ -60,7 +60,7 @@ export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> =
           <td data-label="Verdict"><TonePill tone={verdictTone(r)}>{verdictText(r)}</TonePill></td>
           <td data-label="Window judged">
             {r.windowEnd ? <>{fmtDateTime(r.windowEnd)}
-              <span className="cpm-kpi-table__sub">{r.windowKind} window · {r.ageSeconds != null ? ageText(r.ageSeconds * 1000) : ''}</span></> : 'none yet'}
+              {r.ageSeconds != null && <span className="cpm-kpi-table__sub">{ageText(r.ageSeconds * 1000)}</span>}</> : 'none yet'}
           </td>
           <td data-label="Also check" className="cpm-kpi-table__context">{contextText(r, kpi) || '—'}</td>
           <td data-label="Proof">

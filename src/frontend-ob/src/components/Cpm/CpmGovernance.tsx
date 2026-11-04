@@ -25,6 +25,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
 import { codeLabel } from './vocabulary';
 import { ReasonedButton } from './ReasonedButton';
+import { Toggletip } from '../../ui/Toggletip';
 
 /** Rows fetched per request, and rows rendered per page of that fetch. */
 const AUDIT_TAKE = 200;
@@ -199,7 +200,13 @@ export const CpmGovernance: React.FC = () => {
 
       <div className="cpm-grid-2">
         <section className="cpm-surface">
-          <PanelHead eyebrow="Version provenance" title="What is producing today's verdicts" />
+          <PanelHead eyebrow="Version provenance" title="What is producing today's verdicts"
+            help={<Toggletip variant="how-to" label="Why versions are stored">
+              <p>
+                Every stored window carries these versions in its payload (A13), so any historical
+                verdict can be attributed to the formula that produced it.
+              </p>
+            </Toggletip>} />
           <KvRow label="Calculation engine">
             v{calc.data?.calculationVersion ?? '—'} · {calc.data?.engine ?? '—'}
           </KvRow>
@@ -224,10 +231,6 @@ export const CpmGovernance: React.FC = () => {
               return ids.size > 0 ? [...ids].join(', ') : 'defaults only';
             })()}
           </KvRow>
-          <p className="cpm-copy">
-            Every stored window carries these versions in its payload (A13), so any historical
-            verdict can be attributed to the formula that produced it.
-          </p>
 
           <PanelHead eyebrow="Approvals" title="Gate configuration awaiting approval" />
           <ConfigApprovalQueue />
@@ -246,6 +249,14 @@ export const CpmGovernance: React.FC = () => {
           <PanelHead
             eyebrow="Separation of duties"
             title="As enforced by the permission model"
+            // No hard-coded TTL: permission claims are read from the access token, so they refresh on
+            // re-login/token refresh — the previous text asserted a "15-minute token lifetime" this page cannot know.
+            help={<Toggletip variant="how-to" label="When a permission change applies">
+              <p>
+                Permission changes take effect when the session's token is next issued
+                (re-login, or the automatic refresh).
+              </p>
+            </Toggletip>}
             right={matrix.canRead && matrix.data
               ? <span className="cpm-hist-note">{matrix.data.roles.length} role(s) · live</span>
               : null}
@@ -299,14 +310,6 @@ export const CpmGovernance: React.FC = () => {
               </table>
             </div>
           )}
-
-          <p className="cpm-copy" style={{ marginTop: 10 }}>
-            {/* No hard-coded TTL: permission claims are read from the access token,
-                so they refresh on re-login/token refresh — the previous text
-                asserted a "15-minute token lifetime" this page cannot know. */}
-            Permission changes take effect when the session's token is next issued
-            (re-login, or the automatic refresh).
-          </p>
         </section>
       </div>
     </div>

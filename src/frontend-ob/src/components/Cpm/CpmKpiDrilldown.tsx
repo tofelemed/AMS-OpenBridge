@@ -17,6 +17,7 @@ import { ObiLimitsAttention } from '@oicl/openbridge-webcomponents-react/icons/i
 import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import { KPI_TREND_RANGES, type FleetKpiKey } from '../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
+import { Toggletip } from '../../ui/Toggletip';
 import { ListPager } from '../shared/ListPager';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
 import { overviewHref } from './cpaHref';
@@ -119,7 +120,8 @@ export const CpmKpiDrilldown: React.FC = () => {
       </section>
 
       <section className="cpm-surface" aria-label={`Last ${rangeLabel}`}>
-        <PanelHead eyebrow={`Last ${rangeLabel} · each ${plantDayLabel(trend.data)} at its end, same rules`} title="How this number has moved"
+        <PanelHead eyebrow={`Each ${plantDayLabel(trend.data)} at its end, same rules`} title="How this number has moved"
+          help={<Toggletip variant="how-to" label="How to read this trend"><p>Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.</p></Toggletip>}
           right={<div className="cpm-kpi-proof__reasons" role="group" aria-label="Trend range">
             {KPI_TREND_RANGES.map(r => (
               <ObcButton key={r.days} variant={r.days === rangeDays ? 'normal' : 'flat'} aria-pressed={r.days === rangeDays}
@@ -133,8 +135,7 @@ export const CpmKpiDrilldown: React.FC = () => {
           <>
             <KpiTrendChart trend={trend.data} kpi={kpi} selected={day} onPick={asOf => go({ day: asOf })} />
             <p className="cpm-op__basis">
-              {range ? `Between ${range.min} % and ${range.max} % over the days with data. ` : 'No day had anything to judge. '}
-              Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.
+              {range ? `Between ${range.min} % and ${range.max} % over the days with data.` : 'No day had anything to judge.'}
             </p>
           </>
         )}

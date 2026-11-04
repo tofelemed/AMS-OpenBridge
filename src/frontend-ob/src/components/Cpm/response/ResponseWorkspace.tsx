@@ -118,7 +118,7 @@ export const ResponseWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-response-workspace">
-      <WorkspaceHeader eyebrow="Understand the cause" title={`System response — ${loop?.displayName ?? loopId}`}
+      <WorkspaceHeader eyebrow="Understand the cause" title="System response"
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`}
         actions={
           <span className="cpm-filter-row">

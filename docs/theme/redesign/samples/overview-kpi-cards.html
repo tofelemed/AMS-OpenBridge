@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample: Overview KPI cards in the Instrumental layout</title>
+<style>
+  /* Traverse tokens, Day and Night. A sample only: nothing here is in the product. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --warning:#8A5700; --warning-bg:#FFF3D6; }
+  [data-theme="night"] { --page:#0B1220; --panel:#111C2E; --border:#2A3A52; --strong:#6F849F; --text:#EAF1FA; --text2:#A8B7CC; --muted:#8D9FB7; --action:#54D6E8; --warning:#F5C451; --warning-bg:#332A16; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: var(--page); color: var(--text); font: 14px/1.4 Inter, ui-sans-serif, system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  h2 { margin: 28px 0 10px; font-size: 14px; font-weight: 600; color: var(--text2); }
+  p.note { margin: 0 0 12px; color: var(--text2); }
+  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  button { font: inherit; padding: 8px 14px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text); cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--action); color: var(--action); font-weight: 600; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 1172px; }
+  .grid.old { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .card { display: flex; flex-direction: column; min-height: 132px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: inherit; text-decoration: none; }
+  a.card:hover { border-color: var(--strong); }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .icon { flex: none; width: 20px; height: 20px; color: var(--text2); }
+  .value { margin-top: 10px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sub { color: var(--text2); font-size: 12px; }
+  .open { margin-top: auto; padding-top: 6px; color: var(--action); font-size: 12px; }
+  .card.warn { box-shadow: inset 3px 0 0 var(--warning); }
+  .old .card { min-height: 0; padding: 12px; }
+  .old .box { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; display: grid; place-items: center; }
+  .old .value { margin-top: 0; }
+  .old .label { font-weight: 500; }
+</style>
+</head>
+<body>
+  <h1>Overview KPI cards: your Instrumental layout applied to CPA</h1>
+  <p class="note">Sample only, with example numbers. Nothing here is in the product until you agree.</p>
+  <div class="bar">
+    <button type="button" data-set="day" aria-pressed="true">Day</button>
+    <button type="button" data-set="night" aria-pressed="false">Night</button>
+  </div>
+
+  <h2>Proposed: label and icon on top, large number, short description, link</h2>
+  <div class="grid">
+    <a class="card" href="#"><div class="head">Performing acceptably <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div><div class="value">0</div><div class="sub">0 % of 241 monitored loops</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">In auto mode <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 20L12 4l6 16M8.5 14h7"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 loops with a measured mode</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">In manual mode <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V5l7 9 7-9v15"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 loops with a measured mode</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Oscillating <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 assessed loops</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Suspected valve problem <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7l16 10V7L4 17z"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 assessed loops</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Excessive actuator effort <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 assessed loops</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Saturated / at limit <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M12 20V9M8 13l4-4 4 4"/></svg></div><div class="value">0</div><div class="sub">0 % of 0 loops with a measured output</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Not assessable <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/></svg></div><div class="value">0</div><div class="sub">0 % of monitored</div><div class="open">View loops</div></a>
+    <a class="card warn" href="#"><div class="head">Stale <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="value">165</div><div class="sub">68 % of monitored · +4 pp</div><div class="open">View loops</div></a>
+    <a class="card" href="#"><div class="head">Never evaluated <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg></div><div class="value">76</div><div class="sub">32 % of monitored</div><div class="open">View loops</div></a>
+  </div>
+
+  <h2>Today, for comparison: icon box on top, number, then label</h2>
+  <div class="grid old">
+    <a class="card" href="#"><div class="box"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 20L12 4l6 16M8.5 14h7"/></svg></div><div class="value">0</div><div class="label">In auto mode</div><div class="sub">0 % of 0 loops with a measured mode</div></a>
+    <a class="card" href="#"><div class="box"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V5l7 9 7-9v15"/></svg></div><div class="value">0</div><div class="label">In manual mode</div><div class="sub">0 % of 0 loops with a measured mode</div></a>
+    <a class="card" href="#"><div class="box"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg></div><div class="value">0</div><div class="label">Oscillating</div><div class="sub">0 % of 0 assessed loops</div></a>
+  </div>
+
+  <script>
+    document.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => {
+      document.documentElement.setAttribute('data-theme', b.dataset.set);
+      document.querySelectorAll('[data-set]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    }));
+  </script>
+</body>
+</html>

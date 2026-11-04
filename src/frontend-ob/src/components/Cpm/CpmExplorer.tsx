@@ -94,7 +94,7 @@ export const CpmExplorer: React.FC<{
         title="Loop explorer"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <LoopContextBar loopId={loop?.loopId ?? requestedId} period={{ label: `Gates: latest ${windowKind} fused window · trend: ${trendPeriodText(params)}` }} />
+      <LoopContextBar loopId={loop?.loopId ?? requestedId} period={{ label: `Gates: latest window · trend: ${trendPeriodText(params)}` }} />
       <PlantScopeFilter
         scope={scope}
         summary={loops.length ? `${inScope.length} of ${loops.length} loop(s) in scope` : null}

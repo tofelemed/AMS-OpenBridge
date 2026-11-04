@@ -146,7 +146,7 @@ export const CpmEvents: React.FC = () => {
         <span className="cpm-filter-count">
           {data && <>
             {total} event(s){loopParam ? ` for ${loopParam}` : ''}{q ? ` matching “${q}”` : ''}
-            {sort === 'recent' ? ' · newest first' : ' · open first, highest evidence score first'}
+            {sort === 'triage' && ' · open first, highest evidence score first'}
           </>}
         </span>
       </div>

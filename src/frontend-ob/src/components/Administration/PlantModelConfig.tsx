@@ -25,6 +25,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Modal, FormField } from '../shared/Modal';
 import { useConfirm } from '../shared/dialogService';
+import { Toggletip } from '../../ui/Toggletip';
 import { apiFetch, apiJson, ApiError } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'react-toastify';
@@ -377,12 +378,14 @@ export const PlantModelConfig: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
+        <div className="cpm-title-row">
           <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Plant Model</h3>
-          <p style={{ fontSize: '13px', color: T.textSecondary, margin: '4px 0 0' }}>
-            The UNS asset tree — the source of truth every binding, trend, filter and loop location
-            resolves against. Path segments are permanent identity; names are labels.
-          </p>
+          <Toggletip variant="how-to" label="About the plant model">
+            <p>
+              The UNS asset tree — the source of truth every binding, trend, filter and loop location
+              resolves against. Path segments are permanent identity; names are labels.
+            </p>
+          </Toggletip>
         </div>
         {canEdit && (
           <span style={{ display: 'inline-flex', gap: 8 }}>

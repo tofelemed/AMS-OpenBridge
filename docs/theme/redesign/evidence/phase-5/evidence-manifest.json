@@ -1,36 +1,256 @@
 {
  "phase": "5",
- "capturedAt": "2026-11-04T19:54:23.707Z",
+ "capturedAt": "2026-11-04T20:19:44.317Z",
  "base": "http://localhost:4173",
  "sizes": [
   "1440x1024"
  ],
  "routes": {
+  "overview": {
+   "url": "/cpm",
+   "finalUrl": "/cpm",
+   "stable": true,
+   "ms": 916,
+   "shots": [
+    "screenshots/day/1440x1024/overview.png",
+    "screenshots/night/1440x1024/overview.png"
+   ]
+  },
+  "performance": {
+   "url": "/cpm/performance",
+   "finalUrl": "/cpm/performance",
+   "stable": true,
+   "ms": 692,
+   "shots": [
+    "screenshots/day/1440x1024/performance.png",
+    "screenshots/night/1440x1024/performance.png"
+   ]
+  },
+  "events": {
+   "url": "/cpm/events",
+   "finalUrl": "/cpm/events",
+   "stable": true,
+   "ms": 1148,
+   "shots": [
+    "screenshots/day/1440x1024/events.png",
+    "screenshots/night/1440x1024/events.png"
+   ]
+  },
+  "explorer": {
+   "url": "/cpm/explorer?loop=FIC10302",
+   "finalUrl": "/cpm/explorer?loop=FIC10302",
+   "stable": false,
+   "ms": 15185,
+   "shots": [
+    "screenshots/day/1440x1024/explorer.png",
+    "screenshots/night/1440x1024/explorer.png"
+   ]
+  },
   "historical": {
    "url": "/cpm/historical?loop=FIC10302",
    "finalUrl": "/cpm/historical?loop=FIC10302",
    "stable": true,
-   "ms": 2868,
+   "ms": 1390,
    "shots": [
     "screenshots/day/1440x1024/historical.png",
     "screenshots/night/1440x1024/historical.png"
+   ]
+  },
+  "investigation": {
+   "url": "/cpm/investigation?loop=FIC10302",
+   "finalUrl": "/cpm/investigation?loop=FIC10302",
+   "stable": true,
+   "ms": 8334,
+   "shots": [
+    "screenshots/day/1440x1024/investigation.png",
+    "screenshots/night/1440x1024/investigation.png"
+   ]
+  },
+  "evidence": {
+   "url": "/cpm/evidence?loop=FIC10302",
+   "finalUrl": "/cpm/evidence?loop=FIC10302&methodRun=276279a3-e8d2-570c-b50f-5569c01dff63&gate=G15&mode=FIXED",
+   "stable": true,
+   "ms": 1920,
+   "shots": [
+    "screenshots/day/1440x1024/evidence.png",
+    "screenshots/night/1440x1024/evidence.png"
+   ]
+  },
+  "replay": {
+   "url": "/cpm/replay?loop=FIC10302",
+   "finalUrl": "/cpm/replay?loop=FIC10302",
+   "stable": true,
+   "ms": 5497,
+   "shots": [
+    "screenshots/day/1440x1024/replay.png",
+    "screenshots/night/1440x1024/replay.png"
+   ]
+  },
+  "windows": {
+   "url": "/cpm/windows?loop=FIC10302",
+   "finalUrl": "/cpm/windows?loop=FIC10302",
+   "stable": true,
+   "ms": 13167,
+   "shots": [
+    "screenshots/day/1440x1024/windows.png",
+    "screenshots/night/1440x1024/windows.png"
+   ]
+  },
+  "calculations": {
+   "url": "/cpm/calculations?loop=FIC10302",
+   "finalUrl": "/cpm/calculations?loop=FIC10302",
+   "stable": true,
+   "ms": 1144,
+   "shots": [
+    "screenshots/day/1440x1024/calculations.png",
+    "screenshots/night/1440x1024/calculations.png"
+   ]
+  },
+  "response": {
+   "url": "/cpm/response?loop=FIC10302",
+   "finalUrl": "/cpm/response?loop=FIC10302",
+   "stable": true,
+   "ms": 947,
+   "shots": [
+    "screenshots/day/1440x1024/response.png",
+    "screenshots/night/1440x1024/response.png"
+   ]
+  },
+  "registry": {
+   "url": "/cpm/registry",
+   "finalUrl": "/cpm/registry?loop=FIC10302",
+   "stable": true,
+   "ms": 254,
+   "shots": [
+    "screenshots/day/1440x1024/registry.png",
+    "screenshots/night/1440x1024/registry.png"
+   ]
+  },
+  "config": {
+   "url": "/cpm/config",
+   "finalUrl": "/cpm/config?loop=FIC10302&view=effective",
+   "stable": true,
+   "ms": 9135,
+   "shots": [
+    "screenshots/day/1440x1024/config.png",
+    "screenshots/night/1440x1024/config.png"
+   ]
+  },
+  "kpi": {
+   "url": "/cpm/kpi?kpi=acceptable",
+   "finalUrl": "/cpm/kpi?kpi=acceptable",
+   "stable": true,
+   "ms": 1984,
+   "shots": [
+    "screenshots/day/1440x1024/kpi.png",
+    "screenshots/night/1440x1024/kpi.png"
+   ]
+  },
+  "pipeline": {
+   "url": "/cpm/pipeline",
+   "finalUrl": "/cpm/pipeline",
+   "stable": true,
+   "ms": 8845,
+   "shots": [
+    "screenshots/day/1440x1024/pipeline.png",
+    "screenshots/night/1440x1024/pipeline.png"
+   ]
+  },
+  "governance": {
+   "url": "/cpm/governance",
+   "finalUrl": "/cpm/governance",
+   "stable": true,
+   "ms": 5025,
+   "shots": [
+    "screenshots/day/1440x1024/governance.png",
+    "screenshots/night/1440x1024/governance.png"
    ]
   },
   "trend": {
    "url": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
    "finalUrl": "/trend?tags=hdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.pv%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.sp%2Chdpe%2Fsection_600%2Fu6002_pellet_homogenization_ii_silo_4_5%2Ffic10401.op&range=8h",
    "stable": true,
-   "ms": 2690,
+   "ms": 9560,
    "shots": [
     "screenshots/day/1440x1024/trend.png",
     "screenshots/night/1440x1024/trend.png"
+   ]
+  },
+  "admin-users": {
+   "url": "/admin/users",
+   "finalUrl": "/admin/users?range=8h",
+   "stable": true,
+   "ms": 928,
+   "shots": [
+    "screenshots/day/1440x1024/admin-users.png",
+    "screenshots/night/1440x1024/admin-users.png"
+   ]
+  },
+  "admin-roles": {
+   "url": "/admin/roles",
+   "finalUrl": "/admin/roles?range=8h",
+   "stable": true,
+   "ms": 872,
+   "shots": [
+    "screenshots/day/1440x1024/admin-roles.png",
+    "screenshots/night/1440x1024/admin-roles.png"
+   ]
+  },
+  "admin-data-sources": {
+   "url": "/admin/data-sources",
+   "finalUrl": "/admin/data-sources?range=8h",
+   "stable": true,
+   "ms": 937,
+   "shots": [
+    "screenshots/day/1440x1024/admin-data-sources.png",
+    "screenshots/night/1440x1024/admin-data-sources.png"
+   ]
+  },
+  "admin-plant-model": {
+   "url": "/admin/plant-model",
+   "finalUrl": "/admin/plant-model?range=8h",
+   "stable": true,
+   "ms": 1119,
+   "shots": [
+    "screenshots/day/1440x1024/admin-plant-model.png",
+    "screenshots/night/1440x1024/admin-plant-model.png"
+   ]
+  },
+  "admin-aliases": {
+   "url": "/admin/aliases",
+   "finalUrl": "/admin/aliases?range=8h",
+   "stable": true,
+   "ms": 849,
+   "shots": [
+    "screenshots/day/1440x1024/admin-aliases.png",
+    "screenshots/night/1440x1024/admin-aliases.png"
+   ]
+  },
+  "admin-audit": {
+   "url": "/admin/audit",
+   "finalUrl": "/admin/audit?range=8h",
+   "stable": true,
+   "ms": 467,
+   "shots": [
+    "screenshots/day/1440x1024/admin-audit.png",
+    "screenshots/night/1440x1024/admin-audit.png"
+   ]
+  },
+  "admin-system": {
+   "url": "/admin/system",
+   "finalUrl": "/admin/system?range=8h",
+   "stable": true,
+   "ms": 257,
+   "shots": [
+    "screenshots/day/1440x1024/admin-system.png",
+    "screenshots/night/1440x1024/admin-system.png"
    ]
   }
  },
  "log": {
   "blocked": [],
   "http429": 0,
-  "apiCalls": 15
+  "apiCalls": 97
  },
  "consoleErrors": [
   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"

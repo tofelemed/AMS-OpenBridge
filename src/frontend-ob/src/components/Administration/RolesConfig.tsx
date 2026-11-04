@@ -11,6 +11,7 @@ import {
 } from '../../api/rolesApi';
 import { usePrompt } from '../shared/dialogService';
 import { T } from '../../styles/theme';
+import { Toggletip } from '../../ui/Toggletip';
 
 /* Layout tokens — shared idiom with the other Administration tabs. */
 
@@ -166,11 +167,11 @@ export const RolesConfig: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+        <div className="cpm-title-row">
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: T.textPrimary }}>Roles &amp; Permissions</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: T.textSecondary }}>
-            Assign permissions to roles. Editing a role takes effect for its users on their next request.
-          </p>
+          <Toggletip variant="how-to" label="About roles and permissions">
+            <p>Assign permissions to roles. Editing a role takes effect for its users on their next request.</p>
+          </Toggletip>
         </div>
         <ObcButton variant="raised" onClick={() => { setCreating((c) => !c); setError(null); setNotice(null); }}>
           {creating ? 'Cancel' : '+ New custom role'}

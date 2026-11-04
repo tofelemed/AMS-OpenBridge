@@ -74,7 +74,6 @@ export const DeploymentStatus: React.FC<{
           {rollbackPending ? 'Rolling back…' : 'Roll back to the previous bundle'}
         </ReasonedButton>
       )}
-      {!canRollback && d.state === 'ACTIVE_VERIFIED' && <p className="cpm-copy">Rollback needs cpm.config.rollback.</p>}
     </li>
   );
 };

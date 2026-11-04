@@ -32,6 +32,7 @@ import { diagnosisLabel } from './vocabulary';
 import { fmtQuantity } from './evidence/format';
 import { evidenceScore, evidenceScoreText } from './evidenceScore';
 import { historicalHref } from './cpaHref';
+import { Toggletip } from '../../ui/Toggletip';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
 const DRAWER_TAB_OPTIONS = DRAWER_TABS.map(t => ({ value: t, label: t }));
@@ -216,7 +217,13 @@ export const CalcDrawer: React.FC<{
                 </p>
               )}
 
-              <PanelHead eyebrow="Coverage" title="Has this been produced before?" />
+              <PanelHead eyebrow="Coverage" title="Has this been produced before?"
+                help={<Toggletip variant="how-to" label="What this panel does not claim">
+                  <p>
+                    Regression coverage and storage idempotency are properties of the build and the
+                    schema. No API reports them, so this panel does not claim them.
+                  </p>
+                </Toggletip>} />
               <KvRow label={`Gate ${metric.gate} in stored results`}>
                 {gateDef
                   ? <TonePill tone={gateDef.observedInResults ? 'good' : 'warn'}>
@@ -240,11 +247,6 @@ export const CalcDrawer: React.FC<{
                 </KvRow>
               )}
               {catalogue?.note && <p className="cpm-copy">{catalogue.note}</p>}
-
-              <p className="cpm-copy" style={{ marginTop: 12 }}>
-                Regression coverage and storage idempotency are properties of the build and the
-                schema. No API reports them, so this panel does not claim them.
-              </p>
             </>
           );
         })()}

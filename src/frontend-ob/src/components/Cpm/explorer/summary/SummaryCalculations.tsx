@@ -38,7 +38,7 @@ const FusedResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
     return <QueryError title="Result unavailable" error={gates.error} retry={() => void gates.refetch()} />;
   }
   // CHG-098 (SME review 2 #29): a route forward when the result is overdue.
-  if (!m) return <EmptyState title={`No fused ${kind} result yet`} copy="Outcomes appear once a window of this size has been evaluated. Check Pipeline Health if one is overdue."
+  if (!m) return <EmptyState title="No fused result yet" copy="Outcomes appear once a window of this size has been evaluated. Check Pipeline Health if one is overdue."
     next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />;
   // CHG-052: counted by meaning — a symptom seen is not a failed check
   const counts = { ok: 0, symptoms: 0, failed: 0, none: 0 };
@@ -80,11 +80,11 @@ const ShortResult: React.FC<{ loop: CpmLoop; kind: string }> = ({ loop, kind }) 
   const row = kpis.data?.samples?.[0];
   if (kpis.isLoading) return <EmptyState title="Loading…" />;
   if (kpis.isError) return <QueryError title="Window results unavailable" error={kpis.error} retry={() => void kpis.refetch()} />;
-  if (!row) return <EmptyState title={`No ${kind} windows stored yet`} copy="Rows appear once the analysis engine has evaluated a window of this size. Check Pipeline Health if they are overdue."
+  if (!row) return <EmptyState title="No windows stored yet" copy="Rows appear once the analysis engine has evaluated a window of this size. Check Pipeline Health if they are overdue."
     next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />;
   return (
     <>
-      <p className="cpm-copy">Newest {kind} window ending {row.window_end ? fmtDateTime(row.window_end as string) : '—'}</p>
+      <p className="cpm-copy">Newest window ending {row.window_end ? fmtDateTime(row.window_end as string) : '—'}</p>
       <WindowResultsPanel row={row} tier="short" bare />
     </>
   );

@@ -173,7 +173,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
-        <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: `${kind} windows (none opened)` }} />
+        <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: 'Windows (none opened)' }} />
         {toolbar}
         {evaluate}
         {!loopId && <EmptyState title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}

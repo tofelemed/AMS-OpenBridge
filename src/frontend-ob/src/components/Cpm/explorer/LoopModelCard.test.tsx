@@ -29,11 +29,13 @@ describe('LoopModelCard', () => {
     expect(screen.getByText('TIGHT')).toBeTruthy();
     expect(screen.getByText('Output drives a valve')).toBeTruthy();
     expect(screen.getByText('PERIODIC · 5 s grid')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'How this is classified' }));
     expect(screen.getByText(/derived from the tag type/)).toBeTruthy();
   });
 
   it('says when a person declared the model, and when the registry served none', () => {
     const { rerender } = render(<MemoryRouter><LoopModelCard loop={loop({ serviceFamily: 'LEVEL', dynamicClass: 'INTEGRATING', objectiveType: 'AVERAGING', topology: 'SINGLE', commandPath: 'OP_TO_VALVE', acquisition: { mode: 'RBE' }, classificationSource: 'EXPLICIT' })} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'How this is classified' }));
     expect(screen.getByText(/declared by a person/)).toBeTruthy();
     rerender(<MemoryRouter><LoopModelCard loop={loop(null)} /></MemoryRouter>);
     expect(screen.getByText(/not served by this registry/)).toBeTruthy();

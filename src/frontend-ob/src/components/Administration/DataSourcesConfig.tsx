@@ -12,6 +12,7 @@ import {
 import DataSourceWizard from './DataSourceWizard';
 import LoopIngestPanel from './LoopIngestPanel';
 import { Fact, Pill } from './adminUi';
+import { Toggletip } from '../../ui/Toggletip';
 
 type View = { kind: 'list' } | { kind: 'create' } | { kind: 'edit'; source: DataSourceDto };
 
@@ -84,13 +85,13 @@ export const DataSourcesConfig: React.FC = () => {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
+        <div className="cpm-title-row">
           <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
             Source Configuration
           </h3>
-          <p style={{ fontSize: '13px', color: T.textSecondary, margin: '4px 0 0' }}>
-            Configure OT data sources — MQTT broker connections consumed by the ingestion service
-          </p>
+          <Toggletip variant="how-to" label="About source configuration">
+            <p>Configure OT data sources — MQTT broker connections consumed by the ingestion service</p>
+          </Toggletip>
         </div>
         {canManage && (
           <ObcButton variant="raised" onClick={() => setView({ kind: 'create' })}>

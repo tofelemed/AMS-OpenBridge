@@ -113,7 +113,7 @@ export const FocusedLoopDrawer: React.FC<{
                 <span className="cpm-kpi__value">{diagnosisLabel(matrix.diagnosis)}</span>
                 <span className="cpm-kpi__sub">
                   {matrix.confidence != null && hasVerdict(matrix.diagnosis) ? `${evidenceScoreText(matrix.confidence)} · ` : ''}
-                  {matrix.windowKind} window ending {fmtTime(matrix.windowEnd)}
+                  window ending {fmtTime(matrix.windowEnd)}
                 </span>
               </div>
               <PanelHead eyebrow="Evidence path" title="Gate statuses on this window" />

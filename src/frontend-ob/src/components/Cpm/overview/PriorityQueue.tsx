@@ -16,6 +16,7 @@ import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { conditionOf } from '../explorer/summary/summaryText';
 import GoodErrorBar from './GoodErrorBar';
 import FacetPill from '../FacetPill';
@@ -38,6 +39,7 @@ export const PriorityQueue: React.FC<{
 }> = ({ loops, loading, error, retry, shelvedCount, selectedId, onPreview, onOpenLoop, onViewAll, onShelved }) => (
   <section className="cpm-surface">
     <PanelHead eyebrow="Priority queue" title="Loops requiring review"
+      help={<Toggletip variant="how-to" label="How this is ordered"><p>{PRIORITY_RULE}</p></Toggletip>}
       right={
         <>
           {shelvedCount > 0 && (
@@ -49,7 +51,6 @@ export const PriorityQueue: React.FC<{
           <ObcButton variant="normal" onClick={onViewAll}>View all ›</ObcButton>
         </>
       } />
-    <p className="cpm-queue-rule">{PRIORITY_RULE}</p>
     {loading && <EmptyState title="Loading…" />}
     {error != null && <QueryError title="Priority queue unavailable" error={error} retry={retry} />}
     {!loading && error == null && loops.length === 0 && (

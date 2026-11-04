@@ -35,12 +35,12 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
 
   return (
     <section className="cpm-summary-section" aria-label="Loop KPIs">
-      <PanelHead eyebrow={`Loop KPIs · ${windowKind} window${end ? ` ending ${fmtDateTime(end)}` : ''}`}
+      <PanelHead eyebrow={`Loop KPIs${end ? ` · window ending ${fmtDateTime(end)}` : ''}`}
         title="How this loop performs"
         right={k?.previous ? <span className="cpm-op__muted">change vs the window 24 h earlier</span> : undefined} />
       {q.isError && <QueryError title="Loop KPIs unavailable" error={q.error} retry={() => void q.refetch()} />}
       {/* CHG-098 (SME review 2 #29): what to try while there is no window. */}
-      {k && !k.current && <EmptyState title={`No ${windowKind} window yet`}
+      {k && !k.current && <EmptyState title="No evaluated window yet"
         copy="The KPIs appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
         next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />}
       {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined */}

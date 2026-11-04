@@ -19,6 +19,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useLatestGates } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
+import { Toggletip } from '../../../ui/Toggletip';
 import { EmptyState, KvRow, PanelHead, QueryError, fmtDateTime } from '../shared';
 import { pipelineHref } from '../cpaHref';
 import { LoopModelCard } from './LoopModelCard';
@@ -74,8 +75,13 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
 
       <section className="cpm-summary-section" aria-label="Gates on the latest fused window">
         <PanelHead
-          eyebrow={`Evaluated ${windowKind} window${matrix?.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
-          title="Gates on the latest fused result"
+          eyebrow={`Evaluated window${matrix?.windowEnd ? ` · ending ${fmtDateTime(matrix.windowEnd)}` : ''}`}
+          title="Gates"
+          help={cells.length > 0 ? (
+            <Toggletip variant="how-to" label="How to read the gates">
+              <p>Select a gate to read its verdict, window and evidence here; the Evidence Workbench holds the full run.</p>
+            </Toggletip>
+          ) : undefined}
           // CHG-089: the 12h / 24h switch moved to the top of the Explorer (one window for every tab)
           // CHG-098 (SME review 2 #20): no diagnosis pill here — the loop summary above states it once
         />
@@ -83,7 +89,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
         {failed && <QueryError title="Gate outcomes unavailable" error={gates.error} retry={() => void gates.refetch()} />}
         {noVerdictYet && (
           // CHG-098 (SME review 2 #29): what to try while there is no verdict.
-          <EmptyState title={`No fused ${windowKind} verdict yet`}
+          <EmptyState title="No fused verdict yet"
             copy="Gate outcomes appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
             next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
         )}
@@ -95,17 +101,14 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
                 <SummaryGateDetail loop={loop} gate={selectedGate} matrix={matrix} windowKind={windowKind}
                   onClose={() => selectGate(null)} />
               </Suspense>
-            ) : (
+            ) : matrix?.windowStart && matrix.windowEnd ? (
               <p className="cpm-copy cpm-summary-hint">
-                Select a gate to read its verdict, window and evidence here; the Evidence Workbench holds the full run.
-                {matrix?.windowStart && matrix.windowEnd && (
-                  <ObcButton variant="flat" title="Show the window these gates were evaluated on, on the trend above"
-                    onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
-                    Show this window on the trend ›
-                  </ObcButton>
-                )}
+                <ObcButton variant="flat" title="Show the window these gates were evaluated on, on the trend above"
+                  onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
+                  Show this window on the trend ›
+                </ObcButton>
               </p>
-            )}
+            ) : null}
           </>
         )}
       </section>

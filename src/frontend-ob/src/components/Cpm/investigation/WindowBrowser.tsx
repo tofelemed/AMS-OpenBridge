@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import type { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
+import { Toggletip } from '../../../ui/Toggletip';
 import { PanelHead, toneFor } from '../shared';
 import { KEY_FACTS, fmtFact } from './keyFacts';
 import { diagnosisLabel } from '../vocabulary';
@@ -49,8 +50,8 @@ export const WindowBrowser: React.FC<{
   const notComparable = [side(previous, 'Previous'), side(matrix, 'Current')].filter(Boolean).join(' · ');
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Window browser" title={`Recent ${windowKind} windows`}
-        right={<span className="cpm-copy">newest first · pick one to make it CURRENT</span>} />
+      <PanelHead eyebrow="Window browser" title="Recent windows"
+        help={<Toggletip variant="how-to" label="How this is ordered"><p>Newest first; pick one to make it CURRENT.</p></Toggletip>} />
       {/* SME #18 (CHG-054): each window by its END and SIZE — sliding windows share a date and often a verdict */}
       <div className="cpm-window-tiles" role="list" aria-label={`Evaluated ${windowKind} windows`}>
         {shown.map(w => {

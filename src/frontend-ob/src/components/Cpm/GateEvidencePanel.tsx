@@ -82,7 +82,7 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
   return (
     <>
       <p className="cpm-copy">
-        {def?.name ?? cell?.name ?? gateKey} · latest {windowKind} fused result
+        {def?.name ?? cell?.name ?? gateKey} · latest fused result
         {matrix?.metadata.calculationVersion
           ? ` · calculation v${matrix.metadata.calculationVersion}` : ''}
         {matrix?.metadata.dynamicsProfileVersion

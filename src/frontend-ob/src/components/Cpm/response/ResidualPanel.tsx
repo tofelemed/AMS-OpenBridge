@@ -3,6 +3,7 @@
  * samples - the kernel's arrays. Whiteness / bias verdicts come from subgate E, stated as text.
  */
 import React from 'react';
+import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, PanelHead } from '../shared';
 import type { ResponseSubgate } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
@@ -21,7 +22,8 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
   const text = (k: string) => { const v = outputs[k]; return v == null ? '—' : typeof v === 'number' ? readable(v) : String(v); };
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Subgate E" title="Residuals and validation" />
+      <PanelHead eyebrow="Subgate E" title="Residuals and validation"
+        help={<Toggletip variant="how-to" label="How to read these errors"><p>Free-run and one-step prediction errors are reported separately: a flexible predictor with the wrong plant can pass one-step and fail free-run.</p></Toggletip>} />
       {validation && (
         <div className="cpm-response-quantities">
           <KvRow label="state">{validation.state}</KvRow>
@@ -36,7 +38,6 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
         <CpmChart title="Residual autocorrelation" xKind="value" xLabel="lag" xUnit={acf.units.x ?? acf.meta.x.unit ?? 'samples'} height={200}
           series={[{ id: 'acf', label: 'residual ACF', unit: acf.units.y ?? 'dimensionless', x: acf.columns.x, y: Array.from(acf.columns.y), pen: 'neutral', markers: true }]} />
       )}
-      <p className="cpm-copy">Free-run and one-step prediction errors are reported separately: a flexible predictor with the wrong plant can pass one-step and fail free-run.</p>
     </section>
   );
 };

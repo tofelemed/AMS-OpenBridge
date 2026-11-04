@@ -18,6 +18,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FilterChip } from '../../ui/forms/FilterChip';
+import { Toggletip } from '../../ui/Toggletip';
 import type { CpmHealthFilter } from '../../api/cpmApi';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { windowKindOf } from './useWindowKind';
@@ -181,15 +182,9 @@ export const CpmPerformance: React.FC = () => {
       />
       {/* Why only these sizes: this screen shows FUSED verdicts, which fusion
           produces on these windows alone. The finer 1m…60m results exist and
-          live in the Window Inspector — say so instead of looking like a
-          chart-range picker with two odd choices. */}
-      <p className="cpm-copy">
-        Verdicts fuse on {fusionKinds.join(' / ')} rolling windows
-        {(() => {
-          const cadence = resolutions.data?.windows.find(w => fusionKinds.includes(w.kind))?.cadenceMs;
-          return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
-        })()} ·
-        per-window 1m–60m features are in the{' '}
+          live in the Window Inspector — the ? says so instead of looking like a
+          chart-range picker with two odd choices. A div, not a p: the ? panel is a block. */}
+      <div className="cpm-copy">
         {/* CHG-098 (SME review 2 #29): the reason rides on a wrapping span (ObcButton takes no title) and in the text */}
         <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
           <ObcButton variant="flat"
@@ -199,7 +194,17 @@ export const CpmPerformance: React.FC = () => {
           </ObcButton>
         </span>
         {!selectedLoop && ' (select a loop in the matrix first)'}
-      </p>
+        <Toggletip variant="how-to" label="About these windows">
+          <p>
+            Verdicts fuse on {fusionKinds.join(' / ')} rolling windows
+            {(() => {
+              const cadence = resolutions.data?.windows.find(w => fusionKinds.includes(w.kind))?.cadenceMs;
+              return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
+            })()} ·
+            per-window 1m–60m features are in the Window Inspector.
+          </p>
+        </Toggletip>
+      </div>
       <PlantScopeFilter
         scope={scope}
         summary={summary.data ? `${summary.data.loops.monitored} monitored loop(s) in scope` : null}
@@ -243,7 +248,7 @@ export const CpmPerformance: React.FC = () => {
       <section className="cpm-surface">
         <PanelHead
           eyebrow="Calculation pathway"
-          title={`Gate status by loop · latest ${windowKind} window`}
+          title="Gate status by loop"
           right={
             <div className="cpm-pathway-head">
               <button
@@ -321,7 +326,7 @@ export const CpmPerformance: React.FC = () => {
                     <div>
                       <strong>{selectedRow.loopId}</strong> · {selectedRow.displayName}
                       <div className="cpm-event-row__sub">
-                        Selected row · latest {windowKind} fused result
+                        Selected row · latest fused result
                         {selectedRow.windowEnd ? ` · ${fmtDateTime(selectedRow.windowEnd)}` : ''}
                       </div>
                     </div>

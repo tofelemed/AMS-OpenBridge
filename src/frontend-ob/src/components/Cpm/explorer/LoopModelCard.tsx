@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
+import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, PanelHead, TonePill } from '../shared';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { evidenceHref, responseHref } from '../cpaHref';
@@ -37,6 +38,15 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; wo
   return (
     <div>
       <PanelHead eyebrow="Context" title="Loop model"
+        help={m ? (
+          <Toggletip variant="how-to" label="How this is classified">
+            <p>
+              {explicit
+                ? 'Classification declared by a person in the registry; a tag-type preset never overwrites it.'
+                : 'Classification derived from the tag type; declare it in the registry to make it explicit.'}
+            </p>
+          </Toggletip>
+        ) : undefined}
         right={m ? <TonePill tone={explicit ? 'good' : 'muted'}>{explicit ? 'EXPLICIT' : 'PRESET'}</TonePill> : undefined} />
       {m ? (
         <>
@@ -46,11 +56,6 @@ export const LoopModelCard: React.FC<{ loop: CpmLoop; workbenchHref?: string; wo
           <KvRow label="Topology">{m.topology}</KvRow>
           <KvRow label="Command path"><span title={m.commandPath ?? undefined}>{codeLabel(m.commandPath)}</span></KvRow>
           <KvRow label="Acquisition">{acquisitionText(m.acquisition)}</KvRow>
-          <p className="cpm-copy">
-            {explicit
-              ? 'Classification declared by a person in the registry; a tag-type preset never overwrites it.'
-              : 'Classification derived from the tag type; declare it in the registry to make it explicit.'}
-          </p>
         </>
       ) : (
         <p className="cpm-copy">Loop model not served by this registry; the engines run on the tag-type preset.</p>

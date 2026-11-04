@@ -22,6 +22,7 @@ import {
   EmptyState, PanelHead, QueryError, WorkspaceHeader,
   classifyMode, diagnosisBand, fmtDateTime, loopTrendHref,
 } from './shared';
+import { Toggletip } from '../../ui/Toggletip';
 import { LoopContextBar } from './context/LoopContextBar';
 import { useCpmScope } from './plantScope';
 import type { CpmGateMatrix } from '../../api/cpmApi';
@@ -201,7 +202,7 @@ export const CpmHistorical: React.FC = () => {
     const w = params.get('window') ? selectedWindow : undefined;
     if (!w?.windowStart || !w.windowEnd) return null;
     return { startMs: Date.parse(w.windowStart), endMs: Date.parse(w.windowEnd),
-      label: `Evaluated ${w.windowKind} window${focus ? ` · ${focus}` : ''}` };
+      label: `Evaluated window${focus ? ` · ${focus}` : ''}` };
   }, [params, selectedWindow, focus]);
   // Phase 5: rectangle zoom across every lane on x, on the signals grid for y; the
   // slider, the wheel and the box all land in the same state (linked axes).
@@ -302,11 +303,11 @@ export const CpmHistorical: React.FC = () => {
         <PanelHead
           eyebrow="One time axis"
           title="Signals, overlay, mode and verdict"
+          help={<Toggletip variant="how-to" label="How to use this chart"><p>Click a verdict band to inspect.</p></Toggletip>}
           right={
             <span className="cpm-hist-note">
               {windows.length} evaluated window(s)
               {windowsTruncated ? ` · capped at ${GATE_WINDOW_CAP}` : ''}
-              {' · click a verdict band to inspect'}
             </span>
           }
         />
@@ -395,7 +396,7 @@ export const CpmHistorical: React.FC = () => {
         </div>
       </section>
 
-      <SelectedWindowPanel windowKind={windowKind}
+      <SelectedWindowPanel
         loopId={loopId}
         window={windows.length > 0 ? selectedWindow : undefined}
         fellBack={windowFellBack}

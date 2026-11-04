@@ -11,6 +11,7 @@ import { apiJson } from '../../../api/apiFetch';
 import { CPM_BASE } from '../../../api/cpm/base';
 import type { Bundle } from '../../../api/cpm/config';
 import { ReasonedButton } from '../ReasonedButton';
+import { Toggletip } from '../../../ui/Toggletip';
 
 export interface ShadowReport {
   bundleId: string; analysisRunId: string | null; runState: string; loopId: string | null; fromMs: number | null; toMs: number | null;
@@ -41,8 +42,10 @@ export const ShadowComparison: React.FC<{
   return (
     <section className="cpm-config-tabpanel" data-testid="shadow-comparison">
       <PanelHead eyebrow="Shadow evaluation" title={shadow?.analysisRunId ? `run ${shadow.analysisRunId.slice(0, 8)} on ${shadow.loopId}` : 'not run'}
+        help={<Toggletip variant="how-to" label="What a shadow run does">
+          <p>A shadow run re-evaluates a retained interval of one loop under this draft, isolated by purpose - no episode, no operational result. The comparison is against the LIVE results of the same windows.</p>
+        </Toggletip>}
         right={report.data ? <TonePill tone={report.data.runState === 'FINISHED' ? 'good' : report.data.runState === 'RUNNING' ? 'warn' : 'muted'}>{report.data.runState}</TonePill> : undefined} />
-      <p className="cpm-copy">A shadow run re-evaluates a retained interval of one loop under this draft, isolated by purpose - no episode, no operational result. The comparison is against the LIVE results of the same windows.</p>
       <div className="cpm-config-inline">
         <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Loop</span>
           <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} placeholder="loop id" disabled={bundle.scopeKind === 'LOOP'} /></label>
@@ -54,8 +57,6 @@ export const ShadowComparison: React.FC<{
           {pending ? 'Starting…' : shadow?.analysisRunId ? 'Run again' : 'Run shadow'}
         </ReasonedButton>
       </div>
-      {!canShadow && <p className="cpm-copy">Starting a shadow run needs cpm.config.shadow.</p>}
-      {bundle.state !== 'VALIDATED' && bundle.state !== 'SHADOW_EVALUATED' && <p className="cpm-copy">Validate the draft first (state {bundle.state}).</p>}
       {error ? <p className="cpm-field__error" role="alert">{error instanceof Error ? error.message : String(error)}</p> : null}
       {report.isError && <QueryError error={report.error} retry={() => void report.refetch()} />}
       {report.data && (

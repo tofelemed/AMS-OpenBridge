@@ -15,7 +15,7 @@ import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
-  fmtWindowShape, windowSpecsOf, fmtDuration, QueryError,
+  fmtWindowShape, windowSpecsOf, QueryError,
 } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
@@ -100,10 +100,10 @@ export const CpmCalculations: React.FC = () => {
 
   /** SME review 2 #8: why a value is not shown — never a bare "—" beside a gate verdict. */
   const notMeasuredWhy = (m: MetricDef): string => {
-    if (m.source === 'gate') return gates.data ? 'the fused result carries no evidence score' : `no ${windowKind} result yet`;
+    if (m.source === 'gate') return gates.data ? 'the fused result carries no evidence score' : 'no result yet';
     if (longKpis.isError) return 'the result could not be read';
-    if (!latestLong) return `no ${windowKind} window result yet`;
-    return 'not in this window\'s result (written by an engine version without this metric)';
+    if (!latestLong) return 'no window result yet';
+    return 'engine version without this metric';
   };
 
   /**
@@ -132,14 +132,13 @@ export const CpmCalculations: React.FC = () => {
     if (m.source === 'gate') return gates.data?.windowEnd ?? null;
     return typeof latestLong?.window_end === 'string' ? latestLong.window_end : null;
   };
-  /** SME review 2 #9: the window as start – end (duration), not only its end. */
+  /** SME review 2 #9: the window as start – end, not only its end. Its size is the toggle at the top; the drawer gives the duration. */
   const windowText = (m: MetricDef): string => {
     const start = m.source === 'gate' ? gates.data?.windowStart ?? null
       : typeof latestLong?.window_start === 'string' ? latestLong.window_start : null;
     const end = windowEndOf(m);
-    if (!end) return `${windowKind} window — none yet`;
-    const span = start ? ` (${fmtDuration(Date.parse(end) - Date.parse(start))})` : '';
-    return `${windowKind} window · ${start ? `${fmtDateTime(start)} – ` : 'ends '}${fmtDateTime(end)}${span}`;
+    if (!end) return 'None yet';
+    return `${start ? `${fmtDateTime(start)} – ` : 'ends '}${fmtDateTime(end)}`;
   };
 
   const statusOf = (m: MetricDef): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } => {
@@ -221,7 +220,7 @@ export const CpmCalculations: React.FC = () => {
         title="Calculations"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: `Latest results · ${windowKind} fused window`, start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
+      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: 'Latest results', start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
 
       <section className="cpm-surface">
         {/* SME #21 (CHG-057): with a loop already chosen (carried from the menu) the step no longer asks for one */}
@@ -249,7 +248,6 @@ export const CpmCalculations: React.FC = () => {
               )}
               <span className="cpm-copy">
                 {loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}
-                {gates.data?.windowEnd ? ` · latest window ${fmtDateTime(gates.data.windowEnd)}` : ''}
               </span>
             </>
           )}
@@ -269,7 +267,7 @@ export const CpmCalculations: React.FC = () => {
 
       {loop && (<>
       <div className="cpm-kpi-row">
-        <StatTile caption={`Metrics stored for ${loop.loopId}`} value={observed} />
+        <StatTile caption="Metrics stored" value={observed} />
         {/* The hardcoded 17 fallback is the exact claim the Relationships tab
             stopped making — say nothing rather than assert a pack size. */}
         <StatTile caption="Evidence gates in the pack" value={catalogue.data?.gates.length ?? '—'} />

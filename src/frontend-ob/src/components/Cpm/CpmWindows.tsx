@@ -97,7 +97,7 @@ export const CpmWindows: React.FC = () => {
           ) : <TonePill tone="muted">CHECKING RUNTIME…</TonePill>
         }
       />
-      <LoopContextBar loopId={loopId} period={view.view === 'detail' ? { label: `${profile} window`, start: view.selected.window_start, end: view.selected.window_end } : { label: `${profile} windows (list)` }} />
+      <LoopContextBar loopId={loopId} period={view.view === 'detail' ? { label: 'Window', start: view.selected.window_start, end: view.selected.window_end } : { label: 'Windows (list)' }} />
 
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />
@@ -137,8 +137,8 @@ export const CpmWindows: React.FC = () => {
             copy="Pick a control loop above to inspect the windows the engine emitted for it." />
         )}
         {loopId && view.view === 'list' && (<>
-        <PanelHead eyebrow="Emitted windows" title={`Latest ${profile} results for ${loopId}`}
-          right={<span className="cpm-copy">{rows.length} loaded · newest first · select a window to open it</span>} />
+        <PanelHead eyebrow="Emitted windows" title="Latest results"
+          right={<span className="cpm-copy">{rows.length} loaded · newest first</span>} />
         {kpis.isLoading && <EmptyState title="Loading windows…" />}
         {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
         {!kpis.isLoading && !kpis.isError && rows.length === 0 && (

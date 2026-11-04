@@ -32,9 +32,6 @@ export const SystemSettingsConfig: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Global System Settings</h3>
-          <p style={{ fontSize: '13px', color: T.textSecondary, margin: '4px 0 0' }}>
-            Configure infrastructure retention, UI defaults, and backend logging.
-          </p>
         </div>
         <button
           disabled

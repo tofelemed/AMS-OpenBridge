@@ -36,7 +36,6 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, st
           ))}
         </div>
       )}
-      {state.kind !== 'READY' && state.kind !== 'LOADING' && <p className="cpm-copy cpm-verdict__state">{state.title}</p>}
     </section>
   );
 };

@@ -41,7 +41,7 @@ export const LoopTrendPanel: React.FC<{
   const gates = useLatestGates(loop.loopId, windowKind);
   const m = gates.data;
   const evaluated = m ? evaluatedWindowOf(m.windowStart, m.windowEnd,
-    `Evaluated ${windowKind} window · ${conditionOf(m.diagnosis).label}`) : null;
+    `Evaluated window · ${conditionOf(m.diagnosis).label}`) : null;
   const inView = !!evaluated && overlaps(evaluated, from.getTime(), to.getTime());
   const isEvaluatedView = !!evaluated && !range.live && isWindowRange(evaluated, from.getTime(), to.getTime());
   // ?compare=previous | now ('1' = now, links written before CHG-097); only on the evaluated-window view
@@ -68,7 +68,7 @@ export const LoopTrendPanel: React.FC<{
   };
   const setCompare = (mode: 'previous' | 'now' | null) =>
     setParams(p => { if (mode) p.set('compare', mode); else p.delete('compare'); return p; }, { replace: true });
-  const windowText = evaluated ? fmtPeriod({ label: `Evaluated ${windowKind} window`, start: evaluated.startMs, end: evaluated.endMs }) : '';
+  const windowText = evaluated ? fmtPeriod({ label: 'Evaluated window', start: evaluated.startMs, end: evaluated.endMs }) : '';
 
   return (
     <div id="cpm-loop-trend">
@@ -91,7 +91,7 @@ export const LoopTrendPanel: React.FC<{
       )}
       {isEvaluatedView && (
         <p className="cpm-eval-note">
-          <span>This trend is the evaluated {windowKind} window the diagnosis is about.</span>
+          <span>This trend is the evaluated window the diagnosis is about.</span>
           <ObcButton variant={compareMode === 'previous' ? 'raised' : 'normal'} aria-pressed={compareMode === 'previous'}
             title="Add the window just before it, of the same length, under it on the same scale"
             onClick={() => setCompare(compareMode === 'previous' ? null : 'previous')}>
@@ -106,7 +106,7 @@ export const LoopTrendPanel: React.FC<{
       )}
       {evaluated && inView && !isEvaluatedView && (
         <p className="cpm-eval-note">
-          <span>The shaded band is the evaluated {windowKind} window behind the diagnosis.</span>
+          <span>The shaded band is the evaluated window behind the diagnosis.</span>
           <ObcButton variant="flat" onClick={showEvaluated}>Show only that window ›</ObcButton>
         </p>
       )}
@@ -118,19 +118,16 @@ export const LoopTrendPanel: React.FC<{
       )}
       {points.length > 0 && (
         <SignalTrend loopId={loop.loopId} points={points} live={range.live}
-          caption={isEvaluatedView ? 'Evaluated window (diagnosis)' : range.live ? 'Trend · live 8 h' : 'Trend · fixed period'}
+          caption={isEvaluatedView ? 'Evaluated window (diagnosis)' : 'Trend'}
           xRange={{ fromMs: from.getTime(), toMs: to.getTime() }}
           evaluated={inView ? evaluated : null} yBounds={yBounds} />
       )}
       {compare && (otherTrend.isLoading ? <EmptyState title="Loading the comparison period…" />
         : otherTrend.isError ? <QueryError title="Comparison trend unavailable" error={otherTrend.error} retry={() => void otherTrend.refetch()} />
         : (
-          <>
-            <p className="cpm-eval-note"><span>Same length and same y-scale as the evaluated window above: a point at the same
-              horizontal position is the same time into each period.</span></p>
-            <SignalTrend loopId={loop.loopId} points={otherPoints} live={compareMode === 'now'} caption={otherCaption}
-              xRange={{ fromMs: other.start.getTime(), toMs: other.end.getTime() }} yBounds={yBounds} />
-          </>
+          <SignalTrend loopId={loop.loopId} points={otherPoints} live={compareMode === 'now'} caption={otherCaption}
+            help="Same length and same y-scale as the evaluated window above: a point at the same horizontal position is the same time into each period."
+            xRange={{ fromMs: other.start.getTime(), toMs: other.end.getTime() }} yBounds={yBounds} />
         ))}
     </div>
   );

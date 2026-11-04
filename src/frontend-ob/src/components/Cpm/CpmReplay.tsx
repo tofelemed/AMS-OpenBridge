@@ -39,6 +39,7 @@ import { windowLabel } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 import { readable } from './evidence/format';
+import { Toggletip } from '../../ui/Toggletip';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 // CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
@@ -180,7 +181,7 @@ export const CpmReplay: React.FC = () => {
           </ReasonedButton>
         </>}
       />
-      <LoopContextBar loopId={loopId} period={selected ? { label: `${windowKind} fused window`, start: selected.windowStart, end: selected.windowEnd } : null} />
+      <LoopContextBar loopId={loopId} period={selected ? { label: 'Evaluated window', start: selected.windowStart, end: selected.windowEnd } : null} />
 
       <section className="cpm-surface">
         <PlantScopeFilter scope={scope} />
@@ -196,7 +197,7 @@ export const CpmReplay: React.FC = () => {
             removed. Each now carries a disabled option naming what is missing.
           */}
           <label className="cpm-field">
-            <span className="cpm-field__label">Evaluated window ({windowKind})</span>
+            <span className="cpm-field__label">Evaluated window</span>
             <select className="cpm-select" value={selected?.windowEnd ?? ''}
               disabled={windows.length === 0}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
@@ -321,15 +322,17 @@ export const CpmReplay: React.FC = () => {
 
         <section className="cpm-surface">
           <PanelHead eyebrow="Re-run" title="Recompute this loop from history"
+            help={<Toggletip variant="how-to" label="What a re-run does">
+              <p>
+                Submits the A8 historical replay job with this loop's current evidence flags and
+                window alignment (~90 s round trip). Gate views refresh automatically when it finishes.
+              </p>
+            </Toggletip>}
             right={status && (
               <TonePill tone={status.finished ? (status.succeeded ? 'good' : 'bad') : 'warn'}>
                 {status.finished ? (status.succeeded ? 'FINISHED' : `FAILED (${status.state})`) : status.state}
               </TonePill>
             )} />
-          <p className="cpm-copy">
-            Submits the A8 historical replay job with this loop's current evidence flags and
-            window alignment (~90 s round trip). Gate views refresh automatically when it finishes.
-          </p>
           <div className="cpm-filter-row">
             <ReasonedButton variant="raised" disabled={!loopId || recomputeBusy} reason={!loopId ? 'Pick a loop first' : null}
               onClick={() => { reset(); submit.mutate(); }}>

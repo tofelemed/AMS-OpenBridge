@@ -6,6 +6,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
 import { useDebounce } from '../../hooks/useDebounce';
 import { T } from '../../styles/theme';
+import { Toggletip } from '../../ui/Toggletip';
 
 
 const EVENT_BADGE: Record<string, { bg: string; color: string }> = {
@@ -39,13 +40,13 @@ const AuditExplorer: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
       {/* Header */}
-      <div>
+      <div className="cpm-title-row">
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
           Operational Audit Log
         </h3>
-        <p style={{ fontSize: '13px', color: T.textSecondary, margin: '4px 0 0' }}>
-          Immutable cryptographically-chained record of all operator and system actions.
-        </p>
+        <Toggletip variant="how-to" label="About the audit log">
+          <p>Immutable cryptographically-chained record of all operator and system actions.</p>
+        </Toggletip>
       </div>
 
       {/* Toolbar */}
