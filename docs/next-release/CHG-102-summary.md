@@ -127,7 +127,7 @@ Lab-only slowness: the first open of a run (compressed hypertables; the plant's 
 
 - Release name / scope (`v2.9.0` draft; CHG-103 in or out), and ams-open-cf's CHG-101 files committed so the build can run.
 - `PLANT_TIME_ZONE=IR` in the plant `migration/.env`.
-- Plant check: are raw source values 32-bit? This decides whether trace references can save space after the v2 move.
+- Plant check DONE 2026-11-04: raw values are 32-bit (60,000 sampled values on 14 loops, 100 % exact in FLOAT). The v2 FLOAT cast loses nothing on those loops and trace references can match; a loop that differs stays inline.
 - SME D7 (compact archive after 90 d — not built); D5 (backups carry the archive or not).
 - Consider On-Demand job parallelism 2 if several engineers evaluate at once (a burst queues; one evaluation ≈ 1.3 s).
 - Lab FIC10401: Nov 2–3 is a 24 h-shifted copy of its own Nov 3–4 samples (test data for the Workbench); its evaluated evidence expires about Nov 7.
