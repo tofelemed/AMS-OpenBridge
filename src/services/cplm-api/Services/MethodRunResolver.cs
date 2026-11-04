@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 
 namespace Traverse.CplmApi.Services;
@@ -26,8 +27,16 @@ public sealed class MethodRunResolver
     private static readonly string[] FusionGates = { "G13", "G14", "G15" };
 
     private readonly NpgsqlDataSource _db;
+    private readonly IMemoryCache? _cache;
+    /// <summary>How long a final location is kept (a Workbench window resolves the same run 3-4 times: verdict, manifest,
+    /// site check, bundle; each miss probes up to four tables).</summary>
+    public static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(10);
 
-    public MethodRunResolver([FromKeyedServices("cplm")] NpgsqlDataSource db) => _db = db;
+    public MethodRunResolver([FromKeyedServices("cplm")] NpgsqlDataSource db, IMemoryCache? cache = null)
+    {
+        _db = db;
+        _cache = cache;
+    }
 
     /// <summary>OR-chain of containment probes so the GIN index answers "which row carries this run under any gate".</summary>
     public static string ContainmentPredicate(string param) =>
@@ -75,6 +84,20 @@ public sealed class MethodRunResolver
 
     /// <summary>As above; <paramref name="analysisRunId"/> = prefer the row that analysis run wrote (CHG-102 5c EVALUATE).</summary>
     public async Task<MethodRunLocation?> ResolveAsync(Guid id, Guid? analysisRunId, CancellationToken ct)
+    {
+        // CHG-102 perf: a FINAL location is cached - the LIVE row (or a response event), or the row of the analysis run the
+        // caller named. An EVALUATE / REPLAY row found without a named run is not: the live row of the same window can
+        // still land after it (~2-3 min after the window end) and must win then. Misses are never cached.
+        var key = ("method-run", id, analysisRunId);
+        if (_cache is not null && _cache.TryGetValue(key, out MethodRunLocation? hit) && hit is not null) return hit;
+        var loc = await ResolveUncachedAsync(id, analysisRunId, ct);
+        if (_cache is not null && loc is not null
+            && (loc.Purpose == "LIVE" || loc.Tier == "response" || (analysisRunId is not null && loc.AnalysisRunId == analysisRunId)))
+            _cache.Set(key, loc, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheFor, Size = 1 });
+        return loc;
+    }
+
+    private async Task<MethodRunLocation?> ResolveUncachedAsync(Guid id, Guid? analysisRunId, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
         var fromEvent = await ResolveEventAsync(conn, id);

@@ -299,4 +299,40 @@ public sealed class EvaluationRunTests : IAsyncLifetime
         named.SampleCount.Should().Be(7520);
         (await resolver.ResolveAsync(run, Guid.NewGuid(), CancellationToken.None))!.Purpose.Should().Be("LIVE", "an unknown analysis run falls back");
     }
+
+    [Fact]
+    public async Task The_resolver_caches_a_final_location_but_never_an_evaluation_the_live_row_can_still_overtake()
+    {
+        var loop = _tag + "C";
+        var run = Guid.NewGuid();
+        var evaluation = Guid.NewGuid();
+        var sql = CplmResultConsumerService.GateUpsertSql.Replace("@payload", "@payload::jsonb").Replace("@methodRunIds", "@methodRunIds::jsonb");
+        object Args(string purpose) => new
+        {
+            loopId = loop, windowKind = "12h",
+            winStart = new DateTime(2026, 11, 3, 18, 0, 0, DateTimeKind.Utc), winEnd = new DateTime(2026, 11, 4, 6, 0, 0, DateTimeKind.Utc),
+            samples = 100, mae = (double?)null, rmse = (double?)null, iae = (double?)null, goodErrorPct = (double?)null,
+            acfPeriodS = (double?)null, acfRegularity = (double?)null, effortRatio = (double?)null, triangularity = (double?)null,
+            horchOddness = (double?)null, phaseArea = (double?)null, cornerScore = (double?)null, travelPerDay = (double?)null,
+            reversalsPerHour = (double?)null, harmAmpRatio = (double?)null, harmEnergyRatio = (double?)null,
+            diagnosis = "INSUFFICIENT_DATA", severity = "LOW", confidence = 0.5, payload = "{}",
+            source = CplmResultConsumerService.ResultSource(purpose, "flink"),
+            methodRunIds = "{\"G15\":\"" + run + "\"}", bundleHash = "profile:same", contextRevision = 0, resultRevision = 1, purpose,
+            analysisRunId = purpose == "LIVE" ? (Guid?)null : evaluation, sourceCommit = "c", jarSha256 = "j", datasetHash = "d",
+        };
+        var resolver = new MethodRunResolver(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
+        await using var conn = await _db.OpenConnectionAsync();
+
+        // an EVALUATE row first (the window was evaluated before the live engine wrote it): served, NOT kept
+        await conn.ExecuteAsync(sql, Args("EVALUATE"));
+        (await resolver.ResolveAsync(run, CancellationToken.None))!.Purpose.Should().Be("EVALUATE");
+        await conn.ExecuteAsync(sql, Args("LIVE"));
+        (await resolver.ResolveAsync(run, CancellationToken.None))!.Purpose.Should().Be("LIVE", "the live row overtakes an uncached evaluation");
+
+        // the LIVE location is final: kept, so the next reads do not probe the tables
+        await conn.ExecuteAsync("DELETE FROM analytics.cplm_gate_results WHERE loop_id = @loop", new { loop });
+        (await resolver.ResolveAsync(run, CancellationToken.None))!.Purpose.Should().Be("LIVE", "served from the cache");
+        (await new MethodRunResolver(_db).ResolveAsync(run, CancellationToken.None)).Should().BeNull("an uncached resolver sees the rows are gone");
+        (await resolver.ResolveAsync(Guid.NewGuid(), CancellationToken.None)).Should().BeNull("a miss is never cached");
+    }
 }

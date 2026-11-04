@@ -131,6 +131,24 @@ public sealed class EvidenceArchiveTests : IClassFixture<ArchiveCplmDb>, IAsyncL
     }
 
     [Fact]
+    public async Task An_unpacked_set_is_served_from_memory_and_a_dropped_set_is_never_served()
+    {
+        var set = await EvidenceArchiveSeed.SeedSetAsync(Db, "ARCH_FIC100", "12h", DateTime.UtcNow.AddMinutes(-30), runs: 1, perRun: 3);
+        (await EvidenceArchiveSeed.Archiver(Db).RunOnceAsync(DateTime.UtcNow, CancellationToken.None)).SetsArchived.Should().Be(1);
+        await EvidenceArchiveSeed.SweepLiveAsync(Db, set);
+        await using var conn = await Db.OpenConnectionAsync();
+        var first = await EvidenceArchiveReader.ForMethodRunAsync(conn, set.MethodRuns[0], CancellationToken.None);
+        first.Should().HaveCount(3);
+        // the pack row gone but the run row kept: only a cached copy can still answer
+        await conn.ExecuteAsync("DELETE FROM analytics.evidence_archive WHERE boundary_set_id = @s", new { s = set.SetId });
+        (await EvidenceArchiveReader.ForMethodRunAsync(conn, set.MethodRuns[0], CancellationToken.None)).Should().HaveCount(3, "served from the unpacked-set cache");
+        (await EvidenceArchiveReader.ArtifactAsync(conn, set.EvidenceIds[1], CancellationToken.None)).Should().NotBeNull("the chunk route shares it");
+        // retention removes the run row with the partition: the set is not found any more, the cache is never reached
+        await conn.ExecuteAsync("DELETE FROM analytics.evidence_archive_run WHERE boundary_set_id = @s", new { s = set.SetId });
+        (await EvidenceArchiveReader.ForMethodRunAsync(conn, set.MethodRuns[0], CancellationToken.None)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task A_rebuild_stored_beside_a_swept_run_does_not_hide_its_archived_proof()
     {
         // CHG-102 E2E 2026-11-04: an EVALUATE (or "Reconstruct evidence") of a window whose live rows were swept stores its

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Dapper;
 using Npgsql;
 
@@ -27,7 +28,7 @@ public static class EvidenceArchiveReader
     {
         var set = await LocateAsync(conn, "method_run_ids", methodRunId, ct);
         if (set is null) return Array.Empty<ArchivedArtifact>();
-        var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
+        var all = await LoadCachedAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
         return await ResolveAsync(all.Where(a => a.Manifest.MethodRunId == methodRunId).ToList(), traces, ct);
     }
 
@@ -37,10 +38,42 @@ public static class EvidenceArchiveReader
     {
         var set = await LocateAsync(conn, "evidence_ids", evidenceId, ct);
         if (set is null) return null;
-        var all = await LoadAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
+        var all = await LoadCachedAsync(conn, set.Value.SetId, set.Value.WindowEnd, ct);
         var one = all.FirstOrDefault(a => a.Manifest.EvidenceId == evidenceId);
         return one is null ? null : (await ResolveAsync(new List<ArchivedArtifact> { one }, traces, ct))[0];
     }
+
+    // CHG-102 perf: an archived set is immutable (its pack carries its own SHA-256), and a Workbench window reads it 3+ times
+    // (manifest, bundle, every chunk of the per-chunk route) - each read decompressed the whole pack again. Unpacked sets are
+    // kept CacheFor, newest first, within CacheBytes. A set dropped by retention loses its run row first, so LocateAsync
+    // stops finding it and a cached copy is never served after a drop. Trace-form artifacts are cached un-rebuilt (the
+    // rehydrator keeps its own short cache: the historian decides each time whether the trace is still servable).
+    private static readonly ConcurrentDictionary<Guid, (DateTime At, long Bytes, List<ArchivedArtifact> Set)> SetCache = new();
+    public static TimeSpan CacheFor { get; set; } = TimeSpan.FromMinutes(10);
+    public static long CacheBytes { get; set; } = 64L * 1024 * 1024;
+
+    /// <summary>LoadAsync through the unpacked-set cache.</summary>
+    public static async Task<List<ArchivedArtifact>> LoadCachedAsync(NpgsqlConnection conn, Guid setId, DateTime windowEnd, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        if (SetCache.TryGetValue(setId, out var hit) && now - hit.At < CacheFor) return hit.Set;
+        var set = await LoadAsync(conn, setId, windowEnd, ct);
+        if (set.Count == 0) return set;                     // "not archived any more": never cached
+        var bytes = set.Sum(a => a.Chunks.Sum(c => (long)c.Payload.Length) + 2048);
+        if (bytes > CacheBytes / 4) return set;             // one huge set must not flush the rest
+        SetCache[setId] = (now, bytes, set);
+        var total = SetCache.Values.Sum(v => v.Bytes);
+        foreach (var old in SetCache.Where(kv => now - kv.Value.At >= CacheFor).ToList()) { SetCache.TryRemove(old.Key, out _); total -= old.Value.Bytes; }
+        foreach (var old in SetCache.OrderBy(kv => kv.Value.At).ToList())
+        {
+            if (total <= CacheBytes) break;
+            if (SetCache.TryRemove(old.Key, out var gone)) total -= gone.Bytes;
+        }
+        return set;
+    }
+
+    /// <summary>Empties the unpacked-set cache (tests that alter a pack in place).</summary>
+    public static void ClearCache() => SetCache.Clear();
 
     private static async Task<IReadOnlyList<ArchivedArtifact>> ResolveAsync(List<ArchivedArtifact> list, EvidenceTraceRehydrator? traces,
         CancellationToken ct) =>
