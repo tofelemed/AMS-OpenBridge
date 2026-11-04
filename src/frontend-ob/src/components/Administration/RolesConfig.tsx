@@ -2,9 +2,8 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcCheckbox } from '@oicl/openbridge-webcomponents-react/components/checkbox/checkbox';
-import { CheckboxStatus } from '@oicl/openbridge-webcomponents/dist/components/checkbox/checkbox.js';
 import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/components/text-input-field/text-input-field';
+import PermissionCheckbox from './PermissionCheckbox';
 import {
   getRoles, getPermissionCatalog, getRolePermissions, setRolePermissions,
   resetRolePermissions, createRole, deleteRole, updateRole,
@@ -260,15 +259,13 @@ export const RolesConfig: React.FC = () => {
                         </button>
                       </div>
                       {perms.map((p) => (
-                        <label key={p.permission_key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer' }}>
-                          <ObcCheckbox
-                            status={selectedPerms.has(p.permission_key) ? CheckboxStatus.checked : CheckboxStatus.unchecked}
-                            onChange={() => togglePerm(p.permission_key)}
-                          />
-                          <span style={{ fontSize: 12.5, color: T.textPrimary }} title={p.description ?? ''}>
-                            {p.permission_key}
-                          </span>
-                        </label>
+                        <PermissionCheckbox
+                          key={p.permission_key}
+                          permissionKey={p.permission_key}
+                          description={p.description}
+                          checked={selectedPerms.has(p.permission_key)}
+                          onToggle={() => togglePerm(p.permission_key)}
+                        />
                       ))}
                     </div>
                   );
