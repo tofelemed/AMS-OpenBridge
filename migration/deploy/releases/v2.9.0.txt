@@ -9,7 +9,7 @@
 #   cplm-api           CHG-102 phases 2-6, 8: tiered KPI / verdict reads from IoTDB, hourly short partitions (6 h by DROP),
 #                      3-year fleet KPI history, evidence boundary archive (+ trace references with layout v2), on-demand
 #                      EVALUATE runs + status consumer, episode / pin-kept archive sets.
-#   ams-frontend       KPI history ranges 14 d / 90 d / 1 y / 3 y with plant-day labels, archived-evidence source, Workbench
+#   ams-frontend       KPI history ranges 14 d / 90 d / 1 y / 3 y with plant-day labels, Workbench
 #                      "Evaluate a window from the historian".
 #   ams-api            CHG-102 phase 1 raw writer (aligned / templated; behaviour changes only with IOTDB_LAYOUT=v2).
 #

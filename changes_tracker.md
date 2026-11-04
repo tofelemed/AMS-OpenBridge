@@ -5250,7 +5250,7 @@ measurements are in `docs/next-release/plan-iotdb-postgres.md`, `docs/next-relea
 **Services updated:**
 - `cplm-api` (image) - phases 2-6, 8.
 - `ams-flink` (jar + image: Long, Fusion and the replay change; NEW job "AMS - CPLM On-Demand Evaluation") - full Flink swap.
-- `ams-frontend` (image) - KPI history ranges, plant-day labels, evidence source, Evaluate a window.
+- `ams-frontend` (image) - KPI history ranges, plant-day labels, Workbench "Evaluate a window", evaluated-run verdict (`?analysisRun`) and basis label. Archived evidence needs no frontend change (served as the same manifest).
 - `ams-api` (image) - phase 1 raw writer (only matters once `IOTDB_LAYOUT=v2`).
 - Files from the source tarball: `migration/04b-submit-flink-jobs.sh` (8 jobs), `infra/docker/*` (iotdb-layout-v2.sh, compose
   env), `migration/daily-check.sh`, `migration/backup-iotdb.sh`, `migration/cron.d/cpa-iotdb-backup`, `migration/kafka/topics.txt`.
