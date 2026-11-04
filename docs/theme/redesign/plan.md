@@ -1,6 +1,6 @@
 # CPA redesign plan (CPA-UI-PRM-004 R02)
 
-Status: Phase 0 stopped at the §2 document check. Sections after §0 are written once skill R1.2 is in place.
+Status: Phase 0 complete. Later phases record their progress in the phase reports and `decision-ui.md`.
 
 ## 0. Backup record (Phase 0 step 0)
 
@@ -174,19 +174,96 @@ Status: Phase 0 stopped at the §2 document check. Sections after §0 are writte
 | M | `prod_decision.md` |
 | A | `tests/ops/test_iotdb_move_v2.py` |
 
+### Second backup (decision UI-001)
+
+The owner asked for skill R1.2, the placed documents and this section to go into the backup. Rule 11 forbids moving the first backup, so a second one was added.
+
+| Item | Value |
+|---|---|
+| Backup commit | `4e05e6090cca76eeb91188e0a71b3381d6f125e0` on `feat/cpa-redesign` |
+| Backup branch | `backup/cpa-pre-redesign-20261104-r2` |
+| Backup tag | `backup/cpa-pre-redesign-20261104-r2` (annotated, object `862a262a61ea7c7a9eb436d4aebdc74ebec81e52`) |
+| Verified with `git ls-remote` | Branch, tag (peeled) and `feat/cpa-redesign` all resolve to `4e05e609` |
+
 ## 1. Reading record
 
-Not started. §2 of the prompt stopped at skill R1.2.
+All §2 documents are present. Skill checks run on the worktree copy:
 
-| Document | Path | State |
+| Check | Result |
+|---|---|
+| `SKILL.md` and `references/tokens.css` state R1.2 | Yes |
+| `references/tokens.json` present; `python scripts/tokens_json.py . --check` | 122 values compared, 74 hex, 0 mismatches |
+| `python scripts/contrast.py` | 126 pairings, 121 pass, 5 documented exceptions; minimum text 4.587, minimum non-text 3.153 |
+| Skill against the guide PDF pp.3-5 (`docs/theme/tools/skill-vs-pdf.py`) | **74 compared, 0 mismatches**: [evidence/phase-0/skill-vs-pdf.md](evidence/phase-0/skill-vs-pdf.md) |
+
+Read in full: DEC-001, DEC-002, SPEC-001, PRM-002, PRM-004, skill `SKILL.md` and `components.md`. Guide pp.1-7, 11-13 and 26-29 were read directly. Guide pp.8-10, 14-25 and 30 were read during the PRM-003 Part H pass, and their suite pattern is in `deep/conformance-matrix.md` §1.
+
+The guide states a lowest non-text ratio of 3.093 and 94 pairings (p.5); the skill's wider set reports 3.153 and 126. They measure different pairing sets and no token value differs, so this is not a conflict.
+
+## 2. Inventory deltas
+
+[evidence/phase-0/inventory-deltas.md](evidence/phase-0/inventory-deltas.md). Against the analysis: live files 322 → 324 (the focus helper and `PermissionCheckbox`), one native input added, one `ObcCheckbox` removed. No colour count changed.
+
+## 3. Baselines
+
+| Check | Baseline at `4e05e609` |
+|---|---|
+| `npx tsc --noEmit` | 0 errors |
+| `npm run lint` | 0 findings |
+| `npm test` | 112 files, 539 tests, all pass |
+
+## 4. Lab fitness (PRM-003 rule)
+
+Measured 2026-11-04 14:43 UTC: 243 loops, 10 evaluated within their window (4 %), 78 never evaluated, 0 current findings. **The rule is not met.** Development continues; Phase 8 acceptance needs the rule met or is recorded as conditional (DEC-002 Q-A).
+
+## 5. Files and components per phase
+
+| Phase | New | Changed |
 |---|---|---|
-| Guide R01 | `docs/design/Traverse_UI_Design_and_Development_Guide_R01.pdf` | Placed, 30 pages |
-| Skill R1.2 | `.claude/skills/traverse-design-system/` | **Missing: `SKILL.md` and `references/tokens.css` say R1.1** |
-| Programme brief R03 | `docs/theme/TRV-UI-BRF-001.md` | Placed from the bundle |
-| DEC-001 R01 | `docs/theme/CPA-UI-DEC-001-R01.md` | Placed from the bundle |
-| DEC-002 R01 | `docs/theme/CPA-UI-DEC-002-R01.md` | Present |
-| SPEC-001 R01 | `docs/theme/CPA-UI-SPEC-001-R01.md` | Present |
-| PRM-002 R01 | `docs/theme/CPA-UI-PRM-002-R01.md` | Placed from the bundle |
-| PRM-004 R02 | `docs/theme/CPA-UI-PRM-004-R02.md` | Present |
-| Analyses | `docs/theme/cpa-currenttheme.md`, `docs/theme/deep/` | Present |
-| OpenBridge skill | `.claude/skills/openbridge/SKILL.md` | Present |
+| 1 | `styles/traverse-tokens.css`, `styles/openbridge-bridge.css`, `styles/tones.css`, `theme/theme.ts`, `theme/ThemeContext.tsx`, `charts/chartTheme.ts`, `scripts/theme/check-tokens.mjs`, `scripts/theme/contrast.mjs`, `components/Designer/trend/trend.css` | `index.html`, `main.tsx`, `App.tsx`, `designTokens.css`, `useObcTheme.ts`, 11 chart components, `package.json`, `CLAUDE.md`. Dead stylesheets deleted |
+| 2 | `ui/shell/*`, `cpa/context.ts`, `cpa/redirects.ts`, `scripts/redesign/check-redirects.mjs`, `check-geometry.mjs` | `App.tsx`, `cpaHref.ts`, `cpmTasks.ts`, `navItems.ts`, `plantScope.tsx` |
+| 3 | `ui/` components of SPEC 6.2-6.16, `help/registry.ts`, `docs/theme/redesign/components.md`, gallery route | 19 files replacing the nine OpenBridge types |
+| 4 | `pages/cpa/overview/*`, `performance/*`, `episodes/*`, `scripts/redesign/check-a11y.mjs` | Router |
+| 5 | `pages/cpa/loop/*` | Router, redirects |
+| 6 | `pages/cpa/evidence/*`, `setup/*`, `system/*`, `trend/*`, `login/*` | `Administration/*`, redirects |
+| 7 | None | Pages: toggletips, `title` removal, content, T12 |
+| 8 | `README.md`, `geometry-deviations.md`, `acceptance-record.md` | Old pages removed after the import graph clears them |
+
+## 6. Component build order
+
+Each depends only on those before it.
+
+1. Tokens, bridge, `chartTheme.ts` (Phase 1).
+2. AppShell, ContextHeader (Phase 2).
+3. Buttons, form controls, SegmentedControl, Tabs.
+4. StatusBadge, DataState, TechnicalDetails.
+5. Dialog, Inspector, Toggletip with the help registry.
+6. MetricSummary, DataTable, AssetPicker.
+7. TrendPanel, last because it uses the rest.
+
+## 7. Redirect implementation
+
+- `cpa/redirects.ts` holds one pure function per row of SPEC §2.3: old path and search in, new path and search out. Unlisted parameters carry unchanged.
+- Each old `<Route>` renders a `RedirectTo` element that calls it with `replace`, gated by a per-row switch turned on in the phase that ships the destination.
+- `scripts/redesign/check-redirects.mjs` runs every row, parameters included, against the pure functions. The gate runs without a browser, so it stays fast.
+
+## 8. Current components each destination consumes
+
+| Destination | Consumes |
+|---|---|
+| Overview | `CpmOverview`, `overview/*`, `CpmKpiDrilldown`, `kpi/*` |
+| Performance | `CpmPerformance`, `GateMatrix`, `GateMatrixChecks`, `GateRollup`, `AttentionList`, `GateEvidencePanel`, `GateLegend` |
+| Episodes | `CpmEvents`, `events/*` |
+| Loop | `CpmExplorer`, `explorer/*`, `CpmHistorical`, `historical/*`, `CpmInvestigation`, `investigation/*`, `health/*`, `response/*`, `trend/*` |
+| Evidence | `evidence/*`, `CpmReplay`, `replay/*`, `CpmWindows`, `windows/*`, `CpmCalculations`, `CalcDrawer` |
+| Setup | `LoopRegistry`, `registry/*`, `ProfileAside`, `AddLoopWizard`, `BulkImportDialog`, `config/*` |
+| System | `CpmPipeline`, `CpmGovernance`, `Administration/*` |
+| Tag trend | `Designer/TrendPage`, `TrendCore`, `Designer/trend/*` |
+
+## 9. Label register seed
+
+Started in [label-register.md](label-register.md). Each entry is added in the phase that first renders the label.
+
+## 10. Open items
+
+Recorded as they arise in [decision-ui.md](decision-ui.md).

@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Login from './Login';
+
+// vite.config.ts injects this constant at build time; the test runner does not.
+vi.stubGlobal('__APP_VERSION__', 'test');
 
 afterEach(cleanup);
 

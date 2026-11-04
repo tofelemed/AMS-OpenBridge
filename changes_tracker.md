@@ -5304,3 +5304,18 @@ browser checks of KPI history, Evidence Workbench (archive, evaluation; day / ni
 
 **Still open:** plant check that raw values are 32-bit before trace references (5b-2); SME D7 (compact archive after 90 d, not
 built); D5 (whether backups carry the archive); the release build itself.
+
+## CHG-110 — CPA redesign Phase 0: backup, live focus and login defects (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** CPA-UI-PRM-004 Phase 0, and DEC-002 RD12 defects that should not wait for the redesign.
+
+**Fixed**
+- Dialog footers unreachable by Tab: the focus trap searched the light DOM, so buttons inside `ObcButton` shadow roots were skipped. New `hooks/focusTrap.ts` walks shadow roots.
+- Drawers did not trap focus and lost it on close. `useDialogA11y` now traps Tab and restores focus to the element that really held it.
+- Every role permission read "Checkbox item". New `PermissionCheckbox` uses a native checkbox named by its permission key.
+- Login: the IEC 62443 sentence is removed, "Secure sign in" is now "Sign in" (CD20). The authorized-use notice stays.
+
+**Tests.** 23 new tests; suite 562 / 562.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
