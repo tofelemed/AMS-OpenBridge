@@ -13,13 +13,6 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; title?: string }) =>
     React.createElement('button', { onClick: p.onClick, title: p.title }, p.children),
 }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/accordion-item/accordion-item', () => ({
-  // the real item is a button with aria-expanded; the mock keeps that contract
-  ObcAccordionItem: (p: { title: string; open?: boolean; children?: React.ReactNode; onAccordionItemToggle?: (e: { detail: { open: boolean } }) => void }) =>
-    React.createElement('div', null,
-      React.createElement('button', { 'aria-expanded': !!p.open, onClick: () => p.onAccordionItemToggle?.({ detail: { open: !p.open } }) }, p.title),
-      p.children),
-}));
 afterEach(cleanup);
 
 const loop = { loopId: 'FIC10405', displayName: 'Hexane feed', site: 'hdpe', area: 'a', unit: 'u', criticality: 'high', tags: { PV: 'x', OP: 'y' }, links: [] } as unknown as CpmLoop;
@@ -55,14 +48,14 @@ describe('LoopSummaryCard', () => {
 
   it('keeps the basis, data and limitations behind one closed disclosure with a one-line summary', () => {
     renderCard(<div data-testid="readiness">readiness</div>, '1 plant fact(s)');
-    const toggle = screen.getByRole('button', { name: 'Basis and limitations' });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    const toggle = screen.getByText('Basis and limitations').closest('summary')!;
+    expect(toggle.closest('details')!.open).toBe(false);
     expect(screen.queryByText('Basis')).toBeNull();
     expect(screen.queryByText('Data')).toBeNull();
     expect(screen.queryByTestId('readiness')).toBeNull();
     expect(screen.getByText(/8,640 samples · 1 plant fact\(s\)/)).toBeTruthy();
     fireEvent.click(toggle);
-    expect(screen.getByRole('button', { name: 'Basis and limitations' }).getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.closest('details')!.open).toBe(true);
     expect(screen.getByText('Basis')).toBeTruthy();
     expect(screen.getByText('Data')).toBeTruthy();
     expect(screen.getByText('Limitations')).toBeTruthy();

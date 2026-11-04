@@ -3,10 +3,13 @@
  * renders the panel and links it with `tabPanelProps`.
  */
 import React, { useRef } from 'react';
+import './forms/forms.css';
 
 export interface TabOption<T extends string> {
   value: T;
   label: string;
+  /** A count beside the label. Zero is shown: it answers the question without a click. */
+  badge?: number;
 }
 
 const tabId = (base: string, value: string) => `${base}-tab-${value}`;
@@ -61,6 +64,7 @@ export function Tabs<T extends string>({ idBase, label, options, value, onChange
           onKeyDown={e => onKeyDown(e, i)}
         >
           {o.label}
+          {o.badge != null && <span className="ui-tabs__badge">{o.badge}</span>}
         </button>
       ))}
     </div>

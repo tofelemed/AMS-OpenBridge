@@ -23,7 +23,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcAccordionItem } from '@oicl/openbridge-webcomponents-react/components/accordion-item/accordion-item';
+import { Accordion } from '../../../../ui/forms/Accordion';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { TonePill, toneFor } from '../../shared';
@@ -161,11 +161,10 @@ export const LoopSummaryCard: React.FC<{
         </span>
       </div>
 
-      {/* CHG-098 (SME review 2 #20): the long basis behind one disclosure (obc-accordion-item: a button with aria-expanded) */}
+      {/* CHG-098 (SME review 2 #20): the long basis behind one disclosure */}
       <div className="cpm-loop-summary__more">
-        <ObcAccordionItem title="Basis and limitations" open={basisOpen}
-          onAccordionItemToggle={(e: CustomEvent<{ open: boolean }>) => setBasisOpen(!!e.detail?.open)}>
-          <div slot="expanded-content" className="cpm-collapsible__body">
+        <Accordion label="Basis and limitations" open={basisOpen} onToggle={setBasisOpen}>
+          <div className="cpm-collapsible__body">
             {basisOpen && (
               <>
                 <dl className="cpm-loop-summary__rows">
@@ -214,7 +213,7 @@ export const LoopSummaryCard: React.FC<{
               </>
             )}
           </div>
-        </ObcAccordionItem>
+        </Accordion>
         {!basisOpen && basisLine && <p className="cpm-collapsible__summary">{basisLine}</p>}
       </div>
     </section>

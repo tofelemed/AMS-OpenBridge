@@ -14,9 +14,9 @@
   border-radius: 8px;
   background: var(--container-backdrop-color);
 }
-.cpm-loop-summary--good  { --cpm-tone: var(--alert-running-color); }
-.cpm-loop-summary--warn  { --cpm-tone: var(--alert-caution-color); }
-.cpm-loop-summary--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-loop-summary--good  { --cpm-tone: var(--tone-success); }
+.cpm-loop-summary--warn  { --cpm-tone: var(--tone-warning); }
+.cpm-loop-summary--bad   { --cpm-tone: var(--tone-danger); }
 .cpm-loop-summary--muted { --cpm-tone: var(--element-neutral-color); }
 
 .cpm-loop-summary__head {
@@ -33,7 +33,7 @@
 /* CHG-098 lab pass: caution-yellow TEXT on a light card is unreadable (~1.5:1); the age is a small caution chip instead */
 .cpm-loop-summary__stale {
   font-weight: 600; padding: 0 6px; border-radius: 4px;
-  background: var(--alert-caution-color); color: var(--on-caution-color, var(--element-active-inverted-color, inherit));
+  background: var(--tone-warning); color: var(--on-caution-color, var(--element-active-inverted-color, inherit));
 }
 
 .cpm-loop-summary__rows {
@@ -70,14 +70,13 @@
 }
 .cpm-loop-summary__next-text { margin: 0; font-weight: 600; }
 /* CHG-098 (SME review 2 #20): the summary stays compact — the next check at most two lines (full text in the
-   title and on the Investigation), the basis behind one OpenBridge accordion item at the foot of the card. */
+   title and on the Investigation), the basis behind one accordion at the foot of the card. */
 .cpm-loop-summary__next-text {
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.cpm-loop-summary__more { margin: -4px -8px -6px; min-width: 0; }
-.cpm-loop-summary__more obc-accordion-item { display: block; width: 100%; }
-.cpm-loop-summary__more .cpm-collapsible__summary { margin: 0 8px 4px; }
-.cpm-loop-summary__more .cpm-collapsible__body { padding: 4px 8px 8px; }
+.cpm-loop-summary__more { min-width: 0; }
+.cpm-loop-summary__more .cpm-collapsible__summary { margin: 4px 0; }
+.cpm-loop-summary__more .cpm-collapsible__body { padding: 4px 0 8px; }
 .cpm-loop-summary__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 
 @media (max-width: 1100px) {
@@ -110,15 +109,15 @@
 .cpm-op__seg { min-width: 4px; }
 /* CHG-082: one segment per state of the KPI partition (sums to the monitored loops). Colour only where it means
    something (ISA-101): green performing, red finding, amber stale; the rest neutral, told apart by pattern and label. */
-.cpm-op__seg--acceptable { background: var(--alert-running-color); }
-.cpm-op__seg--finding    { background: var(--alert-alarm-color); }
-.cpm-op__seg--symptom    { background: var(--alert-caution-color); opacity: 0.55; }
+.cpm-op__seg--acceptable { background: var(--tone-success); }
+.cpm-op__seg--finding    { background: var(--tone-danger); }
+.cpm-op__seg--symptom    { background: var(--tone-warning); opacity: 0.55; }
 .cpm-op__seg--outOfMode  { background: var(--element-neutral-color); opacity: 0.55; }
 .cpm-op__seg--notAssessable {
   background: repeating-linear-gradient(135deg,
     var(--element-neutral-color) 0 3px, var(--container-backdrop-color) 3px 6px);
 }
-.cpm-op__seg--stale      { background: var(--alert-caution-color); }
+.cpm-op__seg--stale      { background: var(--tone-warning); }
 .cpm-op__seg--never      { background: var(--border-divider-color); outline: 1px dashed var(--element-neutral-color); outline-offset: -1px; }
 .cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--cpm-text-small); }
 .cpm-op__legend li { display: inline-flex; align-items: center; gap: 6px; }
@@ -206,9 +205,9 @@
   background: var(--container-background-color, var(--container-backdrop-color));
   border: 1px solid var(--border-divider-color); border-left-width: 3px;
 }
-.cpm-kpicard--good  { border-left-color: var(--alert-running-color); }
-.cpm-kpicard--warn  { border-left-color: var(--alert-caution-color); }
-.cpm-kpicard--bad   { border-left-color: var(--alert-alarm-color); }
+.cpm-kpicard--good  { border-left-color: var(--tone-success); }
+.cpm-kpicard--warn  { border-left-color: var(--tone-warning); }
+.cpm-kpicard--bad   { border-left-color: var(--tone-danger); }
 .cpm-kpicard--muted { border-left-color: var(--border-divider-color); }
 .cpm-kpicard--link { cursor: pointer; transition: border-color 120ms ease, box-shadow 120ms ease; }
 .cpm-kpicard--link:hover { border-color: var(--instrument-enhanced-primary-color); box-shadow: 0 1px 4px var(--border-divider-color); }
@@ -220,8 +219,8 @@
 }
 .cpm-kpicard__icon > * { width: 18px; height: 18px; }
 .cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--cpm-text-small); font-weight: 600; white-space: nowrap; }
-.cpm-kpicard__delta--good { color: var(--alert-running-color); --element-active-color: var(--alert-running-color); }
-.cpm-kpicard__delta--bad  { color: var(--alert-alarm-color); --element-active-color: var(--alert-alarm-color); }
+.cpm-kpicard__delta--good { color: var(--tone-success); --element-active-color: var(--tone-success); }
+.cpm-kpicard__delta--bad  { color: var(--tone-danger); --element-active-color: var(--tone-danger); }
 .cpm-kpicard__delta--flat { color: var(--element-neutral-color); }
 .cpm-kpicard__arrow { display: inline-flex; width: 16px; height: 16px; }
 .cpm-kpicard__arrow > * { width: 16px; height: 16px; }

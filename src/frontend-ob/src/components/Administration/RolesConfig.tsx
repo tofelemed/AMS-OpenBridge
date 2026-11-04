@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/components/text-input-field/text-input-field';
+import { TextInput } from '../../ui/forms/TextInput';
 import PermissionCheckbox from './PermissionCheckbox';
 import {
   getRoles, getPermissionCatalog, getRolePermissions, setRolePermissions,
@@ -38,6 +38,9 @@ export const RolesConfig: React.FC = () => {
   const [newDesc, setNewDesc] = useState('');
 
   const selectedRole = roles.find((r) => r.role_name === selected) ?? null;
+  // The description saves on commit (blur or Enter), so the field edits a draft of the stored text.
+  const [descDraft, setDescDraft] = useState('');
+  useEffect(() => { setDescDraft(selectedRole?.description ?? ''); }, [selectedRole?.role_name, selectedRole?.description]);
   const dirty = useMemo(() => {
     if (selectedPerms.size !== baseline.size) return true;
     for (const k of selectedPerms) if (!baseline.has(k)) return true;
@@ -179,14 +182,10 @@ export const RolesConfig: React.FC = () => {
 
       {creating && (
         <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <label style={{ fontSize: 12, color: T.textSecondary, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            Role name
-            <ObcTextInputField value={newName} placeholder="e.g. ShiftSupervisor" onInput={(e: any) => setNewName(e.target.value)} />
-          </label>
-          <label style={{ fontSize: 12, color: T.textSecondary, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 240 }}>
-            Description
-            <ObcTextInputField value={newDesc} placeholder="What this role is for" onInput={(e: any) => setNewDesc(e.target.value)} />
-          </label>
+          <TextInput label="Role name" value={newName} placeholder="e.g. ShiftSupervisor" onChange={setNewName} />
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <TextInput label="Description" value={newDesc} placeholder="What this role is for" onChange={setNewDesc} />
+          </div>
           <ObcButton variant="raised" disabled={busy || !newName.trim()} onClick={onCreate}>Create</ObcButton>
         </div>
       )}
@@ -233,10 +232,13 @@ export const RolesConfig: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ marginTop: 6, maxWidth: 420 }}>
-                    <ObcTextInputField
-                      value={selectedRole.description ?? ''}
+                    <TextInput
+                      label="Role description"
+                      hideLabel
+                      value={descDraft}
                       placeholder="Role description"
-                      onChange={(e: any) => onSaveDescription(e.target.value)}
+                      onChange={setDescDraft}
+                      onCommit={onSaveDescription}
                     />
                   </div>
                 </div>

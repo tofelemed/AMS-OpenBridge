@@ -18,14 +18,6 @@ vi.mock('../../../api/apiFetch', async (importOriginal) => {
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/accordion-item/accordion-item', () => ({
-  // CHG-050: the explain / evidence sections are accordion items — title as a heading, a toggle, content when open.
-  ObcAccordionItem: (p: { title: string; open?: boolean; children?: React.ReactNode; onAccordionItemToggle?: (e: { detail: { open: boolean } }) => void }) =>
-    React.createElement('div', null,
-      React.createElement('h2', null, p.title),
-      React.createElement('button', { onClick: () => p.onAccordionItemToggle?.({ detail: { open: !p.open } }) }, `Toggle ${p.title}`),
-      p.children),
-}));
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
@@ -109,7 +101,7 @@ describe('GateEvidenceWorkspace', () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await waitFor(() => expect(screen.getAllByText(/Base performance/).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/FIXED/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle Identity' }));   // CHG-050: collapsed by default
+    fireEvent.click(Array.from(document.querySelectorAll('summary')).find(s => s.textContent === 'Identity')!);   // CHG-050: collapsed by default
     expect(screen.getAllByText(/profile:ef9abb/).length).toBeGreaterThan(0);
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
     expect(urls().some(u => u.includes('/fleet/'))).toBe(false);

@@ -11,8 +11,7 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
 import { fmtRange, toLocalInput, type RangePreset } from '../historical/timeRange';
 
 export interface TimeRangeBarProps {
@@ -41,7 +40,6 @@ export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
   from, to, presets, preset, onPreset, onStep, nowLabel = 'Now', nowTitle, onNow, onApplyCustom, stateNote, children,
   hideCustomInputs = false,
 }) => {
-  const keys = [...presets.map(p => p.key), 'custom'];
   const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
   const [draftTo, setDraftTo] = React.useState(() => toLocalInput(to));
   const [rangeError, setRangeError] = React.useState<string | null>(null);
@@ -58,21 +56,14 @@ export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
 
   return (
     <div className="cpm-range-bar">
-      {/* A segmented group, not loose buttons — the same component and empty-first-emit guard as the
-          Performance window toggle. */}
-      <ObcToggleButtonGroup value={customOpen ? 'custom' : preset} aria-label="Range preset"
-        onValue={(e: CustomEvent<{ value: string }>) => {
-          const v = e.detail.value;
-          if (!keys.includes(v)) return;
+      {/* A segmented group, not loose buttons — the same component as the Performance window toggle. */}
+      <SegmentedControl label="Range preset" ignoreReselect value={customOpen ? 'custom' : preset}
+        options={[...presets.map(p => ({ value: p.key, label: p.label })), { value: 'custom', label: 'Custom' }]}
+        onChange={v => {
           if (v === 'custom') { setCustomOpen(true); return; }
           setCustomOpen(false);
           onPreset(v);
-        }}>
-        {presets.map(p => (
-          <ObcToggleButtonOption key={p.key} value={p.key}>{p.label}</ObcToggleButtonOption>
-        ))}
-        <ObcToggleButtonOption value="custom">Custom</ObcToggleButtonOption>
-      </ObcToggleButtonGroup>
+        }} />
 
       <div className="cpm-hist-stepper">
         <ObcButton variant="flat" title="One period earlier" onClick={() => onStep(-1)}>‹</ObcButton>

@@ -11,8 +11,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { chartPalette, useChartTheme } from '../../../charts/chartTheme';
 import { useCpmLoops } from '../../../hooks/useCpm';
@@ -21,6 +20,8 @@ import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
 import { EmptyState } from '../shared';
 import { BAND_NOTE, hasPvRange, hasSignalValues, signalTrendOption, type TrendScale } from './trendOption';
+
+const NO_RANGE = 'No PV engineering range is registered for this loop (Loop Registry)';
 
 export const SignalTrend: React.FC<{
   loopId: string;
@@ -68,21 +69,16 @@ export const SignalTrend: React.FC<{
     <div className="cpm-signal-trend">
       <div className="cpm-signal-trend__bar">
         {caption && <span className="cpm-eyebrow cpm-signal-trend__caption">{caption}</span>}
-        <ObcToggleButtonGroup value={scale} aria-label="Trend scale"
-          onValue={(e: CustomEvent<{ value: string }>) => {
-            const v = e.detail.value;
-            if (v === 'fit' || (v === 'range' && rangeUsable)) setChosen(v);
-          }}>
-          <ObcToggleButtonOption value="fit" title="Scale each axis to the plotted data: shows the shape of the signals">
-            Fit to data
-          </ObcToggleButtonOption>
-          <ObcToggleButtonOption value="range" disabled={!rangeUsable}
-            title={rangeUsable
-              ? 'Scale to the registered engineering range: shows where the loop sits in its span'
-              : 'No PV engineering range is registered for this loop (Loop Registry)'}>
-            Engineering range
-          </ObcToggleButtonOption>
-        </ObcToggleButtonGroup>
+        <SegmentedControl label="Trend scale" ignoreReselect value={scale} onChange={setChosen}
+          options={[
+            { value: 'fit', label: <span title="Scale each axis to the plotted data: shows the shape of the signals">Fit to data</span> },
+            {
+              value: 'range',
+              label: <span title={rangeUsable ? 'Scale to the registered engineering range: shows where the loop sits in its span' : NO_RANGE}>Engineering range</span>,
+              disabled: !rangeUsable,
+              reason: NO_RANGE,
+            },
+          ]} />
       </div>
       <ReactECharts option={option} style={{ height }} notMerge
         onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />

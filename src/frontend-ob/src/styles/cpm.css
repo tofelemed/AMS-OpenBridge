@@ -23,15 +23,15 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Tone mapping (single source of truth) ──
-   `good` is --alert-running-color (green), NOT
+   `good` is --tone-success (green), NOT
    --instrument-enhanced-secondary-color, which resolves to rgb(45,84,139) —
    navy — in the day theme. Every PASS pill and healthy KPI on every CPM screen
    was rendering blue, which in a diagnostic context reads as "informational",
-   not "healthy". --alert-running-color is OpenBridge's token for the running /
+   not "healthy". --tone-success is OpenBridge's token for the running /
    normal state and is theme-aware in all four themes. */
-.cpm-tone-good  { --cpm-tone: var(--alert-running-color); }
-.cpm-tone-warn  { --cpm-tone: var(--alert-caution-color); }
-.cpm-tone-bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-tone-good  { --cpm-tone: var(--tone-success); }
+.cpm-tone-warn  { --cpm-tone: var(--tone-warning); }
+.cpm-tone-bad   { --cpm-tone: var(--tone-danger); }
 .cpm-tone-muted { --cpm-tone: var(--element-neutral-color); }
 
 /* ── Layout scaffolding ── */
@@ -87,9 +87,9 @@
   white-space: nowrap;
 }
 .cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
-.cpm-pill--good  { --cpm-tone: var(--alert-running-color); }
-.cpm-pill--warn  { --cpm-tone: var(--alert-caution-color); }
-.cpm-pill--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-pill--good  { --cpm-tone: var(--tone-success); }
+.cpm-pill--warn  { --cpm-tone: var(--tone-warning); }
+.cpm-pill--bad   { --cpm-tone: var(--tone-danger); }
 .cpm-pill--muted { --cpm-tone: var(--element-neutral-color); }
 
 /* ── KPI tile ── */
@@ -103,9 +103,9 @@
   border-radius: 8px;
   background: var(--container-backdrop-color);
 }
-.cpm-kpi--good  { --cpm-tone: var(--alert-running-color); }
-.cpm-kpi--warn  { --cpm-tone: var(--alert-caution-color); }
-.cpm-kpi--bad   { --cpm-tone: var(--alert-alarm-color); }
+.cpm-kpi--good  { --cpm-tone: var(--tone-success); }
+.cpm-kpi--warn  { --cpm-tone: var(--tone-warning); }
+.cpm-kpi--bad   { --cpm-tone: var(--tone-danger); }
 .cpm-kpi__caption { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); text-transform: uppercase; letter-spacing: 0.05em; }
 .cpm-kpi__value { font-size: 1.5rem; font-weight: 600; }
 .cpm-kpi__sub { font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
@@ -128,8 +128,8 @@
   outline: 2px solid var(--instrument-enhanced-primary-color);
   outline-offset: 1px;
 }
-.cpm-input--error { border-color: var(--alert-alarm-color); }
-.cpm-field__error { color: var(--alert-alarm-color); font-size: var(--cpm-text-caption); }
+.cpm-input--error { border-color: var(--tone-danger); }
+.cpm-field__error { color: var(--tone-danger); font-size: var(--cpm-text-caption); }
 
 /* ── Key/value rows ── */
 .cpm-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-divider-color); }
@@ -205,9 +205,9 @@
   gap: 10px;
   align-items: flex-start;
   padding: 12px 14px;
-  border: 1px solid var(--alert-caution-color);
+  border: 1px solid var(--tone-warning);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--alert-caution-color) 8%, transparent);
+  background: color-mix(in srgb, var(--tone-warning) 8%, transparent);
   font-size: var(--cpm-text-small);
 }
 
@@ -264,7 +264,7 @@
       gate row, the loop column and the result column all pin, and the scroll
       box is height-bounded so a 200-row fleet cannot push the panels below it
       off the page.
-   2. FILLED CELLS, NOT COLOURED GLYPHS. --alert-caution-color is rgb(255,219,66)
+   2. FILLED CELLS, NOT COLOURED GLYPHS. --tone-warning is rgb(255,219,66)
       in the day theme: as TEXT on a light surface that is ~1.7:1, a hard WCAG
       1.4.3 failure on the most important signal this screen carries. OpenBridge
       ships the accessible pairing — the alert colour as a FILL with its
@@ -368,14 +368,14 @@
 /* the neutral TEXT token: element-inactive is for inactive controls and measured 3.6-3.9:1 as text in night (lab sweep 2026-10-15) */
 .cpm-matrix__cell--muted { --cpm-chip-fg: var(--element-neutral-color); }
 .cpm-matrix__cell--warn {
-  --cpm-chip-bg: var(--alert-caution-color);
+  --cpm-chip-bg: var(--tone-warning);
   --cpm-chip-fg: var(--on-caution-color);
-  --cpm-chip-border: var(--alert-caution-outline-color);
+  --cpm-chip-border: var(--tone-warning);
 }
 .cpm-matrix__cell--bad {
-  --cpm-chip-bg: var(--alert-alarm-color);
+  --cpm-chip-bg: var(--tone-danger);
   --cpm-chip-fg: var(--on-alarm-color);
-  --cpm-chip-border: var(--alert-alarm-outline-color);
+  --cpm-chip-border: var(--tone-danger);
 }
 .cpm-matrix__cell:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
 .cpm-matrix__cell:focus-visible,
@@ -403,8 +403,8 @@
   /* on the caution CONTAINER background the readable text is the theme's active text, not on-caution (black on the night
      theme's dark caution container measured 1.3:1 in the lab sweep 2026-10-15) */
   color: var(--element-active-color);
-  background: var(--alert-caution-container-background-color, var(--container-section-color));
-  border: 1px solid var(--alert-caution-outline-color);
+  background: var(--tone-warning-bg, var(--container-section-color));
+  border: 1px solid var(--tone-warning);
   border-radius: 6px;
   padding: 4px 8px;
   display: inline-block;
@@ -495,8 +495,8 @@
 }
 .cpm-rollup__stack { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 16px; height: 46px; }
 .cpm-rollup__seg { width: 100%; border-radius: 2px 2px 0 0; }
-.cpm-rollup__seg--bad { background: var(--alert-alarm-color); }
-.cpm-rollup__seg--warn { background: var(--alert-caution-color); }
+.cpm-rollup__seg--bad { background: var(--tone-danger); }
+.cpm-rollup__seg--warn { background: var(--tone-warning); }
 .cpm-rollup__count { font-size: var(--cpm-text-caption); font-weight: 600; color: var(--element-active-color); }
 .cpm-rollup__key { font-size: var(--cpm-text-caption); }
 
@@ -765,13 +765,13 @@
 
 /* ── Consolidated readiness causes ── */
 .cpm-causes {
-  border: 1px solid var(--alert-caution-outline-color);
+  border: 1px solid var(--tone-warning);
   border-radius: 8px;
-  background: var(--alert-caution-container-background-color, var(--container-section-color));
+  background: var(--tone-warning-bg, var(--container-section-color));
   margin: 10px 0 4px;
   overflow: hidden;
 }
-.cpm-causes--blocking { border-color: var(--alert-alarm-outline-color); }
+.cpm-causes--blocking { border-color: var(--tone-danger); }
 .cpm-causes__head {
   display: flex;
   align-items: baseline;
@@ -823,10 +823,8 @@
 }
 
 /* ── Tabs + panel ──
-   obc-tab-item exposes no CSS parts, so its 140px hug floor cannot be overridden
-   from here. Below ~760px of workspace the row therefore scrolls inside its own
-   box rather than spilling out of the surface — the page body never scrolls
-   sideways. */
+   On a narrow workspace the row scrolls inside its own box rather than spilling
+   out of the surface — the page body never scrolls sideways. */
 .cpm-tabs {
   margin: 12px 0 4px;
   max-width: 100%;
@@ -976,9 +974,9 @@
 }
 .cpm-band-seg:hover { opacity: 1; }
 .cpm-band-seg--selected { outline: 2px solid var(--instrument-enhanced-primary-color); opacity: 1; }
-.cpm-band-seg--good { background: var(--alert-running-color); }
-.cpm-band-seg--warn { background: var(--alert-caution-color); }
-.cpm-band-seg--bad { background: var(--alert-alarm-color); }
+.cpm-band-seg--good { background: var(--tone-success); }
+.cpm-band-seg--warn { background: var(--tone-warning); }
+.cpm-band-seg--bad { background: var(--tone-danger); }
 .cpm-band-seg--muted { background: var(--element-neutral-color); opacity: 0.35; }
 
 /* Sample-density bar (U7): per-bucket fill vs the 5 s-grid expectation. */
@@ -989,7 +987,7 @@
   border-radius: 2px 2px 0 0;
   min-height: 2px;
 }
-.cpm-density__bucket--sparse { background: var(--alert-caution-color); }
+.cpm-density__bucket--sparse { background: var(--tone-warning); }
 .cpm-density__bucket--empty { background: var(--element-neutral-color); opacity: 0.25; }
 /* W2: beyond the raw page cap — UNKNOWN coverage, visually distinct from "empty"
    (hatched, not solid) so a capped long window stops reading as a storage gap. */
@@ -1024,7 +1022,7 @@
   letter-spacing: 0.05em;
   color: var(--element-neutral-color);
 }
-.cpm-csv-preview tr.is-bad { background: color-mix(in srgb, var(--alert-alarm-color) 8%, transparent); }
+.cpm-csv-preview tr.is-bad { background: color-mix(in srgb, var(--tone-danger) 8%, transparent); }
 .cpm-csv-drop {
   display: flex;
   align-items: center;
@@ -1043,12 +1041,12 @@
 
 /* Outcome banner variants (bulk-import result step). */
 .cpm-banner--good {
-  border-color: var(--alert-running-color);
-  background: color-mix(in srgb, var(--alert-running-color) 8%, transparent);
+  border-color: var(--tone-success);
+  background: color-mix(in srgb, var(--tone-success) 8%, transparent);
 }
 .cpm-banner--bad {
-  border-color: var(--alert-alarm-color);
-  background: color-mix(in srgb, var(--alert-alarm-color) 8%, transparent);
+  border-color: var(--tone-danger);
+  background: color-mix(in srgb, var(--tone-danger) 8%, transparent);
 }
 
 
@@ -1155,7 +1153,7 @@
 
 /* ── Signal chips: the pen palette, on the control that toggles the pen ──
    PV/SP/OP were three identical navy buttons, so nothing connected a toggle to
-   the line it draws. Each chip now carries the SAME --ams-pen-* token the chart
+   the line it draws. Each chip now carries the SAME series colour the chart
    uses, which makes the toolbar double as the chart legend. */
 .cpm-pen-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .cpm-pen-chip {
@@ -1174,10 +1172,10 @@
   cursor: pointer;
   min-height: 32px;
 }
-.cpm-pen-chip[data-pen='pv'] { --pen: var(--ams-pen-2); }
-.cpm-pen-chip[data-pen='sp'] { --pen: var(--element-neutral-color); }
-.cpm-pen-chip[data-pen='op'] { --pen: var(--ams-pen-3); }
-.cpm-pen-chip[data-pen='vp'] { --pen: var(--ams-pen-4); }
+.cpm-pen-chip[data-pen='pv'] { --pen: var(--traverse-chart-series-1); }
+.cpm-pen-chip[data-pen='sp'] { --pen: var(--traverse-chart-series-5); }
+.cpm-pen-chip[data-pen='op'] { --pen: var(--traverse-chart-series-3); }
+.cpm-pen-chip[data-pen='vp'] { --pen: var(--traverse-chart-series-4); }
 .cpm-pen-chip__swatch {
   width: 14px;
   height: 3px;
@@ -1258,8 +1256,8 @@
   border: 1px solid var(--border-divider-color);
   overflow: hidden;
 }
-.cpm-hypo__fill { display: block; height: 100%; background: var(--alert-running-color); }
-.cpm-hypo__fill--high { background: var(--alert-caution-color); }
+.cpm-hypo__fill { display: block; height: 100%; background: var(--tone-success); }
+.cpm-hypo__fill--high { background: var(--tone-warning); }
 /* CHG-065: name + score on one line, the evidence text on its own line under them — the score bar spilled
    into the evidence column when the panel sits half-width beside the reasoning chain. */
 .cpm-window-row.cpm-hypo-row { grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr); }
@@ -1304,9 +1302,9 @@
   overflow: hidden;
 }
 .cpm-goodbar__fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px; }
-.cpm-goodbar__fill--good { background: var(--alert-running-color); }
-.cpm-goodbar__fill--warn { background: var(--alert-caution-color); }
-.cpm-goodbar__fill--bad  { background: var(--alert-alarm-color); }
+.cpm-goodbar__fill--good { background: var(--tone-success); }
+.cpm-goodbar__fill--warn { background: var(--tone-warning); }
+.cpm-goodbar__fill--bad  { background: var(--tone-danger); }
 .cpm-goodbar__value { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
 
 /* ── Loop combobox ──────────────────────────────────────────────────────────

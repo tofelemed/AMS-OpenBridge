@@ -320,7 +320,7 @@
   padding: 10px 0;
   border-top: 1px solid var(--border-divider-color);
 }
-.cpm-config-property--invalid { border-left: 3px solid var(--alert-alarm-color); padding-left: 8px; }
+.cpm-config-property--invalid { border-left: 3px solid var(--tone-danger); padding-left: 8px; }
 .cpm-config-property__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-property__name { font-weight: 600; }
 .cpm-config-property__meta { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
@@ -337,13 +337,13 @@
 .cpm-config-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .cpm-config-ack { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .cpm-config-ack__jar { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
-.cpm-config-ack__reason { color: var(--alert-alarm-color); font-size: var(--cpm-text-small); }
+.cpm-config-ack__reason { color: var(--tone-danger); font-size: var(--cpm-text-small); }
 .cpm-config-approval--stale { color: var(--element-neutral-color); }
 .cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }
 /* 2026-09-18 redesign: the effective configuration read as a layer stack + a badged gate strip + one gate's table */
 .cpm-config-effective { display: flex; flex-direction: column; gap: 8px; }
 .cpm-config-layers { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
-.cpm-config-layer { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-divider-color); border-left: 4px solid var(--alert-running-color); min-width: 0; }
+.cpm-config-layer { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-divider-color); border-left: 4px solid var(--tone-success); min-width: 0; }
 .cpm-config-layer--absent { border-left-color: var(--border-divider-color); color: var(--element-neutral-color); }
 .cpm-config-layer__kind { font-size: var(--cpm-text-caption); letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color); }
 .cpm-config-layer__ref { font-weight: 600; overflow-wrap: anywhere; }
@@ -378,7 +378,7 @@
 .cpm-config-table__name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 0; border: 0; background: transparent; color: var(--element-active-color); font: inherit; text-align: left; cursor: pointer; }
 .cpm-config-table__name:hover .cpm-mono, .cpm-config-table__name[aria-expanded="true"] .cpm-mono { text-decoration: underline; text-underline-offset: 3px; }
 .cpm-config-table__name:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; border-radius: 4px; }
-.cpm-config-row--invalid td:first-child { box-shadow: inset 3px 0 0 var(--alert-alarm-color); }
+.cpm-config-row--invalid td:first-child { box-shadow: inset 3px 0 0 var(--tone-danger); }
 .cpm-config-table__editor > td { background: var(--container-backdrop-color); }
 .cpm-config-table__editor .cpm-config-property { border-top: 0; padding: 4px 0 8px; }
 .cpm-lifecycle__steps { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
@@ -397,7 +397,7 @@
 .cpm-config-deployment { position: relative; border-left: 4px solid var(--cpm-tone, var(--border-divider-color)); }
 .cpm-config-deployment::before { content: ''; position: absolute; left: -21px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--cpm-tone, var(--element-neutral-color)); }
 .cpm-config-deployment__matrix > summary { cursor: pointer; padding: 6px 0; }
-.cpm-config-deployment__partial { color: var(--alert-caution-color); font-weight: 600; }
+.cpm-config-deployment__partial { color: var(--tone-warning); font-weight: 600; }
 
 /* ── 2026-09-20 cpa-ui-fix-plan Phase 7: System Response containment ──
    Three columns that give the centre the width; the context column stacks under

@@ -21,9 +21,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcInputChip } from '@oicl/openbridge-webcomponents-react/components/input-chip/input-chip';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../ui/SegmentedControl';
+import { InputChip } from '../../ui/forms/InputChip';
 import { EmptyState, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
 import { LoopContextBar } from './context/LoopContextBar';
 import { PlantScopeFilter, useCpmScope } from './plantScope';
@@ -48,6 +47,7 @@ import type { Receipt } from './ActionReceipt';
 const fmt = (iso: string | null) => (iso ? fmtDateTime(iso) : '—');
 
 const PAGE_SIZE = 20;
+const SORT_OPTIONS = [{ value: 'triage', label: 'Triage' }, { value: 'recent', label: 'Newest' }] as const;
 
 export const CpmEvents: React.FC = () => {
   const navigate = useNavigate();
@@ -115,38 +115,21 @@ export const CpmEvents: React.FC = () => {
         summary={scope.active ? `${total} matching event(s)` : null} />
 
       <div className="cpm-filter-row">
-        <ObcToggleButtonGroup
+        <SegmentedControl
+          label="Event state"
+          ignoreReselect
           value={filter}
-          aria-label="Event state"
-          onValue={(e: CustomEvent<{ value: string }>) => {
-            // Same empty-first-emit guard as the other segmented groups.
-            if (isFilterKey(e.detail.value)) {
-              const v = e.detail.value;
-              setParams(p => { p.set('filter', v); return p; }, { replace: true });
-            }
-          }}
-        >
-          {FILTERS.map(f => (
-            <ObcToggleButtonOption key={f.key} value={f.key}>
-              {f.label}{data && <span className="cpm-tab-count"> {data.counts[f.key] ?? 0}</span>}
-            </ObcToggleButtonOption>
-          ))}
-        </ObcToggleButtonGroup>
+          options={FILTERS.map(f => ({
+            value: f.key,
+            label: <>{f.label}{data && <span className="cpm-tab-count"> {data.counts[f.key] ?? 0}</span>}</>,
+          }))}
+          onChange={v => setParams(p => { p.set('filter', v); return p; }, { replace: true })}
+        />
 
-        <label className="cpm-field cpm-field--compact">
+        <div className="cpm-field cpm-field--compact">
           <span className="cpm-field__label">Order</span>
-          <ObcToggleButtonGroup
-            value={sort}
-            onValue={(e: CustomEvent<{ value: string }>) => {
-              const v = e.detail.value;
-              if (v !== 'triage' && v !== 'recent') return;
-              setSort(v);
-            }}
-          >
-            <ObcToggleButtonOption value="triage">Triage</ObcToggleButtonOption>
-            <ObcToggleButtonOption value="recent">Newest</ObcToggleButtonOption>
-          </ObcToggleButtonGroup>
-        </label>
+          <SegmentedControl label="Order" ignoreReselect value={sort} options={SORT_OPTIONS} onChange={setSort} />
+        </div>
 
         <label className="cpm-field cpm-field--compact">
           <span className="cpm-field__label">Find</span>
@@ -156,8 +139,8 @@ export const CpmEvents: React.FC = () => {
         </label>
 
         {loopParam && (
-          <ObcInputChip label={`Loop ${loopParam}`} showIcon
-            onRemoveChip={() => setParams(p => { p.delete('loop'); return p; }, { replace: true })} />
+          <InputChip label={`Loop ${loopParam}`}
+            onRemove={() => setParams(p => { p.delete('loop'); return p; }, { replace: true })} />
         )}
 
         <span className="cpm-filter-count">

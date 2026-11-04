@@ -33,8 +33,8 @@ interface Stage {
 }
 
 const TONE_COLOR: Record<Tone, string> = {
-  good: 'var(--alert-running-color)',
-  warn: 'var(--alert-caution-color)',
+  good: 'var(--tone-success)',
+  warn: 'var(--tone-warning)',
   muted: T.textMuted,
 };
 

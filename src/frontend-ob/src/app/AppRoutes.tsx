@@ -46,6 +46,11 @@ const EvidencePage     = React.lazy(() => import('../pages/cpa/EvidencePage'));
 const SetupPage        = React.lazy(() => import('../pages/cpa/SetupPage'));
 const SystemPage       = React.lazy(() => import('../pages/cpa/SystemPage'));
 
+// Contract evidence only. Vite inlines the flag, so a default build has no route and no chunk.
+const ComponentGallery = import.meta.env.VITE_CPA_COMPONENT_GALLERY === '1'
+  ? React.lazy(() => import('../pages/cpa/ComponentGallery'))
+  : null;
+
 export const AppRoutes: React.FC = () => (
   <Routes>
         <Route path="/" element={<Navigate to={HOME_PATH} replace />} />
@@ -74,7 +79,8 @@ export const AppRoutes: React.FC = () => (
         <Route path="/cpm/windows"   element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmWindows /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmReplay /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/evidence"  element={<RequirePermission permission="analytics.view"><EvidencePage /></RequirePermission>} />
-        <Route path="/cpm/loop"      element={<RequirePermission permission="analytics.view"><LoopPage /></RequirePermission>} />
+        {ComponentGallery && <Route path="/cpm/gallery" element={<RequirePermission permission="analytics.view"><ComponentGallery /></RequirePermission>} />}
+      <Route path="/cpm/loop"      element={<RequirePermission permission="analytics.view"><LoopPage /></RequirePermission>} />
         {/* Setup holds two old pages with different guards. Each tab keeps its own (UI-015). */}
         <Route path="/cpm/setup"     element={<RequirePermission permission="analytics.view" anyOf={['analytics.view', 'cpm.config.read']}><SetupPage /></RequirePermission>} />
         <Route path="/cpm/system"    element={<RequirePermission permission="system.manage"><SystemPage /></RequirePermission>} />

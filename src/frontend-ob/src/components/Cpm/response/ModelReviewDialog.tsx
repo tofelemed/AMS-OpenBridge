@@ -5,8 +5,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
 import { KvRow, PanelHead, TonePill } from '../shared';
 import type { ReviewDecision, SystemModel } from '../../../api/cpm/response';
 import { ApiError } from '../../../api/apiFetch';
@@ -43,14 +42,12 @@ export const ModelReviewDialog: React.FC<{
           ))}
           <KvRow label="created from event">{model.createdFromEvent ?? '—'}</KvRow>
         </div>
-        <label className="cpm-field">
+        <div className="cpm-field">
           <span className="cpm-field__label">Decision</span>
-          <ObcToggleButtonGroup value={decision} aria-label="Decision"
-            onValue={(e: CustomEvent<{ value: string }>) => { const v = e.detail.value as ReviewDecision; if (DECISIONS.some(d => d.key === v)) setDecision(v); }}>
-            {DECISIONS.map(d => <ObcToggleButtonOption key={d.key} value={d.key}>{d.label}</ObcToggleButtonOption>)}
-          </ObcToggleButtonGroup>
+          <SegmentedControl label="Decision" ignoreReselect value={decision} onChange={setDecision}
+            options={DECISIONS.map(d => ({ value: d.key, label: d.label }))} />
           <span className="cpm-copy">{DECISIONS.find(d => d.key === decision)?.hint}</span>
-        </label>
+        </div>
         <label className="cpm-field">
           <span className="cpm-field__label">Approved regime (optional)</span>
           <input className="cpm-input" value={regime} onChange={e => setRegime(e.target.value)} placeholder="e.g. DEFAULT" />

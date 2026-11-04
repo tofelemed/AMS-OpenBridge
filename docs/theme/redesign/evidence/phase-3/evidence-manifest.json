@@ -1,0 +1,58 @@
+{
+ "phase": "3",
+ "capturedAt": "2026-11-04T17:03:55.808Z",
+ "base": "http://localhost:4173",
+ "sizes": [
+  "1440x1024"
+ ],
+ "routes": {
+  "performance": {
+   "url": "/cpm/performance",
+   "finalUrl": "/cpm/performance",
+   "stable": true,
+   "ms": 2807,
+   "shots": [
+    "screenshots/day/1440x1024/performance.png",
+    "screenshots/night/1440x1024/performance.png"
+   ]
+  },
+  "events": {
+   "url": "/cpm/events",
+   "finalUrl": "/cpm/events",
+   "stable": true,
+   "ms": 1427,
+   "shots": [
+    "screenshots/day/1440x1024/events.png",
+    "screenshots/night/1440x1024/events.png"
+   ]
+  },
+  "explorer": {
+   "url": "/cpm/explorer?loop=FIC10302",
+   "finalUrl": "/cpm/explorer?loop=FIC10302",
+   "stable": false,
+   "ms": 15178,
+   "shots": [
+    "screenshots/day/1440x1024/explorer.png",
+    "screenshots/night/1440x1024/explorer.png"
+   ]
+  },
+  "config": {
+   "url": "/cpm/config",
+   "finalUrl": "/cpm/config?loop=FIC10302&view=effective",
+   "stable": true,
+   "ms": 2081,
+   "shots": [
+    "screenshots/day/1440x1024/config.png",
+    "screenshots/night/1440x1024/config.png"
+   ]
+  }
+ },
+ "log": {
+  "blocked": [],
+  "http429": 0,
+  "apiCalls": 25
+ },
+ "consoleErrors": [
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+ ]
+}

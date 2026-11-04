@@ -100,6 +100,13 @@ export const tooltipChrome = (p: ChartPalette) => ({
   textStyle: { color: p.tooltipFg },
 });
 
+/** Text on a status-filled lane segment (`action.on`, verified on every `status.*.fg` in both themes). */
+export const onStatusInk = () => resolveTraverse('action-on');
+
+/** The UI font for canvas text, which cannot inherit it. */
+export const chartFontFamily = () =>
+  getComputedStyle(document.documentElement).getPropertyValue('--traverse-font-sans').trim() || 'sans-serif';
+
 /** Chrome for one axis: line, ticks, labels, grid lines and the hover pointer. */
 export const axisChrome = (p: ChartPalette) => ({
   axisLine: { lineStyle: { color: p.axis } },

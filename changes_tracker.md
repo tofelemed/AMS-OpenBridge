@@ -5364,3 +5364,28 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration.** **Config:** optional build argument `VITE_ENV_LABEL`.
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-113 — CPA redesign Phase 3: shared components and replacements (2026-11-04, branch feat/cpa-redesign, unreleased)
+
+**Why.** CPA-UI-PRM-004 Phase 3 (SPEC §6.2 to §6.16): one component for each job, ready for the page rebuilds.
+
+**Added.** In `src/ui/`: TrendPanel, Toggletip, TechnicalDetails, ContextHeader, MetricSummary, DataTable, Inspector, StatusBadge with the CD8 tone rules, Dialog, DataState, AssetPicker, Button, form controls. `src/help/`: 145 metric definitions, generated from the draft and proven verbatim by a byte-for-byte test. Documented in `docs/theme/redesign/components.md`.
+
+**Changed**
+- 45 uses of nine OpenBridge component types replaced in 19 files, keeping behaviour. Segmented groups and tabs now work with arrow keys and tell assistive technology which option is selected. The Performance dropdown now has a name, and the pager's buttons have names.
+- 171 uses of OpenBridge alarm colour names renamed to neutral `--tone-*` names. Rendered colours do not change.
+
+**Fixed**
+- The PV legend chip used a different colour from the PV line.
+- A stretched button had a clickable empty area far wider than the button.
+
+**Visible changes on old pages.** The accordion is 40 px with a border. Numbered page jumps are gone from the pager (first, previous, next, last remain). Segmented groups wrap on narrow screens instead of scrolling. The reason a control is unavailable now shows on screen.
+
+**New gates.** T5, T8, T9 and T10 active. `phase3-proof.mjs`.
+
+**Verified.** tsc 0, lint 0, full test suite, build OK, lint:theme 0 on all live files with every gate active, contrast 121/126, probe 9/9, redirects and geometry unchanged. Gallery in Day and Night: 59 of 59 contract checks, **axe 0 violations in both themes**, 0 guard blocks. Real-canvas checks pass: themed tooltip by keyboard, cursor sync between connected panels, hatch over a gap, zoom label, undo, reset. The gallery is absent from the default build.
+
+**Limits.** No page uses TrendPanel, MetricSummary or DataTable yet: that starts in Phase 4. Open items for page adoption are in UI-037.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

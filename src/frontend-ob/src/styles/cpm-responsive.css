@@ -22,15 +22,17 @@
 .cpm-kv__label { flex: 0 0 auto; max-width: 45%; }
 .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 
-/* OpenBridge toggle groups and pagination have a fixed intrinsic width (one segment per option). On a
-   narrow screen they scroll inside their own box rather than pushing the page sideways
-   (Loop Events filter: +457 px, Performance: +122 px). */
-.cpm-screen obc-toggle-button-group,
-.cpm-screen obc-pagination {
-  display: block;
+/* Segmented groups and the pager have a fixed intrinsic width (one segment per option). On a narrow
+   screen they wrap inside their own box rather than pushing the page sideways (Loop Events filter:
+   +457 px, Performance: +122 px); a scrolling box would clip the focus ring's 3 px gap. */
+.cpm-screen .ui-segmented,
+.cpm-screen .ui-pagination {
+  flex-wrap: wrap;
   max-width: 100%;
-  overflow-x: auto;
 }
+
+/* Under its field label a group keeps its own width instead of stretching to the column. */
+.cpm-field > .ui-segmented { align-self: flex-start; flex-wrap: wrap; max-width: 100%; }
 
 /* A data table scrolls inside its card on narrow screens instead of widening the page (Evidence
    Workbench +2 px, Gate Configuration +4 px: pills in a cell). Desktop layout is untouched. */
@@ -43,11 +45,11 @@
 .cpm-kpi { min-width: 0; }
 .cpm-kpi__caption, .cpm-kpi__value, .cpm-kpi__sub { overflow-wrap: anywhere; }
 
-/* CHG-051 (390 px check): the Performance matrix's segmented toggle scrolls inside its toolbar on a phone
+/* CHG-051 (390 px check): the Performance matrix's segmented toggle wraps inside its toolbar on a phone
    instead of running off the page. */
 @media (max-width: 600px) {
   .cpm-matrix-toolbar { min-width: 0; max-width: 100%; }
-  .cpm-matrix-toolbar obc-toggle-button-group { display: block; max-width: 100%; overflow-x: auto; }
+  .cpm-matrix-toolbar .ui-segmented { flex-wrap: wrap; max-width: 100%; }
 }
 
 /* Calculations metric rows: six columns on a desktop; on a phone one stacked card per metric and no column

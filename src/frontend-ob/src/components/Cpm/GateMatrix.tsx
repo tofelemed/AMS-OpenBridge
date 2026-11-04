@@ -29,16 +29,15 @@
  * and pager; the view rides the URL (`?view=matrix`) so a link opens the view it was copied from.
  */
 import React from 'react';
-import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
-import { ObcPagination } from '@oicl/openbridge-webcomponents-react/components/pagination/pagination';
-import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/components/text-input-field/text-input-field';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../ui/SegmentedControl';
+import { FilterChip } from '../../ui/forms/FilterChip';
+import { Pagination } from '../../ui/forms/Pagination';
+import { TextInput } from '../../ui/forms/TextInput';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
 import { useDebounce } from '../../hooks/useDebounce';
 import { EmptyState } from './shared';
 import {
-  ROW_FILTERS, filterCounts, filterRows, gateName, glyphFor, isRowFilter, matrixViewOf, type MatrixView, type RowFilter,
+  ROW_FILTERS, filterCounts, filterRows, gateName, glyphFor, type MatrixView, type RowFilter,
 } from './gateStatus';
 import { GateLegend } from './GateLegend';
 import { GateMatrixChecks, ResultCell } from './GateMatrixChecks';
@@ -145,59 +144,25 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
   return (
     <>
       <div className="cpm-matrix-toolbar">
-        {/* CHG-098: the view switch; the same first-emit guard as the row filter below (only a known view is written) */}
+        {/* CHG-098: the view switch */}
         {onViewChange && (
-          <ObcToggleButtonGroup
-            value={view}
-            onValue={(e: CustomEvent<{ value: string }>) => {
-              const v = e.detail.value;
-              if (v === 'checks' || v === 'matrix') onViewChange(matrixViewOf(v));
-            }}
-          >
-            {VIEWS.map(v => (
-              <ObcToggleButtonOption key={v.value} value={v.value}>{v.label}</ObcToggleButtonOption>
-            ))}
-          </ObcToggleButtonGroup>
+          <SegmentedControl label="Matrix view" ignoreReselect value={view} options={VIEWS} onChange={onViewChange} />
         )}
 
-        {/* Guard the payload: obc-toggle-button-group runs willUpdate before its
-            slot is assigned, so its very first `value` event can carry '' and
-            would otherwise write an empty mode into the URL. */}
-        <ObcToggleButtonGroup
+        <SegmentedControl
+          label="Row filter"
+          ignoreReselect
           value={filter.mode}
-          onValue={(e: CustomEvent<{ value: string }>) => {
-            if (isRowFilter(e.detail.value)) onFilterChange({ mode: e.detail.value });
-          }}
-        >
-          {ROW_FILTERS.map(f => (
-            <ObcToggleButtonOption key={f.value} value={f.value}>
-              {f.label} {counts[f.value]}
-            </ObcToggleButtonOption>
-          ))}
-        </ObcToggleButtonGroup>
+          options={ROW_FILTERS.map(f => ({ value: f.value, label: `${f.label} ${counts[f.value]}` }))}
+          onChange={mode => onFilterChange({ mode })}
+        />
 
         {filter.gate && (
-          <ObcFilterChip
-            label={`Failing ${filter.gate}`}
-            checked
-            showIcon
-            onChipToggle={() => onFilterChange({ gate: null })}
-          />
+          <FilterChip label={`Failing ${filter.gate}`} selected onToggle={() => onFilterChange({ gate: null })} />
         )}
 
         <div className="cpm-matrix-toolbar__search">
-          {/* `label` (not a host aria-label) is what names the field: the
-              component wraps its input in a <label>, so the label prop is the
-              only thing that reaches assistive tech — and a visible label beats
-              a placeholder-only field regardless. */}
-          <ObcTextInputField
-            value={qDraft}
-            label="Filter"
-            placeholder="loop id or description"
-            hasClearButton
-            onInput={(e: Event) =>
-              setQDraft((e.target as unknown as { value: string }).value ?? '')}
-          />
+          <TextInput label="Filter" placeholder="loop id or description" clearable value={qDraft} onChange={setQDraft} />
         </div>
 
         <span className="cpm-matrix-toolbar__count" aria-live="polite">
@@ -323,11 +288,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
 
           {pageCount > 1 && (
             <div className="cpm-matrix-pager">
-              <ObcPagination
-                pages={pageCount}
-                currentPage={safePage}
-                onValue={(e: CustomEvent<{ value: number }>) => onPageChange(e.detail.value)}
-              />
+              <Pagination page={safePage} pageCount={pageCount} onChange={onPageChange} />
             </div>
           )}
         </>

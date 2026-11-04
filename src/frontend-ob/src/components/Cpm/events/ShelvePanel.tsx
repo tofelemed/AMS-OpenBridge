@@ -8,8 +8,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { fmtDateTime } from '../shared';
 import { presetsWithin, shelfCountdown, shelfState } from './shelfState';
@@ -64,11 +63,8 @@ export const ShelvePanel: React.FC<ShelvePanelProps> = ({ event, canManage, pend
           : 'A shelf always expires; the episode returns to the queue afterwards with the acknowledgement it has. Shelving does not review it.'}
       </p>
       <div className="cpm-filter-row">
-        <ObcToggleButtonGroup value={choice} aria-label="Shelve for"
-          onValue={(e: CustomEvent<{ value: string }>) => { if (e.detail.value) setChoice(e.detail.value); }}>
-          {presets.map(p => <ObcToggleButtonOption key={p.hours} value={String(p.hours)}>{p.label}</ObcToggleButtonOption>)}
-          <ObcToggleButtonOption value="custom">Until…</ObcToggleButtonOption>
-        </ObcToggleButtonGroup>
+        <SegmentedControl label="Shelve for" ignoreReselect value={choice} onChange={setChoice}
+          options={[...presets.map(p => ({ value: String(p.hours), label: p.label })), { value: 'custom', label: 'Until…' }]} />
         {choice === 'custom' && (
           <label className="cpm-field cpm-field--compact">
             <span className="cpm-field__label">Until</span>

@@ -1,0 +1,171 @@
+/* Form controls (SPEC §6.10). Traverse tokens only; the shared field and control classes are in ui.css. */
+
+/* The same ring as the other controls: 2 px with a 3 px gap. */
+.ui-accordion__summary:focus-visible,
+.ui-checkbox__box:focus-visible,
+.ui-input__clear:focus-visible {
+  outline: var(--traverse-focus-width) solid var(--traverse-focus);
+  outline-offset: var(--traverse-focus-offset);
+}
+
+/* An obi-* icon ignores `color`, so its colour variable follows the control's text. */
+.ui-chip .ui-icon,
+.ui-input__clear .ui-icon,
+.ui-accordion__chevron,
+.ui-pagination .ui-icon {
+  --element-active-color: currentColor;
+}
+
+.ui-field__message {
+  --element-active-color: var(--traverse-status-danger-fg);
+  display: flex;
+  align-items: center;
+  gap: var(--traverse-space-1);
+}
+
+/* Text input and select states the base classes leave open. */
+.ui-input::placeholder { color: var(--traverse-text-muted); }
+.ui-input:hover:not(:disabled, [aria-invalid='true']),
+.ui-select:hover:not(:disabled, [aria-invalid='true']) {
+  border-color: var(--traverse-text-secondary);
+}
+.ui-input[aria-invalid='true'],
+.ui-select[aria-invalid='true'] {
+  border-color: var(--traverse-status-danger-fg);
+}
+.ui-input:disabled {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-subtle);
+  color: var(--traverse-text-muted);
+}
+
+.ui-input-box { position: relative; min-width: 0; }
+.ui-input--clearable { padding-inline-end: var(--traverse-size-control-min-height); }
+.ui-input__clear {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--traverse-size-control-min-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--traverse-radius-control);
+  background: transparent;
+  color: var(--traverse-text-secondary);
+  cursor: pointer;
+}
+.ui-input__clear:hover { color: var(--traverse-text-primary); }
+
+/* A disabled button-like control stays focusable, so its reason can be reached. */
+.ui-control[aria-disabled='true'],
+.ui-control[aria-disabled='true']:hover,
+.ui-segmented__option[aria-disabled='true'],
+.ui-segmented__option[aria-disabled='true']:hover {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-subtle);
+  color: var(--traverse-text-muted);
+  cursor: not-allowed;
+}
+
+.ui-chip[aria-pressed='true'] {
+  background: var(--traverse-surface-selected);
+  border-color: var(--traverse-action-primary);
+  color: var(--traverse-action-primary);
+  font-weight: 600;
+}
+
+.ui-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  min-height: var(--traverse-size-control-min-height);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-body);
+  cursor: pointer;
+}
+.ui-checkbox__box {
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: var(--traverse-space-5);
+  height: var(--traverse-space-5);
+  margin: 0;
+  border: 1px solid var(--traverse-border-strong);
+  border-radius: var(--traverse-space-1);
+  background: var(--traverse-surface-panel);
+  appearance: none;
+  cursor: pointer;
+}
+.ui-checkbox__box:checked {
+  background: var(--traverse-action-primary);
+  border-color: var(--traverse-action-primary);
+}
+.ui-checkbox__box:checked::after {
+  content: '';
+  width: 5px;
+  height: 10px;
+  border: solid var(--traverse-action-on);
+  border-width: 0 2px 2px 0;
+  transform: translate(0, -1px) rotate(45deg);
+}
+.ui-checkbox__box[aria-invalid='true'] { border-color: var(--traverse-status-danger-fg); }
+.ui-checkbox__box:disabled {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-subtle);
+  cursor: not-allowed;
+}
+.ui-checkbox:has(.ui-checkbox__box:disabled) { color: var(--traverse-text-muted); cursor: not-allowed; }
+
+.ui-accordion { min-width: 0; }
+.ui-accordion__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--traverse-space-2);
+  min-height: var(--traverse-size-control-min-height);
+  padding: 0 var(--traverse-space-3);
+  border: 1px solid var(--traverse-border-strong);
+  border-radius: var(--traverse-radius-control);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-body);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.ui-accordion__summary::-webkit-details-marker { display: none; }
+.ui-accordion__summary:hover { background: var(--traverse-surface-hover); }
+.ui-accordion__summary[aria-disabled='true'],
+.ui-accordion__summary[aria-disabled='true']:hover {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-subtle);
+  color: var(--traverse-text-muted);
+  cursor: not-allowed;
+}
+.ui-accordion__label { min-width: 0; overflow-wrap: anywhere; }
+.ui-accordion[open] > .ui-accordion__summary .ui-accordion__chevron { transform: rotate(180deg); }
+
+.ui-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  max-width: 100%;
+}
+.ui-pagination__status {
+  margin: 0 var(--traverse-space-2);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-body);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-tabs__badge {
+  margin-inline-start: var(--traverse-space-2);
+  padding: 0 var(--traverse-space-1);
+  border-radius: var(--traverse-radius-control);
+  background: var(--traverse-surface-raised);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-variant-numeric: tabular-nums;
+}

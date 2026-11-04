@@ -6,7 +6,7 @@
 .cpm-path-field__row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .cpm-path-field__input { flex: 1 1 320px; min-width: 0; }
 .cpm-path-field__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
-.cpm-path-field__warn { color: var(--alert-caution-color); font-size: var(--cpm-text-caption); }
+.cpm-path-field__warn { color: var(--tone-warning); font-size: var(--cpm-text-caption); }
 
 /* Review: label over value on narrow screens, side by side otherwise. */
 .cpm-review-list { display: flex; flex-direction: column; margin: 8px 0 0; }

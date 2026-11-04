@@ -1,0 +1,56 @@
+/* SPEC 6.13. Values come from the Traverse tokens only. */
+
+.ui-technical {
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-body);
+}
+
+.ui-technical__summary {
+  min-height: var(--traverse-size-control-min-height);
+  line-height: var(--traverse-size-control-min-height);
+  border-radius: var(--traverse-radius-control);
+  cursor: pointer;
+}
+.ui-technical__summary:hover { color: var(--traverse-text-primary); }
+.ui-technical__summary:focus-visible {
+  outline: var(--traverse-focus-width) solid var(--traverse-focus);
+  outline-offset: var(--traverse-focus-offset);
+}
+
+.ui-technical__list {
+  margin: var(--traverse-space-2) 0 0;
+}
+
+.ui-technical__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--traverse-space-3);
+  align-items: center;
+  border-top: 1px solid var(--traverse-border-subtle);
+}
+
+.ui-technical__label { font-size: var(--traverse-type-metadata); }
+
+.ui-technical__value {
+  display: flex;
+  gap: var(--traverse-space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  margin: 0;
+  color: var(--traverse-text-primary);
+}
+.ui-technical__value > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-technical__mono { font-family: var(--traverse-font-mono); }
+.ui-technical__missing { color: var(--traverse-text-muted); }
+.ui-technical__copy { flex: none; }
+
+.ui-technical__status {
+  min-height: var(--traverse-space-5);
+  margin: var(--traverse-space-1) 0 0;
+  font-size: var(--traverse-type-metadata);
+}

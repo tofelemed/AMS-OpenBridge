@@ -21,10 +21,6 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/tab-row/tab-row', () => ({
-  ObcTabRow: (p: { tabs: Array<{ id: string; title: string }>; selectedTabId: string; onTabSelected: (e: { detail: { id: string } }) => void }) =>
-    React.createElement('div', { role: 'tablist', 'aria-label': 'Views' }, p.tabs.map(t => React.createElement('button', { key: t.id, role: 'tab', 'aria-selected': t.id === p.selectedTabId, onClick: () => p.onTabSelected({ detail: { id: t.id } }) }, t.title))),
-}));
 vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', () => ({ ObiContentCopyGoogle: () => null }));
 
 const loops = { loops: [

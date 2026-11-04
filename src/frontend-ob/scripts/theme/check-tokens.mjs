@@ -13,8 +13,30 @@ const ts = createRequire(path.join(app, 'package.json'))('typescript');
 const rel = f => path.relative(src, f).replaceAll('\\', '/');
 
 // Phase of the current build. Raise it as gates activate.
-const PHASE = Number(process.env.THEME_PHASE ?? 2);
+const PHASE = Number(process.env.THEME_PHASE ?? 3);
 const NEW_CODE = /^(ui|pages\/cpa|help|charts|theme|cpa)\//;
+// The legacy files whose OpenBridge controls were replaced in Phase 3 (PRM-004 Phase 3 step 2): T9 holds them there.
+const T9_REPLACED_FILES = new Set([
+  'components/Administration/RolesConfig.tsx',
+  'components/Cpm/AttentionList.tsx',
+  'components/Cpm/CalcDrawer.tsx',
+  'components/Cpm/CollapsibleSection.tsx',
+  'components/Cpm/CpmEvents.tsx',
+  'components/Cpm/CpmPerformance.tsx',
+  'components/Cpm/GateMatrix.tsx',
+  'components/Cpm/config/EditorView.tsx',
+  'components/Cpm/config/GateConfigurationWorkspace.tsx',
+  'components/Cpm/events/ShelvePanel.tsx',
+  'components/Cpm/explorer/LoopTree.tsx',
+  'components/Cpm/explorer/LoopWorkspace.tsx',
+  'components/Cpm/explorer/summary/LoopSummaryCard.tsx',
+  'components/Cpm/explorer/summary/SummaryCalculations.tsx',
+  'components/Cpm/explorer/summary/WindowKindToggle.tsx',
+  'components/Cpm/investigation/CaseTriage.tsx',
+  'components/Cpm/response/ModelReviewDialog.tsx',
+  'components/Cpm/trend/SignalTrend.tsx',
+  'components/Cpm/trend/TimeRangeBar.tsx',
+]);
 const ACTIVE = {
   T1: r => (PHASE >= 8 ? true : NEW_CODE.test(r)),
   T2: r => (PHASE >= 8 ? true : NEW_CODE.test(r)),
@@ -24,7 +46,7 @@ const ACTIVE = {
   T6: () => true,
   T7: () => PHASE < 8,
   T8: r => PHASE >= 3 && /^(ui|pages\/cpa)\//.test(r),
-  T9: r => (PHASE >= 8 ? true : PHASE >= 3 && /^(ui|pages\/cpa)\//.test(r)),
+  T9: r => (PHASE >= 8 ? true : PHASE >= 3 && (/^(ui|pages\/cpa)\//.test(r) || T9_REPLACED_FILES.has(r))),
   T10: r => (PHASE >= 8 ? !r.startsWith('ui/trend/') : PHASE >= 3 && /^(ui|pages\/cpa)\//.test(r) && !r.startsWith('ui/trend/')),
   T11: r => (PHASE >= 8 ? true : PHASE >= 2 && /^(ui|pages\/cpa)\//.test(r)),
 };
@@ -33,7 +55,11 @@ const ALLOW = {
   T1: [/^styles\/traverse-tokens\.css$/, /^styles\/openbridge-bridge\.css$/],
   T2: [/^styles\/traverse-tokens\.css$/],
   T4: [/^styles\/traverse-tokens\.css$/],
-  T5: [/^styles\/openbridge-bridge\.css$/, /^charts\/chartTheme\.ts$/, /^ui\/StatusBadge/, /^styles\/tones\.css$/],
+  T5: [
+    /^styles\/openbridge-bridge\.css$/, /^charts\/chartTheme\.ts$/, /^ui\/StatusBadge/, /^styles\/tones\.css$/,
+    // Legacy modules: reachable by import, off in the slice, not edited (D14). Retired in Phase 8.
+    /^components\/(AlarmConsole|LiveEvents|EdgeNodeMonitor|Designer)\//, /^app\/LegacyShell\.tsx$/, /^components\/shared\/AlarmStateIcon\.tsx$/,
+  ],
   T6: [/^theme\//, /^charts\/chartTheme\.ts$/, /^styles\/openbridge-bridge\.css$/, /^styles\/traverse-tokens\.css$/],
   T7: [/^theme\//],
   T11: [/^cpa\//, /cpaHref/],
@@ -99,7 +125,8 @@ function scanTs(f) {
       const tag = n.tagName.getText(sf);
       if (REPLACED.has(tag)) hit('T9', f, lineOf(n), tag);
       if (tag === 'ReactECharts') hit('T10', f, lineOf(n), tag);
-      if (n.attributes.properties.some(a => ts.isJsxAttribute(a) && a.name.getText(sf) === 'title')) hit('T8', f, lineOf(n), tag);
+      // HTML elements and OpenBridge hosts. A React component's `title` prop is its own API, not a tooltip.
+      if (/^([a-z]|Obc)/.test(tag) && n.attributes.properties.some(a => ts.isJsxAttribute(a) && a.name.getText(sf) === 'title')) hit('T8', f, lineOf(n), tag);
     }
     if (ts.isPropertyAccessExpression(n) && n.getText(sf) === 'echarts.init') hit('T10', f, lineOf(n), 'echarts.init');
     ts.forEachChild(n, visit);
@@ -112,6 +139,6 @@ for (const f of files) (f.endsWith('.css') ? scanCss : scanTs)(f);
 const active = Object.keys(ACTIVE).filter(g => ['T1', 'T2', 'T3', 'T4', 'T6', 'T7'].includes(g) || PHASE >= 3 || (g === 'T11' && PHASE >= 2));
 console.log(`lint:theme phase ${PHASE}: ${files.length} live files, gates ${active.join(' ')}, matches ${hits.length}`);
 if (hits.length) {
-  console.log(hits.slice(0, 60).join('\n'));
+  console.log(hits.slice(0, process.env.THEME_ALL ? hits.length : 60).join('\n'));
   process.exit(1);
 }

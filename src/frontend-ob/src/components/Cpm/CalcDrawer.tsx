@@ -14,8 +14,8 @@
  * evidence panel): this is a definition lookup, not a comparison across a row,
  * and the catalogue table is already six columns wide.
  */
-import React, { useMemo, useState } from 'react';
-import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
+import React, { useState } from 'react';
+import { Tabs, tabPanelProps } from '../../ui/Tabs';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
@@ -34,6 +34,7 @@ import { evidenceScore, evidenceScoreText } from './evidenceScore';
 import { historicalHref } from './cpaHref';
 
 const DRAWER_TABS = ['Definition', 'Validation', 'History'] as const;
+const DRAWER_TAB_OPTIONS = DRAWER_TABS.map(t => ({ value: t, label: t }));
 
 export const CalcDrawer: React.FC<{
   metric: MetricDef;
@@ -60,9 +61,6 @@ export const CalcDrawer: React.FC<{
   // sort:'recent' — this tab is a timeline labelled by opened_at; the server's
   // triage default would list highest-confidence episodes as if newest (B1).
   const events = useCpmEvents({ loopId, openOnly: false, limit: 10, sort: 'recent' });
-
-  const tabs = useMemo(
-    () => DRAWER_TABS.map(t => ({ id: t, title: t, hasLeadingIcon: false })), []);
 
   return (
     <>
@@ -118,20 +116,11 @@ export const CalcDrawer: React.FC<{
           </div>
         </div>
 
-        {/* `hug` is required: obc-tab-item is a fixed 240px wide, so three tabs
-            demand 720px and would overflow the panel. */}
         <div className="cpm-tabs">
-          <ObcTabRow
-            hug
-            tabs={tabs}
-            selectedTabId={tab}
-            onTabSelected={(e: CustomEvent<{ id: string }>) => {
-              const id = e.detail.id as typeof DRAWER_TABS[number];
-              if (DRAWER_TABS.includes(id)) setTab(id);
-            }}
-          />
+          <Tabs idBase="calc-drawer" label={metric.name} options={DRAWER_TAB_OPTIONS} value={tab} onChange={setTab} />
         </div>
 
+        <div {...tabPanelProps('calc-drawer', tab)}>
         {tab === 'Definition' && (
           <>
             {/* CHG-079: space between the tab row, the description and the Contract head (they touched) */}
@@ -286,6 +275,7 @@ export const CalcDrawer: React.FC<{
             ))}
           </>
         )}
+        </div>
         </div>
       </div>
     </>

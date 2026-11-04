@@ -42,13 +42,12 @@
   .cpm-conclusion-strip__inner > .cpm-pill { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
-/* Collapsible evidence sections: an OpenBridge accordion item on a CPM surface; the one-line summary
-   sits under the header while the section is closed. */
+/* Collapsible evidence sections: an accordion on a CPM surface; the one-line summary sits under the
+   header while the section is closed. */
 .cpm-collapsible { padding-top: 4px; padding-bottom: 4px; min-width: 0; }
-.cpm-collapsible obc-accordion-item { display: block; width: 100%; }
 .cpm-collapsible__body { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 12px; min-width: 0; }
 .cpm-collapsible__summary {
-  margin: 0 0 8px; color: var(--element-neutral-color); font-size: var(--cpm-text-small);
+  margin: 4px 0 8px; color: var(--element-neutral-color); font-size: var(--cpm-text-small);
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 

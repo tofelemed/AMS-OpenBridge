@@ -1,0 +1,16 @@
+/*
+ * Status colours for the older CPA stylesheets (PRM-002 D8, gate T5). OpenBridge's --alert-* names
+ * mean the library's own alarm states, so CPA code uses these neutral names, which say what the
+ * colour is for. New components use StatusBadge. This file goes when the old pages are gone.
+ */
+:root {
+  --tone-danger: var(--traverse-status-danger-fg);
+  --tone-danger-bg: var(--traverse-status-danger-bg);
+  --tone-warning: var(--traverse-status-warning-fg);
+  --tone-warning-bg: var(--traverse-status-warning-bg);
+  --tone-success: var(--traverse-status-success-fg);
+  --tone-success-bg: var(--traverse-status-success-bg);
+  --tone-info: var(--traverse-status-info-fg);
+  --tone-info-bg: var(--traverse-status-info-bg);
+  --tone-unknown: var(--traverse-status-unknown-fg);
+}

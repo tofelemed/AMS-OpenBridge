@@ -1,0 +1,68 @@
+/* SPEC §6.5 and the skill's table contract. */
+.ui-table { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
+.ui-table__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--traverse-space-3);
+}
+.ui-table__scroll { max-height: 70vh; overflow: auto; }
+.ui-table__scroll:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
+.ui-table__footer { display: flex; justify-content: flex-end; }
+
+.ui-table table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.ui-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: var(--traverse-size-row-compact);
+  padding: 0 var(--traverse-space-3);
+  background: var(--traverse-surface-panel);
+  border-bottom: 1px solid var(--traverse-border-strong);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ui-table td {
+  height: var(--traverse-size-row);
+  padding: 0 var(--traverse-space-3);
+  border-bottom: 1px solid var(--traverse-border-subtle);
+  background: var(--traverse-surface-panel);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-body);
+  font-variant-numeric: tabular-nums;
+}
+.ui-table--compact td { height: var(--traverse-size-row-compact); }
+
+.ui-table tbody tr[tabindex] { cursor: pointer; }
+.ui-table tbody tr:hover td { background: var(--traverse-surface-hover); }
+.ui-table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: -2px; }
+.ui-table tbody tr[data-selected] td { background: var(--traverse-surface-selected); }
+.ui-table tbody tr[data-selected] td:first-child { box-shadow: inset var(--traverse-size-nav-indicator) 0 0 var(--traverse-action-primary); }
+
+.ui-table__cell--end { text-align: end; }
+.ui-table__cell--mono { font-family: var(--traverse-font-mono); }
+.ui-table__cell--sticky { position: sticky; left: 0; z-index: 1; }
+.ui-table th.ui-table__cell--sticky { z-index: 3; }
+
+.ui-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--traverse-space-1);
+  height: var(--traverse-size-row-compact);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.ui-table__sort:hover { color: var(--traverse-text-primary); }
+.ui-table__sort:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+.ui-table__arrow { color: var(--traverse-text-muted); }

@@ -16,19 +16,14 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/accordion-item/accordion-item', () => ({
-  // CHG-050: the explain / evidence sections are accordion items — title as a heading, a toggle, content when open.
-  ObcAccordionItem: (p: { title: string; open?: boolean; children?: React.ReactNode; onAccordionItemToggle?: (e: { detail: { open: boolean } }) => void }) =>
-    React.createElement('div', null,
-      React.createElement('h2', null, p.title),
-      React.createElement('button', { onClick: () => p.onAccordionItemToggle?.({ detail: { open: !p.open } }) }, `Toggle ${p.title}`),
-      p.children),
-}));
 vi.mock('./ExplainWhy', () => ({ ExplainWhy: () => React.createElement('div', { 'data-testid': 'explain-why' }) }));
 vi.mock('../config/EffectiveConfigDrawer', () => ({ EffectiveConfigDrawer: () => React.createElement('div', { 'data-testid': 'effective-config' }) }));
 afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* stubbed below */ } });
 
-const open = (title: string) => fireEvent.click(screen.getByRole('button', { name: `Toggle ${title}` }));
+// CHG-050: the explain / evidence sections are accordions — a summary with the title, content when open.
+const summaries = () => Array.from(document.querySelectorAll('summary'));
+const summary = (title: string) => summaries().find(s => s.textContent === title)!;
+const open = (title: string) => fireEvent.click(summary(title));
 
 const run: MethodRun = {
   methodRunId: '4ccaf304-0e8d-54df-94ef-83f4130ee28d', tier: 'fusion', gate: 'G5', loopId: 'FIC10405', site: 'hdpe', windowKind: '24h', gateResultId: 1,
@@ -44,9 +39,11 @@ const ready: GateState = { kind: 'READY', title: 'Ready', detail: '', stillValid
 describe('ExplainPanel', () => {
   it('renders the six sections with formatted parameters (raw key on hover) and copyable identity', () => {
     render(<ExplainPanel gate="G5" run={run} entry={entry} manifest={manifest} state={ready} status="WARN" reason="BANDWIDTH" eligibilityDetail="3.4 samples per 17 s period < 4 (declared 5 s)" collapsed={false} onToggle={() => {}} />);
-    const heads = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
+    const heads = summaries().map(s => s.textContent);
     // CHG-050: the reason first and open; the rest collapsed behind a one-line summary
     expect(heads).toEqual(['Why this result', 'What this gate asks', 'Method', 'Parameters used', 'Configuration', 'Identity']);
+    expect(summary('Why this result').closest('details')!.open).toBe(true);
+    expect(summary('Identity').closest('details')!.open).toBe(false);
     expect(screen.getByTestId('explain-why')).toBeTruthy();   // CHG-055: the four-part explanation (own tests)
     expect(screen.queryByText('ACF period')).toBeNull();
     for (const t of ['What this gate asks', 'Method', 'Parameters used', 'Identity']) open(t);
@@ -83,7 +80,7 @@ describe('ExplainPanel', () => {
     expect(onToggle).toHaveBeenCalled();
     rerender(<ExplainPanel gate="G5" run={run} entry={entry} manifest={manifest} state={ready} status="WARN" reason={null} eligibilityDetail={null} collapsed={true} onToggle={onToggle} />);
     expect(screen.getByRole('button', { name: 'Show explain' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+    expect(summaries()).toEqual([]);
   });
 });
 

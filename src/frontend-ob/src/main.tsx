@@ -17,6 +17,7 @@ import '@oicl/openbridge-webcomponents/dist/openbridge.css';
 // Traverse tokens, then the bridge that assigns OpenBridge variables from them (CD1, CD5).
 import './styles/traverse-tokens.css';
 import './styles/openbridge-bridge.css';
+import './styles/tones.css';
 
 // Compatibility aliases for names the older stylesheets use.
 import './components/Designer/designTokens.css';
@@ -29,6 +30,7 @@ import './styles/app.css';
 import './styles/hmi-dialogs.css';
 import './styles/cpm.css';
 import './ui/ui.css';
+import './ui/components.css';
 import './styles/cpm-evidence.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';

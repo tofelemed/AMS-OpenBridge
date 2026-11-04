@@ -17,7 +17,7 @@
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
+import { FilterChip } from '../../ui/forms/FilterChip';
 import type { CpmHealthFilter } from '../../api/cpmApi';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { windowKindOf } from './useWindowKind';
@@ -207,11 +207,11 @@ export const CpmPerformance: React.FC = () => {
 
       <div className="cpm-chip-row" role="group" aria-label="Instrument health filter">
         {HEALTH_FILTERS.map(f => (
-          <ObcFilterChip
+          <FilterChip
             key={f.id}
             label={f.label}
-            checked={healthFilter === f.id}
-            onChipToggle={() => setHealthFilter(healthFilter === f.id ? undefined : f.id)}
+            selected={healthFilter === f.id}
+            onToggle={() => setHealthFilter(healthFilter === f.id ? undefined : f.id)}
           />
         ))}
         {healthFilter && (

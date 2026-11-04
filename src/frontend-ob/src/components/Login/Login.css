@@ -400,9 +400,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--alert-alarm-container-border-color);
+  border: 1px solid var(--tone-danger);
   border-radius: var(--border-radius-br-4);
-  background: var(--alert-alarm-container-background-color);
+  background: var(--tone-danger-bg);
   color: var(--element-active-color);
   font-size: 12.5px;
   line-height: 1.55;
@@ -411,7 +411,7 @@
 .login__error-icon {
   flex: 0 0 auto;
   margin-top: 1px;
-  --element-active-color: var(--alert-alarm-color);
+  --element-active-color: var(--tone-danger);
 }
 
 /* ── Footer status strip ────────────────────────────────────────────────── */

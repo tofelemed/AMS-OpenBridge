@@ -1,0 +1,46 @@
+/* SPEC §6.8. The one place status colours paint a badge. */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--traverse-space-1);
+  min-height: var(--traverse-space-5);
+  padding: 0 var(--traverse-space-2);
+  border-radius: var(--traverse-radius-control);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ui-badge__glyph { font-weight: 700; line-height: 1; }
+.ui-badge__caption { color: var(--traverse-text-secondary); font-weight: 400; }
+
+.ui-badge--danger { background: var(--traverse-status-danger-bg); color: var(--traverse-status-danger-fg); }
+.ui-badge--warning { background: var(--traverse-status-warning-bg); color: var(--traverse-status-warning-fg); }
+.ui-badge--success { background: var(--traverse-status-success-bg); color: var(--traverse-status-success-fg); }
+.ui-badge--info { background: var(--traverse-status-info-bg); color: var(--traverse-status-info-fg); }
+.ui-badge--unknown { background: var(--traverse-status-unknown-bg); color: var(--traverse-status-unknown-fg); }
+.ui-badge--neutral {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--traverse-border-subtle);
+  color: var(--traverse-text-primary);
+}
+
+.ui-ne107 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  color: var(--traverse-text-primary);
+  font-size: var(--traverse-type-metadata);
+}
+.ui-ne107__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--traverse-space-5);
+  height: var(--traverse-space-5);
+  border-radius: var(--traverse-space-1);
+  font-weight: 700;
+}
+.ui-ne107__chip--f { background: var(--traverse-diag-f-fill); color: var(--traverse-diag-f-text); }
+.ui-ne107__chip--c { background: var(--traverse-diag-c-fill); color: var(--traverse-diag-c-text); }
+.ui-ne107__chip--s { background: var(--traverse-diag-s-fill); color: var(--traverse-diag-s-text); }
+.ui-ne107__chip--m { background: var(--traverse-diag-m-fill); color: var(--traverse-diag-m-text); }

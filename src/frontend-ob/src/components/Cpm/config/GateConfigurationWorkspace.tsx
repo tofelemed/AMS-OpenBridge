@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
-import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
+import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
 import { LoopCombobox } from '../LoopCombobox';
 import { PlantScopeFilter, useCpmScope } from '../plantScope';
@@ -121,10 +121,10 @@ export const GateConfigurationWorkspace: React.FC<{
     );
   }
 
-  const tabs = [
-    { id: 'effective', title: 'Effective', hasLeadingIcon: false, hasTrailingIcon: false },
-    { id: 'bundles', title: 'Bundles', hasLeadingIcon: false, hasTrailingIcon: false },
-    ...(bundleId ? [{ id: 'editor', title: 'Editor', hasLeadingIcon: false, hasTrailingIcon: false }] : []),
+  const tabs: Array<TabOption<ConfigView>> = [
+    { value: 'effective', label: 'Effective' },
+    { value: 'bundles', label: 'Bundles' },
+    ...(bundleId ? [{ value: 'editor' as const, label: 'Editor' }] : []),
   ];
   const catalogueMap = catalogue.data ? new Map(catalogue.data.properties.map(p => [p.property, p])) : undefined;
 
@@ -134,9 +134,9 @@ export const GateConfigurationWorkspace: React.FC<{
       {toolbar}
       {eff.isError && <QueryError title="Effective configuration unavailable" error={eff.error} retry={() => void eff.refetch()} />}
       <div className="cpm-tabs">
-        <ObcTabRow hug tabs={tabs} selectedTabId={view}
-          onTabSelected={(e: CustomEvent<{ id: string }>) => { const id = e.detail.id as ConfigView; if (VIEWS.includes(id) && id !== view) go({ view: id }); }} />
+        <Tabs idBase="config-view" label="Views" options={tabs} value={view} onChange={id => { if (id !== view) go({ view: id }); }} />
       </div>
+      <div {...tabPanelProps('config-view', view)}>
       {view === 'effective' && (eff.data
         ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} /></section>
         : !eff.isError && <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>)}
@@ -154,6 +154,7 @@ export const GateConfigurationWorkspace: React.FC<{
         <EditorView bundleId={bundleId} gate={gate} tab={tab} perms={perms} loopId={loopId} siteLoopCount={loopList.filter(l => l.site === site).length}
           onGate={g => go({ gate: g })} onTab={t => go({ tab: t === 'properties' ? null : t })} onBack={() => go({ view: 'bundles', bundle: null, gate: null, tab: null })} />
       )}
+      </div>
     </div>
   );
 };

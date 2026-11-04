@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useMemo } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
+import { Tabs, tabPanelProps } from '../../../ui/Tabs';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill } from '../shared';
 import type { CatalogueEntry, PatchOp } from '../../../api/cpm/config';
 import { useBundle, useConfigActions, useConfigCatalogue, useDeployments } from './useConfig';
@@ -56,7 +56,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
   const deploymentList = deployments.data?.deployments ?? [];
   const verifiedActivation = deploymentList.find(d => d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE');
   const invalidCount = b?.validation?.errors.length ?? 0;
-  const tabs = useMemo(() => TABS.map(t => ({ id: t, title: t === 'properties' && invalidCount ? `${TAB_TITLE[t]} · ${invalidCount} invalid` : TAB_TITLE[t], hasLeadingIcon: false, hasTrailingIcon: false })), [invalidCount]);
+  const tabs = TABS.map(t => ({ value: t, label: t === 'properties' && invalidCount ? `${TAB_TITLE[t]} · ${invalidCount} invalid` : TAB_TITLE[t] }));
 
   if (bundle.isLoading && !b) return <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the bundle…</span></div>;
   if (bundle.isError) return <QueryError error={bundle.error} retry={() => void bundle.refetch()} />;
@@ -73,23 +73,23 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
           {!editable && perms.draft && <p className="cpm-copy">This version is {b.state}: create a new version to change it.</p>}
           {actions.patch.isError && <p className="cpm-field__error" role="alert">{actions.patch.error instanceof Error ? actions.patch.error.message : String(actions.patch.error)}</p>}
           <div className="cpm-tabs">
-            {/* `hug`: obc-tab-item is 240px wide by default; three would demand 720px of a column that can be narrower */}
-            <ObcTabRow hug tabs={tabs} selectedTabId={tab}
-              onTabSelected={(e: CustomEvent<{ id: string }>) => { if (TABS.includes(e.detail.id as ConfigTab)) onTab(e.detail.id as ConfigTab); }} />
+            <Tabs idBase="config-editor" label="Bundle editor" options={tabs} value={tab} onChange={onTab} />
           </div>
-          {tab === 'properties' && (
-            <>
-              <div className="cpm-config-gates" role="tablist" aria-label="Gate">
-                {GATES.map(g => <button key={g} type="button" role="tab" aria-selected={g === gate} className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => onGate(g)}>{g}</button>)}
-              </div>
-              <PropertyTable entries={gateProps} bundle={b} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
-            </>
-          )}
-          {tab === 'diff' && <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount} />}
-          {tab === 'shadow' && (
-            <ShadowComparison bundle={b} defaultLoopId={loopId} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
-              onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
-          )}
+          <div {...tabPanelProps('config-editor', tab)}>
+            {tab === 'properties' && (
+              <>
+                <div className="cpm-config-gates" role="tablist" aria-label="Gate">
+                  {GATES.map(g => <button key={g} type="button" role="tab" aria-selected={g === gate} className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => onGate(g)}>{g}</button>)}
+                </div>
+                <PropertyTable entries={gateProps} bundle={b} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
+              </>
+            )}
+            {tab === 'diff' && <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount} />}
+            {tab === 'shadow' && (
+              <ShadowComparison bundle={b} defaultLoopId={loopId} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
+                onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
+            )}
+          </div>
         </section>
       </div>
 

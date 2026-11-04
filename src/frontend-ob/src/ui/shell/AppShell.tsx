@@ -43,7 +43,7 @@ const ThemeSwitch: React.FC = () => {
       className="ui-control ui-control--ghost ui-control--icon"
       data-theme-switch
       aria-pressed={night}
-      aria-label="Night mode"
+      aria-label={night ? 'Switch to day mode' : 'Switch to night mode'}
       onClick={() => setTheme(night ? 'day' : 'night')}
     >
       <span className="ui-icon">{night ? <ObiPaletteNight /> : <ObiPaletteDay />}</span>

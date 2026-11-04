@@ -15,9 +15,6 @@ const { el, pageHook, byIdHook } = vi.hoisted(() => ({
   byIdHook: vi.fn(),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({ ObcButton: el('button') }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/input-chip/input-chip', () => ({ ObcInputChip: el('span') }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group', () => ({ ObcToggleButtonGroup: el('div') }));
-vi.mock('@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option', () => ({ ObcToggleButtonOption: el('span') }));
 vi.mock('./context/LoopContextBar', () => ({ LoopContextBar: () => null }));
 vi.mock('./events/ConditionsPanel', () => ({ ConditionsPanel: () => null }));
 vi.mock('./events/useConditions', () => ({ useCpmConditions: () => ({ data: undefined, isLoading: false, isError: false }) }));

@@ -1,0 +1,412 @@
+{
+ "axe": {
+  "day": [],
+  "night": []
+ },
+ "computed": {
+  "day": {
+   "select": 40,
+   "input": 40,
+   "radius": "6px",
+   "th": "12px",
+   "thCase": "uppercase",
+   "row": 44,
+   "rowCompact": 40,
+   "badgeRadius": "6px",
+   "badgeSize": "12px",
+   "panelRadius": "12px",
+   "inspector": 374,
+   "buttonPainted": 40,
+   "buttonHostGap": 0,
+   "ne107": [
+    "rgb(217, 45, 69)",
+    "rgb(247, 155, 74)",
+    "rgb(247, 215, 92)",
+    "rgb(121, 182, 255)"
+   ]
+  },
+  "night": {
+   "select": 40,
+   "input": 40,
+   "radius": "6px",
+   "th": "12px",
+   "thCase": "uppercase",
+   "row": 44,
+   "rowCompact": 40,
+   "badgeRadius": "6px",
+   "badgeSize": "12px",
+   "panelRadius": "12px",
+   "inspector": 374,
+   "buttonPainted": 40,
+   "buttonHostGap": 0,
+   "ne107": [
+    "rgb(217, 45, 69)",
+    "rgb(247, 155, 74)",
+    "rgb(247, 215, 92)",
+    "rgb(121, 182, 255)"
+   ]
+  }
+ },
+ "checks": [
+  {
+   "id": "6.10",
+   "name": "select 40 px (day)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.10",
+   "name": "input 40 px (day)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.10",
+   "name": "control radius 6 px (day)",
+   "pass": true,
+   "detail": "6px"
+  },
+  {
+   "id": "6.5",
+   "name": "heading 12 px uppercase (day)",
+   "pass": true,
+   "detail": "12px uppercase"
+  },
+  {
+   "id": "6.5",
+   "name": "row 44 px (day)",
+   "pass": true,
+   "detail": "44"
+  },
+  {
+   "id": "6.5",
+   "name": "compact row 40 px (day)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.8",
+   "name": "badge 12 px, radius 6 (day)",
+   "pass": true,
+   "detail": "12px 6px"
+  },
+  {
+   "id": "6.6",
+   "name": "inspector 320 to 400 px (day)",
+   "pass": true,
+   "detail": "374"
+  },
+  {
+   "id": "6.15",
+   "name": "button paints 40 px (day)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.15",
+   "name": "button host no wider than the button (day)",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "axe",
+   "name": "0 critical, 0 serious (day)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "no-sample stretch differs from the plotted line (day)",
+   "pass": true,
+   "detail": "17,13,9,12,15,7,9,9,8,12,9,5,11,12,6,10,5,5,10,5,10,12,16,19,4,4,4,10,12,9,11,16,10,6,7,9,7,29,19,15"
+  },
+  {
+   "id": "6.4",
+   "name": "plotted label names the window and zone (day)",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 11:59 GST"
+  },
+  {
+   "id": "6.4",
+   "name": "source and aggregation line present",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "keyboard cursor states the reading",
+   "pass": true,
+   "detail": "4 Nov 2026, 04:01:00 GST. PV 50.22 kg/h. SP 50 kg/h. Controller output 42.2 %. Mode AUTO. Verdict No fault."
+  },
+  {
+   "id": "6.4",
+   "name": "tooltip draws on keyboard, themed (day)",
+   "pass": true,
+   "detail": "{\"tooltip\":{\"bg\":\"rgb(255, 255, 255)\",\"color\":\"rgb(21, 34, 56)\",\"text\":\"4 Nov 2026, 04:01:00 GSTPV: 50.22 kg/hSP: 50 kg/hController output: 42.2 %Mode: AUTOVerdict: No fault\"},\"want\":\"rgb(255, 255, 25"
+  },
+  {
+   "id": "6.4",
+   "name": "tooltip names the zone (day)",
+   "pass": true,
+   "detail": "4 Nov 2026, 04:01:00 GSTPV: 50.22 kg/hSP: 50 kg/hController output: 42.2 %Mode: AUTOVerdict: No fault"
+  },
+  {
+   "id": "6.4",
+   "name": "value table is a native table with units",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 11:59 GST. Rows 1 to 50 of 440.\nTIME (GST)\tPV (KG/H)\tSP (KG/H)\tCONTROL"
+  },
+  {
+   "id": "6.4",
+   "name": "zoom changes the plotted label",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 07:59 GST"
+  },
+  {
+   "id": "6.4",
+   "name": "undo restores the label",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "reset restores the label",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.10",
+   "name": "select 40 px (night)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.10",
+   "name": "input 40 px (night)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.10",
+   "name": "control radius 6 px (night)",
+   "pass": true,
+   "detail": "6px"
+  },
+  {
+   "id": "6.5",
+   "name": "heading 12 px uppercase (night)",
+   "pass": true,
+   "detail": "12px uppercase"
+  },
+  {
+   "id": "6.5",
+   "name": "row 44 px (night)",
+   "pass": true,
+   "detail": "44"
+  },
+  {
+   "id": "6.5",
+   "name": "compact row 40 px (night)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.8",
+   "name": "badge 12 px, radius 6 (night)",
+   "pass": true,
+   "detail": "12px 6px"
+  },
+  {
+   "id": "6.6",
+   "name": "inspector 320 to 400 px (night)",
+   "pass": true,
+   "detail": "374"
+  },
+  {
+   "id": "6.15",
+   "name": "button paints 40 px (night)",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "id": "6.15",
+   "name": "button host no wider than the button (night)",
+   "pass": true,
+   "detail": "0"
+  },
+  {
+   "id": "axe",
+   "name": "0 critical, 0 serious (night)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "no-sample stretch differs from the plotted line (night)",
+   "pass": true,
+   "detail": "17,13,9,12,15,7,9,9,8,12,9,5,11,12,6,10,5,5,10,5,10,12,16,19,4,4,4,10,12,9,11,16,10,6,7,9,7,29,19,15"
+  },
+  {
+   "id": "6.4",
+   "name": "plotted label names the window and zone (night)",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 11:59 GST"
+  },
+  {
+   "id": "6.4",
+   "name": "source and aggregation line present",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "keyboard cursor states the reading",
+   "pass": true,
+   "detail": "4 Nov 2026, 04:03:00 GST. PV 50.66 kg/h. SP 50 kg/h. Controller output 42.6 %. Mode AUTO. Verdict No fault."
+  },
+  {
+   "id": "6.4",
+   "name": "tooltip draws on keyboard, themed (night)",
+   "pass": true,
+   "detail": "{\"tooltip\":{\"bg\":\"rgb(17, 28, 46)\",\"color\":\"rgb(234, 241, 250)\",\"text\":\"4 Nov 2026, 04:03:00 GSTPV: 50.66 kg/hSP: 50 kg/hController output: 42.6 %Mode: AUTOVerdict: No fault\"},\"want\":\"rgb(17, 28, 46)\""
+  },
+  {
+   "id": "6.4",
+   "name": "tooltip names the zone (night)",
+   "pass": true,
+   "detail": "4 Nov 2026, 04:03:00 GSTPV: 50.66 kg/hSP: 50 kg/hController output: 42.6 %Mode: AUTOVerdict: No fault"
+  },
+  {
+   "id": "6.4",
+   "name": "value table is a native table with units",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 11:59 GST. Rows 1 to 50 of 440.\nTIME (GST)\tPV (KG/H)\tSP (KG/H)\tCONTROL"
+  },
+  {
+   "id": "6.4",
+   "name": "zoom changes the plotted label",
+   "pass": true,
+   "detail": "Plotted: 4 Nov 04:00 to 4 Nov 07:59 GST"
+  },
+  {
+   "id": "6.4",
+   "name": "undo restores the label",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "reset restores the label",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.4",
+   "name": "cursor sync across connected panels (real canvas)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.9",
+   "name": "segmented: arrow moves and selects",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.9",
+   "name": "tabs: arrow moves and selects",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.5",
+   "name": "sort by keyboard updates aria-sort",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.5",
+   "name": "row: arrow moves, Enter selects",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.11",
+   "name": "dialog: focus starts inside",
+   "pass": true,
+   "detail": "{\"tag\":\"BUTTON\",\"label\":\"Close dialog\",\"role\":null}"
+  },
+  {
+   "id": "6.11",
+   "name": "dialog: Tab stays inside, shadow buttons included",
+   "pass": true,
+   "detail": "true,true,true,true,true,true"
+  },
+  {
+   "id": "6.11",
+   "name": "dialog: Esc closes",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.11",
+   "name": "dialog: focus returns to the trigger",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.7",
+   "name": "toggletip: Enter opens, aria-expanded",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.7",
+   "name": "toggletip: content from the registry",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.7",
+   "name": "toggletip: Esc closes and focus returns",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.14",
+   "name": "picker: keyboard selects",
+   "pass": true,
+   "detail": "TIC20411 · Jacket temperature"
+  },
+  {
+   "id": "6.13",
+   "name": "details: Enter expands",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.13",
+   "name": "details: a copy button for each value",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.6",
+   "name": "drawer below 1280 px, modal",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "6.6",
+   "name": "drawer: Esc closes",
+   "pass": true,
+   "detail": ""
+  }
+ ],
+ "summary": {
+  "total": 59,
+  "failed": 0,
+  "blocked": 0,
+  "http429": 0
+ }
+}

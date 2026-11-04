@@ -12,3 +12,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Destination | Loop Registry; Gate Configuration | Setup | Sidebar | 2 |
 | Destination | Pipeline Health; Governance | System | Sidebar | 2 |
 | Refused route | Not authorized; silent redirect | Not available for your role | Everywhere | 2 |
+| Accessible name | None | Matrix view; Row filter; Bundle editor; Views | Performance, Setup | 3 |
+| Accessible name | None | Opportunity ranking | Performance | 3 |
+| Accessible name | None | Role description | Administration | 3 |

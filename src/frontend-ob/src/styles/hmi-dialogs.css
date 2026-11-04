@@ -110,9 +110,9 @@
 /* F-10: these were Tailwind defaults (#F59E0B / #EF4444 / #10B981) — hues outside the alarm
  * mapping and outside any governing standard. Now the OpenBridge alert tokens, so they re-theme
  * and carry the same meaning as every other status surface in the app. */
-.dialog-content--warning::before { background: var(--alert-warning-color); }
-.dialog-content--danger::before  { background: var(--alert-alarm-color); }
-.dialog-content--success::before { background: var(--alert-running-color); }
+.dialog-content--warning::before { background: var(--tone-warning); }
+.dialog-content--danger::before  { background: var(--tone-danger); }
+.dialog-content--success::before { background: var(--tone-success); }
 
 /* ============================================================
    DIALOG HEADER
@@ -125,9 +125,9 @@
   flex-shrink: 0;
 }
 
-.dialog-header--warning { background: var(--alert-warning-color) !important; }
-.dialog-header--danger  { background: var(--alert-alarm-color) !important; }
-.dialog-header--success { background: var(--alert-running-color) !important; }
+.dialog-header--warning { background: var(--tone-warning) !important; }
+.dialog-header--danger  { background: var(--tone-danger) !important; }
+.dialog-header--success { background: var(--tone-success) !important; }
 
 /* The title/icon rules below hardcode a light label, which is wrong on day's orange warning fill
  * (white on #FE9413 is ~2:1). --on-*-color already flips per theme — black on the light fills,
@@ -308,7 +308,7 @@
 }
 
 .form-field__required {
-  color: var(--alert-alarm-color) !important;
+  color: var(--tone-danger) !important;
   margin-left: 3px;
 }
 
@@ -321,7 +321,7 @@
 
 .form-field__error {
   font-size: 11.5px;
-  color: var(--alert-alarm-color) !important;
+  color: var(--tone-danger) !important;
   margin-top: 5px;
   font-weight: 500;
 }
@@ -392,13 +392,13 @@
 
 /* Warning-variant dialogs */
 .dialog-content--warning .dialog-body .ob-input:focus {
-  border-color: var(--alert-warning-color) !important;
+  border-color: var(--tone-warning) !important;
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
 }
 
 /* Danger-variant dialogs */
 .dialog-content--danger .dialog-body .ob-input:focus {
-  border-color: var(--alert-alarm-color) !important;
+  border-color: var(--tone-danger) !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
 
@@ -542,9 +542,9 @@
  * --alert-*-container-background-color tints are pastel by day and dark by night, and
  * --element-active-color flips with them, so the same three lines now work in every theme. */
 .isa-notice--warning {
-  background: var(--alert-warning-container-background-color) !important;
-  border: 1.5px solid var(--alert-warning-color) !important;
-  border-left: 4px solid var(--alert-warning-color) !important;
+  background: var(--tone-warning-bg) !important;
+  border: 1.5px solid var(--tone-warning) !important;
+  border-left: 4px solid var(--tone-warning) !important;
   color: var(--element-active-color) !important;
 }
 
@@ -553,9 +553,9 @@
 }
 
 .isa-notice--danger {
-  background: var(--alert-alarm-container-background-color) !important;
-  border: 1.5px solid var(--alert-alarm-color) !important;
-  border-left: 4px solid var(--alert-alarm-color) !important;
+  background: var(--tone-danger-bg) !important;
+  border: 1.5px solid var(--tone-danger) !important;
+  border-left: 4px solid var(--tone-danger) !important;
   color: var(--element-active-color) !important;
 }
 
@@ -653,9 +653,9 @@
 }
 
 .reason-btn--danger-active {
-  background: var(--alert-alarm-container-background-color) !important;
+  background: var(--tone-danger-bg) !important;
   color: var(--element-active-color) !important;
-  border-color: var(--alert-alarm-color) !important;
+  border-color: var(--tone-danger) !important;
 }
 
 .reason-btn--block {
@@ -734,7 +734,7 @@
 }
 
 .context-menu__item--danger:hover:not(.context-menu__item--disabled) {
-  background: var(--alert-alarm-container-background-color) !important;
+  background: var(--tone-danger-bg) !important;
   color: var(--element-active-color) !important;
 }
 

@@ -14,8 +14,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../../ui/SegmentedControl';
 import type { CpmLoop } from '../../../../api/cpmApi';
 import { ApiError } from '../../../../api/apiFetch';
 import { useCpmKpis, useCpmResolutions, useLatestGates } from '../../../../hooks/useCpm';
@@ -99,16 +98,15 @@ export const SummaryCalculations: React.FC<{ loop: CpmLoop; defaultKind: string 
   const [picked, setPicked] = useState<string | null>(null);
   const kind = picked ?? (fused.includes(defaultKind) ? defaultKind : fused[fused.length - 1] ?? defaultKind);
   const isFused = fused.includes(kind);
-  const known = [...fused, ...shortKinds];
 
   return (
     <div>
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
-        <ObcToggleButtonGroup value={kind} aria-label="Window kind"
-          onValue={(e: CustomEvent<{ value: string }>) => { if (known.includes(e.detail.value)) setPicked(e.detail.value); }}>
-          {fused.map(k => <ObcToggleButtonOption key={k} value={k}>{k} · long</ObcToggleButtonOption>)}
-          {shortKinds.map(k => <ObcToggleButtonOption key={k} value={k}>{k} · short</ObcToggleButtonOption>)}
-        </ObcToggleButtonGroup>
+        <SegmentedControl label="Window kind" ignoreReselect value={kind} onChange={setPicked}
+          options={[
+            ...fused.map(k => ({ value: k, label: `${k} · long` })),
+            ...shortKinds.map(k => ({ value: k, label: `${k} · short` })),
+          ]} />
         {resolutions.isError && <span className="cpm-event-row__sub">window contract unavailable — showing the fused kinds only</span>}
       </div>
       {isFused ? <FusedResult loop={loop} kind={kind} /> : <ShortResult loop={loop} kind={kind} />}

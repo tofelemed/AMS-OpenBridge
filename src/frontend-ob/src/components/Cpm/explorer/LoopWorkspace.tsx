@@ -7,16 +7,16 @@
  *
  * 1. Real tabs. Five ObcButtons in a flex row are not a tablist — no
  *    aria-selected, no arrow-key movement, five tab stops, and no stated
- *    relationship to the panel below. ObcTabRow is the OpenBridge component for
- *    this, and its badge support lets each tab carry its own count, so
- *    "Relationships 0" answers itself without a click.
+ *    relationship to the panel below. The shared Tabs are that component, and
+ *    their badge lets each tab carry its own count, so "Relationships 0"
+ *    answers itself without a click.
  * 2. One readiness banner instead of four repetitions of the same prose, with
  *    each cause routed to the surface that can fix it.
  * 3. A breadcrumb. "CONTROL LOOP · SITE1" did not say where in the hierarchy
  *    you were, which is the one thing an asset-centric screen owes you.
  */
 import React from 'react';
-import { ObcTabRow } from '@oicl/openbridge-webcomponents-react/components/tab-row/tab-row';
+import { Tabs, tabPanelProps } from '../../../ui/Tabs';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useCpmEvents, useCpmReadiness, useLatestGates } from '../../../hooks/useCpm';
@@ -70,24 +70,13 @@ export const LoopWorkspace: React.FC<{
   const linkCount = loop.links.length;
   const episodeCount = events.data?.events.length ?? 0;
 
-  // Memoised on the counts themselves: `tabs` is a PROPERTY on a Lit element, so
-  // a fresh array each render would re-render the tab row on every parent tick.
-  const tabs = React.useMemo(() => {
-    const counts: Partial<Record<ExplorerTab, number>> = {
-      Signals: signalCount,
-      Calculations: gateCount,
-      Relationships: linkCount,
-      History: episodeCount,
-    };
-    return TABS.map(t => ({
-      id: t,
-      title: t,
-      hasLeadingIcon: false,
-      hasBadge: counts[t] != null,
-      badgeCount: counts[t] ?? 0,
-      badgeShowNumber: true,
-    }));
-  }, [signalCount, gateCount, linkCount, episodeCount]);
+  const counts: Partial<Record<ExplorerTab, number>> = {
+    Signals: signalCount,
+    Calculations: gateCount,
+    Relationships: linkCount,
+    History: episodeCount,
+  };
+  const tabs = TABS.map(t => ({ value: t, label: t, badge: counts[t] }));
 
   const crumbs = [locationLabel(loop.site, { site: true }), locationLabel(loop.area), locationLabel(loop.unit)].filter(Boolean);
 
@@ -158,27 +147,14 @@ export const LoopWorkspace: React.FC<{
       {summary && !readinessInCard && <ReadinessBar summary={summary} onTab={onTab} />}
 
       <div className="cpm-tabs">
-        {/* `hug` is required, not cosmetic: obc-tab-item is width:240px /
-            max-width:240px by default, so five tabs demand 1200px and overflow
-            the workspace column — the last tab was clipped off the surface.
-            hug propagates to each item as width:fit-content (min 140px). The
-            container scrolls for the case where even that does not fit. */}
-        <ObcTabRow
-          hug
-          tabs={tabs}
-          selectedTabId={tab}
-          onTabSelected={(e: CustomEvent<{ id: string }>) => {
-            // Guard the payload the same way the toggle groups are guarded: an
-            // id that is not one of ours must not reach the panel router.
-            if (TABS.includes(e.detail.id as ExplorerTab)) onTab(e.detail.id as ExplorerTab);
-          }}
-        />
+        {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
+        <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
       </div>
 
       {/* The panel is height-bounded so switching from the tall Summary chart to
           an empty Relationships tab no longer collapses the page under the
           cursor. */}
-      <div className="cpm-tabpanel" role="tabpanel" aria-label={`${tab} for ${loop.loopId}`}>
+      <div className="cpm-tabpanel" {...tabPanelProps('loop-workspace', tab)}>
         {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
         {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}

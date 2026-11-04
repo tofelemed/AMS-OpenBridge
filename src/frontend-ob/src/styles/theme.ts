@@ -34,22 +34,22 @@ export const T = {
   textMuted:     'var(--element-inactive-color)',
 
   // Status — success / running
-  success:       'var(--alert-running-color)',
+  success:       'var(--tone-success)',
   successBg:     'var(--container-section-color)',
-  successBorder: 'var(--alert-running-color)',
+  successBorder: 'var(--tone-success)',
 
   // Status — warning / caution
-  warning:       'var(--alert-warning-color)',
+  warning:       'var(--tone-warning)',
   warningBg:     'var(--container-section-color)',
-  warningBorder: 'var(--alert-warning-color)',
-  caution:       'var(--alert-caution-color)',
+  warningBorder: 'var(--tone-warning)',
+  caution:       'var(--tone-warning)',
   cautionBg:     'var(--container-section-color)',
 
   // Status — critical / danger (ISA-18.2 alarm)
-  critical:      'var(--alert-alarm-color)',
+  critical:      'var(--tone-danger)',
   criticalBg:    'var(--container-section-color)',
-  criticalBorder:'var(--alert-alarm-color)',
-  danger:        'var(--alert-alarm-color)',
+  criticalBorder:'var(--tone-danger)',
+  danger:        'var(--tone-danger)',
   dangerBg:      'var(--container-section-color)',
 
   // Informational accents

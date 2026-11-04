@@ -6,9 +6,8 @@
 import React from 'react';
 import type { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcFilterChip } from '@oicl/openbridge-webcomponents-react/components/filter-chip/filter-chip';
-import { ObcToggleButtonGroup } from '@oicl/openbridge-webcomponents-react/components/toggle-button-group/toggle-button-group';
-import { ObcToggleButtonOption } from '@oicl/openbridge-webcomponents-react/components/toggle-button-option/toggle-button-option';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
+import { FilterChip } from '../../../ui/forms/FilterChip';
 import type { CpmGateMatrix, CpmLoop } from '../../../api/cpmApi';
 import { EmptyState, PanelHead } from '../shared';
 import { diagnosisLabel } from '../vocabulary';
@@ -18,6 +17,8 @@ import { CASE_LABEL } from './cases';
 import { windowLabel } from '../windowLabel';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
+
+const SOURCE_OPTIONS = [{ value: 'live', label: 'Live' }, { value: 'historical', label: 'Historical' }] as const;
 
 export const CaseTriage: React.FC<{
   scope: ReturnType<typeof useCpmScope>;
@@ -49,11 +50,11 @@ export const CaseTriage: React.FC<{
     )}
     <div className="cpm-filter-row">
       {cases.map(([c, n]) => (
-        <ObcFilterChip
+        <FilterChip
           key={c}
           label={`${CASE_LABEL[c] ?? c} · ${n}`}
-          checked={caseFilter === c}
-          onChipToggle={() => setParams(p => {
+          selected={caseFilter === c}
+          onToggle={() => setParams(p => {
             if (caseFilter === c) p.delete('case');
             else { p.set('case', c); p.delete('loop'); }
             return p;
@@ -67,22 +68,11 @@ export const CaseTriage: React.FC<{
         value={loopId ?? ''}
         onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
         onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
-      <label className="cpm-field">
+      <div className="cpm-field">
         <span className="cpm-field__label">Source</span>
-        <ObcToggleButtonGroup
-          value={mode}
-          onValue={(e: CustomEvent<{ value: string }>) => {
-            // Same empty-first-emit guard as the other segmented groups.
-            const v = e.detail.value;
-            if (v === 'live' || v === 'historical') {
-              setParams(p => { p.set('mode', v); return p; }, { replace: true });
-            }
-          }}
-        >
-          <ObcToggleButtonOption value="live">Live</ObcToggleButtonOption>
-          <ObcToggleButtonOption value="historical">Historical</ObcToggleButtonOption>
-        </ObcToggleButtonGroup>
-      </label>
+        <SegmentedControl label="Source" ignoreReselect value={mode} options={SOURCE_OPTIONS}
+          onChange={v => setParams(p => { p.set('mode', v); return p; }, { replace: true })} />
+      </div>
       <label className="cpm-field">
         <span className="cpm-field__label">Profile</span>
         <select className="cpm-select" value={windowKind}
@@ -105,9 +95,7 @@ export const CaseTriage: React.FC<{
         </label>
       )}
     </div>
-    {/* obc-toggle-button-option renders a plain inner <button> with a
-        `selected` CLASS and no ARIA state, so the segmented control above is
-        visual-only to assistive tech. State the resolved selection instead. */}
+    {/* One announcement of the resolved selection across the controls above. */}
     <span className="cpm-sr-only" aria-live="polite">
       Source: {mode === 'live' ? 'live, the latest verdict' : 'historical'}.
       Profile {windowKind} fused.

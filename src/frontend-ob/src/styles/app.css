@@ -108,10 +108,10 @@ body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--corner-radius, 4px);
-  background: var(--alert-alarm-background-color);
+  background: var(--tone-danger-bg);
   font-size: 11px;
   font-weight: 600;
-  color: var(--alert-alarm-border-color);
+  color: var(--tone-danger);
 }
 
 .app-topbar__status--live {
@@ -336,7 +336,7 @@ body {
 
 .nav-item__badge {
   margin-left: auto;
-  background: var(--alert-alarm-background-color);
+  background: var(--tone-danger-bg);
   color: var(--on-alert-alarm-active-color);
   font-size: 11px;
   font-weight: 600;
@@ -360,23 +360,23 @@ body {
 
 /* Priority-based alert styling */
 .alert-alarm {
-  background: var(--alert-alarm-background-color) !important;
-  border-left: 4px solid var(--alert-alarm-border-color) !important;
+  background: var(--tone-danger-bg) !important;
+  border-left: 4px solid var(--tone-danger) !important;
 }
 
 .alert-critical {
-  background: var(--alert-warning-background-color) !important;
-  border-left: 4px solid var(--alert-warning-border-color) !important;
+  background: var(--tone-warning-bg) !important;
+  border-left: 4px solid var(--tone-warning) !important;
 }
 
 .alert-caution {
-  background: var(--alert-caution-background-color) !important;
-  border-left: 4px solid var(--alert-caution-border-color) !important;
+  background: var(--tone-warning-bg) !important;
+  border-left: 4px solid var(--tone-warning) !important;
 }
 
 .alert-notice {
-  background: var(--alert-notice-background-color) !important;
-  border-left: 4px solid var(--alert-notice-border-color) !important;
+  background: var(--tone-info-bg) !important;
+  border-left: 4px solid var(--tone-info) !important;
 }
 
 /* ---- AG Grid OpenBridge Theme ---- */
@@ -472,23 +472,23 @@ body {
 .ack-lifecycle--ack-processing,
 .ack-lifecycle--ack-dispatched,
 .ack-lifecycle--ack-pending-dcs {
-  background: color-mix(in srgb, var(--alert-caution-border-color) 15%, transparent);
-  color: var(--alert-caution-border-color);
-  border: 1px solid color-mix(in srgb, var(--alert-caution-border-color) 30%, transparent);
+  background: color-mix(in srgb, var(--tone-warning) 15%, transparent);
+  color: var(--tone-warning);
+  border: 1px solid color-mix(in srgb, var(--tone-warning) 30%, transparent);
   animation: ack-pulse 1.5s ease-in-out infinite;
 }
 
 .ack-lifecycle--ack-failed,
 .ack-lifecycle--ack-timeout {
-  background: color-mix(in srgb, var(--alert-alarm-border-color) 15%, transparent);
-  color: var(--alert-alarm-border-color);
-  border: 1px solid color-mix(in srgb, var(--alert-alarm-border-color) 30%, transparent);
+  background: color-mix(in srgb, var(--tone-danger) 15%, transparent);
+  color: var(--tone-danger);
+  border: 1px solid color-mix(in srgb, var(--tone-danger) 30%, transparent);
 }
 
 .ack-lifecycle--ack-retrying {
-  background: color-mix(in srgb, var(--alert-warning-border-color) 15%, transparent);
-  color: var(--alert-warning-border-color);
-  border: 1px solid color-mix(in srgb, var(--alert-warning-border-color) 30%, transparent);
+  background: color-mix(in srgb, var(--tone-warning) 15%, transparent);
+  color: var(--tone-warning);
+  border: 1px solid color-mix(in srgb, var(--tone-warning) 30%, transparent);
 }
 
 @keyframes ack-pulse {
@@ -523,9 +523,9 @@ body {
   background: var(--kpi-accent, var(--focus-color));
 }
 
-.kpi-card--alarm { --kpi-accent: var(--alert-alarm-border-color); }
-.kpi-card--warning { --kpi-accent: var(--alert-warning-border-color); }
-.kpi-card--caution { --kpi-accent: var(--alert-caution-border-color); }
+.kpi-card--alarm { --kpi-accent: var(--tone-danger); }
+.kpi-card--warning { --kpi-accent: var(--tone-warning); }
+.kpi-card--caution { --kpi-accent: var(--tone-warning); }
 .kpi-card--ok { --kpi-accent: var(--running-color); }
 
 .kpi-label {
@@ -544,8 +544,8 @@ body {
   color: var(--on-surface-active-color);
 }
 
-.kpi-value--alarm { color: var(--alert-alarm-border-color); }
-.kpi-value--warning { color: var(--alert-warning-border-color); }
+.kpi-value--alarm { color: var(--tone-danger); }
+.kpi-value--warning { color: var(--tone-warning); }
 .kpi-value--ok { color: var(--running-color); }
 
 .kpi-sub {
@@ -554,10 +554,10 @@ body {
 }
 
 /* ---- Alarm Row ACK lifecycle classes (for AG Grid getRowClass) ---- */
-.alarm-ack-pending  { background: color-mix(in srgb, var(--alert-caution-background-color) 80%, transparent) !important; }
-.alarm-ack-dispatched { background: color-mix(in srgb, var(--alert-caution-background-color) 60%, transparent) !important; }
-.alarm-ack-failed   { background: color-mix(in srgb, var(--alert-alarm-background-color) 60%, transparent) !important; }
-.alarm-ack-retrying { background: color-mix(in srgb, var(--alert-warning-background-color) 60%, transparent) !important; }
+.alarm-ack-pending  { background: color-mix(in srgb, var(--tone-warning-bg) 80%, transparent) !important; }
+.alarm-ack-dispatched { background: color-mix(in srgb, var(--tone-warning-bg) 60%, transparent) !important; }
+.alarm-ack-failed   { background: color-mix(in srgb, var(--tone-danger-bg) 60%, transparent) !important; }
+.alarm-ack-retrying { background: color-mix(in srgb, var(--tone-warning-bg) 60%, transparent) !important; }
 
 /* ---- Utility buttons (inline, non-ObcButton) ---- */
 .btn {
@@ -611,27 +611,27 @@ body {
 }
 
 .priority-badge--critical {
-  background: var(--alert-alarm-background-color);
+  background: var(--tone-danger-bg);
   color: var(--on-alert-alarm-active-color);
-  border: 1px solid var(--alert-alarm-border-color);
+  border: 1px solid var(--tone-danger);
 }
 
 .priority-badge--high {
-  background: var(--alert-warning-background-color);
+  background: var(--tone-warning-bg);
   color: var(--on-alert-warning-active-color);
-  border: 1px solid var(--alert-warning-border-color);
+  border: 1px solid var(--tone-warning);
 }
 
 .priority-badge--medium {
-  background: var(--alert-caution-background-color);
+  background: var(--tone-warning-bg);
   color: var(--on-alert-caution-active-color);
-  border: 1px solid var(--alert-caution-border-color);
+  border: 1px solid var(--tone-warning);
 }
 
 .priority-badge--low {
-  background: var(--alert-notice-background-color);
+  background: var(--tone-info-bg);
   color: var(--on-alert-notice-active-color);
-  border: 1px solid var(--alert-notice-border-color);
+  border: 1px solid var(--tone-info);
 }
 
 .priority-badge--diagnostic {
@@ -642,8 +642,8 @@ body {
 
 /* ---- Alarm Row States (for AG Grid) ---- */
 .alarm-row-critical {
-  background: var(--alert-alarm-background-color) !important;
-  border-left: 4px solid var(--alert-alarm-border-color) !important;
+  background: var(--tone-danger-bg) !important;
+  border-left: 4px solid var(--tone-danger) !important;
 }
 
 .alarm-row-critical.alarm-unacked {
@@ -652,26 +652,26 @@ body {
 
 @keyframes alarm-blink-critical {
   0%, 100% { 
-    background: var(--alert-alarm-background-color) !important; 
+    background: var(--tone-danger-bg) !important; 
   }
   50% { 
-    background: color-mix(in srgb, var(--alert-alarm-background-color) 60%, transparent) !important; 
+    background: color-mix(in srgb, var(--tone-danger-bg) 60%, transparent) !important; 
   }
 }
 
 .alarm-row-high {
-  background: var(--alert-warning-background-color) !important;
-  border-left: 4px solid var(--alert-warning-border-color) !important;
+  background: var(--tone-warning-bg) !important;
+  border-left: 4px solid var(--tone-warning) !important;
 }
 
 .alarm-row-medium {
-  background: var(--alert-caution-background-color) !important;
-  border-left: 4px solid var(--alert-caution-border-color) !important;
+  background: var(--tone-warning-bg) !important;
+  border-left: 4px solid var(--tone-warning) !important;
 }
 
 .alarm-row-low {
-  background: var(--alert-notice-background-color) !important;
-  border-left: 4px solid var(--alert-notice-border-color) !important;
+  background: var(--tone-info-bg) !important;
+  border-left: 4px solid var(--tone-info) !important;
 }
 
 .alarm-row-diagnostic {
@@ -769,8 +769,8 @@ body {
 .form-field__error svg { width: 13px; height: 13px; }
 
 .flood-banner {
-  background: linear-gradient(90deg, var(--alert-alarm-background-color), var(--alert-alarm-border-color));
-  border-bottom: 2px solid var(--alert-alarm-border-color);
+  background: linear-gradient(90deg, var(--tone-danger-bg), var(--tone-danger));
+  border-bottom: 2px solid var(--tone-danger);
   padding: var(--spacing-2, 8px) var(--spacing-4, 16px);
   display: flex;
   align-items: center;
@@ -1011,11 +1011,11 @@ body {
 }
 
 .event-item--alarm {
-  border-left-color: var(--alert-alarm-border-color);
+  border-left-color: var(--tone-danger);
 }
 
 .event-item--warning {
-  border-left-color: var(--alert-warning-border-color);
+  border-left-color: var(--tone-warning);
 }
 
 .event-item__time {
@@ -1175,8 +1175,8 @@ select.ob-input option {
 }
 
 /* ISA alarm state colors remain from OpenBridge (functional) */
-.detail-panel__state-value--alarm   { color: var(--alert-alarm-border-color); }
-.detail-panel__state-value--warning { color: var(--alert-warning-border-color); }
+.detail-panel__state-value--alarm   { color: var(--tone-danger); }
+.detail-panel__state-value--warning { color: var(--tone-warning); }
 .detail-panel__state-value--ok      { color: var(--running-color); }
 
 .detail-panel__actions {
@@ -1441,11 +1441,11 @@ select.ob-input option {
 }
 
 .status-indicator__dot--inactive {
-  background: var(--alert-alarm-border-color);
+  background: var(--tone-danger);
 }
 
 .status-indicator__dot--warning {
-  background: var(--alert-warning-border-color);
+  background: var(--tone-warning);
 }
 
 /* ---- Role Badge ---- */
@@ -1460,9 +1460,9 @@ select.ob-input option {
 }
 
 .role-badge--admin {
-  background: color-mix(in srgb, var(--alert-alarm-border-color) 10%, transparent);
-  color: var(--alert-alarm-border-color);
-  border-color: color-mix(in srgb, var(--alert-alarm-border-color) 30%, transparent);
+  background: color-mix(in srgb, var(--tone-danger) 10%, transparent);
+  color: var(--tone-danger);
+  border-color: color-mix(in srgb, var(--tone-danger) 30%, transparent);
 }
 
 /* ---- Stat Card ---- */
@@ -1492,7 +1492,7 @@ select.ob-input option {
 }
 
 .stat-card__value--error {
-  color: var(--alert-alarm-border-color);
+  color: var(--tone-danger);
 }
 
 /* ---- Admin Tab Navigation ---- */
@@ -1602,7 +1602,7 @@ select.ob-input option {
 .app-forbidden p { color: var(--ams-text-dim, #6b7280); font-size: 13px; }
 .app-forbidden code {
   padding: 1px 5px; border-radius: 4px;
-  background: var(--ams-disabled-bg, #e8ecf1); color: var(--ams-crit, #e10019);
+  background: var(--ams-disabled-bg, #e8ecf1); color: var(--tone-danger, #e10019);
 }
 
 /* Sidebar nav icons (OpenBridge Obi* — replaced the emoji chrome). */
@@ -1653,7 +1653,7 @@ select.ob-input option {
   border-radius: 4px; padding: 1px 4px; text-align: center;
 }
 .cmdk__kind--loop { color: var(--instrument-enhanced-secondary-color); }
-.cmdk__kind--calc { color: var(--alert-caution-color); }
+.cmdk__kind--calc { color: var(--tone-warning); }
 .cmdk__title { white-space: nowrap; }
 .cmdk__sub {
   color: var(--on-container-neutral-color);
@@ -1678,14 +1678,14 @@ select.ob-input option {
   flex-wrap: wrap;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-divider-color);
-  background: color-mix(in srgb, var(--alert-caution-color) 12%, var(--container-background-color));
+  background: color-mix(in srgb, var(--tone-warning) 12%, var(--container-background-color));
   color: var(--element-active-color);
   font-size: 0.85rem;
 }
 .ams-conn--unreachable,
 .ams-conn--offline {
-  background: color-mix(in srgb, var(--alert-alarm-color) 10%, var(--container-background-color));
-  border-bottom-color: var(--alert-alarm-outline-color);
+  background: color-mix(in srgb, var(--tone-danger) 10%, var(--container-background-color));
+  border-bottom-color: var(--tone-danger);
 }
 .ams-conn__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .ams-conn__text span { color: var(--element-neutral-color); }

@@ -19,10 +19,10 @@ export const NE107_LABEL: Record<string, string> = {
 
 /** Alert tokens per NE107 category (OpenBridge alert palette; M is informational). */
 const NE107_TOKENS: Record<string, { fg: string; bg: string; border: string }> = {
-  F: { fg: 'var(--alert-alarm-color)', bg: 'var(--alert-alarm-container-background-color)', border: 'var(--alert-alarm-container-border-color)' },
-  S: { fg: 'var(--alert-caution-color)', bg: 'var(--alert-caution-container-background-color)', border: 'var(--alert-caution-container-border-color)' },
-  C: { fg: 'var(--alert-running-color)', bg: 'var(--alert-running-container-background-color)', border: 'var(--alert-running-container-border-color)' },
-  M: { fg: 'var(--alert-limit-secondary-color)', bg: 'transparent', border: 'var(--alert-limit-secondary-color)' },
+  F: { fg: 'var(--tone-danger)', bg: 'var(--tone-danger-bg)', border: 'var(--tone-danger)' },
+  S: { fg: 'var(--tone-warning)', bg: 'var(--tone-warning-bg)', border: 'var(--tone-warning)' },
+  C: { fg: 'var(--tone-success)', bg: 'var(--tone-success-bg)', border: 'var(--tone-success)' },
+  M: { fg: 'var(--tone-unknown)', bg: 'transparent', border: 'var(--tone-unknown)' },
 };
 
 export function eligibilityTone(e: HealthEligibility | string | null | undefined): CpmTone {

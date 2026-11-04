@@ -16,7 +16,7 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcTextInputField } from '@oicl/openbridge-webcomponents-react/components/text-input-field/text-input-field';
+import { TextInput } from '../../../ui/forms/TextInput';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { EmptyState, QueryError } from '../shared';
@@ -81,13 +81,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
 
   return (
     <>
-      <ObcTextInputField
-        value={draft}
-        label="Find loop"
-        placeholder="loop, service, area, unit or type"
-        hasClearButton
-        onInput={(e: Event) => setDraft((e.target as unknown as { value: string }).value ?? '')}
-      />
+      <TextInput label="Find loop" placeholder="loop, service, area, unit or type" clearable value={draft} onChange={setDraft} />
 
       {!isLoading && !isError && (
         <p className="cpm-tree__count" aria-live="polite">

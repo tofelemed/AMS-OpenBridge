@@ -16,7 +16,7 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObcDropdownButton } from '@oicl/openbridge-webcomponents-react/components/dropdown-button/dropdown-button';
+import { Select, type SelectOption } from '../../ui/forms/Select';
 import type { CpmHeatmapLoop, CpmRankedLoop } from '../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from './shared';
 import { drivingGates } from './gateStatus';
@@ -26,7 +26,7 @@ import { pipelineHref } from './cpaHref';
 
 export type RankBy = 'confidence' | 'error';
 
-const RANK_OPTIONS = [
+const RANK_OPTIONS: ReadonlyArray<SelectOption<RankBy>> = [
   { value: 'confidence', label: 'By evidence score' },
   { value: 'error', label: 'By control error' },
 ];
@@ -70,12 +70,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
         eyebrow="Opportunity ranking"
         title="Loops needing attention"
         right={
-          <ObcDropdownButton
-            options={RANK_OPTIONS}
-            value={rankBy}
-            onDropdownChange={(e: CustomEvent<{ value: string }>) =>
-              onRankByChange(e.detail.value as RankBy)}
-          />
+          <Select label="Opportunity ranking" hideLabel options={RANK_OPTIONS} value={rankBy} onChange={onRankByChange} />
         }
       />
 
