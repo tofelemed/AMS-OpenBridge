@@ -15,6 +15,7 @@ import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
 import { pipelineHref } from '../cpaHref';
+import { activeZone } from '../../../cpa/activeZone';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
 
@@ -55,8 +56,8 @@ export const LoopFocus: React.FC<{
         <FacetPill facet="signal" tone={sq.tone}>{sq.text}</FacetPill>
         <span className="cpm-filter-count">
           {live.hasData && live.lastSourceTs
-            ? `live · source ${new Date(live.lastSourceTs).toLocaleTimeString()}`
-              + (live.lastEmissionTs ? ` · feed ${new Date(live.lastEmissionTs).toLocaleTimeString()}` : '')
+            ? `live · source ${new Date(live.lastSourceTs).toLocaleTimeString(undefined, { timeZone: activeZone() })}`
+              + (live.lastEmissionTs ? ` · feed ${new Date(live.lastEmissionTs).toLocaleTimeString(undefined, { timeZone: activeZone() })}` : '')
             : 'no live publisher for this loop'}
           {/* State the window: it rolls, and a rolling window that has silently
               stopped advancing looks identical to a live one otherwise. */}

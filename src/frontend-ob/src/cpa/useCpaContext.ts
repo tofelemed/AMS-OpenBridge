@@ -10,7 +10,7 @@ import { isValidZone } from '../components/Cpm/evidence/timezone';
 import { useCpmScope, type CpmScope } from '../components/Cpm/plantScope';
 import { useCpmLoops } from '../hooks/useCpm';
 import { useAuthStore } from '../store/authStore';
-import { zoneAbbr } from './siteTime';
+import { browserZoneName, zoneAbbr } from './siteTime';
 
 export const RANGE_OPTIONS = [
   { key: '8h', label: '8 h' },
@@ -53,7 +53,7 @@ export interface SiteZone {
 export function pickZone(
   loopZone: string | null | undefined, scopeZone: string | null | undefined, plantZone: string | null | undefined,
 ): string {
-  return [loopZone, scopeZone, plantZone].find(isValidZone) ?? 'UTC';
+  return [loopZone, scopeZone, plantZone].map(browserZoneName).find(isValidZone) ?? 'UTC';
 }
 
 function useSiteZone(loopId: string, scope: CpmScope): SiteZone {

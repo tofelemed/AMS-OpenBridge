@@ -83,6 +83,12 @@
   font-size: var(--traverse-type-metadata);
 }
 
+.shell__zone {
+  flex: none;
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  white-space: nowrap;
+}
 .shell__env {
   display: inline-flex;
   align-items: center;

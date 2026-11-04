@@ -73,7 +73,7 @@ Redundant text removed at the owner's direction. Page layouts are unchanged. Tex
 - Acquisition grid and report-by-exception limits.
 - "A tag without an alias parks as unknown."
 - "Path segments are permanent identity."
-- Both permission-timing sentences.
+- Both permission-timing sentences. **Replaced by CHG-119** with one sentence, below.
 
 **Deliberately left on screen**
 - Bode "not a safety guarantee".
@@ -84,8 +84,20 @@ Redundant text removed at the owner's direction. Page layouts are unchanged. Tex
 
 ## Open, found during this pass
 
-- Explorer's source line says "not an evaluated window" even when the trend is pinned to one. This needs a logic fix, not text.
-- The range bar uses browser time while the source line uses the site zone, so the two can disagree.
-- Roles says a permission change applies on the "next request", and Governance says "next token". One is wrong.
+- Explorer's source line, the range bar's zone and the permission sentences: **all fixed in CHG-119**, below.
 - Calculations row descriptions stay on screen, because they are definitions.
 - CSS left unused: `.cpm-queue-rule`, `.cpm-crumbs`, `.cpm-signal-trend__note`, `.cpm-verdict__state`.
+
+## CHG-119 changes
+
+| Page | Before | After |
+|---|---|---|
+| Header | Time range control | Times in {zone} |
+| Overview cards | Icon box, number, label, share | Label and icon, number, share and change, View loops |
+| Explorer, trend pinned to an evaluated window | Trend range A → B, not an evaluated window | Evaluated window A → B |
+| Roles, notice after saving | Users with this role re-authorize on their next request. | Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again. |
+| Roles `?` | Editing a role takes effect for its users on their next request. | Same new sentence |
+| Governance `?` | Permission changes take effect when the session's token is next issued (re-login, or the automatic refresh). | Same new sentence |
+| Performance | (select a loop in the matrix first) | Select a loop in the matrix for [Window Inspector] |
+
+**For the control-engineer review:** the permission sentence is new, and worth saying to users before a role is edited on a running shift, because it signs people out. Typed times now mean site time: Shelve until, Evaluate a window and Jump to date.

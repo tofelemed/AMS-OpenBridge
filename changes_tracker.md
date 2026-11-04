@@ -5467,3 +5467,24 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-119 — CPA: Overview KPI cards, "Times in" label, one site clock, four fixes (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner approved the KPI card sample and the header label, and asked for the four defects left open by CHG-117 to be fixed.
+
+**Changed.**
+- **Overview:** ten KPI cards, five to a row, in the Instrumental layout. Every KPI, change, drill-down and the state bar stay. Drill-down and Loop KPIs keep the compact card.
+- **Header:** "Times in {zone}" replaces the time range control, which is removed.
+- **One clock:** range bars, chart axes, loop focus, Shelve until, Evaluate a window, Jump to date and the Trend page all use the zone the header names. **A typed time now means site time** where a browser's zone differs from the site's.
+- **Fixed-offset zones:** "UTC+03:30" from cplm-api now reaches the browser as "+03:30". Without this, `PLANT_TIME_ZONE=local` or `+03:30` read as UTC.
+- **Explorer:** the source line names an evaluated window when the trend is pinned to it.
+- **Roles and Governance:** one true sentence: a role edit signs its users out within a few seconds.
+- **Performance:** Window Inspector joins the header row.
+- **Valve KPI icon:** neutral in Night, no longer amber.
+
+**Verified.** tsc 0, lint 0, 1,130 tests in 140 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14. Browser, lab data: 10 cards, 10 links, 5 by 2 at 1440 and 1280, no overflow from 390 to 1440 px, both themes. Explorer checked on a real pinned window (B2_027PIC). Blocked 0.
+
+**Not run:** the role-edit sign-out is read from the code, not tried in the lab, because it would sign real users out.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

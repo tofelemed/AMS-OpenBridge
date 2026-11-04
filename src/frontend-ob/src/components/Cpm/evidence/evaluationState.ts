@@ -4,6 +4,7 @@
  */
 import { ApiError } from '../../../api/apiFetch';
 import { EVALUATION_KIND_MS, floorTo15Min, type EvaluationKind, type EvaluationRun } from '../../../api/cpm/evaluation';
+import { fromSiteInput } from '../../../cpa/siteTime';
 
 export const EVALUATION_TERMINAL: ReadonlySet<string> = new Set(['FINISHED', 'FAILED']);
 
@@ -23,9 +24,9 @@ export function evaluationSettled(run: EvaluationRun | undefined, nowMs: number)
 export const openableVerdict = (run: EvaluationRun | undefined): string | undefined =>
   run?.state === 'FINISHED' && (run.gateResults ?? 0) > 0 ? run.verdictMethodRunId ?? undefined : undefined;
 
-/** The window end the API will use: the picked local date-time (or now), on the 15-min grid, never in the future. */
+/** The window end the API will use: the picked site date-time (or now), on the 15-min grid, never in the future. */
 export function requestedEnd(input: string, nowMs: number): number {
-  const picked = input ? Date.parse(input) : NaN;
+  const picked = input ? fromSiteInput(input) : NaN;
   const end = Number.isFinite(picked) ? Math.min(picked, nowMs) : nowMs;
   return floorTo15Min(end);
 }

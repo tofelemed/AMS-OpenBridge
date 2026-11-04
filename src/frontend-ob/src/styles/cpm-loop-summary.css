@@ -195,10 +195,9 @@
 /* CHG-085 (KPI redesign): compact KPI cards — icon top-left, change top-right, the number, its label, its share.
    Tokens only (OpenBridge); left accent = the KPI's tone; the whole card is a link to its drill-down. */
 .cpm-kpicards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
-.cpm-kpicards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cpm-kpicards--4 { grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); }
-/* CHG-089: the seven performance cards (auto and manual mode added) share one row on a wide screen */
-.cpm-kpicards--7 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+/* CHG-119: the ten Overview cards, five to a row on a wide screen */
+.cpm-kpicards--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .cpm-kpicard {
   display: flex; flex-direction: column; gap: 2px; height: 100%; box-sizing: border-box; min-width: 0;
   padding: 12px 14px; border-radius: 10px; text-decoration: none; color: var(--element-active-color);
@@ -216,6 +215,10 @@
 .cpm-kpicard__icon {
   display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px;
   border: 1px solid var(--border-divider-color); --element-active-color: var(--element-neutral-color);
+  /* the valve is an OpenBridge automation symbol: neutral like the other icons, never the amber of its own palette */
+  --automation-device-primary-color: var(--element-neutral-color);
+  --automation-device-secondary-color: var(--element-neutral-color);
+  --automation-device-tertiary-color: var(--element-neutral-color);
 }
 .cpm-kpicard__icon > * { width: 18px; height: 18px; }
 .cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--cpm-text-small); font-weight: 600; white-space: nowrap; }
@@ -230,9 +233,17 @@
 .cpm-kpicard__text { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .cpm-kpicard__label { font-size: var(--cpm-text-small); color: var(--element-active-color); }
 .cpm-kpicard__sub { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
+/* CHG-119: the Overview card: label and icon on top, the number, its share and change, then the link */
+.cpm-kpicard--headed { min-height: 132px; padding: 14px 16px; border-radius: 12px; gap: 0; }
+.cpm-kpicard__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cpm-kpicard--headed .cpm-kpicard__label { font-weight: 600; }
+.cpm-kpicard--headed .cpm-kpicard__icon { flex: none; width: 20px; height: 20px; border: 0; border-radius: 0; }
+.cpm-kpicard--headed .cpm-kpicard__icon > * { width: 20px; height: 20px; }
+.cpm-kpicard--headed .cpm-kpicard__value { margin-top: 10px; }
+.cpm-kpicard--headed .cpm-kpicard__sub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
+.cpm-kpicard__open { margin-top: auto; padding-top: 6px; color: var(--traverse-action-primary); font-size: var(--cpm-text-caption); }
 .cpm-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.cpm-op__coverage { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
 .cpm-op__statebox {
   display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px;
   border: 1px solid var(--border-divider-color);
@@ -261,15 +272,14 @@
 
 @media (max-width: 1100px) {
   .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cpm-op__coverage { grid-template-columns: minmax(0, 1fr); }
+  .cpm-kpicards--5 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 }
 @media (max-width: 760px) {
-  .cpm-kpicards--3 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .cpm-kpi-proof__grid { grid-template-columns: minmax(0, 1fr); }
   .cpm-kpi-proof__grid dt { padding-top: 6px; }
 }
 @media (max-width: 480px) {
-  .cpm-kpicards, .cpm-kpicards--4, .cpm-kpicards--7 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cpm-kpicards, .cpm-kpicards--4, .cpm-kpicards--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine, compact) */

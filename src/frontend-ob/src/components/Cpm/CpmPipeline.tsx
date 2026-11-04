@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import {
   EmptyState, KpiTile, KvRow, PanelHead, QueryError, TonePill, WorkspaceHeader,
-  fmtDuration,
+  fmtDateTime, fmtDuration,
 } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
@@ -26,6 +26,7 @@ import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
 import { ReasonedButton } from './ReasonedButton';
 import { Toggletip } from '../../ui/Toggletip';
+import { siteAxisTick } from '../../cpa/siteTime';
 
 const fmtUptime = (sec: number | null | undefined) => {
   if (sec == null) return '—';
@@ -104,9 +105,15 @@ export const CpmPipeline: React.FC = () => {
       animation: false,
       grid: { left: 48, right: 48, top: 24, bottom: 24 },
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
-      tooltip: { ...base.tooltip, trigger: 'axis' },
+      tooltip: {
+        ...base.tooltip, trigger: 'axis',
+        formatter: (rows: Array<{ marker: string; seriesName: string; value: [number, number] }>) => rows.length
+          ? [`<strong>${fmtDateTime(rows[0].value[0])}</strong>`, ...rows.map(x => `${x.marker} ${x.seriesName}: ${x.value[1]}`)].join('<br/>')
+          : '',
+      },
       legend: { ...base.legend, top: 0 },
-      xAxis: { ...axis, type: 'time' },
+      xAxis: { ...axis, type: 'time', axisLabel: { ...axis.axisLabel, hideOverlap: true,
+        formatter: siteAxisTick(telemetry.length > 1 ? telemetry[telemetry.length - 1].t - telemetry[0].t : 3_600_000) } },
       yAxis: [
         { ...axis, type: 'value', name: 'ckpt age (s)', splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
         { ...axis, type: 'value', name: 'ckpt dur (ms)', splitLine: { show: false } },

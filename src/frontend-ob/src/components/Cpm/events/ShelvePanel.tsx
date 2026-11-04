@@ -13,6 +13,7 @@ import type { CpmEventFrame } from '../../../api/cpmApi';
 import { fmtDateTime } from '../shared';
 import { presetsWithin, shelfCountdown, shelfState } from './shelfState';
 import { ReasonedButton } from '../ReasonedButton';
+import { fromSiteInput, toSiteInput } from '../../../cpa/siteTime';
 
 export interface ShelvePanelProps {
   event: CpmEventFrame;
@@ -27,23 +28,17 @@ export interface ShelvePanelProps {
 
 const MIN_REASON = 3;
 
-const toLocalInput = (ms: number) => {
-  const d = new Date(ms);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
 export const ShelvePanel: React.FC<ShelvePanelProps> = ({ event, canManage, pending, error, maxHours, onShelve, onClose }) => {
   const now = Date.now();
   const active = shelfState(event, now) === 'ACTIVE';
   const presets = presetsWithin(maxHours);
   const [choice, setChoice] = useState<string>(() => String(presets.find(p => p.hours === 8)?.hours ?? presets[0]?.hours ?? 'custom'));
-  const [custom, setCustom] = useState(() => toLocalInput(now + Math.min(24, maxHours) * 3_600_000));
+  const [custom, setCustom] = useState(() => toSiteInput(now + Math.min(24, maxHours) * 3_600_000));
   const [reason, setReason] = useState(active ? (event.shelve_reason ?? '') : '');
 
   const until = useMemo(() => {
     if (choice === 'custom') {
-      const t = Date.parse(custom);
+      const t = fromSiteInput(custom);
       return Number.isFinite(t) ? t : NaN;
     }
     return now + Number(choice) * 3_600_000;

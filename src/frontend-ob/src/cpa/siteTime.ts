@@ -3,8 +3,19 @@
  * never used. The zone arithmetic lives in the evidence module and is reused here.
  */
 import { formatInZone, isValidZone } from '../components/Cpm/evidence/timezone';
+import { activeZone } from './activeZone';
 
 const zoneOr = (tz: string) => (isValidZone(tz) ? tz : 'UTC');
+
+/**
+ * cplm-api names a fixed offset "UTC+03:30" (PLANT_TIME_ZONE=local on a mounted /etc/localtime, or +03:30). Browsers
+ * refuse that name and accept "+03:30": without this, such a plant would silently read as UTC.
+ */
+export const browserZoneName = (id: string | null | undefined): string | null | undefined =>
+  id?.replace(/^UTC(?=[+-]\d{2}:\d{2}$)/, '');
+
+/** The zone the header names. Before the shell has resolved one, the browser's. */
+export const siteZone = (): string => activeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /** "GST", or "GMT+3:30" where the zone has no common short name. */
 export function zoneAbbr(tz: string, ms = Date.now()): string {
@@ -45,4 +56,30 @@ export function zoneInputToIso(value: string, tz: string): string | null {
   // Twice, so an instant next to a daylight-saving change uses the offset that applies to it.
   const first = wall - offsetMs(tz, wall);
   return new Date(wall - offsetMs(tz, first)).toISOString();
+}
+
+/** An instant as a datetime-local value, in the zone the header names. */
+export const toSiteInput = (ms: number): string => isoToZoneInput(new Date(ms).toISOString(), siteZone());
+
+/** A datetime-local value, read in the zone the header names, as epoch ms. NaN when invalid. */
+export function fromSiteInput(value: string): number {
+  const iso = zoneInputToIso(value, siteZone());
+  return iso ? Date.parse(iso) : NaN;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * A time-axis label in the zone the header names: "5 Oct" at a day boundary, otherwise the clock time, with the date
+ * too on a span of days, because ECharts places ticks by the browser's midnight, which need not be the site's.
+ */
+export function siteAxisTick(spanMs: number): (ms: number) => string {
+  const short = spanMs < 600_000;
+  return ms => {
+    const s = formatInZone(ms, siteZone());
+    const day = `${+s.slice(8, 10)} ${MONTHS[+s.slice(5, 7) - 1]}`;
+    if (!short && s.slice(11, 16) === '00:00') return day;
+    const clock = s.slice(11, short ? 19 : 16);
+    return spanMs >= 2 * 86_400_000 ? `${day} ${clock}` : clock;
+  };
 }

@@ -16,15 +16,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import TrendCore, { type PenSpec, RANGES } from './TrendCore';
+import { fromSiteInput, toSiteInput } from '../../cpa/siteTime';
 import './Designer.css';
 
 /** A setpoint pen is dashed (CD14). The URL carries no role, so the tag's measurement name decides. */
 const isSetpointTag = (path: string) => /\.sp$/i.test(path);
 
-const toLocalInput = (d: Date) => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+const toLocalInput = (d: Date) => toSiteInput(d.getTime());
 
 export const TrendPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -64,7 +62,7 @@ export const TrendPage: React.FC = () => {
   }, [window?.start, window?.end]);
 
   const applyWindow = () => {
-    const f = new Date(draftFrom); const t = new Date(draftTo);
+    const f = new Date(fromSiteInput(draftFrom)); const t = new Date(fromSiteInput(draftTo));
     if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) {
       setRangeError('Enter both dates.');
       return;

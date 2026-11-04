@@ -22,7 +22,6 @@ import { useTheme } from '../../theme/ThemeContext';
 import { PlantSelector } from './PlantSelector';
 import { ShellNav } from './ShellNav';
 import { useShellBand, useSidebarExpanded } from './shellHooks';
-import { TimeRangeControl } from './TimeRangeControl';
 import { UserMenu } from './UserMenu';
 import './shell.css';
 
@@ -74,7 +73,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const mainRef = useRef<HTMLElement>(null);
   useContextCarry();
   // Before the page renders, so old formatters print the zone the header names.
-  setActiveZone(useCpaContext().zone.id);
+  const { zone } = useCpaContext();
+  setActiveZone(zone.id);
   const compact = band === 'drawer';
   const rail = band === 'rail' || (band === 'wide' && !expanded);
 
@@ -110,7 +110,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {!compact && <span className="shell__search-text">Search loops, tags and records</span>}{' '}
           {!compact && <kbd className="shell__kbd">Ctrl K</kbd>}
         </button>
-        <TimeRangeControl compact={compact} />
+        <span className="shell__zone">
+          <span className={compact ? 'ui-sr' : undefined}>Times in </span>{zone.abbr}
+        </span>
         {ENVIRONMENT && <span className="shell__env">{ENVIRONMENT}</span>}
         <ThemeSwitch />
         <UserMenu compact={compact} />

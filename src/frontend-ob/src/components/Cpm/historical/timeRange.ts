@@ -10,6 +10,8 @@
  * at the moment it is clicked, so a shared link means the same window tomorrow
  * as it does today; `Now` re-snaps a stale one.
  */
+import { activeZone } from '../../../cpa/activeZone';
+import { fromSiteInput, toSiteInput } from '../../../cpa/siteTime';
 
 export interface RangePreset { key: string; label: string; ms: number }
 
@@ -51,7 +53,7 @@ export const EXPLORER_PRESETS: RangePreset[] = [
 
 /** The custom From/To pair → an absolute range, or the sentence that says why not. */
 export function parseCustomRange(fromText: string, toText: string): { from: Date; to: Date } | string {
-  const from = new Date(fromText); const to = new Date(toText);
+  const from = new Date(fromSiteInput(fromText)); const to = new Date(fromSiteInput(toText));
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 'Enter both dates.';
   // Caught here rather than letting historian-bff answer 400 for what is simply a backwards range.
   if (to <= from) return '"To" must be after "From".';
@@ -74,17 +76,13 @@ export function stepRange(from: Date, to: Date, direction: -1 | 1): { from: Date
   };
 }
 
-/** `datetime-local` wants local wall time with no zone suffix. */
-export function toLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+/** `datetime-local` wants wall time with no zone suffix: the site's, the zone the header names. */
+export const toLocalInput = (d: Date): string => toSiteInput(d.getTime());
 
 /** Compact range label for the toolbar: "22 Aug 11:34 → 25 Aug 11:34". */
 export function fmtRange(from: Date, to: Date): string {
   const opts: Intl.DateTimeFormatOptions = {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: activeZone(),
   };
   return `${from.toLocaleString(undefined, opts)} → ${to.toLocaleString(undefined, opts)}`;
 }

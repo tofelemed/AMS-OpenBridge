@@ -22,6 +22,10 @@ export const overlaps = (w: EvaluatedWindow, fromMs: number, toMs: number): bool
 export const isWindowRange = (w: EvaluatedWindow, fromMs: number, toMs: number): boolean =>
   Math.abs(w.startMs - fromMs) < 60_000 && Math.abs(w.endMs - toMs) < 60_000;
 
+/** The Explorer's source line: names an evaluated window only when the trend is pinned to exactly that one. */
+export const trendSourceText = (isEvaluatedView: boolean, fromText: string, toText: string): string =>
+  isEvaluatedView ? `Evaluated window ${fromText} → ${toText}` : `Trend range ${fromText} → ${toText}, not an evaluated window`;
+
 export interface AxisBounds { min: number; max: number }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);

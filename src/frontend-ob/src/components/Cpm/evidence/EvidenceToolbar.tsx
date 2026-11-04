@@ -7,6 +7,7 @@
 import React, { useId, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
+import { fromSiteInput } from '../../../cpa/siteTime';
 import { LoopCombobox } from '../LoopCombobox';
 import { PlantScopeFilter, type CpmScope } from '../plantScope';
 import type { WindowOption, WindowTier } from './useEvidenceWindows';
@@ -85,7 +86,7 @@ export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
             </label>
             {/* CHG-098 (SME review 2 #29): a disabled Go says why on hover */}
             <span title={!jump ? 'Pick a date and time first' : undefined}>
-              <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump(new Date(jump).toISOString()); }}>Go</ObcButton>
+              <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump(new Date(fromSiteInput(jump)).toISOString()); }}>Go</ObcButton>
             </span>
           </div>
         )}

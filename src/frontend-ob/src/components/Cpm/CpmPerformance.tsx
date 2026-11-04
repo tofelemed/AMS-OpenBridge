@@ -178,33 +178,30 @@ export const CpmPerformance: React.FC = () => {
         page="/cpm/performance"
         title="Performance"
         // CHG-089: the shared switch (only a served kind reaches onChange, so an empty first emit never reaches ?window=)
-        actions={<WindowKindToggle value={windowKind} kinds={fusionKinds} onChange={v => write(p => p.set('window', v))} />}
+        // Why only these sizes: this screen shows FUSED verdicts, which fusion produces on these windows alone. The finer
+        // 1m…60m results live in the Window Inspector, and the ? says so. The reason for a disabled button rides on a
+        // wrapping span (ObcButton takes no title) and in the text (CHG-098, SME review 2 #29).
+        actions={<>
+          {!selectedLoop && <span className="cpm-copy">Select a loop in the matrix for</span>}
+          <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
+            <ObcButton variant="flat" disabled={!selectedLoop}
+              onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
+              Window Inspector ›
+            </ObcButton>
+          </span>
+          <WindowKindToggle value={windowKind} kinds={fusionKinds} onChange={v => write(p => p.set('window', v))} />
+          <Toggletip variant="how-to" label="About these windows">
+            <p>
+              Verdicts fuse on {fusionKinds.join(' / ')} rolling windows
+              {(() => {
+                const cadence = resolutions.data?.windows.find(w => fusionKinds.includes(w.kind))?.cadenceMs;
+                return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
+              })()} ·
+              per-window 1m–60m features are in the Window Inspector.
+            </p>
+          </Toggletip>
+        </>}
       />
-      {/* Why only these sizes: this screen shows FUSED verdicts, which fusion
-          produces on these windows alone. The finer 1m…60m results exist and
-          live in the Window Inspector — the ? says so instead of looking like a
-          chart-range picker with two odd choices. A div, not a p: the ? panel is a block. */}
-      <div className="cpm-copy">
-        {/* CHG-098 (SME review 2 #29): the reason rides on a wrapping span (ObcButton takes no title) and in the text */}
-        <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
-          <ObcButton variant="flat"
-            disabled={!selectedLoop}
-            onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
-            Window Inspector ›
-          </ObcButton>
-        </span>
-        {!selectedLoop && ' (select a loop in the matrix first)'}
-        <Toggletip variant="how-to" label="About these windows">
-          <p>
-            Verdicts fuse on {fusionKinds.join(' / ')} rolling windows
-            {(() => {
-              const cadence = resolutions.data?.windows.find(w => fusionKinds.includes(w.kind))?.cadenceMs;
-              return cadence ? ` (recomputed every ${Math.round(cadence / 60_000)} min)` : '';
-            })()} ·
-            per-window 1m–60m features are in the Window Inspector.
-          </p>
-        </Toggletip>
-      </div>
       <PlantScopeFilter
         scope={scope}
         summary={summary.data ? `${summary.data.loops.monitored} monitored loop(s) in scope` : null}

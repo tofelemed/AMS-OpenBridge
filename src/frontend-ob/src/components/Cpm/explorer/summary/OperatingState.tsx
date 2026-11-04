@@ -10,8 +10,9 @@
  * empty state instead of three "—" tiles that read like measured zeros.
  */
 import React, { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { CpmLoop } from '../../../../api/cpmApi';
-import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
+import { useCpmTrend, useLatestGates, useLoopLastValues } from '../../../../hooks/useCpm';
 import { useLoopLive, liveQuality } from '../../../../hooks/useLoopLive';
 import { FacetPill, STALE_LIVE_MS, liveSignalQuality } from '../../FacetPill';
 import { ageText } from './summaryText';
@@ -22,6 +23,8 @@ import {
   fmtDateTime,
 } from '../../shared';
 import { useTrendRange } from '../../trend/useTrendRange';
+import { evaluatedWindowOf, isWindowRange, trendSourceText } from '../../trend/evaluatedWindow';
+import { windowKindOf } from '../../useWindowKind';
 import LoopTrendPanel from './LoopTrendPanel';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -44,6 +47,10 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // SME #11 (CHG-048): live rolling 8 h by default; a preset, ‹ / › or a custom pair pins a period (URL).
   const range = useTrendRange();
   const { from: start, to: end } = range;
+  const [params] = useSearchParams();
+  const gates = useLatestGates(loop.loopId, windowKindOf(params.get('window')));
+  const evaluated = gates.data ? evaluatedWindowOf(gates.data.windowStart, gates.data.windowEnd, '') : null;
+  const isEvaluatedView = !!evaluated && !range.live && isWindowRange(evaluated, start.getTime(), end.getTime());
   // pollDriven only while live: then the window advances on a timer, not because the operator asked.
   const trend = useCpmTrend(series, start, end, 240, 'pv,sp,op,mode', true, range.live);
   // Third plane. live -> trend bucket -> last stored value, which is the only one
@@ -130,10 +137,8 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               );
             })()}
           </div>
-          {/* "Trend range", not "Window": this is the rolling historian envelope,
-              not an engine evaluation window (the gate strip below names its
-              evaluated window separately). The dates stay although the period bar
-              below has them: only this line reads them in the site zone and names it. */}
+          {/* "Trend range", not "Window": this is the rolling historian envelope, not an engine evaluation
+              window, unless the trend is pinned to exactly that window. The gate strip below names its own. */}
           <p className="cpm-copy cpm-source-line">
             {(() => {
               const sq = liveSignalQuality(liveQuality(live), live.lastSourceTs);
@@ -143,7 +148,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                 </FacetPill>
               );
             })()}
-            {' '}Trend range {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}, not an evaluated window
+            {' '}{trendSourceText(isEvaluatedView, fmtDateTime(start.getTime()), fmtDateTime(end.getTime()))}
           </p>
         </>
       )}

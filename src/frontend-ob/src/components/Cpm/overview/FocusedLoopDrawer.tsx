@@ -22,9 +22,10 @@ import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { diagnosisLabel, codeLabel } from '../vocabulary';
 import { hasVerdict } from '../metricAvailability';
 import { evidenceScoreText } from '../evidenceScore';
+import { activeZone } from '../../../cpa/activeZone';
 
 const fmtTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
+  iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone: activeZone() }) : '—';
 
 // ── focused-loop drawer (real evidence path) ───────────────────────────────
 

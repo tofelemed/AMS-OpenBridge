@@ -249,13 +249,10 @@ export const CpmGovernance: React.FC = () => {
           <PanelHead
             eyebrow="Separation of duties"
             title="As enforced by the permission model"
-            // No hard-coded TTL: permission claims are read from the access token, so they refresh on
-            // re-login/token refresh — the previous text asserted a "15-minute token lifetime" this page cannot know.
+            // A role edit revokes its users' tokens and refresh tokens (permission.service.ts), and the gateway
+            // sees that within seconds (RevocationCache.cs), so they are signed out. Same sentence as Roles.
             help={<Toggletip variant="how-to" label="When a permission change applies">
-              <p>
-                Permission changes take effect when the session's token is next issued
-                (re-login, or the automatic refresh).
-              </p>
+              <p>Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
             </Toggletip>}
             right={matrix.canRead && matrix.data
               ? <span className="cpm-hist-note">{matrix.data.roles.length} role(s) · live</span>

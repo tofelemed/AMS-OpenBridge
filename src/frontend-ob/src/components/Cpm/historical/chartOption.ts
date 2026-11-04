@@ -24,6 +24,7 @@ import { escapeHtml } from '../../../utils/escapeHtml';
 import type { CpmTone } from '../shared';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
+import { siteAxisTick } from '../../../cpa/siteTime';
 
 /** Grid geometry, in px from the top of the canvas. Lane labels reuse these. */
 // CHG-047: the signals lane starts lower and the overlay sits 30 px under it, so the named axes
@@ -169,7 +170,7 @@ export function buildChartOption(input: ChartInput) {
     type: 'time' as const,
     gridIndex,
     ...domain,
-    axisLabel: { ...axis.axisLabel, show: showLabels },
+    axisLabel: { ...axis.axisLabel, show: showLabels, formatter: siteAxisTick(domain.max - domain.min) },
     axisLine: { ...axis.axisLine, show: showLabels },
     axisTick: { ...axis.axisTick, show: showLabels },
     splitLine: { show: false },

@@ -11,6 +11,7 @@ import ReactECharts from 'echarts-for-react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { axisChrome, chartPalette, plainOption, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
 import { fmtDateTime } from '../shared';
+import { siteAxisTick } from '../../../cpa/siteTime';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
@@ -74,7 +75,8 @@ export function buildReplayOption(i: ReplayChartInput) {
         return [`<strong>${formatInZone(ts, timeZone)} — ${zoneLabel(timeZone, ts)}</strong>`, ...rows].join('<br/>');
       },
     },
-    xAxis: { ...axis, type: 'time' as const },
+    xAxis: { ...axis, type: 'time' as const,
+      axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: siteAxisTick(points.length > 1 ? points[points.length - 1].ts - points[0].ts : 3_600_000) } },
     yAxis: [
       { ...axis, type: 'value' as const, name: pvAxisName(pvUnit), scale: true, nameTextStyle: axisName, splitLine: faintGrid },
       { ...axis, type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, nameTextStyle: axisName, splitLine: { show: false } },

@@ -4,6 +4,7 @@
  * CHG-102: points carry their plant day (UTC); up to 3 years of them.
  */
 import type { FleetKpiKey, FleetKpiTrend } from '../../../api/cpm/fleetKpis';
+import { activeZone } from '../../../cpa/activeZone';
 
 export interface KpiTrendDay {
   asOf: string;
@@ -33,7 +34,7 @@ export function kpiSeries(trend: FleetKpiTrend | undefined, key: FleetKpiKey): K
  *  the next day); an older cplm-api sends none, then its own instant. The tooltip names the exact instant. */
 export function pointLabel(d: Pick<KpiTrendDay, 'asOf' | 'day'>, withYear = false): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) };
-  if (!d.day) return new Date(d.asOf).toLocaleDateString(undefined, opts);
+  if (!d.day) return new Date(d.asOf).toLocaleDateString(undefined, { ...opts, timeZone: activeZone() });
   return new Date(`${d.day}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' });
 }
 

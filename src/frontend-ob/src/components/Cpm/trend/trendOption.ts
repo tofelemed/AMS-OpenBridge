@@ -19,6 +19,7 @@ import type { CpmEngineeringRange } from '../../../api/cpmApi';
 import { axisChrome, baseOption, type ChartPalette } from '../../../charts/chartTheme';
 import { fmtDateTime } from '../shared';
 import { escapeHtml } from '../../../utils/escapeHtml';
+import { siteAxisTick } from '../../../cpa/siteTime';
 
 export type TrendScale = 'fit' | 'range';
 
@@ -127,7 +128,7 @@ export function signalTrendOption(i: SignalTrendInput) {
     xAxis: { ...axis, type: 'time',
       ...(xRange ? { min: xRange.fromMs, max: xRange.toMs } : {}),
       axisLabel: { ...axis.axisLabel, hideOverlap: true,
-        formatter: { year: '{yyyy}', month: '{MMM} {yyyy}', day: '{d} {MMM}', hour: '{HH}:{mm}', minute: '{HH}:{mm}', second: '{HH}:{mm}:{ss}', millisecond: '{HH}:{mm}:{ss}', none: '{HH}:{mm}' } } },
+        formatter: siteAxisTick(xRange ? xRange.toMs - xRange.fromMs : points.length > 1 ? points[points.length - 1].ts - points[0].ts : 3_600_000) } },
     yAxis: [
       { type: 'value', name: pvAxisName(pvUnit), position: 'left', ...bounds.pv, ...axisStyle(pv),
         splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },

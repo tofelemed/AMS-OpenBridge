@@ -6,11 +6,11 @@ Rule of use: a page never styles a table, badge, dialog or chart itself. If a co
 
 ## 6.1 AppShell
 
-`ui/shell/AppShell.tsx`, with `PlantSelector`, `TimeRangeControl`, `UserMenu`, `ShellNav`.
+`ui/shell/AppShell.tsx`, with `PlantSelector`, `UserMenu`, `ShellNav`.
 
 | Item | Contract |
 |---|---|
-| Header | 64 px. Text mark and "CPA", plant selector, search, time range with zone, environment indicator, theme switch, user control |
+| Header | 64 px. Text mark and "CPA", plant selector, search, "Times in {zone}", environment indicator, theme switch, user control |
 | Sidebar | 220 px, 64 px rail below 1280 px or by choice, drawer below 1024 px |
 | Selected item | `surface.selected`, `action.primary` text and icon, 3 px start edge, weight 600, `aria-current="page"` |
 | Landmarks | Skip link, one `header`, one `nav`, one `main` |
