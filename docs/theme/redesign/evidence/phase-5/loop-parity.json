@@ -1,0 +1,858 @@
+[
+ {
+  "tab": "Summary",
+  "compared": 67,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Actuator activity",
+    "B#_#PIC",
+    "Calculations",
+    "Control performance",
+    "Evidence quality",
+    "Gates",
+    "How this loop performs",
+    "Loop explorer",
+    "Loop model",
+    "Not evaluated: not enough data",
+    "Operating state",
+    "Trend: no signal values in this trend range"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [],
+   "buttons": [
+    "#d",
+    "#h",
+    "Calculation proof › Workbench",
+    "Custom",
+    "Effective configuration ›",
+    "Evidence workbench ›",
+    "G# Actuator effort: not evaluated",
+    "G# Actuator limits: symptom not seen on the inputs available — no valve position",
+    "G# Base performance: not evaluated",
+    "G# Data quality: window not usable for this check",
+    "G# Decision: insufficient",
+    "G# Final-element confirmation: insufficient, older result: a flag, not an analysis",
+    "G# Interaction: not evaluated",
+    "G# Lag asymmetry: symptom not seen by this method",
+    "G# Measurement health: symptom not seen by this method",
+    "G# Mode / service: not evaluated",
+    "G# Oscillation (ACF): symptom not seen by this method",
+    "G# Phase geometry: not evaluated, no clean oscillation cycle",
+    "G# SP activity: not evaluated",
+    "G# Spectral (PSD): symptom not seen by this method",
+    "G# Stiction shape: symptom not seen by this method",
+    "G# System response: not evaluated",
+    "G#r Operating region: check passed",
+    "How this is classified",
+    "How to read the gates",
+    "Instrument healthNot configured · not checked",
+    "Live",
+    "Loop explorer",
+    "Not producing verdicts# to fix · # blocking▸",
+    "Open Window Inspector ›",
+    "Open in Historical ›",
+    "Show calculations ›",
+    "Show evaluated period ›",
+    "Show on trend ›",
+    "Show this window on the trend ›",
+    "System response ›",
+    "‹",
+    "›"
+   ],
+   "links": [
+    "unchanged ±# pp# %Data coverage# of # samples · G# fail",
+    "—Control error (MAE)no PV span registered",
+    "—Good-error timenot measured in this window",
+    "—OP reversalsnot measured in this window",
+    "—OP travelnot measured in this window",
+    "—PV variability (#σ)no PV span registered",
+    "—Setpoint changesnot measured in this window",
+    "—Time at an OP limitnot measured in this window",
+    "—Time in normal modenot measured in this window"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Historical",
+  "compared": 42,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Historical",
+    "Nothing recorded in this range",
+    "Nothing to inspect in this range",
+    "Signals, overlay, mode and verdict",
+    "This loop completed no evaluated windows in this range"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "From",
+    "KPI overlay",
+    "Site",
+    "To",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "KPI overlay: Actuator effort ratio · #m | Integral absolute error · #m | Good-error time · #m | OP triangularity (stiction) · #h | Harmonic energy ratio · #h",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "datetime-local:From",
+    "datetime-local:To",
+    "text:"
+   ],
+   "buttons": [
+    "#d",
+    "#h",
+    "Apply",
+    "Custom",
+    "Evaluated windows (CSV)",
+    "Evidence package (selected window)",
+    "Historical",
+    "How to use this chart",
+    "Normalise",
+    "Now",
+    "OPController output",
+    "Open in Trend ›",
+    "PVProcess variable",
+    "SPSetpoint",
+    "Signal samples (CSV)",
+    "VPValve position, not mapped in the registryunmapped",
+    "Widen to # days",
+    "Windows (JSON)",
+    "‹",
+    "›"
+   ],
+   "links": [
+    "Signal mapping in the Loop Registry ›"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Historical, 16 days with windows",
+  "compared": 42,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Historical",
+    "Nothing recorded in this range",
+    "Nothing to inspect in this range",
+    "Signals, overlay, mode and verdict",
+    "This loop completed no evaluated windows in this range"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "From",
+    "KPI overlay",
+    "Site",
+    "To",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "KPI overlay: Actuator effort ratio · #m | Integral absolute error · #m | Good-error time · #m | OP triangularity (stiction) · #h | Harmonic energy ratio · #h",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "datetime-local:From",
+    "datetime-local:To",
+    "text:"
+   ],
+   "buttons": [
+    "#d",
+    "#h",
+    "Apply",
+    "Custom",
+    "Evaluated windows (CSV)",
+    "Evidence package (selected window)",
+    "Historical",
+    "How to use this chart",
+    "Normalise",
+    "Now",
+    "OPController output",
+    "Open in Trend ›",
+    "PVProcess variable",
+    "SPSetpoint",
+    "Signal samples (CSV)",
+    "VPValve position, not mapped in the registryunmapped",
+    "Widen to # days",
+    "Windows (JSON)",
+    "‹",
+    "›"
+   ],
+   "links": [
+    "Signal mapping in the Loop Registry ›"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Diagnosis",
+  "compared": 34,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Investigation",
+    "Loop notes",
+    "Not evaluated: not enough data",
+    "Numeric evidence on this window",
+    "Recent windows",
+    "Signals over the evaluated window"
+   ],
+   "labels": [
+    "Outcome"
+   ],
+   "selects": [
+    "Outcome: Inconclusive | Work completed | Performance restored"
+   ],
+   "inputs": [
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
+    "Back to conclusion ↑",
+    "Calculation proof ›",
+    "Change ▾",
+    "Engineering range",
+    "Fit to data",
+    "How this is ordered",
+    "How to read this trend",
+    "Investigation",
+    "Older ›",
+    "Open in Evidence Replay ›",
+    "Reset",
+    "Save note",
+    "Undo",
+    "Zoom area",
+    "‹ Newer"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 1,
+   "panels": 7
+  }
+ },
+ {
+  "tab": "Diagnosis, historical source",
+  "compared": 39,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Engine recommendation",
+    "Excluded: loop not in automatic",
+    "Investigation",
+    "Loop notes",
+    "Numeric evidence on this window",
+    "Recent windows",
+    "Signals over the evaluated window"
+   ],
+   "labels": [
+    "Outcome"
+   ],
+   "selects": [
+    "Outcome: Inconclusive | Work completed | Performance restored"
+   ],
+   "inputs": [
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
+    "Back to conclusion ↑",
+    "Calculation proof ›",
+    "Change ▾",
+    "Engineering range",
+    "Fit to data",
+    "How this is ordered",
+    "How to read this trend",
+    "Investigation",
+    "Older ›",
+    "Open in Evidence Replay ›",
+    "Reset",
+    "Save note",
+    "Undo",
+    "Zoom area",
+    "‹ Newer"
+   ],
+   "links": [],
+   "columns": [
+    "Current · # h ending # Aug #:# UTC",
+    "Metric",
+    "Previous · # h ending # Aug #:# UTC",
+    "Δ"
+   ],
+   "tabs": [],
+   "charts": 1,
+   "panels": 7
+  }
+ },
+ {
+  "tab": "Model",
+  "compared": 19,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "No response events for this loop",
+    "No system model for this loop",
+    "Response events (#)",
+    "System response"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:"
+   ],
+   "buttons": [
+    "Change loop",
+    "Open loop ›",
+    "System response"
+   ],
+   "links": [
+    "Setpoint changes in Historical ›",
+    "Step-test settings (Gate Configuration › G#) ›"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Signals",
+  "compared": 31,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# role(s) mapped",
+    "B#_#PIC",
+    "Loop explorer",
+    "Loop links",
+    "No peer links",
+    "Not evaluated: not enough data",
+    "Source → loop → calculations → outputs"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [],
+   "buttons": [
+    "#h",
+    "Calculation proof › Workbench",
+    "Instrument healthNot configured · not checked",
+    "Loop explorer",
+    "Not producing verdicts# to fix · # blocking▸",
+    "Open Window Inspector ›",
+    "Open in Loop Registry",
+    "Open signals in Trend ›",
+    "Show on trend ›"
+   ],
+   "links": [],
+   "columns": [
+    "MODE",
+    "Meaning",
+    "OP",
+    "PV",
+    "Role",
+    "SP",
+    "UNS path"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "History",
+  "compared": 26,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "B#_#PIC",
+    "Loop explorer",
+    "Not evaluated: not enough data"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [],
+   "buttons": [
+    "#/#/#, #:#:# UTC · openValve nonlinearity (stiction) detected# episodes · # × #h window(s)",
+    "#/#/#, #:#:# UTC · openValve nonlinearity (stiction) detected# × #h window(s) · peak evide",
+    "#/#/#, #:#:# UTC · openValve nonlinearity (stiction) suspected# episodes · # × #h window(s",
+    "#/#/#, #:#:# UTC · openValve nonlinearity (stiction) suspected# × #h window(s) · peak evid",
+    "#/#/#, #:#:# UTC → #/#/#, #:#:# UTCValve nonlinearity (stiction) suspected# × #h window(s)",
+    "#h",
+    "Calculation proof › Workbench",
+    "Instrument healthNot configured · not checked",
+    "Loop explorer",
+    "Next →",
+    "Not producing verdicts# to fix · # blocking▸",
+    "Open Window Inspector ›",
+    "Show on trend ›",
+    "← Prev",
+    "▸ # episodes"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Calculations",
+  "compared": 29,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "B#_#PIC",
+    "Confirmation",
+    "Diagnostic evidence",
+    "Eligibility",
+    "Fusion",
+    "Gate outcomes",
+    "Loop explorer",
+    "Not evaluated: not enough data",
+    "Performance"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit",
+    "Window"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window: #h — fused G#–G# | #h — fused G#–G# | #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide"
+   ],
+   "inputs": [],
+   "buttons": [
+    "#h",
+    "Calculation proof › Workbench",
+    "Full catalogue ›",
+    "Instrument healthNot configured · not checked",
+    "Loop explorer",
+    "Not producing verdicts# to fix · # blocking▸",
+    "Open G# evidence in Evidence Replay",
+    "Open G#r evidence in Evidence Replay",
+    "Open Window Inspector ›",
+    "Show on trend ›"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Summary, no loop chosen",
+  "compared": 46,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Loop explorer",
+    "Select a loop"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:loop, service, area, unit or type"
+   ],
+   "buttons": [
+    "#h",
+    "Loop Registry ›",
+    "Loop explorer",
+    "▸hdpe / section_# / u#",
+    "▸hdpe / section_# / u#_butene_recovery#",
+    "▸hdpe / section_# / u#_catalyst_dosage#",
+    "▸hdpe / section_# / u#_catalyst_preparation#",
+    "▸hdpe / section_# / u#_catalyst_storage#",
+    "▸hdpe / section_# / u#_catalyst_tankfarm#",
+    "▸hdpe / section_# / u#_condensate_and_steam_supply_system#",
+    "▸hdpe / section_# / u#_hdpe_extruder_feed#",
+    "▸hdpe / section_# / u#_hexane_purification_i_distillation#",
+    "▸hdpe / section_# / u#_hexane_purification_ii_adsorbtion#",
+    "▸hdpe / section_# / u#_hexane_tankfarm#",
+    "▸hdpe / section_# / u#_hexane_tankfarm_fire_fighting_water_spray_fixed_system#",
+    "▸hdpe / section_# / u#_pellet_homogenization_i_silo_#_#_#",
+    "▸hdpe / section_# / u#_pellet_homogenization_ii_silo_#_#",
+    "▸hdpe / section_# / u#_pellet_water_transport_system_drying#",
+    "▸hdpe / section_# / u#_polymerization_ii_post_reactor#",
+    "▸hdpe / section_# / u#_polymerization_ii_reactor_#",
+    "▸hdpe / section_# / u#_polymerization_reactor_#",
+    "▸hdpe / section_# / u#_powder_drying_i#",
+    "▸hdpe / section_# / u#_powder_drying_ii_scrubber#",
+    "▸hdpe / section_# / u#_refrigeration_unit_hexane_supply#",
+    "▸hdpe / section_# / u#_suspension_receiver_off_gas_system#",
+    "▸hdpe / section_# / u#_utility_supply#",
+    "▸hdpe / section_# / u#_waste_water_pretreatment#",
+    "▸hdpe / section_# / u#_wax_pretreatment#",
+    "▸hdpe / section_# / u#_wax_recovery_thinfilm_evaporator#",
+    "▸houston / crude#",
+    "▸kpi_demo / area# / unit#",
+    "▸kpi_t_#cb# / a / u#",
+    "▸narnia / unit#",
+    "▸site# / B# / B#",
+    "▸site# / unit#"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Historical, no loop chosen",
+  "compared": 40,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Historical",
+    "Nothing to inspect in this range",
+    "Select a loop",
+    "Signals, overlay, mode and verdict",
+    "This loop completed no evaluated windows in this range"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "From",
+    "KPI overlay",
+    "Site",
+    "To",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "KPI overlay: Actuator effort ratio · #m | Integral absolute error · #m | Good-error time · #m | OP triangularity (stiction) · #h | Harmonic energy ratio · #h",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "datetime-local:From",
+    "datetime-local:To",
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "#d",
+    "#h",
+    "Apply",
+    "Custom",
+    "Evaluated windows (CSV)",
+    "Evidence package (selected window)",
+    "Historical",
+    "How to use this chart",
+    "Normalise",
+    "Now",
+    "OPController output",
+    "PVProcess variable",
+    "SPSetpoint",
+    "Signal samples (CSV)",
+    "VPValve position",
+    "Widen to # days",
+    "Windows (JSON)",
+    "‹",
+    "›"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Diagnosis, no loop chosen",
+  "compared": 23,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Investigation",
+    "Select a loop",
+    "What the fleet's verdicts contain"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Profile",
+    "Site",
+    "Source",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Profile: #h fused | #h fused",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "Back to conclusion ↑",
+    "Controller tuning · #",
+    "Historical",
+    "Investigation",
+    "Live",
+    "Not evaluable · #",
+    "Valve / final element · #"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Model, no loop chosen",
+  "compared": 12,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Pick a loop",
+    "System response"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "System response"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ },
+ {
+  "tab": "PLANTED: must differ",
+  "compared": 18,
+  "lost": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Window profile"
+   ],
+   "selects": [
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "panels": 1
+  },
+  "added": {
+   "headings": [
+    "No response events for this loop",
+    "No system model for this loop",
+    "Response events (#)",
+    "System response"
+   ],
+   "buttons": [
+    "Change loop",
+    "Open loop ›",
+    "System response"
+   ],
+   "links": [
+    "Setpoint changes in Historical ›",
+    "Step-test settings (Gate Configuration › G#) ›"
+   ],
+   "panels": 2
+  },
+  "seen": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit",
+    "Window profile"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "inputs": [
+    "text:"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ },
+ {
+  "tab": "Diagnosis, filters open",
+  "compared": 52,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Investigation",
+    "Loop notes",
+    "Not evaluated: not enough data",
+    "Numeric evidence on this window",
+    "Recent windows",
+    "Signals over the evaluated window",
+    "What the fleet's verdicts contain"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Outcome",
+    "Profile",
+    "Site",
+    "Source",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Outcome: Inconclusive | Work completed | Performance restored",
+    "Profile: #h fused | #h fused",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:",
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
+    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
+    "Back to conclusion ↑",
+    "Calculation proof ›",
+    "Controller tuning · #",
+    "Done ▴",
+    "Engineering range",
+    "Fit to data",
+    "Historical",
+    "How this is ordered",
+    "How to read this trend",
+    "Investigation",
+    "Live",
+    "Not evaluable · #",
+    "Older ›",
+    "Open in Evidence Replay ›",
+    "Reset",
+    "Save note",
+    "Undo",
+    "Valve / final element · #",
+    "Zoom area",
+    "‹ Newer"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 1,
+   "panels": 8
+  }
+ }
+]

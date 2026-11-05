@@ -833,6 +833,7 @@
   overscroll-behavior-x: contain;
 }
 .cpm-tabpanel { min-height: 320px; padding-top: 12px; }
+.cpm-tabpanel__next { margin-top: 24px; }
 
 /* ── Signals table ── */
 .cpm-signal-provenance { display: inline-flex; align-items: center; gap: 8px; }

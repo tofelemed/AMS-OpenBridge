@@ -2,7 +2,7 @@
  * SPEC §6.9: `role="tablist"` with `aria-selected`, a roving tab stop and arrow keys. The caller
  * renders the panel and links it with `tabPanelProps`.
  */
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import './forms/forms.css';
 
 export interface TabOption<T extends string> {
@@ -29,6 +29,16 @@ export function Tabs<T extends string>({ idBase, label, options, value, onChange
   onChange: (next: T) => void;
 }): React.ReactElement {
   const listRef = useRef<HTMLDivElement>(null);
+
+  // A row that scrolls must not hide the selected tab. Sideways only: a row lower on the page must not move the page.
+  useEffect(() => {
+    const row = listRef.current;
+    const tab = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !tab) return;
+    const left = tab.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+    if (left < row.scrollLeft) row.scrollLeft = left;
+    else if (left + tab.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + tab.offsetWidth - row.clientWidth;
+  }, [value]);
 
   const moveTo = (index: number) => {
     onChange(options[index].value);

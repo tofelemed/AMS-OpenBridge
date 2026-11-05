@@ -26,15 +26,8 @@ import { shelfState } from '../events/shelfState';
 import { diagnosisLabel } from '../vocabulary';
 import { evidenceScoreText } from '../evidenceScore';
 import { historicalHref } from '../cpaHref';
+import { HISTORY_QUERY } from './historyQuery';
 
-/**
- * sort:'recent' is load-bearing, not a preference: the endpoint's default order
- * is triage (open first, then peak confidence), so under the default this LIMIT
- * kept the highest-CONFIDENCE frames while the tab rendered them as a timeline.
- */
-export const HISTORY_QUERY = {
-  openOnly: false, includeShelved: true, limit: 50, sort: 'recent' as const,
-};
 const PAGE_SIZE = 10;
 
 interface Span { startMs: number; endMs: number | null; invalid: boolean }

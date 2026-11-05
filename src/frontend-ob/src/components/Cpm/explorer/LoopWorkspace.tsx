@@ -32,7 +32,8 @@ import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
 import RelationshipsTab from './RelationshipsTab';
-import HistoryTab, { HISTORY_QUERY } from './HistoryTab';
+import HistoryTab from './HistoryTab';
+import { HISTORY_QUERY } from './historyQuery';
 
 export const TABS: ExplorerTab[] = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'];
 
@@ -48,8 +49,10 @@ export const LoopWorkspace: React.FC<{
   tab: ExplorerTab;
   /** The fused window kind (`?window=`) the verdict pill and the Summary gate strip read; one query key for both. */
   windowKind: string;
+  /** The Loop page's tab row chooses the tab and carries the counts, and Signals shows Relationships under it. */
+  hosted?: boolean;
   onTab: (t: ExplorerTab) => void;
-}> = ({ loop, tab, windowKind, onTab }) => {
+}> = ({ loop, tab, windowKind, hosted = false, onTab }) => {
   const gates = useLatestGates(loop.loopId, windowKind);
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
@@ -132,17 +135,22 @@ export const LoopWorkspace: React.FC<{
           diagnosis sits in the summary's "Basis and limitations" disclosure, so the trend follows the summary. */}
       {summary && !readinessInCard && <ReadinessBar summary={summary} onTab={onTab} />}
 
-      <div className="cpm-tabs">
-        {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
-        <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
-      </div>
+      {!hosted && (
+        <div className="cpm-tabs">
+          {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
+          <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
+        </div>
+      )}
 
       {/* The panel is height-bounded so switching from the tall Summary chart to
           an empty Relationships tab no longer collapses the page under the
           cursor. */}
-      <div className="cpm-tabpanel" {...tabPanelProps('loop-workspace', tab)}>
+      <div className="cpm-tabpanel" {...(hosted ? {} : tabPanelProps('loop-workspace', tab))}>
         {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
+        {tab === 'Signals' && hosted && (
+          <div className="cpm-tabpanel__next"><RelationshipsTab loop={loop} windowKind={windowKind} /></div>
+        )}
         {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
         {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
         {tab === 'History' && <HistoryTab loop={loop} />}

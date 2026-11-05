@@ -1,12 +1,12 @@
 # CPA page plan
 
-**Status: proposal. Nothing here is built, and nothing will be until the owner agrees.** The picture of it is `samples/page-plan.html`. Block names come from the running pages and the source (5 November 2026).
+**Status: agreed with the owner on 5 November 2026, and corrected after a check of every filter in the code.** The picture of it is `samples/page-plan.html`. Block names come from the running pages and the source.
 
 ## The short answer
 
-**24 screens become 8 menu entries, and no content is lost.** Phase 2 already put most old pages inside tabs. What is left is cleaning up what happens when they sit together: tabs inside tabs, a page header inside every tab, and a loop picker on every tab.
+**24 screens become 8 menu entries, and no content is lost. This plan only moves pages.**
 
-Inside each tab, **the layout stays exactly as it is today**: same panels, same order, same trends, same drawers.
+Inside each tab **nothing is added, removed or rearranged**: same panels, same order, same filters, same trends, same drawers. The filter row of each page stays on that page. The selected loop and the plant scope already carry from tab to tab in the address, so nobody picks a loop twice.
 
 | Menu entry | Tabs | Replaces |
 |---|---|---|
@@ -16,15 +16,41 @@ Inside each tab, **the layout stays exactly as it is today**: same panels, same 
 | **Loop** | Summary · Historical · Diagnosis · Model · Signals · History · Calculations | Loop explorer, Historical, Investigation, System response |
 | **Evidence** | Gates · Replay · Windows · Calculations | Evidence workbench, Evidence replay, Window inspector, Calculations |
 | **Setup** | Loops · Configuration · Plant model · Data sources · Tag aliases | Loop registry, Gate configuration, three Administration sections |
-| **System** | Pipeline · Governance · Users · Roles · Audit log · Settings | Pipeline health, Governance, four Administration sections |
+| **System** | Pipeline · Governance · Users · Roles · Settings | Pipeline health, Governance, Audit log, three Administration sections |
 | **Trend** | none | Trend tool (unchanged) |
 
 ## What changes, and only this
 
-1. **One header per page.** The page name, one `?`, the window switch and one loop picker. The old page's own title goes, because the tab names it. Its purpose sentence moves to the tab's `?`.
-2. **One row of tabs.** No tabs inside tabs.
-3. **Every tab has its own address.** Back, forward, bookmarks and shared links work, and every old address opens the right tab.
-4. **Each tab keeps its permission.** A role that cannot see a page today cannot see that tab.
+1. **One row of tabs.** Tabs inside tabs move up into the page's row, and their counts move with them.
+2. **Every tab has its own address.** Back, forward, bookmarks and shared links work, and every old address opens the right tab.
+3. **Each tab keeps its permission.** A role that cannot see a page today cannot see that tab, and nobody loses a page they have today.
+4. **Two changes the owner asked for:** the KPI drill-down opens in place, and Governance events and Audit log become one view (below).
+
+## Withdrawn after the filter check
+
+The first version of this plan said "one loop picker in the page header" and "the old page title goes". **Both are withdrawn.**
+
+The loop picker is not a separate control. On every page it sits inside a filter row and works with it, as the table below shows. On Summary it is a loop tree with its own search. On Diagnosis the case chips decide which loops it offers. Moving it would have meant rebuilding those rows, which the same plan promised not to do. It also buys nothing, because the loop already stays selected across tabs.
+
+Page headings stay as well, because nothing inside a page changes. Dropping them where they repeat the tab is the owner's choice, and it is one line of code.
+
+## Every filter stays on its tab
+
+Checked in the source on 5 November 2026. Each row is that tab's controls today, and each stays in the same place.
+
+| Tab | Loop chooser | The filters and selectors around it |
+|---|---|---|
+| Loop › Summary, Signals, History, Calculations | Loop tree with search, can collapse | 12h / 24h; Site, Area, Unit, loops in scope. Summary: trend period bar, compare. Calculations: window size selector. History: pager |
+| Loop › Historical | Loop picker | 12h / 24h; Site, Area, Unit, loops in scope; four exports; range presets, step back and forward, now, custom from and to; PV, SP, OP, VP toggles; KPI overlay; normalize; Open in Trend |
+| Loop › Diagnosis | Loop picker, narrowed by the case chips | Site, Area, Unit, loops in scope; case chips, Clear filter; Source live or historical; Profile; Evaluated window; folds to one line |
+| Loop › Model | Loop picker | Site, Area, Unit; Open loop; Change loop; show censored events |
+| Evidence › Gates | Loop picker | Site, Area, Unit, loops in scope; Window of any size; Evaluated window; Load older; Jump to date; Evaluate |
+| Evidence › Replay | Loop picker | 12h / 24h; Site, Area, Unit; Evaluated window; Gate; Export package |
+| Evidence › Windows | Loop picker | Site, Area, Unit; Window profile |
+| Evidence › Calculations | Loop picker | 12h / 24h; Site, Area, Unit; search; All gates; All types; column sort |
+| Setup › Configuration | Loop picker | Site, Area, Unit; Effective, Bundles and Editor views |
+
+What the choice of loop does also stays per tab: Replay and Windows clear the selected window, Model clears the selected event, and Summary clears the selected gate.
 
 ## Where every block goes
 
@@ -37,7 +63,7 @@ Inside each tab, **the layout stays exactly as it is today**: same panels, same 
 | Loop focus: live values, readiness, gates, evidence path | Operations overview | None |
 | Event trail | Operations overview | None |
 | Configuration limits, readiness strip | Operations overview | None |
-| **KPI drill-down:** the rule, how it is calculated, how it has moved (14 d to 3 y), every loop behind the number with its proof | KPI drill-down | Opens in place, with "← Overview" |
+| **KPI drill-down:** the rule, how it is calculated, how it has moved (14 d to 3 y), every loop behind the number with its proof | KPI drill-down | Opens in place, with "← Overview" (decision 3) |
 
 ### Performance, Episodes, Trend
 No change. Every block stays: Performance's data-issue chips, four summary figures, gate pathway, gate matrix and Loops needing attention; Episodes' filters, ledger, episode detail, review and shelf, notes and fast conditions; Trend's whole tool.
@@ -46,12 +72,14 @@ No change. Every block stays: Performance's data-issue chips, four summary figur
 | Tab | Blocks | Comes from |
 |---|---|---|
 | **Summary** | Readiness bar, operating state, trend and period bar, loop model, loop KPIs, gate strip and detail, long and short windows | Loop explorer › Summary |
-| **Historical** | Range bar, CSV and JSON exports, signals, overlay, mode and verdict lanes, inspect panel | Historical |
+| **Historical** | Range bar, exports, signals, overlay, mode and verdict lanes, inspect panel | Historical |
 | **Diagnosis** | Final conclusion, analysis cases, numeric evidence, signals over the window, reasoning chain, hypothesis comparison, recent windows, loop notes | Investigation |
 | **Model** | Response events, key results, steps A to H, subgates, candidate models, frequency response, residuals, uncertainty, model history, model review | System response |
 | **Signals** | Role map, open signals in Trend, and under it source → loop → calculations → outputs, and loop links | Loop explorer › Signals + Relationships |
 | **History** | Episodes by condition, with the pager | Loop explorer › History |
 | **Calculations** | Gate outcomes and per-window values, with the window size selector, Full catalogue › | Loop explorer › Calculations |
+
+The loop tree, the loop summary and the readiness bar head Summary, Signals, History and Calculations, as they head those tabs today (SME #4).
 
 ### Evidence
 | Tab | Blocks | Comes from |
@@ -74,21 +102,36 @@ No change. Every block stays: Performance's data-issue chips, four summary figur
 | Tab | Blocks | Comes from |
 |---|---|---|
 | **Pipeline** | Job table, checkpoint behaviour, E2E round trip, where a sample becomes a verdict | Pipeline health |
-| **Governance** | Events and chain verification, what produces today's verdicts, configuration awaiting approval, permission matrix | Governance |
+| **Governance** | The one audit trail (below), what produces today's verdicts, configuration awaiting approval, permission matrix | Governance + Audit log |
 | **Users** | Users, add, bulk import, edit, delete | Administration |
 | **Roles** | Roles, permissions, custom roles | Administration |
-| **Audit log** | Audit explorer | Administration |
 | **Settings** | System settings | Administration |
 
-## What is removed: repeats only
+## One audit trail (decision 4)
 
-| Repeat | Today | After |
-|---|---|---|
-| Page title inside a tab | Tab "Historical", then a heading "Historical" | The tab names it |
-| Loop picker | On Explorer, Historical, Investigation, Response, Replay, Windows, Calculations, Workbench | One in the page header |
-| Signals | In Loop twice: Performance › Signals and Signals | Once |
-| Tabs inside tabs | Loop › Performance › Summary | One row |
-| Administration | A list of links that leaves System | Real tabs |
+Governance events and Audit log read the same records from the same address, `/api/audit`. They differ in what each shows, so the one view keeps everything from both.
+
+| | Governance events | Audit log | One view |
+|---|---|---|---|
+| Entity buttons | All, CPM loops, CPM events, HMI displays | none | Kept |
+| Event type | none | All, Acknowledgements, Shelving, Security and logins, System | Kept |
+| User filter | none | Asks the server for one user | Kept |
+| Find by user, action or entity | Within the rows fetched | none | Kept |
+| Columns | When and hash, action, actor, entity | Timestamp, event type, user, entity, hash, correlation | All of them, with the longer hash |
+| Verify cryptographic chain | Yes | Yes | One button |
+| Integrity line | Result after a run | Result after a run, and a standing note before it | Kept |
+| Paging | 25 a page, says when older rows are not fetched | 25 a page, states the totals | Kept, both statements |
+
+It lives on System › Governance, above version provenance, approvals and the permission matrix. `/admin/audit` opens it. Each block keeps its own permission, so someone who holds only `admin.audit.view` sees the trail and nothing they cannot see today. The other Governance blocks stay with `system.manage`.
+
+## What goes away: navigation only
+
+| Today | After |
+|---|---|
+| Signals in Loop twice: Performance › Signals and Signals | Once |
+| Tabs inside tabs: Loop › Performance › Summary | One row |
+| Administration: a list of links that leaves System | Real tabs |
+| The Audit log as a separate view of the same trail | One view, by the owner's decision |
 
 ## Not duplicates: kept apart
 
@@ -102,27 +145,28 @@ Checked in the code, because they look alike.
 | Diagnosis › Recent windows and Evidence › Windows | The first is fused verdict windows. The second is every short granularity. |
 | Loop notes on Diagnosis, Replay and Episodes | The same notes, each where the question arises. |
 
-## Decisions for the owner
+## The owner's decisions, 5 November 2026
 
-1. **Administration.** Recommended: Plant model, Data sources and Tag aliases go to Setup, because they describe the plant. Users, Roles, Audit log and Settings go to System. The alternative is one Administration tab with its own section bar, which brings back tabs inside tabs.
-2. **Name of the first Loop tab.** Recommended: **Summary**, because "Performance" is also a menu entry.
-3. **KPI drill-down.** Recommended: opens in place as a full view. A drawer is too narrow for its six-column table.
-4. **Governance events and Audit log read the same trail.** Recommended: keep both for now, because you asked to remove nothing. You may prefer one.
+1. **Administration:** Plant model, Data sources and Tag aliases go to Setup. Users, Roles and Settings go to System. Agreed.
+2. **First Loop tab:** Summary. Agreed.
+3. **KPI drill-down:** opens in place as a full view. Agreed.
+4. **Governance events and Audit log:** one page with the information of both.
 
 ## Order of work
 
-One page at a time, each shown to you before the next.
+One page at a time, each shown to the owner before the next.
 
-1. **Loop:** the biggest gain.
+1. **Loop:** one row of tabs. **Built (CHG-120).**
 2. **Overview:** KPI drill-down in place.
-3. **Evidence:** one loop picker.
-4. **Setup and System:** Administration into tabs.
+3. **Evidence:** tabs share the loop and window correctly.
+4. **Setup and System:** Administration into tabs, and the one audit trail.
 5. **Old addresses:** switch on the redirects, and check every link.
 
-Each step is checked in Day and Night at 1440, 1000, 768 and 390 px, with a list proving that no control, link or field was lost.
+Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference.
 
 ## Known risks, already understood
 
-- Historical, Investigation, Replay and Windows read `window` as an end time. The 12h / 24h switch must never reach them, so it shows only on tabs where it applies.
-- Old pages use `tab` for themselves. Inside a page they need their own name, as Explorer already does with `sub`.
-- A loop picker in the header must carry the loop to every tab, and the period only where it means the same thing.
+- Tabs on one page share the address, and old pages use the same names for different things. `window` is a kind on some and an evaluated end on others, and the kind itself is `window`, `kind` or `profile` by page. Moving between tabs has to translate it, or a 24h choice is lost. Loop does this (CHG-120).
+- `gate` is a selection on Gates and Replay, but a filter on Evidence › Calculations, so a gate picked on Gates would silently narrow the catalogue. Step 3 must stop it carrying there.
+- `/cpm/system` needs `system.manage`. `/admin/*` opens for `admin.users.edit`, `admin.audit.view`, `rbac.manage` or the ingestion permissions, and Plant model and Tag aliases for `asset.view`. Moving those sections must not lock those roles out, so the System and Setup route guards and menu rules change with them in step 4.
+- Old pages use `tab` for themselves. Inside a page they need their own name, as Gate configuration already does with `sub`.

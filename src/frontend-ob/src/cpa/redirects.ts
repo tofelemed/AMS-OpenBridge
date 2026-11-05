@@ -23,27 +23,20 @@ const with_ = (q: URLSearchParams, set: Record<string, string | null>) => {
   return next;
 };
 
-/** Historical's `window` is an evaluated END; the global `window` is a kind (SPEC §2.2). */
-const isKind = (v: string | null) => v === '12h' || v === '24h';
-
-const explorer: Rewrite = q => {
-  const tab = q.get('tab');
-  if (tab === 'Calculations') return { path: '/cpm/evidence', query: with_(q, { tab: 'calculations' }) };
-  if (tab === 'History') return { path: '/cpm/loop', query: with_(q, { tab: 'diagnosis', section: 'episodes' }) };
-  if (tab === 'Relationships') return { path: '/cpm/loop', query: with_(q, { tab: 'signals', section: 'relationships' }) };
-  if (tab === 'Signals') return { path: '/cpm/loop', query: with_(q, { tab: 'signals' }) };
-  return { path: '/cpm/loop', query: with_(q, { tab: 'performance' }) };
+/**
+ * page-plan.md: Explorer's tabs sit in Loop's row. Its Calculations are one loop's gate outcomes, not
+ * the Evidence catalogue, and its History is not Diagnosis, so both keep a tab of their own.
+ */
+const EXPLORER_TAB: Readonly<Record<string, string>> = {
+  Signals: 'signals', Relationships: 'signals', History: 'history', Calculations: 'calculations',
 };
 
-const historical: Rewrite = q => {
-  const window = q.get('window');
-  const end = window && !isKind(window) ? window : null;
-  const custom = q.get('from') && q.get('to') ? 'custom' : q.get('range');
-  return {
-    path: '/cpm/loop',
-    query: with_(q, { tab: 'performance', range: custom, window: end ? null : window, windowId: end }),
-  };
-};
+const explorer: Rewrite = q => ({
+  path: '/cpm/loop',
+  query: with_(q, { tab: EXPLORER_TAB[q.get('tab') ?? ''] ?? 'summary' }),
+});
+
+const historical: Rewrite = q => ({ path: '/cpm/loop', query: with_(q, { tab: 'historical' }) });
 
 export const REDIRECTS: readonly RedirectRow[] = [
   { from: '/cpm/kpi', phase: 4, to: q => ({ path: '/cpm', query: with_(q, { kpi: null, review: q.get('kpi') }) }) },

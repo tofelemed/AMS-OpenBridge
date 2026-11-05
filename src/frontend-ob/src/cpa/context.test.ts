@@ -92,15 +92,15 @@ describe('cpaHref', () => {
 describe('legacy URL rewrite (SPEC §2.3)', () => {
   it.each([
     ['/cpm/kpi', 'kpi=K&site=a', '/cpm?review=K&site=a'],
-    ['/cpm/explorer', 'loop=L', '/cpm/loop?loop=L&tab=performance'],
-    ['/cpm/explorer', 'loop=L&tab=Summary', '/cpm/loop?loop=L&tab=performance'],
+    ['/cpm/explorer', 'loop=L', '/cpm/loop?loop=L&tab=summary'],
+    ['/cpm/explorer', 'loop=L&tab=Summary', '/cpm/loop?loop=L&tab=summary'],
     ['/cpm/explorer', 'loop=L&tab=Signals', '/cpm/loop?loop=L&tab=signals'],
-    ['/cpm/explorer', 'loop=L&tab=Relationships', '/cpm/loop?loop=L&section=relationships&tab=signals'],
-    ['/cpm/explorer', 'loop=L&tab=Calculations', '/cpm/evidence?loop=L&tab=calculations'],
-    ['/cpm/explorer', 'loop=L&tab=History', '/cpm/loop?loop=L&section=episodes&tab=diagnosis'],
-    ['/cpm/historical', 'loop=L&kpi=K&signals=pv&from=a&to=b&normalize=1&focus=x', '/cpm/loop?focus=x&from=a&kpi=K&loop=L&normalize=1&range=custom&signals=pv&tab=performance&to=b'],
-    ['/cpm/historical', 'loop=L&window=2026-11-04T12:00:00Z', '/cpm/loop?loop=L&tab=performance&windowId=2026-11-04T12:00:00Z'],
-    ['/cpm/historical', 'loop=L&window=24h', '/cpm/loop?loop=L&tab=performance&window=24h'],
+    ['/cpm/explorer', 'loop=L&tab=Relationships', '/cpm/loop?loop=L&tab=signals'],
+    ['/cpm/explorer', 'loop=L&tab=Calculations', '/cpm/loop?loop=L&tab=calculations'],
+    ['/cpm/explorer', 'loop=L&tab=History', '/cpm/loop?loop=L&tab=history'],
+    ['/cpm/historical', 'loop=L&kpi=K&signals=pv&from=a&to=b&normalize=1&focus=x', '/cpm/loop?focus=x&from=a&kpi=K&loop=L&normalize=1&signals=pv&tab=historical&to=b'],
+    ['/cpm/historical', 'loop=L&window=2026-11-04T12:00:00Z', '/cpm/loop?loop=L&tab=historical&window=2026-11-04T12:00:00Z'],
+    ['/cpm/historical', 'loop=L&window=24h', '/cpm/loop?loop=L&tab=historical&window=24h'],
     ['/cpm/investigation', 'loop=L&profile=12h&case=C&mode=m&window=w', '/cpm/loop?case=C&loop=L&mode=m&profile=12h&tab=diagnosis&window=w'],
     ['/cpm/response', 'loop=L&event=E&methodRun=R', '/cpm/loop?event=E&loop=L&methodRun=R&tab=model'],
     ['/cpm/evidence', 'loop=L&gate=G0&before=b&methodRun=R&view=v&kind=12h', '/cpm/evidence?before=b&gate=G0&kind=12h&loop=L&methodRun=R&tab=gates&view=v'],
@@ -125,7 +125,7 @@ describe('legacy URL rewrite (SPEC §2.3)', () => {
 
   it('keeps a row off until its phase ships', () => {
     expect(resolveRedirect('/cpm/explorer', 'loop=L', 4)).toBeNull();
-    expect(resolveRedirect('/cpm/explorer', 'loop=L', 5)).toBe('/cpm/loop?loop=L&tab=performance');
+    expect(resolveRedirect('/cpm/explorer', 'loop=L', 5)).toBe('/cpm/loop?loop=L&tab=summary');
     expect(resolveRedirect('/cpm/kpi', 'kpi=K', 3)).toBeNull();
     expect(resolveRedirect('/cpm/kpi', 'kpi=K', 4)).toBe('/cpm?review=K');
   });

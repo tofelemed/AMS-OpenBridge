@@ -136,11 +136,11 @@ export function useEventActions(id: number | undefined, enabled: boolean) {
   });
 }
 
-export function useLatestGates(loopId: string | undefined, windowKind = '12h') {
+export function useLatestGates(loopId: string | undefined, windowKind = '12h', enabled = true) {
   return useQuery({
     queryKey: KEYS.gatesLatest(loopId ?? '', windowKind),
     queryFn: ({ signal }) => cpm.getLatestGates(loopId!, windowKind, signal),
-    enabled: !!loopId,
+    enabled: enabled && !!loopId,
     // gates/latest answers 404 for a loop with no fused window yet. That is a
     // definitive answer, not a transient failure, so the global retry:2 turned
     // every newly-onboarded loop into 3 requests per selection (with backoff

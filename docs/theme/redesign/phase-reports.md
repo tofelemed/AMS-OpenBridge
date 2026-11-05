@@ -65,3 +65,11 @@ Change tracker: CHG-114
 ## Phase 4 withdrawn (UI-049)
 
 The owner directed that the core page design stays and only colours change. Overview, Performance and Episodes returned to their Phase 3 design in CHG-115. The figures in the Phase 4 report describe the withdrawn pages. Phases 5 to 8 of PRM-004 are stopped until the owner decides what remains.
+
+## Page plan, step 1: Loop (CHG-120)
+
+Loop has one row of seven tabs. Nothing inside a page changed.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,145) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (24 cases) | a11y ✗ (10 serious, none from this change)
+Evidence: `evidence/phase-5/` (`loop-parity.json` 502 items in 14 tab states, nothing lost or added; `axe.json`). Tool: `docs/theme/tools/tab-parity.mjs`, proven by a planted wrong pair.
+Walks: 37 browser checks passed, and two real readiness links opened the right tab. 56 views with no overflow. Blocked 0.
+Not met: a11y. The Calculations gate buttons and the Historical pen note fail the same way on their old pages. Performance and Episodes findings came back with the old design in CHG-115 (UI-069).

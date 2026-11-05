@@ -6,16 +6,17 @@
 import React, { useId } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { RequirePermission, RouteFallback } from '../../app/guards';
+import { carryKind, type KindTab } from '../../cpa/tabKind';
 import { useAuthStore } from '../../store/authStore';
 import { Tabs, tabPanelProps } from '../../ui/Tabs';
 
-export interface HostTab {
+export interface HostTab extends KindTab {
   value: string;
   label: string;
   /** The page's own route guard, unchanged. */
   permission?: string;
-  /** The old page reads `window` as an evaluated END, so a window kind must not reach it. */
-  windowIsEnd?: boolean;
+  /** A count beside the label. */
+  badge?: number;
   render: () => React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export const DestinationHost: React.FC<{ label: string; tabs: HostTab[] }> = ({ 
   const active = tabs.find(t => t.value === params.get('tab')) ?? offered[0] ?? tabs[0];
 
   const select = (value: string) => setParams(p => {
+    carryKind(p, active, tabs.find(t => t.value === value) ?? active);
     p.set('tab', value);
     p.delete('sub');
     return p;
@@ -36,7 +38,7 @@ export const DestinationHost: React.FC<{ label: string; tabs: HostTab[] }> = ({ 
   const kind = params.get('window');
   if (active.windowIsEnd && (kind === '12h' || kind === '24h')) {
     const clean = new URLSearchParams(params);
-    clean.delete('window');
+    carryKind(clean, {}, active);
     return <Navigate to={`${pathname}?${clean.toString()}`} replace />;
   }
 

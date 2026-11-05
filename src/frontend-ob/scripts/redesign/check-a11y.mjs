@@ -22,6 +22,9 @@ const ROUTES = [
   { name: 'Performance', url: '/cpm/performance' },
   { name: 'Performance, matrix', url: '/cpm/performance?view=matrix' },
   { name: 'Episodes', url: '/cpm/events' },
+  ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations']
+    .map(tab => ({ name: `Loop, ${tab}`, url: `/cpm/loop?tab=${tab}&loop=B2_027PIC` })),
+  { name: 'Loop, no loop chosen', url: '/cpm/loop' },
 ];
 
 const env = requireEnv();

@@ -5488,3 +5488,27 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-120 — CPA: Loop page, one row of tabs (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner agreed the page plan and asked that pages only move: nothing added or removed inside a page, every filter still there. This is step 1 of `docs/theme/redesign/page-plan.md`.
+
+**Changed.**
+- **Loop:** Summary, Historical, Diagnosis, Model, Signals, History and Calculations sit in one row. The Explorer's own tab row moved up into it, with its counts. Signals shows Relationships under it, so Signals no longer appears twice.
+- **12h / 24h:** the choice now stays when the tab changes. Before, 24h fell back to 12h on Historical and Diagnosis. The old pages name it `window`, `kind` or `profile`, and `cpa/tabKind.ts` translates it.
+- **Tab row:** the selected tab stays in view when the row scrolls, which seven tabs need on a phone.
+- **Redirect table:** corrected, still switched off. Loop Calculations and History keep their own tabs, because they are not the Evidence catalogue or Diagnosis.
+- **Plan corrected:** "one loop picker in the header" is withdrawn. The picker is part of each page's filter row, so every tab keeps its row. Page headings stay too (UI-063, UI-064). Decision 4, one audit trail, is planned for step 4.
+
+**Verified on lab data, in the same build as the old pages.**
+- `docs/theme/tools/tab-parity.mjs` compared each tab with its old page: 502 headings, filters, options, inputs, buttons, links, columns and charts across 14 tab states, with and without a loop, filters folded and open. **Nothing lost, nothing added.** A planted wrong pair was caught. Results: `evidence/phase-5/loop-parity.json`.
+- Clicked through in the browser, 37 checks: the loop stays on all seven tabs; Site stays on all seven; 24h travels; case chips still narrow the picker (162 of 162); the tree, Back and Forward work. Two real readiness links opened the right tab.
+- No new request: the counts read the cache. 56 views (7 tabs, 4 widths, 2 themes) with no overflow. Blocked 0.
+- tsc 0, lint 0, 1,145 tests in 143 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14, redirects 24 of 24. One earlier full run failed two Episodes tests, because a lazy panel took over a second under load. They passed alone 3 of 3 and in the next full run, and this change does not touch them.
+
+**Not met:** `check-a11y` now scans the Loop tabs and fails with 10 serious findings. None comes from this change. The Calculations gate buttons and the Historical pen note fail the same way on their old pages, and the rest are on Performance and Episodes, which returned with the old design in CHG-115.
+
+**Not exercised in the browser:** a Calculations readiness link, because no loop tried on the lab has one. It takes the same path as the Signals link and has a unit test.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
