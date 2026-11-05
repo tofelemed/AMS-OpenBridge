@@ -49,7 +49,7 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
         if (!cards.length) return null;
         return (
           <div key={gr.id} className="cpm-kpigroup" role="group" aria-label={gr.title}>
-            <h4 className="cpm-kpigroup__title">{gr.title}</h4>
+            <h3 className="cpm-kpigroup__title">{gr.title}</h3>
             <div className="cpm-kpicards cpm-kpicards--loop">
               {cards.map(c => (
                 <KpiCard key={c.key} Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone} delta={c.delta}

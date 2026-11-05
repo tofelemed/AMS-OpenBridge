@@ -103,6 +103,8 @@
   border: 1px solid var(--border-divider-color); border-radius: 6px; background: var(--container-global-color);
   color: var(--element-active-color); font: inherit; text-align: left; cursor: pointer;
 }
+.cpm-window-tiles__item { display: flex; min-width: 0; }
+.cpm-window-tiles__item > .cpm-window-tile { width: 100%; }
 .cpm-window-tile:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
 .cpm-window-tile:focus-visible { outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color)); outline-offset: 1px; }
 .cpm-window-tile--current { border: 2px solid var(--instrument-enhanced-primary-color); background: var(--container-hover-color, transparent); }

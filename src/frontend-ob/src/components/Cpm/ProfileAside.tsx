@@ -50,7 +50,7 @@ export const ProfileAside: React.FC<{ loop: CpmLoop; onEdit: () => void }> = ({ 
   const rolePolicy = rolePolicyOf(catalogue.data);
   const st = stateOf(loop);
   return (
-    <aside className="cpm-surface">
+    <aside className="cpm-surface" aria-label="Assigned profile">
       <PanelHead
         eyebrow="Assigned profile"
         title={loop.loopId}

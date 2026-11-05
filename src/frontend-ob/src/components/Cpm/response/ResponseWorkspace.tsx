@@ -101,7 +101,7 @@ export const ResponseWorkspace: React.FC = () => {
         <WorkspaceHeader page="/cpm/response" title="System response" />
         {picker}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
-        <EmptyState title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
+        <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
       </div>
     );
   }
@@ -175,7 +175,7 @@ export const ResponseWorkspace: React.FC = () => {
           {!canReview && <p className="cpm-copy">Model review needs the cpm.model.review permission.</p>}
         </div>
 
-        <aside className="cpm-response-detail">
+        <aside className="cpm-response-detail" aria-label="Selected response event">
           {eventParam && result && (
             <EventAside result={result} metrics={detail.data?.metrics} timeZone={timeZone} methodRunId={methodRunId} loopId={loopId}
               resultRevision={selected?.resultRevision} eventType={selected?.eventType}

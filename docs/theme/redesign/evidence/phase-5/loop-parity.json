@@ -239,11 +239,11 @@
     "textarea:Observation, action taken, follow-up owner… (no episode needed)"
    ],
    "buttons": [
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
     "Back to conclusion ↑",
     "Calculation proof ›",
     "Change ▾",
+    "Ends # Aug #:# UTC# h · Excluded: loop not in automatic",
+    "Ends # Aug #:# UTCLatest# h · Excluded: loop not in automatic",
     "Engineering range",
     "Fit to data",
     "How this is ordered",
@@ -289,11 +289,11 @@
     "textarea:Observation, action taken, follow-up owner… (no episode needed)"
    ],
    "buttons": [
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
     "Back to conclusion ↑",
     "Calculation proof ›",
     "Change ▾",
+    "Ends # Aug #:# UTC# h · Excluded: loop not in automatic",
+    "Ends # Aug #:# UTCLatest# h · Excluded: loop not in automatic",
     "Engineering range",
     "Fit to data",
     "How this is ordered",
@@ -460,7 +460,7 @@
  },
  {
   "tab": "Calculations",
-  "compared": 29,
+  "compared": 32,
   "lost": {},
   "added": {},
   "seen": {
@@ -491,13 +491,16 @@
    "buttons": [
     "#h",
     "Calculation proof › Workbench",
+    "Fail: open G# evidence in Evidence Replay",
     "Full catalogue ›",
     "Instrument healthNot configured · not checked",
+    "Insufficient evidence: open G# evidence in Evidence Replay",
     "Loop explorer",
+    "Not evaluated: open G# evidence in Evidence Replay",
     "Not producing verdicts# to fix · # blocking▸",
-    "Open G# evidence in Evidence Replay",
-    "Open G#r evidence in Evidence Replay",
     "Open Window Inspector ›",
+    "Pass: open G# evidence in Evidence Replay",
+    "Pass: open G#r evidence in Evidence Replay",
     "Show on trend ›"
    ],
    "links": [],
@@ -825,12 +828,12 @@
     "textarea:Observation, action taken, follow-up owner… (no episode needed)"
    ],
    "buttons": [
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic",
-    "# h window · # Aug #:# → # Aug #:# UTC: Excluded: loop not in automatic, latest",
     "Back to conclusion ↑",
     "Calculation proof ›",
     "Controller tuning · #",
     "Done ▴",
+    "Ends # Aug #:# UTC# h · Excluded: loop not in automatic",
+    "Ends # Aug #:# UTCLatest# h · Excluded: loop not in automatic",
     "Engineering range",
     "Fit to data",
     "Historical",

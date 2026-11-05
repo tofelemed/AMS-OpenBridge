@@ -229,6 +229,23 @@
 }
 .shell-drawer__close { align-self: flex-end; margin: var(--traverse-space-2); }
 
+/* Phone: every control keeps its full size and only the spacing gives way. It needs 465 px with the
+   full name, and squeezed the four icon controls to about 18 px at 390 and to nothing at 320. */
+@media (max-width: 1023.98px) {
+  .shell__header > .ui-control--icon,
+  .shell__header > .ui-popover { flex: none; }
+}
+@media (max-width: 479.98px) {
+  .shell__header { gap: var(--traverse-space-1); padding-inline: var(--traverse-space-2); }
+  .shell__brand { margin-inline-end: 0; }
+  .shell__wordmark { display: none; }
+  .shell__zone, .shell__env { flex: none; }
+  .shell__header > [data-theme-switch] { margin-inline-start: auto; }
+}
+@media (max-width: 339.98px) {
+  .shell__brand { display: none; }
+}
+
 /* Between the rail and the drawer the header drops text it can repeat elsewhere. */
 @media (max-width: 1279.98px) {
   .shell__kbd { display: none; }

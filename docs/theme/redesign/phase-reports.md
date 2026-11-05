@@ -73,3 +73,12 @@ Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,145) | build ✓ | lint:theme ✓ (0
 Evidence: `evidence/phase-5/` (`loop-parity.json` 502 items in 14 tab states, nothing lost or added; `axe.json`). Tool: `docs/theme/tools/tab-parity.mjs`, proven by a planted wrong pair.
 Walks: 37 browser checks passed, and two real readiness links opened the right tab. 56 views with no overflow. Blocked 0.
 Not met: a11y. The Calculations gate buttons and the Historical pen note fail the same way on their old pages. Performance and Episodes findings came back with the old design in CHG-115 (UI-069).
+
+## Page plan, step 2: Overview, and the open issues (CHG-121)
+
+KPI drill-down in place. Nothing inside the page changed. All gate findings fixed, and the phone header and two clipped layouts.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,147) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (24 cases) | a11y ✓ (34 scans, 0 of any level)
+Evidence: `evidence/phase-5/` (`kpi-parity.json` 165 items, `loop-parity.json` 505 items, nothing lost or added; `axe.json`).
+Walks: Overview 24 of 24, Loop 37 of 37, control-edge 24 views with 0 off the screen. Blocked 0.
+Simulated: a Calculations readiness link and not-assessable reasons, one answer each, because the lab has neither.
+Not run: role-edit sign-out, real viewer account, control-engineer review.

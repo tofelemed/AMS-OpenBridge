@@ -59,7 +59,7 @@ export const GateRollup: React.FC<{
                   aria-label={
                     c.total === 0
                       ? `${key} ${gateName(key)}: no loops held back`
-                      : `${key} ${gateName(key)}: ${c.bad} failed, ${c.warn} need attention. `
+                      : `${c.total} ${key} ${gateName(key)}: ${c.bad} failed, ${c.warn} need attention. `
                         + `${active ? 'Showing' : 'Show'} only these loops in the matrix.`
                   }
                 >
@@ -71,7 +71,7 @@ export const GateRollup: React.FC<{
                   </span>
                   <span className="cpm-rollup__count" aria-hidden>
                     {c.total === 0 ? '·' : c.total}
-                  </span>
+                  </span>{' '}
                   <span className="cpm-rollup__key" aria-hidden>{key}</span>
                 </button>
               );

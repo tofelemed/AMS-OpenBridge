@@ -93,7 +93,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
         </section>
       </div>
 
-      <aside className="cpm-config-side">
+      <aside className="cpm-config-side" aria-label="Bundle lifecycle">
         <LifecyclePanel bundle={b} perms={{ validate: perms.validate, shadow: perms.shadow, approve: perms.approve, activate: perms.activate, rollback: perms.rollback }}
           pending={{ validate: actions.validate.isPending, approve: actions.approve.isPending, deploy: actions.deploy.isPending, rollback: actions.rollback.isPending }}
           errors={{ validate: actions.validate.error, approve: actions.approve.error, deploy: actions.deploy.error, rollback: actions.rollback.error }}

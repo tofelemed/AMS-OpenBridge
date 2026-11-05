@@ -20,7 +20,7 @@ const SoePanel         = React.lazy(() => import('../components/Soe/SoePanel'));
 // docs/cplm-intake/phase7-frontend-checklist.md)
 const CpmLoopRegistry  = React.lazy(() => import('../components/Cpm/LoopRegistry'));
 const CpmEvents        = React.lazy(() => import('../components/Cpm/CpmEvents'));
-const CpmOverview      = React.lazy(() => import('../components/Cpm/CpmOverview'));
+const OverviewPage     = React.lazy(() => import('../pages/cpa/OverviewPage'));
 const CpmPerformance   = React.lazy(() => import('../components/Cpm/CpmPerformance'));
 const CpmKpiDrilldown  = React.lazy(() => import('../components/Cpm/CpmKpiDrilldown'));   // CHG-082
 const CpmExplorer      = React.lazy(() => import('../components/Cpm/CpmExplorer'));
@@ -70,7 +70,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="/analytics"    element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="analytics.view"><Analytics /></RequirePermission>} />
 
         {/* ── Loop Performance (CPLM) ─────────────────── */}
-        <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><CpmOverview /></RequirePermission>} />
+        <Route path="/cpm"             element={<RequirePermission permission="analytics.view"><OverviewPage /></RequirePermission>} />
         <Route path="/cpm/performance" element={<RequirePermission permission="analytics.view"><CpmPerformance /></RequirePermission>} />
         <Route path="/cpm/kpi"         element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmKpiDrilldown /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/explorer"     element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmExplorer /></LegacyRoute></RequirePermission>} />

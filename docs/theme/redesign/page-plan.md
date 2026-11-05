@@ -63,7 +63,7 @@ What the choice of loop does also stays per tab: Replay and Windows clear the se
 | Loop focus: live values, readiness, gates, evidence path | Operations overview | None |
 | Event trail | Operations overview | None |
 | Configuration limits, readiness strip | Operations overview | None |
-| **KPI drill-down:** the rule, how it is calculated, how it has moved (14 d to 3 y), every loop behind the number with its proof | KPI drill-down | Opens in place, with "← Overview" (decision 3) |
+| **KPI drill-down:** the rule, how it is calculated, how it has moved (14 d to 3 y), every loop behind the number with its proof | KPI drill-down | Opens in place, at `/cpm?review=`, with its back link (decision 3) |
 
 ### Performance, Episodes, Trend
 No change. Every block stays: Performance's data-issue chips, four summary figures, gate pathway, gate matrix and Loops needing attention; Episodes' filters, ledger, episode detail, review and shelf, notes and fast conditions; Trend's whole tool.
@@ -157,12 +157,12 @@ Checked in the code, because they look alike.
 One page at a time, each shown to the owner before the next.
 
 1. **Loop:** one row of tabs. **Built (CHG-120).**
-2. **Overview:** KPI drill-down in place.
+2. **Overview:** KPI drill-down in place. **Built (CHG-121).**
 3. **Evidence:** tabs share the loop and window correctly.
 4. **Setup and System:** Administration into tabs, and the one audit trail.
 5. **Old addresses:** switch on the redirects, and check every link.
 
-Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference.
+Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference, and measures every control against the screen at phone width.
 
 ## Known risks, already understood
 

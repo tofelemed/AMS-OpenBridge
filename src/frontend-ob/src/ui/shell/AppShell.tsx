@@ -119,7 +119,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </header>
 
       {!compact && (
-        <aside className="shell__sidebar">
+        <aside className="shell__sidebar" aria-label="Main menu">
           <ShellNav rail={rail} onToggle={band === 'wide' ? toggleExpanded : undefined} />
         </aside>
       )}

@@ -21,7 +21,7 @@ describe('windowKindOf', () => {
 
 describe('KPI links carry the window', () => {
   it('writes ?window= on the KPI page and the Overview', () => {
-    expect(kpiHref('manual-mode', { site: 'hdpe', windowKind: '24h' })).toBe('/cpm/kpi?kpi=manual-mode&site=hdpe&window=24h');
+    expect(kpiHref('manual-mode', { site: 'hdpe', windowKind: '24h' })).toBe('/cpm?review=manual-mode&site=hdpe&window=24h');
     expect(overviewHref({ windowKind: '12h' })).toBe('/cpm?window=12h');
     expect(overviewHref({})).toBe('/cpm');
   });

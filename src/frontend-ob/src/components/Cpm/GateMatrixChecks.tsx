@@ -80,7 +80,7 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
                         className={`cpm-gate-chip cpm-checks__chip cpm-matrix__cell--${g.tone}`}
                         data-gate={k}
                         title={`${k} ${name}: ${g.label}`}
-                        aria-label={`${row.loopId}, ${k} ${name}: ${g.label}. Open the evidence.`}
+                        aria-label={`${k} ${name} · ${g.word}: ${g.label}. ${row.loopId}. Open the evidence.`}
                         onClick={() => { onSelectLoop(row.loopId); onOpenGate(row.loopId, k); }}>
                         <span className="cpm-gate-chip__glyph" aria-hidden data-mark={g.meaning}>{g.glyph}</span>
                         <span aria-hidden><span className="cpm-mono">{k}</span> {name}</span>

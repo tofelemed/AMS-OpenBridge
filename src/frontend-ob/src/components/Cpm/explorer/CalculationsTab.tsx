@@ -65,7 +65,7 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
               <button
                 type="button"
                 className="cpm-gate-outcome"
-                aria-label={`Open ${g.key} evidence in Evidence Replay`}
+                aria-label={`${codeLabel(g.status)}: open ${g.key} evidence in Evidence Replay`}
                 onClick={() => navigate(
                   `/cpm/replay?loop=${encodeURIComponent(loop.loopId)}&gate=${encodeURIComponent(g.key)}`)}
               >

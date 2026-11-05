@@ -1,5 +1,6 @@
 /**
- * CHG-082 / CHG-085: /cpm/kpi?kpi=&reason=&site=&area=&unit= — the proof of one Overview KPI.
+ * CHG-082 / CHG-085: /cpm?review=&reason=&site=&area=&unit= — the proof of one Overview KPI, in place on
+ * Overview's own address (CHG-121). The old /cpm/kpi?kpi= opens it too, until the redirects are on.
  *
  * 1. Four summary cards: the number (with its change since 24 h ago), the threshold, the window basis, when it was computed.
  * 2. "How this number is calculated": the rule, the formula, why the KPI exists and its reference.
@@ -43,7 +44,8 @@ const DRILL_ONLY: Array<{ key: FleetKpiKey; label: string }> = [
 
 export const CpmKpiDrilldown: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const kpi = (params.get('kpi') ?? 'acceptable') as FleetKpiKey;
+  const kpiParam = params.has('review') ? 'review' : 'kpi';
+  const kpi = (params.get(kpiParam) ?? 'acceptable') as FleetKpiKey;
   const reason = params.get('reason');
   // KPI Phase 5: a picked trend day (its exact as-of instant); absent = now
   const day = params.get('day');
@@ -87,7 +89,7 @@ export const CpmKpiDrilldown: React.FC = () => {
           <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={k2 => { setPage(0); setWindowKind(k2); }} />
           <label className="cpm-field cpm-kpi-proof__pick">
             <span className="cpm-field__label">Show another KPI</span>
-            <select className="cpm-select" value={kpi} onChange={e => go({ kpi: e.target.value, reason: null })}>
+            <select className="cpm-select" value={kpi} onChange={e => go({ [kpiParam]: e.target.value, reason: null })}>
               {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </label>

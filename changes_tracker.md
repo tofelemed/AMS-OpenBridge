@@ -5512,3 +5512,28 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-121 — CPA: KPI drill-down in place, accessibility clean, phone layout (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner agreed the Loop page and asked for the open issues to be fixed and tested through the UI. This also is step 2 of `docs/theme/redesign/page-plan.md`.
+
+**Changed.**
+- **Overview:** a KPI drill-down opens in place at `/cpm?review={kpi}`. The page is the same page: nothing added or removed. The old `/cpm/kpi?kpi=` address keeps working until the redirects are on in step 5.
+- **Accessibility:** every finding of the gate is fixed: 10 serious scans and 20 moderate or minor ones. Names that screen readers and voice control use now start with the text on screen (Performance gate bars and chips, Episodes rows, Loop Calculations gate results). Two low-contrast texts are fixed (Episodes counts, the pen note on Historical). Window tiles have a valid list structure, heading levels no longer skip, and every side panel has a name. Nothing changes on screen except the slightly darker text.
+- **Phone header:** menu, plant, theme and user were squeezed to about 18 px at 390 and almost 0 at 320, so they could not be tapped. All keep 40 px now. Below 480 px the header shows "CPA" without "Traverse", and below 340 px it drops the name. The screen-reader name is unchanged.
+- **Phone pages:** the KPI page's 12h / 24h switch stacked and "Show another KPI" ran off the screen, and Historical's export row ran 71 px off the screen. Both wrap now. Wide screens are unchanged.
+- **Dead CSS removed:** `.cpm-crumbs`, `.cpm-queue-rule`, `.cpm-signal-trend__note`. `.cpm-verdict__state` is in use and stays: the earlier note was wrong.
+
+**Verified on lab data, on the final build.**
+- Compared with the old pages: 165 items in 6 KPI states and 505 items in 14 Loop states. **Nothing lost, nothing added.** A planted wrong pair was caught.
+- Clicked through in the browser: Overview walk 24 of 24, Loop 37 of 37. A KPI card keeps the plant scope and 24h, Show another KPI, range, search, back link, Back and Forward work, and an old `/cpm/kpi` bookmark opens.
+- `check-a11y`: 34 scans, 0 findings of any level, Day and Night. It now covers the Loop tabs and the no-loop states.
+- New `docs/theme/tools/control-edge.mjs`: 24 views at 390 and 768 px, no control off the screen. Page overflow alone reads 0 while a control is clipped. Overflow checks: 56 Loop views and 24 Overview views, none.
+- tsc 0, lint 0, 1,147 tests in 144 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14, redirects 24 of 24.
+
+**Simulated:** the lab has no loop with a Calculations readiness link and no not-assessable reasons, so one answer each was simulated in the test browser. The buttons, clicks and addresses were real, and both passed.
+
+**Not run, and why:** the role-edit sign-out, because it would sign real lab users out and shared-lab writes need the owner's approval each time. The real viewer-account check needs an account from an administrator. The control-engineer review of `text-changes.md` is theirs.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

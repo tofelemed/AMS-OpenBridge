@@ -203,10 +203,10 @@ export const CpmEvents: React.FC = () => {
                 aria-current={isSelected ? 'true' : undefined} onClick={() => select(e.id)}>
                 <div className="cpm-event-row__main">
                   <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
-                    aria-label={`Show episode EVT-${e.id}, peak ${diagnosisLabel(e.peak_diagnosis)}`}
+                    aria-label={`Peak: ${diagnosisLabel(e.peak_diagnosis)}. EVT-${e.id} · ${e.window_kind}. Show this episode`}
                     onClick={() => select(e.id)}>
                     {/* CHG-092 (SME review 2 #20): the title is the PEAK; the current window shows beside it when it differs */}
-                    <span className="cpm-event-row__title">Peak: {diagnosisLabel(e.peak_diagnosis)}</span>
+                    <span className="cpm-event-row__title">Peak: {diagnosisLabel(e.peak_diagnosis)}</span>{' '}
                     <span className="cpm-event-row__sub">EVT-{e.id} · {e.window_kind}</span>
                   </button>
                   {/* the loop opens the Explorer only - its click does not also select the row */}

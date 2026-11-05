@@ -101,7 +101,7 @@ export const CpmExplorer: React.FC<{
       />
 
       <div className={`cpm-explorer-layout${railOpen ? '' : ' cpm-explorer-layout--rail-closed'}`}>
-        <aside className={`cpm-surface cpm-rail${railOpen ? '' : ' cpm-rail--collapsed'}`}>
+        <aside aria-label="Loops" className={`cpm-surface cpm-rail${railOpen ? '' : ' cpm-rail--collapsed'}`}>
           <div className="cpm-rail__head">
             {railOpen && <span className="cpm-eyebrow">Loops</span>}
             <CpmIconButton
@@ -137,6 +137,7 @@ export const CpmExplorer: React.FC<{
         ) : missingLoop ? (
           <section className="cpm-surface">
             <EmptyState
+              level={2}
               title={`Loop "${requestedId}" is not in the registry`}
               copy="This link points at a loop that has been renamed, removed, or never onboarded. Pick a loop from the list, or check the Loop Registry."
               action={{ label: 'Open Loop Registry', onClick: openRegistry }}
@@ -145,6 +146,7 @@ export const CpmExplorer: React.FC<{
         ) : (
           <section className="cpm-surface">
             <EmptyState
+              level={2}
               title={scope.active ? 'No loops in this scope' : 'Select a loop'}
               // CHG-098 (SME review 2 #29): say where to pick a loop.
               copy={scope.active

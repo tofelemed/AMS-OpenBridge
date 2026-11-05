@@ -113,7 +113,7 @@ type KpiLinkScope = { site?: string; area?: string; unit?: string; windowKind?: 
 
 /** CHG-082: a KPI's drill-down — the loops behind one Overview figure, in the same plant scope and window (`reason` narrows not-assessable). */
 export const kpiHref = (kpi: string, scope: KpiLinkScope = {}, reason?: string | null) =>
-  build('/cpm/kpi', { kpi, reason, site: scope.site, area: scope.area, unit: scope.unit, window: scope.windowKind });
+  build('/cpm', { review: kpi, reason, site: scope.site, area: scope.area, unit: scope.unit, window: scope.windowKind });
 
 /** CHG-085: back to the Overview in the same plant scope and window. */
 export const overviewHref = (scope: KpiLinkScope = {}) =>

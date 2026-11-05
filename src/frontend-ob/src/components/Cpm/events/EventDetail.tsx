@@ -95,7 +95,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
   const toggle = (p: Panel) => setPanel(cur => (cur === p ? 'none' : p));
 
   return (
-    <aside className="cpm-surface cpm-panel-enter">
+    <aside className="cpm-surface cpm-panel-enter" aria-label={`Episode EVT-${event.id}`}>
       <PanelHead
         eyebrow={`EVT-${event.id}`}
         title={`Peak: ${diagnosisLabel(event.peak_diagnosis)}`}

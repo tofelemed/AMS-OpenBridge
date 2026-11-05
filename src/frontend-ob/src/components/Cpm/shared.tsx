@@ -374,9 +374,11 @@ export const EmptyState: React.FC<{
   copy?: string;
   action?: { label: string; onClick: () => void };
   next?: Array<{ label: string; to: string }>;
-}> = ({ title, copy, action, next }) => (
+  /** 2 when nothing but the page title sits above it, so heading levels are not skipped. Looks the same. */
+  level?: 2 | 3;
+}> = ({ title, copy, action, next, level = 3 }) => (
   <div className="cpm-empty">
-    <h3>{title}</h3>
+    {level === 2 ? <h2>{title}</h2> : <h3>{title}</h3>}
     {copy && <p>{copy}</p>}
     {(action || (next && next.length > 0)) && (
       <div className="cpm-empty__next">

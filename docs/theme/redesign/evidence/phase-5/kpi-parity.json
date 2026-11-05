@@ -1,0 +1,295 @@
+[
+ {
+  "tab": "KPI: performing acceptably",
+  "compared": 24,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "How this number has moved",
+    "How this number is calculated",
+    "No loop is in this KPI",
+    "Performing acceptably"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "How to read this trend",
+    "Performing acceptably"
+   ],
+   "links": [
+    "Operations overview"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "KPI: stale",
+  "compared": 34,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "How this number has moved",
+    "How this number is calculated",
+    "Stale"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "How to read this trend",
+    "Next →",
+    "Stale",
+    "← Prev"
+   ],
+   "links": [
+    "Loop ›",
+    "Operations overview",
+    "Trend ›",
+    "Window ›"
+   ],
+   "columns": [
+    "Also check",
+    "Loop",
+    "Measured against the rule",
+    "Proof",
+    "Verdict",
+    "Window judged"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "KPI: not assessable, reason buttons",
+  "compared": 24,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "How this number has moved",
+    "How this number is calculated",
+    "No loop is in this KPI",
+    "Not assessable"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "How to read this trend",
+    "Not assessable"
+   ],
+   "links": [
+    "Operations overview"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "KPI: out of normal mode, drill-only",
+  "compared": 24,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "How this number has moved",
+    "How this number is calculated",
+    "No loop is in this KPI",
+    "Out of normal mode"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "How to read this trend",
+    "Out of normal mode"
+   ],
+   "links": [
+    "Operations overview"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "KPI: all monitored, 90 days, 24h",
+  "compared": 34,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "All monitored loops",
+    "How this number has moved",
+    "How this number is calculated"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "All monitored loops",
+    "How to read this trend",
+    "Next →",
+    "← Prev"
+   ],
+   "links": [
+    "Loop ›",
+    "Operations overview",
+    "Trend ›",
+    "Window ›"
+   ],
+   "columns": [
+    "Also check",
+    "Loop",
+    "Measured against the rule",
+    "Proof",
+    "Verdict",
+    "Window judged"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "KPI: empty scope",
+  "compared": 25,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# loop(s)",
+    "How this number has moved",
+    "How this number is calculated",
+    "No loop is in this KPI",
+    "Oscillating"
+   ],
+   "labels": [
+    "Area",
+    "Search loops",
+    "Show another KPI",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: All areas",
+    "Show another KPI: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: All units in site"
+   ],
+   "inputs": [
+    "search:Loop tag or name"
+   ],
+   "buttons": [
+    "# d",
+    "# y",
+    "#h",
+    "Clear scope",
+    "How to read this trend",
+    "Oscillating"
+   ],
+   "links": [
+    "Operations overview"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ }
+]

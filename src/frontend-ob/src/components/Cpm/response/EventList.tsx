@@ -29,7 +29,7 @@ export interface EventListProps {
 }
 
 export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZone, loading, hasMore, censoredCount, showCensored, onToggleCensored, onMore, onSelect }) => (
-  <aside className="cpm-surface cpm-response-events" aria-busy={loading || undefined}>
+  <aside className="cpm-surface cpm-response-events" aria-label="Response events" aria-busy={loading || undefined}>
     <PanelHead eyebrow="Events" title={`Response events (${events.length}${hasMore ? '+' : ''})`} />
     {censoredCount > 0 && (
       <ObcButton variant="flat" fullWidth className="cpm-response-events__censored"

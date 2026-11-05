@@ -22,9 +22,9 @@ describe('GateMatrixChecks', () => {
     const chips = document.querySelectorAll('[data-gate]');
     expect([...chips].map(c => c.getAttribute('data-gate'))).toEqual(['G1', 'G3', 'G7', 'G15']);
     expect(screen.getByText('Stiction shape')).toBeTruthy();
-    const g1 = screen.getByRole('button', { name: /G1 Mode \/ service: excluded on purpose/ });
+    const g1 = screen.getByRole('button', { name: /^G1 Mode \/ service · Excluded: excluded on purpose/ });
     expect(g1.textContent).toContain('Excluded');
-    fireEvent.click(screen.getByRole('button', { name: /G3 Base performance: check failed/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^G3 Base performance · .*: check failed/ }));
     expect(onSelectLoop).toHaveBeenCalledWith('FIC-1');
     expect(onOpenGate).toHaveBeenCalledWith('FIC-1', 'G3');
   });
@@ -33,6 +33,6 @@ describe('GateMatrixChecks', () => {
     render(<GateMatrixChecks rows={[row('LIC-2', { G0: 'PASS', G15: 'NOT_EVALUATED' }, 'NOT_EVALUATED')]}
       orderedGateKeys={keys} selectedLoopId={null} onSelectLoop={() => {}} onOpenLoop={() => {}} onOpenGate={() => {}} />);
     expect(screen.getByText('no other check moved this result')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /G15 Diagnosis band: not evaluated/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^G15 Diagnosis band · .*: not evaluated/ })).toBeTruthy();
   });
 });

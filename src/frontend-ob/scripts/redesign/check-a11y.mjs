@@ -24,7 +24,8 @@ const ROUTES = [
   { name: 'Episodes', url: '/cpm/events' },
   ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations']
     .map(tab => ({ name: `Loop, ${tab}`, url: `/cpm/loop?tab=${tab}&loop=B2_027PIC` })),
-  { name: 'Loop, no loop chosen', url: '/cpm/loop' },
+  ...['summary', 'historical', 'diagnosis', 'model']
+    .map(tab => ({ name: `Loop, ${tab}, no loop chosen`, url: `/cpm/loop?tab=${tab}`, fresh: true })),
 ];
 
 const env = requireEnv();
@@ -38,6 +39,8 @@ await login(page, env);
 const results = [];
 for (const route of ROUTES) {
   for (const theme of ['day', 'night']) {
+    // The app carries the loop between pages, so a "no loop" state must first leave for a page that does not.
+    if (route.fresh) { await goto(page, '/trend'); await page.waitForTimeout(300); }
     await goto(page, route.url);
     await page.waitForTimeout(300);
     await waitStable(page, net, { timeout: 12000, quietMs: 400 });

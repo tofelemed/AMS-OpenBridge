@@ -60,9 +60,9 @@
 @media (max-width: 1100px) { .cpm-grid-2 { grid-template-columns: 1fr; } }
 
 /* ── Header / eyebrow / copy ── */
-.cpm-workspace-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.cpm-workspace-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .cpm-title-row { display: flex; align-items: center; gap: 8px; }
-.cpm-workspace-header__actions { display: flex; gap: 8px; align-items: center; }
+.cpm-workspace-header__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
 .cpm-eyebrow {
   display: block;
   font-size: var(--cpm-text-caption);
@@ -251,7 +251,7 @@
 
 /* ── Empty state ── */
 .cpm-empty { text-align: center; padding: 32px 16px; color: var(--element-neutral-color); }
-.cpm-empty h3 { color: var(--element-active-color); margin: 0 0 6px; }
+.cpm-empty h2, .cpm-empty h3 { color: var(--element-active-color); margin: 0 0 6px; font-size: 1.17em; }
 
 /* ── CSV preview (U10 bulk import) ── */
 .cpm-csv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
@@ -752,18 +752,6 @@
 }
 
 /* ── Loop breadcrumb ── */
-.cpm-crumbs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  font-size: var(--cpm-text-caption);
-  color: var(--element-neutral-color);
-  margin-bottom: 6px;
-}
-.cpm-crumbs strong { color: var(--element-active-color); }
-.cpm-crumbs__sep { opacity: 0.7; }
-
 /* ── Consolidated readiness causes ── */
 .cpm-causes {
   border: 1px solid var(--tone-warning);
@@ -1124,7 +1112,7 @@
 }
 .cpm-hist-row--end .cpm-hist-row__body { align-items: flex-end; }
 .cpm-hist-row--start .cpm-hist-row__body { align-items: flex-start; }
-.cpm-hist-row__end { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.cpm-hist-row__end { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 100%; }
 .cpm-hist-row .cpm-toolbar { flex: 1 1 auto; min-width: 0; }
 .cpm-field--compact { min-width: 0; }
 
@@ -1190,7 +1178,7 @@
   /* SP is a dashed pen in the chart; the swatch says so. */
   background: repeating-linear-gradient(90deg, var(--pen) 0 4px, transparent 4px 7px);
 }
-.cpm-pen-chip__note { font-weight: 400; font-size: var(--cpm-text-caption); opacity: 0.75; }
+.cpm-pen-chip__note { font-weight: 400; font-size: var(--cpm-text-caption); }
 .cpm-pen-chip:hover { border-color: var(--pen); }
 .cpm-pen-chip--on {
   background: color-mix(in srgb, var(--pen) 14%, var(--container-global-color));
@@ -1243,6 +1231,7 @@
   .cpm-hist-row { flex-direction: column; gap: 8px; }
   .cpm-hist-row__label { flex: 0 0 auto; align-self: flex-start; }
   .cpm-hist-row__end { margin-left: 0; }
+  .cpm-hist-row__body { max-width: 100%; }
   .cpm-hist-toolbar__foot { padding-left: 14px; }
 }
 

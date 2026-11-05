@@ -101,3 +101,15 @@ Redundant text removed at the owner's direction. Page layouts are unchanged. Tex
 | Performance | (select a loop in the matrix first) | Select a loop in the matrix for [Window Inspector] |
 
 **For the control-engineer review:** the permission sentence is new, and worth saying to users before a role is edited on a running shift, because it signs people out. Typed times now mean site time: Shelve until, Evaluate a window and Jump to date.
+
+## CHG-121 changes
+
+Visible text does not change, except that the phone header shows "CPA" without "Traverse" below 480 px. These names are read by screen readers and voice control only. None changes a meaning.
+
+| Where | Before | After |
+|---|---|---|
+| Performance, gate bar | G0 Data quality: … | {count} G0 Data quality: … |
+| Performance, gate chip | {loop}, G0 Data quality: {meaning}. Open the evidence. | G0 Data quality · {word}: {meaning}. {loop}. Open the evidence. |
+| Episodes, row | Show episode EVT-1, peak {diagnosis} | Peak: {diagnosis}. EVT-1 · {window}. Show this episode |
+| Loop › Calculations, gate result | Open G0 evidence in Evidence Replay | {status}: open G0 evidence in Evidence Replay |
+| Diagnosis, window tile | {span}: {diagnosis}, latest | The tile's own text. The span stays as its tooltip |

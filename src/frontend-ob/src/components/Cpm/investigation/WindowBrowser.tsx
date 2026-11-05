@@ -58,10 +58,10 @@ export const WindowBrowser: React.FC<{
           const current = matrix.windowEnd === w.windowEnd;
           const latest = w.windowEnd === windows[0]?.windowEnd;
           return (
-            <button key={w.windowEnd ?? ''} type="button" role="listitem"
+            <div key={w.windowEnd ?? ''} role="listitem" className="cpm-window-tiles__item">
+            <button type="button"
               className={`cpm-window-tile${current ? ' cpm-window-tile--current' : ''}`}
               aria-current={current ? 'true' : undefined} title={windowSpan({ ...w, windowKind })}
-              aria-label={`${windowSpan({ ...w, windowKind })}: ${diagnosisLabel(w.diagnosis)}${latest ? ', latest' : ''}`}
               onClick={() => setParams(p => {
                 p.set('mode', 'historical');
                 if (w.windowEnd) p.set('window', w.windowEnd);
@@ -73,6 +73,7 @@ export const WindowBrowser: React.FC<{
                 {windowSize({ ...w, windowKind })} · {diagnosisLabel(w.diagnosis)}
               </span>
             </button>
+            </div>
           );
         })}
       </div>
