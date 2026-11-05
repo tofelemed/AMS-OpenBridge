@@ -4,6 +4,7 @@
  * redirect on (cpa/redirects.ts).
  */
 import React from 'react';
+import { ADMIN_PERMISSIONS } from '../cpa/destinations';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LegacyRoute } from '../cpa/LegacyRoute';
 import { CPA_SLICE_ONLY, HOME_PATH } from '../productSlice';
@@ -82,8 +83,8 @@ export const AppRoutes: React.FC = () => (
         {ComponentGallery && <Route path="/cpm/gallery" element={<RequirePermission permission="analytics.view"><ComponentGallery /></RequirePermission>} />}
       <Route path="/cpm/loop"      element={<RequirePermission permission="analytics.view"><LoopPage /></RequirePermission>} />
         {/* Setup holds two old pages with different guards. Each tab keeps its own (UI-015). */}
-        <Route path="/cpm/setup"     element={<RequirePermission permission="analytics.view" anyOf={['analytics.view', 'cpm.config.read']}><SetupPage /></RequirePermission>} />
-        <Route path="/cpm/system"    element={<RequirePermission permission="system.manage"><SystemPage /></RequirePermission>} />
+        <Route path="/cpm/setup"     element={<RequirePermission permission="analytics.view" anyOf={['analytics.view', 'cpm.config.read', ...ADMIN_PERMISSIONS]}><SetupPage /></RequirePermission>} />
+        <Route path="/cpm/system"    element={<RequirePermission permission="system.manage" anyOf={['system.manage', ...ADMIN_PERMISSIONS]}><SystemPage /></RequirePermission>} />
         <Route path="/cpm/response"  element={<RequirePermission permission="analytics.view"><LegacyRoute><ResponseWorkspace /></LegacyRoute></RequirePermission>} />
         {/* v2.5 (3D.1): the governed gate configuration - reading needs cpm.config.read; every step beyond is its own permission on the server */}
         <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><LegacyRoute><GateConfigurationWorkspace /></LegacyRoute></RequirePermission>} />
@@ -104,7 +105,7 @@ export const AppRoutes: React.FC = () => (
         {/* Infrastructure */}
         <Route path="/edge"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
         {/* Administration — was reachable by ANY authenticated user via direct URL */}
-        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage']}><Administration /></RequirePermission>} />
+        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={[...ADMIN_PERMISSIONS]}><Administration /></RequirePermission>} />
         <Route path="*"           element={<Navigate to={HOME_PATH} replace />} />
   </Routes>
 );

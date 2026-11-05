@@ -314,5 +314,137 @@
   "fresh": true,
   "theme": "night",
   "violations": []
+ },
+ {
+  "name": "Setup, loops",
+  "url": "/cpm/setup?tab=loops",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Setup, loops",
+  "url": "/cpm/setup?tab=loops",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Setup, configuration",
+  "url": "/cpm/setup?tab=configuration",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Setup, configuration",
+  "url": "/cpm/setup?tab=configuration",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Setup, plant-model",
+  "url": "/cpm/setup?tab=plant-model",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Setup, plant-model",
+  "url": "/cpm/setup?tab=plant-model",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Setup, data-sources",
+  "url": "/cpm/setup?tab=data-sources",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Setup, data-sources",
+  "url": "/cpm/setup?tab=data-sources",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Setup, tag-aliases",
+  "url": "/cpm/setup?tab=tag-aliases",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Setup, tag-aliases",
+  "url": "/cpm/setup?tab=tag-aliases",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, pipeline",
+  "url": "/cpm/system?tab=pipeline",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, pipeline",
+  "url": "/cpm/system?tab=pipeline",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, governance",
+  "url": "/cpm/system?tab=governance",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, governance",
+  "url": "/cpm/system?tab=governance",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, users",
+  "url": "/cpm/system?tab=users",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, users",
+  "url": "/cpm/system?tab=users",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, roles",
+  "url": "/cpm/system?tab=roles",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, roles",
+  "url": "/cpm/system?tab=roles",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, audit",
+  "url": "/cpm/system?tab=audit",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, audit",
+  "url": "/cpm/system?tab=audit",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "System, settings",
+  "url": "/cpm/system?tab=settings",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "System, settings",
+  "url": "/cpm/system?tab=settings",
+  "theme": "night",
+  "violations": []
  }
 ]

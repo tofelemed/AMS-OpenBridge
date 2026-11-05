@@ -271,7 +271,7 @@ export const CpmGovernance: React.FC = () => {
           )}
 
           {matrix.canRead && matrix.data && (
-            <div className="cpm-matrix-scroll">
+            <div className="cpm-matrix-scroll" role="region" aria-label="Permissions by role" tabIndex={0}>
               <table className="cpm-matrix cpm-rbac">
                 <thead>
                   <tr>
@@ -293,6 +293,7 @@ export const CpmGovernance: React.FC = () => {
                         return (
                           <td key={r.role_name}>
                             <span
+                              role="img"
                               className={`cpm-matrix__cell cpm-matrix__cell--${held ? 'good' : 'muted'}`}
                               aria-label={`${r.role_name} ${held ? 'holds' : 'does not hold'} ${p.key}`}
                             >

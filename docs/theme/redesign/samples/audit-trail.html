@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample: one audit trail on System, Governance</title>
+<style>
+  /* Traverse tokens. A sample only: nothing here is in the product. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  [data-theme="night"] { --page:#0B1220; --panel:#111C2E; --raised:#18263B; --hover:#213149; --selected:#143540; --border:#2A3A52; --strong:#6F849F; --text:#EAF1FA; --text2:#A8B7CC; --muted:#8D9FB7; --action:#54D6E8; --on:#0B1220; --ok:#56D6A1; --ok-bg:#163329; --warn:#F5C451; --warn-bg:#332A16; --bad:#FF7A85; --bad-bg:#351E2B; --info:#7EB1FF; --info-bg:#1B2D46; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--action); outline-offset: 3px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 16px 24px 40px; }
+  .note { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 16px; padding: 10px 14px; background: var(--info-bg); border-inline-start: 3px solid var(--info); }
+  .note strong { color: var(--info); }
+  .note label { display: inline-flex; gap: 6px; align-items: center; color: var(--text2); white-space: nowrap; }
+  .btn { min-height: 40px; padding: 0 14px; background: var(--panel); border: 1px solid var(--strong); border-radius: 6px; cursor: pointer; }
+  .btn:hover { background: var(--hover); }
+  .btn[aria-pressed="true"] { background: var(--selected); color: var(--action); border-color: var(--action); font-weight: 600; }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tabs span { padding: 10px 14px; color: var(--text2); white-space: nowrap; border-bottom: 2px solid transparent; }
+  .tabs .on { color: var(--action); border-bottom-color: var(--action); font-weight: 600; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 12px; font-size: 24px; } h2 { margin: 2px 0 0; font-size: 16px; }
+  .panel { margin-bottom: 16px; padding: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
+  .from { display: none; margin-inline-start: 8px; padding: 1px 7px; border-radius: 4px; background: var(--raised); color: var(--text2); font-size: 11px; font-weight: 400; white-space: nowrap; }
+  .tags .from { display: inline-block; }
+  .integrity { margin: 0 0 12px; padding: 10px 14px; background: var(--raised); border-radius: 6px; color: var(--text2); }
+  .integrity.ok { background: var(--ok-bg); color: var(--ok); } .integrity b { font-weight: 600; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field > span { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--text2); }
+  .field input, .field select { height: 40px; width: 100%; padding: 0 10px; background: var(--panel); border: 1px solid var(--strong); border-radius: 6px; }
+  .find { flex: 1 1 260px; } .user { flex: 0 1 180px; } .type { flex: 0 1 220px; }
+  .count { color: var(--text2); align-self: center; }
+  .help { width: 40px; padding: 0; font-weight: 700; color: var(--text2); }
+  .tip { margin: 0 0 12px; padding: 8px 12px; background: var(--raised); border-radius: 6px; color: var(--text2); }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; min-width: 880px; border-collapse: collapse; }
+  th { padding: 10px 12px; text-align: start; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text2); border-bottom: 1px solid var(--strong); white-space: nowrap; }
+  td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid var(--border); }
+  tbody tr:hover { background: var(--hover); }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text2); } .sub { display: block; color: var(--text2); font-size: 12px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .good { background: var(--ok-bg); color: var(--ok); } .warn { background: var(--warn-bg); color: var(--warn); } .bad { background: var(--bad-bg); color: var(--bad); } .muted { background: var(--raised); color: var(--text2); }
+  .pager { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-top: 12px; color: var(--text2); font-size: 12px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .same { color: var(--text2); margin: 8px 0 0; }
+  @media (max-width: 760px) { .wrap { padding: 12px; } .grid { grid-template-columns: minmax(0, 1fr); } .user, .type { flex: 1 1 160px; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+  <div class="note">
+    <span><strong>Sample, for your decision.</strong> Rows are made up. The filters work, so you can try them.</span>
+    <span class="row" style="margin:0">
+      <label><input type="checkbox" id="tags" checked> Show where each part comes from</label>
+      <button type="button" class="btn" id="theme">Night</button>
+    </span>
+  </div>
+
+  <div class="tabs" aria-hidden="true"><span>Pipeline</span><span class="on">Governance</span><span>Users</span><span>Roles</span><span>Settings</span></div>
+  <span class="eyebrow">Change control</span>
+  <h1>Governance</h1>
+
+  <section class="panel" aria-label="Governance events">
+    <div class="head">
+      <div><span class="eyebrow">Immutable audit trail</span><h2>Governance events<span class="from">Governance</span></h2></div>
+      <div><button type="button" class="btn" id="verify">Verify cryptographic chain</button><span class="from">Both, one button now</span></div>
+    </div>
+    <p class="integrity" id="integrity" role="status">Entries are hash-chained by audit-service. Run a verification to confirm integrity now. This page makes no standing claim.<span class="from">Audit log</span></p>
+    <div class="row" id="entities" role="group" aria-label="Entity"></div>
+    <div class="row">
+      <label class="field find"><span>Find by user, action or entity<span class="from">Governance</span></span><input id="find" type="search" placeholder="Searches the rows fetched"></label>
+      <label class="field user"><span>User<span class="from">Audit log</span></span><input id="user" placeholder="Username"></label>
+      <label class="field type"><span>Event type<span class="from">Audit log</span></span><select id="type"><option value="">All events</option><option value="ACKNOWLEDGED">Acknowledgements</option><option value="SHELVED">Shelving</option><option value="SECURITY">Security / logins</option><option value="SYSTEM">System events</option></select></label>
+      <button type="button" class="btn help" id="help" aria-expanded="false" aria-label="How these filters differ">?</button>
+      <span class="count" id="count"></span>
+    </div>
+    <p class="tip" id="tip" hidden>User and Event type ask the server, so they reach older records. Find searches only the rows fetched.<span class="from">New, behind the ?</span></p>
+    <div class="scroll" tabindex="0" role="region" aria-label="Audit records"><table>
+      <thead><tr><th>Timestamp</th><th>Event type</th><th>User</th><th>Entity</th><th>Hash signature<span class="from">Both, longer</span></th><th>Correlation<span class="from">Audit log</span></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <div class="pager"><button type="button" class="btn" disabled>← Prev</button>
+      <span id="paging"></span><button type="button" class="btn" disabled>Next →</button></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel"><span class="eyebrow">Version provenance</span><h2>What is producing today's verdicts</h2><p class="same">Unchanged. Gate configuration awaiting approval stays under it.</p></section>
+    <section class="panel"><span class="eyebrow">Separation of duties</span><h2>As enforced by the permission model</h2><p class="same">Unchanged.</p></section>
+  </div>
+</div>
+<script>
+const ENTITIES = [['', 'All entities'], ['CpmLoop', 'CPM loops'], ['CpmEventFrame', 'CPM events'], ['Display', 'HMI displays']];
+// when, code, label, user, entity type, entity label, id, hash, correlation
+const ROWS = [
+  ['5 Nov 2026, 09:41:12', 'ALARM_ACKNOWLEDGED', 'Episode acknowledged', 'operator.a', 'CpmEventFrame', 'CPM event', '48213', '9f3ac1e27b4d0c86', 'c-71af'],
+  ['5 Nov 2026, 09:12:03', 'SECURITY_LOGIN', 'Signed in', 'operator.a', 'Security', 'Security', 'operator.a', '2b8e04d1f6a9c357', '—'],
+  ['5 Nov 2026, 08:57:44', 'ALARM_SHELVED', 'Episode shelved', 'engineer.b', 'CpmEventFrame', 'CPM event', '48177', 'e41d97a0c3b2586f', 'c-71a2'],
+  ['4 Nov 2026, 17:20:31', 'LOOP_ACTIVATED', 'Loop activated', 'engineer.b', 'CpmLoop', 'CPM loop', 'FIC00701', '70c6a2f9e15d3b84', 'c-6fe0'],
+  ['4 Nov 2026, 16:02:18', 'DISPLAY_DELETED', 'Display deleted', 'admin.c', 'Display', 'HMI display', 'unit-200-overview', 'a58f13d6ce07b924', 'c-6fd1'],
+  ['4 Nov 2026, 02:00:00', 'SYSTEM_RETENTION', 'Retention job ran', '', 'System', 'System', 'retention', '36bd80e7f2c4a191', '—'],
+];
+const tone = c => c.includes('DELETED') ? 'bad' : c.includes('SHELVED') ? 'warn' : c.includes('ACTIVATED') || c.includes('ACKNOWLEDGED') ? 'good' : 'muted';
+const $ = id => document.getElementById(id);
+let entity = '';
+function draw() {
+  $('entities').innerHTML = ENTITIES.map(([k, l]) => `<button type="button" class="btn" data-entity="${k}" aria-pressed="${entity === k}">${l}</button>`).join('') + '<span class="from">Governance</span>';
+  const find = $('find').value.trim().toLowerCase(), user = $('user').value.trim().toLowerCase(), type = $('type').value;
+  const rows = ROWS.filter(r => (!entity || r[4] === entity) && (!type || r[1].includes(type)) && (!user || r[3].toLowerCase().includes(user))
+    && (!find || [r[3], r[1], r[2], r[4], r[6]].join(' ').toLowerCase().includes(find)));
+  $('rows').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td><span class="pill ${tone(r[1])}" title="${r[1]}">${r[2]}</span></td><td>${r[3] || 'system'}</td><td>${r[5]}<span class="mono sub">${r[6]}</span></td><td class="mono">${r[7]}…</td><td class="mono">${r[8]}</td></tr>`).join('')
+    || '<tr><td colspan="6">No audit events match. The trail records logins, display changes and CPM governance actions.</td></tr>';
+  $('count').textContent = `3,412 total · showing ${rows.length}`;
+  $('paging').textContent = `1–${rows.length} of ${rows.length} fetched · page 1 of 1 · newest 200 of 3,412, older entries are not fetched`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if ('entity' in b.dataset) { entity = b.dataset.entity; draw(); }
+  else if (b.id === 'help') { const t = $('tip'); t.hidden = !t.hidden; b.setAttribute('aria-expanded', String(!t.hidden)); }
+  else if (b.id === 'verify') { const i = $('integrity'); i.className = 'integrity ok'; i.innerHTML = '<b>Chain verified just now.</b> Sample text: the real line shows what audit-service answers.'; }
+  else if (b.id === 'theme') { const night = document.documentElement.dataset.theme === 'day'; document.documentElement.dataset.theme = night ? 'night' : 'day'; b.textContent = night ? 'Day' : 'Night'; }
+});
+['find', 'user', 'type'].forEach(id => $(id).addEventListener('input', draw));
+$('tags').addEventListener('change', e => $('root').classList.toggle('tags', e.target.checked));
+$('root').classList.add('tags');
+draw();
+</script>
+</body>
+</html>

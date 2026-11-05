@@ -207,11 +207,11 @@ export const UserManagementConfig: React.FC = () => {
       {/* Filters */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
         <input className="ob-input" type="text" autoComplete="off" placeholder="Search name or email…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-        <select className="ob-input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+        <select className="ob-input" aria-label="Filter by role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="all">All roles</option>
           {assignableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
-        <select className="ob-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="ob-input" aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
@@ -219,12 +219,12 @@ export const UserManagementConfig: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusSm, overflow: 'hidden' }}>
+      <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusSm, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: T.bg }}>
               {['Username', 'Full name', 'Email', 'Role', 'Status', 'Created', ''].map((h, i) => (
-                <th key={h || i} style={{ textAlign: i === 6 ? 'right' : 'left', padding: '9px 12px', color: T.textSub, fontWeight: 600, borderBottom: `1px solid ${T.border}` }}>{h}</th>
+                <th key={h || i} style={{ textAlign: i === 6 ? 'right' : 'left', padding: '9px 12px', color: T.textSub, fontWeight: 600, borderBottom: `1px solid ${T.border}` }}>{h || <span className="ui-sr">Actions</span>}</th>
               ))}
             </tr>
           </thead>

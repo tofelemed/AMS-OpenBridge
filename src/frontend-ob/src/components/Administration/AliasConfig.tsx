@@ -229,7 +229,7 @@ export const AliasConfig: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div className="cpm-title-row">
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Tag Aliases</h3>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Tag Aliases</h2>
           <Toggletip variant="how-to" label="About tag aliases">
             <p>
               OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this
@@ -253,7 +253,7 @@ export const AliasConfig: React.FC = () => {
           <thead>
             <tr style={{ textAlign: 'left', color: T.textSecondary }}>
               {['Legacy / OT tag', 'Canonical UNS path', 'Source', 'Active', ''].map(h => (
-                <th key={h} style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontWeight: 600 }}>{h || <span className="ui-sr">Actions</span>}</th>
               ))}
             </tr>
           </thead>

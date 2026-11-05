@@ -86,9 +86,9 @@ export const DataSourcesConfig: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div className="cpm-title-row">
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
             Source Configuration
-          </h3>
+          </h2>
           <Toggletip variant="how-to" label="About source configuration">
             <p>Configure OT data sources — MQTT broker connections consumed by the ingestion service</p>
           </Toggletip>

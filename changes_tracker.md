@@ -5563,3 +5563,26 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15). The Replay fix is not on feat/v25-next-release.
+
+## CHG-123 — CPA: Administration moves into Setup and System tabs (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The first half of step 4 of `docs/theme/redesign/page-plan.md`. The owner's decisions: Plant model, Data sources and Tag aliases go to Setup; Users, Roles and Settings go to System. The one audit trail is the second half and waits for the owner to agree `samples/audit-trail.html`.
+
+**Changed.**
+- **Setup:** Loops, Configuration, Plant model, Data sources, Tag aliases.
+- **System:** Pipeline, Governance, Users, Roles, Audit log, Settings. The Administration list of links is gone. Audit log stays a tab of its own until the one trail is built.
+- **Each tab keeps the rule of the page it replaces.** `/cpm/system` needed `system.manage`, while an auditor could open Audit log and Settings without it, so the route now opens for both and each tab decides. Plant model and Tag aliases need `asset.view` plus an Administration permission, as they did. The menu follows: an administrator without `system.manage` sees System, and an ingestion viewer sees Setup.
+- **Old addresses:** `/admin/*` and the user menu's Administration link keep working until step 5.
+- **Accessibility, first scan of these pages:** the Users filters had no name (critical). The Governance permission cells and scroll area, empty table headings, and heading levels are fixed too. Nothing changes on screen.
+- **Phone:** the Users table and the Plant model tree were cut off with no way to scroll, so Edit and Delete could not be reached. The old pages did the same. Both scroll sideways now. Wide screens are unchanged.
+
+**Verified on lab data, on the final build.**
+- Compared with the old pages: 307 items in 11 states on Setup and System. The only differences are the old "System Administration" title and its row of links, which the tabs replace. Evidence 269, Loop 505, KPI 165 unchanged: **nothing lost, nothing added.** Planted wrong pairs were caught.
+- Clicked through in the browser: Setup and System 28 of 28, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37. One Setup check first failed on my own expected heading: the Data sources page is titled "Source Configuration". It was corrected and re-run alone.
+- `check-a11y`: 72 scans, 0 findings of any level, Day and Night. `control-edge`: 54 views, none off the screen. 200 views with no overflow.
+- tsc 0, lint 0, 1,163 tests in 145 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14, redirects 24 of 24.
+
+**Permissions are proven by unit test, not by real accounts.** `pages/cpa/access.test.tsx` checks seven kinds of role with their permissions set by the test. The real viewer-account check still needs an account from an administrator.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

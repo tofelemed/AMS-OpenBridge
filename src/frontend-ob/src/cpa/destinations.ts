@@ -2,6 +2,9 @@
  * The seven CPA destinations (SPEC §2.1, DEC-002 RD1) and the suite module order (RD4).
  * Plain data: the sidebar, the palette, links and the tests all read this one list.
  */
+/** Who may open Administration today: the /admin/* route guard. */
+export const ADMIN_PERMISSIONS: readonly string[] = ['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage'];
+
 export type DestinationId = 'overview' | 'performance' | 'episodes' | 'loop' | 'evidence' | 'setup' | 'system';
 
 export interface Destination {
@@ -12,6 +15,8 @@ export interface Destination {
   purpose: string;
   /** Shown in the sidebar to holders of any of these (RD4). Route guards are separate. */
   showTo: readonly string[];
+  /** Also shown when this holds, for a tab that needs two permissions together. */
+  showWhen?: (hasPermission: (p: string) => boolean) => boolean;
   /** Older routes that belong to this destination, for the selected state. */
   covers: readonly string[];
   /** SPEC §2.2: which pages the selected loop and the window kind travel to. */
@@ -50,14 +55,16 @@ export const DESTINATIONS: readonly Destination[] = [
   },
   {
     id: 'setup', label: 'Setup', path: '/cpm/setup',
-    purpose: 'Loop registry and gate configuration',
-    showTo: ['cpm.manage', 'cpm.config.read'], covers: ['/cpm/registry', '/cpm/config'],
+    purpose: 'Loop registry, gate configuration, plant model, data sources and tag aliases',
+    showTo: ['cpm.manage', 'cpm.config.read', 'ingestion.view'],
+    showWhen: has => has('asset.view') && ADMIN_PERMISSIONS.some(has),
+    covers: ['/cpm/registry', '/cpm/config'],
     carriesLoop: true, carriesWindow: false,
   },
   {
     id: 'system', label: 'System', path: '/cpm/system',
-    purpose: 'Pipeline health and governance',
-    showTo: ['system.manage'], covers: ['/cpm/pipeline', '/cpm/governance', '/admin'],
+    purpose: 'Pipeline health, governance, users, roles, audit log and settings',
+    showTo: ['system.manage', ...ADMIN_PERMISSIONS], covers: ['/cpm/pipeline', '/cpm/governance', '/admin'],
     carriesLoop: false, carriesWindow: false,
   },
 ];
@@ -71,7 +78,7 @@ export function destinationFor(pathname: string): Destination | undefined {
 }
 
 export const visibleDestinations = (hasPermission: (p: string) => boolean): Destination[] =>
-  DESTINATIONS.filter(d => d.showTo.some(hasPermission));
+  DESTINATIONS.filter(d => d.showTo.some(hasPermission) || d.showWhen?.(hasPermission));
 
 /** Suite order (guide p.6). A module not deployed here is hidden, not disabled (RD4). */
 export const SUITE_MODULES: ReadonlyArray<{ id: string; label: string; deployed: boolean }> = [

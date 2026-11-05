@@ -41,9 +41,9 @@ const AuditExplorer: React.FC = () => {
 
       {/* Header */}
       <div className="cpm-title-row">
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
+        <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
           Operational Audit Log
-        </h3>
+        </h2>
         <Toggletip variant="how-to" label="About the audit log">
           <p>Immutable cryptographically-chained record of all operator and system actions.</p>
         </Toggletip>

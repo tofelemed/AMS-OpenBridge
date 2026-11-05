@@ -12,7 +12,9 @@ await installGuard(p, guard, { ratePerMin: 60 });
 await login(p, env);
 const LOOP = 'B2_027PIC';
 const routes = ['/cpm', '/cpm?review=stale', '/cpm?review=all', '/cpm/performance', '/cpm/events', ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations'].map(t => `/cpm/loop?tab=${t}&loop=${LOOP}`),
-  ...['gates', 'replay', 'windows', 'calculations'].map(t => `/cpm/evidence?tab=${t}&loop=FIC00701`)];
+  ...['gates', 'replay', 'windows', 'calculations'].map(t => `/cpm/evidence?tab=${t}&loop=FIC00701`),
+  ...['loops', 'configuration', 'plant-model', 'data-sources', 'tag-aliases'].map(t => `/cpm/setup?tab=${t}`),
+  ...['pipeline', 'governance', 'users', 'roles', 'audit', 'settings'].map(t => `/cpm/system?tab=${t}`)];
 const bad = [];
 let n = 0;
 for (const w of [390, 768]) {

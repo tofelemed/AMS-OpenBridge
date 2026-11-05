@@ -1,0 +1,808 @@
+[
+ {
+  "tab": "Users",
+  "compared": 23,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Users"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "System Administration",
+    "User Management"
+   ],
+   "labels": [],
+   "selects": [
+    "Filter by role: All roles | Admin | Engineer | Operator | SuperAdmin | Viewer",
+    "Filter by status: All statuses | Active | Inactive"
+   ],
+   "inputs": [
+    "text:Search name or email…"
+   ],
+   "buttons": [
+    "Add user",
+    "Bulk import",
+    "Delete",
+    "Edit"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Actions",
+    "Created",
+    "Email",
+    "Full name",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Roles",
+  "compared": 59,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Roles"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "Roles & Permissions",
+    "System Administration"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [
+    "checkbox:admin.audit.view",
+    "checkbox:admin.users.edit",
+    "checkbox:alarm.acknowledge",
+    "checkbox:alarm.acknowledge_batch",
+    "checkbox:alarm.export",
+    "checkbox:alarm.shelve",
+    "checkbox:alarm.suppress",
+    "checkbox:alarm.unshelve",
+    "checkbox:alarm.view",
+    "checkbox:analysis.edit",
+    "checkbox:analysis.view",
+    "checkbox:analytics.view",
+    "checkbox:asset.edit",
+    "checkbox:asset.view",
+    "checkbox:binding.resolve",
+    "checkbox:cpm.analysis.create",
+    "checkbox:cpm.config.activate",
+    "checkbox:cpm.config.approve",
+    "checkbox:cpm.config.draft",
+    "checkbox:cpm.config.read",
+    "checkbox:cpm.config.rollback",
+    "checkbox:cpm.config.shadow",
+    "checkbox:cpm.config.validate",
+    "checkbox:cpm.context.manage",
+    "checkbox:cpm.manage",
+    "checkbox:cpm.model.review",
+    "checkbox:display.edit",
+    "checkbox:display.publish",
+    "checkbox:display.view",
+    "checkbox:historian.view",
+    "checkbox:ingestion.manage",
+    "checkbox:ingestion.view",
+    "checkbox:rbac.manage",
+    "checkbox:soe.view",
+    "checkbox:system.manage",
+    "checkbox:template.edit",
+    "checkbox:template.publish",
+    "checkbox:template.view",
+    "text:Role description"
+   ],
+   "buttons": [
+    "+ New custom role",
+    "About roles and permissions",
+    "AdminSYSTEM",
+    "All",
+    "Clear",
+    "EngineerSYSTEM",
+    "OperatorSYSTEM",
+    "Reset to default",
+    "Save permissions",
+    "SuperAdminSYSTEM",
+    "ViewerSYSTEM"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Audit log",
+  "compared": 21,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Audit log"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "Operational Audit Log",
+    "System Administration"
+   ],
+   "labels": [],
+   "selects": [
+    ": All Events | Acknowledgements | Shelving | Security / Logins | System Events"
+   ],
+   "inputs": [
+    "text:Username…"
+   ],
+   "buttons": [
+    "About the audit log",
+    "Next →",
+    "← Previous",
+    "✓ Verify Cryptographic Chain"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Correlation",
+    "Entity",
+    "Event Type",
+    "Hash Signature",
+    "Timestamp",
+    "User"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Settings",
+  "compared": 16,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Settings"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "Global System Settings",
+    "System Administration"
+   ],
+   "labels": [],
+   "selects": [
+    ": Industrial Dark (High Contrast) | Control Room Light",
+    ": Verbose | Debug | Information | Warning | Error"
+   ],
+   "inputs": [
+    "checkbox:Enable nightly Audit Trail CSV export",
+    "number:Active Alarm TTL (Days)",
+    "number:Historical Log Retention (Days)",
+    "text:Backup Path Volume"
+   ],
+   "buttons": [
+    "Save unavailable"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Plant model",
+  "compared": 18,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Plant model"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "Plant Model",
+    "System Administration"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [
+    "text:Search by name or path (min. # characters)…"
+   ],
+   "buttons": [
+    "+ Add Site",
+    "+ Area",
+    "About the plant model",
+    "About this strip",
+    "Delete",
+    "Edit",
+    "Expand",
+    "Import CSV"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Data sources",
+  "compared": 17,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Data sources"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "Source Configuration",
+    "System Administration"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [],
+   "buttons": [
+    "+ New Configuration",
+    "About source configuration",
+    "Delete",
+    "Edit",
+    "Edit MODE map",
+    "Off",
+    "On",
+    "Test"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Tag aliases",
+  "compared": 19,
+  "lost": {
+   "headings": [
+    "System Administration"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Tag aliases"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "System Administration",
+    "Tag Aliases"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [
+    "text:Search by tag or path…"
+   ],
+   "buttons": [
+    "+ Add Alias",
+    "About tag aliases",
+    "Delete",
+    "Import CSV"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Actions",
+    "Active",
+    "Canonical UNS path",
+    "Legacy / OT tag",
+    "Source"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ },
+ {
+  "tab": "Pipeline",
+  "compared": 15,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Checkpoint behaviour while this page is open",
+    "Collecting…",
+    "One row per supervised job",
+    "Pipeline health",
+    "Prove the pipeline with a real round trip",
+    "The analysis engine did not answer",
+    "Where a sample becomes a verdict"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [],
+   "buttons": [
+    "Pipeline health",
+    "Retry",
+    "Run E#E verification",
+    "What this table leaves out",
+    "Where this history comes from"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "Governance",
+  "compared": 36,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "As enforced by the permission model",
+    "Gate configuration awaiting approval",
+    "Governance",
+    "Governance events",
+    "Nothing awaiting approval or activation",
+    "What is producing today's verdicts"
+   ],
+   "labels": [],
+   "selects": [],
+   "inputs": [
+    "text:Find by user, action or entity"
+   ],
+   "buttons": [
+    "All entities",
+    "CPM events",
+    "CPM loops",
+    "Governance",
+    "HMI displays",
+    "Next →",
+    "Verify cryptographic chain",
+    "When a permission change applies",
+    "Why versions are stored",
+    "← Prev"
+   ],
+   "links": [],
+   "columns": [
+    "Action",
+    "Actor",
+    "Admin",
+    "Engineer",
+    "Entity",
+    "Operator",
+    "Permission",
+    "SuperAdmin",
+    "Viewer",
+    "When / hash",
+    "admin.audit.viewAudit trail reads",
+    "analytics.viewEvery CPM read",
+    "cpm.manageLoop onboarding, event ack/shelve, recompute",
+    "display.editAuthoring HMI displays",
+    "rbac.manageRole and permission changes",
+    "system.managePipeline and OPC mutations"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "Loops",
+  "compared": 46,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "# control-loop records",
+    "AIC#",
+    "Loop registry",
+    "Roles per gate"
+   ],
+   "labels": [
+    "Area",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:Find by loop, service, area, unit or type"
+   ],
+   "buttons": [
+    "AIC#Analyser controller AIC# · B#— · —UNKNOWNNot mapped—Degraded",
+    "About readiness-gated configuration",
+    "Add loop",
+    "B#_#PICB# # Pressure Control · B#— · —PICNot mapped—Degraded",
+    "Bulk import",
+    "DEMO-BAD-#Unmodelled location · narnia— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Bed inlet temperature · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Column overhead pressure, train # · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Condenser outlet temperature · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Feed flow control · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Fuel gas pressure · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Reboiler steam flow · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Reboiler steam flow, train # · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Recycle compressor suction pressure · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Reflux drum level · houston— · —FICNot mapped—Degraded",
+    "DEMO-FIC-#Separator interface level · houston— · —FICNot mapped—Degraded",
+    "DEMO-LIC-#Bed inlet temperature · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Column overhead pressure · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Condenser outlet temperature · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Feed flow control · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Fuel gas pressure, train # · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Reboiler steam flow · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Recycle compressor suction pressure · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Reflux drum level · houston— · —LICNot mapped—Degraded",
+    "DEMO-LIC-#Separator interface level, train # · houston— · —LICNot mapped—Degraded",
+    "Edit loop",
+    "Effective configuration ›",
+    "Loop registry",
+    "Next →",
+    "Re-project links & republish evidence",
+    "← Prev"
+   ],
+   "links": [
+    "Evidence workbench ›",
+    "View in plant tree ↗"
+   ],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Configuration",
+  "compared": 36,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Bundles in progress",
+    "Configuration by loop",
+    "Gate configuration"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Find a loop",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "search:loop, service, profile or unit",
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "Gate configuration",
+    "Next →",
+    "What this list holds",
+    "← Prev"
+   ],
+   "links": [
+    "AIC#",
+    "B#_#PIC",
+    "DEMO-BAD-#",
+    "DEMO-FIC-#",
+    "DEMO-LIC-#",
+    "FIC#",
+    "LOOP FIC#"
+   ],
+   "columns": [
+    "class",
+    "effective from",
+    "loop",
+    "profile",
+    "runs under",
+    "scope",
+    "state",
+    "updated",
+    "version"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "PLANTED: must differ",
+  "compared": 23,
+  "lost": {
+   "headings": [
+    "System Administration",
+    "User Management"
+   ],
+   "selects": [
+    "Filter by role: All roles | Admin | Engineer | Operator | SuperAdmin | Viewer",
+    "Filter by status: All statuses | Active | Inactive"
+   ],
+   "inputs": [
+    "text:Search name or email…"
+   ],
+   "buttons": [
+    "Add user",
+    "Bulk import",
+    "Delete",
+    "Edit"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Actions",
+    "Created",
+    "Email",
+    "Full name",
+    "Role",
+    "Status",
+    "Username"
+   ]
+  },
+  "added": {
+   "headings": [
+    "Roles",
+    "Roles & Permissions"
+   ],
+   "inputs": [
+    "checkbox:admin.audit.view",
+    "checkbox:admin.users.edit",
+    "checkbox:alarm.acknowledge",
+    "checkbox:alarm.acknowledge_batch",
+    "checkbox:alarm.export",
+    "checkbox:alarm.shelve",
+    "checkbox:alarm.suppress",
+    "checkbox:alarm.unshelve",
+    "checkbox:alarm.view",
+    "checkbox:analysis.edit",
+    "checkbox:analysis.view",
+    "checkbox:analytics.view",
+    "checkbox:asset.edit",
+    "checkbox:asset.view",
+    "checkbox:binding.resolve",
+    "checkbox:cpm.analysis.create",
+    "checkbox:cpm.config.activate",
+    "checkbox:cpm.config.approve",
+    "checkbox:cpm.config.draft",
+    "checkbox:cpm.config.read",
+    "checkbox:cpm.config.rollback",
+    "checkbox:cpm.config.shadow",
+    "checkbox:cpm.config.validate",
+    "checkbox:cpm.context.manage",
+    "checkbox:cpm.manage",
+    "checkbox:cpm.model.review",
+    "checkbox:display.edit",
+    "checkbox:display.publish",
+    "checkbox:display.view",
+    "checkbox:historian.view",
+    "checkbox:ingestion.manage",
+    "checkbox:ingestion.view",
+    "checkbox:rbac.manage",
+    "checkbox:soe.view",
+    "checkbox:system.manage",
+    "checkbox:template.edit",
+    "checkbox:template.publish",
+    "checkbox:template.view",
+    "text:Role description"
+   ],
+   "buttons": [
+    "+ New custom role",
+    "About roles and permissions",
+    "AdminSYSTEM",
+    "All",
+    "Clear",
+    "EngineerSYSTEM",
+    "OperatorSYSTEM",
+    "Reset to default",
+    "Save permissions",
+    "SuperAdminSYSTEM",
+    "ViewerSYSTEM"
+   ]
+  },
+  "seen": {
+   "headings": [
+    "System Administration",
+    "User Management"
+   ],
+   "labels": [],
+   "selects": [
+    "Filter by role: All roles | Admin | Engineer | Operator | SuperAdmin | Viewer",
+    "Filter by status: All statuses | Active | Inactive"
+   ],
+   "inputs": [
+    "text:Search name or email…"
+   ],
+   "buttons": [
+    "Add user",
+    "Bulk import",
+    "Delete",
+    "Edit"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Actions",
+    "Created",
+    "Email",
+    "Full name",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 0
+  }
+ }
+]

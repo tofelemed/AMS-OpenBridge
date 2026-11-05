@@ -8,7 +8,7 @@ vi.mock('../../store/authStore', () => ({
   useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: p => p !== 'denied' }),
 }));
 vi.mock('../../app/guards', () => ({
-  RequirePermission: ({ children }: { children: React.ReactNode }) => children,
+  RestrictedRoute: () => <p>restricted</p>,
   RouteFallback: () => null,
 }));
 

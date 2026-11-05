@@ -163,7 +163,7 @@ One page at a time, each shown to the owner before the next.
 1. **Loop:** one row of tabs. **Built (CHG-120).**
 2. **Overview:** KPI drill-down in place. **Built (CHG-121).**
 3. **Evidence:** tabs share the loop and window correctly. **Built (CHG-122).**
-4. **Setup and System:** Administration into tabs, and the one audit trail.
+4. **Setup and System:** Administration into tabs. **Built (CHG-123).** The one audit trail waits for the owner to agree `samples/audit-trail.html`, and Audit log stays a tab until then.
 5. **Old addresses:** switch on the redirects, and check every link.
 
 Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference, and measures every control against the screen at phone width.
@@ -171,5 +171,5 @@ Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step c
 ## Known risks, already understood
 
 - Tabs on one page share the address, and old pages use the same names for different things. `cpa/tabKind.ts` handles it: each tab states where it reads 12h / 24h and which parameters are its own (CHG-120, CHG-122). A new tab must state both.
-- `/cpm/system` needs `system.manage`. `/admin/*` opens for `admin.users.edit`, `admin.audit.view`, `rbac.manage` or the ingestion permissions, and Plant model and Tag aliases for `asset.view`. Moving those sections must not lock those roles out, so the System and Setup route guards and menu rules change with them in step 4.
+- Each Setup and System tab keeps the rule of the page it replaces (UI-078). Step 5 must send `/admin` and the user menu to a tab the role may open, for example an auditor who has no other way in.
 - Old pages use `tab` for themselves. Inside a page they need their own name, as Gate configuration already does with `sub`.

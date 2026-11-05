@@ -7,11 +7,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
+import { ADMIN_PERMISSIONS } from '../../cpa/destinations';
 import { useAuthStore } from '../../store/authStore';
 import { Popover } from '../Popover';
-
-/** The same list as the /admin/* route guard. */
-export const ADMIN_PERMISSIONS = ['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage'];
 
 export const UserMenu: React.FC<{ compact: boolean }> = ({ compact }) => {
   const user = useAuthStore(s => s.user);

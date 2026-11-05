@@ -90,3 +90,11 @@ Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,155) | build ✓ | lint:theme ✓ (0
 Evidence: `evidence/phase-5/` (`evidence-parity.json` 269 items, `loop-parity.json` 505, `kpi-parity.json` 165, nothing lost or added; `axe.json`).
 Walks: Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 32 views with 0 off the screen. Blocked 0.
 Not met: nothing in this step. Open for the owner: the Replay fix at the plant, role-edit sign-out, viewer account, control-engineer review, page headings.
+
+## Page plan, step 4, first half: Administration into tabs (CHG-123)
+
+Plant model, Data sources and Tag aliases are tabs of Setup. Users, Roles, Audit log and Settings are tabs of System. Nothing inside a page changed. The one audit trail waits for the owner to agree `samples/audit-trail.html`.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,163) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (24 cases) | a11y ✓ (72 scans, 0 of any level)
+Evidence: `evidence/phase-5/` (`admin-parity.json` 307 items, `evidence-parity.json` 269, `loop-parity.json` 505, `kpi-parity.json` 165; `axe.json`).
+Walks: Setup and System 28 of 28, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 54 views with 0 off the screen. Blocked 0.
+Not proven: permissions with real accounts. Unit tests cover seven kinds of role.

@@ -379,7 +379,7 @@ export const PlantModelConfig: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div className="cpm-title-row">
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Plant Model</h3>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Plant Model</h2>
           <Toggletip variant="how-to" label="About the plant model">
             <p>
               The UNS asset tree — the source of truth every binding, trend, filter and loop location
@@ -407,7 +407,7 @@ export const PlantModelConfig: React.FC = () => {
         style={{ maxWidth: 420 }}
       />
 
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, overflowX: 'auto' }}>
         {showSearch ? (
           <>
             {(searched.data ?? []).map(n => (

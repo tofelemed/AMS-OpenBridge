@@ -1,36 +1,39 @@
-/** System (SPEC §5.7). Hosts the old pages until Phase 6 replaces them. */
+/**
+ * System: one row of tabs around the old pages, each unchanged inside. Each tab keeps the rule of the
+ * page it replaces, so nobody gains or loses a page (UI-078).
+ */
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import { ADMIN_PERMISSIONS } from '../../cpa/destinations';
+import { AdminTab } from './AdminTab';
 import { DestinationHost, type HostTab } from './DestinationHost';
 
 const CpmPipeline = React.lazy(() => import('../../components/Cpm/CpmPipeline'));
 const CpmGovernance = React.lazy(() => import('../../components/Cpm/CpmGovernance'));
-
-const ADMIN_LINKS = [
-  { to: '/admin/users', label: 'Users', anyOf: ['admin.users.edit'] },
-  { to: '/admin/roles', label: 'Roles and permissions', anyOf: ['rbac.manage'] },
-  { to: '/admin/data-sources', label: 'Data sources', anyOf: ['ingestion.view'] },
-  { to: '/admin/plant-model', label: 'Plant model', anyOf: ['asset.view'] },
-  { to: '/admin/aliases', label: 'Tag aliases', anyOf: ['asset.view'] },
-  { to: '/admin/audit', label: 'Audit log', anyOf: ['admin.audit.view'] },
-];
-
-const AdministrationLinks: React.FC = () => {
-  const hasPermission = useAuthStore(s => s.hasPermission);
-  return (
-    <ul className="dest__links">
-      {ADMIN_LINKS.filter(l => l.anyOf.some(hasPermission)).map(l => (
-        <li key={l.to}><Link className="ui-link" to={l.to}>{l.label}</Link></li>
-      ))}
-    </ul>
-  );
-};
+const UserManagementConfig = React.lazy(() => import('../../components/Administration/UserManagementConfig'));
+const RolesConfig = React.lazy(() => import('../../components/Administration/RolesConfig'));
+const AuditExplorer = React.lazy(() => import('../../components/Administration/AuditExplorer'));
+const SystemSettingsConfig = React.lazy(() => import('../../components/Administration/SystemSettingsConfig')
+  .then(m => ({ default: m.SystemSettingsConfig })));
 
 const TABS: HostTab[] = [
-  { value: 'pipeline', label: 'Pipeline', render: () => <CpmPipeline /> },
-  { value: 'governance', label: 'Governance', render: () => <CpmGovernance /> },
-  { value: 'administration', label: 'Administration', render: () => <AdministrationLinks /> },
+  { value: 'pipeline', label: 'Pipeline', permission: 'system.manage', render: () => <CpmPipeline /> },
+  { value: 'governance', label: 'Governance', permission: 'system.manage', render: () => <CpmGovernance /> },
+  {
+    value: 'users', label: 'Users', permission: 'admin.users.edit',
+    render: () => <AdminTab title="Users"><UserManagementConfig /></AdminTab>,
+  },
+  {
+    value: 'roles', label: 'Roles', permission: 'rbac.manage',
+    render: () => <AdminTab title="Roles"><RolesConfig /></AdminTab>,
+  },
+  {
+    value: 'audit', label: 'Audit log', anyOf: ADMIN_PERMISSIONS,
+    render: () => <AdminTab title="Audit log"><AuditExplorer /></AdminTab>,
+  },
+  {
+    value: 'settings', label: 'Settings', anyOf: ADMIN_PERMISSIONS,
+    render: () => <AdminTab title="Settings"><SystemSettingsConfig /></AdminTab>,
+  },
 ];
 
 const SystemPage: React.FC = () => <DestinationHost label="System" tabs={TABS} />;

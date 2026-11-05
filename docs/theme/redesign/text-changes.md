@@ -123,3 +123,14 @@ Visible text does not change. These names are read by screen readers and voice c
 | Evidence › Gates, gate chip | G0 Data quality: {meaning} | G0 {word}: Data quality, {meaning} |
 | Evidence › Calculations, two filter lists | No name | Filter by gate, Filter by type |
 | Evidence › Gates, no run open | No page title | Evidence workbench (not shown on screen) |
+
+## CHG-123 changes
+
+Visible text does not change. These names are read by screen readers only.
+
+| Where | Before | After |
+|---|---|---|
+| Users, two filter lists | No name | Filter by role, Filter by status |
+| Users and Tag aliases, last column | Empty heading | Actions |
+| Governance, permission table | Unnamed scroll area | Permissions by role |
+| Each Administration tab | "System Administration" | The tab's own name, not shown on screen |
