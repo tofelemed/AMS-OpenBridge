@@ -92,6 +92,14 @@ describe('cpaHref', () => {
 describe('legacy URL rewrite (SPEC §2.3)', () => {
   it.each([
     ['/cpm/kpi', 'kpi=K&site=a', '/cpm?review=K&site=a'],
+    ['/cpm/kpi', '', '/cpm?review=acceptable'],
+    ['/admin/users', '', '/cpm/system?tab=users'],
+    ['/admin/roles', '', '/cpm/system?tab=roles'],
+    ['/admin/audit', '', '/cpm/system?tab=governance'],
+    ['/admin/system', '', '/cpm/system?tab=settings'],
+    ['/admin/plant-model', 'search=b2', '/cpm/setup?search=b2&tab=plant-model'],
+    ['/admin/data-sources', '', '/cpm/setup?tab=data-sources'],
+    ['/admin/aliases', '', '/cpm/setup?tab=tag-aliases'],
     ['/cpm/explorer', 'loop=L', '/cpm/loop?loop=L&tab=summary'],
     ['/cpm/explorer', 'loop=L&tab=Summary', '/cpm/loop?loop=L&tab=summary'],
     ['/cpm/explorer', 'loop=L&tab=Signals', '/cpm/loop?loop=L&tab=signals'],
@@ -115,7 +123,7 @@ describe('legacy URL rewrite (SPEC §2.3)', () => {
     expect(sorted(rewriteLegacy(path, search))).toBe(sorted(want));
   });
 
-  it.each(['/cpm', '/cpm/performance', '/cpm/events', '/trend', '/admin/users', '/cpm/loop'])('%s stays where it is', path => {
+  it.each(['/cpm', '/cpm/performance', '/cpm/events', '/trend', '/admin', '/cpm/loop'])('%s stays where it is', path => {
     expect(rewriteLegacy(path, 'loop=L')).toBeNull();
   });
 

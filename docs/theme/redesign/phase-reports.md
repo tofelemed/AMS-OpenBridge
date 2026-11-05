@@ -107,3 +107,12 @@ Evidence: `evidence/phase-5/` (`trail-parity.json`, `admin-parity.json`, `eviden
 Walks: trail 22 of 22, Setup and System 26 of 26, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 52 views with 0 off the screen. Blocked 0.
 Simulated: Verify's two answers. Not proven: permissions with real accounts.
 Next: step 5, the old addresses.
+
+## Page plan, step 5: old addresses (CHG-125)
+
+Every old address opens its tab. The page plan is built.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,187) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (32 cases, 27 opened in a browser) | a11y ✓ (70 scans, 0 of any level)
+Evidence: `evidence/phase-5/` (`link-walk.json` 82 links on 28 pages, 0 problems; `axe.json`).
+Walks: Audit trail 22 of 22, Setup and System 31 of 31, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 52 views with 0 off the screen. Blocked 0.
+Not proven: permissions and role landings with real accounts. Not run: role-edit sign-out, Verify against audit-service.
+Before release: control-engineer review of `text-changes.md`.

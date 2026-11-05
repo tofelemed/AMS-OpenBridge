@@ -79,7 +79,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="/cpm/historical" element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmHistorical /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/windows"   element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmWindows /></LegacyRoute></RequirePermission>} />
         <Route path="/cpm/replay"    element={<RequirePermission permission="analytics.view"><LegacyRoute><CpmReplay /></LegacyRoute></RequirePermission>} />
-        <Route path="/cpm/evidence"  element={<RequirePermission permission="analytics.view"><EvidencePage /></RequirePermission>} />
+        <Route path="/cpm/evidence"  element={<RequirePermission permission="analytics.view"><LegacyRoute><EvidencePage /></LegacyRoute></RequirePermission>} />
         {ComponentGallery && <Route path="/cpm/gallery" element={<RequirePermission permission="analytics.view"><ComponentGallery /></RequirePermission>} />}
       <Route path="/cpm/loop"      element={<RequirePermission permission="analytics.view"><LoopPage /></RequirePermission>} />
         {/* Setup holds two old pages with different guards. Each tab keeps its own (UI-015). */}
@@ -104,8 +104,9 @@ export const AppRoutes: React.FC = () => (
         <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
         {/* Infrastructure */}
         <Route path="/edge"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
-        {/* Administration — was reachable by ANY authenticated user via direct URL */}
-        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={[...ADMIN_PERMISSIONS]}><Administration /></RequirePermission>} />
+        {/* Administration — was reachable by ANY authenticated user via direct URL. Its sections are tabs of Setup and
+            System now. Plain /admin stays here: it picks the first section the role may open, which then redirects. */}
+        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={[...ADMIN_PERMISSIONS]}><LegacyRoute><Administration /></LegacyRoute></RequirePermission>} />
         <Route path="*"           element={<Navigate to={HOME_PATH} replace />} />
   </Routes>
 );

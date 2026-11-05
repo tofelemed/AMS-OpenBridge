@@ -40,7 +40,15 @@ const CASES = [
   ['/cpm/pipeline', '', '/cpm/system?tab=pipeline'],
   ['/cpm/governance', '', '/cpm/system?tab=governance'],
   ['/trend', 'tags=a&range=r&from=f&to=t', null],
-  ['/admin/users', '', null],
+  ['/cpm/kpi', '', '/cpm?review=acceptable'],
+  ['/admin', '', null],
+  ['/admin/users', '', '/cpm/system?tab=users'],
+  ['/admin/roles', '', '/cpm/system?tab=roles'],
+  ['/admin/audit', '', '/cpm/system?tab=governance'],
+  ['/admin/system', '', '/cpm/system?tab=settings'],
+  ['/admin/plant-model', 'search=b2', '/cpm/setup?search=b2&tab=plant-model'],
+  ['/admin/data-sources', '', '/cpm/setup?tab=data-sources'],
+  ['/admin/aliases', '', '/cpm/setup?tab=tag-aliases'],
 ];
 
 const canonical = url => {
@@ -70,13 +78,30 @@ for (const row of REDIRECTS) {
   if (!CASES.some(c => c[0] === row.from)) failures.push(`table row without a case: ${row.from}`);
 }
 
-// 4. Rows that are on, in a real browser.
+// 4. Every /cpm address the app links to exists: a live route, or an old one with a row.
+const appRoutes = fs.readFileSync(path.join(web, 'src/app/AppRoutes.tsx'), 'utf8');
+const live = new Set([...appRoutes.matchAll(/path="(\/[^"*]*)/g)].map(m => m[1]));
+const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+  const p = path.join(dir, e.name);
+  return e.isDirectory() ? walk(p) : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name) ? [p] : [];
+});
+const linked = new Set();
+for (const file of walk(path.join(web, 'src'))) {
+  // Not comments: they also name API paths, such as /cpm/resolutions.
+  const code = fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(l => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  for (const m of code.matchAll(/['"`](\/cpm(?:\/[a-z][a-z-]*)*)(?=[?'"`$])/g)) linked.add(m[1]);
+}
+for (const p of linked) {
+  if (!live.has(p) && !REDIRECTS.some(r => r.from === p)) failures.push(`the app links to an address that does not exist: ${p}`);
+}
+
+// 5. Rows that are on, in a real browser.
 const on = CASES.filter(([route, , want]) => want && (route === '/cpm/evidence' ? 6 : REDIRECTS.find(r => r.from === route)?.phase) <= SHIPPED_PHASE);
 let opened = 0;
 if (process.env.CPA_BASE_URL && on.length) {
   const session = pathToFileURL(path.join(repo, 'docs/theme/tools/lib/session.mjs')).href;
   const guardLib = pathToFileURL(path.join(repo, 'docs/theme/tools/lib/guard.mjs')).href;
-  const { chromium, requireEnv, login } = await import(session);
+  const { chromium, requireEnv, login, goto } = await import(session);
   const { installGuard } = await import(guardLib);
   const env = requireEnv();
   const browser = await chromium.launch({ headless: true });
@@ -84,10 +109,19 @@ if (process.env.CPA_BASE_URL && on.length) {
   await installGuard(page, { blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null }, { ratePerMin: 40 });
   await login(page, env);
   for (const [route, query, want] of on) {
-    await page.goto(`${env.base}${route}${query ? `?${query}` : ''}`);
+    // Inside the app: the session is in memory, and a page without context must not lend any.
+    await goto(page, '/trend');
+    await page.waitForTimeout(150);
+    await goto(page, `${route}${query ? `?${query}` : ''}`);
     await page.waitForFunction(p => location.pathname === p, want.split('?')[0], { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(150);
     const got = await page.evaluate(() => location.pathname + location.search);
-    if (canonical(got) !== canonical(want)) failures.push(`browser ${route}?${query}\n  want ${want}\n  got  ${got}`);
+    // A page may add to the address once it opens (a landing run, a default view). What the row set must all be there.
+    const [wantPath, wantQuery = ''] = want.split('?');
+    const [gotPath, gotQuery = ''] = got.split('?');
+    const gotParams = new URLSearchParams(gotQuery);
+    const missing = [...new URLSearchParams(wantQuery).entries()].filter(([k, v]) => gotParams.get(k) !== v);
+    if (gotPath !== wantPath || missing.length) failures.push(`browser ${route}?${query}\n  want ${want}\n  got  ${got}`);
     opened++;
   }
   await browser.close();

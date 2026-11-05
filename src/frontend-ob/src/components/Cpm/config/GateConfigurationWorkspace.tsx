@@ -66,8 +66,15 @@ export const GateConfigurationWorkspace: React.FC<{
   // the automatic landing replaces the URL; every user navigation pushes (the back button retraces views)
   useEffect(() => { if (loopId && !viewParam) setParams(p => { p.set('view', 'effective'); return p; }, { replace: true }); }, [loopId, viewParam, setParams]);
   const go = useCallback((changes: Record<string, string | null>, replace = false) => {
-    setParams(p => { for (const [k, v] of Object.entries(changes)) { if (v == null) p.delete(k); else p.set(k, v); } return p; }, { replace });
-  }, [setParams]);
+    // `tab` here is this page's own tab: inside Setup it must not touch the row of tabs (tabParam).
+    setParams(p => {
+      for (const [k, v] of Object.entries(changes)) {
+        const key = k === 'tab' ? tabParam : k;
+        if (v == null) p.delete(key); else p.set(key, v);
+      }
+      return p;
+    }, { replace });
+  }, [setParams, tabParam]);
 
   const catalogue = useConfigCatalogue();
   const eff = useEffectiveConfig(loopId);

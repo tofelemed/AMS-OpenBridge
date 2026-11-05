@@ -1,6 +1,6 @@
 # CPA page plan
 
-**Status: agreed with the owner on 5 November 2026, and corrected after a check of every filter in the code.** The picture of it is `samples/page-plan.html`. Block names come from the running pages and the source.
+**Status: built, all five steps (CHG-120 to CHG-125, unreleased). Agreed with the owner on 5 November 2026, and corrected after a check of every filter in the code.** The picture of it is `samples/page-plan.html`. Block names come from the running pages and the source.
 
 ## The short answer
 
@@ -164,12 +164,13 @@ One page at a time, each shown to the owner before the next.
 2. **Overview:** KPI drill-down in place. **Built (CHG-121).**
 3. **Evidence:** tabs share the loop and window correctly. **Built (CHG-122).**
 4. **Setup and System:** Administration into tabs, and the one audit trail. **Built (CHG-123, CHG-124).**
-5. **Old addresses:** switch on the redirects, and check every link.
+5. **Old addresses:** switch on the redirects, and check every link. **Built (CHG-125).**
 
 Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference, and measures every control against the screen at phone width.
 
 ## Known risks, already understood
 
 - Tabs on one page share the address, and old pages use the same names for different things. `cpa/tabKind.ts` handles it: each tab states where it reads 12h / 24h and which parameters are its own (CHG-120, CHG-122). A new tab must state both.
-- Each Setup and System tab keeps the rule of the page it replaces (UI-078). Step 5 must send `/admin` and the user menu to a tab the role may open, for example an auditor who has no other way in.
+- Each Setup and System tab keeps the rule of the page it replaces (UI-078). `/admin` lands on the first section the role may open (UI-085).
+- The old pages stay in the code for one release, as the rollback: `SHIPPED_PHASE = 2` (UI-086).
 - Old pages use `tab` for themselves. Inside a page they need their own name, as Gate configuration already does with `sub`.

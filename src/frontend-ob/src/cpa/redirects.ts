@@ -4,8 +4,11 @@
  * page stays reachable until its replacement exists. `check-redirects.mjs` covers every row.
  */
 
-/** The last phase that shipped destinations. Raise it when a phase replaces its pages. */
-export const SHIPPED_PHASE = 2;
+/**
+ * The last phase that shipped destinations. Every row is on at 6 (page-plan.md step 5). Setting it
+ * back to 2 brings the old pages back, which is why they stay in the routes for now.
+ */
+export const SHIPPED_PHASE = 6;
 
 type Rewrite = (q: URLSearchParams) => { path: string; query: URLSearchParams };
 
@@ -39,7 +42,7 @@ const explorer: Rewrite = q => ({
 const historical: Rewrite = q => ({ path: '/cpm/loop', query: with_(q, { tab: 'historical' }) });
 
 export const REDIRECTS: readonly RedirectRow[] = [
-  { from: '/cpm/kpi', phase: 4, to: q => ({ path: '/cpm', query: with_(q, { kpi: null, review: q.get('kpi') }) }) },
+  { from: '/cpm/kpi', phase: 4, to: q => ({ path: '/cpm', query: with_(q, { kpi: null, review: q.get('kpi') ?? 'acceptable' }) }) },
   { from: '/cpm/explorer', phase: 5, to: explorer },
   { from: '/cpm/historical', phase: 5, to: historical },
   { from: '/cpm/investigation', phase: 5, to: q => ({ path: '/cpm/loop', query: with_(q, { tab: 'diagnosis' }) }) },
@@ -54,6 +57,13 @@ export const REDIRECTS: readonly RedirectRow[] = [
   },
   { from: '/cpm/pipeline', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'pipeline' }) }) },
   { from: '/cpm/governance', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'governance' }) }) },
+  { from: '/admin/users', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'users' }) }) },
+  { from: '/admin/roles', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'roles' }) }) },
+  { from: '/admin/audit', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'governance' }) }) },
+  { from: '/admin/system', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'settings' }) }) },
+  { from: '/admin/plant-model', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'plant-model' }) }) },
+  { from: '/admin/data-sources', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'data-sources' }) }) },
+  { from: '/admin/aliases', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'tag-aliases' }) }) },
 ];
 
 const compose = (path: string, query: URLSearchParams) => {

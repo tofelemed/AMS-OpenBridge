@@ -5612,3 +5612,29 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-125 — CPA: old addresses open the new tabs (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** Step 5, the last step of `docs/theme/redesign/page-plan.md`. After this, the 24 screens really are 8 menu entries.
+
+**Changed.**
+- **Redirects are on** (`SHIPPED_PHASE = 6`): every old `/cpm/*` address opens its tab, with its parameters. The seven `/admin/*` sections are new rows.
+- **Plain `/admin`,** the user menu's Administration link, lands on the first section the role may open, and that redirects to its tab. An auditor lands on System › Governance, a role manager on Roles.
+- **Old `/cpm/kpi` with no KPI** still opens Performing acceptably.
+- **`/cpm/evidence` with no tab** now states `tab=gates`.
+- **Bug fixed on Setup › Configuration:** picking a loop threw you to the Loops tab. The page wrote `tab` itself, which is the row's name, so its own tabs would have done the same. It now writes its own name. Shown in the browser first. This came in with the Phase 2 tabs, so the plant does not have it.
+- **New checks:** `check-redirects` opens all 27 rows inside the app and fails if the app links to a `/cpm` address that does not exist. `docs/theme/tools/link-walk.mjs` follows the links in the app.
+
+**Verified on lab data, on the final build.**
+- All 27 old addresses land on the right tab in the browser, with their parameters.
+- Link walk: 82 links on 28 pages followed, 0 problems. It follows each kind of link once per page, not every row of a table.
+- Walks: Audit trail 22 of 22, Setup and System 31 of 31, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37. Configuration's editor tabs stay on their tab.
+- `check-a11y`: 70 scans, 0 findings. `control-edge`: 52 views, none off the screen. tsc 0, lint 0, 1,187 tests in 147 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14.
+- The comparison with the old pages cannot run any more, because they now redirect. It last ran on CHG-124, and this change touches no page inside except Configuration's one fix.
+
+**Kept on purpose:** the old page routes and Explorer's own tab row stay in the code, so `SHIPPED_PHASE = 2` brings the old pages back. Remove them after the first release proves the tabs.
+
+**Not proven:** the role landings are by unit test, not by real accounts. The real viewer-account check still needs an account from an administrator.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

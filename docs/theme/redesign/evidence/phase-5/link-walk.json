@@ -1,0 +1,494 @@
+[
+ {
+  "page": "/cpm",
+  "text": "Performing acceptably00 % of 241 monitored loops u",
+  "to": "/cpm?review=acceptable&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "In auto mode00 % of 0 loops with a measured modeVi",
+  "to": "/cpm?review=normal-mode&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "In manual mode00 % of 0 loops with a measured manu",
+  "to": "/cpm?review=manual-mode&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Oscillating00 % of 0 assessed loopsView loops",
+  "to": "/cpm?review=oscillating&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Suspected valve problem00 % of 0 assessed loopsVie",
+  "to": "/cpm?review=valve&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Excessive actuator effort00 % of 0 assessed loopsV",
+  "to": "/cpm?review=effort&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Saturated / at limit00 % of 0 loops with a measure",
+  "to": "/cpm?review=saturated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Not assessable00 % of monitored unchanged ±0 ppVie",
+  "to": "/cpm?review=not-assessable&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Stale16568 % of monitored unchanged ±0 ppView loop",
+  "to": "/cpm?review=stale&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Never evaluated7632 % of monitored unchanged ±0 pp",
+  "to": "/cpm?review=never-evaluated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Stale 165",
+  "to": "/cpm?review=stale&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "Never evaluated 76",
+  "to": "/cpm?review=never-evaluated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "View all ›",
+  "to": "/cpm/performance?window=12h&rows=attention",
+  "problem": null
+ },
+ {
+  "page": "/cpm",
+  "text": "All loops in Performance ›",
+  "to": "/cpm/performance?window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=stale",
+  "text": "Operations overview",
+  "to": "/cpm?window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=stale",
+  "text": "Loop ›",
+  "to": "/cpm/loop?loop=G13_LOOP_A&tab=summary&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=stale",
+  "text": "Window ›",
+  "to": "/cpm/evidence?loop=G13_LOOP_A&profile=12h&window=2026-08-13T19%3A30%3A00%2B00%3A00&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=stale",
+  "text": "Trend ›",
+  "to": "/cpm/loop?loop=G13_LOOP_A&from=2026-08-13T07%3A30%3A00.000Z&to=2026-08-13T19%3A30%3A00%2B00%3A00&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=all",
+  "text": "Operations overview",
+  "to": "/cpm?window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=all",
+  "text": "Loop ›",
+  "to": "/cpm/loop?loop=AIC30601&tab=summary&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=all",
+  "text": "Window ›",
+  "to": "/cpm/evidence?loop=B2_027PIC&profile=12h&window=2026-08-18T06%3A45%3A00%2B00%3A00&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm?review=all",
+  "text": "Trend ›",
+  "to": "/cpm/loop?loop=B2_027PIC&from=2026-08-17T18%3A45%3A00.000Z&to=2026-08-18T06%3A45%3A00%2B00%3A00&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Performing acceptably00 % of 241 monitored loops u",
+  "to": "/cpm?review=acceptable&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "In auto mode00 % of 0 loops with a measured modeVi",
+  "to": "/cpm?review=normal-mode&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "In manual mode00 % of 0 loops with a measured manu",
+  "to": "/cpm?review=manual-mode&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Oscillating00 % of 0 assessed loopsView loops",
+  "to": "/cpm?review=oscillating&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Suspected valve problem00 % of 0 assessed loopsVie",
+  "to": "/cpm?review=valve&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Excessive actuator effort00 % of 0 assessed loopsV",
+  "to": "/cpm?review=effort&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Saturated / at limit00 % of 0 loops with a measure",
+  "to": "/cpm?review=saturated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Not assessable00 % of monitored unchanged ±0 ppVie",
+  "to": "/cpm?review=not-assessable&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Stale16568 % of monitored unchanged ±0 ppView loop",
+  "to": "/cpm?review=stale&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Never evaluated7632 % of monitored unchanged ±0 pp",
+  "to": "/cpm?review=never-evaluated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Stale 165",
+  "to": "/cpm?review=stale&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Never evaluated 76",
+  "to": "/cpm?review=never-evaluated&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "View all ›",
+  "to": "/cpm/performance?loop=FIC00701&window=12h&rows=attention",
+  "problem": null
+ },
+ {
+  "page": "/cpm?loop=FIC00701",
+  "text": "Open analysis ›",
+  "to": "/cpm?loop=FIC00701",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance",
+  "text": "Window Inspector ›",
+  "to": "/cpm/performance",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance",
+  "text": "Pipeline Health ›",
+  "to": "/cpm/system?tab=pipeline",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance",
+  "text": "Open loop ›",
+  "to": "/cpm/loop?loop=FIC00701&tab=summary&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance?loop=FIC00701",
+  "text": "Window Inspector ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance?loop=FIC00701",
+  "text": "Pipeline Health ›",
+  "to": "/cpm/system?tab=pipeline",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance?loop=FIC00701",
+  "text": "Open fused evidence ›",
+  "to": "/cpm/performance?loop=FIC00701&gate=G15",
+  "problem": null
+ },
+ {
+  "page": "/cpm/performance?loop=FIC00701",
+  "text": "Open loop ›",
+  "to": "/cpm/loop?loop=FIC00701&tab=summary&window=12h",
+  "problem": null
+ },
+ {
+  "page": "/cpm/events",
+  "text": "PIC40102 ›",
+  "to": "/cpm/loop?loop=PIC40102&tab=summary",
+  "problem": null
+ },
+ {
+  "page": "/cpm/events",
+  "text": "Episode period ›",
+  "to": "/cpm/loop?loop=PIC40102&from=2026-10-05T07%3A45%3A00Z&to=2026-11-05T13%3A27%3A35.694Z&kind=24h&focus=episode+EVT-2231&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/events",
+  "text": "History ›",
+  "to": "/cpm/events",
+  "problem": null
+ },
+ {
+  "page": "/cpm/events",
+  "text": "TIC30501",
+  "to": "/cpm/evidence?loop=TIC30501&kind=15m&tab=gates&methodRun=1badfa36-eea0-5ca3-9b86-7d8c8199fa6e&gate=G0&mode=FIXED",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Open Window Inspector ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Show on trend ›",
+  "to": "/cpm/loop?tab=Summary&loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00.000Z&compare=1",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "›",
+  "to": "/cpm/loop?tab=summary&loop=FIC00701&from=2026-11-05T13%3A28%3A00.000Z&to=2026-11-05T21%3A28%3A00.000Z",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Open in Historical ›",
+  "to": "/cpm/loop?loop=FIC00701&from=2026-11-05T05%3A28%3A00.000Z&to=2026-11-05T13%3A28%3A00.000Z&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Show evaluated period ›",
+  "to": "/cpm/loop?tab=Summary&loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00.000Z&compare=1",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Evidence workbench ›",
+  "to": "/cpm/evidence?loop=FIC00701&methodRun=dc687152-aa42-5a96-b5d5-69205851809e&gate=G15&mode=FIXED&tab=gates",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "System response ›",
+  "to": "/cpm/loop?loop=FIC00701&tab=model",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "Effective configuration ›",
+  "to": "/cpm/loop?tab=summary&loop=FIC00701",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—Time in normal modenot measured in this window",
+  "to": "/cpm/loop?loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00%2B00%3A00&kind=12h&window=2026-10-11T05%3A00%3A00%2B00%3A00&signals=pv%2Csp%2Cop&focus=Time+in+normal+mode&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—Good-error timenot measured in this window",
+  "to": "/cpm/evidence?loop=FIC00701&window=12h&metric=CPLM-014&tab=calculations",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—Control error (MAE)not measured in this window",
+  "to": "/cpm/evidence?loop=FIC00701&window=12h&metric=CPLM-010&tab=calculations",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—PV variability (2σ)not measured in this window",
+  "to": "/cpm/loop?loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00%2B00%3A00&kind=12h&window=2026-10-11T05%3A00%3A00%2B00%3A00&signals=pv%2Csp&focus=PV+variability+%282%CF%83%29&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—Setpoint changesnot measured in this window",
+  "to": "/cpm/loop?loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00%2B00%3A00&kind=12h&window=2026-10-11T05%3A00%3A00%2B00%3A00&signals=sp%2Cpv&focus=Setpoint+changes&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=summary&loop=FIC00701",
+  "text": "—Time at an OP limitnot measured in this window",
+  "to": "/cpm/loop?loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00%2B00%3A00&kind=12h&window=2026-10-11T05%3A00%3A00%2B00%3A00&signals=op%2Cvp&focus=Time+at+an+OP+limit&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=historical&loop=FIC00701",
+  "text": "›",
+  "to": "/cpm/loop?tab=historical&loop=FIC00701&from=2026-11-05T13%3A29%3A16.877Z&to=2026-11-08T13%3A29%3A16.877Z",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=historical&loop=FIC00701",
+  "text": "Open in Trend ›",
+  "to": "/trend?tags=hdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.pv%2Chdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.sp%2Chdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.op&range=8h&from=2026-11-02T13%3A29%3A19.579Z&to=2026-11-05T13%3A29%3A19.579Z",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=historical&loop=FIC00701",
+  "text": "Signal mapping in the Loop Registry ›",
+  "to": "/cpm/setup?loop=FIC00701&tab=loops",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=diagnosis&loop=FIC00701",
+  "text": "Calculation proof ›",
+  "to": "/cpm/evidence?loop=FIC00701&window=12h&tab=calculations",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=diagnosis&loop=FIC00701",
+  "text": "Open in Evidence Replay ›",
+  "to": "/cpm/evidence?loop=FIC00701&window=2026-10-11T05%3A00%3A00Z&tab=replay",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=diagnosis&loop=FIC00701",
+  "text": "Older ›",
+  "to": "/cpm/loop?tab=diagnosis&loop=FIC00701",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=model&loop=FIC00701",
+  "text": "Open loop ›",
+  "to": "/cpm/loop?loop=FIC00701&tab=summary",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=model&loop=FIC00701",
+  "text": "Step-test settings (Gate Configuration › G12) ›",
+  "to": "/cpm/setup?loop=FIC00701&view=effective&gate=G12&tab=configuration",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=model&loop=FIC00701",
+  "text": "Setpoint changes in Historical ›",
+  "to": "/cpm/loop?loop=FIC00701&tab=historical",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=signals&loop=FIC00701",
+  "text": "Open Window Inspector ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=signals&loop=FIC00701",
+  "text": "Show on trend ›",
+  "to": "/cpm/loop?tab=Summary&loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00.000Z&compare=1",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=signals&loop=FIC00701",
+  "text": "Open signals in Trend ›",
+  "to": "/trend?tags=hdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.pv%2Chdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.sp%2Chdpe%2Fsection_200%2Fu2002_powder_drying_i%2Ffic00701.op&range=8h",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=history&loop=FIC00701",
+  "text": "Open Window Inspector ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=history&loop=FIC00701",
+  "text": "Show on trend ›",
+  "to": "/cpm/loop?tab=Summary&loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00.000Z&compare=1",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=calculations&loop=FIC00701",
+  "text": "Open Window Inspector ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=windows",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=calculations&loop=FIC00701",
+  "text": "Show on trend ›",
+  "to": "/cpm/loop?tab=Summary&loop=FIC00701&from=2026-10-10T17%3A00%3A00.000Z&to=2026-10-11T05%3A00%3A00.000Z&compare=1",
+  "problem": null
+ },
+ {
+  "page": "/cpm/loop?tab=calculations&loop=FIC00701",
+  "text": "Full catalogue ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=calculations",
+  "problem": null
+ },
+ {
+  "page": "/cpm/evidence?tab=gates&loop=FIC00701",
+  "text": "Older ›",
+  "to": "/cpm/evidence?tab=gates&loop=FIC00701&methodRun=87853f65-210b-5763-b2ed-a289a965fa6f&gate=G15&mode=FIXED",
+  "problem": null
+ },
+ {
+  "page": "/cpm/setup?tab=loops&loop=FIC00701",
+  "text": "View in plant tree ↗",
+  "to": "/cpm/setup?search=fic00701&tab=plant-model",
+  "problem": null
+ },
+ {
+  "page": "/cpm/setup?tab=loops&loop=FIC00701",
+  "text": "Effective configuration ›",
+  "to": "/cpm/setup?tab=loops&loop=FIC00701",
+  "problem": null
+ },
+ {
+  "page": "/cpm/setup?tab=loops&loop=FIC00701",
+  "text": "Evidence workbench ›",
+  "to": "/cpm/evidence?loop=FIC00701&tab=gates&methodRun=dc687152-aa42-5a96-b5d5-69205851809e&gate=G15&mode=FIXED",
+  "problem": null
+ }
+]
