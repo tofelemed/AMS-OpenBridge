@@ -5632,6 +5632,8 @@ built); D5 (whether backups carry the archive); the release build itself.
 - `check-a11y`: 70 scans, 0 findings. `control-edge`: 52 views, none off the screen. tsc 0, lint 0, 1,187 tests in 147 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14.
 - The comparison with the old pages cannot run any more, because they now redirect. It last ran on CHG-124, and this change touches no page inside except Configuration's one fix.
 
+**Dockerfile:** `infra/docker/frontend/Dockerfile` now accepts `VITE_ENV_LABEL`, as `prod_decision.md` already said it did. It is empty by default, so a plant build does not change.
+
 **Kept on purpose:** the old page routes and Explorer's own tab row stay in the code, so `SHIPPED_PHASE = 2` brings the old pages back. Remove them after the first release proves the tabs.
 
 **Not proven:** the role landings are by unit test, not by real accounts. The real viewer-account check still needs an account from an administrator.
