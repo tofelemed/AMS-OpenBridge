@@ -82,3 +82,11 @@ Evidence: `evidence/phase-5/` (`kpi-parity.json` 165 items, `loop-parity.json` 5
 Walks: Overview 24 of 24, Loop 37 of 37, control-edge 24 views with 0 off the screen. Blocked 0.
 Simulated: a Calculations readiness link and not-assessable reasons, one answer each, because the lab has neither.
 Not run: role-edit sign-out, real viewer account, control-engineer review.
+
+## Page plan, step 3: Evidence (CHG-122)
+
+Tabs share the loop and the window correctly, and a selection stays on its tab. Nothing inside a page changed. Defects fixed: one loop's evidence under another's name, a gate silently filtering Calculations, and Replay's 24h switch, which never worked.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,155) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (24 cases) | a11y ✓ (50 scans, 0 of any level)
+Evidence: `evidence/phase-5/` (`evidence-parity.json` 269 items, `loop-parity.json` 505, `kpi-parity.json` 165, nothing lost or added; `axe.json`).
+Walks: Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 32 views with 0 off the screen. Blocked 0.
+Not met: nothing in this step. Open for the owner: the Replay fix at the plant, role-edit sign-out, viewer account, control-engineer review, page headings.

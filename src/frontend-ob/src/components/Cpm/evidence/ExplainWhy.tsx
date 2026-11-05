@@ -72,7 +72,7 @@ export const ExplainWhy: React.FC<{
     <div className="cpm-why" data-testid="explain-why">
       <p className="cpm-copy cpm-why__result">{result}</p>
 
-      <h4 className="cpm-eyebrow">Measured vs required</h4>
+      <h3 className="cpm-eyebrow">Measured vs required</h3>
       {rows.length > 0 ? (
         <dl className="cpm-why__rows">
           {rows.map(r => (
@@ -93,7 +93,7 @@ export const ExplainWhy: React.FC<{
         <p className="cpm-why__source">Thresholds: {cfg.data.profileId} profile{cfg.data.bundle ? ` · bundle v${cfg.data.bundle.version}` : ' · factory / profile layers'}, as in force at {fmtInstant(run?.support.toMs, timeZone)}.</p>
       )}
 
-      <h4 className="cpm-eyebrow">Evidence behind it</h4>
+      <h3 className="cpm-eyebrow">Evidence behind it</h3>
       {gate === 'G15' && fused ? (
         <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
       ) : (
@@ -103,7 +103,7 @@ export const ExplainWhy: React.FC<{
         </p>
       )}
 
-      <h4 className="cpm-eyebrow">What remains open</h4>
+      <h3 className="cpm-eyebrow">What remains open</h3>
       {open.length > 0
         ? <ul className="cpm-why__open">{open.map(o => <li key={o}>{o}</li>)}</ul>
         : <p className="cpm-copy">Nothing this window flags limits this gate's claim.</p>}

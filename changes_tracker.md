@@ -5537,3 +5537,29 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-122 — CPA: Evidence tabs, a selection stays on its tab, Replay 24h works (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** Step 3 of `docs/theme/redesign/page-plan.md`. Tabs on one page share one address, and old pages use the same names for different things. Each defect below was shown in the browser before it was fixed.
+
+**Fixed.**
+- **Wrong loop's evidence on Gates:** after a loop change on Replay, the address held the new loop with the old loop's `methodRun`, and Gates reads that run. The same held for `event` on Loop › Model.
+- **One rule for both pages:** a selection stays on its tab. `cpa/tabKind.ts` drops each tab's own parameters on a tab change: `methodRun`, `analysisRun`, `mode`, `view`, `before`, `event`, an evaluated `window`, `focus`, `metric`. The loop, plant scope, 12h / 24h and filters travel. Browser Back returns to the selection.
+- **Calculations:** a gate picked on Gates narrowed the catalogue silently, and a catalogue filter became a gate selection. `gate` no longer crosses into or out of that tab. A link that sets the filter still sets it.
+- **Windows and Replay:** a window picked on one read as a broken link on the other.
+- **12h / 24h:** now travels through all four tabs, and a 24h choice on Overview reaches Gates and Replay.
+- **Replay's 24h switch did nothing, on every page, since CHG-089.** Two address writes ran in one click, and the second dropped the first. It is one write now. **This bug is in the plant's v2.8.0.1 and in feat/v25-next-release.**
+- **Accessibility, first scan of Evidence:** the gate filter and type filter had no name (critical). Gate chips now start with the text on screen. Heading levels no longer skip, and Gates has a page title for screen readers when no run is open. Nothing changes on screen.
+
+**Verified on lab data.**
+- Compared with the old pages: 269 items in 10 Evidence states, 505 in 14 Loop states, 165 in 6 KPI states. **Nothing lost, nothing added.** A planted wrong pair was caught. Gates has no separate old page: its address is the same one, and its component changed only as listed.
+- Clicked through in the browser: Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37. Every filter on all four tabs, 24h through all four, Back, old links, and no loop chosen.
+- `check-a11y`: 50 scans, 0 findings of any level, Day and Night. `control-edge`: 32 views, none off the screen. 112 views with no overflow on Evidence, Loop and Overview.
+- tsc 0, lint 0, 1,155 tests in 144 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14, redirects 24 of 24.
+
+**Order of checks:** the Replay fix came after the full run. After it, the tests, lint, build, the Replay switch on both pages and the Evidence walk were repeated, not the other checks. It changes one click handler.
+
+**Tested with a made-up value:** no loop tried on the lab has a response event, so Model was tested with a made-up `event` in the address. The tab change that drops it is real.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15). The Replay fix is not on feat/v25-next-release.

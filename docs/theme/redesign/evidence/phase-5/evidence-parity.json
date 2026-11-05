@@ -1,0 +1,574 @@
+[
+ {
+  "tab": "Replay",
+  "compared": 38,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Evidence replay",
+    "G# · Diagnosis band",
+    "Loop notes",
+    "Recompute this loop from history",
+    "Where this evidence came from"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Evaluated window",
+    "Gate",
+    "Outcome",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Evaluated window: long list",
+    "Gate: long list",
+    "Outcome: Inconclusive | Work completed | Performance restored",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "checkbox:Also acknowledge the open episode EVT-# and link the note to it",
+    "checkbox:Attach to this evaluated window (# h · ends # Oct #:# UTC) — its evidence is kept",
+    "range:Replay cursor position",
+    "text:",
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "#h",
+    "About these stages",
+    "Evidence replay",
+    "Export package",
+    "Re-run this window",
+    "Reset",
+    "Save note",
+    "Undo",
+    "What a re-run does",
+    "Zoom area"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 1,
+   "panels": 4
+  }
+ },
+ {
+  "tab": "Replay, 24h, gate G5",
+  "compared": 38,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Evidence replay",
+    "G# · Oscillation (ACF)",
+    "Loop notes",
+    "Recompute this loop from history",
+    "Where this evidence came from"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Evaluated window",
+    "Gate",
+    "Outcome",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Evaluated window: long list",
+    "Gate: long list",
+    "Outcome: Inconclusive | Work completed | Performance restored",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "checkbox:Also acknowledge the open episode EVT-# and link the note to it",
+    "checkbox:Attach to this evaluated window (# h · ends # Oct #:# UTC) — its evidence is kept",
+    "range:Replay cursor position",
+    "text:",
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "#h",
+    "About these stages",
+    "Evidence replay",
+    "Export package",
+    "Re-run this window",
+    "Reset",
+    "Save note",
+    "Undo",
+    "What a re-run does",
+    "Zoom area"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 1,
+   "panels": 4
+  }
+ },
+ {
+  "tab": "Windows",
+  "compared": 18,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit",
+    "Window profile"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "inputs": [
+    "text:"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ },
+ {
+  "tab": "Windows, 1m profile",
+  "compared": 20,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit",
+    "Window profile"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "inputs": [
+    "text:"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓✓✓✓✓!emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓✓✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓✓✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ },
+ {
+  "tab": "Calculations",
+  "compared": 34,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Calculations",
+    "FIC# · Flow controller FIC# (FCS#)"
+   ],
+   "labels": [],
+   "selects": [
+    "Filter by gate: All gates | G# | G# | G# | G# | G# | G# | G# | G# | G# | G#",
+    "Filter by type: All types | Calculation | Decision"
+   ],
+   "inputs": [
+    "text:Search FIC# calculations"
+   ],
+   "buttons": [
+    "#h",
+    "CPLM-#Actuator effort ratioOP travel relative to the error it corrects.G#Not measured — en",
+    "CPLM-#Automatic-mode fractionTime fraction the controller spent in AUTO.G#Not measured — e",
+    "CPLM-#Good-error timeTime fraction (#-#) the error stayed inside the good band.G#Not measu",
+    "CPLM-#Integral absolute errorAccumulated absolute error.G#Not measured — engine version wi",
+    "CPLM-#Integral squared errorAccumulated squared error.G#Not measured — engine version with",
+    "CPLM-#Mean absolute errorMean |PV − SP| over the window.G#Not measured — engine version wi",
+    "CPLM-#OP reversals per hourDirection changes of the actuator.G#Insufficient data#/#/#, #:#",
+    "CPLM-#OP travel per dayTotal actuator travel extrapolated to a day.G#Insufficient data#/#/",
+    "CPLM-#Oscillation period (ACF)Dominant period from the autocorrelation.G#Insufficient data",
+    "CPLM-#Root-mean-square errorRMS control error.G#Not measured — engine version without this",
+    "CPLM-#Sample completenessFraction of expected samples present in the window.G#Insufficient",
+    "CPLM-#Sample countSamples evaluated in the window.G#Insufficient data#/#/#, #:#:# UTC – #/",
+    "Calculations",
+    "Change ▾",
+    "ID, sorted ascending",
+    "Next",
+    "Previous",
+    "Sort by Calculation / parameter",
+    "Sort by Gate",
+    "Sort by Gate result"
+   ],
+   "links": [],
+   "columns": [
+    "Calculation / parameter",
+    "Gate",
+    "Gate result",
+    "ID",
+    "Value",
+    "Window"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Calculations, filters open",
+  "compared": 42,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Calculations",
+    "FIC# · Flow controller FIC# (FCS#)"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Filter by gate: All gates | G# | G# | G# | G# | G# | G# | G# | G# | G# | G#",
+    "Filter by type: All types | Calculation | Decision",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:",
+    "text:Search FIC# calculations"
+   ],
+   "buttons": [
+    "#h",
+    "CPLM-#Actuator effort ratioOP travel relative to the error it corrects.G#Not measured — en",
+    "CPLM-#Automatic-mode fractionTime fraction the controller spent in AUTO.G#Not measured — e",
+    "CPLM-#Good-error timeTime fraction (#-#) the error stayed inside the good band.G#Not measu",
+    "CPLM-#Integral absolute errorAccumulated absolute error.G#Not measured — engine version wi",
+    "CPLM-#Integral squared errorAccumulated squared error.G#Not measured — engine version with",
+    "CPLM-#Mean absolute errorMean |PV − SP| over the window.G#Not measured — engine version wi",
+    "CPLM-#OP reversals per hourDirection changes of the actuator.G#Insufficient data#/#/#, #:#",
+    "CPLM-#OP travel per dayTotal actuator travel extrapolated to a day.G#Insufficient data#/#/",
+    "CPLM-#Oscillation period (ACF)Dominant period from the autocorrelation.G#Insufficient data",
+    "CPLM-#Root-mean-square errorRMS control error.G#Not measured — engine version without this",
+    "CPLM-#Sample completenessFraction of expected samples present in the window.G#Insufficient",
+    "CPLM-#Sample countSamples evaluated in the window.G#Insufficient data#/#/#, #:#:# UTC – #/",
+    "Calculations",
+    "Done ▴",
+    "ID, sorted ascending",
+    "Next",
+    "Previous",
+    "Sort by Calculation / parameter",
+    "Sort by Gate",
+    "Sort by Gate result"
+   ],
+   "links": [],
+   "columns": [
+    "Calculation / parameter",
+    "Gate",
+    "Gate result",
+    "ID",
+    "Value",
+    "Window"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Calculations, gate filter G5",
+  "compared": 24,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Calculations",
+    "FIC# · Flow controller FIC# (FCS#)"
+   ],
+   "labels": [],
+   "selects": [
+    "Filter by gate: All gates | G# | G# | G# | G# | G# | G# | G# | G# | G# | G#",
+    "Filter by type: All types | Calculation | Decision"
+   ],
+   "inputs": [
+    "text:Search FIC# calculations"
+   ],
+   "buttons": [
+    "#h",
+    "CPLM-#Oscillation period (ACF)Dominant period from the autocorrelation.G#Insufficient data",
+    "CPLM-#Oscillation regularityHow regular the oscillation is (#–#).G#Insufficient data#/#/#,",
+    "Calculations",
+    "Change ▾",
+    "ID, sorted ascending",
+    "Next",
+    "Previous",
+    "Sort by Calculation / parameter",
+    "Sort by Gate",
+    "Sort by Gate result"
+   ],
+   "links": [],
+   "columns": [
+    "Calculation / parameter",
+    "Gate",
+    "Gate result",
+    "ID",
+    "Value",
+    "Window"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "Replay, no loop chosen",
+  "compared": 26,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Evidence replay",
+    "G# · Diagnosis band",
+    "Recompute this loop from history",
+    "Select a loop",
+    "Where this evidence came from"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Evaluated window",
+    "Gate",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Evaluated window: Select a loop first",
+    "Gate: long list",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "#h",
+    "About these stages",
+    "Evidence replay",
+    "Export package",
+    "Re-run this window",
+    "What a re-run does"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
+  }
+ },
+ {
+  "tab": "Windows, no loop chosen",
+  "compared": 14,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Select a loop",
+    "Window inspector"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit",
+    "Window profile"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "inputs": [
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "Window inspector"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ },
+ {
+  "tab": "Calculations, no loop chosen",
+  "compared": 15,
+  "lost": {},
+  "added": {},
+  "seen": {
+   "headings": [
+    "Calculations",
+    "Select a loop",
+    "Which loop do you want to evaluate?"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —"
+   ],
+   "inputs": [
+    "text:Search or select a loop"
+   ],
+   "buttons": [
+    "#h",
+    "Calculations"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 2
+  }
+ },
+ {
+  "tab": "PLANTED: must differ",
+  "compared": 18,
+  "lost": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Window profile"
+   ],
+   "selects": [
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "charts": 0,
+   "panels": 1
+  },
+  "added": {
+   "headings": [
+    "Evidence replay",
+    "G# · Diagnosis band",
+    "Loop notes",
+    "Recompute this loop from history",
+    "Where this evidence came from"
+   ],
+   "labels": [
+    "Evaluated window",
+    "Gate",
+    "Outcome"
+   ],
+   "selects": [
+    "Evaluated window: long list",
+    "Gate: long list",
+    "Outcome: Inconclusive | Work completed | Performance restored"
+   ],
+   "inputs": [
+    "range:Replay cursor position",
+    "textarea:Observation, action taken, follow-up owner… (no episode needed)"
+   ],
+   "buttons": [
+    "#h",
+    "About these stages",
+    "Evidence replay",
+    "Export package",
+    "Re-run this window",
+    "Reset",
+    "Save note",
+    "Undo",
+    "What a re-run does",
+    "Zoom area"
+   ],
+   "charts": 1,
+   "panels": 4
+  },
+  "seen": {
+   "headings": [
+    "Latest results",
+    "Window inspector"
+   ],
+   "labels": [
+    "Area",
+    "Control loop",
+    "Site",
+    "Unit",
+    "Window profile"
+   ],
+   "selects": [
+    "Area: — select a site —",
+    "Site: All sites | Dallas Terminal (dallas) | HDPE Plant (hdpe) | Houston Refinery (houston)",
+    "Unit: — select a site —",
+    "Window profile: #m — # min tumbling | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #m — # min / # min slide | #h — # h slice · # min cadence | #h — # h slice · # min cadence | #h — # h slice · # min cadence"
+   ],
+   "inputs": [
+    "text:"
+   ],
+   "buttons": [
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples⊘……✓……emitted #/#/#, #:#:# UTCDECLINED",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓✓emitted #/#/#, #:#:# UTC#% full",
+    "#/#/#, #:#:# UTCfrom #/#/#, #:#:# UTC# samples✓⊖✓✓✓⬤emitted #/#/#, #:#:# UTC#% full",
+    "Load older windows",
+    "Window inspector"
+   ],
+   "links": [],
+   "columns": [],
+   "tabs": [],
+   "charts": 0,
+   "panels": 1
+  }
+ }
+]

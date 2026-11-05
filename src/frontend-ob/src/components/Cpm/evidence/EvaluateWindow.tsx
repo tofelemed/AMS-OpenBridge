@@ -58,7 +58,7 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
   return (
     <section className="cpm-surface cpm-evaluate-window" aria-labelledby={`${ids}-title`}>
       <div className="cpm-evaluate-window__head">
-        <h3 className="cpm-evaluate-window__title" id={`${ids}-title`}>Evaluate a window from the historian</h3>
+        <h2 className="cpm-evaluate-window__title" id={`${ids}-title`}>Evaluate a window from the historian</h2>
         <span className="cpm-evaluate-window__hint">Any window the historian holds, with the engine the live verdicts use. Kept 3 days.</span>
       </div>
       <div className="cpm-toolbar">

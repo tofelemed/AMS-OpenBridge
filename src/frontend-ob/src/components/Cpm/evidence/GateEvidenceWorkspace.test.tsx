@@ -156,8 +156,8 @@ describe('GateEvidenceWorkspace', () => {
 
   it('the gate strip opens another gate of the same window and the explain panel collapses (remembered)', async () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15`);
-    await waitFor(() => expect(screen.getByRole('button', { name: /^G0 Data quality/ })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /^G0 Data quality/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^G0 OK: Data quality/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /^G0 OK: Data quality/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
     fireEvent.click(screen.getByRole('button', { name: 'Hide explain' }));
     expect(screen.getByRole('button', { name: 'Show explain' })).toBeTruthy();

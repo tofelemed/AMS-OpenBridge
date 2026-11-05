@@ -210,5 +210,109 @@
   "fresh": true,
   "theme": "night",
   "violations": []
+ },
+ {
+  "name": "Evidence, gates",
+  "url": "/cpm/evidence?tab=gates&loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, gates",
+  "url": "/cpm/evidence?tab=gates&loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, gates, no loop chosen",
+  "url": "/cpm/evidence?tab=gates",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, gates, no loop chosen",
+  "url": "/cpm/evidence?tab=gates",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, replay",
+  "url": "/cpm/evidence?tab=replay&loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, replay",
+  "url": "/cpm/evidence?tab=replay&loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, replay, no loop chosen",
+  "url": "/cpm/evidence?tab=replay",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, replay, no loop chosen",
+  "url": "/cpm/evidence?tab=replay",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, windows",
+  "url": "/cpm/evidence?tab=windows&loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, windows",
+  "url": "/cpm/evidence?tab=windows&loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, windows, no loop chosen",
+  "url": "/cpm/evidence?tab=windows",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, windows, no loop chosen",
+  "url": "/cpm/evidence?tab=windows",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, calculations",
+  "url": "/cpm/evidence?tab=calculations&loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, calculations",
+  "url": "/cpm/evidence?tab=calculations&loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Evidence, calculations, no loop chosen",
+  "url": "/cpm/evidence?tab=calculations",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Evidence, calculations, no loop chosen",
+  "url": "/cpm/evidence?tab=calculations",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
  }
 ]

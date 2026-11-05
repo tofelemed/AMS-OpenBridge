@@ -68,7 +68,7 @@ function download(name: string, body: string) {
 export const CpmReplay: React.FC = () => {
   const [params, setParams] = useSearchParams();
   // CHG-089: the fused window kind (?kind= as replayHref writes it; 12h default)
-  const [windowKind, setWindowKind] = useWindowKind('kind');
+  const [windowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
   // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
@@ -175,7 +175,8 @@ export const CpmReplay: React.FC = () => {
         title="Evidence replay"
         actions={<>
           <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
-            onChange={k => { setWindowKind(k); setParams(p => { p.delete('window'); return p; }, { replace: true }); }} />
+            // One write: two in a row both start from this render's address, so the second drops the first's kind.
+            onChange={k => setParams(p => { p.set('kind', k); p.delete('window'); return p; }, { replace: true })} />
           <ReasonedButton variant="normal" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={exportPackage}>
             Export package
           </ReasonedButton>
@@ -259,7 +260,7 @@ export const CpmReplay: React.FC = () => {
           </p>
         )}
         {!loopId && (
-          <EmptyState title="Select a loop"
+          <EmptyState level={2} title="Select a loop"
             copy="Replay walks the exact samples one evaluation window used — pick a loop above to begin." />
         )}
         {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}

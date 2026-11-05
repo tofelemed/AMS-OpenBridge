@@ -173,17 +173,19 @@ export const GateEvidenceWorkspace: React.FC = () => {
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
+        {/* No run open means no header strip, and so no page title for a screen reader. */}
+        <h1 className="cpm-sr-only">Evidence workbench</h1>
         <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: 'Windows (none opened)' }} />
         {toolbar}
         {evaluate}
-        {!loopId && <EmptyState title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
-        {loopId && windows.isLoading && <EmptyState title="Listing the evaluated windows…" />}
+        {!loopId && <EmptyState level={2} title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
+        {loopId && windows.isLoading && <EmptyState level={2} title="Listing the evaluated windows…" />}
         {loopId && windows.error != null && <QueryError error={windows.error} retry={windows.refetch} />}
         {loopId && !windows.isLoading && windows.error == null && windows.options.length === 0 && (
-          <EmptyState title={`No ${kind} windows for ${loopId} yet`} copy="Choose another window kind, or wait for the next evaluation." />
+          <EmptyState level={2} title={`No ${kind} windows for ${loopId} yet`} copy="Choose another window kind, or wait for the next evaluation." />
         )}
         {loopId && !windows.isLoading && windows.options.length > 0 && !windows.options.some(w => w.hasRunIds) && (
-          <EmptyState title="No window of this loop carries run identity" copy="The listed windows predate v2.5; they cannot be opened in the workbench. Load older windows or pick another kind." />
+          <EmptyState level={2} title="No window of this loop carries run identity" copy="The listed windows predate v2.5; they cannot be opened in the workbench. Load older windows or pick another kind." />
         )}
       </div>
     );

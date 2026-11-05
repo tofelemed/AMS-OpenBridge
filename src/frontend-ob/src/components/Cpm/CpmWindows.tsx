@@ -133,7 +133,7 @@ export const CpmWindows: React.FC = () => {
         </p>
 
         {!loopId && (
-          <EmptyState title="Select a loop"
+          <EmptyState level={2} title="Select a loop"
             copy="Pick a control loop above to inspect the windows the engine emitted for it." />
         )}
         {loopId && view.view === 'list' && (<>

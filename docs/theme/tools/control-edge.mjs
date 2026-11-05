@@ -11,7 +11,8 @@ const guard = { blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null
 await installGuard(p, guard, { ratePerMin: 60 });
 await login(p, env);
 const LOOP = 'B2_027PIC';
-const routes = ['/cpm', '/cpm?review=stale', '/cpm?review=all', '/cpm/performance', '/cpm/events', ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations'].map(t => `/cpm/loop?tab=${t}&loop=${LOOP}`)];
+const routes = ['/cpm', '/cpm?review=stale', '/cpm?review=all', '/cpm/performance', '/cpm/events', ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations'].map(t => `/cpm/loop?tab=${t}&loop=${LOOP}`),
+  ...['gates', 'replay', 'windows', 'calculations'].map(t => `/cpm/evidence?tab=${t}&loop=FIC00701`)];
 const bad = [];
 let n = 0;
 for (const w of [390, 768]) {

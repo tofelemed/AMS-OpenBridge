@@ -21,8 +21,8 @@ const Where = () => {
 
 const TABS: HostTab[] = [
   { value: 'summary', label: 'Summary', kindParam: 'window', render: () => <p>summary page</p> },
-  { value: 'historical', label: 'Historical', kindParam: 'kind', windowIsEnd: true, render: () => <p>historical page</p> },
-  { value: 'signals', label: 'Signals', badge: 5, render: () => <p>signals page</p> },
+  { value: 'historical', label: 'Historical', kindParam: 'kind', windowIsEnd: true, own: ['window'], render: () => <p>historical page</p> },
+  { value: 'signals', label: 'Signals', badge: 5, own: ['event'], render: () => <p>signals page</p> },
   { value: 'locked', label: 'Locked', permission: 'denied', render: () => <p>locked page</p> },
 ];
 
@@ -54,6 +54,13 @@ describe('DestinationHost', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Historical' }));
     const q = address();
     expect([q.get('kind'), q.get('window')]).toEqual(['24h', null]);
+  });
+
+  it('leaves a selection on its tab', () => {
+    open('?tab=signals&loop=L&event=E');
+    fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+    expect(address().get('event')).toBeNull();
+    expect(address().get('loop')).toBe('L');
   });
 
   it('keeps a 24h choice from a link to a page where window is an end', () => {

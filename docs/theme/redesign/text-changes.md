@@ -113,3 +113,13 @@ Visible text does not change, except that the phone header shows "CPA" without "
 | Episodes, row | Show episode EVT-1, peak {diagnosis} | Peak: {diagnosis}. EVT-1 · {window}. Show this episode |
 | Loop › Calculations, gate result | Open G0 evidence in Evidence Replay | {status}: open G0 evidence in Evidence Replay |
 | Diagnosis, window tile | {span}: {diagnosis}, latest | The tile's own text. The span stays as its tooltip |
+
+## CHG-122 changes
+
+Visible text does not change. These names are read by screen readers and voice control only.
+
+| Where | Before | After |
+|---|---|---|
+| Evidence › Gates, gate chip | G0 Data quality: {meaning} | G0 {word}: Data quality, {meaning} |
+| Evidence › Calculations, two filter lists | No name | Filter by gate, Filter by type |
+| Evidence › Gates, no run open | No page title | Evidence workbench (not shown on screen) |

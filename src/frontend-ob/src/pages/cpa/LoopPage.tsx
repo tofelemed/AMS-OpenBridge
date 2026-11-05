@@ -16,9 +16,9 @@ const ResponseWorkspace = React.lazy(() => import('../../components/Cpm/response
 
 const TABS: HostTab[] = [
   { value: 'summary', label: 'Summary', kindParam: 'window', render: () => <CpmExplorer hostTab="Summary" /> },
-  { value: 'historical', label: 'Historical', kindParam: 'kind', windowIsEnd: true, render: () => <CpmHistorical /> },
-  { value: 'diagnosis', label: 'Diagnosis', kindParam: 'profile', windowIsEnd: true, render: () => <CpmInvestigation /> },
-  { value: 'model', label: 'Model', render: () => <ResponseWorkspace /> },
+  { value: 'historical', label: 'Historical', kindParam: 'kind', windowIsEnd: true, own: ['window', 'focus'], render: () => <CpmHistorical /> },
+  { value: 'diagnosis', label: 'Diagnosis', kindParam: 'profile', windowIsEnd: true, own: ['window'], render: () => <CpmInvestigation /> },
+  { value: 'model', label: 'Model', own: ['event', 'methodRun'], render: () => <ResponseWorkspace /> },
   { value: 'signals', label: 'Signals', kindParam: 'window', render: () => <CpmExplorer hostTab="Signals" /> },
   { value: 'history', label: 'History', kindParam: 'window', render: () => <CpmExplorer hostTab="History" /> },
   { value: 'calculations', label: 'Calculations', kindParam: 'window', render: () => <CpmExplorer hostTab="Calculations" /> },

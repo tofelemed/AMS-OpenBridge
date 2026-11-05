@@ -26,6 +26,10 @@ Inside each tab **nothing is added, removed or rearranged**: same panels, same o
 3. **Each tab keeps its permission.** A role that cannot see a page today cannot see that tab, and nobody loses a page they have today.
 4. **Two changes the owner asked for:** the KPI drill-down opens in place, and Governance events and Audit log become one view (below).
 
+## What travels between tabs
+
+The loop, the plant scope, 12h / 24h and the filters travel. **A selection stays on its tab:** a selected run, event or evaluated window does not follow you to another tab, and browser Back returns to it. Otherwise one loop's evidence could show under another loop's name (UI-075).
+
 ## Withdrawn after the filter check
 
 The first version of this plan said "one loop picker in the page header" and "the old page title goes". **Both are withdrawn.**
@@ -158,7 +162,7 @@ One page at a time, each shown to the owner before the next.
 
 1. **Loop:** one row of tabs. **Built (CHG-120).**
 2. **Overview:** KPI drill-down in place. **Built (CHG-121).**
-3. **Evidence:** tabs share the loop and window correctly.
+3. **Evidence:** tabs share the loop and window correctly. **Built (CHG-122).**
 4. **Setup and System:** Administration into tabs, and the one audit trail.
 5. **Old addresses:** switch on the redirects, and check every link.
 
@@ -166,7 +170,6 @@ Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step c
 
 ## Known risks, already understood
 
-- Tabs on one page share the address, and old pages use the same names for different things. `window` is a kind on some and an evaluated end on others, and the kind itself is `window`, `kind` or `profile` by page. Moving between tabs has to translate it, or a 24h choice is lost. Loop does this (CHG-120).
-- `gate` is a selection on Gates and Replay, but a filter on Evidence › Calculations, so a gate picked on Gates would silently narrow the catalogue. Step 3 must stop it carrying there.
+- Tabs on one page share the address, and old pages use the same names for different things. `cpa/tabKind.ts` handles it: each tab states where it reads 12h / 24h and which parameters are its own (CHG-120, CHG-122). A new tab must state both.
 - `/cpm/system` needs `system.manage`. `/admin/*` opens for `admin.users.edit`, `admin.audit.view`, `rbac.manage` or the ingestion permissions, and Plant model and Tag aliases for `asset.view`. Moving those sections must not lock those roles out, so the System and Setup route guards and menu rules change with them in step 4.
 - Old pages use `tab` for themselves. Inside a page they need their own name, as Gate configuration already does with `sub`.

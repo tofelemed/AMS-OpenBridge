@@ -6,7 +6,7 @@
 import React, { useId } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { RequirePermission, RouteFallback } from '../../app/guards';
-import { carryKind, type KindTab } from '../../cpa/tabKind';
+import { carryKind, misplacedKind, settleKind, type KindTab } from '../../cpa/tabKind';
 import { useAuthStore } from '../../store/authStore';
 import { Tabs, tabPanelProps } from '../../ui/Tabs';
 
@@ -35,10 +35,9 @@ export const DestinationHost: React.FC<{ label: string; tabs: HostTab[] }> = ({ 
     return p;
   });
 
-  const kind = params.get('window');
-  if (active.windowIsEnd && (kind === '12h' || kind === '24h')) {
+  if (misplacedKind(params, active)) {
     const clean = new URLSearchParams(params);
-    carryKind(clean, {}, active);
+    settleKind(clean, active);
     return <Navigate to={`${pathname}?${clean.toString()}`} replace />;
   }
 

@@ -100,7 +100,7 @@ export const GateChipStrip: React.FC<GateChipStripProps> = ({ chips, selected, o
                     className={`cpm-gate-chip cpm-matrix__cell--${c.glyph.tone}${isSelected ? ' cpm-gate-chip--selected' : ''}`}
                     data-gate={c.gate}
                     aria-current={isSelected ? 'true' : undefined}
-                    aria-label={`${c.gate} ${c.name}: ${c.glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
+                    aria-label={`${c.gate} ${c.glyph.word}: ${c.name}, ${c.glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
                     title={title}
                     disabled={!c.methodRunId}
                     tabIndex={c.gate === cursor ? 0 : -1}
@@ -108,7 +108,7 @@ export const GateChipStrip: React.FC<GateChipStripProps> = ({ chips, selected, o
                     onClick={() => { if (c.methodRunId) onOpen(c.gate, c.methodRunId); }}
                   >
                     <span className="cpm-gate-chip__glyph" aria-hidden data-mark={c.glyph.meaning}>{c.glyph.glyph}</span>
-                    <span className="cpm-mono">{c.gate}</span>
+                    <span className="cpm-mono">{c.gate}</span>{' '}
                     <span className="cpm-gate-chip__word" aria-hidden>{c.glyph.word}</span>
                   </button>
                 );

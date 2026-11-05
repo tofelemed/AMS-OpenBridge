@@ -26,6 +26,10 @@ const ROUTES = [
     .map(tab => ({ name: `Loop, ${tab}`, url: `/cpm/loop?tab=${tab}&loop=B2_027PIC` })),
   ...['summary', 'historical', 'diagnosis', 'model']
     .map(tab => ({ name: `Loop, ${tab}, no loop chosen`, url: `/cpm/loop?tab=${tab}`, fresh: true })),
+  ...['gates', 'replay', 'windows', 'calculations'].flatMap(tab => [
+    { name: `Evidence, ${tab}`, url: `/cpm/evidence?tab=${tab}&loop=FIC00701` },
+    { name: `Evidence, ${tab}, no loop chosen`, url: `/cpm/evidence?tab=${tab}`, fresh: true },
+  ]),
 ];
 
 const env = requireEnv();

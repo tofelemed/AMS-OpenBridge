@@ -283,14 +283,14 @@ export const CpmCalculations: React.FC = () => {
           <input className="cpm-input" style={{ flex: 1, minWidth: 220 }}
             placeholder={`Search ${loop?.loopId ?? ''} calculations`}
             value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
-          <select className="cpm-select" value={gateFilter}
+          <select className="cpm-select" aria-label="Filter by gate" value={gateFilter}
             onChange={e => { setGateFilter(e.target.value); setPage(0); }}>
             {gateKeys.map(g => <option key={g} value={g}>{g === 'all' ? 'All gates' : g}</option>)}
           </select>
           {/* The list was hardcoded and offered "Parameter", which no metric in
               METRICS carries — a filter option that could only ever return zero
               results. Derived from the catalogue instead. */}
-          <select className="cpm-select" value={kindFilter}
+          <select className="cpm-select" aria-label="Filter by type" value={kindFilter}
             onChange={e => { setKindFilter(e.target.value); setPage(0); }}>
             {kindKeys.map(k =>
               <option key={k} value={k}>{k === 'all' ? 'All types' : k}</option>)}
