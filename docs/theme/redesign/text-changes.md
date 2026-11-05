@@ -134,3 +134,18 @@ Visible text does not change. These names are read by screen readers only.
 | Users and Tag aliases, last column | Empty heading | Actions |
 | Governance, permission table | Unnamed scroll area | Permissions by role |
 | Each Administration tab | "System Administration" | The tab's own name, not shown on screen |
+
+## CHG-124 changes
+
+| Where | Before | After |
+|---|---|---|
+| Trail, columns | When / hash, Action, Actor, Entity; Timestamp, Event Type, User, Entity, Hash Signature, Correlation | Timestamp, Event type, User, Entity, Hash signature, Correlation |
+| Trail, event type list | All Events, Acknowledgements, Shelving, Security / Logins, System Events | All events, then each type the records hold |
+| Trail, User | Filter by User; "Username…" | User; "Exact user name" |
+| Trail, Find | "Find by user, action or entity" as a placeholder | The same words as its label; "Searches the rows fetched" as the placeholder |
+| Trail, filters `?` | None | New: "User and Event type ask the server, so they reach older records. Find searches only the rows fetched." |
+| Trail, verification | "Verification failed.", "— the service could not confirm chain integrity." | VERIFY FAILED pill, and Governance's sentence on what a 500 means |
+| Trail, 403 | "re-login to refresh claims" | "Sign in again to refresh your permissions" |
+| Entity and event labels | Cpmloop, Rolepermissions, Rbac role permissions reset | CPM loop, Role permissions, RBAC role permissions reset. The code stays on hover |
+
+**For the control-engineer review:** the verification and tampering sentence is safety-relevant. It keeps Governance's wording.

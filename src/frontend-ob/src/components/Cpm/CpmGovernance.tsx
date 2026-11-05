@@ -2,48 +2,23 @@
 
 /**
  * CPLM Phase 7 — U12 Governance (/cpm/governance).
- * Stage 1 (DG-8): a read-only governance view — the real audit stream (fed by
- * the A15 emitter + display-service events, chained by audit-service), version
- * provenance from stored results, and the separation-of-duties model as the
- * permission system actually enforces it. There is no server-side approval
- * workflow yet; the approval queue says so instead of simulating one.
+ * Stage 1 (DG-8): a read-only governance view — the one audit trail (fed by the A15 emitter +
+ * display-service events, chained by audit-service), version provenance from stored results, and
+ * the separation-of-duties model as the permission system actually enforces it. There is no
+ * server-side approval workflow yet; the approval queue says so instead of simulating one.
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { ApiError } from '../../api/apiFetch';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import React from 'react';
 import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime,
+  EmptyState, KvRow, PanelHead, WorkspaceHeader,
   QueryError,
 } from './shared';
-import { usePagedSlice } from '../shared/ListPager';
 import { ConfigApprovalQueue } from './config/ConfigApprovalQueue';
-import { useAuditEvents, useVerifyAuditChain } from '../../hooks/useAudit';
+import { AuditTrail } from './governance/AuditTrail';
 import { useCpmCalculations, useCpmCapabilities, useCpmLoops } from '../../hooks/useCpm';
 import { shortIdentity } from '../../api/cpm/capabilities';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
-import { codeLabel } from './vocabulary';
-import { ReasonedButton } from './ReasonedButton';
 import { Toggletip } from '../../ui/Toggletip';
-
-/** Rows fetched per request, and rows rendered per page of that fetch. */
-const AUDIT_TAKE = 200;
-const AUDIT_PAGE_SIZE = 25;
-
-const ENTITY_FILTERS = [
-  { key: '', label: 'All entities' },
-  { key: 'CpmLoop', label: 'CPM loops' },
-  { key: 'CpmEventFrame', label: 'CPM events' },
-  { key: 'Display', label: 'HMI displays' },
-];
-
-const EVENT_TONE = (t: string): 'good' | 'warn' | 'bad' | 'muted' => {
-  if (t.includes('DELETED')) return 'bad';
-  if (t.includes('SHELVED')) return 'warn';
-  if (t.includes('ACTIVATED') || t.includes('ACKNOWLEDGED')) return 'good';
-  return 'muted';
-};
 
 /**
  * Permissions this page calls out by name, so the live matrix can show which
@@ -58,146 +33,14 @@ const WATCHED_PERMISSIONS: { key: string; guards: string }[] = [
   { key: 'display.edit', guards: 'Authoring HMI displays' },
 ];
 
-export const CpmGovernance: React.FC = () => {
-  const hasPermission = useAuthStore(s => s.hasPermission);
-  const canReadAudit = hasPermission('admin.audit.view');
-
-  const [entityType, setEntityType] = useState('');
-  // A7.1: free text over actor / action / entity — location filtering is not
-  // useful here (audit rows are actions, not loops), but 'who touched FIC-109'
-  // is exactly what an audit trail gets asked.
-  const [search, setSearch] = useState('');
-  const audit = useAuditEvents(
-    { entityType: entityType || undefined, take: AUDIT_TAKE },
-    30_000,
-    canReadAudit,
-  );
-  const auditRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const rows = audit.data?.events ?? [];
-    if (!q) return rows;
-    return rows.filter(e =>
-      (e.userId ?? '').toLowerCase().includes(q)
-      || e.eventType.toLowerCase().includes(q)
-      || (e.entityType ?? '').toLowerCase().includes(q)
-      || (e.entityId ?? '').toLowerCase().includes(q));
-  }, [audit.data, search]);
-
+/** What produces the verdicts, approvals and the duties. Only holders of system.manage opened this page before. */
+const GovernancePanels: React.FC = () => {
   const matrix = useRoleMatrix();
-  // The endpoint is asked for `take` rows; paging walks what was fetched and
-  // the footer states the shortfall rather than leaving "3,412 total · showing
-  // 100" as a dead end.
-  const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [entityType, search]);
-  const { pageCount, safePage, pageItems: pagedAudit } =
-    usePagedSlice(auditRows, page, AUDIT_PAGE_SIZE);
-
-  const verify = useVerifyAuditChain();
   const calc = useCpmCalculations();
   const caps = useCpmCapabilities();
   const loops = useCpmLoops();
 
-  // Typed check — the old version substring-matched '403' in a message that
-  // embeds the request URL, so any URL containing '403' misclassified.
-  const auditForbidden = audit.isError && audit.error instanceof ApiError && audit.error.status === 403;
-
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        eyebrow="Change control"
-        title="Governance"
-        copy="Who changed what, under which calculation versions, and which duties are separated by the permission model."
-      />
-
-      <section className="cpm-surface">
-        <PanelHead eyebrow="Immutable audit trail" title="Governance events"
-          right={
-            <div className="cpm-filter-row">
-              <ReasonedButton variant="normal" disabled={!canReadAudit || verify.isPending}
-                reason={!canReadAudit ? 'Needs the admin.audit.view permission' : null} onClick={() => verify.mutate()}>
-                {verify.isPending ? 'Verifying chain…' : 'Verify cryptographic chain'}
-              </ReasonedButton>
-            </div>
-          } />
-        {verify.isSuccess && <p className="cpm-copy"><TonePill tone="good">CHAIN OK</TonePill>&nbsp;{String(verify.data)}</p>}
-        {verify.isError && (
-          <p className="cpm-copy">
-            <TonePill tone="bad">VERIFY FAILED</TonePill>&nbsp;
-            {(verify.error as Error)?.message ?? 'unknown error'} — a 500 here means the service
-            reported possible tampering or could not complete the walk.
-          </p>
-        )}
-
-        <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
-          {ENTITY_FILTERS.map(f => (
-            <ObcButton key={f.key} variant={entityType === f.key ? 'raised' : 'normal'}
-              onClick={() => setEntityType(f.key)}>
-              {f.label}
-            </ObcButton>
-          ))}
-          <input className="cpm-input" style={{ minWidth: 220 }}
-            placeholder="Find by user, action or entity"
-            value={search} onChange={e => setSearch(e.target.value)} />
-          {audit.data && (
-            <span className="cpm-filter-count">
-              {audit.data.total} total · showing {auditRows.length}
-              {search ? ` matching “${search}”` : ''}
-            </span>
-          )}
-        </div>
-
-        {!canReadAudit && (
-          <EmptyState title="Audit reads require the admin.audit.view permission"
-            copy="Your session does not carry it; the trail itself keeps recording regardless." />
-        )}
-        {canReadAudit && audit.isLoading && <EmptyState title="Loading audit trail…" />}
-        {canReadAudit && auditForbidden && (
-          <EmptyState title="Audit service refused the read (403)"
-            copy="The token was accepted by the app but not by audit-service — re-login to refresh claims." />
-        )}
-        {canReadAudit && audit.isError && !auditForbidden && (
-          <QueryError title="Audit service unreachable" error={audit.error} retry={() => void audit.refetch()} />
-        )}
-        {canReadAudit && audit.data && auditRows.length === 0 && (
-          <EmptyState title="No governance events recorded yet"
-            copy="CPM onboarding, ack/shelve, recompute and display changes emit here from now on." />
-        )}
-        {/* Four unlabelled columns — the Events list has a head row and this
-            one did not, so the last column read as an unexplained string. */}
-        {auditRows.length > 0 && (
-          <div className="cpm-event-head" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
-            <span>When / hash</span><span>Action</span><span>Actor</span><span>Entity</span>
-          </div>
-        )}
-        {pagedAudit.map(e => (
-          <div key={e.eventId} className="cpm-event-row" style={{ gridTemplateColumns: '1fr 1.2fr 0.9fr 1fr' }}>
-            <span>
-              <span className="cpm-event-row__title">{fmtDateTime(e.timestampUtc)}</span>
-              <div className="cpm-event-row__sub cpm-mono">{e.currentHash.slice(0, 16)}…</div>
-            </span>
-            <TonePill tone={EVENT_TONE(e.eventType)}>{codeLabel(e.eventType)}</TonePill>
-            <span className="cpm-event-row__sub">{e.userId || 'system'}</span>
-            <span className="cpm-event-row__sub">{codeLabel(e.entityType)} · {e.entityId}</span>
-          </div>
-        ))}
-        {pageCount > 1 && (
-          <div className="cpm-pager">
-            <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="flat" disabled={safePage === 0}
-              onClick={() => setPage(p => Math.max(0, p - 1))}>← Prev</ObcButton></span>
-            <span className="cpm-event-row__sub">
-              {safePage * AUDIT_PAGE_SIZE + 1}–
-              {Math.min((safePage + 1) * AUDIT_PAGE_SIZE, auditRows.length)} of{' '}
-              {auditRows.length} fetched · page {safePage + 1} of {pageCount}
-              {(audit.data?.total ?? 0) > (audit.data?.events.length ?? 0)
-                ? ` · newest ${AUDIT_TAKE} of ${audit.data!.total} — older entries are not fetched`
-                : ''}
-            </span>
-            <span title={safePage >= pageCount - 1 ? 'Already on the last page' : undefined}><ObcButton variant="flat" disabled={safePage >= pageCount - 1}
-              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next →</ObcButton></span>
-          </div>
-        )}
-      </section>
-
       <div className="cpm-grid-2">
         <section className="cpm-surface">
           <PanelHead eyebrow="Version provenance" title="What is producing today's verdicts"
@@ -310,6 +153,20 @@ export const CpmGovernance: React.FC = () => {
           )}
         </section>
       </div>
+  );
+};
+
+export const CpmGovernance: React.FC = () => {
+  const canGovern = useAuthStore(s => s.hasPermission('system.manage'));
+  return (
+    <div className="cpm-screen">
+      <WorkspaceHeader
+        eyebrow="Change control"
+        title="Governance"
+        copy="Who changed what, under which calculation versions, and which duties are separated by the permission model."
+      />
+      <AuditTrail />
+      {canGovern && <GovernancePanels />}
     </div>
   );
 };

@@ -5586,3 +5586,29 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-124 — CPA: one audit trail on System › Governance (2026-11-05, branch feat/cpa-redesign, unreleased)
+
+**Why.** The second half of step 4. The owner's decision 4: one page with the information of both. The owner saw `samples/audit-trail.html` and said to start next.
+
+**Changed.**
+- **One trail:** `components/Cpm/governance/AuditTrail.tsx` replaces Governance events and the Audit log tab. It keeps the entity buttons, Find, User, Event type, all six columns, Verify, the integrity line, both paging statements and both `?` texts. The timestamp shows the site zone, and the exact time stays on hover. The longer hash is kept.
+- **Event type filter fixed:** the old list named `ALARM_ACKNOWLEDGED`, `ALARM_SHELVED`, `SECURITY` and `SYSTEM`. No record uses them, so **all four returned 0 of 4,825 on the lab**. The list now comes from the records: 18 types there. **The plant's Audit log has the same list.**
+- **Readable labels:** "CPM loop", "Role permissions", "RBAC role permissions reset". The code stays on hover.
+- **System:** Pipeline, Governance, Users, Roles, Settings. Governance opens for either old page's rule, and its other panels stay with `system.manage`, so an auditor sees the trail and nothing new.
+- **Old addresses:** `/admin/audit` keeps working until step 5.
+
+**Verified on lab data.**
+- Trail walk 22 of 22 on real records: every event type tried returns rows, User reaches older records (4,710 for `admin`), Find asks nothing of the server, and paging states what is not fetched.
+- Audit log compared with the trail: 61 items. The differences are the old title, its links, the old four filter options and renamed labels. `/cpm/governance` now shows the same trail, so Governance's old panel could not be compared. Its parts are covered by the walk and by `AuditTrail.test.tsx`.
+- Setup and System 249 items in 9 states, with only the old title and links gone. Evidence 269, Loop 505, KPI 165: **nothing lost, nothing added.**
+- Walks: Setup and System 26 of 26, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37.
+- `check-a11y`: 70 scans, 0 findings. `control-edge`: 52 views, none off the screen. 192 views with no overflow.
+- tsc 0, lint 0, 1,174 tests in 146 files, build OK, lint:theme 0, contrast min text 4.587, geometry 14 of 14, redirects 24 of 24.
+
+**Order of checks:** one sentence was restored behind a `?` after the full run. After it, the tests, lint, build, trail walk, trail comparison and `check-a11y` were repeated, not the other checks.
+
+**Simulated:** Verify is a POST the test guard refuses, so its success and failure answers were simulated in the test browser. Verify has not been run against audit-service in this work.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

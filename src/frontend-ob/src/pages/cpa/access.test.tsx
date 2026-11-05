@@ -20,7 +20,7 @@ for (const path of [
   '../../components/Cpm/CpmPipeline', '../../components/Cpm/CpmGovernance',
   '../../components/Administration/PlantModelConfig', '../../components/Administration/DataSourcesConfig',
   '../../components/Administration/AliasConfig', '../../components/Administration/UserManagementConfig',
-  '../../components/Administration/RolesConfig', '../../components/Administration/AuditExplorer',
+  '../../components/Administration/RolesConfig',
   '../../components/Administration/SystemSettingsConfig',
 ]) vi.doMock(path, () => ({ default: () => <p>page</p> }));
 
@@ -39,7 +39,7 @@ describe('who sees which tab', () => {
     held = ['analytics.view', 'cpm.manage', 'cpm.config.read', 'system.manage', 'asset.view', 'ingestion.view',
       'admin.users.edit', 'rbac.manage', 'admin.audit.view'];
     expect(tabsOf(SetupPage)).toEqual(['Loops', 'Configuration', 'Plant model', 'Data sources', 'Tag aliases']);
-    expect(tabsOf(SystemPage)).toEqual(['Pipeline', 'Governance', 'Users', 'Roles', 'Audit log', 'Settings']);
+    expect(tabsOf(SystemPage)).toEqual(['Pipeline', 'Governance', 'Users', 'Roles', 'Settings']);
   });
 
   it('an operator gets no Administration section, as today', () => {
@@ -50,9 +50,9 @@ describe('who sees which tab', () => {
     expect(menu()).not.toContain('system');
   });
 
-  it('an auditor keeps Audit log and Settings, and gains nothing', () => {
+  it('an auditor keeps the trail, on Governance, and Settings, and gains nothing', () => {
     held = ['analytics.view', 'admin.audit.view'];
-    expect(tabsOf(SystemPage)).toEqual(['Audit log', 'Settings']);
+    expect(tabsOf(SystemPage)).toEqual(['Governance', 'Settings']);
     expect(menu()).toContain('system');
   });
 
@@ -64,7 +64,7 @@ describe('who sees which tab', () => {
 
   it('a role manager keeps Roles, and is offered no empty Setup', () => {
     held = ['rbac.manage'];
-    expect(tabsOf(SystemPage)).toEqual(['Roles', 'Audit log', 'Settings']);
+    expect(tabsOf(SystemPage)).toEqual(['Governance', 'Roles', 'Settings']);
     expect(menu()).not.toContain('setup');
   });
 

@@ -118,8 +118,8 @@ Governance events and Audit log read the same records from the same address, `/a
 | | Governance events | Audit log | One view |
 |---|---|---|---|
 | Entity buttons | All, CPM loops, CPM events, HMI displays | none | Kept |
-| Event type | none | All, Acknowledgements, Shelving, Security and logins, System | Kept |
-| User filter | none | Asks the server for one user | Kept |
+| Event type | none | All, Acknowledgements, Shelving, Security and logins, System | Kept, with the types the records hold: the old four returned nothing |
+| User filter | none | Asks the server for one user | Kept: needs the exact user name |
 | Find by user, action or entity | Within the rows fetched | none | Kept |
 | Columns | When and hash, action, actor, entity | Timestamp, event type, user, entity, hash, correlation | All of them, with the longer hash |
 | Verify cryptographic chain | Yes | Yes | One button |
@@ -163,7 +163,7 @@ One page at a time, each shown to the owner before the next.
 1. **Loop:** one row of tabs. **Built (CHG-120).**
 2. **Overview:** KPI drill-down in place. **Built (CHG-121).**
 3. **Evidence:** tabs share the loop and window correctly. **Built (CHG-122).**
-4. **Setup and System:** Administration into tabs. **Built (CHG-123).** The one audit trail waits for the owner to agree `samples/audit-trail.html`, and Audit log stays a tab until then.
+4. **Setup and System:** Administration into tabs, and the one audit trail. **Built (CHG-123, CHG-124).**
 5. **Old addresses:** switch on the redirects, and check every link.
 
 Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step compares every control on the new tab with the old page, in the running app, and lists any difference, and measures every control against the screen at phone width.

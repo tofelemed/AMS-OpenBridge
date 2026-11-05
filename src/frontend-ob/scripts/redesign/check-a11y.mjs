@@ -31,7 +31,7 @@ const ROUTES = [
     { name: `Evidence, ${tab}, no loop chosen`, url: `/cpm/evidence?tab=${tab}`, fresh: true },
   ]),
   ...['loops', 'configuration', 'plant-model', 'data-sources', 'tag-aliases'].map(tab => ({ name: `Setup, ${tab}`, url: `/cpm/setup?tab=${tab}` })),
-  ...['pipeline', 'governance', 'users', 'roles', 'audit', 'settings'].map(tab => ({ name: `System, ${tab}`, url: `/cpm/system?tab=${tab}` })),
+  ...['pipeline', 'governance', 'users', 'roles', 'settings'].map(tab => ({ name: `System, ${tab}`, url: `/cpm/system?tab=${tab}` })),
 ];
 
 const env = requireEnv();

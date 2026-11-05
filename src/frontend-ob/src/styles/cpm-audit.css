@@ -1,0 +1,17 @@
+/* The one audit trail (CHG-124). Layout only: colours come from the shared CPM classes and tokens. */
+.cpm-audit__integrity {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--traverse-surface-raised);
+  color: var(--traverse-text-secondary);
+}
+.cpm-audit__row { margin-bottom: 12px; }
+.cpm-audit__find { flex: 1 1 260px; }
+.cpm-audit__user { flex: 0 1 200px; }
+.cpm-audit__type { flex: 0 1 240px; }
+.cpm-audit__user, .cpm-audit__type { min-width: min(200px, 100%); }
+.cpm-audit__find .cpm-input, .cpm-audit__user .cpm-input, .cpm-audit__type .cpm-select { width: 100%; }
+.cpm-audit__scroll { overflow-x: auto; }
+.cpm-audit__table { min-width: 880px; }
+.cpm-audit__table td { vertical-align: top; }

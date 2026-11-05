@@ -75,8 +75,8 @@
     <div class="row" id="entities" role="group" aria-label="Entity"></div>
     <div class="row">
       <label class="field find"><span>Find by user, action or entity<span class="from">Governance</span></span><input id="find" type="search" placeholder="Searches the rows fetched"></label>
-      <label class="field user"><span>User<span class="from">Audit log</span></span><input id="user" placeholder="Username"></label>
-      <label class="field type"><span>Event type<span class="from">Audit log</span></span><select id="type"><option value="">All events</option><option value="ACKNOWLEDGED">Acknowledgements</option><option value="SHELVED">Shelving</option><option value="SECURITY">Security / logins</option><option value="SYSTEM">System events</option></select></label>
+      <label class="field user"><span>User<span class="from">Audit log</span></span><input id="user" placeholder="Exact user name"></label>
+      <label class="field type"><span>Event type<span class="from">Audit log, types from the records</span></span><select id="type"><option value="">All events</option><option value="ALARM_ACKNOWLEDGED">Episode acknowledged</option><option value="ALARM_SHELVED">Episode shelved</option><option value="LOOP_ACTIVATED">Loop activated</option><option value="DISPLAY_DELETED">Display deleted</option><option value="SECURITY_LOGIN">Signed in</option><option value="SYSTEM_RETENTION">Retention job ran</option></select></label>
       <button type="button" class="btn help" id="help" aria-expanded="false" aria-label="How these filters differ">?</button>
       <span class="count" id="count"></span>
     </div>

@@ -162,68 +162,6 @@
   }
  },
  {
-  "tab": "Audit log",
-  "compared": 21,
-  "lost": {
-   "headings": [
-    "System Administration"
-   ],
-   "links": [
-    "Audit Log",
-    "Data Sources",
-    "Plant Model",
-    "Roles & Permissions",
-    "System Settings",
-    "Tag Aliases",
-    "User Management"
-   ]
-  },
-  "added": {
-   "headings": [
-    "Audit log"
-   ]
-  },
-  "seen": {
-   "headings": [
-    "Operational Audit Log",
-    "System Administration"
-   ],
-   "labels": [],
-   "selects": [
-    ": All Events | Acknowledgements | Shelving | Security / Logins | System Events"
-   ],
-   "inputs": [
-    "text:Username…"
-   ],
-   "buttons": [
-    "About the audit log",
-    "Next →",
-    "← Previous",
-    "✓ Verify Cryptographic Chain"
-   ],
-   "links": [
-    "Audit Log",
-    "Data Sources",
-    "Plant Model",
-    "Roles & Permissions",
-    "System Settings",
-    "Tag Aliases",
-    "User Management"
-   ],
-   "columns": [
-    "Correlation",
-    "Entity",
-    "Event Type",
-    "Hash Signature",
-    "Timestamp",
-    "User"
-   ],
-   "tabs": [],
-   "charts": 0,
-   "panels": 0
-  }
- },
- {
   "tab": "Settings",
   "compared": 16,
   "lost": {
@@ -277,6 +215,117 @@
    "tabs": [],
    "charts": 0,
    "panels": 0
+  }
+ },
+ {
+  "tab": "The one audit trail, both old views",
+  "compared": 60,
+  "lost": {
+   "headings": [
+    "Operational Audit Log",
+    "System Administration"
+   ],
+   "selects": [
+    ": All Events | Acknowledgements | Shelving | Security / Logins | System Events"
+   ],
+   "inputs": [
+    "text:Username…"
+   ],
+   "buttons": [
+    "About the audit log",
+    "← Previous",
+    "✓ Verify Cryptographic Chain"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Event Type",
+    "Hash Signature"
+   ]
+  },
+  "added": {},
+  "seen": {
+   "headings": [
+    "As enforced by the permission model",
+    "Gate configuration awaiting approval",
+    "Governance",
+    "Governance events",
+    "Nothing awaiting approval or activation",
+    "Operational Audit Log",
+    "System Administration",
+    "What is producing today's verdicts"
+   ],
+   "labels": [
+    "Event type",
+    "Find by user, action or entity",
+    "User"
+   ],
+   "selects": [
+    ": All Events | Acknowledgements | Shelving | Security / Logins | System Events",
+    "Event type: long list"
+   ],
+   "inputs": [
+    "search:Searches the rows fetched",
+    "text:Exact user name",
+    "text:Username…"
+   ],
+   "buttons": [
+    "About the audit log",
+    "All entities",
+    "CPM events",
+    "CPM loops",
+    "Governance",
+    "HMI displays",
+    "How these filters differ",
+    "Next →",
+    "Verify cryptographic chain",
+    "When a permission change applies",
+    "Why versions are stored",
+    "← Prev",
+    "← Previous",
+    "✓ Verify Cryptographic Chain"
+   ],
+   "links": [
+    "Audit Log",
+    "Data Sources",
+    "Plant Model",
+    "Roles & Permissions",
+    "System Settings",
+    "Tag Aliases",
+    "User Management"
+   ],
+   "columns": [
+    "Admin",
+    "Correlation",
+    "Engineer",
+    "Entity",
+    "Event Type",
+    "Event type",
+    "Hash Signature",
+    "Hash signature",
+    "Operator",
+    "Permission",
+    "SuperAdmin",
+    "Timestamp",
+    "User",
+    "Viewer",
+    "admin.audit.viewAudit trail reads",
+    "analytics.viewEvery CPM read",
+    "cpm.manageLoop onboarding, event ack/shelve, recompute",
+    "display.editAuthoring HMI displays",
+    "rbac.manageRole and permission changes",
+    "system.managePipeline and OPC mutations"
+   ],
+   "tabs": [],
+   "charts": 0,
+   "panels": 3
   }
  },
  {
@@ -477,61 +526,6 @@
    ],
    "links": [],
    "columns": [],
-   "tabs": [],
-   "charts": 0,
-   "panels": 3
-  }
- },
- {
-  "tab": "Governance",
-  "compared": 36,
-  "lost": {},
-  "added": {},
-  "seen": {
-   "headings": [
-    "As enforced by the permission model",
-    "Gate configuration awaiting approval",
-    "Governance",
-    "Governance events",
-    "Nothing awaiting approval or activation",
-    "What is producing today's verdicts"
-   ],
-   "labels": [],
-   "selects": [],
-   "inputs": [
-    "text:Find by user, action or entity"
-   ],
-   "buttons": [
-    "All entities",
-    "CPM events",
-    "CPM loops",
-    "Governance",
-    "HMI displays",
-    "Next →",
-    "Verify cryptographic chain",
-    "When a permission change applies",
-    "Why versions are stored",
-    "← Prev"
-   ],
-   "links": [],
-   "columns": [
-    "Action",
-    "Actor",
-    "Admin",
-    "Engineer",
-    "Entity",
-    "Operator",
-    "Permission",
-    "SuperAdmin",
-    "Viewer",
-    "When / hash",
-    "admin.audit.viewAudit trail reads",
-    "analytics.viewEvery CPM read",
-    "cpm.manageLoop onboarding, event ack/shelve, recompute",
-    "display.editAuthoring HMI displays",
-    "rbac.manageRole and permission changes",
-    "system.managePipeline and OPC mutations"
-   ],
    "tabs": [],
    "charts": 0,
    "panels": 3

@@ -424,18 +424,6 @@
   "violations": []
  },
  {
-  "name": "System, audit",
-  "url": "/cpm/system?tab=audit",
-  "theme": "day",
-  "violations": []
- },
- {
-  "name": "System, audit",
-  "url": "/cpm/system?tab=audit",
-  "theme": "night",
-  "violations": []
- },
- {
   "name": "System, settings",
   "url": "/cpm/system?tab=settings",
   "theme": "day",

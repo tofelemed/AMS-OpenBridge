@@ -98,3 +98,12 @@ Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,163) | build ✓ | lint:theme ✓ (0
 Evidence: `evidence/phase-5/` (`admin-parity.json` 307 items, `evidence-parity.json` 269, `loop-parity.json` 505, `kpi-parity.json` 165; `axe.json`).
 Walks: Setup and System 28 of 28, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 54 views with 0 off the screen. Blocked 0.
 Not proven: permissions with real accounts. Unit tests cover seven kinds of role.
+
+## Page plan, step 4, second half: one audit trail (CHG-124)
+
+Governance events and Audit log are one view on System › Governance, with everything from both. The Event type filter returned nothing for any option and now lists real types.
+Gates: tsc ✓ (0) | lint ✓ | test ✓ (1,174) | build ✓ | lint:theme ✓ (0 matches) | contrast ✓ | geometry ✓ (14) | redirects ✓ (24 cases) | a11y ✓ (70 scans, 0 of any level)
+Evidence: `evidence/phase-5/` (`trail-parity.json`, `admin-parity.json`, `evidence-parity.json`, `loop-parity.json`, `kpi-parity.json`; `axe.json`).
+Walks: trail 22 of 22, Setup and System 26 of 26, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 52 views with 0 off the screen. Blocked 0.
+Simulated: Verify's two answers. Not proven: permissions with real accounts.
+Next: step 5, the old addresses.
