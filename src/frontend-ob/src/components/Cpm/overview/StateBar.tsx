@@ -19,12 +19,11 @@ export const StateBar: React.FC<{ k: FleetKpis; scope?: FleetKpiScope }> = ({ k,
     <div className="cpm-state">
       <div className="cpm-state__head">
         <span className="cpm-state__title">
-          Every monitored loop, one state each
+          Loop state breakdown
           <Toggletip variant="how-to" label="How the states are decided">
             <p>A loop can count on more than one card above. Here it counts once, in the first state that applies: never evaluated or stale, a finding, manual, saturated, not assessable, then performing or needs review.</p>
           </Toggletip>
         </span>
-        <span className="cpm-state__hint">Click a segment to filter the loop list</span>
       </div>
       <div className="cpm-state__bar" aria-hidden="true">
         {segments.map(s => (

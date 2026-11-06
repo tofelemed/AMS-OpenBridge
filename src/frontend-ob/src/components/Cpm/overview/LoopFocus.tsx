@@ -7,6 +7,7 @@
  * option) and the bar says the viewport is held while zoomed.
  */
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
 import { useCpmTrend } from '../../../hooks/useCpm';
@@ -14,7 +15,7 @@ import { useLoopLive, liveQuality } from '../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
-import { pipelineHref, registryHref } from '../cpaHref';
+import { investigationHref, pipelineHref, registryHref } from '../cpaHref';
 import { activeZone } from '../../../cpa/activeZone';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
@@ -22,8 +23,9 @@ import { activeZone } from '../../../cpa/activeZone';
 export const LoopFocus: React.FC<{
   loopId: string;
   displayName: string;
-  onOpenAnalysis: () => void;
-}> = ({ loopId, displayName, onOpenAnalysis }) => {
+  windowKind?: string;
+}> = ({ loopId, displayName, windowKind }) => {
+  const navigate = useNavigate();
   // The historian device for a loop follows the Phase 3 convention.
   const series = loopSeries(loopId);
   // Rolling, not anchored-at-mount: this panel sits on an overview screen that is
@@ -44,7 +46,9 @@ export const LoopFocus: React.FC<{
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow={displayName} title={loopId}
-        right={<ObcButton variant="raised" onClick={onOpenAnalysis}>Open analysis ›</ObcButton>} />
+        right={<ObcButton variant="raised" onClick={() => navigate(investigationHref(loopId, { kind: windowKind }))}>
+          Review {loopId} →
+        </ObcButton>} />
       <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
         {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —.
             SME #8 (CHG-046): the values are neutral (alert colours mean a state, never a pen) and

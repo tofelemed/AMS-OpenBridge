@@ -13,6 +13,7 @@
  * button inside a button.
  */
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from '../shared';
@@ -22,6 +23,7 @@ import GoodErrorBar from './GoodErrorBar';
 import FacetPill from '../FacetPill';
 import { PRIORITY_RULE, priorityBadge, priorityReasons } from './priorityReason';
 import { locationLabel } from '../vocabulary';
+import { investigationHref } from '../cpaHref';
 
 const QUEUE_SIZE = 6;
 
@@ -33,22 +35,24 @@ export const PriorityQueue: React.FC<{
   shelvedCount: number;
   selectedId: string | undefined;
   onPreview: (loopId: string) => void;
-  onOpenLoop: (loopId: string) => void;
+  windowKind?: string;
   onViewAll: () => void;
   onShelved: () => void;
-}> = ({ loops, loading, error, retry, shelvedCount, selectedId, onPreview, onOpenLoop, onViewAll, onShelved }) => (
+}> = ({ loops, loading, error, retry, shelvedCount, selectedId, onPreview, windowKind, onViewAll, onShelved }) => {
+  const navigate = useNavigate();
+  return (
   <section className="cpm-surface">
-    <PanelHead eyebrow="Priority queue" title="Loops requiring review"
+    <PanelHead title="Loops requiring review"
       help={<Toggletip variant="how-to" label="How this is ordered"><p>{PRIORITY_RULE}</p></Toggletip>}
       right={
         <>
           {shelvedCount > 0 && (
             <ObcButton variant="flat" title="Shelved loops are left out of the queue; review them in Loop Events"
               onClick={onShelved}>
-              {shelvedCount} shelved ›
+              {shelvedCount} shelved ↗
             </ObcButton>
           )}
-          <ObcButton variant="normal" onClick={onViewAll}>View all ›</ObcButton>
+          <ObcButton variant="normal" onClick={onViewAll}>View all →</ObcButton>
         </>
       } />
     {loading && <EmptyState title="Loading…" />}
@@ -74,14 +78,19 @@ export const PriorityQueue: React.FC<{
             <TonePill tone={badge.tone}>{badge.label}</TonePill>
             <span onClick={ev => ev.stopPropagation()}>
               <ObcButton variant="flat" className="cpm-queue-row__loop"
-              title={`Open ${l.loopId} in the Loop Explorer`}
-              onClick={() => onOpenLoop(l.loopId)}>
-              {l.loopId} ›
+              title={`Review ${l.loopId} in Investigation`}
+              onClick={() => navigate(investigationHref(l.loopId, { kind: windowKind }))}>
+              {l.loopId} →
             </ObcButton>
             </span>
             <span className="cpm-queue-row__diag">
               {l.ackState === 'ACKNOWLEDGED' && <TonePill tone="muted">Acknowledged</TonePill>}
               <FacetPill facet="diagnosis" tone={toneFor(l.diagnosis)}>{conditionOf(l.diagnosis).label}</FacetPill>
+              <span onClick={ev => ev.stopPropagation()}>
+                <Toggletip variant="how-to" label={`Why ${l.loopId} is here`}>
+                  <p>{priorityReasons(l, Date.now(), { impact: false }).join(' · ')}</p>
+                </Toggletip>
+              </span>
             </span>
           </div>
           <button type="button" className="cpm-queue-row__preview"
@@ -90,7 +99,6 @@ export const PriorityQueue: React.FC<{
             <span className="ui-sr">Preview {l.loopId}: </span>
             <span className="cpm-event-row__sub">{l.displayName} · {l.area ? locationLabel(l.area) : locationLabel(l.site, { site: true })}</span>
             <span className="cpm-queue-row__reason">
-              <span className="cpm-queue-row__why">{priorityReasons(l, Date.now(), { impact: false }).join(' · ')}</span>
               <GoodErrorBar pct={l.metrics.goodErrorPct} mae={l.metrics.mae} />
             </span>
           </button>
@@ -98,6 +106,7 @@ export const PriorityQueue: React.FC<{
       );
     })}
   </section>
-);
+  );
+};
 
 export default PriorityQueue;

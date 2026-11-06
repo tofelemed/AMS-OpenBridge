@@ -1,8 +1,9 @@
-// CHG-100: the whole priority-queue row previews its loop; the loop-id button opens the Explorer only (it does not also
+// CHG-100: the whole priority-queue row previews its loop; the loop tag opens Investigation only (it does not also
 // preview), and the selected row carries the selected class.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render as rtlRender, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -21,28 +22,31 @@ const loop = (id: string): CpmRankedLoop => ({
 
 afterEach(cleanup);
 
+const Where = () => <span data-testid="where">{useLocation().pathname + useLocation().search}</span>;
+const render = (ui: React.ReactElement) => rtlRender(
+  <MemoryRouter><Routes><Route path="*" element={<>{ui}<Where /></>} /></Routes></MemoryRouter>);
+
 describe('priority queue rows (CHG-100)', () => {
   it('names the preview button with the words on it, so voice control can find it', () => {
     const { container } = render(<PriorityQueue loops={[loop('FIC1')]} loading={false} error={null} retry={() => {}}
-      shelvedCount={0} selectedId={null} onPreview={() => {}} onOpenLoop={() => {}} onViewAll={() => {}} onShelved={() => {}} />);
+      shelvedCount={0} selectedId={null} onPreview={() => {}} onViewAll={() => {}} onShelved={() => {}} />);
     const button = container.querySelector('.cpm-queue-row__preview') as HTMLButtonElement;
     expect(button.hasAttribute('aria-label')).toBe(false);
     expect(button.textContent).toContain('Preview FIC1');
   });
 
-  it('a click anywhere on the row previews the loop; the loop button only opens it', () => {
+  it('a click anywhere on the row previews the loop; the loop tag only opens Investigation', () => {
     const onPreview = vi.fn();
-    const onOpenLoop = vi.fn();
     const { container } = render(<PriorityQueue loops={[loop('FIC1'), loop('FIC2')]} loading={false} error={null} retry={() => {}}
-      shelvedCount={0} selectedId="FIC2" onPreview={onPreview} onOpenLoop={onOpenLoop} onViewAll={() => {}} onShelved={() => {}} />);
+      shelvedCount={0} selectedId="FIC2" windowKind="12h" onPreview={onPreview} onViewAll={() => {}} onShelved={() => {}} />);
     const rows = container.querySelectorAll('.cpm-queue-row');
     expect(rows[1].className).toMatch(/cpm-event-row--selected/);
     expect(rows[0].className).toMatch(/cpm-row-click/);
     fireEvent.click(rows[0].querySelector('.cpm-queue-row__head')!);   // not a button
     expect(onPreview).toHaveBeenCalledWith('FIC1');
     onPreview.mockClear();
-    fireEvent.click(screen.getByTitle('Open FIC1 in the Loop Explorer'));
-    expect(onOpenLoop).toHaveBeenCalledWith('FIC1');
+    fireEvent.click(screen.getByTitle('Review FIC1 in Investigation'));
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/investigation?loop=FIC1&profile=12h');
     expect(onPreview).not.toHaveBeenCalled();
   });
 });

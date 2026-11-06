@@ -1,0 +1,27 @@
+/* Overview bottom row: the top finding is one link, recent events are plain rows. Placement only, no new sizes. */
+.cpm-topfinding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-2) var(--traverse-space-3);
+  color: inherit;
+  text-decoration: none;
+}
+.cpm-topfinding:hover .cpm-topfinding__what { text-decoration: underline; }
+.cpm-topfinding__what { font-weight: 600; }
+.cpm-topfinding__go { margin-left: auto; }
+
+.cpm-recent-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--traverse-space-3);
+  align-items: center;
+  padding: var(--traverse-space-1) 0;
+  border-bottom: 1px solid var(--border-divider-color);
+  color: inherit;
+  text-decoration: none;
+}
+.cpm-recent-row:last-of-type { border-bottom: none; }
+.cpm-recent-row:hover { text-decoration: underline; }
+
+.cpm-overview-foot { align-items: center; }

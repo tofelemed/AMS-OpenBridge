@@ -276,3 +276,30 @@ Controls that changed place in this section, not removed:
 | Tab rows Loops, Configuration, Plant model, Data sources, Tag aliases | Sidebar pages and Administration tabs |
 | Tab rows Pipeline, Governance, Users, Roles, Settings | Sidebar pages and Administration tabs |
 | Relationships under Signals, with Open in Loop Registry | Loop Explorer, Relationships tab |
+
+## Overview (CHG-134, Task 6)
+
+| Was | Now | Where |
+|---|---|---|
+| Eyebrow "Operating picture" | removed | KPI panel head |
+| "updated <time>" beside the title | behind a ? ("Last updated") | KPI panel head |
+| ? "How this is counted" with the basis sentence | "Calculation basis" dialog in the page foot | KPI panel head |
+| "Every monitored loop, one state each" | "Loop state breakdown" | State bar |
+| "Click a segment to filter the loop list" | removed | State bar |
+| Eyebrow "Priority queue" | removed | Queue head |
+| "Medium-criticality loop · High severity · ..." under each queue row | behind a ? beside the diagnosis pill | Queue rows |
+| "X ›" (queue tag), "shelved ›", "View all ›" | "X →", "shelved ↗", "View all →" | Queue |
+| "<name> · top-priority loop" | "<name>" | Preview eyebrow |
+| "Open analysis ›" | "Review X →" | Preview button |
+| Eyebrow "Top-priority finding" over the title "<Condition> on X" | title "Top-priority finding"; card is one link "X · <Condition>" | Bottom row |
+| "X (name) heads the queue: ..." | removed | Top finding |
+| "Review evidence ›", "Open X ›" | the whole card is the link | Top finding |
+| Eyebrow "Recent context", title "Event trail" | "Recent events" | Bottom row |
+| "All events ›", row links "X ›" and "Episode ›" | "All events →"; the row is one link to Investigation | Recent events |
+| "Event trail unavailable" | "Recent events unavailable" | Recent events |
+| Readiness strip (configuration limits) | Loop Registry (Task 23) | Page foot link "Configuration & coverage →" |
+
+| Control | Now on |
+|---|---|
+| Focused-loop drawer (Review evidence, Open analysis) | Investigation (drawer no longer mounted on Overview) |
+| Calculation basis | Dialog from the page foot |

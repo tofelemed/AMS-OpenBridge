@@ -17,7 +17,7 @@ import { kpiHref, registryHref } from '../cpaHref';
 import { useFleetKpis } from '../kpi/useFleetKpis';
 import { KpiCard } from '../kpi/KpiCard';
 import { KPI_META, kpiDelta, kpiIconTone } from '../kpi/kpiMeta';
-import { KPI_GROUPS, basisText, kpiTone, pct, reasonsText } from '../kpi/fleetKpiView';
+import { KPI_GROUPS, kpiTone, pct, reasonsText } from '../kpi/fleetKpiView';
 import { StateBar } from './StateBar';
 
 const Card: React.FC<{ f: FleetKpiFigure; k: FleetKpis; scope?: FleetKpiScope; sub?: React.ReactNode }> = ({ f, k, scope, sub }) => {
@@ -41,12 +41,9 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
 
   return (
     <section className="cpm-surface cpm-op" aria-label="Operating picture">
-      <PanelHead eyebrow="Operating picture"
+      <PanelHead
         title={k ? `${k.monitored} loop(s) monitored` : 'Loading…'}
-        help={k && k.monitored > 0
-          ? <Toggletip variant="how-to" label="How this is counted"><p>{basisText(k)}. Each card opens the loops behind it.</p></Toggletip>
-          : undefined}
-        right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)}</span> : undefined} />
+        help={k ? <Toggletip variant="how-to" label="Last updated"><p>Updated {fmtDateTime(k.computedAt)}.</p></Toggletip> : undefined} />
       {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}
       {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
       {k && k.monitored === 0 && <EmptyState title="No monitored loops"

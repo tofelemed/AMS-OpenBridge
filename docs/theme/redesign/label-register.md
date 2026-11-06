@@ -40,3 +40,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Symptom | Seen | Symptom seen | Every gate surface | Reference |
 | Strong symptom | Strong | Strong symptom | Every gate surface | Reference |
 | No verdict | Insufficient | Insufficient evidence | Every gate surface | Reference |
+| State breakdown | Every monitored loop, one state each | Loop state breakdown | Overview | Reference |
+| Recent loop events | Recent context; Event trail | Recent events | Overview | Reference |
