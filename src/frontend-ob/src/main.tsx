@@ -35,6 +35,8 @@ import './ui/ui.css';
 import './ui/components.css';
 import './styles/cpm-evidence.css';
 import './styles/cpm-blocks.css';
+import './styles/cpm-explorer-tabs.css';
+import './styles/cpm-explorer-tabs.css';
 import './styles/cpm-explorer.css';
 import './styles/cpm-episodes.css';
 import './styles/cpm-overview.css';

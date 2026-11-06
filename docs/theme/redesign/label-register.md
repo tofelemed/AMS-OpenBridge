@@ -60,3 +60,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Gate area | Gates, Evaluated window | Gate results | Loop Explorer Summary | Reference |
 | Loop KPI area | How this loop performs | Loop KPIs | Loop Explorer Summary | Reference |
 | Trend to Historical | Open in Historical › | Historical ↗ | Loop Explorer Summary | Reference |
+| Long diagnostics metrics on Calculations | Calculations (Summary block), no label | Long-window metrics | Loop Explorer Calculations | Reference |
+| Loop's peer links | Peer topology (G13), N loop link(s) | Loop links (G13 behind ?) | Loop Explorer Relationships | Reference |
+| Trend link per signal | none | Show in trend ↗ | Loop Explorer Signals | Reference |

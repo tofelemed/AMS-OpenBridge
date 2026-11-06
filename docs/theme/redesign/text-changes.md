@@ -453,3 +453,34 @@ Controls that changed place in this section, not removed:
 | KPI card link to its proof | Inside the KPI dialog |
 | Close (gate panel) | The dialog's close control |
 | Evidence Replay, Gate on Performance (gate panel) | Evidence Workbench, Performance |
+
+## Loop Explorer Signals, Calculations, Relationships, History (CHG-138, Task 11)
+
+| Was | Now | Where |
+|---|---|---|
+| Eyebrow "Signal mappings" and heading "N role(s) mapped" | removed; the table and the tab count say it | Signals |
+| Columns Role, Meaning, UNS path | columns Signal, Value, Unit; the meaning follows the role and the UNS path is the second line | Signals |
+| "Open signals in Trend ›" raised button above the table | "Open signals in Trend ↗", flat, in the foot | Signals |
+| Binding pill in the heading's right side | in the foot beside the signal quality, unchanged words | Signals |
+| Eyebrow "Latest fused window" / "Latest short window" and heading "Gate outcomes" / "Per-window features" | removed; one line "12h window ending 5 Nov · 14:15" | Calculations |
+| Select "Window" with "Fused verdict (fires on …)" and "Short features (G0–G4)" groups | removed; the window is the page's 12 h / 24 h switch, and the short windows are in Window Inspector | Calculations |
+| Gate rows worded by `codeLabel` ("Warning", raw status) | the Summary words from `GateBadge` ("Symptom seen", "Pass") | Calculations |
+| Click the status to open Evidence Replay | "Inspect →" opens the gate dialog (Evidence Workbench →, Window Inspector ↗) | Calculations |
+| "Window history in Inspector ›" (short windows) | "Short windows ↗" | Calculations |
+| "Full catalogue ›" raised button | "Full catalogue →", flat | Calculations |
+| Summary Calculations block (counts line, "Window history ›", "Full catalogue ›", window kind control) | the long metrics under a "Long-window metrics" label; the counts line is not repeated (Summary shows the same gates) | Calculations |
+| Eyebrow "Lineage" and heading "Source → loop → calculations → outputs" | summary "Lineage" of a closed disclosure | Relationships |
+| Eyebrow "Peer topology (G13)" | behind the ? beside "Loop links" | Relationships |
+| "Create asset relationships, then republish evidence — G13 cannot evaluate without them." | behind the same ? | Relationships |
+| Heading "N loop link(s)" | "Loop links"; the count is on the tab | Relationships |
+| "Open in Loop Registry" (normal button) | "Loop Registry →", flat | Relationships |
+| Date and time with zone name (`fmtDateTime`) | `fmtWhen`, e.g. "5 Nov · 14:15" | History, Calculations |
+
+| Control | Now on |
+|---|---|
+| Window select (Calculations) | Window Inspector (short windows) and the page's 12 h / 24 h switch |
+| Status button to Evidence Replay (Calculations) | Inspect → opens the gate dialog; Replay is one step on from the Workbench |
+| Open signals in Trend (Signals) | Foot, flat, ↗ |
+| Linked loop (Relationships) | Opens that loop's Relationships tab |
+| Loop Events ↗ (History) | New link on each run and each expanded episode |
+| Open Historical → (History) | Foot of the list |

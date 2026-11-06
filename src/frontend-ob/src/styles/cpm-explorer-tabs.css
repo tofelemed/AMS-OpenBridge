@@ -1,0 +1,26 @@
+/* Loop Explorer tabs (Signals, Calculations, Relationships, History). Placement only: no size is set here. */
+
+.cpm-signal-path { display: block; }
+
+.cpm-explorer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-4);
+  margin-top: var(--traverse-space-4);
+}
+.cpm-explorer-foot__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--traverse-space-2);
+  margin-left: auto;
+}
+
+.cpm-explorer-gates th[scope="colgroup"] {
+  text-align: left;
+  color: var(--traverse-text-secondary);
+  font-weight: 400;
+}
+.cpm-explorer-gates td:last-child { text-align: right; }
+
+.cpm-episode-links { display: flex; justify-content: flex-end; }

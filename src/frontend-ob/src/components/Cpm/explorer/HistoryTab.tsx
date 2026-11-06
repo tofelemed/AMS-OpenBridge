@@ -20,12 +20,13 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame, CpmLoop } from '../../../api/cpmApi';
 import { useCpmEvents } from '../../../hooks/useCpm';
-import { EmptyState, QueryError, TonePill, fmtDateTime } from '../shared';
+import { EmptyState, QueryError, TonePill } from '../shared';
 import { usePagedSlice } from '../../shared/ListPager';
 import { shelfState } from '../events/shelfState';
 import { diagnosisLabel } from '../vocabulary';
 import { evidenceScoreText } from '../evidenceScore';
-import { historicalHref } from '../cpaHref';
+import { eventsHref, historicalHref } from '../cpaHref';
+import { fmtWhen } from '../blocks/whenText';
 import { HISTORY_QUERY } from './historyQuery';
 
 const PAGE_SIZE = 10;
@@ -93,8 +94,8 @@ function toRuns(rows: CpmEventFrame[]): Run[] {
 
 const spanText = (run: Run) =>
   run.anyOpen || run.endMs == null
-    ? `${fmtDateTime(run.startMs)} · open`
-    : `${fmtDateTime(run.startMs)} → ${fmtDateTime(run.endMs)}`;
+    ? `${fmtWhen(run.startMs)} · open`
+    : `${fmtWhen(run.startMs)} → ${fmtWhen(run.endMs)}`;
 
 export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const events = useCpmEvents({ loopId: loop.loopId, ...HISTORY_QUERY });
@@ -160,6 +161,13 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               </span>
             </button>
 
+            <div className="cpm-episode-links">
+              {/* The newest episode of the run: the run's own row opens Historical, this opens the event. */}
+              <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: run.frames[0].id }))}>
+                Loop Events ↗
+              </ObcButton>
+            </div>
+
             {run.frames.length > 1 && (
               <button
                 type="button"
@@ -178,26 +186,38 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
             {isOpen && run.frames.map(e => {
               const span = spanOf(e);
               return (
-                <button
-                  key={e.id}
-                  type="button"
-                  className="cpm-episode__frame"
-                  onClick={() => openSpan(span.startMs, span.endMs)}
-                >
-                  <span className="cpm-event-row__sub">
-                    {fmtDateTime(e.opened_at)}
-                    {span.invalid ? ' · end before start'
-                      : span.endMs != null ? ` → ${fmtDateTime(span.endMs)}` : ' · open'}
-                  </span>
-                  <span className="cpm-event-row__sub">
-                    {e.window_count} × {e.window_kind} window(s) · peak {evidenceScoreText(e.peak_confidence)}
-                  </span>
-                </button>
+                <div key={e.id}>
+                  <button
+                    type="button"
+                    className="cpm-episode__frame"
+                    onClick={() => openSpan(span.startMs, span.endMs)}
+                  >
+                    <span className="cpm-event-row__sub">
+                      {fmtWhen(e.opened_at)}
+                      {span.invalid ? ' · end before start'
+                        : span.endMs != null ? ` → ${fmtWhen(span.endMs)}` : ' · open'}
+                    </span>
+                    <span className="cpm-event-row__sub">
+                      {e.window_count} × {e.window_kind} window(s) · peak {evidenceScoreText(e.peak_confidence)}
+                    </span>
+                  </button>
+                  <div className="cpm-episode-links">
+                    <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: e.id }))}>
+                      Loop Events ↗
+                    </ObcButton>
+                  </div>
+                </div>
               );
             })}
           </div>
         );
       })}
+
+      <div className="cpm-explorer-foot">
+        <span className="cpm-explorer-foot__links">
+          <ObcButton variant="flat" onClick={() => navigate(historicalHref(loop.loopId))}>Open Historical →</ObcButton>
+        </span>
+      </div>
 
       {pageCount > 1 && (
         <div className="cpm-pager">
