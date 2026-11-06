@@ -1,0 +1,9 @@
+{
+  "note": "Patterns for baseline controls whose name holds a loop tag or a gate, so one row in text-changes.md cannot list them. Each moved on purpose.",
+  "patterns": [
+    { "pattern": "^preview .* in the focus panel$", "why": "the button is named by the words on it" },
+    { "pattern": "^open g evidence for ", "why": "a matrix cell opens the gate dialog" },
+    { "pattern": "^g(base performance|data quality|diagnosis band|disturbance context|horch oddness|mode / service|oscillation \\(acf\\)|phase geometry|roperating region|sensor health|setpoint activity|spectral \\(fft\\)|step-test evidence|stiction shape|valve / saturation|vp confirmation|actuator effort)$", "why": "the matrix head shows codes; the name is on the cell's title and in the gate dialog" },
+    { "pattern": "^g actuator effort: ", "why": "the label holds live gate status" }
+  ]
+}

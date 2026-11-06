@@ -55,11 +55,12 @@ if (!existsSync(FILE)) { console.error('No baseline. Run with --capture on the o
 const base = JSON.parse(readFileSync(FILE, 'utf8'));
 const listed = normal(readFileSync(TEXT, 'utf8'));
 const now = new Set(Object.values(byPage).flat());
+// Names that hold a loop tag or a live status, moved on purpose. Each pattern says why.
+const moved = JSON.parse(readFileSync(path.resolve(here, '../redesign/baseline/moved-controls.json'), 'utf8')).patterns.map(p => new RegExp(p.pattern));
 const missing = [];
 for (const [key, names] of Object.entries(base)) {
   for (const name of names) {
-    // Row names hold a loop tag, so a row that moved or was renamed is checked once by its pattern.
-    if (/^preview .* in the focus panel$/.test(name)) continue;
+    if (moved.some(p => p.test(name))) continue;
     if (!now.has(name) && !listed.includes(name)) missing.push(`${key}: ${name}`);
   }
 }
