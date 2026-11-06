@@ -1,16 +1,18 @@
 /**
- * KPI Phase 4: this loop's KPIs on the Loop Explorer summary — the same compact cards as the Overview, for one loop and its
- * newest 24 h window: value, the engine gate (or fleet rule) that judges it, the change since the window 24 h earlier, and a
- * card link to where the number is proven (Calculations, the trend over that window, or the Window Inspector).
+ * This loop's KPIs on the Loop Explorer summary — the same compact cards as the Overview, for one loop and its newest window of the
+ * chosen kind: value, the change since the window 24 h earlier, and for coverage its bar. A card opens a dialog with its meaning, the
+ * gate that judges it (Inspect Gn →) and where the number is proven, so every KPI keeps its drill-down. "Not measured in this
+ * window" is said once, for the whole row of cards, not on each card.
  */
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { CpmLoop } from '../../../../api/cpmApi';
-import { getLoopKpis } from '../../../../api/cpm/loopKpis';
-import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../../shared';
+import { EmptyState, PanelHead, QueryError } from '../../shared';
 import { calculationsHref, historicalHref, pipelineHref, windowsHref } from '../../cpaHref';
 import { KpiCard } from '../../kpi/KpiCard';
 import { LOOP_KPI_GROUPS, loopKpiCards, type LoopKpiCardModel } from '../../kpi/loopKpiView';
+import LoopKpiDialog from './LoopKpiDialog';
+import { useLoopKpis } from './useLoopKpis';
 
 /** CHG-097 (SME review 2 #26): the signals each trend-proven KPI is read from (Historical shows these, the window shaded). */
 const SIGNALS_OF: Record<string, string> = {
@@ -18,49 +20,51 @@ const SIGNALS_OF: Record<string, string> = {
 };
 
 export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
-  const q = useQuery({
-    queryKey: ['cpm', 'loop-kpis', loop.loopId, windowKind],
-    queryFn: ({ signal }) => getLoopKpis(loop.loopId, windowKind, signal),
-    refetchInterval: 5 * 60_000,
-  });
+  const q = useLoopKpis(loop.loopId, windowKind);
+  const [, setParams] = useSearchParams();
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const k = q.data;
   const end = k?.current?.windowEnd ?? null;
-  // CHG-092 (SME 2 #9): the trend covers THIS window (12 h or 24 h), not always 24 h; Calculations opens the card's metric
+  // CHG-092 (SME 2 #9): the trend covers THIS window (12 h or 24 h); Calculations opens the card's metric
   const hours = windowKind === '24h' ? 24 : 12;
   const from = end ? new Date(Date.parse(end) - hours * 3600_000).toISOString() : null;
-  const hrefOf = (c: LoopKpiCardModel) =>
-    c.proof === 'calculations' ? calculationsHref(loop.loopId, { kind: windowKind, metric: c.metric })
-      : c.proof === 'windows' ? windowsHref(loop.loopId, { profile: windowKind, window: end })
-        : historicalHref(loop.loopId, { from, to: end, kind: windowKind, window: end, signals: SIGNALS_OF[c.key] ?? null, focus: c.label });
+  const proofOf = (c: LoopKpiCardModel) =>
+    c.proof === 'calculations' ? { label: 'Calculation proof ↗', href: calculationsHref(loop.loopId, { kind: windowKind, metric: c.metric }) }
+      : c.proof === 'windows' ? { label: 'Window Inspector ↗', href: windowsHref(loop.loopId, { profile: windowKind, window: end }) }
+        : { label: 'Historical ↗', href: historicalHref(loop.loopId, { from, to: end, kind: windowKind, window: end, signals: SIGNALS_OF[c.key] ?? null, focus: c.label }) };
+  const cards = k?.current ? loopKpiCards(k) : [];
+  const selected = cards.find(c => c.key === openKey);
+  const inspect = (gate: string) => {
+    setOpenKey(null);
+    setParams(p => { p.set('gate', gate); return p; }, { replace: true });
+  };
 
   return (
     <section className="cpm-summary-section" aria-label="Loop KPIs">
-      <PanelHead eyebrow={`Loop KPIs${end ? ` · window ending ${fmtDateTime(end)}` : ''}`}
-        title="How this loop performs"
-        right={k?.previous ? <span className="cpm-op__muted">change vs the window 24 h earlier</span> : undefined} />
+      <PanelHead title="Loop KPIs"
+        right={cards.some(c => c.value === '—') ? <span className="cpm-op__muted">— not measured in this window</span> : undefined} />
       {q.isError && <QueryError title="Loop KPIs unavailable" error={q.error} retry={() => void q.refetch()} />}
       {/* CHG-098 (SME review 2 #29): what to try while there is no window. */}
       {k && !k.current && <EmptyState title="No evaluated window yet"
         copy="The KPIs appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
         next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />}
       {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined */}
-      {k?.current && LOOP_KPI_GROUPS.map(gr => {
-        const cards = loopKpiCards(k).filter(c => c.group === gr.id);
-        if (!cards.length) return null;
+      {LOOP_KPI_GROUPS.map(gr => {
+        const inGroup = cards.filter(c => c.group === gr.id);
+        if (!inGroup.length) return null;
         return (
           <div key={gr.id} className="cpm-kpigroup" role="group" aria-label={gr.title}>
             <h3 className="cpm-kpigroup__title">{gr.title}</h3>
             <div className="cpm-kpicards cpm-kpicards--loop">
-              {cards.map(c => (
+              {inGroup.map(c => (
                 <KpiCard key={c.key} Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone} delta={c.delta}
-                  relevant={c.relevant}
-                  title={`${c.title}${c.relevant ? " Bears on this loop's current finding." : ''} Open to see where this number comes from.`}
-                  to={hrefOf(c)} />
+                  relevant={c.relevant} bar={c.bar} title={c.title} onOpen={() => setOpenKey(c.key)} />
               ))}
             </div>
           </div>
         );
       })}
+      {selected && <LoopKpiDialog card={selected} proof={proofOf(selected)} onInspect={inspect} onClose={() => setOpenKey(null)} />}
     </section>
   );
 };

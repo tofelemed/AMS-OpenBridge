@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { LoopModelCard } from './LoopModelCard';
+import { LoopModelCard, LoopModelLink } from './LoopModelCard';
 import { useAuthStore } from '../../../store/authStore';
 import type { CpmLoop } from '../../../api/cpmApi';
 
@@ -41,35 +41,33 @@ describe('LoopModelCard', () => {
     expect(screen.getByText(/not served by this registry/)).toBeTruthy();
   });
 
-  // cpa-ui-fix-plan Phase 3: the two routes are buttons (useNavigate), not text links; the
-  // Workbench one takes the exact run from the Summary when it knows it.
-  it('routes to the workbench and the response page for this loop, and opens the effective configuration', () => {
+  // The loop model is a dialog from the Summary: Loop Registry → is the next step, System Response ↗ a related look.
+  // The Workbench button went: Review evidence → in the band is the one way there.
+  it('opens as a dialog from "Loop model & setup →", with Loop Registry → and System Response ↗', () => {
     const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
     const perms = ['cpm.config.read'];   // CHG-081: the effective configuration is SuperAdmin only
     useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
-    const { rerender } = render(
+    render(
       <MemoryRouter initialEntries={['/cpm/explorer?loop=FIC10405']}>
-        <Routes><Route path="*" element={<><LoopModelCard loop={loop(null)} /><Probe /></>} /></Routes>
+        <Routes><Route path="*" element={<><LoopModelLink loop={loop(null)} /><Probe /></>} /></Routes>
       </MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: /Evidence workbench/ }));
-    expect(screen.getByTestId('location').textContent).toBe('/cpm/evidence?loop=FIC10405&kind=12h');
-    fireEvent.click(screen.getByRole('button', { name: /System response/ }));
-    expect(screen.getByTestId('location').textContent).toBe('/cpm/response?loop=FIC10405');
-    fireEvent.click(screen.getByRole('button', { name: /Effective configuration/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Loop model & setup →' }));
+    const d = screen.getByRole('dialog', { name: /Loop model & setup/ });
+    expect(d.textContent).toContain('Gate profile');
+    expect(d.textContent).not.toMatch(/PRESET|Context|Evidence workbench/);
+    fireEvent.click(screen.getByRole('button', { name: /effective configuration/i }));
     expect(screen.getByTestId('effective-config').textContent).toBe('FIC10405');
-
-    rerender(
-      <MemoryRouter initialEntries={['/cpm/explorer?loop=FIC10405']}>
-        <Routes><Route path="*" element={<><LoopModelCard loop={loop(null)} workbenchHref="/cpm/evidence?loop=FIC10405&methodRun=run-1&gate=G15&mode=FIXED" workbenchTitle="run" /><Probe /></>} /></Routes>
-      </MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: /Evidence workbench/ }));
-    expect(screen.getByTestId('location').textContent).toBe('/cpm/evidence?loop=FIC10405&methodRun=run-1&gate=G15&mode=FIXED');
+    fireEvent.click(screen.getByRole('button', { name: 'System Response ↗' }));
+    expect(screen.getByTestId('location').textContent).toBe('/cpm/response?loop=FIC10405');
+    fireEvent.click(screen.getByRole('button', { name: 'Loop Registry →' }));
+    expect(screen.getByTestId('location').textContent).toBe('/cpm/registry?loop=FIC10405');
   });
 
   it('shows no Effective configuration button without cpm.config.read (CHG-081)', () => {
     const perms: string[] = [];
     useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
     render(<MemoryRouter><LoopModelCard loop={loop(null)} /></MemoryRouter>);
-    expect(screen.queryByRole('button', { name: /Effective configuration/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /effective configuration/i })).toBeNull();
   });
 });

@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
-import { priorityBadge, priorityReasons } from './priorityReason';
+import { persistingText, priorityBadge, priorityReasons } from './priorityReason';
+
+describe('persistingText', () => {
+  const now = Date.parse('2026-11-07T12:00:00Z');
+  it('shows — when no episode of this window kind is open, never 0', () => {
+    expect(persistingText(null, now)).toBe('—');
+    expect(persistingText('not a date', now)).toBe('—');
+  });
+  it('says how long the open episode has persisted', () => {
+    expect(persistingText('2026-11-07T01:00:00Z', now)).toBe('persisting 11 h');
+    expect(persistingText('2026-11-04T12:00:00Z', now)).toBe('persisting 3 days');
+  });
+});
 
 const NOW = Date.parse('2026-10-05T12:00:00Z');
 

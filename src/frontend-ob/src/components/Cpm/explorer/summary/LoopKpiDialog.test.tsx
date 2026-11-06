@@ -1,0 +1,53 @@
+// @vitest-environment jsdom
+/** A KPI card opens a dialog: its meaning, how it moved, where it is judged, and the way on. */
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import type { LoopKpiCardModel } from '../../kpi/loopKpiView';
+
+vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { type: 'button', onClick: p.onClick }, p.children),
+}));
+
+import { LoopKpiDialog } from './LoopKpiDialog';
+
+const CARD: LoopKpiCardModel = {
+  key: 'good-error', label: 'Good-error time', Icon: () => null, value: '13 %', sub: '|PV − SP| inside the good band · G3 warn', tone: 'warn',
+  delta: { points: -4, direction: 'down', good: false, text: '−4 pp', title: 'Change since the window 24 h earlier: 17 % → 13 %' },
+  title: 'Time with |PV − SP| inside the good-error band ÷ window time (CPLM-014), judged by G3.',
+  proof: 'calculations', metric: 'CPLM-014', group: 'control', relevant: false, gate: 'G3', bar: null,
+};
+const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
+const open = (card = CARD, onInspect = vi.fn()) => {
+  render(
+    <MemoryRouter><Routes><Route path="*" element={<>
+      <LoopKpiDialog card={card} proof={{ label: 'Calculation proof ↗', href: '/cpm/calculations?loop=FIC1&metric=CPLM-014' }}
+        onInspect={onInspect} onClose={() => {}} /><Probe />
+    </>} /></Routes></MemoryRouter>);
+  return onInspect;
+};
+afterEach(cleanup);
+
+describe('LoopKpiDialog', () => {
+  it('shows the meaning and Inspect Gn →: Good-error time → Inspect G3', () => {
+    const onInspect = open();
+    expect(screen.getByRole('dialog', { name: 'Good-error time' })).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).toContain('inside the good-error band ÷ window time (CPLM-014)');
+    expect(screen.getByRole('dialog').textContent).toContain('17 % → 13 %');
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect G3 →' }));
+    expect(onInspect).toHaveBeenCalledWith('G3');
+  });
+
+  it('keeps the drill-down to where the number is proven', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Calculation proof ↗' }));
+    expect(screen.getByTestId('location').textContent).toBe('/cpm/calculations?loop=FIC1&metric=CPLM-014');
+  });
+
+  it('says not measured, never 0, when the engine stored no value', () => {
+    open({ ...CARD, value: '—', sub: '', delta: null, tone: 'muted' });
+    expect(screen.getByRole('dialog').textContent).toMatch(/Not measured in this window/);
+    expect(screen.getByRole('dialog').textContent).not.toMatch(/\b0 %/);
+  });
+});

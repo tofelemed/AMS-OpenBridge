@@ -41,7 +41,11 @@ export const KpiCard: React.FC<{
   relevant?: boolean;
   /** `headed` only: what the icon's colour says. */
   iconTone?: KpiIconTone;
-}> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none' }) => {
+  /** Opens a dialog instead of navigating (the loop KPIs). */
+  onOpen?: () => void;
+  /** A share of a named whole, 0 to 100, drawn as a bar under the label. Never pass a ratio above 100: that is not "full". */
+  bar?: number | null;
+}> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar }) => {
   const tipId = useId();
   const change = delta && <KpiChange delta={delta} />;
   const body = headed ? (
@@ -66,11 +70,13 @@ export const KpiCard: React.FC<{
       </span>
       <span className="cpm-kpicard__value">{value}</span>
       <span className="cpm-kpicard__label">{label}</span>
-      {sub != null && <span className="cpm-kpicard__sub">{sub}</span>}
+      {bar != null && <span className="cpm-kpicard__bar" aria-hidden><span style={{ width: `${Math.max(0, Math.min(100, bar))}%` }} /></span>}
+      {sub ? <span className="cpm-kpicard__sub">{sub}</span> : null}
     </>
   );
   const cls = `cpm-kpicard cpm-kpicard--${tone} cpm-kpicard--${size}${headed ? ' cpm-kpicard--headed' : ''}${relevant ? ' cpm-kpicard--relevant' : ''}`;
   if (headed && to) return <RouterLink className={`${cls} cpm-kpicard--link`} to={to} aria-describedby={tipId}>{body}</RouterLink>;
+  if (onOpen) return <button type="button" className={`${cls} cpm-kpicard--link`} title={title} aria-haspopup="dialog" onClick={onOpen}>{body}</button>;
   return to
     ? <RouterLink className={`${cls} cpm-kpicard--link`} to={to} title={title}>{body}</RouterLink>
     : <div className={cls} title={title}>{body}</div>;

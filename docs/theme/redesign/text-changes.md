@@ -406,3 +406,50 @@ Controls that changed place in this section, not removed:
 | "Open Gn evidence for <loop>" on matrix cells | A click on the cell, opening the gate dialog |
 | Opened sort header (Loop Events) | The order dropdown |
 | Close reason (Fast conditions) | Fast condition detail |
+
+## Loop Explorer Summary (CHG-137, Task 10)
+
+| Was | Now | Where |
+|---|---|---|
+| Eyebrow "Loop summary" before the result | removed; the band reads "Latest 12h · <window end>", the result, then the fact line | Band |
+| (new) | "13 % in band · persisting 11 h · evidence score 100"; persistence left out when no episode of this window kind is open | Band |
+| "Open details" as a raised button | flat button; "Review evidence →" beside it | Band |
+| Heading "Operating state" and eyebrow "Live" / "Last stored 13 days ago" / "Last stored samples" | removed; the stored age is said once, beside the signal quality | Summary |
+| "from historian" on PV, SP, OP, Mode | removed | Signal row |
+| "live" under each live value | removed; a stalled live value still says "last received …" | Signal row |
+| "closed loop · analysed" under Mode | removed; a mode that excludes the loop at G1 keeps its warning | Signal row |
+| "Not an evaluated window" and "Trend range … → …" under the cards | removed; the trend bar states the period and the band states the window | Summary |
+| "{window} is outside this trend range — the diagnosis is about that window, not this one." | hover title of "Show evaluated period ›" | Trend |
+| "This trend is the evaluated window the diagnosis is about." | removed; the two Compare buttons stay | Trend |
+| "The shaded band is the evaluated window behind the diagnosis." | hover title of "Show only that window ›" | Trend |
+| "Open in Historical ›" | "Historical ↗" | Trend |
+| Column "Context" with heading "Loop model", pill EXPLICIT / PRESET | removed from Summary; "Classification: Declared / From tag type" with its ? inside the dialog | Loop model dialog |
+| Rows "Gate profile", "Historian device" under the loop model on Summary | rows in the dialog "Loop model & setup" | Loop model dialog |
+| "Evidence workbench ›" in the loop model | removed; "Review evidence →" in the band is the one way there | Loop model dialog |
+| "System response ›", "Effective configuration ›" | "System Response ↗" and "Loop Registry →" in the dialog footer; "Show effective configuration" / "Hide effective configuration" | Loop model dialog |
+| Heading "How this loop performs" and eyebrow "Loop KPIs · window ending …" | heading "Loop KPIs"; the window is in the band | Loop KPIs |
+| "change vs the window 24 h earlier" beside the heading | on each change's hover title | Loop KPIs |
+| "Open to see where this number comes from" on every card | removed; a card opens a dialog with its meaning, Inspect Gn → and the proof link | Loop KPIs |
+| "rule ≥ 95 %", "rule ≤ 10 %" in a card's line | in the card's meaning, shown in its dialog | Loop KPIs |
+| "G3 not evaluated" and the like in a card's line | removed; the line carries the gate result only when there is one | Loop KPIs |
+| "not measured in this window" on each card | once, beside the heading | Loop KPIs |
+| Coverage card without a bar | coverage bar; no bar for a ratio above 100 % | Loop KPIs |
+| Eyebrow "Evaluated window · ending …", heading "Gates", ? "How to read the gates" | heading "Gate results" | Gate results |
+| Chips "✓ G0 Pass" with the word beside | tiles with the mark over the key; the word is in the spoken label | Gate results |
+| Full gate key under the strip | short key with "Full key" opening the rest | Gate results |
+| "Show this window on the trend ›" under the gates | removed; the trend bar offers Show evaluated period and Show only that window | Gate results |
+| Inline gate panel: eyebrow "Evaluated window", Close, rows Window from, Window to, Samples, Gate role, Preconditions, Method, verdict sentence | gate dialog: status, Loop result, Assessment, Reason, What this gate asks, More about this gate | Gate dialog |
+| "Open in Evidence Workbench ›" | "Evidence Workbench →" | Gate dialog |
+| "Evidence Replay ›", "Gate on Performance ›" in the gate panel | removed; Replay is one step on from the Workbench, and Performance opens the same dialog | Gate dialog |
+| Section "Long and short windows" / "Calculations" with "Show calculations ›" | removed; "All calculations →" in the Gate results heading switches to the Calculations tab | Summary |
+| KPI card as a link to its proof page | KPI card opens a dialog; "Calculation proof ↗", "Historical ↗" or "Window Inspector ↗" for the proof | Loop KPIs |
+
+| Control | Now on |
+|---|---|
+| Open details | Band, flat |
+| Evidence workbench (loop model) | Review evidence → in the band |
+| Loop model column | Dialog from Loop model & setup → |
+| Show calculations / Hide calculations | All calculations → (Calculations tab) |
+| KPI card link to its proof | Inside the KPI dialog |
+| Close (gate panel) | The dialog's close control |
+| Evidence Replay, Gate on Performance (gate panel) | Evidence Workbench, Performance |

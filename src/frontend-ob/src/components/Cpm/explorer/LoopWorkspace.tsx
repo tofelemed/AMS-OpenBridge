@@ -59,7 +59,7 @@ export const LoopWorkspace: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowK
           an empty Relationships tab no longer collapses the page under the
           cursor. */}
       <div className="cpm-tabpanel" {...tabPanelProps('loop-workspace', tab)}>
-        {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
+        {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} onTab={onTab} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
         {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
         {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}

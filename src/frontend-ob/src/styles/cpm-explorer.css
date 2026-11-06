@@ -1,0 +1,39 @@
+/* Loop Explorer, Summary. Placement only; the one new size is the PV, SP, OP and Mode row, which the owner asked for. */
+
+.cpm-explorer-tools { display: flex; justify-content: flex-end; margin-bottom: var(--traverse-space-2); }
+
+/* PV, SP, OP, Mode and the signal quality in one row of small cards */
+.cpm-signal-strip { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
+.cpm-signal {
+  display: flex; flex-direction: column; min-width: 0; padding: var(--traverse-space-1) var(--traverse-space-3);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-panel);
+}
+.cpm-signal__caption { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); letter-spacing: 0.05em; }
+.cpm-signal__value { font-size: 1.1rem; font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
+.cpm-signal__sub { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+.cpm-signal-strip__quality { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); margin: 0 0 0 auto; }
+.cpm-signal-strip__age { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+
+/* Loop KPIs: a card opens a dialog, so it is a button that looks like the link card; coverage carries its bar */
+button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor: pointer; }
+.cpm-kpicard__bar { display: block; height: var(--traverse-space-1); margin-top: var(--traverse-space-1); overflow: hidden; border-radius: var(--traverse-radius-control); background: var(--traverse-border-subtle); }
+.cpm-kpicard__bar > span { display: block; height: 100%; background: var(--traverse-text-secondary); }
+.cpm-kpicard--warn .cpm-kpicard__bar > span { background: var(--traverse-status-warning-fg); }
+.cpm-kpicard--bad .cpm-kpicard__bar > span { background: var(--traverse-status-danger-fg); }
+.cpm-kpicard--good .cpm-kpicard__bar > span { background: var(--traverse-status-success-fg); }
+
+/* Gate results: a tile is the mark over the key */
+.cpm-gate-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 3rem; padding: var(--traverse-space-1) var(--traverse-space-2);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-panel);
+  color: var(--traverse-text-primary); cursor: pointer; font: inherit;
+}
+.cpm-gate-tile:hover { background: var(--traverse-surface-hover); }
+.cpm-gate-tile--selected { background: var(--traverse-surface-selected); }
+.cpm-gate-tile:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+.cpm-gate-tile__mark { font-weight: 600; }
+.cpm-gate-tile--good .cpm-gate-tile__mark { color: var(--traverse-status-success-fg); }
+.cpm-gate-tile--warn .cpm-gate-tile__mark { color: var(--traverse-status-warning-fg); }
+.cpm-gate-tile--bad .cpm-gate-tile__mark { color: var(--traverse-status-danger-fg); }
+.cpm-gate-tile--muted .cpm-gate-tile__mark { color: var(--traverse-text-muted); }
+.cpm-gate-results__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2); }

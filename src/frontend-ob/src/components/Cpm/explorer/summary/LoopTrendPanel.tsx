@@ -78,19 +78,19 @@ export const LoopTrendPanel: React.FC<{
         stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}>
         <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
           onClick={() => navigate(historicalHref(loop.loopId, { from: from.toISOString(), to: to.toISOString() }))}>
-          Open in Historical ›
+          Historical ↗
         </ObcButton>
       </TimeRangeBar>
 
+      {/* The buttons say what they do; the sentences that said where the evaluated window lies are on their hover titles. */}
       {evaluated && !inView && (
         <p className="cpm-eval-note">
-          <span>{windowText} is outside this trend range — the diagnosis is about that window, not this one.</span>
-          <ObcButton variant="normal" onClick={showEvaluated}>Show evaluated period ›</ObcButton>
+          <ObcButton variant="normal" title={`${windowText} is outside this trend range — the diagnosis is about that window, not this one.`}
+            onClick={showEvaluated}>Show evaluated period ›</ObcButton>
         </p>
       )}
       {isEvaluatedView && (
         <p className="cpm-eval-note">
-          <span>This trend is the evaluated window the diagnosis is about.</span>
           <ObcButton variant={compareMode === 'previous' ? 'raised' : 'normal'} aria-pressed={compareMode === 'previous'}
             title="Add the window just before it, of the same length, under it on the same scale"
             onClick={() => setCompare(compareMode === 'previous' ? null : 'previous')}>
@@ -105,8 +105,8 @@ export const LoopTrendPanel: React.FC<{
       )}
       {evaluated && inView && !isEvaluatedView && (
         <p className="cpm-eval-note">
-          <span>The shaded band is the evaluated window behind the diagnosis.</span>
-          <ObcButton variant="flat" onClick={showEvaluated}>Show only that window ›</ObcButton>
+          <ObcButton variant="flat" title="The shaded band is the evaluated window behind the diagnosis."
+            onClick={showEvaluated}>Show only that window ›</ObcButton>
         </p>
       )}
 

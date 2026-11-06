@@ -30,7 +30,7 @@ describe('per-loop KPI cards (KPI Phase 4)', () => {
 
   it('a value the engine did not store is "not measured", never 0; no span means no % of span', () => {
     const c = byKey(K({ current: { ...K().current!, values: { auto_pct: 1 } } }));
-    expect(c['good-error']).toMatchObject({ value: '—', tone: 'muted', sub: 'not measured in this window' });
+    expect(c['good-error']).toMatchObject({ value: '—', tone: 'muted', sub: '' });
     const noSpan = byKey(K({ span: null }));
     expect(noSpan.error).toMatchObject({ value: '—', sub: 'no PV span registered' });
   });
@@ -64,6 +64,16 @@ describe('green only where it means acceptable control (CHG-092, SME review 2 #2
     const ok = byKey(K({ current: { ...cur, diagnosis: 'NO_CALL' } }));
     expect(ok['good-error'].tone).toBe('good');
     expect(ok.error.relevant).toBe(false);
+  });
+
+  it('names the gate each card is judged by, and leaves the rule and "not evaluated" off the card', () => {
+    const c = byKey(K({ current: { ...K().current!, gates: {} } }));
+    expect(Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.gate]))).toEqual({
+      service: 'G1', 'good-error': 'G3', error: 'G3', variability: 'G3', saturation: 'G10', travel: 'G4', reversals: 'G4', sp: 'G2', coverage: 'G0',
+    });
+    const text = Object.values(c).map(v => v.sub).join('|');
+    expect(text).not.toMatch(/rule|not evaluated/);
+    expect(c.service.title).toMatch(/95 %/);   // the rule is in the meaning, which the dialog shows
   });
 
   it('every card sits in one of the three groups', () => {

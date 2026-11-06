@@ -1,6 +1,6 @@
 // CHG-078: a signal card reads either "live" or its age — never "live · 13 days ago".
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { liveSource } from './OperatingState';
+import { liveSource } from './SignalStrip';
 
 describe('signal card source label (CHG-078)', () => {
   const now = Date.UTC(2026, 9, 10, 12, 0, 0);

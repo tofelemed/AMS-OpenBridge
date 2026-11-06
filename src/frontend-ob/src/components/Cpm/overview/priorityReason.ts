@@ -22,6 +22,15 @@ export function priorityBadge(priority: CpmRankedLoop['priority']): { label: str
   }
 }
 
+/**
+ * "persisting 11 h" for an open episode, "—" when none is open or the time cannot be read. Never 0: no
+ * episode is not an episode that lasted zero hours.
+ */
+export function persistingText(openedAt: string | null, now: number): string {
+  const since = openedAt ? Date.parse(openedAt) : NaN;
+  return Number.isFinite(since) ? `persisting ${ageText(now - since).replace(/ ago$/, '')}` : '—';
+}
+
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s);
 
 /**
@@ -35,14 +44,11 @@ export function priorityReasons(l: CpmRankedLoop, now = Date.now(), opts: { impa
   if (l.severity) out.push(`${cap(l.severity)} severity`);
   // The queue row shows impact as its good-error bar beside this line; `impact: false` avoids saying it twice.
   if (opts.impact !== false && l.metrics.goodErrorPct != null) out.push(`${Math.round(l.metrics.goodErrorPct * 100)}% in band`);
-  if (l.episodeOpenedAt) {
-    const since = Date.parse(l.episodeOpenedAt);
-    if (Number.isFinite(since)) {
-      const age = ageText(now - since).replace(/ ago$/, '');
-      const windows = l.episodeWindowCount != null && l.episodeWindowCount > 0
-        ? ` (${l.episodeWindowCount} window${l.episodeWindowCount === 1 ? '' : 's'})` : '';
-      out.push(`persisting ${age}${windows}`);
-    }
+  const persisting = persistingText(l.episodeOpenedAt ?? null, now);
+  if (persisting !== '—') {
+    const windows = l.episodeWindowCount != null && l.episodeWindowCount > 0
+      ? ` (${l.episodeWindowCount} window${l.episodeWindowCount === 1 ? '' : 's'})` : '';
+    out.push(`${persisting}${windows}`);
   }
   if (l.confidence != null) out.push(`evidence score ${Math.round(l.confidence * 100)}`);
   return out;

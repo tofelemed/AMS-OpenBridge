@@ -55,3 +55,8 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Severity dropdown | (new) | All severity, High, Medium, Low | Loop Events filter row | Reference |
 | Review (column) | State | Review | Loop Events list | Reference |
 | Activity & notes | History ›, Loop notes | Activity & notes, Full history ↗ | Loop Events detail | Reference |
+| Next step to the Workbench | Evidence workbench ›, Open in Evidence Workbench › | Review evidence → (band), Evidence Workbench → (gate dialog) | Loop Explorer Summary | Reference |
+| Loop model | Loop model, Context | Loop model & setup → | Loop Explorer Summary | Reference |
+| Gate area | Gates, Evaluated window | Gate results | Loop Explorer Summary | Reference |
+| Loop KPI area | How this loop performs | Loop KPIs | Loop Explorer Summary | Reference |
+| Trend to Historical | Open in Historical › | Historical ↗ | Loop Explorer Summary | Reference |
