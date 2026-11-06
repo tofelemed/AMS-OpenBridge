@@ -53,7 +53,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
       key: 'good-error', caption: 'Good-error time',
       value: g.meanPct != null ? pct1(g.meanPct) : '—',
       // CHG-098 lab pass: with nothing assessed, say why (e.g. every result stale) instead of a bare "yet"
-      sub: g.meanPct == null ? (none ?? 'not measured') : 'mean',
+      sub: g.meanPct == null ? (none ?? 'not measured') : `Mean · ${g.counted} assessed loops`,
       title: 'Mean share of the window with |PV − SP| inside the good band, over every assessed loop in this scope'
         + (g.medianPct != null ? ` (median ${pct1(g.medianPct)})` : '') + '.',
       drill: 'assessed', counted: g.counted,
@@ -62,7 +62,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       key: 'median-error', caption: 'Median error',
       value: e.medianPct != null ? pct1(e.medianPct) : '—',
-      sub: e.medianPct == null ? (none ?? 'no loop with a registered PV span') : 'of PV span',
+      sub: e.medianPct == null ? (none ?? 'no loop with a registered PV span') : `MAE ÷ PV span · ${e.counted} assessed`,
       title: 'Mean absolute error of each loop divided by its registered PV range (pvMax − pvMin), median across loops. '
         + 'Loops in different engineering units are never averaged directly; a loop without a registered range is left out.',
       drill: 'assessed', counted: e.counted,
@@ -71,7 +71,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       key: 'periodic', caption: 'Periodic diagnosis',
       value: String(p.periodic.count),
-      sub: p.periodic.of ? `of ${p.periodic.of} assessed` : 'no assessed loop',
+      sub: p.periodic.of ? 'Oscillation / valve nonlinearity' : 'no assessed loop',
       title: 'Assessed loops whose current diagnosis is an oscillation or final-element (valve) family at detected or any stronger band.',
       drill: 'periodic', counted: p.periodic.of, notCounted: [],
     },
@@ -84,7 +84,7 @@ export function capabilityTile(fleetTotal: number | null, capability: CpmFleetSu
   const copy = diagnosticCapabilityCopy(fleetTotal, capped, capability);
   const [withVp, valves] = copy.value.split('/').map(Number);
   const sub = copy.value === '—' ? 'unavailable'
-    : capped ? `${capped} without a mapped VP`
+    : capped ? 'Expected VP not mapped'
       : withVp < valves ? `${valves - withVp} without a positioner` : 'all valve loops mapped';
   return { value: copy.value, sub, title: copy.sub, drill: 'capability', tone: capped ? 'warn' : 'muted' };
 }

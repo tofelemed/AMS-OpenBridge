@@ -35,6 +35,13 @@ describe('Performance headline basis (SME review 2 #10/#11)', () => {
     expect(periodic.drill).toBe('periodic');
   });
 
+  it('pins the four sub-lines to the reference', () => {
+    const [good, err, periodic] = headlineTiles(P());
+    expect([good.sub, err.sub, periodic.sub]).toEqual([
+      'Mean · 118 assessed loops', 'MAE ÷ PV span · 100 assessed', 'Oscillation / valve nonlinearity']);
+    expect(capabilityTile(72, { loopsCappedByMissingVp: 4, loopsWithoutDisturbanceContext: 0 }).sub).toBe('Expected VP not mapped');
+  });
+
   it('keeps the tile text short: the sentence goes in the dialog', () => {
     for (const t of headlineTiles(P())) expect(t.sub.length).toBeLessThan(40);
     expect(headlineTiles(P())[1].title).toMatch(/pvMax − pvMin/);
@@ -50,7 +57,7 @@ describe('Performance headline basis (SME review 2 #10/#11)', () => {
   it('the capability tile is a short count and the sentence behind it stays for the dialog', () => {
     const t = capabilityTile(72, { loopsCappedByMissingVp: 4, loopsWithoutDisturbanceContext: 0 });
     expect(t.value).toBe('68/72');
-    expect(t.sub).toBe('4 without a mapped VP');
+    expect(t.sub).toBe('Expected VP not mapped');
     expect(t.title).toMatch(/approved test record to be confirmed/);
     expect(capabilityTile(72, { loopsCappedByMissingVp: 0, loopsWithoutDisturbanceContext: 0 }).sub).toBe('all valve loops mapped');
     expect(capabilityTile(null, undefined).value).toBe('—');
