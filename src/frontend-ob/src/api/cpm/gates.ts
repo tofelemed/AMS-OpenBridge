@@ -118,15 +118,19 @@ export interface CpmWindowSummary {
   familyDisqualifiers: string[];
   insufficientEvidenceReason: string | null;
   methodEligibility: Record<string, { state: string; reason: string | null; detail: string | null }> | null;
+  /** CHG-139: good_error_pct, auto_pct, mae and saturation_pct, only those the window stored (older windows keep them too). */
+  metrics?: Record<string, number>;
   computedAt: string;
   jarSha256: string | null;
 }
 
-export interface WindowSummaryOptions { to?: string; limit?: number; includeInsufficient?: boolean }
+/** `from` and `to` bound the window END, so a range reaches back past the 14 days of full rows (CHG-139). */
+export interface WindowSummaryOptions { from?: string; to?: string; limit?: number; includeInsufficient?: boolean }
 
 /** Every evaluated window of the loop, newest first; `to` pages backwards from the oldest loaded window. */
 export const getWindowSummaries = (loopId: string, windowKind = '12h', opts: WindowSummaryOptions = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams({ windowKind, limit: String(opts.limit ?? 100), projection: 'summary', includeInsufficient: String(opts.includeInsufficient ?? true) });
+  if (opts.from) params.set('from', opts.from);
   if (opts.to) params.set('to', opts.to);
   return apiJson<{ loopId: string; windowKind: string; count: number; projection: string; windows: CpmWindowSummary[] }>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/gates?${params.toString()}`, { signal })

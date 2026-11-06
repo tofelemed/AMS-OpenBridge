@@ -18,7 +18,7 @@
  * signals grid only; the box components, the slider and the wheel share state.
  */
 import type { CpmKpiRow, CpmTrendPoint } from '../../../api/cpmApi';
-import { axisChrome, plainOption, toneColors, zoomChrome, type ChartPalette } from '../../../charts/chartTheme';
+import { axisChrome, onStatusInk, plainOption, toneColors, zoomChrome, type ChartPalette } from '../../../charts/chartTheme';
 import { pvAxisName } from '../trend/trendOption';
 import { escapeHtml } from '../../../utils/escapeHtml';
 import type { CpmTone } from '../shared';
@@ -47,8 +47,10 @@ export interface Segment {
   endMs: number;
   tone: CpmTone;
   label: string;
-  /** Verdict segments carry the window id so a click can select it. */
+  /** Result marks carry the window id so a click can select it (the list writes the same value). */
   windowEnd?: string | null;
+  /** The finding behind the band word, when it adds to it (tooltip only). */
+  detail?: string;
 }
 
 export interface ChartInput {
@@ -89,7 +91,7 @@ const segmentAt = (segs: Segment[], ts: number) =>
  * Rect renderer for a lane. Clamped to the grid so a zoomed-in view cannot paint
  * a band over the axis gutter.
  */
-export function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>) {
+export function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>, opts: { text?: boolean } = {}) {
   return (
     params: { dataIndex: number; coordSys: { x: number; y: number; width: number; height: number } },
     api: { coord: (v: number[]) => number[] },
@@ -100,10 +102,19 @@ export function laneRenderer(segments: Segment[], tones: Record<CpmTone, string>
     const x0 = Math.max(api.coord([seg.startMs, 0])[0], cs.x);
     const x1 = Math.min(api.coord([seg.endMs, 0])[0], cs.x + cs.width);
     if (x1 <= x0) return null;
-    return {
+    const rect = {
       type: 'rect' as const,
       shape: { x: x0, y: cs.y, width: Math.max(1, x1 - x0), height: cs.height },
       style: { fill: tones[seg.tone] },
+    };
+    // CHG-139: a mode band names its mode when the band is wide enough to hold the word.
+    if (!opts.text || !seg.label || x1 - x0 < seg.label.length * 8 + 8) return rect;
+    return {
+      type: 'group' as const,
+      children: [rect, {
+        type: 'text' as const, silent: true,
+        style: { text: seg.label, x: x0 + 4, y: cs.y + cs.height / 2, textVerticalAlign: 'middle', fill: onStatusInk(), font: '12px sans-serif' },
+      }],
     };
   };
 }
@@ -193,8 +204,8 @@ export function buildChartOption(input: ChartInput) {
     // The point of the rebuild: one crosshair, four lanes.
     axisPointer: { link: [{ xAxisIndex: 'all' as const }], snap: false },
     graphic: [
-      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'MODE', fill: tick, font: '12px sans-serif' } },
-      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'VERDICT', fill: tick, font: '12px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.mode.top, style: { text: 'Mode', fill: tick, font: '12px sans-serif' } },
+      { type: 'text', left: 8, top: LANES.verdict.top + 4, style: { text: 'Result', fill: tick, font: '12px sans-serif' } },
     ],
     toolbox: box.toolbox,
     dataZoom: [
@@ -235,7 +246,7 @@ export function buildChartOption(input: ChartInput) {
         const mode = typeof ts === 'number' ? segmentAt(modeSegments, ts) : undefined;
         const verdict = typeof ts === 'number' ? segmentAt(verdictSegments, ts) : undefined;
         if (mode) rows.push(`Mode: ${mode.label}`);
-        if (verdict) rows.push(`Verdict: ${verdict.label}`);
+        if (verdict) rows.push(`Result: ${verdict.label}${verdict.detail ? ` · ${verdict.detail}` : ''}`);
         const when = typeof ts === 'number' ? `${formatInZone(ts, tz)} — ${zoneLabel(tz, ts)}` : String(ts);
         return [`<strong>${when}</strong>`, ...rows].join('<br/>');
       },
@@ -296,7 +307,7 @@ export function buildChartOption(input: ChartInput) {
         data: overlayData },
       {
         name: 'mode-track', type: 'custom', xAxisIndex: 2, yAxisIndex: 2, silent: true,
-        renderItem: laneRenderer(modeSegments, tones),
+        renderItem: laneRenderer(modeSegments, tones, { text: true }),
         data: modeSegments.map(s => [s.startMs, 0.5]),
       },
       {

@@ -15,6 +15,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { Popover } from '../../../ui/Popover';
+import { inputContextOf } from '../optionalInputs';
 
 const SIGNAL_KEYS = ['pv', 'sp', 'op', 'vp'] as const;
 export type SignalKey = typeof SIGNAL_KEYS[number];
@@ -61,10 +62,10 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ loopId, exportDisabled, 
   const busyWhy = exportBusy ? 'Another download is being prepared — wait for it to finish' : undefined;
   const samplesWhy = !loopId ? 'Pick a loop first' : busyWhy;
   const windowsWhy = exportDisabled ? 'No evaluated windows in this range — widen the range to export them' : busyWhy;
-  const packageWhy = !packageWindow ? 'Select an evaluated window on the verdict lane first' : busyWhy;
+  const packageWhy = !packageWindow ? 'Choose an evaluated window first' : busyWhy;
   const exportNote = !loopId ? 'Pick a loop to export its data.'
     : exportDisabled ? 'No evaluated windows in this range: widen the range to export windows or a package.'
-      : !packageWindow ? 'Click a verdict band to export that window’s evidence package.'
+      : !packageWindow ? 'Choose an evaluated window to export its evidence package.'
         : null;
 
   return (
@@ -108,6 +109,15 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ loopId, exportDisabled, 
   );
 };
 
+/** CHG-139: why VP may be absent on this loop. A tag not mapped is a gap to close; a loop with no valve position is a fact. */
+export function vpChipNote(loop: CpmLoop | undefined): { text: string; meaning: string } | null {
+  const ctx = inputContextOf(loop);
+  if (!ctx) return null;
+  if (ctx.vp === 'NOT_APPLICABLE') return { text: 'not applicable', meaning: 'not applicable on this loop' };
+  if (ctx.vp === 'NOT_INSTALLED') return { text: 'not installed', meaning: 'not installed on this loop' };
+  return ctx.vpMapped ? null : { text: 'unmapped', meaning: 'not mapped in the registry' };
+}
+
 export const RangeToolbar: React.FC<RangeToolbarProps> = ({
   loop, signals, onToggleSignal, overlays, overlayKey, onOverlay, trendHref, onOpenTrend, normalize, onToggleNormalize,
 }) => (
@@ -119,7 +129,7 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
             on the chip rather than hidden. */}
         {SIGNAL_KEYS.map(k => {
           const on = signals.includes(k);
-          const unmapped = k === 'vp' && loop != null && !loop.tags['VP'];
+          const note = k === 'vp' ? vpChipNote(loop) : null;
           return (
             <button
               key={k}
@@ -132,9 +142,9 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
               <span className="cpm-pen-chip__swatch" aria-hidden />
               <span className="cpm-pen-chip__label">{k.toUpperCase()}</span>
               <span className="cpm-sr-only">
-                {SIGNAL_MEANING[k]}{unmapped ? ', not mapped in the registry' : ''}
+                {SIGNAL_MEANING[k]}{note ? `, ${note.meaning}` : ''}
               </span>
-              {unmapped && <span className="cpm-pen-chip__note">unmapped</span>}
+              {note && <span className="cpm-pen-chip__note">{note.text}</span>}
             </button>
           );
         })}
@@ -164,8 +174,8 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
 
       <div className="cpm-hist-row__end">
         {trendHref && (
-          <ObcButton variant="normal" onClick={() => onOpenTrend(trendHref)}>
-            Open in Trend ›
+          <ObcButton variant="flat" onClick={() => onOpenTrend(trendHref)}>
+            Open in Trend ↗
           </ObcButton>
         )}
       </div>

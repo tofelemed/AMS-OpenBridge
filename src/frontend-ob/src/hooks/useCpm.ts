@@ -281,11 +281,11 @@ export function useCpmModeTrack(
 }
 
 export function useGateHistory(
-  loopId: string | undefined, windowKind = '12h', from?: string, to?: string, purpose: 'LIVE' | 'ANY' = 'LIVE',
+  loopId: string | undefined, windowKind = '12h', from?: string, to?: string, purpose: 'LIVE' | 'ANY' = 'LIVE', limit = 100,
 ) {
   return useQuery({
-    queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? '', purpose],
-    queryFn: ({ signal }) => cpm.getGateHistory(loopId!, windowKind, from, to, 100, signal, false, purpose),
+    queryKey: ['cpm', 'gate-history', loopId ?? '', windowKind, from ?? '', to ?? '', purpose, limit],
+    queryFn: ({ signal }) => cpm.getGateHistory(loopId!, windowKind, from, to, limit, signal, false, purpose),
     enabled: !!loopId,
   });
 }

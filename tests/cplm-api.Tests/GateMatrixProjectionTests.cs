@@ -171,7 +171,7 @@ public sealed class GateMatrixProjectionTests
         {
             "loopId", "windowKind", "windowStart", "windowEnd", "sampleCount", "diagnosis", "severity", "confidence",
             "gates", "methodRunIds", "bundleHash", "resultRevision", "observabilityFlags", "familyDisqualifiers",
-            "insufficientEvidenceReason", "methodEligibility", "computedAt", "jarSha256",
+            "insufficientEvidenceReason", "methodEligibility", "metrics", "computedAt", "jarSha256",
         });
         foreach (var name in new[] { "loopId", "windowKind", "windowEnd", "diagnosis", "methodRunIds", "observabilityFlags", "bundleHash" })
             summary.GetProperty(name).GetRawText().Should().Be(full.GetProperty(name).GetRawText(), name);
@@ -180,7 +180,7 @@ public sealed class GateMatrixProjectionTests
         g14.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(new[] { "key", "status", "reason", "methodRunId" });
         g14.GetProperty("status").GetString().Should().Be("NOT_CONFIRMED");
         summary.GetProperty("computedAt").GetRawText().Should().Be(full.GetProperty("metadata").GetProperty("computedAt").GetRawText());
-        summary.TryGetProperty("metrics", out _).Should().BeFalse("the picker never needs the metric block");
+        summary.GetProperty("metrics").EnumerateObject().Should().BeEmpty("the picker carries only the four window metrics (CHG-139), and this payload stores none of them");
         summary.TryGetProperty("verdictV2", out _).Should().BeFalse();
     }
 

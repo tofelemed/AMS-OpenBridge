@@ -1,31 +1,27 @@
 'use client';
 
 /**
- * The selected fused window (12h / 24h, as toggled), full width.
- *
- * It used to share a two-column row with a "Maintenance correlation" panel whose
- * only content was "No CMMS integration configured" — half a row, permanently,
- * for an unimplemented feature, while the window's own five key/value rows were
- * squeezed into the other half. The CMMS copy is honest and worth keeping, so it
- * became a caption instead of a panel.
- *
- * 2026-09-20 (cpa-ui-fix-plan Phase 4): beside Replay, the exact fused run of
- * this window opens in the Evidence Workbench when the row carries run identity;
- * a row written before v2.5 keeps the button, disabled, with the reason.
+ * CHG-139: the selected window, beside the list of evaluated windows. Result, period, four KPIs, then Review this window →
+ * (the Evidence Workbench on this window's run), Replay, Fit to this window, Evidence package, and the evidence score with
+ * its ?. Samples and the calculation version sit behind Technical details. A KPI the window never stored reads
+ * "Not stored", never 0; a window without a run says why it cannot be reviewed.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ReasonedButton } from '../ReasonedButton';
-import type { CpmGateMatrix } from '../../../api/cpmApi';
-import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime, toneFor } from '../shared';
+import { EmptyState, KvRow, PanelHead, TonePill, diagnosisBand } from '../shared';
 import { workbenchHref } from '../evidence/selection';
-import { diagnosisLabel } from '../vocabulary';
+import { fmtWhen } from '../blocks/whenText';
 import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
 import { hasVerdict } from '../metricAvailability';
+import { Toggletip } from '../../../ui/Toggletip';
+import { TechnicalDetails } from '../../../ui/TechnicalDetails';
+import { NotStored, pctOf } from './EvaluatedWindows';
+import type { HistoryWindow } from './useWindowKpis';
 
 /** The run to open for a window: its fused verdict (G15), else the first gate that carries one. */
-export function windowRun(win: CpmGateMatrix): { methodRunId: string; gate: string } | null {
+export function windowRun(win: Pick<HistoryWindow, 'methodRunIds' | 'gates'>): { methodRunId: string; gate: string } | null {
   const ids = win.methodRunIds ?? {};
   if (ids.G15) return { methodRunId: ids.G15, gate: 'G15' };
   const g15 = win.gates.find(g => g.key === 'G15' && g.methodRunId);
@@ -36,30 +32,38 @@ export function windowRun(win: CpmGateMatrix): { methodRunId: string; gate: stri
   return gate && id ? { methodRunId: id, gate } : null;
 }
 
+const Kpi: React.FC<{ caption: string; value: string | null }> = ({ caption, value }) => (
+  <div className="cpm-kpi">
+    <span className="cpm-kpi__caption">{caption}</span>
+    <span className="cpm-kpi__value">{value ?? <NotStored />}</span>
+  </div>
+);
+
+const maeText = (v: number | undefined) => (v != null && Number.isFinite(v) ? String(Number(v.toPrecision(3))) : null);
+
 export const SelectedWindowPanel: React.FC<{
   loopId: string | undefined;
-  window: CpmGateMatrix | undefined;
+  window: HistoryWindow | undefined;
   /** True when the ?window= deep link named a window outside the applied range. */
   fellBack: boolean;
   /** No windows at all in range — a different problem from "none selected". */
   noWindows: boolean;
   onWiden: () => void;
-  onReplay: (windowEnd: string | null) => void;
-}> = ({ loopId, window: win, fellBack, noWindows, onWiden, onReplay }) => {
+  /** Sets the chart range to this window, keeping it selected. */
+  onFit: () => void;
+  onReplay: (windowEnd: string) => void;
+  onPackage: () => void;
+  /** False for a window older than the full rows: it has a summary, not an evidence package. */
+  packageReady: boolean;
+}> = ({ loopId, window: win, fellBack, noWindows, onWiden, onFit, onReplay, onPackage, packageReady }) => {
   const navigate = useNavigate();
   const run = win ? windowRun(win) : null;
+  const band = win ? diagnosisBand(win.diagnosis) : null;
+  const score = win && hasVerdict(win.diagnosis) ? evidenceScore(win.confidence) : null;
   return (
-    <section className="cpm-surface">
-      <PanelHead
-        eyebrow="Selected period"
-        title={win?.windowEnd
-          ? `Window ending ${fmtDateTime(win.windowEnd)}`
-          : noWindows ? 'Nothing to inspect in this range' : 'No window selected'}
-      />
+    <section className="cpm-surface cpm-hist-selected">
+      <PanelHead title="Selected window" />
 
-      {/* "Click a diagnosis band above" was an instruction you could not follow
-          when there were no bands. Separate the two states and give the empty one
-          a way out. */}
       {!win && noWindows && (
         <EmptyState
           title="This loop completed no evaluated windows in this range"
@@ -67,66 +71,57 @@ export const SelectedWindowPanel: React.FC<{
           action={{ label: 'Widen to 30 days', onClick: onWiden }}
         />
       )}
-      {/* CHG-098 (SME review 2 #29): say what the click opens. */}
-      {!win && !noWindows && <EmptyState title="Click a verdict band in the chart above"
-        copy="That window's verdict and gates appear here, with a route to replay its evidence." />}
+      {!win && !noWindows && <EmptyState title="No window selected" copy="Choose one in the list or on the Result lane." />}
 
       {fellBack && (
         <p className="cpm-copy" role="status">
-          The window this link pointed at is not in the current range — showing the
-          newest evaluated window instead.
+          The window this link pointed at is not in the current range — showing the newest evaluated window instead.
         </p>
       )}
 
-      {win && (
+      {win && band && (
         <>
-          <div className="cpm-window-grid">
-            <div>
-              <KvRow label="Verdict">
-                <TonePill tone={toneFor(win.diagnosis)}>
-                  {diagnosisLabel(win.diagnosis)}
-                </TonePill>
-              </KvRow>
-              <KvRow label="Evidence score">
-                <span title={EVIDENCE_SCORE_HELP}>{win.confidence != null && hasVerdict(win.diagnosis) ? evidenceScore(win.confidence) : '—'}</span>
-              </KvRow>
-              <KvRow label="Samples">{win.sampleCount ?? '—'}</KvRow>
-            </div>
-            <div>
-              <KvRow label="Window from">
-                {win.windowStart ? fmtDateTime(win.windowStart) : '—'}
-              </KvRow>
-              <KvRow label="Window to">
-                {win.windowEnd ? fmtDateTime(win.windowEnd) : '—'}
-              </KvRow>
-              <KvRow label="Calculation">
-                v{win.metadata.calculationVersion ?? '—'} · profile v
-                {win.metadata.dynamicsProfileVersion ?? '—'}
-              </KvRow>
-            </div>
+          <div className="cpm-hist-selected__result">
+            <TonePill tone={band.tone}>{band.label}</TonePill>
+            <span>{win.windowStart ? `${fmtWhen(win.windowStart)} to ${fmtWhen(win.windowEnd)}` : `Ending ${fmtWhen(win.windowEnd)}`}</span>
           </div>
 
-          {win.insufficientEvidenceReason && (
-            <p className="cpm-copy">{win.insufficientEvidenceReason}</p>
-          )}
+          <div className="cpm-kpi-row cpm-hist-kpis">
+            <Kpi caption="In band" value={pctOf(win.metrics?.good_error_pct)} />
+            <Kpi caption="Time in normal mode" value={pctOf(win.metrics?.auto_pct)} />
+            <Kpi caption="MAE" value={maeText(win.metrics?.mae)} />
+            <Kpi caption="Saturation" value={pctOf(win.metrics?.saturation_pct)} />
+          </div>
 
-          <div className="cpm-window-actions">
-            <ObcButton variant="raised" onClick={() => onReplay(win.windowEnd)}>
-              Replay this period ›
-            </ObcButton>
-            {/* CHG-098 (SME review 2 #29): the reason it is disabled is on screen; Replay (beside it) is the route instead. */}
+          {win.insufficientEvidenceReason && <p className="cpm-copy">{win.insufficientEvidenceReason}</p>}
+
+          <div className="cpm-hist-selected__actions">
             <span title={run && loopId ? `Open the ${run.gate} run ${run.methodRunId} of this window in the Evidence Workbench` : undefined}>
-              <ReasonedButton variant="normal" disabled={!run || !loopId}
+              <ReasonedButton variant="raised" disabled={!run || !loopId}
                 reason="Stored before analysis runs were kept (before v2.5), so there is no run to open — use Replay"
                 onClick={() => { if (run && loopId) navigate(workbenchHref(loopId, run.methodRunId, run.gate)); }}>
-                Evidence Workbench ›
+                Review this window →
               </ReasonedButton>
             </span>
-            <span className="cpm-copy cpm-hist-note">
-              No CMMS integration configured, so no work orders are correlated here.
-              Nothing is shown because nothing is known — not because nothing happened.
-            </span>
+            <div className="cpm-hist-selected__links">
+              <ObcButton variant="flat" onClick={() => onReplay(win.windowEnd)}>Replay ↗</ObcButton>
+              <ObcButton variant="flat" onClick={onFit}>Fit to this window</ObcButton>
+              <ReasonedButton variant="flat" disabled={!packageReady} onClick={onPackage}
+                reason="Only windows from the last 14 days keep every gate and metric; this one has a summary">
+                Evidence package ↗
+              </ReasonedButton>
+            </div>
           </div>
+
+          <KvRow label="Evidence score">
+            {score != null ? score : <span className="cpm-hist-missing">{hasVerdict(win.diagnosis) ? 'Not stored' : 'No verdict in this window'}</span>}
+            <Toggletip variant="how-to" label="About score"><p>{EVIDENCE_SCORE_HELP}</p></Toggletip>
+          </KvRow>
+
+          <TechnicalDetails items={[
+            { label: 'Samples', value: win.sampleCount, mono: false },
+            { label: 'Calculation', value: win.calculation ?? null, mono: false },
+          ]} />
         </>
       )}
     </section>

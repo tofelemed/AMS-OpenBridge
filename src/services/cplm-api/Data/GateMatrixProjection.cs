@@ -138,6 +138,9 @@ public static class GateMatrixProjection
     /// (~0.5 KB instead of ~7.5 KB). Served by <c>GET /loops/{id}/gates?projection=summary</c>; a strict
     /// subset of <see cref="Build"/> so the two can never disagree.
     /// </summary>
+    private static readonly HashSet<string> SummaryMetrics = new(StringComparer.Ordinal)
+        { "good_error_pct", "auto_pct", "mae", "saturation_pct" };
+
     public static Dictionary<string, object?> Summary(dynamic row)
     {
         var full = Build(row);
@@ -172,6 +175,10 @@ public static class GateMatrixProjection
             ["familyDisqualifiers"] = full["familyDisqualifiers"],
             ["insufficientEvidenceReason"] = full["insufficientEvidenceReason"],
             ["methodEligibility"] = full["methodEligibility"],
+            // CHG-139: the four values the Historical window list shows, so a window older than the 14 d of Postgres rows
+            // (served from the IoTDB history through this same projection) keeps them. Only what was stored; never 0.
+            ["metrics"] = ((Dictionary<string, double>)full["metrics"]!)
+                .Where(kv => SummaryMetrics.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
             ["computedAt"] = metaType.GetProperty("computedAt")!.GetValue(meta),
             ["jarSha256"] = metaType.GetProperty("jarSha256")!.GetValue(meta),
         };

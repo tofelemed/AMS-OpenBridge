@@ -484,3 +484,37 @@ Controls that changed place in this section, not removed:
 | Linked loop (Relationships) | Opens that loop's Relationships tab |
 | Loop Events ↗ (History) | New link on each run and each expanded episode |
 | Open Historical → (History) | Foot of the list |
+
+## Historical (CHG-139, Task 12)
+
+| Was | Now | Where |
+|---|---|---|
+| Eyebrow "One time axis" and heading "Signals, overlay, mode and verdict" | removed; the chart has no heading | Chart |
+| ? "How to use this chart": "Click a verdict band to inspect." | removed; the list and the Result lane both select | Chart |
+| "N evaluated window(s) · capped at 100" in the heading's right side | foot: "N results · 12h rolling windows", with "· newest 500 read" when capped | Chart foot |
+| Caption "historian series at {series} · PV keeps its min-max envelope" | removed | Under the chart |
+| Empty state ending "(Historian series: {series})" | removed | Chart |
+| Empty state "…KPI overlay and verdicts." | "…KPI overlay and results." | Chart |
+| Lane labels MODE and VERDICT | Mode and Result | Chart |
+| Tooltip "Verdict: {band} · {finding}" | "Result: {band} · {finding}" | Chart |
+| "Zoomed view only — the overlay and verdict feeds are still loaded for the applied range." | removed | Chart foot |
+| Eyebrow "Selected period", heading "Window ending {date and time with zone}" | heading "Selected window"; the period is one line, `fmtWhen` to `fmtWhen` | Selected window |
+| "Click a verdict band in the chart above" / "That window's verdict and gates appear here, with a route to replay its evidence." | "No window selected" / "Choose one in the list or on the Result lane." | Selected window |
+| Rows Verdict, Evidence score, Samples, Window from, Window to, Calculation | result pill and period, four KPIs (In band, Time in normal mode, MAE, Saturation), Evidence score; Samples and Calculation behind Technical details | Selected window |
+| Evidence score hover text only | ? "About score" | Selected window |
+| "Replay this period ›" (raised) | "Replay ↗", flat | Selected window |
+| "Evidence Workbench ›" | "Review this window →" (raised, full width) | Selected window |
+| "No CMMS integration configured, so no work orders are correlated here. Nothing is shown because nothing is known — not because nothing happened." | removed | Selected window |
+| "Open in Trend ›" (normal) | "Open in Trend ↗", flat | Toolbar |
+| VP chip note "unmapped" for every loop without a VP tag | "unmapped" only where VP is expected; "not applicable" / "not installed" where the loop is declared without one | Toolbar |
+| Export hints "Select an evaluated window on the verdict lane first" / "Click a verdict band to export that window's evidence package." | "Choose an evaluated window first" / "Choose an evaluated window to export its evidence package." | Export menu |
+| Date and time with zone name (`fmtDateTime`) in the export label and the truncation caption | `fmtWhen` | Export menu, captions |
+
+| Control | Now on |
+|---|---|
+| Evaluated windows list | New: under the chart, left (Window ending, Result, Mode, In band; paged) |
+| Selected window | Under the chart, right (was full width) |
+| Fit to this window | New: sets the range to the window and keeps `?window=` |
+| Evidence package ↗ | New button in the selected window; the Export menu entry stays |
+| Result key | New dialog from the chart foot |
+| Loop Explorer ↗ | New: end of the band, before Export |
