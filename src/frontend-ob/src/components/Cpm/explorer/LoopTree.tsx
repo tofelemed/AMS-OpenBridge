@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * The Explorer rail: search plus a collapsible site/area/unit tree.
+ * The loop list: search plus a collapsible site/area/unit tree. The Explorer
+ * shows it while no loop is open, and the loop band opens it from its control.
  *
  * What changed and why:
- * - The plant-scope filter left the rail. It writes `?site=&area=&unit=` and
- *   follows you to every other CPM screen, so it is page scope, not list scope;
- *   sitting inside the rail it claimed to filter the list AND ate ~300px of the
- *   only scrollable column, leaving four loops visible above the fold.
+ * - The plant scope is not set here. It writes `?site=&area=&unit=` and follows
+ *   you to every other CPM screen, so it is page scope, not list scope: its
+ *   control sits in the application header and this list only follows it.
  * - Groups collapse and carry counts. The previous render flattened
  *   site/area/unit into one string key and emitted a flat button list with no
  *   way to fold anything — 200 loops meant 200 buttons and no navigation by
@@ -15,6 +15,7 @@
  * - The list states how much of the fleet it is showing.
  */
 import React from 'react';
+import { serviceName } from '../loopName';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { TextInput } from '../../../ui/forms/TextInput';
 import type { CpmLoop } from '../../../api/cpmApi';
@@ -129,7 +130,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
                   onClick={() => onSelect(l.loopId)}
                 >
                   <strong>{l.loopId}</strong>
-                  <span className="cpm-event-row__sub">{l.displayName}</span>
+                  <span className="cpm-event-row__sub">{serviceName(l)}</span>
                 </button>
               ))}
             </div>

@@ -5,6 +5,7 @@
  * Each row leads to the loop's short windows in the workbench, where the dwell / freeze is drawn.
  */
 import React from 'react';
+import { serviceName } from '../loopName';
 import { Link } from 'react-router-dom';
 import type { CpmCondition } from '../../../api/cpm/conditions';
 import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime, fmtDuration } from '../shared';
@@ -79,7 +80,7 @@ export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: 
                     </td>
                     <td>
                       <Link className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(r.loopId)}&kind=15m`} title={`Open the 15m windows of ${r.loopId} in the workbench`}>{r.loopId}</Link>
-                      <span className="cpm-event-row__sub"> {r.displayName}</span>
+                      <span className="cpm-event-row__sub"> {serviceName(r)}</span>
                     </td>
                     <td><span className="cpm-mono">{r.gateLabel}</span> {r.label}</td>
                     <td title={r.startedAt}>{r.since}</td>

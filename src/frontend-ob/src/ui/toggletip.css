@@ -38,6 +38,23 @@
   height: 100%;
 }
 
+/* The owner's ?: a small quiet circle on the page colour, so it never competes with the data (CHG-126). */
+.ui-toggletip__glyph--help {
+  --element-active-color: var(--traverse-text-secondary);
+  box-sizing: border-box;
+  width: calc(var(--traverse-space-4) + var(--traverse-space-1) / 2);
+  height: calc(var(--traverse-space-4) + var(--traverse-space-1) / 2);
+  padding: calc(var(--traverse-space-1) / 4);
+  border: 1px solid var(--traverse-border-subtle);
+  border-radius: 50%;
+  background: var(--traverse-surface-page);
+}
+.ui-toggletip__button:hover .ui-toggletip__glyph--help,
+.ui-toggletip__button[aria-expanded='true'] .ui-toggletip__glyph--help {
+  --element-active-color: var(--traverse-action-primary);
+  border-color: var(--traverse-action-primary);
+}
+
 /* The ring sits on the glyph so it stays inside the hit area and never clips. */
 .ui-toggletip__button:focus-visible { outline: none; }
 .ui-toggletip__button:focus-visible .ui-toggletip__glyph,

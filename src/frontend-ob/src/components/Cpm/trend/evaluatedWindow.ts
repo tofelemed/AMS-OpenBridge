@@ -24,7 +24,7 @@ export const isWindowRange = (w: EvaluatedWindow, fromMs: number, toMs: number):
 
 /** The Explorer's source line: names an evaluated window only when the trend is pinned to exactly that one. */
 export const trendSourceText = (isEvaluatedView: boolean, fromText: string, toText: string): string =>
-  isEvaluatedView ? `Evaluated window ${fromText} → ${toText}` : `Trend range ${fromText} → ${toText}, not an evaluated window`;
+  isEvaluatedView ? `Evaluated window ${fromText} → ${toText}` : 'Not an evaluated window';
 
 export interface AxisBounds { min: number; max: number }
 

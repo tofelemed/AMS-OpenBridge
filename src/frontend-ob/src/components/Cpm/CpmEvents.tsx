@@ -21,11 +21,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { SegmentedControl } from '../../ui/SegmentedControl';
 import { InputChip } from '../../ui/forms/InputChip';
 import { EmptyState, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { useCpmScope } from './plantScope';
 import { useAuthStore } from '../../store/authStore';
 import { availabilityPill } from './events/eventsState';
 import {
@@ -110,33 +108,17 @@ export const CpmEvents: React.FC = () => {
         title="Loop events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — a change in its evidence score extends it rather than duplicating it."
       />
-      <LoopContextBar loopId={loopParam} period={{ label: 'All episodes of this loop' }} />
-      <PlantScopeFilter scope={scope}
-        summary={scope.active ? `${total} matching event(s)` : null} />
-
       <div className="cpm-filter-row">
-        <SegmentedControl
-          label="Event state"
-          ignoreReselect
-          value={filter}
-          options={FILTERS.map(f => ({
-            value: f.key,
-            label: <>{f.label}{data && <span className="cpm-tab-count"> {data.counts[f.key] ?? 0}</span>}</>,
-          }))}
-          onChange={v => setParams(p => { p.set('filter', v); return p; }, { replace: true })}
-        />
-
-        <div className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label">Order</span>
-          <SegmentedControl label="Order" ignoreReselect value={sort} options={SORT_OPTIONS} onChange={setSort} />
-        </div>
-
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label">Find</span>
-          <input className="cpm-input" style={{ minWidth: 240 }}
-            placeholder="loop, service, family or diagnosis"
-            value={search} onChange={e => setSearch(e.target.value)} />
-        </label>
+        {/* CHG-131: one row. The state dropdown keeps each state's count. */}
+        <select className="cpm-select" aria-label="Event state" value={filter}
+          onChange={e => setParams(p => { p.set('filter', e.target.value); return p; }, { replace: true })}>
+          {FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}{data ? ` ${data.counts[f.key] ?? 0}` : ''}</option>)}
+        </select>
+        <select className="cpm-select" aria-label="Order" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
+          {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <input className="cpm-input cpm-filter-find" aria-label="Find" placeholder="loop, service, family or diagnosis"
+          value={search} onChange={e => setSearch(e.target.value)} />
 
         {loopParam && (
           <InputChip label={`Loop ${loopParam}`}
@@ -146,7 +128,6 @@ export const CpmEvents: React.FC = () => {
         <span className="cpm-filter-count">
           {data && <>
             {total} event(s){loopParam ? ` for ${loopParam}` : ''}{q ? ` matching “${q}”` : ''}
-            {sort === 'triage' && ' · open first, highest evidence score first'}
           </>}
         </span>
       </div>

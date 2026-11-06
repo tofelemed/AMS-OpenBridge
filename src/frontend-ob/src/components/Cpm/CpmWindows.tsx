@@ -17,10 +17,8 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
+import { LoopBand } from './context/LoopBand';
 import { pipelineHref } from './cpaHref';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
-import LoopCombobox from './LoopCombobox';
 import {
   useCpmKpisPaged, useCpmLoops, useCpmResolutions, usePipelineMetrics,
 } from '../../hooks/useCpm';
@@ -33,8 +31,6 @@ export const CpmWindows: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
-  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
-  const scope = useCpmScope();
   // No default selection: registry order is arbitrary, so `loops[0]` is a
   // CHOICE presented as a default — the same lie the ?loop=-names-nothing
   // fallback was fixed for, minus the URL. It also fired this page's whole
@@ -97,41 +93,30 @@ export const CpmWindows: React.FC = () => {
           ) : <TonePill tone="muted">CHECKING RUNTIME…</TonePill>
         }
       />
-      <LoopContextBar loopId={loopId} period={view.view === 'detail' ? { label: 'Window', start: view.selected.window_start, end: view.selected.window_end } : { label: 'Windows (list)' }} />
+      <LoopBand loopId={loopId}
+        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+        onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}>
+        <select className="cpm-select" aria-label="Window profile" value={profile}
+          onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
+          {/* Labels come from the served window contract. They used to be
+              hardcoded as "{w} tumbling" for every short kind — true only of
+              1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
+          <optgroup label="Short features (G0–G4)">
+            {shortSpecs.map(w => {
+              const shape = fmtWindowShape(w);
+              return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
+            })}
+          </optgroup>
+          <optgroup label="Long diagnostics (G5–G11)">
+            {longSpecs.map(w => {
+              const shape = fmtWindowShape(w);
+              return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
+            })}
+          </optgroup>
+        </select>
+      </LoopBand>
 
       <section className="cpm-surface">
-        <PlantScopeFilter scope={scope} />
-        <div className="cpm-toolbar">
-          <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
-          <label className="cpm-field">
-            <span className="cpm-field__label">Window profile</span>
-            <select className="cpm-select" value={profile}
-              onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
-              {/* Labels come from the served window contract. They used to be
-                  hardcoded as "{w} tumbling" for every short kind — true only of
-                  1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
-              <optgroup label="Short features (G0–G4)">
-                {shortSpecs.map(w => {
-                  const shape = fmtWindowShape(w);
-                  return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
-                })}
-              </optgroup>
-              <optgroup label="Long diagnostics (G5–G11)">
-                {longSpecs.map(w => {
-                  const shape = fmtWindowShape(w);
-                  return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
-                })}
-              </optgroup>
-            </select>
-          </label>
-        </div>
-        <p className="cpm-hist-note" style={{ marginTop: 6 }}>
-          Watermark lag: — (not exposed by the metrics proxy; job state and checkpoint
-          age in the header are live)
-        </p>
-
         {!loopId && (
           <EmptyState level={2} title="Select a loop"
             copy="Pick a control loop above to inspect the windows the engine emitted for it." />

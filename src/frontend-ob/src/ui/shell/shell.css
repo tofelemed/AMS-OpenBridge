@@ -60,7 +60,9 @@
 .shell__module { color: var(--traverse-action-primary); font-size: var(--traverse-type-key); font-weight: 600; }
 
 .shell-trigger { max-width: 260px; }
+.shell-trigger--plant { max-width: 380px; }
 .shell-trigger__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-trigger__count { flex: none; color: var(--traverse-text-secondary); white-space: nowrap; }
 .shell-trigger__zone { flex: none; color: var(--traverse-text-muted); font-size: var(--traverse-type-metadata); white-space: nowrap; }
 .shell-trigger--range { max-width: 380px; }
 .shell-trigger--user { max-width: 260px; }
@@ -83,28 +85,22 @@
   font-size: var(--traverse-type-metadata);
 }
 
-.shell__zone {
-  flex: none;
-  color: var(--traverse-text-secondary);
-  font-size: var(--traverse-type-metadata);
-  white-space: nowrap;
-}
-.shell__env {
-  display: inline-flex;
+/* The theme switch and the user menu stay at the far right at every width. */
+.shell__header > [data-theme-switch] { margin-inline-start: auto; }
+
+.shell__scope-line {
+  display: flex;
   align-items: center;
-  flex: none;
-  margin-inline-start: auto;
-  height: 28px;
-  padding: 0 var(--traverse-space-2);
+  justify-content: space-between;
+  gap: var(--traverse-space-2);
+  margin: var(--traverse-space-2) var(--traverse-space-3) 0;
+  padding-inline-start: var(--traverse-space-3);
   background: var(--traverse-surface-selected);
-  border: 1px solid var(--traverse-action-primary);
   border-radius: var(--traverse-radius-control);
   color: var(--traverse-action-primary);
-  font-size: var(--traverse-type-metadata);
   font-weight: 600;
 }
-.shell__header > .shell__env + button { margin-inline-start: 0; }
-.shell__header > .ui-popover:has(.shell-trigger--range) + [data-theme-switch] { margin-inline-start: auto; }
+
 
 .shell__sidebar {
   grid-area: sidebar;
@@ -239,8 +235,6 @@
   .shell__header { gap: var(--traverse-space-1); padding-inline: var(--traverse-space-2); }
   .shell__brand { margin-inline-end: 0; }
   .shell__wordmark { display: none; }
-  .shell__zone, .shell__env { flex: none; }
-  .shell__header > [data-theme-switch] { margin-inline-start: auto; }
 }
 @media (max-width: 339.98px) {
   .shell__brand { display: none; }
@@ -250,6 +244,7 @@
 @media (max-width: 1279.98px) {
   .shell__kbd { display: none; }
   .shell-trigger { max-width: 180px; }
+  .shell-trigger--plant { max-width: 300px; }
   .shell-trigger--range { max-width: 280px; }
   .shell-trigger--user .shell-trigger__text { max-width: 96px; }
 }

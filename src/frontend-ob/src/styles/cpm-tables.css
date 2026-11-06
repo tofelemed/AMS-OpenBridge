@@ -2,7 +2,7 @@
    controls in the headings, a selected row that is not the hover colour, compact repeating rows, the visible
    completion line after an operator action, and a short, reduced-motion-aware panel opening. Tokens only. */
 
-/* Sticky headings inside the page scroller (.page-content), stopping right under the loop context bar — the same
+/* Sticky headings inside the page scroller (.page-content), stopping right under the loop band — the same
    offset as the conclusion strip. The heading carries the surface colour so rows never show through it. No new
    inner scroll container: the page itself scrolls. */
 .cpm-table-head--sticky {

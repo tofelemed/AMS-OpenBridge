@@ -4,7 +4,7 @@
  * newest first (censored candidates on request). Centre: the result card, then the event's response
  * chart, residuals, candidate models, frequency response - all from the kernel's artifacts - then
  * the model history. Right: the event's steps and quantities.
- * 2026-09-17 audit F5/F19/F20: lands like every CPM page (scope filter + loop search), every centre
+ * 2026-09-17 audit F5/F19/F20: lands like every loop page (the loop band, the plant scope in the header), every centre
  * panel keeps its height as a skeleton while it loads, the censored candidates are counted not listed.
  * 2026-09-20 (cpa-ui-fix-plan Phase 7): a panel waits only for artifact kinds the manifest actually
  * declares (a censored event no longer shows a permanent "Decoding…"), the wide tables (model history,
@@ -12,18 +12,15 @@
  */
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
-import { LoopContextBar } from '../context/LoopContextBar';
-import { LoopCombobox } from '../LoopCombobox';
-import { PlantScopeFilter, useCpmScope } from '../plantScope';
+import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
 import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/response';
 import { useEvidenceManifest, useMethodRun } from '../evidence/useEvidence';
 import { useGateArtifacts } from '../evidence/useGateArtifacts';
 import { siteZoneOf } from '../evidence/timezone';
-import { explorerHref, historicalHref, responseHref } from '../cpaHref';
+import { historicalHref, responseHref } from '../cpaHref';
 import { EventList } from './EventList';
 import { ResultCard } from './ResultCard';
 import { EventAside } from './EventAside';
@@ -46,7 +43,6 @@ export const ResponseWorkspace: React.FC = () => {
   const eventParam = params.get('event')?.trim() || undefined;
   const methodRunParam = params.get('methodRun')?.trim() || undefined;
 
-  const scope = useCpmScope();
   const loops = useCpmLoops();
   const loopList = useMemo(() => loops.data?.loops ?? [], [loops.data]);
   const loop = loopList.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
@@ -83,23 +79,17 @@ export const ResponseWorkspace: React.FC = () => {
   const [catalogueOpen, setCatalogueOpen] = useState(false);
   useEffect(() => { setCatalogueOpen(false); }, [eventParam]);
 
-  const picker = (
-    <section className="cpm-surface cpm-evidence-toolbar">
-      {/* the combobox states the in-scope count itself; a second count beside the filter was noise */}
-      <PlantScopeFilter scope={scope} />
-      <div className="cpm-toolbar">
-        <LoopCombobox scope={scope} loops={loopList} value={loopId ?? ''}
-          onChange={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
-          onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })} />
-      </div>
-    </section>
+  const band = (
+    <LoopBand loopId={loopId}
+      onLoop={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
+      onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })} />
   );
 
   if (!loopId) {
     return (
       <div className="cpm-screen">
         <WorkspaceHeader page="/cpm/response" title="System response" />
-        {picker}
+        {band}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
         <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
       </div>
@@ -116,18 +106,24 @@ export const ResponseWorkspace: React.FC = () => {
   const declared = new Set((manifest.data?.artifacts ?? []).filter(a => a.gate === 'G12' && a.readiness === 'COMPLETE').map(a => a.kind));
   const decoding = (...kinds: string[]) => arts.loading && kinds.some(k => declared.has(k));
 
+  // CHG-130: nothing at all to show: one explanation, not one per panel. Censored events keep the list, which can show them.
+  const nothingYet = noEvents && censoredCount === 0 && !eventParam && !methodRunParam && models.isSuccess && (models.data?.models ?? []).length === 0;
+
   return (
     <div className="cpm-screen cpm-response-workspace">
       <WorkspaceHeader eyebrow="Understand the cause" title="System response"
-        copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`}
-        actions={
-          <span className="cpm-filter-row">
-            <ObcButton variant="normal" title={`Open ${loopId} in the Loop Explorer`} onClick={() => navigate(explorerHref(loopId, { tab: 'Summary' }))}>Open loop ›</ObcButton>
-            <ObcButton variant="flat" onClick={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })}>Change loop</ObcButton>
-          </span>
-        } />
-      <LoopContextBar loopId={loopId} timeZone={timeZone} period={selected ? { label: `Response event · ${selected.eventType}`, start: selected.t0Ms, end: selected.tEndMs } : { label: 'No response event selected' }} />
-      {picker}
+        copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`} />
+      {band}
+      {nothingYet ? (
+        <section className="cpm-surface">
+          <EmptyState level={2} title="No response events for this loop"
+            copy="Events are captured from qualifying setpoint or output changes; none qualified in the retained period. A system model needs at least one accepted event."
+            next={[
+              { label: 'Step-test settings (Gate Configuration › G12)', to: `/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective&gate=G12` },
+              { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
+            ]} />
+        </section>
+      ) : (
       <div className="cpm-response-columns">
         <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}
           hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => navigate(responseHref(loopId, { event: e.eventId }))}
@@ -189,6 +185,7 @@ export const ResponseWorkspace: React.FC = () => {
           {!eventParam && !noEvents && <EmptyState title="Event details" copy="The steps, identity and key results of the selected event appear here." />}
         </aside>
       </div>
+      )}
       {reviewing && <ModelReviewDialog model={reviewing} pending={review.isPending} error={review.error} onClose={() => setReviewing(null)} onSubmit={args => review.mutate(args)} />}
     </div>
   );

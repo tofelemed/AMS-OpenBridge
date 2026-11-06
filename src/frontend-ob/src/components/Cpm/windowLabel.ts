@@ -1,6 +1,6 @@
 /**
  * SME review #18 (CHG-054): one way to name an evaluated window wherever a user picks one — its size and
- * its end, in the loop context bar's format ("24 h · ends 6 Oct 14:00 GST"), the full span on hover
+ * its end, in the shared CPM time format ("24 h · ends 6 Oct 14:00 GST"), the full span on hover
  * ("24 h window · 5 Oct 14:00 → 6 Oct 14:00 GST"). Before, the Investigation buttons showed a 24 h window
  * by its date only, so five sliding windows read "Aug 10 · Excluded" alike.
  */

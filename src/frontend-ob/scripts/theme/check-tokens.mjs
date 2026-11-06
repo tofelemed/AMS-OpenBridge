@@ -53,7 +53,7 @@ const ACTIVE = {
 };
 
 const ALLOW = {
-  T1: [/^styles\/traverse-tokens\.css$/, /^styles\/openbridge-bridge\.css$/, /^styles\/signal-colours\.css$/],
+  T1: [/^styles\/traverse-tokens\.css$/, /^styles\/openbridge-bridge\.css$/, /^styles\/signal-colours\.css$/, /^styles\/state-colours\.css$/],
   T2: [/^styles\/traverse-tokens\.css$/],
   T4: [/^styles\/traverse-tokens\.css$/],
   T5: [

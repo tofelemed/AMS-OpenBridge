@@ -74,6 +74,8 @@ public sealed class CpmFleetKpiController : ControllerBase
                 symptomOnly = Count("symptom"), unrecognised = loops.Count(l => l.Outcome == KpiOutcome.Unrecognised),
             },
             kpis = FleetKpiClassifier.Figures(loops, t),
+            // CHG-127: every monitored loop in one state, for the Overview bar (they sum to monitored)
+            segments = FleetKpiBar.Figures(loops, t),
             // CHG-093 (SME review 2 #10/#11): the Performance headline over the whole scope, with its basis
             performance = FleetKpiPerformance.Summarise(loops),
             previous = new
@@ -94,7 +96,7 @@ public sealed class CpmFleetKpiController : ControllerBase
     {
         if (For(windowKind) is not { } t) return BadWindow(windowKind);
         kpi = (kpi ?? "").Trim().ToLowerInvariant();
-        if (!FleetKpiClassifier.Keys.Contains(kpi))
+        if (!FleetKpiBar.IsListKey(kpi))
             return BadRequest(new { error = $"Unknown kpi '{kpi}'", allowed = FleetKpiClassifier.Keys });
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 200);
@@ -127,12 +129,13 @@ public sealed class CpmFleetKpiController : ControllerBase
             matched = matched.Where(l => l.Row.LoopId.Contains(s, StringComparison.OrdinalIgnoreCase)
                 || (l.Row.DisplayName ?? "").Contains(s, StringComparison.OrdinalIgnoreCase)).ToList();
         }
-        var rows = FleetKpiRows.Order(matched, kpi).Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(l => FleetKpiRows.Row(l, kpi, t)).ToList();
+        var rowKey = FleetKpiBar.RowKey(kpi);
+        var rows = FleetKpiRows.Order(matched, rowKey).Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(l => FleetKpiRows.Row(l, FleetKpiBar.RowKeyFor(kpi, l), t)).ToList();
         return Ok(new
         {
-            kpi, reason, basis = Basis(t), computedAt, asOf, source, plantDay = _clock.Describe(DateTimeOffset.UtcNow),
-            figure = FleetKpiClassifier.Figures(loops, t).FirstOrDefault(f => f.Key == kpi),
+            kpi, rowKey, reason, basis = Basis(t), computedAt, asOf, source, plantDay = _clock.Describe(DateTimeOffset.UtcNow),
+            figure = FleetKpiClassifier.Figures(loops, t).Concat(FleetKpiBar.Figures(loops, t)).FirstOrDefault(f => f.Key == kpi),
             total, matched = matched.Count, page, pageSize, rows,
         });
     }

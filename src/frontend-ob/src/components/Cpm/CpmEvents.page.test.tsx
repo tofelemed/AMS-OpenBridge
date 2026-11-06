@@ -15,11 +15,9 @@ const { el, pageHook, byIdHook } = vi.hoisted(() => ({
   byIdHook: vi.fn(),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({ ObcButton: el('button') }));
-vi.mock('./context/LoopContextBar', () => ({ LoopContextBar: () => null }));
 vi.mock('./events/ConditionsPanel', () => ({ ConditionsPanel: () => null }));
 vi.mock('./events/useConditions', () => ({ useCpmConditions: () => ({ data: undefined, isLoading: false, isError: false }) }));
 vi.mock('./plantScope', () => ({
-  PlantScopeFilter: () => null,
   useCpmScope: () => ({ site: '', area: '', unit: '', active: false, params: {}, matches: () => true, set: () => undefined }),
 }));
 vi.mock('../../store/authStore', () => ({ useAuthStore: (f: (s: { hasPermission: () => boolean }) => boolean) => f({ hasPermission: () => true }) }));
@@ -58,7 +56,7 @@ describe('Loop Events server paging (CHG-063)', () => {
     mount('/cpm/events?filter=open&sort=recent&loop=FIC1');
     expect(pageHook.mock.calls[0][0]).toMatchObject({ state: 'open', sort: 'recent', loopId: 'FIC1', page: 1, pageSize: 20 });
     expect(screen.getByText(/^500 event\(s\) for FIC1/)).toBeTruthy();
-    expect(screen.getByText('325').closest('span')?.parentElement?.textContent).toBe('Open 325');
+    expect([...(screen.getByLabelText('Event state') as HTMLSelectElement).options].map(o => o.textContent)).toContain('Open 325');
     expect(screen.getByText('1–20 of 500 · page 1 of 25')).toBeTruthy();
   });
 

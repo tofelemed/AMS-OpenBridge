@@ -54,6 +54,12 @@ export function cpaHref(path: string, current: URLSearchParams | string = '', ex
   return build(path, { ...carried, ...extra });
 }
 
+/** Tag trend is a tool, not a destination: it keeps the plant scope for the way back, and nothing else. */
+export function trendToolHref(current: URLSearchParams | string = ''): string {
+  const q = typeof current === 'string' ? new URLSearchParams(current) : current;
+  return build('/trend', { site: q.get('site'), area: q.get('area'), unit: q.get('unit') });
+}
+
 /** The loop hub. `gate` pre-selects a gate on the Summary strip; `kind` is the fused window kind the strip evaluates (`?window=`, as on Performance). */
 export const explorerHref = (loop: string, opts: { tab?: ExplorerTab; gate?: string | null; kind?: string | null } = {}) =>
   build('/cpm/explorer', { loop, tab: opts.tab, gate: opts.gate, window: opts.kind });

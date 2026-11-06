@@ -12,6 +12,7 @@
  * the matrix's (GateMatrix owns them), so switching views never changes which loops are shown.
  */
 import React from 'react';
+import { serviceName } from './loopName';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
 import { staleVerdictLine } from './verdictAge';
 import { TonePill, toneFor } from './shared';
@@ -67,7 +68,7 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
                   aria-label={`Open ${row.loopId}, ${row.displayName}, in the Loop Explorer`}
                   onClick={() => onOpenLoop(row.loopId)}>
                   <strong>{row.loopId} ›</strong>
-                  <span className="cpm-event-row__sub">{row.displayName}</span>
+                  <span className="cpm-event-row__sub">{serviceName(row)}</span>
                 </button>
               </th>
               <td className="cpm-checks__cell">

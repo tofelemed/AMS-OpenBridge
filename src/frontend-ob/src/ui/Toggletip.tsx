@@ -243,7 +243,7 @@ const Tip: React.FC<TipProps> = ({ name, heading, variant, children }) => {
         aria-controls={panelId}
         onClick={onButtonClick}
       >
-        <span className="ui-toggletip__glyph">{variant === 'how-to' ? <ObiHelp /> : <ObiInfo />}</span>
+        <span className={`ui-toggletip__glyph${variant === 'how-to' ? ' ui-toggletip__glyph--help' : ''}`}>{variant === 'how-to' ? <ObiHelp /> : <ObiInfo />}</span>
       </button>
       {open && (
         <div

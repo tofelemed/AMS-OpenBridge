@@ -40,6 +40,8 @@ export interface KpiSegment { key: string; label: string; count: number; drill: 
 
 /** The state bar: every monitored loop in exactly one segment (sums to `monitored`). */
 export function stateSegments(k: FleetKpis): KpiSegment[] {
+  if (k.segments) return k.segments.filter(s => s.count > 0).map(s => ({ key: s.key, label: s.label, count: s.count, drill: s.key }));
+  // An older cplm-api: the coarser states it can answer
   return [
     { key: 'acceptable', label: 'Performing acceptably', count: k.assessed.acceptable, drill: 'acceptable' as const },
     { key: 'finding', label: 'With a finding', count: k.assessed.finding, drill: 'finding' as const },

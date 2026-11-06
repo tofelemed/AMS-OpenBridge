@@ -18,7 +18,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, PanelHead, WorkspaceHeader, fmtDateTime, QueryError } from './shared';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { useCpmScope } from './plantScope';
 import { useCpmEvents, useCpmLoop, useFleetRankings, useFleetSummary } from '../../hooks/useCpm';
 import PriorityQueue from './overview/PriorityQueue';
 import { priorityBadge, priorityReasons } from './overview/priorityReason';
@@ -96,7 +96,6 @@ export const CpmOverview: React.FC = () => {
         title="Operations overview"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <PlantScopeFilter scope={scope} summary={summary.data ? `${summary.data.loops.total} loop(s) in scope` : null} />
 
       {/* CHG-082: every monitored loop in one state, KPI tiles with a drill-down each (kpi_calculation_logic/KPI-LOGIC.md);
           configuration limits sit in Readiness below. */}

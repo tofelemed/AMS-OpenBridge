@@ -11,6 +11,7 @@ import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict';
 import { toneFor, type CpmTone } from '../../shared';
 import { codeLabel, diagnosisLabel } from '../../vocabulary';
+import { ageText as verdictAgeText } from '../../verdictAge';
 import { optionalInputLimitation, type InputContext } from '../../optionalInputs';
 import { flagsForLoop } from '../../optionalInputs';
 
@@ -100,6 +101,12 @@ export function primaryActionOf(condition: Condition): SummaryAction {
     // CHG-098 (SME review 2 #21): the Explorer gives the quick condition; the why and the action are the Investigation's
     default: return { label: 'Why and what to do › Investigation', target: 'investigation' };
   }
+}
+
+/** "26 days ago" once the row's window is older than its own cadence, else null. Shared by the card and its one-line row. */
+export function windowAgeOf(matrix: { windowEnd?: string | null }, windowKind: string, now = Date.now()): string | null {
+  const end = matrix.windowEnd ? Date.parse(matrix.windowEnd) : NaN;
+  return Number.isFinite(end) && now - end > staleAfterMs(windowKind) ? verdictAgeText(now - end) : null;
 }
 
 /**

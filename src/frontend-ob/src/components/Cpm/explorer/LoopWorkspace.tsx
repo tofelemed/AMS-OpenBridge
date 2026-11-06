@@ -13,7 +13,8 @@
  * 2. One readiness banner instead of four repetitions of the same prose, with
  *    each cause routed to the surface that can fix it.
  *
- * The plant location is the loop context bar's: the page states it once.
+ * CHG-129: inside the Loop page the heading, the loop summary and the readiness bar leave the workspace. They sit behind the
+ * Summary tab's one row (LoopSummaryRow), and the other tabs open straight on their own content.
  */
 import React from 'react';
 import { Tabs, tabPanelProps } from '../../../ui/Tabs';
@@ -42,9 +43,9 @@ export const TABS: ExplorerTab[] = ['Summary', 'Signals', 'Calculations', 'Relat
  * "nothing to show", not a failure. Every other status IS a failure and must not
  * render as emptiness.
  */
-const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
+export const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404;
 
-export const LoopWorkspace: React.FC<{
+interface LoopWorkspaceProps {
   loop: CpmLoop;
   tab: ExplorerTab;
   /** The fused window kind (`?window=`) the verdict pill and the Summary gate strip read; one query key for both. */
@@ -52,7 +53,32 @@ export const LoopWorkspace: React.FC<{
   /** The Loop page's tab row chooses the tab and carries the counts, and Signals shows Relationships under it. */
   hosted?: boolean;
   onTab: (t: ExplorerTab) => void;
-}> = ({ loop, tab, windowKind, hosted = false, onTab }) => {
+}
+
+/**
+ * A tab of the Loop page: that tab's own content. The two reads below feed the counts in the Loop page's tab row, which reads
+ * the same query keys without asking; readiness and instrument health wait for Open details.
+ */
+const HostedTab: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowKind }) => {
+  useLatestGates(loop.loopId, windowKind);
+  useCpmEvents({ loopId: loop.loopId, ...HISTORY_QUERY });
+  return (
+    <section className="cpm-surface">
+      <div className="cpm-tabpanel">
+        {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
+        {tab === 'Signals' && <SignalsTab loop={loop} />}
+        {tab === 'Signals' && <div className="cpm-tabpanel__next"><RelationshipsTab loop={loop} windowKind={windowKind} /></div>}
+        {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
+        {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
+        {tab === 'History' && <HistoryTab loop={loop} />}
+      </div>
+    </section>
+  );
+};
+
+export const LoopWorkspace: React.FC<LoopWorkspaceProps> = props => (props.hosted ? <HostedTab {...props} /> : <OwnPage {...props} />);
+
+const OwnPage: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowKind, onTab }) => {
   const gates = useLatestGates(loop.loopId, windowKind);
   const readiness = useCpmReadiness(loop.loopId);
   // Same query key as HistoryTab's, so react-query serves the badge count and
@@ -135,7 +161,7 @@ export const LoopWorkspace: React.FC<{
           diagnosis sits in the summary's "Basis and limitations" disclosure, so the trend follows the summary. */}
       {summary && !readinessInCard && <ReadinessBar summary={summary} onTab={onTab} />}
 
-      {!hosted && (
+      {(
         <div className="cpm-tabs">
           {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
           <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
@@ -145,12 +171,9 @@ export const LoopWorkspace: React.FC<{
       {/* The panel is height-bounded so switching from the tall Summary chart to
           an empty Relationships tab no longer collapses the page under the
           cursor. */}
-      <div className="cpm-tabpanel" {...(hosted ? {} : tabPanelProps('loop-workspace', tab))}>
+      <div className="cpm-tabpanel" {...tabPanelProps('loop-workspace', tab)}>
         {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
-        {tab === 'Signals' && hosted && (
-          <div className="cpm-tabpanel__next"><RelationshipsTab loop={loop} windowKind={windowKind} /></div>
-        )}
         {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
         {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
         {tab === 'History' && <HistoryTab loop={loop} />}

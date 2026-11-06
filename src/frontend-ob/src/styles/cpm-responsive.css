@@ -55,8 +55,10 @@
 /* Calculations metric rows: six columns on a desktop; on a phone one stacked card per metric and no column
    header (was an inline grid that ran 44 px off a 390 px screen). */
 .cpm-calc-row { grid-template-columns: 0.7fr 1.8fr 0.4fr 0.7fr 0.9fr 0.8fr; }
+.cpm-calc-row--one-window { grid-template-columns: 0.7fr 2.2fr 0.4fr 0.9fr 0.8fr; }
+.cpm-calc-row__value-head { display: inline-flex; align-items: center; gap: var(--traverse-space-2); }
 @media (max-width: 600px) {
-  .cpm-calc-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .cpm-calc-row, .cpm-calc-row--one-window { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .cpm-event-head.cpm-calc-row { display: none; }
   .cpm-calc-row > .cpm-pill { justify-self: start; }
 }

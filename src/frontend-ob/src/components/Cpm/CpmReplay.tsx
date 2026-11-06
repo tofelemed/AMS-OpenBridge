@@ -18,11 +18,9 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
+import { LoopBand } from './context/LoopBand';
 import { pipelineHref } from './cpaHref';
 import { gateTone } from './gateStatus';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
-import LoopCombobox from './LoopCombobox';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
 import {
@@ -71,8 +69,6 @@ export const CpmReplay: React.FC = () => {
   const [windowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
-  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
-  const scope = useCpmScope();
   // No default selection: registry order is arbitrary, so `loops[0]` is a
   // CHOICE presented as a default — the same lie the ?loop=-names-nothing
   // fallback was fixed for, minus the URL. It also fired this page's whole
@@ -182,14 +178,14 @@ export const CpmReplay: React.FC = () => {
           </ReasonedButton>
         </>}
       />
-      <LoopContextBar loopId={loopId} period={selected ? { label: 'Evaluated window', start: selected.windowStart, end: selected.windowEnd } : null} />
-
-      <section className="cpm-surface">
-        <PlantScopeFilter scope={scope} />
-        <div className="cpm-toolbar">
-          <LoopCombobox scope={scope} loops={loops} value={loopId ?? ''}
-            onChange={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-            onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })} />
+      <LoopBand loopId={loopId}
+        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+        onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}
+        end={<>
+          <TonePill tone="muted">{role}</TonePill>
+          {cell && <TonePill tone={gateTone(cell.status, cell.key)}>{gateMark(cell.status, cell.key).glyph} {codeLabel(cell.status)}</TonePill>}
+          <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
+        </>}>
           {/*
             These two selects DEPEND on the one above: no loop means no window
             list, and no window means the gate fallback has nothing to read. An
@@ -197,9 +193,7 @@ export const CpmReplay: React.FC = () => {
             exactly what it looked like once the arbitrary default selection was
             removed. Each now carries a disabled option naming what is missing.
           */}
-          <label className="cpm-field">
-            <span className="cpm-field__label">Evaluated window</span>
-            <select className="cpm-select" value={selected?.windowEnd ?? ''}
+            <select className="cpm-select" aria-label="Evaluated window" value={selected?.windowEnd ?? ''}
               disabled={windows.length === 0}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
               {windows.length === 0 && (
@@ -216,10 +210,7 @@ export const CpmReplay: React.FC = () => {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="cpm-field">
-            <span className="cpm-field__label">Gate</span>
-            <select className="cpm-select" value={gateKey}
+            <select className="cpm-select" aria-label="Gate" value={gateKey}
               disabled={gateOptions.length === 0}
               onChange={e => setParams(p => { p.set('gate', e.target.value); return p; }, { replace: true })}>
               {gateOptions.length === 0 && (
@@ -233,7 +224,6 @@ export const CpmReplay: React.FC = () => {
                 <option key={g.key} value={g.key}>{g.key} · {g.name}</option>
               ))}
             </select>
-          </label>
           {/* R8: a failed catalogue read left this select silently EMPTY. It now
               falls back to the window's own gate cells and offers a retry, so a
               catalogue outage degrades the labels rather than blocking replay. */}
@@ -247,11 +237,9 @@ export const CpmReplay: React.FC = () => {
               <ObcButton variant="flat" onClick={() => void calc.refetch()}>Retry</ObcButton>
             </span>
           )}
-          <TonePill tone="muted">{role}</TonePill>
-          {cell && <TonePill tone={gateTone(cell.status, cell.key)}>{gateMark(cell.status, cell.key).glyph} {codeLabel(cell.status)}</TonePill>}
-        </div>
+      </LoopBand>
 
-        <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
+      <section className="cpm-surface">
 
         {windowFellBack && (
           <p className="cpm-copy" role="status">

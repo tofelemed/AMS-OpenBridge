@@ -116,3 +116,13 @@ Evidence: `evidence/phase-5/` (`link-walk.json` 82 links on 28 pages, 0 problems
 Walks: Audit trail 22 of 22, Setup and System 31 of 31, Evidence 31 of 31, Overview 24 of 24, Loop 37 of 37, control-edge 52 views with 0 off the screen. Blocked 0.
 Not proven: permissions and role landings with real accounts. Not run: role-edit sign-out, Verify against audit-service.
 Before release: control-engineer review of `text-changes.md`.
+
+## Owner's review: each filter once, each fact once (CHG-126 to CHG-131)
+
+Built from the approved sample `samples/one-filter-place.html`, on the real pages.
+Gates: tsc 0, lint 0, 1,221 tests in 153 files, build OK, lint:theme 0, cplm-api logic 63 of 63.
+Evidence: `evidence/phase-6/axe.json`; approved sample `samples/one-filter-place.html`.
+Walks: 59 of 59 on lab data, 0 server errors, 0 blocked. `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14, `control-edge` 52 views with 0 off the screen, link walk 75 links on 28 pages with 0 problems. Not proven: `segments` on a running server, the 12 database tests, real restricted roles.
+Proven by unit tests: the state bar's classification (`FleetKpiBarTests`), its colours, the loop control, the service name.
+Not proven: the bar on real data end to end, because the lab's cplm-api predates `segments` and the walk used simulated counts. The 12 database tests of `tests/cplm-api.Tests` were not run, because they write probe rows into the lab. Permissions and role landings with real accounts stay open from step 5.
+Before release: control-engineer review of `text-changes.md`, tell the SME about UI-101, and deploy `cplm-api` with `ams-frontend`.

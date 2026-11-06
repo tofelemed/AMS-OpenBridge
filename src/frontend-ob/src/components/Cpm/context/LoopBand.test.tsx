@@ -1,0 +1,72 @@
+// @vitest-environment jsdom
+/** CHG-128: one loop control on every loop page. It follows the header scope, and a loop outside the scope stays selected and says so. */
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { LoopBand } from './LoopBand';
+
+const LOOPS = [
+  { loopId: 'FIC00701', displayName: 'Flow controller FIC00701 (FCS0102)', site: 'hdpe', area: 'section_200', unit: 'u1', loopType: 'FIC' },
+  { loopId: 'TIC10101', displayName: 'Reactor temperature', site: 'hdpe', area: 'section_100', unit: 'u2', loopType: 'TIC' },
+];
+vi.mock('../../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: { loops: LOOPS }, isLoading: false, isError: false, error: null, refetch: () => {} }) }));
+
+afterEach(cleanup);
+
+const band = (url: string, props: Partial<React.ComponentProps<typeof LoopBand>> = {}) => render(
+  <MemoryRouter initialEntries={[url]}>
+    <LoopBand loopId="FIC00701" onLoop={() => {}} {...props} />
+  </MemoryRouter>,
+);
+const control = () => screen.getByRole('button', { name: /^Loop: FIC00701/ });
+
+describe('LoopBand', () => {
+  it('names the loop once, without repeating its tag', () => {
+    band('/cpm/loop');
+    expect(control().textContent).toContain('FIC00701 Flow controller (FCS0102)');
+  });
+
+  it('opens the Find loop box and the tree, and reports the chosen loop', () => {
+    const onLoop = vi.fn();
+    band('/cpm/loop', { onLoop });
+    fireEvent.click(control());
+    expect(screen.getByLabelText('Find loop')).toBeTruthy();
+    fireEvent.click(screen.getByText('TIC10101'));
+    expect(onLoop).toHaveBeenCalledWith('TIC10101');
+  });
+
+  it('lists only the loops in the header scope', () => {
+    band('/cpm/loop?site=hdpe&area=section_100', { loopId: 'TIC10101' });
+    fireEvent.click(screen.getByRole('button', { name: /^Loop: TIC10101/ }));
+    expect(screen.getByText('1 of 2 loop(s)')).toBeTruthy();
+  });
+
+  it('says so, readably, when the loop is outside the scope', () => {
+    band('/cpm/loop?site=hdpe&area=section_100');
+    expect(screen.getByRole('status').textContent).toMatch(/FIC00701 is outside the plant scope/);
+  });
+
+  it('says so when the loop is not in the registry', () => {
+    band('/cpm/loop', { loopId: 'NOPE' });
+    expect(screen.getByRole('status').textContent).toMatch(/NOPE is not in the loop registry/);
+  });
+
+  it('offers Clear loop only when the page can clear it', () => {
+    const onClear = vi.fn();
+    band('/cpm/loop', { onClear });
+    fireEvent.click(control());
+    fireEvent.click(screen.getByRole('button', { name: 'Clear loop' }));
+    expect(onClear).toHaveBeenCalled();
+    cleanup();
+    band('/cpm/loop');
+    fireEvent.click(control());
+    expect(screen.queryByRole('button', { name: 'Clear loop' })).toBeNull();
+  });
+
+  it('holds what the tab needs, and pushes the end to the far side', () => {
+    const { container } = band('/cpm/loop', { children: <span>tab control</span>, end: <span>end control</span> });
+    expect(screen.getByText('tab control')).toBeTruthy();
+    expect(container.querySelector('.cpm-band__end')?.textContent).toBe('end control');
+  });
+});

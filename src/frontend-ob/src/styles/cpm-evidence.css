@@ -1,7 +1,7 @@
 /* v2.5 Phase 2E — Gate Evidence Workbench and System Response workspaces.
    Layout only; every colour, border and text token is OpenBridge's (see styles/cpm.css for the
-   base .cpm-* vocabulary these extend). The workbench (redesigned 2026-09-17) is toolbar → header
-   facts → gate strip → reading column + collapsible explain column; the response workspace keeps
+   base .cpm-* vocabulary these extend). The workbench (redesigned 2026-09-17) is loop band → header
+   facts → evidence basis → reading column + collapsible explain column; the response workspace keeps
    its three columns. Columns collapse to one below 1200px. */
 
 /* ── Response workspace shell ── */
@@ -80,8 +80,7 @@
   border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
 }
 
-/* ── Toolbar (v2.5 workbench redesign): scope + loop + window pickers, as on every CPM page ── */
-.cpm-evidence-toolbar { display: flex; flex-direction: column; gap: 12px; }
+/* ── Evidence controls in the loop band: the evaluated window dropdown and, under More, the jump to a date ── */
 .cpm-evidence-toolbar__window { flex: 1 1 360px; min-width: 260px; }
 .cpm-evidence-toolbar__jump { display: flex; align-items: flex-end; gap: 8px; }
 
@@ -105,7 +104,6 @@
   white-space: nowrap;
 }
 .cpm-fact__value { display: inline-flex; align-items: center; gap: 6px; }
-.cpm-fact-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 .cpm-copy-id { display: inline-flex; align-items: center; gap: 2px; }
 .cpm-copy-id__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
 
@@ -340,7 +338,7 @@
 .cpm-config-ack__reason { color: var(--tone-danger); font-size: var(--cpm-text-small); }
 .cpm-config-approval--stale { color: var(--element-neutral-color); }
 .cpm-config-effective__filter { display: flex; gap: 8px; margin: 8px 0; }
-/* 2026-09-18 redesign: the effective configuration read as a layer stack + a badged gate strip + one gate's table */
+/* 2026-09-18 redesign: the effective configuration read as a layer stack + a gate dropdown + one gate's table */
 .cpm-config-effective { display: flex; flex-direction: column; gap: 8px; }
 .cpm-config-layers { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 .cpm-config-layer { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-divider-color); border-left: 4px solid var(--tone-success); min-width: 0; }
@@ -349,9 +347,6 @@
 .cpm-config-layer__ref { font-weight: 600; overflow-wrap: anywhere; }
 .cpm-config-layer__count { font-size: 0.9rem; }
 .cpm-config-effective__bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
-.cpm-config-effective__bar .cpm-config-gates { margin: 0; }
-.cpm-config-gate__badge { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: var(--cpm-text-caption); line-height: 1.4; text-align: center; border: 1px solid var(--border-outline-color); background: var(--container-backdrop-color); color: var(--element-active-color); }
-.cpm-config-gate--selected .cpm-config-gate__badge { background: var(--container-backdrop-color); }
 .cpm-config-workers > summary { cursor: pointer; padding: 6px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cpm-config-effective-drawer { margin-top: 8px; }
 /* the loop's three levels (Bundles view) */

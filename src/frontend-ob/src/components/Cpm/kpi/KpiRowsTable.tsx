@@ -5,6 +5,7 @@
  * card below 760 px (CSS), so nothing scrolls sideways on a phone.
  */
 import React from 'react';
+import { serviceName } from '../loopName';
 import { Link as RouterLink } from 'react-router-dom';
 import type { FleetKpiDeciding, FleetKpiKey, FleetKpiRow } from '../../../api/cpm/fleetKpis';
 import { TonePill, fmtDateTime, type CpmTone } from '../shared';
@@ -50,7 +51,7 @@ export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> =
         <tr key={r.loopId}>
           <td data-label="Loop">
             <strong className="cpm-kpi-table__tag">{r.loopId}</strong>
-            <span className="cpm-kpi-table__sub">{r.displayName && r.displayName !== r.loopId ? r.displayName : ''}</span>
+            <span className="cpm-kpi-table__sub">{r.displayName && r.displayName !== r.loopId ? serviceName(r) : ''}</span>
             <span className="cpm-kpi-table__sub">{[r.site, r.area, r.unit].filter(Boolean).join(' › ')}</span>
           </td>
           <td data-label="Measured against the rule">
@@ -62,10 +63,10 @@ export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> =
             {r.windowEnd ? <>{fmtDateTime(r.windowEnd)}
               {r.ageSeconds != null && <span className="cpm-kpi-table__sub">{ageText(r.ageSeconds * 1000)}</span>}</> : 'none yet'}
           </td>
-          <td data-label="Also check" className="cpm-kpi-table__context">{contextText(r, kpi) || '—'}</td>
+          <td data-label="Also check" className="cpm-kpi-table__context">{contextText(r, r.rowKey ?? kpi) || '—'}</td>
           <td data-label="Proof">
             <span className="cpm-kpi-table__links">
-              {proofLinks(r, kpi).map(l => (
+              {proofLinks(r, r.rowKey ?? kpi).map(l => (
                 <RouterLink key={l.label} className="cpm-link" to={l.href} title={l.title}>{l.label} ›</RouterLink>
               ))}
             </span>

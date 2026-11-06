@@ -17,10 +17,10 @@ import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, KpiTile, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
+  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader, toneFor,
   fmtDateTime, QueryError } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { LoopBand } from './context/LoopBand';
+import { useCpmScope } from './plantScope';
 import { staleVerdictLine } from './verdictAge';
 import SignalTrend from './trend/SignalTrend';
 import { ApiError } from '../../api/apiFetch';
@@ -31,24 +31,22 @@ import {
   useFleetRankings, useGateHistory, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
-import { CaseTriage } from './investigation/CaseTriage';
+import { CaseControls, NoEvaluatedLoops } from './investigation/CaseTriage';
 import { HypothesisPanel } from './investigation/HypothesisPanel';
 import { ReasoningChain } from './investigation/ReasoningChain';
 import { WindowBrowser } from './investigation/WindowBrowser';
 import { caseCounts, caseIdFor } from './investigation/cases';
 import { confirmationLabel } from './investigation/confirmationCopy';
-import { KEY_FACTS, fmtFact } from './investigation/keyFacts';
+import { KeyFacts } from './investigation/KeyFactsPanel';
 import { HealthLane } from './health/HealthLane';
 import CollapsibleSection from './CollapsibleSection';
 import ConclusionStrip from './ConclusionStrip';
-import SelectionSummary from './SelectionSummary';
 import { useInstrumentHealth, useInstrumentHealthHistory } from './health/useInstrumentHealth';
 import { codeLabel, diagnosisLabel } from './vocabulary';
 import { CodeLabel } from './CodeLabel';
 import { EngineTrace } from './evidence/views/engineTrace';
-import { contextOfMatrix, hasVerdict, metricAvailability } from './metricAvailability';
-import { MetricValue } from './MetricValue';
-import { windowLabel, windowSize } from './windowLabel';
+import { hasVerdict } from './metricAvailability';
+import { windowLabel } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { CauseBreakdownRows } from './CauseBreakdown';
 import { EVIDENCE_SCORE_HELP, evidenceScoreText } from './evidenceScore';
@@ -168,20 +166,16 @@ export const CpmInvestigation: React.FC = () => {
         page="/cpm/investigation"
         title="Investigation"
       />
-      <LoopContextBar loopId={loopId} period={matrix ? { label: `${mode === 'historical' ? 'Selected' : 'Latest'} window`, start: matrix.windowStart, end: matrix.windowEnd } : null} />
+      <LoopBand loopId={loopId} only={caseFilter && filteredLoops.length ? filteredLoops : undefined}
+        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+        onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}>
+        <CaseControls cases={cases} caseFilter={caseFilter} mode={mode} windowKind={windowKind} windows={windows} matrix={matrix} setParams={setParams} />
+      </LoopBand>
       {/* SME #13 (CHG-050): the diagnosis stays in view while the reasoning below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!matrix} label="Final conclusion"
         tone={toneFor(matrix?.diagnosis)} text={diagnosisLabel(matrix?.diagnosis)} />
       {/* CHG-098 (SME review 2 #21): the recommendation is shown once, under "Next-best action" in the conclusion */}
-      {/* The fleet case chips and pickers fold to one line once a verdict is on screen. */}
-      <SelectionSummary summary={loopId && matrix
-        ? `${windowSize({ windowKind })} fused window`
-        : null}>
-        <PlantScopeFilter scope={scope} summary={rankings.data ? `${rankings.data.count} loop(s) in scope` : null} />
-        <CaseTriage scope={scope} cases={cases} caseFilter={caseFilter}
-          loops={filteredLoops.length ? filteredLoops : allLoops} loopId={loopId}
-          mode={mode} windowKind={windowKind} windows={windows} matrix={matrix} setParams={setParams} />
-      </SelectionSummary>
+      {!loopId && cases.length === 0 && <NoEvaluatedLoops scope={scope} />}
 
       {/* I6: error/empty rendering keyed on the query the ACTIVE MODE reads.
           Historical mode used to key on the live query — a failed gate-history
@@ -198,10 +192,10 @@ export const CpmInvestigation: React.FC = () => {
           newest evaluated window instead.
         </p>
       )}
-      {!loopId && (
+      {!loopId && cases.length > 0 && (
         <section className="cpm-surface">
-          <EmptyState title="Select a loop"
-            copy="Pick a loop above — or a case chip, then a loop — to follow its evidence from raw signals to the fused conclusion." />
+          <EmptyState level={2} title="Select a loop"
+            copy="Pick a loop above — or a case, then a loop — to follow its evidence from raw signals to the fused conclusion." />
         </section>
       )}
       {loopId && !matrix
@@ -304,17 +298,7 @@ export const CpmInvestigation: React.FC = () => {
                     Calculation proof ›
                   </ObcButton>
                 ) : undefined} />
-              <div className="cpm-kpi-row">
-                {KEY_FACTS.map(f => {
-                  // CHG-053: a placeholder 0 (method did not qualify) or a value from an excluded window is not a fact
-                  const a = metricAvailability(contextOfMatrix(matrix), f.field, metrics[f.field]);
-                  return (
-                    <KpiTile key={f.field} caption={f.label} tone="muted"
-                      value={<MetricValue a={a} text={fmtFact(f, (metrics[f.field] ?? 0) * (f.scale ?? 1))} />}
-                      sub={a.reason ?? undefined} />
-                  );
-                })}
-              </div>
+              <KeyFacts matrix={matrix} metrics={metrics} />
             </section>
           </div>
 

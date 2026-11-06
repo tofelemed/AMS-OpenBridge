@@ -69,10 +69,14 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0
                  && !lastStored.isLoading && !hasStored;
 
+  // CHG-129: one age in the heading when every stored value has the same one
+  const storedAges = new Set(Object.values(lastStored.data?.values ?? {}).map(v => ageLabel(v?.ts)));
+  const oneAge = !live.hasData && storedAges.size === 1 ? [...storedAges][0] : null;
+
   return (
     <div>
       <PanelHead
-        eyebrow={live.hasData ? 'Live' : 'Last stored samples'}
+        eyebrow={live.hasData ? 'Live' : oneAge ? `Last stored ${oneAge}` : 'Last stored samples'}
         title="Operating state"
       />
 
@@ -106,11 +110,11 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                   {/* OP is a percentage of span by definition in this engine.
                       PV/SP carry no engineering unit in the registry. */}
                   <span className="cpm-kpi__sub">
-                    {m === 'op' ? '% · ' : ''}
-                    {liveVal ? liveSource(lv?.ts)
-                     : stored != null ? 'from historian'
-                     : heldTs ? `last stored ${ageLabel(heldTs)}`
-                     : 'no value'}
+                    {[m === 'op' ? '%' : '',
+                      liveVal ? liveSource(lv?.ts)
+                        : stored != null ? 'from historian'
+                        : heldTs ? (oneAge ? '' : `last stored ${ageLabel(heldTs)}`)
+                        : 'no value'].filter(Boolean).join(' · ')}
                   </span>
                 </div>
               );
@@ -126,7 +130,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               const m = modeLabel(value);
               const src = liveMode != null ? liveSource(live.mode?.ts)
                         : storedMode != null ? 'from historian'
-                        : heldMode?.value != null ? `last stored ${ageLabel(heldMode.ts)}`
+                        : heldMode?.value != null ? (oneAge ? null : `last stored ${ageLabel(heldMode.ts)}`)
                         : null;
               return (
                 <div className="cpm-kpi">

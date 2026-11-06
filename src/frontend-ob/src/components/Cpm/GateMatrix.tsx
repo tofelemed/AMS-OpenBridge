@@ -29,7 +29,7 @@
  * and pager; the view rides the URL (`?view=matrix`) so a link opens the view it was copied from.
  */
 import React from 'react';
-import { SegmentedControl } from '../../ui/SegmentedControl';
+import { serviceName } from './loopName';
 import { FilterChip } from '../../ui/forms/FilterChip';
 import { Pagination } from '../../ui/forms/Pagination';
 import { TextInput } from '../../ui/forms/TextInput';
@@ -39,7 +39,6 @@ import { EmptyState } from './shared';
 import {
   ROW_FILTERS, filterCounts, filterRows, gateName, glyphFor, type MatrixView, type RowFilter,
 } from './gateStatus';
-import { GateLegend } from './GateLegend';
 import { GateMatrixChecks, ResultCell } from './GateMatrixChecks';
 
 const PAGE_SIZE = 25;
@@ -73,12 +72,14 @@ export interface GateMatrixProps {
   /** CHG-098: "checks" (default, readable) or "matrix" (the full G0–G15 grid). */
   view?: MatrixView;
   onViewChange?: (view: MatrixView) => void;
+  /** CHG-131: a filter of the page's own, in the same row. */
+  toolbarStart?: React.ReactNode;
 }
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
   loops, orderedGateKeys, tierGroups, filter, onFilterChange,
   page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal, inputFlagsOf,
-  view = 'checks', onViewChange,
+  view = 'checks', onViewChange, toolbarStart,
 }) => {
   // The text box is deliberately NOT in the URL: it churns one history entry per
   // keystroke and nobody shares "loops matching FIC-0". Mode and gate are, because
@@ -144,18 +145,16 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
   return (
     <>
       <div className="cpm-matrix-toolbar">
-        {/* CHG-098: the view switch */}
+        {/* CHG-131: one row of dropdowns. CHG-098: the view switch. */}
         {onViewChange && (
-          <SegmentedControl label="Matrix view" ignoreReselect value={view} options={VIEWS} onChange={onViewChange} />
+          <select className="cpm-select" aria-label="Matrix view" value={view} onChange={e => onViewChange(e.target.value as MatrixView)}>
+            {VIEWS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+          </select>
         )}
-
-        <SegmentedControl
-          label="Row filter"
-          ignoreReselect
-          value={filter.mode}
-          options={ROW_FILTERS.map(f => ({ value: f.value, label: `${f.label} ${counts[f.value]}` }))}
-          onChange={mode => onFilterChange({ mode })}
-        />
+        {toolbarStart}
+        <select className="cpm-select" aria-label="Row filter" value={filter.mode} onChange={e => onFilterChange({ mode: e.target.value as RowFilter })}>
+          {ROW_FILTERS.map(f => <option key={f.value} value={f.value}>{`${f.label} ${counts[f.value]}`}</option>)}
+        </select>
 
         {filter.gate && (
           <FilterChip label={`Failing ${filter.gate}`} selected onToggle={() => onFilterChange({ gate: null })} />
@@ -196,7 +195,6 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
         />
       ) : (
         <>
-          <GateLegend />
           {view === 'checks' ? (
             <GateMatrixChecks rows={visible} orderedGateKeys={orderedGateKeys} selectedLoopId={selectedLoopId}
               onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
@@ -251,7 +249,7 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
                           onClick={() => onOpenLoop(row.loopId)}
                         >
                           <strong>{row.loopId} ›</strong>
-                          <span className="cpm-event-row__sub">{row.displayName}</span>
+                          <span className="cpm-event-row__sub">{serviceName(row)}</span>
                         </button>
                       </th>
                       {orderedGateKeys.map((k, gi) => {

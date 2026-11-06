@@ -20,7 +20,7 @@ import { KPI_TREND_RANGES, type FleetKpiKey } from '../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
 import { Toggletip } from '../../ui/Toggletip';
 import { ListPager } from '../shared/ListPager';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { useCpmScope } from './plantScope';
 import { overviewHref } from './cpaHref';
 import { useFleetKpiLoops, useFleetKpiTrend, useFleetKpis } from './kpi/useFleetKpis';
 import { KpiTrendChart } from './kpi/KpiTrendChart';
@@ -67,10 +67,15 @@ export const CpmKpiDrilldown: React.FC = () => {
 
   const k = kpis.data;
   const figure = k?.kpis.find(f => f.key === kpi) ?? list.data?.figure ?? null;
-  const meta = KPI_META[kpi];
+  // CHG-127: a bar state has no trend of its own, and is explained by the card it comes from
+  const isBarState = kpi.startsWith('bar-');
+  const measureKey = (list.data?.rows[0]?.rowKey ?? kpi) as FleetKpiKey;
+  const meta = KPI_META[measureKey];
   const options = useMemo(() => [
     ...KPI_GROUPS.flatMap(g => g.keys).map(key => ({ key, label: k?.kpis.find(f => f.key === key)?.label ?? key })),
     ...DRILL_ONLY,
+    // CHG-127: a state of the Overview bar, so a segment's list can say which state it shows
+    ...(k?.segments ?? []).map(s => ({ key: s.key, label: `State: ${s.label}` })),
   ], [k]);
   const go = (next: Record<string, string | null>) => {
     setPage(0);
@@ -94,7 +99,6 @@ export const CpmKpiDrilldown: React.FC = () => {
             </select>
           </label>
         </>} />
-      <PlantScopeFilter scope={scope} summary={k ? `${k.monitored} monitored loop(s) in scope` : null} />
 
       {kpis.isError && <QueryError title="KPI unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
       {k && (
@@ -102,7 +106,7 @@ export const CpmKpiDrilldown: React.FC = () => {
           {figure && meta
             ? <KpiCard size="large" Icon={meta.Icon} value={<>{figure.count}<span className="cpm-kpicard__of"> / {figure.denominator}</span></>}
                 label={`${pct(figure.count, figure.denominator)} % of ${figure.denominatorLabel}`} tone={kpiTone(figure)}
-                delta={kpiDelta(figure, k)} title={figure.rule} />
+                delta={isBarState ? null : kpiDelta(figure, k)} title={figure.rule} />
             : <KpiCard size="large" Icon={meta?.Icon ?? ObiHelp} value={total ?? '…'} label="loop(s) in this list" />}
           <KpiCard Icon={ObiLimitsAttention} value={<span className="cpm-kpicard__text">{meta ? meta.threshold(k.basis) : 'As listed'}</span>}
             label="Threshold" />
@@ -117,10 +121,11 @@ export const CpmKpiDrilldown: React.FC = () => {
         <dl className="cpm-kpi-proof__grid">
           {figure && <><dt>Rule</dt><dd>{figure.rule}.</dd></>}
           {meta && <><dt>Formula</dt><dd><code className="cpm-kpi-proof__formula">{meta.formula}</code></dd></>}
-          {KPI_WHY[kpi] && <><dt>Why this KPI</dt><dd>{KPI_WHY[kpi]}</dd></>}
+          {KPI_WHY[measureKey] && <><dt>Why this KPI</dt><dd>{KPI_WHY[measureKey]}</dd></>}
         </dl>
       </section>
 
+      {!isBarState && (
       <section className="cpm-surface" aria-label={`Last ${rangeLabel}`}>
         <PanelHead eyebrow={`Each ${plantDayLabel(trend.data)} at its end, same rules`} title="How this number has moved"
           help={<Toggletip variant="how-to" label="How to read this trend"><p>Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.</p></Toggletip>}
@@ -142,6 +147,7 @@ export const CpmKpiDrilldown: React.FC = () => {
           </>
         )}
       </section>
+      )}
 
       <section className="cpm-surface" aria-label="Loops behind this KPI">
         <PanelHead eyebrow="The loops behind the number"

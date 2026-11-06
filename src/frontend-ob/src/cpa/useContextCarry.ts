@@ -16,7 +16,8 @@ const isContextPath = (path: string) => path === '/cpm' || path.startsWith('/cpm
 
 /** The search to use for the new URL, or null when nothing needs adding. */
 export function carriedSearch(prevSearch: string, nextPath: string, nextSearch: string): string | null {
-  if (!isContextPath(nextPath)) return null;
+  const trend = nextPath === '/trend';
+  if (!trend && !isContextPath(nextPath)) return null;
   const prev = new URLSearchParams(prevSearch);
   const next = new URLSearchParams(nextSearch);
   const add = (key: string, value: string | null) => {
@@ -26,6 +27,8 @@ export function carriedSearch(prevSearch: string, nextPath: string, nextSearch: 
 
   let changed = false;
   for (const key of ['site', 'area', 'unit']) changed = add(key, prev.get(key)) || changed;
+  // Trend keeps the plant scope for the way back, and nothing else: its own range and tags are its own.
+  if (trend) return changed ? `?${next.toString()}` : null;
 
   const range = prev.get('range');
   if (!next.has('range') && !next.has('from') && !next.has('to')) {

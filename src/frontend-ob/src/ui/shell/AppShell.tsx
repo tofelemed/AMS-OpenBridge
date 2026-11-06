@@ -19,14 +19,11 @@ import { useContextCarry } from '../../cpa/useContextCarry';
 import useDialogA11y from '../../hooks/useDialogA11y';
 import { isSliceNavPath } from '../../productSlice';
 import { useTheme } from '../../theme/ThemeContext';
-import { PlantSelector } from './PlantSelector';
+import { PlantScopeLine, PlantSelector } from './PlantSelector';
 import { ShellNav } from './ShellNav';
 import { useShellBand, useSidebarExpanded } from './shellHooks';
 import { UserMenu } from './UserMenu';
 import './shell.css';
-
-/** Build-time label, for example "Lab". Nothing is shown when the build does not set it. */
-const ENVIRONMENT = (import.meta.env.VITE_ENV_LABEL as string | undefined)?.trim();
 
 const PALETTE_ITEMS: PaletteNavItem[] = [
   ...DESTINATIONS.map(d => ({ path: d.path, label: d.label, group: 'CPA', anyOf: [...d.showTo] })),
@@ -72,7 +69,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   useContextCarry();
-  // Before the page renders, so old formatters print the zone the header names.
+  // Before the page renders, so every formatter prints the same zone beside its times.
   const { zone } = useCpaContext();
   setActiveZone(zone.id);
   const compact = band === 'drawer';
@@ -110,10 +107,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {!compact && <span className="shell__search-text">Search loops, tags and records</span>}{' '}
           {!compact && <kbd className="shell__kbd">Ctrl K</kbd>}
         </button>
-        <span className="shell__zone">
-          <span className={compact ? 'ui-sr' : undefined}>Times in </span>{zone.abbr}
-        </span>
-        {ENVIRONMENT && <span className="shell__env">{ENVIRONMENT}</span>}
         <ThemeSwitch />
         <UserMenu compact={compact} />
       </header>
@@ -126,6 +119,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {compact && drawerOpen && <NavDrawer onClose={closeDrawer} />}
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className="shell__main">
+        {compact && <PlantScopeLine />}
         <div className="page-content">{children}</div>
       </main>
     </div>

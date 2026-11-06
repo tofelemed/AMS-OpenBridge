@@ -70,7 +70,7 @@ export function reconstructionSummary(r: EvidenceReconstruction, timeZone: strin
 
 /** What the evidence on screen is, in words. */
 export function basisOf(m: EvidenceManifest | undefined, view: string | null | undefined, timeZone: string, evaluated = false): EvidenceBasis {
-  if (!m || (m.artifacts.length === 0 && !m.reconstructions?.some(x => x.artifacts.length > 0))) return { kind: 'NONE', label: 'No arrays held', detail: 'Neither retained proof nor a reconstruction is stored for this run.', tone: 'muted' };
+  if (!m || (m.artifacts.length === 0 && !m.reconstructions?.some(x => x.artifacts.length > 0))) return { kind: 'NONE', label: 'No arrays held', detail: '', tone: 'muted' };
   const eff = effectiveView(m, view);
   const r = reconstructionOf(m, eff.id);
   // CHG-102 5c: a window evaluated on request - the verdict on screen is the evaluation's own, not the live engine's

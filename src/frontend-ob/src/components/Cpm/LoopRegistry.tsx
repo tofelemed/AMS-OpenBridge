@@ -8,12 +8,13 @@
  * report (the wizard shows readiness as its post-save validation step).
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { serviceName } from './loopName';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
 import { useCpmLoops } from '../../hooks/useCpm';
 import type { CpmLoop } from '../../api/cpmApi';
-import { PlantScopeFilter, useCpmScope, loopMatchesQuery } from './plantScope';
+import { useCpmScope, loopMatchesQuery } from './plantScope';
 
 import { modelLabel, stateOf } from './registryShared';
 import ProfileAside from './ProfileAside';
@@ -64,22 +65,17 @@ export const LoopRegistry: React.FC = () => {
           <>
             <ObcButton variant="normal" onClick={() => setImportOpen(true)}>Bulk import</ObcButton>
             <ObcButton variant="raised" onClick={() => setWizardOpen(true)}>Add loop</ObcButton>
+            <Toggletip variant="how-to" label="About readiness-gated configuration">
+              <p>Readiness-gated configuration: the readiness report after save lists exactly what is degraded.</p>
+              <p>
+                A loop is only as good as its signal mappings: on a loop that has a valve position but no VP tag mapped, G14 cannot
+                confirm a final-element fault (SUSPECTED at most), and missing peer links leaves G13 unevaluated.
+              </p>
+            </Toggletip>
           </>
         }
       />
 
-      <div className="cpm-banner">
-        <strong>Readiness-gated configuration.</strong>&nbsp;The readiness report after save lists exactly what is degraded.
-        <Toggletip variant="how-to" label="About readiness-gated configuration">
-          <p>
-            A loop is only as good as its signal mappings: on a loop that has a valve position but no VP tag mapped, G14 cannot
-            confirm a final-element fault (SUSPECTED at most), and missing peer links leaves G13 unevaluated.
-          </p>
-        </Toggletip>
-      </div>
-
-      <PlantScopeFilter scope={scope}
-        summary={scope.active ? `${filtered.length} of ${loops.length} loops` : null} />
 
       <div className="cpm-grid-2">
         <section className="cpm-surface">
@@ -127,7 +123,7 @@ export const LoopRegistry: React.FC = () => {
               >
                 <span>
                   <strong>{loop.loopId}</strong>
-                  <div className="cpm-event-row__sub">{loop.displayName} · {loop.area ?? loop.site}</div>
+                  <div className="cpm-event-row__sub">{serviceName(loop)} · {loop.area ?? loop.site}</div>
                 </span>
                 <span title={loop.model?.classificationSource}>{modelLabel(loop)}</span>
                 <span>{loop.loopType}</span>

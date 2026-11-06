@@ -98,30 +98,6 @@
    apart by pattern and label, never by colour alone. */
 .cpm-op { display: flex; flex-direction: column; gap: 12px; }
 .cpm-op__muted { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
-.cpm-op__bar {
-  display: flex;
-  height: 12px;
-  border-radius: 6px;
-  overflow: hidden;
-  gap: 2px;
-  background: var(--border-divider-color);
-}
-.cpm-op__seg { min-width: 4px; }
-/* CHG-082: one segment per state of the KPI partition (sums to the monitored loops). Colour only where it means
-   something (ISA-101): green performing, red finding, amber stale; the rest neutral, told apart by pattern and label. */
-.cpm-op__seg--acceptable { background: var(--tone-success); }
-.cpm-op__seg--finding    { background: var(--tone-danger); }
-.cpm-op__seg--symptom    { background: var(--tone-warning); opacity: 0.55; }
-.cpm-op__seg--outOfMode  { background: var(--element-neutral-color); opacity: 0.55; }
-.cpm-op__seg--notAssessable {
-  background: repeating-linear-gradient(135deg,
-    var(--element-neutral-color) 0 3px, var(--container-backdrop-color) 3px 6px);
-}
-.cpm-op__seg--stale      { background: var(--tone-warning); }
-.cpm-op__seg--never      { background: var(--border-divider-color); outline: 1px dashed var(--element-neutral-color); outline-offset: -1px; }
-.cpm-op__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--cpm-text-small); }
-.cpm-op__legend li { display: inline-flex; align-items: center; gap: 6px; }
-.cpm-op__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 
 .cpm-readiness__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 /* CHG-059: plant facts (no positioner, no valve, no peers) — a note, not a gap, so no alert tone. */
@@ -167,9 +143,6 @@
 .cpm-signal-trend + .cpm-signal-trend { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-divider-color); }
 .cpm-eval-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-loop-summary__inline-action { margin-left: 8px; }
-
-/* CHG-063: a server count beside a tab label — secondary to the label, figures aligned. */
-.cpm-tab-count { color: inherit; font-variant-numeric: tabular-nums; }
 
 /* CHG-082 / KPI Phase 3: the drill-down (/cpm/kpi). Each row proves one loop's place in the number; under 760 px a row
    becomes a labelled card so a phone never scrolls sideways. */
@@ -232,14 +205,26 @@
 .cpm-kpicard__label { font-size: var(--cpm-text-small); color: var(--element-active-color); }
 .cpm-kpicard__sub { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 /* CHG-119: the Overview card: label and icon on top, the number, its share and change, then the link */
-.cpm-kpicard--headed { min-height: 132px; padding: 14px 16px; border-radius: 12px; gap: 0; }
-.cpm-kpicard__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cpm-kpicard--headed { position: relative; min-height: 0; padding: 12px 14px; border-radius: 12px; gap: 0; }
+.cpm-kpicard__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 40px; }
 .cpm-kpicard--headed .cpm-kpicard__label { font-weight: 600; }
-.cpm-kpicard--headed .cpm-kpicard__icon { flex: none; width: 20px; height: 20px; border: 0; border-radius: 0; }
+.cpm-kpicard--headed .cpm-kpicard__icon { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; }
 .cpm-kpicard--headed .cpm-kpicard__icon > * { width: 20px; height: 20px; }
-.cpm-kpicard--headed .cpm-kpicard__value { margin-top: 10px; }
-.cpm-kpicard--headed .cpm-kpicard__sub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
-.cpm-kpicard__open { margin-top: auto; padding-top: 6px; color: var(--traverse-action-primary); font-size: var(--cpm-text-caption); }
+/* These icons paint with currentColor, so the tone is set as color; the token is for the ones that read it. */
+.cpm-kpicard__icon--good { background: var(--traverse-status-success-bg); color: var(--traverse-status-success-fg); --element-active-color: var(--traverse-status-success-fg); }
+.cpm-kpicard__icon--mode { background: var(--traverse-status-info-bg); color: var(--traverse-status-info-fg); --element-active-color: var(--traverse-status-info-fg); }
+.cpm-kpicard__icon--warn { background: var(--traverse-status-warning-bg); color: var(--traverse-status-warning-fg); --element-active-color: var(--traverse-status-warning-fg); --automation-device-primary-color: var(--traverse-status-warning-fg); --automation-device-secondary-color: var(--traverse-status-warning-fg); }
+.cpm-kpicard__icon--none { background: var(--traverse-status-unknown-bg); color: var(--traverse-status-unknown-fg); --element-active-color: var(--traverse-status-unknown-fg); }
+.cpm-kpicard__figure { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+.cpm-kpicard__tip {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: none; flex-direction: column; gap: 4px;
+  box-sizing: border-box; width: 280px; max-width: 80vw; padding: 10px 12px;
+  background: var(--traverse-surface-panel); border: 1px solid var(--traverse-border-strong); border-radius: 6px;
+  color: var(--traverse-text-primary); font-size: var(--traverse-type-metadata); font-weight: 400; line-height: 1.45;
+}
+.cpm-kpicard__tip strong { font-weight: 600; }
+.cpm-kpicard--link:hover .cpm-kpicard__tip, .cpm-kpicard--link:focus-visible .cpm-kpicard__tip { display: flex; }
+.cpm-kpicards--5 > :nth-child(5n) .cpm-kpicard__tip { right: 0; left: auto; }
 .cpm-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .cpm-op__statebox {
@@ -271,6 +256,8 @@
 @media (max-width: 1100px) {
   .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  /* Column count varies here, so the tip takes the card's own width and cannot run off the side. */
+  .cpm-kpicard__tip, .cpm-kpicards--5 > :nth-child(5n) .cpm-kpicard__tip { right: 0; left: 0; width: auto; }
 }
 @media (max-width: 760px) {
   .cpm-kpi-proof__grid { grid-template-columns: minmax(0, 1fr); }

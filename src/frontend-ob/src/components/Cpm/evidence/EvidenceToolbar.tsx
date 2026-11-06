@@ -1,46 +1,47 @@
 /**
- * v2.5 workbench (audit F6): the toolbar every CPM page has - the plant scope filter and the loop
- * search - then the window kind (fused verdicts / short features / long diagnostics, the Window
- * Inspector's optgroups) and the evaluated window newest-first with its state and age. Older
- * windows page in on request; a date can be jumped to. Native selects, as on every other page.
+ * The Evidence controls in the loop band (CHG-130). The evaluated window is one dropdown, newest first with its state and age;
+ * the window kind (fused verdicts, short features, long diagnostics), older windows and a date to jump to sit under More, with
+ * whatever else the page adds there. Native selects, as on every other page.
  */
 import React, { useId, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmLoop } from '../../../api/cpmApi';
+import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import { fromSiteInput } from '../../../cpa/siteTime';
-import { LoopCombobox } from '../LoopCombobox';
-import { PlantScopeFilter, type CpmScope } from '../plantScope';
+import { Popover } from '../../../ui/Popover';
 import type { WindowOption, WindowTier } from './useEvidenceWindows';
 
 export interface WindowKindOption { kind: string; tier: WindowTier; label: string }
 
-export interface EvidenceToolbarProps {
-  scope: CpmScope;
-  loops: CpmLoop[];
+export interface EvidenceWindowProps {
   loopId: string | undefined;
   kind: string;
-  kinds: WindowKindOption[];
   windows: WindowOption[];
   windowsLoading: boolean;
   windowsError: unknown;
-  onRetryWindows: () => void;
   currentMethodRunId: string | undefined;
+  /** The open run's window, for a run the list does not hold (an evaluated window, or one older than the loaded page). */
+  runWindow?: string | null;
+  onWindow: (w: WindowOption) => void;
+}
+
+export interface EvidenceMoreProps {
+  loopId: string | undefined;
+  kind: string;
+  kinds: WindowKindOption[];
+  windowsError: unknown;
+  onRetryWindows: () => void;
   hasMore: boolean;
   onLoadMore: () => void;
   loadingMore: boolean;
-  onLoop: (loopId: string) => void;
-  onClearLoop: () => void;
   onKind: (kind: string) => void;
-  onWindow: (w: WindowOption) => void;
   onJump: (beforeIso: string) => void;
+  /** More actions on this window: Newest, Reconstruct, evaluate a window. */
+  children?: React.ReactNode;
 }
 
 const TIER_LABEL: Record<WindowTier, string> = { fused: 'Fused verdicts', short: 'Short features (G0–G4)', long: 'Long diagnostics (G5–G11)' };
 
-export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
-  const ids = useId();
-  const [jump, setJump] = useState('');
-  const inScope = p.loops.filter(l => p.scope.matches(l)).length;
+export const EvidenceWindowSelect: React.FC<EvidenceWindowProps> = (p) => {
   const current = p.windows.find(w => Object.values(w.methodRunIds).includes(p.currentMethodRunId ?? ''));
   const placeholder = !p.loopId ? 'Pick a loop first'
     : p.windowsLoading ? 'Loading the evaluated windows…'
@@ -48,10 +49,29 @@ export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
     : p.windows.length === 0 ? `No ${p.kind} windows for this loop yet`
     : null;
   return (
-    <section className="cpm-surface cpm-evidence-toolbar">
-      <PlantScopeFilter scope={p.scope} summary={`${inScope} of ${p.loops.length} loop(s) in scope`} />
-      <div className="cpm-toolbar">
-        <LoopCombobox scope={p.scope} loops={p.loops} value={p.loopId ?? ''} onChange={p.onLoop} onClear={p.onClearLoop} />
+    <select className="cpm-select cpm-evidence-toolbar__window" aria-label="Evaluated window" value={current?.windowEnd ?? ''}
+      disabled={!!placeholder && !p.runWindow}
+      onChange={e => { const w = p.windows.find(x => x.windowEnd === e.target.value); if (w) p.onWindow(w); }}>
+      {!current && <option value="">{p.runWindow ?? placeholder ?? 'Choose a window…'}</option>}
+      {p.windows.map(w => <option key={w.windowEnd} value={w.windowEnd} disabled={!w.hasRunIds}>{w.label}</option>)}
+    </select>
+  );
+};
+
+export const EvidenceMore: React.FC<EvidenceMoreProps> = (p) => {
+  const ids = useId();
+  const [jump, setJump] = useState('');
+  return (
+    <Popover
+      label="More window options"
+      align="end"
+      trigger={t => (
+        <button type="button" className="ui-control ui-control--ghost" {...t}>
+          More <span className="ui-icon ui-icon--small"><ObiChevronDownGoogle /></span>
+        </button>
+      )}
+    >
+      <div className="cpm-evidence-more">
         <label className="cpm-field cpm-field--compact">
           <span className="cpm-field__label" id={`${ids}-kind`}>Window</span>
           <select className="cpm-select" aria-labelledby={`${ids}-kind`} value={p.kind} onChange={e => p.onKind(e.target.value)}>
@@ -63,15 +83,6 @@ export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
                 </optgroup>
               ) : null;
             })}
-          </select>
-        </label>
-        <label className="cpm-field cpm-evidence-toolbar__window">
-          <span className="cpm-field__label" id={`${ids}-window`}>Evaluated window</span>
-          <select className="cpm-select" aria-labelledby={`${ids}-window`} value={current?.windowEnd ?? ''} disabled={!!placeholder}
-            onChange={e => { const w = p.windows.find(x => x.windowEnd === e.target.value); if (w) p.onWindow(w); }}>
-            {placeholder ? <option value="">{placeholder}</option> : null}
-            {!placeholder && !current && <option value="">Choose a window…</option>}
-            {p.windows.map(w => <option key={w.windowEnd} value={w.windowEnd} disabled={!w.hasRunIds}>{w.label}</option>)}
           </select>
         </label>
         {p.windowsError ? <ObcButton variant="flat" onClick={p.onRetryWindows}>Retry</ObcButton> : null}
@@ -90,7 +101,8 @@ export const EvidenceToolbar: React.FC<EvidenceToolbarProps> = (p) => {
             </span>
           </div>
         )}
+        {p.children}
       </div>
-    </section>
+    </Popover>
   );
 };

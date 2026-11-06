@@ -1,7 +1,7 @@
 /**
  * v2.5 Task 3D.1 (spec §5.7, §3.3): the configuration a loop actually runs under, as a drawer inside
  * another page (the Loop Explorer's model card, the workbench's "Configuration this run used ›").
- * 2026-09-18: a thin wrapper around EffectiveView (compact: the gate strip + one gate's table + the
+ * 2026-09-18: a thin wrapper around EffectiveView (compact: the gate dropdown + one gate's table + the
  * folded workers; the full layer stack lives on the Gate Configuration page, linked from the head).
  */
 import React from 'react';

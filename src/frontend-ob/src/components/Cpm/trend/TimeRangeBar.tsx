@@ -11,7 +11,6 @@
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { SegmentedControl } from '../../../ui/SegmentedControl';
 import { fmtRange, toLocalInput, type RangePreset } from '../historical/timeRange';
 
 export interface TimeRangeBarProps {
@@ -32,13 +31,10 @@ export interface TimeRangeBarProps {
   stateNote?: string;
   /** Extra controls at the end of the row (e.g. "Open in Historical ›"). */
   children?: React.ReactNode;
-  /** CHG-067: keep the From / To pair closed for a non-preset range the app chose (the evaluated window). */
-  hideCustomInputs?: boolean;
 }
 
 export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
   from, to, presets, preset, onPreset, onStep, nowLabel = 'Now', nowTitle, onNow, onApplyCustom, stateNote, children,
-  hideCustomInputs = false,
 }) => {
   const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
   const [draftTo, setDraftTo] = React.useState(() => toLocalInput(to));
@@ -52,31 +48,32 @@ export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from.getTime(), to.getTime()]);
 
-  const custom = customOpen || (preset === 'custom' && !hideCustomInputs);
-
   return (
     <div className="cpm-range-bar">
-      {/* A segmented group, not loose buttons — the same component as the Performance window toggle. */}
-      <SegmentedControl label="Range preset" ignoreReselect value={customOpen ? 'custom' : preset}
-        options={[...presets.map(p => ({ value: p.key, label: p.label })), { value: 'custom', label: 'Custom' }]}
-        onChange={v => {
-          if (v === 'custom') { setCustomOpen(true); return; }
+      {/* CHG-129: one dropdown. From and To open from Custom or from the dates, so an applied range stays one line. */}
+      <select className="cpm-select" aria-label="Range" value={customOpen ? 'custom' : preset}
+        onChange={e => {
+          if (e.target.value === 'custom') { setCustomOpen(true); return; }
           setCustomOpen(false);
-          onPreset(v);
-        }} />
+          onPreset(e.target.value);
+        }}>
+        {presets.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        <option value="custom">Custom</option>
+      </select>
 
       <div className="cpm-hist-stepper">
         <ObcButton variant="flat" title="One period earlier" onClick={() => onStep(-1)}>‹</ObcButton>
-        <span className="cpm-hist-stepper__text">
+        <button type="button" className="cpm-hist-stepper__text" aria-expanded={customOpen} title="Choose the dates"
+          onClick={() => setCustomOpen(v => !v)}>
           {fmtRange(from, to)}
           {stateNote && <span className="cpm-range-bar__note"> · {stateNote}</span>}
-        </span>
+        </button>
         <ObcButton variant="flat" title="One period later" onClick={() => onStep(1)}>›</ObcButton>
       </div>
       <ObcButton variant="normal" title={nowTitle} onClick={() => { setCustomOpen(false); onNow(); }}>{nowLabel}</ObcButton>
       {children && <span className="cpm-range-bar__end">{children}</span>}
 
-      {custom && (
+      {customOpen && (
         <div className="cpm-hist-custom">
           <label className="cpm-field cpm-field--compact">
             <span className="cpm-field__label">From</span>

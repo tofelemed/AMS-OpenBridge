@@ -148,15 +148,15 @@ describe('GateEvidenceWorkspace', () => {
     expect(screen.getByTestId('loc').textContent).toContain('gate=G15');
     expect(urls().some(u => u.includes('/gates?') && u.includes('projection=summary') && u.includes('includeInsufficient=true'))).toBe(true);
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
-    fireEvent.click(await screen.findByRole('button', { name: /Change/ }));   // CHG-050: the pickers fold to one line
-    const sel = screen.getByLabelText('Evaluated window') as HTMLSelectElement;
+    const sel = await screen.findByLabelText('Evaluated window') as HTMLSelectElement;
     await waitFor(() => expect(sel.value).toBe('2026-09-17T08:00:00Z'));
     expect(sel.options[sel.selectedIndex].textContent).toMatch(/Not evaluated: not enough data \(too few samples\)/);
   });
 
-  it('the gate strip opens another gate of the same window and the explain panel collapses (remembered)', async () => {
+  it('the gate list opens another gate of the same window and the explain panel collapses (remembered)', async () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15`);
-    await waitFor(() => expect(screen.getByRole('button', { name: /^G0 OK: Data quality/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Gate: G15/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /^Gate: G15/ }));
     fireEvent.click(screen.getByRole('button', { name: /^G0 OK: Data quality/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
     fireEvent.click(screen.getByRole('button', { name: 'Hide explain' }));

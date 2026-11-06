@@ -1,18 +1,7 @@
 /* ── Evidence pages: conclusion first, details collapsible, no scroll inside scroll (SME #13, CHG-050) ── */
 
-/* Selection folded into one line ("Showing FIC10401 · 24h fused · … · Change ▾"). */
-.cpm-selection { display: flex; flex-direction: column; gap: 8px; }
-.cpm-selection__line {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
-  padding: 2px 4px 2px 12px;
-  border: 1px solid var(--border-divider-color);
-  border-radius: 8px;
-  background: var(--container-backdrop-color);
-}
-.cpm-selection__text { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
-
-/* Conclusion strip: a zero-height sticky host right under the context bar; the strip hangs inside it,
-   so showing / hiding it never shifts the page. Spans the screen padding like the context bar. */
+/* Conclusion strip: a zero-height sticky host right under the loop band; the strip hangs inside it,
+   so showing / hiding it never shifts the page. Spans the screen padding like the band. */
 .cpm-conclusion-strip {
   position: sticky;
   top: calc(var(--cpm-context-h, 0px) - var(--cpa-page-pad));
@@ -158,7 +147,6 @@
 .cpm-loop-notes .cpm-textarea { display: block; width: 100%; max-width: 72ch; resize: vertical; }
 .cpm-loop-notes__options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 20px; margin: 8px 0; }
 .cpm-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--cpm-text-small); max-width: 60ch; }
-.cpm-loop-notes__hint { font-size: var(--cpm-text-small); color: var(--element-neutral-color); }
 .cpm-loop-notes__list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .cpm-loop-notes__item { border-top: 1px solid var(--border-divider-color); padding-top: 8px; }
 .cpm-loop-notes__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }

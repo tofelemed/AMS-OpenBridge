@@ -1,4 +1,4 @@
-/** CHG-119: the header says "Times in X", so everything shown or typed must be in X, whatever the browser's zone. */
+/** CHG-119: every time shown or typed is in the site zone X, whatever the browser's zone. The pages name X beside their times. */
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseCustomRange, fmtRange, toLocalInput } from '../components/Cpm/historical/timeRange';
 import { requestedEnd } from '../components/Cpm/evidence/evaluationState';

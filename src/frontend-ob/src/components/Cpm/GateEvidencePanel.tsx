@@ -19,6 +19,7 @@
  * "how to read this" guidance that used to occupy a permanent card on a screen
  * engineers visit daily.
  */
+import { GateLegend } from './GateLegend';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -326,6 +327,7 @@ export const GateGuidePanel: React.FC<{
       </div>
     </div>
     <div className="cpm-inspector__body">
+      <GateLegend />
       <ol className="cpm-copy cpm-guide-steps">
         <li>Pick a gate in the roll-up to see which loops it is holding back.</li>
         {/* CHG-098 (SME review 2 #24): the readable view is the default; the full matrix is the advanced one */}

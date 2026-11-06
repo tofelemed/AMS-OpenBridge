@@ -5640,3 +5640,124 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-126 — CPA: header, help icon, quiet panels, Trend keeps the scope (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's review of lab :3000 on 6 November 2026, approved on the sample `docs/theme/redesign/samples/one-filter-place.html`. With the page copies of the plant filter going (CHG-128), the header becomes the only scope control, so it has to be complete and reliable.
+
+**Changed.**
+- **Header:** "Times in {zone}" and the Lab tag are gone. The theme switch and user menu sit at the far right at every width. Times on the pages keep their zone: `setActiveZone` still runs, and only the label went.
+- **Loop count beside the scope:** "All sites · 243 loops". It uses the loop list the shell already loads, so there is no new request.
+- **Below 1024 px:** the scope control is an icon, so a slim line under the header names the scope and count, with a clear button. It shows only while a scope is set.
+- **Help icon:** the `?` is a small quiet circle on the page colour with a light ring, teal on hover, everywhere a help tip is used. The owner tried a dark filled circle first and rejected it as too prominent. The ⓘ definition tips are unchanged.
+- **Panel border:** `.cpm-surface` and accordion headers use the light Traverse border. Buttons, dropdowns and the loop control keep the strong edge, so what can be clicked still shows.
+- **Trend keeps the scope:** the menu link dropped it, and `useContextCarry` skipped `/trend`, so going to Trend and back returned the header to All sites. Trend now takes the plant scope only. Its range and tags stay its own.
+- **Reset to all sites** closes the panel. Before, the link vanished with focus inside it, so Esc no longer closed the panel.
+
+**Build argument:** `VITE_ENV_LABEL` is still accepted by the Dockerfile but nothing reads it now.
+
+**Proven by:** unit tests for the carry rule. The rest by the browser walk on lab data.
+**Verified:** tsc 0, lint 0, 1,221 tests in 153 files, build OK, lint:theme 0. In the browser: the count beside the scope, 243 to 57 with a scope, Trend keeps the scope there and back, theme and user at the right, the tablet scope line names the scope and clears it.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-127 — CPA: Overview KPI cards and the state bar (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner asked for coloured KPI icons and no explanation on the cards, and supplied an image of the bar to use in place of the thin line bar.
+
+**Changed.**
+- **KPI cards:** label, coloured icon and number. The share, the change since 24 h ago and the rule appear on hover and keyboard focus. "View loops" is gone because the whole card opens the list. The change stays on the card only when it moved.
+- **Icon colours by meaning:** green healthy, blue mode, amber a problem, slate no data. Performing acceptably stays slate at 0, because a missing result must not look healthy (UI-097).
+- **State bar:** the owner's layout, order and labels, with each state's count and share. A click on a segment or legend entry opens exactly that state's loops. Day colours are read from the owner's image, in `styles/state-colours.css`, and a test pins them.
+- **cplm-api:** `GET /api/v1/cpm/fleet/kpis` gains `segments`, and `GET /api/v1/cpm/fleet/kpis/loops` accepts `kpi=bar-*`. New file `Services/Kpi/FleetKpiBar.cs`.
+
+**The rule.** A KPI card may overlap another; the bar may not. Each loop counts once, in the first state that applies: never evaluated, stale, a finding (oscillating, valve problem, excessive effort), manual, saturated, not assessable, then performing or needs review. So a segment and the card of the same name can differ, by design, and the `?` beside the title says so. **No card number changes.**
+
+**Additive.** `segments` is a new field and every existing field is unchanged. Nothing is stored, so `RuleVersion` stays 1 and the daily KPI table is untouched. An older cplm-api gets the coarser states through the fallback in `stateSegments`.
+
+**Proven by:** xUnit `FleetKpiBarTests`: every loop in exactly one state, the states sum to monitored, each list equals its count, the cards keep their counts, order and labels as the owner's image. Colours by `stateColours.test.ts`.
+**Not proven:** the bar on real data end to end. The lab's cplm-api predates `segments`, so the browser walk fed the bar simulated counts from the owner's image. The 12 database tests of `tests/cplm-api.Tests` were not run: they write probe rows into the lab. No second cplm-api was started, because the CPLM consumer groups must have one member (UI-104).
+**Verified:** cplm-api logic 63 of 63, including one state per loop, segments that sum to monitored, and a list equal to its count. On real lab data through the running cplm-api: the bar reads Stale 165 and Never evaluated 76, sums to the 241 monitored, and matches the cards. The nine-state look was checked with simulated counts. **Not proven:** the new `segments` field on a running server, because the lab still runs the old cplm-api; the 12 database tests were not run because they insert probe rows in the lab.
+
+**Services updated:** `ams-frontend` and `cplm-api` (when released, together). **No migration, no config, no script.**
+**Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-128 — CPA: each filter once: Site, Area and Unit in the header, one loop control (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** "We should not have repetitive filters." Measured on the lab, the Site, Area and Unit row was on 15 screens and behind Change on 3 more, and on Loop › Historical the chart started 930 px down a 1024 px screen. Tested first: the header scope already drives every page, because both write the same URL values.
+
+**Changed.**
+- **Site, Area and Unit** are in the header only. Every page row is gone (14 uses of `PlantScopeFilter`).
+- **One loop control:** `context/LoopBand.tsx`, in the grey band under the tabs. It opens the Find loop box and tree from the old left list, and follows the header scope. A loop outside the scope stays selected and the band says so, in a readable colour. With no loop on the Loop page, the page still opens on the list.
+- **The band holds what the tab needs.** Location and Period are gone from it. Location, type and criticality are in Open details and Summary › Loop model.
+- **Tab row slot:** `cpa/tabEnd.tsx`. On a tab, `WorkspaceHeader` keeps its `h1` for screen readers only, and 12h / 24h, the page's buttons and the `?` sit at the end of the tab row.
+- **Lists show the service without the tag:** `loopName.ts`, in the band, the loop list, Open details, Performance and the Overview queue. Display only: the registry keeps the full name.
+
+**Removed:** `PlantScopeFilter`, `LoopCombobox`, `SelectionSummary`, the `LoopContextBar` component and their dead CSS. The old routes use the band too, so nothing was left to wait for. `fmtPeriod`, `fmtInstant`, `fmtLocation` and `useStickyOffset` stay.
+
+**Rollback changes meaning.** `SHIPPED_PHASE = 2` still brings the old page routes back, but they now show this band and no page scope row, because the components are shared.
+
+**Proven by:** `LoopBand.test.tsx`, `loopName.test.ts`, and the browser walk.
+**Verified:** `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14, `control-edge` 52 views with 0 off the screen, link walk 75 links on 28 pages with 0 problems. The walk found no Site, Area or Unit on any page, one loop control, and the selected tab kept when the loop changes.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-129 — CPA: Loop tabs (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's points 1 and 6: the loop summary belongs on Summary only, in one row with a details popup, and the band holds each tab's own controls.
+
+**Changed.**
+- **Summary:** one row in the band: label, result, window age and blocking count, then Open details. The popup holds the full card, next check, limitations, readiness, instrument health and location. The age and blocking count stay on the row so a stale or blocked loop cannot look fine without a click (UI-099).
+- **Signals, History and Calculations:** the heading, summary card and readiness bar are gone, so each tab opens on its own content. This reverses SME #4 at the owner's word (UI-101).
+- **Left list:** the empty column beside a chosen loop is gone.
+- **Historical:** range dropdown, dates, Now and Export in the band; pens, overlay and Open in Trend above the chart; the historian line under it. From and To open from Custom or from the dates. One Export menu holds the four downloads and their reasons. The range dropdown is `TimeRangeBar`, so the Summary trend gets it too.
+- **Diagnosis:** case, source, profile and historical window are dropdowns in the band. A case still narrows the loop list. The Window row stays, because the band no longer names the window (UI-100). Key facts become one line when all six say the same thing, and the tiles return as soon as any differs.
+- **Model:** the three "no events" explanations become one, with the same two links. Open loop and Change loop are gone, because the tabs and the loop control do both.
+
+**Proven by:** component tests, and the browser walk.
+**Verified:** the walk on lab data: the row keeps result, age and blocking count, Open details holds the card and Esc closes it, no summary on Signals, History or Calculations, Historical's range, dates and four downloads work, and Diagnosis lists only the loops in the header scope.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-130 — CPA: Evidence tabs (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's point 2: one dropdown instead of long filter lines, starting with the gates.
+
+**Changed.**
+- **Gates:** `GateMenu` is one list of the window's gates, with the real marks, grouped as ever, and the symbol key inside it. Closed, it shows the selected gate. The owner accepted losing the view of all 17 results at a glance (UI-102).
+- **Window:** the evaluated window is a dropdown in the band, with Newer and Older beside it. More holds the window kind, Load older, Jump to date, Newest, Reconstruct evidence and Evaluate a window.
+- **Gates page head:** the loop and gate title is hidden on screen, because the dropdown and the verdict card state it. The facts row shows the sample count, labelled Coverage. A verdict sentence that only repeats its heading and pill is dropped.
+- **Replay:** window, gate and result pills in the band. The pipeline steps were labels, not controls, so they moved to a `?` with the normalise grid and the chart sentence.
+- **Windows:** the profile dropdown in the band. The watermark line is removed; Pipeline has its own tile.
+- **Calculations:** the Loop panel is gone. The band states the latest window, so the Window column shows only when rows differ. "Not measured" keeps its reason on hover and in a `?` on Value. The state pill and profile sit beside the result count.
+
+**Proven by:** `EvidenceToolbar.test.tsx` and the workspace tests, and the browser walk. That walk found the gate list hidden under the sidebar before its styles existed.
+**Verified:** the walk on lab data: the gate list shows all 17 gates with their marks and key, stays on a 768 px screen, More holds window kind, Jump to date, Newest and Reconstruct, and Evaluate a window stays open after a click elsewhere. A run the list does not hold still names its window (unit test).
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-131 — CPA: dropdowns on Performance, Episodes, Configuration and the audit trail, and the text cuts (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's points 2 and 5, and "remove repetitive text, not useful explanation, repetitive loop info or loop name".
+
+**Changed.**
+- **Performance:** view, condition, rows and filter in one row. The symbol key moved into How to read this. When nothing could be counted, the exclusions are said once under the tiles.
+- **Episodes:** state dropdown with its counts, order dropdown, Find and the count, in one row.
+- **Configuration:** the gates are one dropdown beside Find a property.
+- **Audit trail:** the entity buttons are one dropdown beside the other filters.
+- **Setup › Loops:** the banner moved to the `?`.
+- **Text:** every cut is listed in `docs/theme/redesign/text-changes.md`, with the sentences the control engineer must see.
+
+**Kept as they are:** 12h / 24h, because a dropdown would double the clicks, and the PV, SP, OP and VP pens, because they show what is on and carry the trend colours.
+
+**Before release:** control-engineer review of `text-changes.md`, and tell the SME about CHG-129.
+**Verified:** tsc 0, lint 0, 1,221 tests in 153 files, build OK, lint:theme 0. `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14, `control-edge` 52 views with 0 off the screen, link walk 75 links on 28 pages with 0 problems. Walk on lab data 59 of 59, 0 server errors, 0 blocked. An independent code review found 12 issues; all that lost a function are fixed (see below). One earlier run logged 9 HTTP 500s while the whole lab stalled (Postgres read timeouts and a 45 s Kafka heartbeat loss, C: 94 %, D: 98 % full); the repeat was clean.
+
+**Fixed after the code review:** a Performance condition that matches nothing no longer removes the control; Diagnosis follows the header scope; Calculations hides its Window column only when the band's dates are true for every row; a segment's list explains each row by the card it comes from, and shows no empty trend; panels scroll inside themselves and stay on screen from 641 to 900 px; `.cpm-field--compact` restored; Up and Down move through the gate list; a failed loop list says so instead of "not in the registry"; Export shows Preparing; Find shows All matching gates. KPI glyphs now take their colour, which needed `color` as well as the token. Tab counts on the Loop page are kept.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

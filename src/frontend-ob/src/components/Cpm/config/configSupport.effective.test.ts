@@ -1,5 +1,5 @@
 // 2026-09-18 Gate Configuration redesign: the effective configuration is read as a LAYER STACK (what each
-// layer sets), a gate strip with override badges, and a one-line workers verdict - instead of a 165-row
+// layer sets), a gate dropdown with override counts, and a one-line workers verdict - instead of a 165-row
 // wall with "from" repeated per row.
 import { describe, expect, it } from 'vitest';
 import { bundleLabel, layerStack, overridesByGate, workersSummary } from './configSupport';

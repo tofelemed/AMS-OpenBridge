@@ -28,7 +28,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
       caption: 'Good-error time',
       value: g.meanPct != null ? pct1(g.meanPct) : '—',
       // CHG-098 lab pass: with nothing assessed, say why (e.g. every result stale) instead of a bare "yet"
-      sub: g.meanPct == null ? (p.assessed ? `not measured · ${basisText(p, 0)}` : `no assessed loop · ${basisText(p, 0)}`)
+      sub: g.meanPct == null ? (p.assessed ? 'not measured' : 'no assessed loop')
         : `mean · ${basisText(p, g.counted, g.notMeasured ? [`${g.notMeasured} not measured`] : [])}`,
       title: 'Mean share of the window with |PV − SP| inside the good band, over every assessed loop in this scope'
         + (g.medianPct != null ? ` (median ${pct1(g.medianPct)})` : ''),
@@ -36,7 +36,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       caption: 'Median error (% of span)',
       value: e.medianPct != null ? pct1(e.medianPct) : '—',
-      sub: e.medianPct == null ? (p.assessed ? `no loop with a registered PV span · ${basisText(p, 0)}` : `no assessed loop · ${basisText(p, 0)}`)
+      sub: e.medianPct == null ? (p.assessed ? 'no loop with a registered PV span' : 'no assessed loop')
         : `MAE ÷ PV span · ${basisText(p, e.counted, [
           e.noSpan ? `${e.noSpan} without a PV span` : '', e.notMeasured ? `${e.notMeasured} not measured` : ''].filter(Boolean))}`,
       title: 'Mean absolute error of each loop divided by its registered PV range (pvMax − pvMin), median across loops. '
@@ -45,8 +45,12 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
     {
       caption: 'Loops with periodic diagnosis',
       value: String(p.periodic.count),
-      sub: `oscillation or valve nonlinearity, detected or stronger · ${basisText(p, p.periodic.of)}`,
+      sub: p.periodic.count ? `oscillation or valve nonlinearity, detected or stronger · ${basisText(p, p.periodic.of)}` : 'oscillation or valve nonlinearity, detected or stronger',
       title: 'Assessed loops whose current diagnosis is an oscillation or final-element family at any band',
     },
   ];
 }
+
+/** CHG-131: when no figure could be counted the same exclusions would repeat on each tile, so they are said once under them. */
+export const noneCountedText = (p: FleetPerformance): string | null =>
+  (p.goodError.meanPct == null && p.errorOfSpan.medianPct == null && !p.periodic.count ? basisText(p, 0).replace(' · ', ', ') : null);

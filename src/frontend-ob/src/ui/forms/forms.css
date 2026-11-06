@@ -126,7 +126,7 @@
   gap: var(--traverse-space-2);
   min-height: var(--traverse-size-control-min-height);
   padding: 0 var(--traverse-space-3);
-  border: 1px solid var(--traverse-border-strong);
+  border: 1px solid var(--traverse-border-subtle);
   border-radius: var(--traverse-radius-control);
   color: var(--traverse-text-primary);
   font-size: var(--traverse-type-body);

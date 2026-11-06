@@ -66,6 +66,14 @@ export const KPI_META: Partial<Record<FleetKpiKey, KpiMeta>> = {
 
 export const basisShort = (b: FleetKpiBasis): string => `Newest result ≤ ${Math.round(b.freshSeconds / 60)} min old`;
 
+/** CHG-127: what the icon's colour says. Blue is mode, amber a problem, slate no data; green only when a loop really performs. */
+export type KpiIconTone = 'good' | 'mode' | 'warn' | 'none';
+const ICON_TONE: Partial<Record<FleetKpiKey, KpiIconTone>> = {
+  'normal-mode': 'mode', 'manual-mode': 'mode', oscillating: 'warn', valve: 'warn', effort: 'warn', saturated: 'warn', stale: 'warn',
+};
+export const kpiIconTone = (f: Pick<FleetKpiFigure, 'key' | 'count'>): KpiIconTone =>
+  (f.key === 'acceptable' ? (f.count > 0 ? 'good' : 'none') : ICON_TONE[f.key] ?? 'none');
+
 export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; title: string }
 
 /**

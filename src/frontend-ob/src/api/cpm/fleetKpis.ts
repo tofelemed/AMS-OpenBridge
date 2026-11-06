@@ -8,7 +8,13 @@ import type { CpmFleetScope } from '../cpmApi';
 
 export type FleetKpiKey =
   | 'all' | 'assessed' | 'acceptable' | 'no-fault-limited' | 'finding' | 'symptom' | 'oscillating' | 'valve' | 'effort'
-  | 'normal-mode' | 'out-of-mode' | 'manual-mode' | 'saturated' | 'not-assessable' | 'stale' | 'never-evaluated';
+  | 'normal-mode' | 'out-of-mode' | 'manual-mode' | 'saturated' | 'not-assessable' | 'stale' | 'never-evaluated'
+  | FleetKpiBarKey;
+
+/** CHG-127: the Overview bar's states. Each loop is in exactly one, and each lists exactly its count. */
+export type FleetKpiBarKey =
+  | 'bar-acceptable' | 'bar-oscillating' | 'bar-valve' | 'bar-effort' | 'bar-saturated' | 'bar-manual'
+  | 'bar-not-assessable' | 'bar-stale' | 'bar-never-evaluated' | 'bar-review';
 
 /** CHG-089: a fleet scope plus the fused window the KPIs are counted on (12h default, 24h on request). */
 export type FleetKpiScope = CpmFleetScope & { windowKind?: string };
@@ -47,6 +53,8 @@ export interface FleetKpis {
   notAssessableByReason: Array<{ reason: string; count: number }>;
   assessed: { acceptable: number; noFaultLimited: number; finding: number; symptomOnly: number; unrecognised: number };
   kpis: FleetKpiFigure[];
+  /** CHG-127: one state per monitored loop, in bar order (they sum to `monitored`); absent on an older cplm-api. */
+  segments?: FleetKpiFigure[];
   /** CHG-093 (SME review 2 #10/#11): the Performance headline over every assessed loop in scope; absent on an older cplm-api. */
   performance?: FleetPerformance;
   /** The same classification as it stood 24 h earlier (the change shown on each card); absent on an older cplm-api. */
@@ -73,6 +81,8 @@ export interface FleetKpiDeciding {
 }
 
 export interface FleetKpiRow {
+  /** CHG-127: the card whose measure explains this row; absent on an older cplm-api. */
+  rowKey?: FleetKpiKey;
   loopId: string;
   displayName?: string | null;
   site?: string | null;

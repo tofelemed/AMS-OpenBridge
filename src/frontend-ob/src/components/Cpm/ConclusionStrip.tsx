@@ -1,11 +1,11 @@
 /**
  * SME review #13 (CHG-050): keep the conclusion in view while the evidence below it is read. Once the
  * conclusion card (the element with `targetId`) has scrolled up out of view, a one-line strip sticks
- * under the loop context bar: "Verdict · Oscillation confirmed · … · Back to conclusion ↑".
+ * under the loop band: "Verdict · Oscillation confirmed · … · Back to conclusion ↑".
  *
  * The strip takes NO layout height (a zero-height sticky host with the strip positioned inside it), so
  * showing / hiding it never moves the page under the reader's eyes. It is a direct child of .cpm-screen
- * so it sticks for the whole page, right under the context bar (`--cpm-context-h`).
+ * so it sticks for the whole page, right under the loop band (`--cpm-context-h`).
  */
 import React, { useEffect, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -25,8 +25,8 @@ export const ConclusionStrip: React.FC<{
   useEffect(() => {
     const el = active ? document.getElementById(targetId) : null;
     if (!el || typeof IntersectionObserver === 'undefined') { setShow(false); return; }
-    // The page scrolls inside .page-content, under the sticky context bar: observe against that scroller
-    // with the bar's height cut off the top, and show the strip only once the card has gone UP past it
+    // The page scrolls inside .page-content, under the sticky loop band: observe against that scroller
+    // with the band's height cut off the top, and show the strip only once the card has gone UP past it
     // (not while it is still below, waiting to be reached).
     const root = el.closest('.page-content');
     const barH = (document.querySelector('[data-testid="loop-context"]') as HTMLElement | null)?.offsetHeight ?? 0;

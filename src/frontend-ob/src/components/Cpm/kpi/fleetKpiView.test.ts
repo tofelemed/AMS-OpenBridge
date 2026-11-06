@@ -22,6 +22,11 @@ describe('fleet KPI view (CHG-082)', () => {
     const segs = stateSegments(K);
     expect(segs.reduce((n, s) => n + s.count, 0)).toBe(K.monitored);
     expect(segs.map(s => s.drill)).toEqual(['acceptable', 'finding', 'symptom', 'no-fault-limited', 'not-assessable', 'stale', 'never-evaluated']);
+    const fromServer = stateSegments({ ...K, segments: [
+      { key: 'bar-stale', label: 'Stale', count: 3, denominator: 3, denominatorLabel: 'monitored loops', rule: 'r' },
+      { key: 'bar-manual', label: 'Manual', count: 0, denominator: 3, denominatorLabel: 'monitored loops', rule: 'r' },
+    ] });
+    expect(fromServer).toEqual([{ key: 'bar-stale', label: 'Stale', count: 3, drill: 'bar-stale' }]);
     expect(stateSegments({ ...K, states: { ...K.states, stale: 0 } }).some(s => s.key === 'stale')).toBe(false);
   });
 

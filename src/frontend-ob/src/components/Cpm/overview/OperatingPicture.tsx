@@ -2,13 +2,13 @@
  * CHG-082 / CHG-085: the Overview's operating picture, from cplm-api `GET /fleet/kpis` (rules, formulas and evidence:
  * kpi_calculation_logic/KPI-LOGIC.md).
  *
- * - Ten KPI cards, five to a row (CHG-119): label and icon, the count, its share of a NAMED denominator with the change
- *   since 24 h ago, and a link; each opens the drill-down listing exactly those loops with the value behind each one.
+ * - Ten KPI cards, five to a row (CHG-119, CHG-127): label, coloured icon and the count; each card opens the drill-down
+ *   listing exactly those loops with the value behind each one. Its share of a NAMED denominator, the change since 24 h ago
+ *   and the rule appear on hover.
  * - CHG-089: counted on the page's fused window (12h default, 24h on request); every link carries it.
- * - Under them, one bar that places every monitored loop in exactly one state, with a legend that links to each list.
+ * - Under them, the bar that places every monitored loop in exactly one state (StateBar).
  */
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
 import type { CpmFleetScope } from '../../../api/cpmApi';
 import type { FleetKpiFigure, FleetKpis, FleetKpiScope } from '../../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../shared';
@@ -16,15 +16,16 @@ import { Toggletip } from '../../../ui/Toggletip';
 import { kpiHref } from '../cpaHref';
 import { useFleetKpis } from '../kpi/useFleetKpis';
 import { KpiCard } from '../kpi/KpiCard';
-import { KPI_META, kpiDelta } from '../kpi/kpiMeta';
-import { KPI_GROUPS, basisText, kpiTone, pct, reasonsText, stateSegments } from '../kpi/fleetKpiView';
+import { KPI_META, kpiDelta, kpiIconTone } from '../kpi/kpiMeta';
+import { KPI_GROUPS, basisText, kpiTone, pct, reasonsText } from '../kpi/fleetKpiView';
+import { StateBar } from './StateBar';
 
 const Card: React.FC<{ f: FleetKpiFigure; k: FleetKpis; scope?: FleetKpiScope; sub?: React.ReactNode }> = ({ f, k, scope, sub }) => {
   const meta = KPI_META[f.key];
   if (!meta) return null;
   return (
-    <KpiCard headed Icon={meta.Icon} value={f.count} label={f.label} tone={kpiTone(f)} delta={kpiDelta(f, k)}
-      title={`${f.rule}. Open to see every loop and why.`} to={kpiHref(f.key, scope)}
+    <KpiCard headed Icon={meta.Icon} value={f.count} label={f.label} tone={kpiTone(f)} iconTone={kpiIconTone(f)} delta={kpiDelta(f, k)}
+      title={`${f.rule}.`} to={kpiHref(f.key, scope)}
       sub={sub ?? <>{pct(f.count, f.denominator)} % of {f.denominator} {f.denominatorLabel}</>} />
   );
 };
@@ -37,7 +38,6 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
   const pick = (keys: readonly string[]) => keys.map(key => figures.get(key as FleetKpiFigure['key'])).filter((f): f is FleetKpiFigure => !!f);
   const performance = pick([...KPI_GROUPS[0].keys, ...KPI_GROUPS[1].keys]);
   const coverage = pick(KPI_GROUPS[2].keys);
-  const segments = k ? stateSegments(k) : [];
 
   return (
     <section className="cpm-surface cpm-op" aria-label="Operating picture">
@@ -46,7 +46,7 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
         help={k && k.monitored > 0
           ? <Toggletip variant="how-to" label="How this is counted"><p>{basisText(k)}. Each card opens the loops behind it.</p></Toggletip>
           : undefined}
-        right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)} · change vs 24 h ago</span> : undefined} />
+        right={k ? <span className="cpm-op__muted" title={basisText(k)}>updated {fmtDateTime(k.computedAt)}</span> : undefined} />
       {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}
       {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
       {k && k.monitored === 0 && <EmptyState title="No monitored loops"
@@ -64,26 +64,7 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
             ))}
           </div>
 
-          <div className="cpm-op__statebox">
-            <span className="cpm-kpicard__label">Every monitored loop, one state each</span>
-            <div className="cpm-op__bar" role="img"
-              aria-label={`Monitored loops by state: ${segments.map(s => `${s.label} ${s.count}`).join(', ')}`}>
-              {segments.map(s => (
-                <span key={s.key} className={`cpm-op__seg cpm-op__seg--${s.key}`} style={{ flexGrow: s.count }}
-                  title={`${s.label}: ${s.count} of ${k.monitored} (${pct(s.count, k.monitored)} %)`} />
-              ))}
-            </div>
-            <ul className="cpm-op__legend">
-              {segments.map(s => (
-                <li key={s.key}>
-                  <span className={`cpm-op__swatch cpm-op__seg--${s.key}`} aria-hidden />
-                  <RouterLink className="cpm-link" to={kpiHref(s.drill, scope)} title={`List these ${s.count} loop(s)`}>
-                    {s.label} <strong>{s.count}</strong>
-                  </RouterLink>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="cpm-op__statebox"><StateBar k={k} scope={scope} /></div>
         </>
       )}
     </section>

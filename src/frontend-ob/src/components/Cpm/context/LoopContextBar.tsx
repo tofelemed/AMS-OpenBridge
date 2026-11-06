@@ -1,21 +1,17 @@
 /**
- * The loop context bar (SME review 2026-10-05, point 3): one compact row that
- * stays at the top of the content while a long CPM page scrolls, naming the
- * loop, its service, its plant location and the period THIS page is showing.
+ * Formatting helpers the CPM pages share, and the sticky offset of the loop band. The loop context
+ * bar that gave this file its name is gone: LoopBand took its place on every page about one loop.
  *
- * The loop, service and location come from the registry list every CPM page
- * already loads (`useCpmLoops`, one cached query — no new request). The period
- * is passed by the page, because "window" means a different thing on each page
- * (an evaluated fused window, a historical range, a window profile, a response
- * event); the bar states it, it does not choose it.
- *
- * Read-only by design: each page keeps its own loop picker. Renders nothing
- * when no loop is selected.
+ * - `LoopPeriod`, `fmtPeriod`: a period as a page names it. "Window" means a different thing on each
+ *   page (an evaluated fused window, a historical range, a window profile, a response event), so the
+ *   page passes the period in and these only format it.
+ * - `fmtInstant`: one instant, compact, with the zone named.
+ * - `fmtLocation`: a loop's plant location as readable text.
+ * - `useStickyOffset`: publishes the band's height so other sticky panels stop below it.
  */
 import { activeZone } from '../../../cpa/activeZone';
-import React, { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmLoops } from '../../../hooks/useCpm';
 import { locationPath } from '../vocabulary';
 
 export interface LoopPeriod {
@@ -81,13 +77,13 @@ export function fmtPeriod(period: LoopPeriod, timeZone?: string): string {
 }
 
 /**
- * Publishes the bar's height on the page (`--cpm-context-h` on .cpm-screen) so
- * the panels that stick inside the same scroller (the docked evidence
+ * Publishes the loop band's height on the page (`--cpm-context-h` on .cpm-screen)
+ * so the panels that stick inside the same scroller (the docked evidence
  * inspector, the workbench explain column, the response event list) stop
- * BELOW the bar instead of sliding under it. Measured, because the bar wraps
- * to two lines on narrow screens and long periods.
+ * BELOW the band instead of sliding under it. Measured, because the band wraps
+ * onto more lines on narrow screens and on tabs with many controls.
  */
-function useStickyOffset() {
+export function useStickyOffset() {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -101,44 +97,3 @@ function useStickyOffset() {
   });
   return ref;
 }
-
-export const LoopContextBar: React.FC<{
-  loopId: string | null | undefined;
-  /** The period the page is showing; omitted while it is still loading. */
-  period?: LoopPeriod | null;
-  /** The zone the page shows its times in (the Evidence Workbench uses the site zone). */
-  timeZone?: string;
-}> = ({ loopId, period, timeZone }) => {
-  const loops = useCpmLoops();
-  const ref = useStickyOffset();
-  if (!loopId) return null;
-  const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
-  return (
-    <div ref={ref} className="cpm-loop-context" role="region" aria-label="Current loop and period" data-testid="loop-context">
-      <span className="cpm-loop-context__item">
-        <span className="cpm-loop-context__label">Loop</span>
-        <strong>{loop?.loopId ?? loopId}</strong>
-        {loop ? (
-          <span>{loop.displayName}</span>
-        ) : (
-          <span className="cpm-loop-context__muted">{loops.isLoading ? 'loading…' : 'not in the loop registry'}</span>
-        )}
-        {loop && (
-          <span className="cpm-loop-context__muted">
-            {loop.loopType}{loop.criticality ? ` · criticality ${loop.criticality}` : ''}
-          </span>
-        )}
-      </span>
-      {loop && (
-        <span className="cpm-loop-context__item">
-          <span className="cpm-loop-context__label">Location</span>
-          <span>{fmtLocation(loop) || '—'}</span>
-        </span>
-      )}
-      <span className="cpm-loop-context__item">
-        <span className="cpm-loop-context__label">Period</span>
-        <span>{period ? fmtPeriod(period, timeZone) : '—'}</span>
-      </span>
-    </div>
-  );
-};

@@ -70,7 +70,7 @@ export const ExplainWhy: React.FC<{
 
   return (
     <div className="cpm-why" data-testid="explain-why">
-      <p className="cpm-copy cpm-why__result">{result}</p>
+      {(reasonText || !status) && <p className="cpm-copy cpm-why__result">{result}</p>}
 
       <h3 className="cpm-eyebrow">Measured vs required</h3>
       {rows.length > 0 ? (

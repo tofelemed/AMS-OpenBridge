@@ -78,7 +78,7 @@ Redundant text removed at the owner's direction. Page layouts are unchanged. Tex
 **Deliberately left on screen**
 - Bode "not a safety guarantee".
 - "Scores are uncalibrated…"
-- The loop-note acknowledgement sentence.
+- The loop-note acknowledgement sentence. **Moved to a `?` by the owner's review of 6 November**, below.
 - The CMMS note.
 - The unacknowledged-episode and shelf sentences.
 
@@ -149,3 +149,79 @@ Visible text does not change. These names are read by screen readers only.
 | Entity and event labels | Cpmloop, Rolepermissions, Rbac role permissions reset | CPM loop, Role permissions, RBAC role permissions reset. The code stays on hover |
 
 **For the control-engineer review:** the verification and tampering sentence is safety-relevant. It keeps Governance's wording.
+
+## Owner's review of 6 November 2026 (CHG-126 to CHG-131)
+
+The owner asked to remove repeated text, loop information and explanations that add nothing. The rules at the top of this file still hold.
+
+### Loop name and loop information
+
+| Page | Before | After |
+|---|---|---|
+| Band, loop list, Open details, Performance, Overview queue | FIC00701 · Flow controller FIC00701 (FCS0102) | FIC00701 · Flow controller (FCS0102). Display only: the registry keeps the full name |
+| Loop tabs | Service name and loop ID as a heading above the summary | Removed. The band states them |
+| Evidence › Gates | FIC00701 · Flow controller FIC00701 (FCS0102), then G15 Decision | Not shown on screen. The Gate dropdown and the verdict card state it. Screen readers keep it as the page title |
+| Evidence › Calculations | 1 · Loop panel, and "FIC00701, pick another loop or plant scope" | Removed. Its state pill and profile move beside the result count |
+| Band on every tab | Location, Period, FIC · criticality medium | Removed from the band. Location, type and criticality are in Open details and Summary › Loop model |
+| Loop notes | 0 on FIC00701 | 0 note(s) |
+
+### The same fact twice
+
+| Page | Before | After |
+|---|---|---|
+| Evidence › Calculations | Window column with the same dates on every row | The column shows only when rows differ. The band has the dates |
+| Evidence › Calculations | "Not measured", then "engine version without this metric", on 7 rows | "Not measured". The reason stays on hover, and a `?` on Value explains it |
+| Diagnosis | Six tiles, each "Insufficient data, too few qualified samples in the window" | One line naming the six. Tiles return as soon as any value differs |
+| Evidence › Gates | 12h · 2026-10-10 17:00:00 → 2026-10-11 05:00:00 · UTC · 190 samples | Coverage 190 samples. The window dropdown has the window |
+| Evidence › Gates | "G15 Decision: Insufficient evidence." twice, beside the same result in a pill | Heading and pill. The sentence stays whenever it adds a reason or a number |
+| Loop Summary | Trend range 05/11/2026 23:35 → 06/11/2026 07:35, not an evaluated window | Not an evaluated window. The range control has the dates |
+| Loop Summary | "last stored 26 days ago" on every card | Once, in the heading. Stays on each card when the ages differ |
+| Performance | "0 of 0 assessed loop(s) · excluded: 165 stale, 76 never evaluated" on 3 tiles | Once, under the tiles, when nothing could be counted. A tile with a figure keeps its own basis, because each counts different loops |
+| Episodes | 500 event(s) · open first, highest evidence score first | 500 event(s). The Order control says it |
+| Loop › Model | Three explanations that no response event exists | One, with the same two links |
+
+**Corrected from the sample:** the Diagnosis Window row stays. The sample removed it because the band then named the window. The band no longer does.
+
+### Explanation that moves to the `?` or goes
+
+| Page | Before | After |
+|---|---|---|
+| Overview | "0 % of 241 monitored loops", "View loops" on each card, "change vs 24 h ago" | On hover and keyboard focus. The change shows on the card only when it moved |
+| Performance | Three-line symbol key between the data and the table | Behind How to read this. Same key, same icons |
+| Evidence › Gates | Three-line symbol key under the gates | Inside the gate list, where the marks are |
+| Performance | Select a loop in the matrix for | Removed. The button still says why on hover |
+| Replay | The chart below shows the raw historian slice this window drew from. | Moved to a `?`, reworded as "The chart shows the raw historian slice this window drew from." |
+| Replay | Pipeline steps, 1 Raw historian to 5 Fusion | Moved to the same `?` as one sentence, with the normalise grid. They were labels, not controls |
+| Evidence › Windows | Watermark lag, not exposed by the metrics proxy | Removed. Pipeline has its own Watermark lag tile |
+| Setup › Loops | Readiness-gated configuration banner | Moved to the `?` |
+| Setup › Configuration | no governed bundle is active for this loop: the engine runs the factory layer… | Removed. "Runs under: NO_ACTIVE_BUNDLE · factory layer" says it |
+| Evidence › Gates | Neither retained proof nor a reconstruction is stored for this run. | Removed. The "No arrays held" pill stays, and the panel below gives the reason |
+| Notes, on Diagnosis and Replay | A note stays on the loop. Saving it never acknowledges an episode… | Moved to a `?` beside Loop notes |
+
+### New text
+
+| Where | Text |
+|---|---|
+| Overview bar, title | Every monitored loop, one state each |
+| Overview bar, hint | Click a segment to filter the loop list |
+| Overview bar, `?` | A loop can count on more than one card above. Here it counts once, in the first state that applies: never evaluated or stale, a finding, manual, saturated, not assessable, then performing or needs review. |
+| Overview bar, state | Needs review: a weak symptom, or no fault but a performance criterion is not met |
+| Evidence › Calculations, `?` on Value | Not measured: the engine version that wrote this window has no such metric, or the window gave it nothing to work from. Open the row for its reason. |
+| Band, loop outside the scope | {loop} is outside the plant scope in the header. It stays selected until you pick another. |
+
+### For the control-engineer review
+
+**Moved off the screen by this review**
+- "A note stays on the loop. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later." Now in a `?`, because it concerns acknowledgement. It was on the "Deliberately left on screen" list above.
+- The loop summary's next check, limitations and readiness are one click away, behind Open details. The row keeps the result, the window age and the blocking count.
+- On Signals, History and Calculations the summary is gone, which reverses SME #4.
+- The 17 gate results are one click away, in the gate list.
+- A KPI's share and rule are on hover.
+- The reason for "Not measured" is on hover and in the drawer.
+
+**Still on screen on purpose**
+- Limitations on Diagnosis.
+- "Still open: the newest window could not be judged (excluded or insufficient data), so the condition has NOT recovered."
+- "No health data for this window", with its NE107 note that missing diagnostics are not OK.
+- "…is outside this trend range", with the rest of that sentence.
+- Units, every empty-state reason and recovery link, and row values that are that row's own, such as Unobservable, Degraded or Not mapped.

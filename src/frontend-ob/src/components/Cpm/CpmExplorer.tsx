@@ -1,30 +1,26 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U2 Explorer. Shell only: the page's URL contract, the
- * full-width plant scope, the loop rail and the workspace routing. The rail,
- * the workspace and each tab own their own files under ./explorer.
+ * CPLM Phase 7 — U2 Explorer. Shell only: the page's URL contract, the loop
+ * band, the loop list and the workspace routing. The list, the workspace and
+ * each tab own their own files under ./explorer.
  *
- * Layout change: the plant-scope filter is no longer inside the rail. It writes
- * `?site=&area=&unit=` and travels with you to every other CPM screen, so it is
- * PAGE scope; nesting it in the rail claimed it filtered the list, and it cost
- * the only scrollable column ~300px — four loops above the fold. It now sits
- * full-width under the header, exactly as it does on Performance.
+ * The plant scope is set in the application header, not on this page. It writes
+ * `?site=&area=&unit=` and travels with you to every other CPM screen; this page
+ * only reads it.
  *
- * The rail collapses on its own (cpa-ui-fix-plan Phase 3): whenever the URL
- * names a loop — a pick from the search, a deep link, Back/Forward — the picker
- * is not what you are looking at, and both the trend and the gate strip want
- * the width. Clearing the loop reopens it; the chevron still toggles it by hand.
+ * One way to pick a loop at a time: with no loop in the URL the page opens on
+ * the list. Once the URL names a loop — a pick from the list, a deep link,
+ * Back/Forward — the list is not drawn, so the workspace gets the width, and
+ * the loop band's control opens the same list. Clearing the loop brings it back.
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
-import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
-import { CpmIconButton, EmptyState, WorkspaceHeader } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
-import { trendPeriodText } from './trend/trendPeriod';
+import { EmptyState, QueryError, WorkspaceHeader } from './shared';
+import { LoopBand } from './context/LoopBand';
 import { loopTabOf } from './explorer/loopTabOf';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { useCpmScope } from './plantScope';
+import LoopSummaryRow from './explorer/summary/LoopSummaryRow';
 import LoopTree from './explorer/LoopTree';
 import LoopWorkspace, { TABS } from './explorer/LoopWorkspace';
 import type { ExplorerTab } from './explorer/readinessCauses';
@@ -63,14 +59,8 @@ export const CpmExplorer: React.FC<{
   // lower($1)`) — a deep link whose case differs from the registry's should
   // resolve, not fall through to "not found".
   const requestedId = params.get('loop');
-  // The URL decides the rail: closed while a loop is named, open otherwise. The
-  // effect re-applies that on every loop change (search pick, deep link, Back),
-  // and the chevron overrides it until the next change.
-  const [railOpen, setRailOpen] = React.useState(() => !requestedId);
-  React.useEffect(() => { setRailOpen(!requestedId); }, [requestedId]);
-
   // No default: `inScope[0]` is registry order, i.e. an arbitrary loop shown as
-  // though it were chosen. The rail is right there to choose from.
+  // though it were chosen. The list is right there to choose from.
   const loop = requestedId
     ? loops.find(l => l.loopId.toLowerCase() === requestedId.toLowerCase())
     : undefined;
@@ -94,27 +84,24 @@ export const CpmExplorer: React.FC<{
         title="Loop explorer"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <LoopContextBar loopId={loop?.loopId ?? requestedId} period={{ label: `Gates: latest window · trend: ${trendPeriodText(params)}` }} />
-      <PlantScopeFilter
-        scope={scope}
-        summary={loops.length ? `${inScope.length} of ${loops.length} loop(s) in scope` : null}
-      />
+      {/* CHG-128: the one loop control. With no loop named the page opens on the list instead, so it is not offered twice. */}
+      {requestedId && (
+        <LoopBand loopId={loop?.loopId ?? requestedId} onLoop={selectLoop}
+          onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
+          {loop && hostTab === 'Summary' && (
+            <LoopSummaryRow loop={loop} windowKind={windowKind}
+              onTab={t => setParams(p => { p.set('tab', loopTabOf(t)); return p; }, { replace: true })} />
+          )}
+        </LoopBand>
+      )}
 
-      <div className={`cpm-explorer-layout${railOpen ? '' : ' cpm-explorer-layout--rail-closed'}`}>
-        <aside aria-label="Loops" className={`cpm-surface cpm-rail${railOpen ? '' : ' cpm-rail--collapsed'}`}>
-          <div className="cpm-rail__head">
-            {railOpen && <span className="cpm-eyebrow">Loops</span>}
-            <CpmIconButton
-              label={railOpen ? 'Collapse loop list' : 'Expand loop list'}
-              onClick={() => setRailOpen(v => !v)}
-            >
-              {railOpen ? <ObiChevronLeftGoogle /> : <ObiChevronRightGoogle />}
-            </CpmIconButton>
-          </div>
-          {railOpen && (
+      <div className={`cpm-explorer-layout${requestedId ? ' cpm-explorer-layout--rail-closed' : ''}`}>
+        {!requestedId && (
+          <aside aria-label="Loops" className="cpm-surface cpm-rail">
+            <div className="cpm-rail__head"><span className="cpm-eyebrow">Loops</span></div>
             <LoopTree
               loops={inScope}
-              selectedLoopId={loop?.loopId}
+              selectedLoopId={undefined}
               onSelect={selectLoop}
               isLoading={isLoading}
               isError={isError}
@@ -123,8 +110,8 @@ export const CpmExplorer: React.FC<{
               onOpenRegistry={openRegistry}
               totalLoops={loops.length}
             />
-          )}
-        </aside>
+          </aside>
+        )}
 
         {loop ? (
           <LoopWorkspace
@@ -134,6 +121,10 @@ export const CpmExplorer: React.FC<{
             hosted={!!hostTab}
             onTab={t => setParams(p => { p.set('tab', hostTab ? loopTabOf(t) : t); return p; }, { replace: true })}
           />
+        ) : requestedId && isError ? (
+          <section className="cpm-surface"><QueryError title="Loop registry unavailable" error={error} retry={() => void refetch()} /></section>
+        ) : requestedId && isLoading ? (
+          <section className="cpm-surface"><EmptyState level={2} title="Loading…" /></section>
         ) : missingLoop ? (
           <section className="cpm-surface">
             <EmptyState
@@ -150,7 +141,7 @@ export const CpmExplorer: React.FC<{
               title={scope.active ? 'No loops in this scope' : 'Select a loop'}
               // CHG-098 (SME review 2 #29): say where to pick a loop.
               copy={scope.active
-                ? 'Widen the site, area or unit filter to see loops.'
+                ? 'Widen the plant scope in the header to see loops.'
                 : 'Pick a loop in the list to open its summary, signals, calculations and history.'}
             />
           </section>

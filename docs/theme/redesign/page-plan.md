@@ -174,3 +174,20 @@ Each step is checked in Day and Night at 1440, 1000, 768 and 390 px. Each step c
 - Each Setup and System tab keeps the rule of the page it replaces (UI-078). `/admin` lands on the first section the role may open (UI-085).
 - The old pages stay in the code for one release, as the rollback: `SHIPPED_PHASE = 2` (UI-086).
 - Old pages use `tab` for themselves. Inside a page they need their own name, as Gate configuration already does with `sub`.
+
+## Owner's review, 6 November 2026 (CHG-126 to CHG-131)
+
+After seeing the plan built, the owner reviewed it on lab :3000 and approved the sample `samples/one-filter-place.html`. This changes one rule above: **second copies of a filter go, and no function goes** (UI-088). "Every filter stays" now means every filter function stays, once.
+
+- **Site, Area and Unit:** the header only, with the loop count beside them.
+- **Loop:** one control in the band on every loop page. It holds the old left list.
+- **The band:** the loop control, then only what the tab needs.
+- **Loop summary:** on Summary only, as one row with Open details.
+- **Long filter lines:** dropdowns on Gates, Configuration, Performance, Episodes, Diagnosis, time ranges and the audit trail. 12h / 24h and the pens stay as they are.
+- **Headings that repeat the tab:** gone. Their controls sit at the end of the tab row.
+- **Overview:** coloured KPI icons, no explanation on the cards, and the owner's state bar.
+
+Gates: tsc 0, lint 0, 1,221 tests in 153 files, build OK, lint:theme 0.
+Walks: 59 of 59 on lab data, 0 server errors, 0 blocked. `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14, `control-edge` 52 views with 0 off the screen, link walk 75 links on 28 pages with 0 problems.
+
+Not built yet at the plant. Before release: control-engineer review of `text-changes.md`, and tell the SME that the summary left the other tabs (UI-101).

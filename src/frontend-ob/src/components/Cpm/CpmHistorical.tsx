@@ -23,8 +23,8 @@ import {
   classifyMode, diagnosisBand, fmtDateTime, loopTrendHref,
 } from './shared';
 import { Toggletip } from '../../ui/Toggletip';
-import { LoopContextBar } from './context/LoopContextBar';
-import { useCpmScope } from './plantScope';
+import { LoopBand } from './context/LoopBand';
+import TimeRangeBar from './trend/TimeRangeBar';
 import type { CpmGateMatrix } from '../../api/cpmApi';
 import {
   useCpmKpisRange, useCpmLoops, useCpmModeTrack, useCpmTrend, useGateHistory,
@@ -32,7 +32,7 @@ import {
 import { loopSeries } from '../../utils/loopSeries';
 import { useHistoryExports } from './historical/useHistoryExports';
 import { chartPalette, useChartTheme } from '../../charts/chartTheme';
-import RangeToolbar, { SIGNAL_KEYS } from './historical/RangeToolbar';
+import RangeToolbar, { ExportMenu, SIGNAL_KEYS } from './historical/RangeToolbar';
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import { CHART_HEIGHT, buildChartOption, type Segment } from './historical/chartOption';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
@@ -67,7 +67,6 @@ export const CpmHistorical: React.FC = () => {
   const [windowKind, setWindowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
-  const scope = useCpmScope();
 
   // No default selection: registry order is arbitrary, so `loops[0]` is a
   // CHOICE presented as a default — the same lie the ?loop=-names-nothing
@@ -252,20 +251,12 @@ export const CpmHistorical: React.FC = () => {
     <div className="cpm-screen">
       <WorkspaceHeader page="/cpm/historical" title="Historical"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />} />
-      <LoopContextBar loopId={loopId} period={{ label: 'Historical range', start: from.getTime(), end: to.getTime() }} />
-
-      <section className="cpm-surface">
-        <RangeToolbar
-          scope={scope}
-          loops={loops}
-          loopId={loopId ?? ''}
-          loop={loop}
-          loopsInScope={loops.filter(l => scope.matches(l)).length}
-          onLoopChange={id => write(p => { p.set('loop', id); p.delete('window'); })}
-          onLoopClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
-          from={from}
-          to={to}
-          preset={preset}
+      <LoopBand loopId={loopId}
+        onLoop={id => write(p => { p.set('loop', id); p.delete('window'); })}
+        onClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
+        end={<ExportMenu loopId={loopId ?? ''} exportDisabled={windows.length === 0} onExport={k => void exporter.run(k)} exportBusy={exporter.busy}
+          packageWindow={params.get('window') && selectedWindow?.windowEnd ? fmtDateTime(selectedWindow.windowEnd) : null} />}>
+        <TimeRangeBar from={from} to={to} presets={RANGE_PRESETS} preset={preset}
           onPreset={key => {
             const p = RANGE_PRESETS.find(x => x.key === key);
             if (p) { const r = presetRange(p.ms); applyRange(r.from, r.to); }
@@ -277,7 +268,12 @@ export const CpmHistorical: React.FC = () => {
             if (typeof r === 'string') return r;
             applyRange(r.from, r.to);
             return null;
-          }}
+          }} />
+      </LoopBand>
+
+      <section className="cpm-surface">
+        <RangeToolbar
+          loop={loop}
           signals={signals}
           onToggleSignal={key => {
             const next = signals.includes(key)
@@ -288,13 +284,8 @@ export const CpmHistorical: React.FC = () => {
           overlays={KPI_OVERLAYS}
           overlayKey={overlay.key}
           onOverlay={key => write(p => p.set('kpi', key))}
-          seriesPath={series}
           trendHref={loopTrendHref(toggledTags, '8h', { from, to })}
           onOpenTrend={href => navigate(href)}
-          exportDisabled={windows.length === 0}
-          onExport={k => void exporter.run(k)}
-          exportBusy={exporter.busy}
-          packageWindow={params.get('window') && selectedWindow?.windowEnd ? fmtDateTime(selectedWindow.windowEnd) : null}
           normalize={normalize}
           onToggleNormalize={() => write(p => { if (normalize) p.delete('normalize'); else p.set('normalize', '1'); })}
         />
@@ -324,7 +315,7 @@ export const CpmHistorical: React.FC = () => {
             title={series ? 'Nothing recorded in this range' : 'Select a loop'}
             copy={series
               ? `No signal samples, KPI rows or evaluated windows were stored for this loop between the selected dates. Widen the range, or check the loop's signal mapping. (Historian series: ${series})`
-              : 'Pick a loop in the toolbar above to draw its signals, KPI overlay and verdicts.'}
+              : 'Pick a loop in the band above to draw its signals, KPI overlay and verdicts.'}
             action={series ? { label: 'Widen to 30 days', onClick: () => { const r = presetRange(30 * 86_400_000); applyRange(r.from, r.to); } } : undefined}
             next={series && loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined}
           />
@@ -358,6 +349,7 @@ export const CpmHistorical: React.FC = () => {
         {/* Caption line under the chart, not free paragraphs in the section
             flow — they used to collide with the next panel head. */}
         <div className="cpm-hist-captions">
+          {series && <p className="cpm-hist-note">historian series at {series} · PV keeps its min–max envelope</p>}
           {!hasPlottableSignal && hasAnyLane && (
             <p className="cpm-hist-note">
               No values stored at {series} for{' '}

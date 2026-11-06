@@ -1,0 +1,31 @@
+/*
+ * The owner's colours for the Overview state bar (CHG-127, from the owner's image of 6 Nov 2026). Like the trend colours they
+ * are deliberately not design-system tokens: Traverse has no set of ten state hues. src/theme/stateColours.test.ts pins them,
+ * so change them only on the owner's word. Night is the same order lifted for the dark panel.
+ * The bar never relies on colour alone: every state is named with its count in the legend, and segments stay apart.
+ */
+html:root[data-theme='day'] {
+  --state-performing: #1f7a5c;
+  --state-oscillating: #e07b00;
+  --state-valve: #9c3d2a;
+  --state-effort: #7b4fa8;
+  --state-saturated: #c99a00;
+  --state-manual: #2f6db5;
+  --state-not-assessable: #6b7782;
+  --state-stale: #a8803a;
+  --state-never: #c5ccd3;
+  --state-review: #277575;
+}
+
+html:root[data-theme='night'] {
+  --state-performing: #4cc49a;
+  --state-oscillating: #f59e3f;
+  --state-valve: #d65f4e;
+  --state-effort: #b08fdc;
+  --state-saturated: #e3be3c;
+  --state-manual: #4f9bf0;
+  --state-not-assessable: #7c8896;
+  --state-stale: #cfa760;
+  --state-never: #56626f;
+  --state-review: #86d3d1;
+}

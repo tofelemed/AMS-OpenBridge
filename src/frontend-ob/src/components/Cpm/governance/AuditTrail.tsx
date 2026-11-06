@@ -118,14 +118,13 @@ export const AuditTrail: React.FC = () => {
         } />
       <Integrity verify={verify} />
 
-      <div className="cpm-filter-row cpm-audit__row">
-        {ENTITY_FILTERS.map(f => (
-          <ObcButton key={f.key} variant={entityType === f.key ? 'raised' : 'normal'} onClick={() => setEntityType(f.key)}>
-            {f.label}
-          </ObcButton>
-        ))}
-      </div>
       <div className="cpm-toolbar cpm-audit__row">
+        <label className="cpm-field">
+          <span className="cpm-field__label">Entity</span>
+          <select className="cpm-select" value={entityType} onChange={e => setEntityType(e.target.value)}>
+            {ENTITY_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select>
+        </label>
         <label className="cpm-field cpm-audit__find">
           <span className="cpm-field__label">Find by user, action or entity</span>
           <input className="cpm-input" type="search" placeholder="Searches the rows fetched"

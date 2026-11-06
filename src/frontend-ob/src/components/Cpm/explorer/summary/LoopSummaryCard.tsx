@@ -33,7 +33,7 @@ import { workbenchHref } from '../../evidence/selection';
 import { trendPeriodOf } from '../../trend/trendPeriod';
 import { pinEvaluated, revealTrend } from '../../trend/evaluatedWindow';
 import {
-  ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
+  ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, windowAgeOf,
 } from './summaryText';
 import { EVIDENCE_SCORE_HELP } from '../../evidenceScore';
 import { inputContextOf } from '../../optionalInputs';
@@ -69,7 +69,9 @@ export const LoopSummaryCard: React.FC<{
   /** CHG-098: more of the basis (the non-blocking readiness bar) and its one-line summary, for the disclosure. */
   more?: React.ReactNode;
   moreLine?: string;
-}> = ({ loop, matrix, windowKind, healthLabel, more, moreLine }) => {
+  /** Called when a button here takes the user to the page behind, so a popup can close. */
+  onLeave?: () => void;
+}> = ({ loop, matrix, windowKind, healthLabel, more, moreLine, onLeave }) => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
@@ -83,8 +85,7 @@ export const LoopSummaryCard: React.FC<{
   const limits = limitationsOf((matrix.observabilityFlags ?? []).filter(f => !basis || !(f in INPUT_LIMITS_GATE)), inputs);
   const last = matrix.lastVerdict;
   const score = finding && matrix.confidence != null ? Math.round(matrix.confidence * 100) : null;
-  const endMs = matrix.windowEnd ? Date.parse(matrix.windowEnd) : NaN;
-  const windowAge = Number.isFinite(endMs) && Date.now() - endMs > staleAfterMs(windowKind) ? ageText(Date.now() - endMs) : null;
+  const windowAge = windowAgeOf(matrix, windowKind);
   const action = primaryActionOf(condition);
   const actionHref = action.target === 'windows' ? windowsHref(loop.loopId)
     : action.target === 'historical' ? historicalHref(loop.loopId, trendPeriodOf(params))
@@ -151,7 +152,7 @@ export const LoopSummaryCard: React.FC<{
           <ObcButton variant="raised" onClick={() => navigate(actionHref)}>{action.label}</ObcButton>
           {canPin && (
             <ObcButton variant="flat" title="Show this evaluated window on the trend, compared with now"
-              onClick={() => { setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
+              onClick={() => { onLeave?.(); setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
               Show on trend ›
             </ObcButton>
           )}

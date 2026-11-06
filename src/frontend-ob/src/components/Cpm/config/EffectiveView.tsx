@@ -1,7 +1,7 @@
 /**
  * 2026-09-18 Gate Configuration redesign: the configuration a loop actually runs under, READ rather than
  * dumped. The layer stack (FACTORY → PROFILE → SITE → LOOP) says what each layer sets and where it comes
- * from; the gate strip carries a badge with the properties a layer above FACTORY overrides; one gate's
+ * from; the gate dropdown says how many of each gate's properties a layer above FACTORY sets; one gate's
  * table shows at a time; a search crosses gates; the workers fold to one line with a tone. Opened from a
  * gate result it names the bundle THAT run carried and says plainly when it is not the one active today.
  * Read-only: every value is the server's resolution.
@@ -51,7 +51,6 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
             : `The selected result was computed under this configuration (${shortHash(runBundleHash, 16)}).`}
         </p>
       )}
-      {!eff.bundle && eff.note && <p className="cpm-copy">{eff.note}</p>}
 
       {!compact && (
         <>
@@ -71,17 +70,14 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
       )}
 
       <div className="cpm-config-effective__bar">
-        <div className="cpm-config-gates" role="tablist" aria-label="Gate">
+        <select className="cpm-select" aria-label="Gate" value={gate ?? ''}
+          onChange={e => { if (e.target.value) { setQuery(''); setPicked(e.target.value); } }}>
+          {q && <option value="">All matching gates</option>}
           {visibleGates.map(g => (
-            <button key={g} type="button" role="tab" aria-selected={g === gate} className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => { setQuery(''); setPicked(g); }}>
-              {g}{gates[g].overridden > 0 && <span className="cpm-config-gate__badge" title={`${gates[g].overridden} of ${gates[g].total} set above the factory layer`}> {gates[g].overridden}</span>}
-            </button>
+            <option key={g} value={g}>{g}{gates[g].overridden > 0 ? ` · ${gates[g].overridden} set above factory` : ''}</option>
           ))}
-        </div>
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label">Find a property</span>
-          <input type="search" className="cpm-input" aria-label="Find a property" placeholder="e.g. noise, coverage" value={query} onChange={e => setQuery(e.target.value)} />
-        </label>
+        </select>
+        <input type="search" className="cpm-input" aria-label="Find a property" placeholder="Find a property" value={query} onChange={e => setQuery(e.target.value)} />
       </div>
 
       {rows.length === 0 ? <EmptyState title="No property matches" copy={q ? `Nothing in this loop's configuration matches "${query}".` : 'The effective block is empty for this gate.'} /> : (

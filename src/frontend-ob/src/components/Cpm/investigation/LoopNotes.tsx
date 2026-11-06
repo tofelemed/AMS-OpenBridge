@@ -14,6 +14,7 @@ import { useCreateLoopNote, useLinkLoopNote, useLoopNotes, useSetLoopNoteOutcome
 import { useAuthStore } from '../../../store/authStore';
 import { useEvidenceManifest } from '../evidence/useEvidence';
 import { PanelHead, TonePill, type CpmTone } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { ReasonedButton } from '../ReasonedButton';
 import { diagnosisLabel } from '../vocabulary';
 import { fmtInstant } from '../context/LoopContextBar';
@@ -64,7 +65,8 @@ export const LoopNotes: React.FC<{
   return (
     <section className="cpm-surface cpm-loop-notes" data-testid="loop-notes">
       <PanelHead eyebrow="Record it" title="Loop notes"
-        right={<span className="cpm-copy">{notes.data ? `${notes.data.count} on ${loopId}` : ''}</span>} />
+        help={<Toggletip variant="how-to" label="About loop notes"><p>A note stays on the loop. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.</p></Toggletip>}
+        right={<span className="cpm-copy">{notes.data ? `${notes.data.count} note(s)` : ''}</span>} />
       <textarea className="cpm-textarea" rows={3} value={text} maxLength={MAX_NOTE_LENGTH + 1}
         placeholder="Observation, action taken, follow-up owner… (no episode needed)" aria-label="Loop note"
         onChange={e => setText(e.target.value)} />
@@ -95,9 +97,6 @@ export const LoopNotes: React.FC<{
         {create.isSuccess && <TonePill tone="good">Saved</TonePill>}
         {create.isError && <span className="cpm-field__error" role="alert">{(create.error as Error)?.message ?? 'The note was not saved.'}</span>}
       </div>
-      <p className="cpm-copy cpm-loop-notes__hint">
-        A note stays on the loop. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.
-      </p>
       <NoteList notes={notes.data?.investigations ?? []} loading={notes.isLoading} episodes={episodes.data?.events ?? []} canManage={canManage} loopId={loopId} />
     </section>
   );

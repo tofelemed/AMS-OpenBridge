@@ -1,7 +1,7 @@
 // 2026-09-18 Gate Configuration redesign: the URL machine. No loop → the overview (one fleet read, the
 // bundles of the site in summary form); ?loop= alone → the URL is replaced with view=effective and the
 // effective read is the only per-loop request; the Bundles view reads the three levels only when opened;
-// a version opens the editor; the toolbar's loop search drives everything (no left column).
+// a version opens the editor; the loop band drives everything.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';

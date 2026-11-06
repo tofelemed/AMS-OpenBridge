@@ -75,8 +75,7 @@ export const LoopTrendPanel: React.FC<{
       <TimeRangeBar from={from} to={to} presets={range.presets} preset={range.preset}
         onPreset={range.applyPreset} onStep={range.step} onApplyCustom={range.applyCustom}
         nowLabel="Live" nowTitle="Back to the live rolling 8 h" onNow={range.goLive}
-        stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}
-        hideCustomInputs={isEvaluatedView}>
+        stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}>
         <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
           onClick={() => navigate(historicalHref(loop.loopId, { from: from.toISOString(), to: to.toISOString() }))}>
           Open in Historical ›

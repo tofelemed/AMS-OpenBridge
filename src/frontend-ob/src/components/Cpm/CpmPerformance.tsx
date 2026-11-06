@@ -17,7 +17,6 @@
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FilterChip } from '../../ui/forms/FilterChip';
 import { Toggletip } from '../../ui/Toggletip';
 import type { CpmHealthFilter } from '../../api/cpmApi';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
@@ -27,7 +26,7 @@ import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import {
   EmptyState, KpiTile, PanelHead, WorkspaceHeader, QueryError, fmtDateTime,
 } from './shared';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
+import { useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
 import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
@@ -37,7 +36,7 @@ import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd, matrixViewOf, type MatrixView } from './gateStatus';
 import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
 import { useFleetKpis } from './kpi/useFleetKpis';
-import { headlineTiles } from './performanceHeadline';
+import { headlineTiles, noneCountedText } from './performanceHeadline';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
@@ -144,6 +143,13 @@ export const CpmPerformance: React.FC = () => {
   // CHG-093 (SME review 2 #10/#11): the headline is computed by the server over EVERY assessed loop in the scope (the
   // Overview KPIs' classification), with its exclusions — no longer over the 50 most confident loops of a ranked page
   const fleetKpis = useFleetKpis({ ...scope.params, windowKind });
+  const conditionFilter = (
+    <select className="cpm-select" aria-label="Instrument health condition" value={healthFilter ?? ''}
+      onChange={e => setHealthFilter((e.target.value || undefined) as CpmHealthFilter | undefined)}>
+      <option value="">Any condition</option>
+      {HEALTH_FILTERS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+    </select>
+  );
   const tiles = fleetKpis.data?.performance ? headlineTiles(fleetKpis.data.performance) : null;
   const badActors = useBadActors(scope.params, windowKind, rankBy, healthFilter);
   const heatmap = useFleetHeatmap(scope.params, windowKind, healthFilter);
@@ -182,7 +188,6 @@ export const CpmPerformance: React.FC = () => {
         // 1m…60m results live in the Window Inspector, and the ? says so. The reason for a disabled button rides on a
         // wrapping span (ObcButton takes no title) and in the text (CHG-098, SME review 2 #29).
         actions={<>
-          {!selectedLoop && <span className="cpm-copy">Select a loop in the matrix for</span>}
           <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
             <ObcButton variant="flat" disabled={!selectedLoop}
               onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
@@ -202,26 +207,6 @@ export const CpmPerformance: React.FC = () => {
           </Toggletip>
         </>}
       />
-      <PlantScopeFilter
-        scope={scope}
-        summary={summary.data ? `${summary.data.loops.monitored} monitored loop(s) in scope` : null}
-      />
-
-      <div className="cpm-chip-row" role="group" aria-label="Instrument health filter">
-        {HEALTH_FILTERS.map(f => (
-          <FilterChip
-            key={f.id}
-            label={f.label}
-            selected={healthFilter === f.id}
-            onToggle={() => setHealthFilter(healthFilter === f.id ? undefined : f.id)}
-          />
-        ))}
-        {healthFilter && (
-          <span className="cpm-event-row__sub">
-            ranking only loops matching “{HEALTH_FILTERS.find(f => f.id === healthFilter)?.label}” (server-side)
-          </span>
-        )}
-      </div>
 
       <div className="cpm-kpi-row">
         {/* CHG-093: neutral tones — these are fleet context, not a verdict (SME review 2 #22); the health filter narrows
@@ -241,6 +226,9 @@ export const CpmPerformance: React.FC = () => {
           value={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).value}
           sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).sub} />
       </div>
+      {fleetKpis.data?.performance && noneCountedText(fleetKpis.data.performance) && (
+        <p className="cpm-copy">{noneCountedText(fleetKpis.data.performance)}</p>
+      )}
 
       <section className="cpm-surface">
         <PanelHead
@@ -279,10 +267,17 @@ export const CpmPerformance: React.FC = () => {
           <QueryError title="Gate matrix unavailable" error={heatmap.error}
             retry={() => void heatmap.refetch()} />
         )}
-        {!heatmap.isLoading && !heatmap.isError && heatmapLoops.length === 0 && (
+        {/* The matrix goes when the condition matches nothing, and the condition must not go with it */}
+        {healthFilter && heatmapLoops.length === 0 && <div className="cpm-matrix-toolbar">{conditionFilter}</div>}
+        {!heatmap.isLoading && !heatmap.isError && heatmapLoops.length === 0 && healthFilter && (
+          <EmptyState title="No loop matches this condition"
+            copy={`No monitored loop in this plant scope has “${HEALTH_FILTERS.find(f => f.id === healthFilter)?.label}”.`}
+            action={{ label: 'Any condition', onClick: () => setHealthFilter(undefined) }} />
+        )}
+        {!heatmap.isLoading && !heatmap.isError && heatmapLoops.length === 0 && !healthFilter && (
           // CHG-098 (SME review 2 #29): the route, not only the instruction.
           <EmptyState title="No monitored loops"
-            copy="No loop in this plant scope is monitored. Widen the plant scope above, or onboard loops in the Loop Registry to populate the matrix."
+            copy="No loop in this plant scope is monitored. Widen the plant scope in the header, or onboard loops in the Loop Registry to populate the matrix."
             next={[{ label: 'Loop Registry', to: '/cpm/registry' }]} />
         )}
 
@@ -315,6 +310,7 @@ export const CpmPerformance: React.FC = () => {
                   inputFlagsOf={inputFlagsOf}
                   view={matrixView}
                   onViewChange={setMatrixView}
+                  toolbarStart={conditionFilter}
                   fleetTotal={heatmap.data?.total ?? fleetTotal}
                 />
 

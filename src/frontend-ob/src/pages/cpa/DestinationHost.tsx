@@ -3,9 +3,10 @@
  * host, so a page with its own tabs reads `sub` instead (SPEC §2.3). A tab the role cannot open is
  * not offered. Reached by URL, it shows the restricted state.
  */
-import React, { useId } from 'react';
+import React, { useId, useState } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { RestrictedRoute, RouteFallback } from '../../app/guards';
+import { TabEndContext } from '../../cpa/tabEnd';
 import { carryKind, misplacedKind, settleKind, type KindTab } from '../../cpa/tabKind';
 import { useAuthStore } from '../../store/authStore';
 import { Tabs, tabPanelProps } from '../../ui/Tabs';
@@ -26,6 +27,7 @@ export const DestinationHost: React.FC<{ label: string; tabs: HostTab[] }> = ({ 
   const { pathname } = useLocation();
   const hasPermission = useAuthStore(s => s.hasPermission);
   const idBase = useId();
+  const [tabEnd, setTabEnd] = useState<HTMLElement | null>(null);
   const canOpen = (t: HostTab) => (!t.permission || hasPermission(t.permission)) && (!t.anyOf || t.anyOf.some(hasPermission));
   const offered = tabs.filter(canOpen);
   const active = tabs.find(t => t.value === params.get('tab')) ?? offered[0] ?? tabs[0];
@@ -47,9 +49,14 @@ export const DestinationHost: React.FC<{ label: string; tabs: HostTab[] }> = ({ 
 
   return (
     <div className="dest">
-      <Tabs idBase={idBase} label={label} options={offered} value={active.value} onChange={select} />
+      <div className="dest__tabrow">
+        <Tabs idBase={idBase} label={label} options={offered} value={active.value} onChange={select} />
+        <div className="dest__tabend" ref={setTabEnd} />
+      </div>
       <div {...tabPanelProps(idBase, active.value)}>
-        {canOpen(active) ? page : <RestrictedRoute />}
+        <TabEndContext.Provider value={tabEnd}>
+          {canOpen(active) ? page : <RestrictedRoute />}
+        </TabEndContext.Provider>
       </div>
     </div>
   );

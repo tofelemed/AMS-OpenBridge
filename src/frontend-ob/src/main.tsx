@@ -19,6 +19,7 @@ import './styles/traverse-tokens.css';
 import './styles/openbridge-bridge.css';
 import './styles/tones.css';
 import './styles/signal-colours.css';
+import './styles/state-colours.css';
 
 // Compatibility aliases for names the older stylesheets use.
 import './components/Designer/designTokens.css';

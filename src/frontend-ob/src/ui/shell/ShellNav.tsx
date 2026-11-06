@@ -14,7 +14,7 @@ import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-m
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
-import { cpaHref } from '../../components/Cpm/cpaHref';
+import { cpaHref, trendToolHref } from '../../components/Cpm/cpaHref';
 import { SUITE_MODULES, destinationFor, visibleDestinations, type DestinationId } from '../../cpa/destinations';
 import { useAuthStore } from '../../store/authStore';
 
@@ -76,7 +76,7 @@ export const ShellNav: React.FC<{
             })}
             {hasPermission('historian.view') && (
               <li className="shell-nav__entry">
-                <Link to="/trend" className="shell-nav__item" aria-current={location.pathname === '/trend' ? 'page' : undefined}>
+                <Link to={trendToolHref(location.search)} className="shell-nav__item" aria-current={location.pathname === '/trend' ? 'page' : undefined}>
                   <span className="ui-icon"><ObiTrend /></span>
                   <span className="shell-nav__label">Trend</span>
                 </Link>

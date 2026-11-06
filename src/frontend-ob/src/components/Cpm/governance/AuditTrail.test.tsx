@@ -72,7 +72,7 @@ describe('the one audit trail', () => {
 
   it('asks the server for entity, event type and user, and reaches older records', () => {
     render(<AuditTrail />);
-    fireEvent.click(screen.getByText('CPM events'));
+    fireEvent.change(screen.getByLabelText('Entity'), { target: { value: 'CpmEventFrame' } });
     fireEvent.change(screen.getByLabelText('Event type'), { target: { value: 'CPM_LOOP_DELETED' } });
     fireEvent.change(screen.getByLabelText('User'), { target: { value: ' admin ' } });
     expect(lastQuery()).toEqual({ entityType: 'CpmEventFrame', eventType: 'CPM_LOOP_DELETED', userId: 'admin', take: 200 });

@@ -12,6 +12,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
 import { activeZone } from '../../cpa/activeZone';
+import { TabEnd, useHostedTab } from '../../cpa/tabEnd';
 import { Toggletip } from '../../ui/Toggletip';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
 import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
@@ -292,18 +293,25 @@ export const WorkspaceHeader: React.FC<{
   title: string;
   copy?: string;
   actions?: React.ReactNode;
-}> = ({ page, eyebrow = page && CPM_PAGES[page].task, title, copy = page && CPM_PAGES[page].purpose, actions }) => (
-  <header className="cpm-workspace-header">
-    <div>
-      {eyebrow && <span className="cpm-eyebrow">{eyebrow}</span>}
-      <div className="cpm-title-row">
-        <h1 className="cpm-title">{title}</h1>
-        {copy && <Toggletip variant="how-to" label={title}><p>{copy}</p></Toggletip>}
+}> = ({ page, eyebrow = page && CPM_PAGES[page].task, title, copy = page && CPM_PAGES[page].purpose, actions }) => {
+  const help = copy ? <Toggletip variant="how-to" label={title}><p>{copy}</p></Toggletip> : null;
+  // CHG-128: as a tab the page needs no heading of its own, because the tab names it.
+  if (useHostedTab()) {
+    return <><h1 className="cpm-sr-only">{title}</h1><TabEnd>{actions}{help}</TabEnd></>;
+  }
+  return (
+    <header className="cpm-workspace-header">
+      <div>
+        {eyebrow && <span className="cpm-eyebrow">{eyebrow}</span>}
+        <div className="cpm-title-row">
+          <h1 className="cpm-title">{title}</h1>
+          {help}
+        </div>
       </div>
-    </div>
-    {actions && <div className="cpm-workspace-header__actions">{actions}</div>}
-  </header>
-);
+      {actions && <div className="cpm-workspace-header__actions">{actions}</div>}
+    </header>
+  );
+};
 
 /** Panel head: eyebrow + h2 + optional right slot (CPA's .surface-head). */
 export const PanelHead: React.FC<{

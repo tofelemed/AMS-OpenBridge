@@ -14,12 +14,11 @@ import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, PanelHead, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
+  EmptyState, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
   fmtWindowShape, windowSpecsOf, QueryError,
 } from './shared';
-import { LoopContextBar } from './context/LoopContextBar';
-import { PlantScopeFilter, useCpmScope } from './plantScope';
-import LoopCombobox from './LoopCombobox';
+import { fmtPeriod } from './context/LoopContextBar';
+import { LoopBand } from './context/LoopBand';
 import {
   useCpmCalculations, useCpmKpis, useCpmLoops, useCpmResolutions, useLatestGates,
 } from '../../hooks/useCpm';
@@ -31,7 +30,7 @@ import { gateMark } from './gateStatus';
 import { fmtQuantity } from './evidence/format';
 import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
 import { evidenceScore } from './evidenceScore';
-import SelectionSummary from './SelectionSummary';
+import { Toggletip } from '../../ui/Toggletip';
 import SortHeader from './SortHeader';
 import { DEFAULT_CALC_SORT, calcOrderText, nextCalcSort, sortMetrics, type CalcSort, type CalcSortKey } from './calcSort';
 
@@ -60,8 +59,6 @@ export const CpmCalculations: React.FC = () => {
 
   const { data: loopData } = useCpmLoops();
   const loops = useMemo(() => loopData?.loops ?? [], [loopData]);
-  // Plant scope (CPM-UX A1): narrows the loop picker to a section/unit.
-  const scope = useCpmScope();
   // Case-insensitive, like every loop lookup in cplm-api.
   // No default selection: registry order is arbitrary, so `loops[0]` is a
   // CHOICE presented as a default — the same lie the ?loop=-names-nothing
@@ -213,6 +210,10 @@ export const CpmCalculations: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- statusOf closes over the gates query; the data identity below is the real dep.
   }, [gates.data]);
 
+  // CHG-130: the column goes only when the band's dates are true for every row
+  const bandEnd = gates.data?.windowEnd ? Date.parse(gates.data.windowEnd) : NaN;
+  const oneWindow = Number.isFinite(bandEnd) && filtered.every(m => { const end = windowEndOf(m); return !!end && Date.parse(end) === bandEnd; });
+
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
@@ -220,47 +221,19 @@ export const CpmCalculations: React.FC = () => {
         title="Calculations"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      <LoopContextBar loopId={loop?.loopId ?? loopId} period={{ label: 'Latest results', start: gates.data?.windowStart, end: gates.data?.windowEnd }} />
-
-      <section className="cpm-surface">
-        {/* SME #21 (CHG-057): with a loop already chosen (carried from the menu) the step no longer asks for one */}
-        <PanelHead eyebrow={loop ? '1 · Loop' : '1 · Select the loop'}
-          title={loop ? `${loop.loopId} · ${loop.displayName}` : 'Which loop do you want to evaluate?'} />
-        <SelectionSummary summary={loop ? `${loop.loopId} — pick another loop or plant scope` : null}>
-          <PlantScopeFilter scope={scope} />
-          <div className="cpm-toolbar">
-            <LoopCombobox scope={scope} loops={loops} value={loop?.loopId ?? ''}
-              onChange={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
-              onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }} />
-          </div>
-        </SelectionSummary>
-        <div className="cpm-toolbar">
-          {loop && (
-            <>
-              {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
-                  404 "no fused window yet" is, and keeps the muted pill. */}
-              {gates.isError && !isNoVerdict(gates.error) ? (
-                <TonePill tone="warn">VERDICT UNAVAILABLE</TonePill>
-              ) : (
-                <TonePill tone={toneFor(gates.data?.diagnosis)}>
-                  {diagnosisLabel(gates.data?.diagnosis)}
-                </TonePill>
-              )}
-              <span className="cpm-copy">
-                {loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}
-              </span>
-            </>
-          )}
-          {longKpis.isError && (
-            <QueryError title="KPI rows unavailable — values below are missing, not absent" error={longKpis.error}
-              retry={() => void longKpis.refetch()} />
-          )}
-        </div>
-      </section>
+      <LoopBand loopId={loop?.loopId ?? loopId}
+        onLoop={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
+        onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }}>
+        {loop && <span className="cpm-band__meta">{fmtPeriod({ label: 'Latest results', start: gates.data?.windowStart, end: gates.data?.windowEnd })}</span>}
+      </LoopBand>
+      {longKpis.isError && (
+        <QueryError title="KPI rows unavailable — values below are missing, not absent" error={longKpis.error}
+          retry={() => void longKpis.refetch()} />
+      )}
 
       {!loop && (
         <section className="cpm-surface">
-          <EmptyState title="Select a loop"
+          <EmptyState level={2} title="Select a loop"
             copy="Pick a loop above. The catalogue then lists every stored metric with this loop's latest value and the gate that judges it." />
         </section>
       )}
@@ -296,12 +269,23 @@ export const CpmCalculations: React.FC = () => {
               <option key={k} value={k}>{k === 'all' ? 'All types' : k}</option>)}
           </select>
           <span className="cpm-filter-count">{filtered.length} result(s)</span>
+          {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
+              404 "no fused window yet" is, and keeps the muted pill. */}
+          {gates.isError && !isNoVerdict(gates.error) ? (
+            <TonePill tone="warn">VERDICT UNAVAILABLE</TonePill>
+          ) : (
+            <TonePill tone={toneFor(gates.data?.diagnosis)}>{diagnosisLabel(gates.data?.diagnosis)}</TonePill>
+          )}
+          <span className="cpm-copy">{loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}</span>
         </div>
 
         {/* CHG-098 (SME review 2 #25): the headings stay in view while the page scrolls, and sort the catalogue */}
-        <div className="cpm-event-head cpm-calc-row cpm-table-head--sticky">
+        <div className={`cpm-event-head cpm-calc-row${oneWindow ? ' cpm-calc-row--one-window' : ''} cpm-table-head--sticky`}>
           {head('id', 'ID')}{head('name', 'Calculation / parameter')}{head('gate', 'Gate')}
-          <span>Value</span><span>Window</span>
+          <span className="cpm-calc-row__value-head">Value
+            <Toggletip variant="how-to" label="When a value is not measured"><p>Not measured: the engine version that wrote this window has no such metric, or the window gave it nothing to work from. Open the row for its reason.</p></Toggletip>
+          </span>
+          {!oneWindow && <span>Window</span>}
           {head('status', 'Gate result', 'The verdict of the gate that judges this metric, on the same window. Sorts needing attention first.')}
         </div>
         {rows.map(m => {
@@ -311,7 +295,7 @@ export const CpmCalculations: React.FC = () => {
           const isOpen = drawer?.id === m.id;
           return (
             // CHG-098 (SME review 2 #25): the row whose drawer is open is marked, not only hovered
-            <div key={m.id} className={`cpm-event-row cpm-event-row--dense cpm-calc-row${isOpen ? ' cpm-event-row--selected' : ''}`}
+            <div key={m.id} className={`cpm-event-row cpm-event-row--dense cpm-calc-row${oneWindow ? ' cpm-calc-row--one-window' : ''}${isOpen ? ' cpm-event-row--selected' : ''}`}
               aria-current={isOpen ? 'true' : undefined}
               onClick={() => setDrawer(m)} role="button" tabIndex={0}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawer(m); } }}>
@@ -326,13 +310,15 @@ export const CpmCalculations: React.FC = () => {
               <span title={disq ?? undefined}>
                 {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span>
                   : v != null ? (m.field === 'confidence' ? `${evidenceScore(v)} / 100` : fmtQuantity(v, m.unit))
-                  : <span className="cpm-metric-na" title={notMeasuredWhy(m)}>Not measured — {notMeasuredWhy(m)}</span>}
+                  : <span className="cpm-metric-na" title={notMeasuredWhy(m)}>Not measured</span>}
               </span>
               {/* C2: WHEN, not just which resolution — "latest" without a
                   timestamp reads as current on a stale historian. */}
-              <span className="cpm-event-row__sub">
-                <span title={windowShapeOf(windowKind)}>{windowText(m)}</span>
-              </span>
+              {!oneWindow && (
+                <span className="cpm-event-row__sub">
+                  <span title={windowShapeOf(windowKind)}>{windowText(m)}</span>
+                </span>
+              )}
               <TonePill tone={st.tone}>{st.label}</TonePill>
             </div>
           );

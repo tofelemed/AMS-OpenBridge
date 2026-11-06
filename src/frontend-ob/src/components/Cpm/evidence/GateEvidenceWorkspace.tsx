@@ -1,22 +1,21 @@
 /**
  * v2.5 Task 2E.3 (spec §3.1-3.2, R13; NR-031) + the 2026-09-17 redesign: the gate evidence
- * workbench. It opens like every CPM page - scope filter, loop search, window kind, evaluated
- * window - and reads one IMMUTABLE method run named in the URL; "Newest" is an explicit navigation
- * within the loaded window list, never a "latest" read. Layout: toolbar → header facts → gate strip
- * → reading column (verdict, signal context, evidence, flags) + collapsible explain column.
+ * workbench. It opens like every loop page - the loop band, here with its evaluated window and gate
+ * dropdowns - and reads one IMMUTABLE method run named in the URL; "Newest" is an explicit navigation
+ * within the loaded window list, never a "latest" read. Layout: loop band → header facts → evidence basis
+ * → reading column (verdict, evidence, signal context, flags) + collapsible explain column.
  */
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, fmtWindowShape, windowSpecsOf } from '../shared';
-import { LoopContextBar } from '../context/LoopContextBar';
+import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops, useCpmResolutions, useGateCatalogue } from '../../../hooks/useCpm';
-import { useCpmScope } from '../plantScope';
 import { PROFILE_SECONDS } from '../windows/windowMath';
-import { EvidenceToolbar, type WindowKindOption } from './EvidenceToolbar';
+import { EvidenceMore, EvidenceWindowSelect, type WindowKindOption } from './EvidenceToolbar';
 import { EvaluateWindow } from './EvaluateWindow';
 import { EvidenceHeaderStrip } from './EvidenceHeaderStrip';
-import { GateChipStrip, chipsOf } from './GateChipStrip';
+import { GateMenu, chipsOf } from './GateChipStrip';
 import { VerdictCard, WindowFlags } from './VerdictCard';
 import { ExplainPanel, useExplainCollapsed } from './ExplainPanel';
 import { SignalContextLanes } from './SignalContextLanes';
@@ -35,11 +34,10 @@ import { findOptionOfRun, neighbours, resolveLanding, runInWindow, useEvidenceWi
 import { chipCells, gateReasonOf, gateStatusOf } from './gateFacts';
 import { verdictSentence } from './verdictCopy';
 import { headlineOf } from './views/headlines';
-import { formatInZone, siteZoneOf } from './timezone';
+import { formatInZone, siteZoneOf, zoneLabel } from './timezone';
 import { gateTone } from '../gateStatus';
 import CollapsibleSection from '../CollapsibleSection';
 import ConclusionStrip from '../ConclusionStrip';
-import SelectionSummary from '../SelectionSummary';
 import { codeLabel } from '../vocabulary';
 import { inputContextOf } from '../optionalInputs';
 import { effectiveInputFlags } from '../inputLimits';
@@ -49,12 +47,12 @@ const DEFAULT_KIND = '12h';   // CHG-089
 export const GateEvidenceWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const [evaluateOpen, setEvaluateOpen] = useState(false);
   const selection = useMemo(() => parseSelection(params), [params]);
   const loopId = selection?.loopId ?? params.get('loop')?.trim() ?? undefined;
   const wantedGate = params.get('gate')?.trim() || null;
   const before = params.get('before') ?? undefined;
 
-  const scope = useCpmScope();
   const loops = useCpmLoops();
   const resolutions = useCpmResolutions();
   const catalogue = useGateCatalogue();
@@ -157,26 +155,65 @@ export const GateEvidenceWorkspace: React.FC = () => {
     inputFlags: effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)),
   }), [run.data, currentOption, catalogue.data, loop, analysisRunParam]);
 
-  const toolbar = (
-    <EvidenceToolbar scope={scope} loops={loops.data?.loops ?? []} loopId={loopId} kind={kind} kinds={kinds}
-      windows={windows.options} windowsLoading={windows.isLoading} windowsError={windows.error} onRetryWindows={windows.refetch}
-      currentMethodRunId={selection?.methodRunId} hasMore={windows.hasMore} onLoadMore={windows.loadMore} loadingMore={windows.isLoadingMore}
-      onLoop={id => setParams(p => { p.set('loop', id); for (const k of ['methodRun', 'gate', 'mode', 'kind', 'before']) p.delete(k); return p; }, { replace: true })}
-      onClearLoop={() => setParams(p => { for (const k of ['loop', 'methodRun', 'gate', 'mode', 'kind', 'before']) p.delete(k); return p; }, { replace: true })}
-      onKind={k => setParams(p => { p.set('kind', k); p.delete('before'); return p; }, { replace: true })}
-      onWindow={openWindow}
-      onJump={iso => setParams(p => { p.set('before', iso); return p; }, { replace: true })} />
-  );
   // CHG-102 5c: any window the historian holds, evaluated on demand; the result opens on its fused (G15) run
   const evaluate = loopId ? <EvaluateWindow loopId={loopId} timeZone={timeZone} kindHint={kind} onOpen={openEvaluated} /> : null;
+  const LOOP_KEYS = ['methodRun', 'gate', 'mode', 'kind', 'before'];
+  const support = run.data?.support;
+  const runWindow = optionIndex < 0 && support?.fromMs != null && support.toMs != null
+    ? `${run.data?.windowKind} · ${formatInZone(support.fromMs, timeZone)} → ${formatInZone(support.toMs, timeZone)} · ${zoneLabel(timeZone, support.fromMs)}`
+    : null;
+  const atNewest = optionIndex === 0;
+  const notListed = "This run's window is not in the listed windows of the chosen kind";
+  const band = (
+    <LoopBand loopId={loopId}
+      onLoop={id => setParams(p => { p.set('loop', id); for (const k of LOOP_KEYS) p.delete(k); return p; }, { replace: true })}
+      onClear={() => setParams(p => { p.delete('loop'); for (const k of LOOP_KEYS) p.delete(k); return p; }, { replace: true })}
+      end={
+        <EvidenceMore loopId={loopId} kind={kind} kinds={kinds} windowsError={windows.error} onRetryWindows={windows.refetch}
+          hasMore={windows.hasMore} onLoadMore={windows.loadMore} loadingMore={windows.isLoadingMore}
+          onKind={k => setParams(p => { p.set('kind', k); p.delete('before'); return p; }, { replace: true })}
+          onJump={iso => setParams(p => { p.set('before', iso); return p; }, { replace: true })}>
+          {selection && (
+            <span title={atNewest ? 'Already the newest window' : undefined}>
+              <ObcButton variant="normal" disabled={!windows.options[0] || atNewest} onClick={() => openWindow(windows.options[0])}>Newest</ObcButton>
+            </span>
+          )}
+          {selection && run.data?.reconstruction.supported && (
+            // CHG-099: offered on every reconstructable run; the rebuild is stored beside the retained proof, never over it
+            <span title="Rebuild this gate's arrays from the run's window; kept beside the retained proof for comparison">
+              <ObcButton variant="normal" disabled={reconstruct.isPending} onClick={() => reconstruct.mutate()}>{reconstruct.isPending ? 'Reconstruction running…' : 'Reconstruct evidence'}</ObcButton>
+            </span>
+          )}
+          {selection && evaluate && (
+            <ObcButton variant="normal" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>
+              {evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}
+            </ObcButton>
+          )}
+        </EvidenceMore>
+      }>
+      <EvidenceWindowSelect loopId={loopId} kind={kind} windows={windows.options} windowsLoading={windows.isLoading} windowsError={windows.error}
+        currentMethodRunId={selection?.methodRunId} onWindow={openWindow} runWindow={runWindow} />
+      {selection && run.data && <GateMenu chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
+      {selection && (
+        <>
+          {/* the reason a stepper is disabled rides on a wrapping span: ObcButton takes no title */}
+          <span title={optionIndex < 0 ? notListed : atNewest ? 'Already the newest window' : undefined}>
+            <ObcButton variant="flat" disabled={!nav.newer} onClick={() => { if (nav.newer) openWindow(nav.newer); }}>‹ Newer</ObcButton>
+          </span>
+          <span title={optionIndex < 0 ? notListed : undefined}>
+            <ObcButton variant="flat" disabled={!nav.older} onClick={() => { if (nav.older) openWindow(nav.older); }}>Older ›</ObcButton>
+          </span>
+        </>
+      )}
+    </LoopBand>
+  );
 
   if (!selection) {
     return (
       <div className="cpm-screen cpm-evidence-workspace">
         {/* No run open means no header strip, and so no page title for a screen reader. */}
         <h1 className="cpm-sr-only">Evidence workbench</h1>
-        <LoopContextBar loopId={loopId} timeZone={timeZone} period={{ label: 'Windows (none opened)' }} />
-        {toolbar}
+        {band}
         {evaluate}
         {!loopId && <EmptyState level={2} title="Pick a loop" copy="Its evaluated windows and gates appear here. A gate cell on Performance, Investigation or System Response opens the workbench on that run directly." />}
         {loopId && windows.isLoading && <EmptyState level={2} title="Listing the evaluated windows…" />}
@@ -193,23 +230,16 @@ export const GateEvidenceWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-evidence-workspace">
-      <LoopContextBar loopId={loopId} timeZone={timeZone} period={run.data ? { label: `${run.data.windowKind} window`, start: run.data.support.fromMs, end: run.data.support.toMs } : null} />
+      {band}
+      {/* Here, not in the More panel: a run must survive a click elsewhere, which closes the panel */}
+      {evaluateOpen && evaluate}
       {/* SME #13 (CHG-050): the verdict stays in view while the evidence below it is read. */}
       <ConclusionStrip targetId="cpm-conclusion" active={!!run.data} label="Verdict"
         tone={status ? gateTone(status, selection.gate) : 'muted'} text={`${selection.gate} · ${status ? codeLabel(status) : 'no verdict'}`} detail={sentence} />
-      <SelectionSummary summary={loopId && currentOption
-        ? `${loop?.loopId ?? loopId} · ${currentOption.label}` : null}>
-        {toolbar}
-        {evaluate}
-      </SelectionSummary>
-      <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName} timeZone={timeZone}
-        readiness={manifest.data?.readiness}
-        nav={{ newer: nav.newer ? () => openWindow(nav.newer) : null, older: nav.older ? () => openWindow(nav.older) : null,
-          newest: windows.options[0] ? () => openWindow(windows.options[0]) : null, atNewest: optionIndex === 0, inList: optionIndex >= 0 }}
-        reconstruct={run.data?.reconstruction.supported ? { onClick: () => reconstruct.mutate(), busy: reconstruct.isPending } : undefined} />
+      <EvidenceHeaderStrip selection={selection} run={run.data} entry={entry} loopName={loop?.displayName}
+        readiness={manifest.data?.readiness} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
-      {run.data && <GateChipStrip chips={chips} selected={selection.gate} onOpen={(g, id) => goTo(id, g)} />}
       <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
         <div className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
           <div id="cpm-conclusion">

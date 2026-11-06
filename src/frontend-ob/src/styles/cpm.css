@@ -51,7 +51,7 @@
 
 .cpm-surface {
   background: var(--container-backdrop-color);
-  border: 1px solid var(--container-border-color, var(--border-divider-color));
+  border: 1px solid var(--traverse-border-subtle);
   border-radius: 8px;
   padding: 16px;
 }
@@ -143,6 +143,9 @@
 
 /* ── Filter segmented row (U4) ── */
 .cpm-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cpm-filter-row .cpm-select { width: auto; min-width: 0; }
+.cpm-filter-find { flex: 0 1 300px; min-width: 200px; }
+.cpm-filter-row .cpm-filter-count { margin-inline-start: auto; }
 .cpm-filter-count { margin-left: auto; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 
 /* ── Event list (U4) ── */
@@ -395,6 +398,8 @@
   margin: 4px 0 10px;
 }
 .cpm-matrix-toolbar__search { min-width: 220px; flex: 0 1 280px; }
+.cpm-matrix-toolbar__search .ui-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.cpm-matrix-toolbar .cpm-select { width: auto; min-width: 0; }
 .cpm-matrix-toolbar__count { margin-left: auto; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-matrix-pager { display: flex; justify-content: center; margin-top: 12px; }
 
@@ -701,16 +706,14 @@
   gap: 16px;
   align-items: start;
 }
-.cpm-explorer-layout--rail-closed { grid-template-columns: 52px minmax(0, 1fr); }
+.cpm-explorer-layout--rail-closed { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 1000px) {
   .cpm-explorer-layout,
   .cpm-explorer-layout--rail-closed { grid-template-columns: minmax(0, 1fr); }
 }
 
 .cpm-rail { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
-.cpm-rail--collapsed { padding: 8px 6px; align-items: center; }
 .cpm-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cpm-rail--collapsed .cpm-rail__head { justify-content: center; }
 
 /* ── Loop tree: collapsible site/area/unit groups with counts ── */
 .cpm-tree { display: flex; flex-direction: column; gap: 2px; max-height: 62vh; overflow: auto; }
@@ -1055,15 +1058,11 @@
 }
 
 /* ── Historical explorer (U6) ──────────────────────────────────────────────
-   The toolbar is grouped by QUESTION and narrows top to bottom:
-   SCOPE (where) → LOOP (which) → RANGE (when) → VIEW (what to draw).
+   The plant scope lives in the header, and the loop, the range and Export live
+   in the loop band, so this toolbar holds only what to draw: the signal chips,
+   the KPI overlay and the way out to Trend.
 
-   It was one flex-wrap bucket of ten controls, and LoopPicker is three stacked
-   elements where its neighbours are one — which is what broke the declared row
-   into four ragged lines with a hole beside the scope selects. Each question
-   now owns a row with a label rail and its own baseline.
-
-   Colour discipline: the rails and surfaces are neutral OpenBridge tokens; the
+   Colour discipline: the surfaces are neutral OpenBridge tokens; the
    only saturated colour in here is on the signal chips, where it carries the
    pen identity of the line each chip draws. On a diagnostic screen, colour that
    means nothing competes with colour that does. */
@@ -1077,50 +1076,13 @@
   margin-bottom: 16px;
 }
 
-.cpm-hist-row {
-  display: flex;
-  gap: 14px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-divider-color);
-}
-.cpm-hist-row:last-of-type { border-bottom: none; }
-.cpm-hist-row--end { align-items: flex-end; }
-.cpm-hist-row--start { align-items: flex-start; }
-/* The scope row is the widest question, so it reads as the top of the funnel. */
-.cpm-hist-row:first-child { background: var(--container-backdrop-color); }
-
-.cpm-hist-row__label {
-  flex: 0 0 64px;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
-  border-left: 3px solid var(--instrument-enhanced-primary-color);
-  font-size: var(--cpm-text-caption);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--element-neutral-color);
-}
-.cpm-hist-row__body {
-  display: flex;
-  align-items: inherit;
-  gap: 14px;
-  flex-wrap: wrap;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.cpm-hist-row--end .cpm-hist-row__body { align-items: flex-end; }
-.cpm-hist-row--start .cpm-hist-row__body { align-items: flex-start; }
-.cpm-hist-row__end { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 100%; }
-.cpm-hist-row .cpm-toolbar { flex: 1 1 auto; min-width: 0; }
+.cpm-hist-view { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); padding: var(--traverse-space-2) var(--traverse-space-3); }
+.cpm-hist-view .cpm-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .cpm-field--compact { min-width: 0; }
-
-.cpm-hist-toolbar__foot {
-  padding: 8px 14px 10px 88px;
-  border-top: 1px solid var(--border-divider-color);
-  background: var(--container-backdrop-color);
-}
+.cpm-hist-row__end { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
+.cpm-hist-export { display: flex; flex-direction: column; align-items: stretch; gap: var(--traverse-space-2); width: 300px; max-width: calc(100vw - var(--traverse-space-6)); }
+.cpm-hist-export obc-button { width: 100%; }
+.cpm-hist-export > span { display: block; }
 
 /* Range stepper: the applied window, with one-span paging either side. */
 .cpm-hist-stepper {
@@ -1228,11 +1190,7 @@
 .cpm-window-actions .cpm-hist-note { flex: 1 1 320px; max-width: 60ch; }
 
 @media (max-width: 900px) {
-  .cpm-hist-row { flex-direction: column; gap: 8px; }
-  .cpm-hist-row__label { flex: 0 0 auto; align-self: flex-start; }
   .cpm-hist-row__end { margin-left: 0; }
-  .cpm-hist-row__body { max-width: 100%; }
-  .cpm-hist-toolbar__foot { padding-left: 14px; }
 }
 
 
@@ -1297,53 +1255,6 @@
 .cpm-goodbar__fill--warn { background: var(--tone-warning); }
 .cpm-goodbar__fill--bad  { background: var(--tone-danger); }
 .cpm-goodbar__value { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
-
-/* ── Loop combobox ──────────────────────────────────────────────────────────
-   One control for one decision. Replaces the select + datalist-filter pair,
-   where only the select could actually choose. */
-.cpm-combo { position: relative; min-width: 300px; }
-.cpm-combo__control { display: flex; align-items: center; gap: 2px; }
-.cpm-combo__input { flex: 1 1 auto; min-width: 0; }
-.cpm-combo__list {
-  position: absolute;
-  z-index: 40;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin: 2px 0 0;
-  padding: 4px;
-  list-style: none;
-  max-height: 320px;
-  overflow-y: auto;
-  background: var(--container-global-color);
-  border: 1px solid var(--border-outline-color, var(--border-divider-color));
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-}
-.cpm-combo__group {
-  padding: 6px 8px 2px;
-  font-size: var(--cpm-text-caption);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--element-neutral-color);
-}
-.cpm-combo__option {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  border-left: 3px solid transparent;
-}
-.cpm-combo__option--active { background: var(--container-section-color); }
-.cpm-combo__option[aria-selected='true'] {
-  border-left-color: var(--instrument-enhanced-primary-color);
-}
-.cpm-combo__empty { padding: 10px 8px; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
-.cpm-combo__hint { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
-.cpm-combo__hint--warn { color: var(--on-caution-color); }
-
 
 /* Replay: catalogue-unavailable note sits inline in the toolbar, with its own
    retry — every other query on that page has one. */

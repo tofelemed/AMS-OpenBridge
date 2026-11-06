@@ -27,7 +27,8 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, st
   return (
     <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
       <PanelHead eyebrow="Verdict" title={`${gate} · ${name}`} right={status ? <TonePill tone={tone}>{codeLabel(status)}</TonePill> : undefined} />
-      <p className="cpm-verdict__sentence">{sentence}</p>
+      {/* The card's heading and pill already say it when the sentence has nothing to add */}
+      {sentence !== `${gate} ${name}: ${codeLabel(status)}.` && <p className="cpm-verdict__sentence">{sentence}</p>}
       {state.kind === 'READY' && headline.length > 0 && (
         <div className="cpm-verdict__tiles">
           {headline.map(h => (

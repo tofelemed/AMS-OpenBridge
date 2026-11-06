@@ -55,12 +55,12 @@ describe('Time range presets', () => {
       onPreset={onPreset} onStep={() => {}} onNow={() => {}} onApplyCustom={() => null} />,
   );
 
-  it('does not re-anchor the window when the active preset is chosen again', () => {
+  it('chooses a preset from one dropdown', () => {
     const onPreset = vi.fn();
     mount(onPreset);
-    fireEvent.click(screen.getByRole('button', { name: '7d' }));
-    expect(onPreset).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: '30d' }));
+    const range = screen.getByRole('combobox', { name: 'Range' }) as HTMLSelectElement;
+    expect(range.value).toBe('7d');
+    fireEvent.change(range, { target: { value: '30d' } });
     expect(onPreset.mock.calls).toEqual([['30d']]);
   });
 
@@ -68,9 +68,8 @@ describe('Time range presets', () => {
     const onPreset = vi.fn();
     mount(onPreset);
     expect(screen.queryByText('From')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Range' }), { target: { value: 'custom' } });
     expect(screen.getByText('From')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Custom' }).getAttribute('aria-pressed')).toBe('true');
     expect(onPreset).not.toHaveBeenCalled();
   });
 });
@@ -94,15 +93,13 @@ describe('Gate matrix toolbar', () => {
     </MemoryRouter>,
   );
 
-  it('writes a new row filter or view, and nothing for the one already selected', () => {
+  it('writes a new row filter or view', () => {
     const onFilterChange = vi.fn();
     const onViewChange = vi.fn();
     mount({ onFilterChange, onViewChange });
-    fireEvent.click(screen.getByRole('button', { name: 'All 0' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Evaluated 0' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Row filter' }), { target: { value: 'evaluated' } });
     expect(onFilterChange.mock.calls).toEqual([[{ mode: 'evaluated' }]]);
-    fireEvent.click(screen.getByRole('button', { name: 'Checks behind the result' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Full G0–G15 matrix' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Matrix view' }), { target: { value: 'matrix' } });
     expect(onViewChange.mock.calls).toEqual([['matrix']]);
   });
 

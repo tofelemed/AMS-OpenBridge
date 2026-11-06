@@ -114,6 +114,7 @@ public static class FleetKpiClassifier
         "not-assessable" => l.State == KpiState.NotAssessable && (reason is null || string.Equals(l.Reason, reason, StringComparison.OrdinalIgnoreCase)),
         "stale" => l.State == KpiState.Stale,
         "never-evaluated" => l.State == KpiState.NeverEvaluated,
+        _ when key.StartsWith("bar-", StringComparison.Ordinal) => FleetKpiBar.StateOf(l) == key,   // CHG-127
         _ => false,
     };
 

@@ -1,7 +1,7 @@
 /**
  * v2.5 Task 3D.1 (spec §5.7): the Gate Configuration workspace. Rewritten 2026-09-18: the page opens like
- * every CPM page (scope filter + loop search at the top), lands on an overview of what every loop runs
- * under, and reads one loop through three views - Effective (the resolved configuration, on demand),
+ * every loop page (the loop band at the top, the plant scope in the header), lands on an overview of what
+ * every loop runs under, and reads one loop through three views - Effective (the resolved configuration, on demand),
  * Bundles (the loop's LOOP / PROFILE / SITE levels with their versions) and Editor (one bundle with its
  * lifecycle). Route /cpm/config?site&area&unit&loop=&view=effective|bundles|editor&bundle=&gate=&tab=.
  * Every value on this screen is the server's record; the browser edits requested changes only.
@@ -11,8 +11,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
-import { LoopCombobox } from '../LoopCombobox';
-import { PlantScopeFilter, useCpmScope } from '../plantScope';
+import { useCpmScope } from '../plantScope';
+import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
 import { listBundleSummaries, type ScopeKind } from '../../../api/cpm/config';
@@ -99,14 +99,9 @@ export const GateConfigurationWorkspace: React.FC<{
   if (!perms.read) return <div className="cpm-screen"><EmptyState title="Gate configuration" copy="Reading the governed configuration needs cpm.config.read." /></div>;
 
   const toolbar = (
-    <section className="cpm-surface cpm-evidence-toolbar">
-      <PlantScopeFilter scope={scope} />
-      <div className="cpm-toolbar">
-        <LoopCombobox scope={scope} loops={loopList} value={loopId ?? ''}
-          onChange={id => go({ loop: id, view: 'effective', bundle: null, gate: null, tab: null })}
-          onClear={() => go({ loop: null, view: null, bundle: null, gate: null, tab: null })} />
-      </div>
-    </section>
+    <LoopBand loopId={loopId}
+      onLoop={id => go({ loop: id, view: 'effective', bundle: null, gate: null, tab: null })}
+      onClear={() => go({ loop: null, view: null, bundle: null, gate: null, tab: null })} />
   );
   const catalogueLine = catalogue.data ? `${catalogue.data.count} properties · ${catalogue.data.workers.length} worker(s) announced${catalogue.data.workers.some(w => !w.catalogueMatches) ? ' · a worker runs ANOTHER catalogue' : ''}` : '';
 

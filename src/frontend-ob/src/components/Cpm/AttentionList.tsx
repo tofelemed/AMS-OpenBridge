@@ -15,6 +15,7 @@
  * loop hub, so the ranking is not a dead end for someone who already knows why.
  */
 import React from 'react';
+import { serviceName } from './loopName';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Select, type SelectOption } from '../../ui/forms/Select';
 import type { CpmHeatmapLoop, CpmRankedLoop } from '../../api/cpmApi';
@@ -116,7 +117,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
                   <span className="cpm-attention__rank" aria-hidden>#{i + 1}</span>
                   <span className="cpm-attention__id">
                     <strong>{l.loopId}</strong>
-                    <span className="cpm-event-row__sub">{l.displayName}</span>
+                    <span className="cpm-event-row__sub">{serviceName(l)}</span>
                   </span>
                 </button>
 

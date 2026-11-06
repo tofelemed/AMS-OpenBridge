@@ -5,32 +5,18 @@
  * hashes live in the explain panel; here only what places the run in time.
  */
 import React from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { MethodRun } from '../../../api/cpm/evidence';
 import type { GateCatalogueEntry } from '../../../api/cpm/catalogue';
 import { TonePill, WorkspaceHeader, fmtDuration } from '../shared';
-import { formatInZone, zoneLabel } from './timezone';
 import type { EvidenceSelection } from './selection';
 import { CopyableId } from './CopyableId';
-
-export interface WindowNav {
-  newer: (() => void) | null;
-  older: (() => void) | null;
-  newest: (() => void) | null;
-  atNewest: boolean;
-  /** False when the run's window is not in the listed windows of the chosen kind (steppers disabled, reason in the title). */
-  inList: boolean;
-}
 
 export interface EvidenceHeaderStripProps {
   selection: EvidenceSelection;
   run: MethodRun | undefined;
   entry: GateCatalogueEntry | undefined;
   loopName: string | undefined;
-  timeZone: string;
   readiness: string | undefined;
-  nav: WindowNav;
-  reconstruct?: { onClick: () => void; busy: boolean };
 }
 
 const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -42,10 +28,8 @@ const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
 
 const readinessTone = (r: string | undefined) => r === 'COMPLETE' ? 'good' : r === 'FAILED' ? 'bad' : 'muted';
 
-export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ selection, run, entry, loopName, timeZone, readiness, nav, reconstruct }) => {
-  const from = run?.support.fromMs, to = run?.support.toMs;
+export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ selection, run, entry, loopName, readiness }) => {
   const ageMs = run ? Date.now() - new Date(run.computedAt).getTime() : null;
-  const notListed = 'This run\'s window is not in the listed windows of the chosen kind';
   return (
     <>
       <WorkspaceHeader
@@ -55,11 +39,7 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
       />
       <div className="cpm-fact-row">
         <div className="cpm-fact-row__facts" role="list" aria-label="Run facts">
-          <Fact label="Window">
-            {from != null && to != null
-              ? `${run?.windowKind} · ${formatInZone(from, timeZone)} → ${formatInZone(to, timeZone)} · ${zoneLabel(timeZone, from)}${run?.support.sampleCount != null ? ` · ${run.support.sampleCount.toLocaleString('en-GB')} samples` : ''}`
-              : '—'}
-          </Fact>
+          {run?.support.sampleCount != null && <Fact label="Coverage">{`${run.support.sampleCount.toLocaleString('en-GB')} samples`}</Fact>}
           <Fact label="Mode">
             <TonePill tone="muted">{selection.mode}</TonePill>
             {run && run.identity.purpose !== 'LIVE' && <TonePill tone="warn">{run.identity.purpose}</TonePill>}
@@ -67,24 +47,6 @@ export const EvidenceHeaderStrip: React.FC<EvidenceHeaderStripProps> = ({ select
           <Fact label="Evidence"><TonePill tone={readinessTone(readiness)}>{readiness ?? '…'}</TonePill></Fact>
           <Fact label="Age">{ageMs != null ? `computed ${fmtDuration(ageMs)} ago` : '—'}</Fact>
           <Fact label="Run"><CopyableId label="run id" value={selection.methodRunId} /></Fact>
-        </div>
-        <div className="cpm-fact-row__actions">
-          {/* the reason a stepper is disabled rides on a wrapping span: ObcButton takes no title */}
-          <span title={!nav.inList ? notListed : nav.atNewest ? 'Already the newest window' : undefined}>
-            <ObcButton variant="flat" disabled={!nav.newer} onClick={() => nav.newer?.()}>‹ Newer</ObcButton>
-          </span>
-          <span title={!nav.inList ? notListed : undefined}>
-            <ObcButton variant="flat" disabled={!nav.older} onClick={() => nav.older?.()}>Older ›</ObcButton>
-          </span>
-          <span title={nav.atNewest ? 'Already the newest window' : undefined}>
-            <ObcButton variant="normal" disabled={!nav.newest || nav.atNewest} onClick={() => nav.newest?.()}>Newest</ObcButton>
-          </span>
-          {reconstruct && (
-            // CHG-099: offered on every reconstructable run; the rebuild is stored beside the retained proof, never over it
-            <span title="Rebuild this gate's arrays from the run's window; kept beside the retained proof for comparison">
-              <ObcButton variant="normal" disabled={reconstruct.busy} onClick={reconstruct.onClick}>{reconstruct.busy ? 'Reconstruction requested…' : 'Reconstruct evidence'}</ObcButton>
-            </span>
-          )}
         </div>
       </div>
     </>

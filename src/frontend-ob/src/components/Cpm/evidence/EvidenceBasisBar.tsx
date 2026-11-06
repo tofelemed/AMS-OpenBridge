@@ -27,7 +27,7 @@ export const EvidenceBasisBar: React.FC<{
   return (
     <div className="cpm-eval-note cpm-evidence-basis" role="group" aria-label="Evidence basis">
       <TonePill tone={basis.tone}>{basis.label}</TonePill>
-      <span>{basis.detail}</span>
+      {basis.detail && <span>{basis.detail}</span>}
       {/* lab pass 2026-10-15: the newest reconstruction is named on every basis, not only beside retained proof */}
       {/* not repeated when the basis text already carries it (the rebuild shown by default) */}
       {newest && basis.kind !== 'RECONSTRUCTION' && !basis.detail.includes(reconstructionSummary(newest, timeZone, false)) && (

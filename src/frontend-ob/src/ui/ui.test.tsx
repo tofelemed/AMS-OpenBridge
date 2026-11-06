@@ -176,7 +176,8 @@ describe('context carry', () => {
     expect(carriedSearch('?range=7d', '/cpm/historical', '?from=a&to=b')).toBeNull();
   });
 
-  it('does not touch the Tag trend tool, whose range means something else', () => {
-    expect(carriedSearch('?site=hdpe&range=7d', '/trend', '')).toBeNull();
+  it('takes only the plant scope to the Tag trend tool, whose range means something else', () => {
+    expect(carriedSearch('?site=hdpe&range=7d', '/trend', '')).toBe('?site=hdpe');
+    expect(carriedSearch('?range=7d', '/trend', '')).toBeNull();
   });
 });

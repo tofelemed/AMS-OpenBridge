@@ -76,7 +76,7 @@ public static class FleetKpiRows
         return new
         {
             loopId = r.LoopId, displayName = r.DisplayName, site = r.Site, area = r.Area, unit = r.Unit,
-            loopType = r.LoopType, criticality = r.Criticality,
+            loopType = r.LoopType, criticality = r.Criticality, rowKey = kpi,
             state = l.State.ToString(), reason = l.Reason, outcome = l.Outcome.ToString(),
             diagnosis = r.Diagnosis, band = l.Band, family = l.Family,
             // an evidence score only with a verdict (an INSUFFICIENT_DATA row carries confidence 0, which is not a score)

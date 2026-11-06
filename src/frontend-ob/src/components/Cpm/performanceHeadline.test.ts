@@ -2,7 +2,7 @@
 // exclusions, and gives error as % of PV span — never a raw-unit median across loops.
 import { describe, expect, it } from 'vitest';
 import type { FleetPerformance } from '../../api/cpm/fleetKpis';
-import { basisText, headlineTiles } from './performanceHeadline';
+import { basisText, headlineTiles, noneCountedText } from './performanceHeadline';
 
 const P = (over: Partial<FleetPerformance> = {}): FleetPerformance => ({
   monitored: 175, assessed: 120,
@@ -31,6 +31,13 @@ describe('Performance headline basis (SME review 2 #10/#11)', () => {
     const [good, err] = headlineTiles(P({ assessed: 0, goodError: { meanPct: null, medianPct: null, counted: 0, notMeasured: 0 },
       errorOfSpan: { medianPct: null, counted: 0, noSpan: 0, notMeasured: 0 } }));
     expect(good.value).toBe('—');
-    expect(err.sub).toBe('no assessed loop · 0 of 0 assessed loop(s) · excluded: 40 not assessable, 10 stale, 5 never evaluated');
+    expect(err.sub).toBe('no assessed loop');
+  });
+
+  it('says the exclusions once, under the tiles, when nothing could be counted', () => {
+    const empty = P({ assessed: 0, goodError: { meanPct: null, medianPct: null, counted: 0, notMeasured: 0 },
+      errorOfSpan: { medianPct: null, counted: 0, noSpan: 0, notMeasured: 0 }, periodic: { count: 0, of: 0 } });
+    expect(noneCountedText(empty)).toBe('0 of 0 assessed loop(s), excluded: 40 not assessable, 10 stale, 5 never evaluated');
+    expect(noneCountedText(P({}))).toBeNull();
   });
 });
