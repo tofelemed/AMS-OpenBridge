@@ -23,7 +23,7 @@ import { EmptyState, PanelHead, QueryError, TonePill, toneFor } from './shared';
 import { drivingGates } from './gateStatus';
 import { diagnosisLabel } from './vocabulary';
 import { evidenceScoreText } from './evidenceScore';
-import { pipelineHref } from './cpaHref';
+import { pipelineHref, registryHref } from './cpaHref';
 
 export type RankBy = 'confidence' | 'error';
 
@@ -89,7 +89,7 @@ export const AttentionList: React.FC<AttentionListProps> = ({
           // CHG-098 (SME review 2 #29): a route to the reason — the engine when loops wait, the registry when none exist.
           next={unrankable > 0
             ? [{ label: 'Check Pipeline Health', to: pipelineHref() }]
-            : [{ label: 'Loop Registry', to: '/cpm/registry' }]}
+            : [{ label: 'Loop Registry', to: registryHref() }]}
         />
       )}
 

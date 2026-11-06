@@ -111,12 +111,10 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // evidence somewhere. Historical bounds its trend, KPI overlay and gate
   // history to ?from/?to, so a run's own span is the right window to hand it.
   const openSpan = (startMs: number, endMs: number | null) => {
-    const q = new URLSearchParams({
-      loop: loop.loopId,
+    navigate(historicalHref(loop.loopId, {
       from: new Date(startMs).toISOString(),
       to: new Date(endMs ?? Date.now()).toISOString(),
-    });
-    navigate(`/cpm/historical?${q.toString()}`);
+    }));
   };
 
   const { pageCount, safePage, pageItems } = usePagedSlice(runs, page, PAGE_SIZE);

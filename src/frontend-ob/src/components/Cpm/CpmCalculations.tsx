@@ -41,7 +41,7 @@ const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
 export const CpmCalculations: React.FC = () => {
   const [params, setParams] = useSearchParams();
   // CHG-089: the fused window (?window=, 12h default)
-  const [windowKind, setWindowKind] = useWindowKind('window');
+  const [windowKind, setWindowKind] = useWindowKind('kind');
   const [search, setSearch] = useState('');
   // C5 — the gate filter LIVES in the URL, not in state seeded from it once.
   // The old useState initializer meant the command palette's ?gate=G7 did

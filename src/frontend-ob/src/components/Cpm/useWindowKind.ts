@@ -3,11 +3,12 @@
  * bookmark or a page change keeps the choice (docs/cpa-ui-fix-plan.md §2: the URL is the only selection state).
  *
  * The parameter name differs by page for reader compatibility (cpaHref.ts): Overview, KPI, Performance and Explorer
- * read `?window=`; Historical / Replay / Evidence read `?kind=` (their `?window=` is an evaluated window END);
+ * read `?window=`; Historical / Replay / Evidence / Calculations read `?kind=` (their `?window=` is an evaluated window END);
  * Investigation reads `?profile=`. A missing or unknown value falls back to the default, never to an empty page.
  */
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { chosenKind, type KindParam } from '../../cpa/tabKind';
 
 /** The fused windows the engine serves (cplm-api WindowCatalog fusion.firesOn), default first. */
 export const WINDOW_KINDS = ['12h', '24h'] as const;
@@ -18,14 +19,16 @@ export const windowKindOf = (v: string | null | undefined, served: readonly stri
   v && served.includes(v) ? v : DEFAULT_WINDOW_KIND;
 
 /** [kind, setKind]: the page's window kind from `?<param>=` and a setter that writes it back (history replace). */
-export function useWindowKind(param = 'window', served: readonly string[] = WINDOW_KINDS): [string, (kind: string) => void] {
+export function useWindowKind(param: KindParam = 'window', served: readonly string[] = WINDOW_KINDS): [string, (kind: string) => void] {
   const [params, setParams] = useSearchParams();
-  const kind = windowKindOf(params.get(param), served);
+  // An old link may hold the kind under another name; an evaluated END is never read as one (chosenKind).
+  const kind = windowKindOf(params.get(param) ?? chosenKind(params, param), served);
   const setKind = useCallback((next: string) => {
     if (!served.includes(next)) return;
     setParams(prev => {
       const p = new URLSearchParams(prev);
       p.set(param, next);
+      if (param !== 'window' && chosenKind(new URLSearchParams(p.has('window') ? { window: p.get('window') as string } : {}))) p.delete('window');
       return p;
     }, { replace: true });
   }, [param, served, setParams]);

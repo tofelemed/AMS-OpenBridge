@@ -73,7 +73,7 @@ const CalculationLink: React.FC<{ metric: string; onNavigate: () => void }> = ({
   return (
     <Link
       className="ui-toggletip__link"
-      to={cpaHref('/cpm/evidence', search, { tab: 'calculations', metric })}
+      to={cpaHref('/cpm/calculations', search, { metric })}
       onClick={onNavigate}
     >
       Full calculation ›

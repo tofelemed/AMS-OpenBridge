@@ -159,11 +159,25 @@ describe('context carry', () => {
     expect(carriedSearch('?loop=A', '/cpm/performance', '')).toBeNull();
   });
 
-  it('carries a window kind, but not onto a page that reads window as an END', () => {
+  it('carries a window kind under the name the next page reads', () => {
     expect(carriedSearch('?window=24h', '/cpm/performance', '')).toBe('?window=24h');
-    expect(carriedSearch('?window=24h', '/cpm/replay', '')).toBeNull();
-    expect(carriedSearch('?window=24h', '/cpm/historical', '')).toBeNull();
+    expect(carriedSearch('?window=24h', '/cpm/replay', '')).toBe('?kind=24h');
+    expect(carriedSearch('?window=24h', '/cpm/historical', '')).toBe('?kind=24h');
+    expect(carriedSearch('?window=24h', '/cpm/investigation', '')).toBe('?profile=24h');
+    expect(carriedSearch('?profile=24h', '/cpm/explorer', '')).toBe('?window=24h');
+  });
+
+  it('never carries an evaluated window END to another page', () => {
     expect(carriedSearch('?window=2026-11-04T12:00:00Z', '/cpm/performance', '')).toBeNull();
+    expect(carriedSearch('?window=2026-11-04T12:00:00Z', '/cpm/replay', '')).toBeNull();
+  });
+
+  it('moves a kind a link left in `window` on a page that reads `window` as an END', () => {
+    expect(carriedSearch('', '/cpm/historical', '?window=24h')).toBe('?kind=24h');
+  });
+
+  it('leaves a real window END on a page alone', () => {
+    expect(carriedSearch('', '/cpm/historical', '?window=2026-11-04T12:00:00Z')).toBeNull();
   });
 
   it('carries a custom range whole or not at all', () => {

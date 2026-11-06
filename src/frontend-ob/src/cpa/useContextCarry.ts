@@ -7,11 +7,8 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { destinationFor } from './destinations';
+import { chosenKind } from './tabKind';
 
-/** Old pages where `window` is an evaluated END, not a kind (cpaHref.ts header). */
-export const WINDOW_IS_END = new Set(['/cpm/historical', '/cpm/investigation', '/cpm/replay', '/cpm/windows']);
-
-const isKind = (v: string | null) => v === '12h' || v === '24h';
 const isContextPath = (path: string) => path === '/cpm' || path.startsWith('/cpm/') || path === '/admin' || path.startsWith('/admin/');
 
 /** The search to use for the new URL, or null when nothing needs adding. */
@@ -46,8 +43,20 @@ export function carriedSearch(prevSearch: string, nextPath: string, nextSearch: 
 
   const dest = destinationFor(nextPath);
   if (dest?.carriesLoop) changed = add('loop', prev.get('loop')) || changed;
-  if (dest?.carriesWindow && !WINDOW_IS_END.has(nextPath) && isKind(prev.get('window'))) {
-    changed = add('window', prev.get('window')) || changed;
+  if (dest?.carriesWindow) {
+    const param = dest.kindParam ?? 'kind';
+    // A link can leave a kind in `window` on a page that reads `window` as an evaluated END.
+    const leftInWindow = dest.windowIsEnd ? chosenKind(new URLSearchParams(next.has('window') ? { window: next.get('window') as string } : {})) : undefined;
+    if (leftInWindow) {
+      next.delete('window');
+      if (!next.has(param)) next.set(param, leftInWindow);
+      changed = true;
+    }
+    const kind = chosenKind(prev);
+    if (kind && !chosenKind(next)) {
+      next.set(param, kind);
+      changed = true;
+    }
   }
   return changed ? `?${next.toString()}` : null;
 }

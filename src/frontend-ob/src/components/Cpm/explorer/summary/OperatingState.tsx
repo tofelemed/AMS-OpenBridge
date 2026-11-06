@@ -26,6 +26,7 @@ import { useTrendRange } from '../../trend/useTrendRange';
 import { evaluatedWindowOf, isWindowRange, trendSourceText } from '../../trend/evaluatedWindow';
 import { windowKindOf } from '../../useWindowKind';
 import LoopTrendPanel from './LoopTrendPanel';
+import { registryHref } from '../../cpaHref';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
@@ -85,7 +86,7 @@ export const OperatingState: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           title="No operating data"
           // CHG-098 (SME review 2 #29): plain cause, then the mapping to check; the historian series last.
           copy={`Nothing is publishing live values for this loop, and no samples were stored in ${range.live ? 'the last 8 hours' : 'this period'}. Check its signal mapping in the Loop Registry, or pick another period. (Historian series: ${series})`}
-          next={[{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loop.loopId)}` }]}
+          next={[{ label: 'Signal mapping in the Loop Registry', to: registryHref(loop.loopId) }]}
         />
       ) : (
         <>

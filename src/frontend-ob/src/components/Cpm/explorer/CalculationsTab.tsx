@@ -21,7 +21,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmKpis, useCpmResolutions, useLatestGates } from '../../../hooks/useCpm';
 import { ApiError } from '../../../api/apiFetch';
 import { EmptyState, KvRow, PanelHead, QueryError, TonePill, fmtWindowShape, windowSpecsOf } from '../shared';
-import { pipelineHref } from '../cpaHref';
+import { calculationsHref, pipelineHref, replayHref, windowsHref } from '../cpaHref';
 import { buildTierGroups, gateTone } from '../gateStatus';
 import { WindowResultsPanel } from '../windows/WindowResults';
 import { codeLabel } from '../vocabulary';
@@ -66,8 +66,7 @@ const FusedGates: React.FC<{ loop: CpmLoop; windowKind: string; firesOnLabel: st
                 type="button"
                 className="cpm-gate-outcome"
                 aria-label={`${codeLabel(g.status)}: open ${g.key} evidence in Evidence Replay`}
-                onClick={() => navigate(
-                  `/cpm/replay?loop=${encodeURIComponent(loop.loopId)}&gate=${encodeURIComponent(g.key)}`)}
+                onClick={() => navigate(replayHref(loop.loopId, { gate: g.key }))}
               >
                 <TonePill tone={gateTone(g.status, g.key)}>{codeLabel(g.status)}</TonePill>
               </button>
@@ -98,8 +97,7 @@ const ShortWindowLatest: React.FC<{ loop: CpmLoop; windowKind: string }> = ({ lo
       {row && <WindowResultsPanel row={row} tier="short" bare />}
       <div className="cpm-filter-row" style={{ marginTop: 8 }}>
         <ObcButton variant="normal"
-          onClick={() => navigate(
-            `/cpm/windows?loop=${encodeURIComponent(loop.loopId)}&profile=${encodeURIComponent(windowKind)}`)}>
+          onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind }))}>
           Window history in Inspector ›
         </ObcButton>
       </div>
@@ -143,7 +141,7 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
             </select>
             </label>
             <ObcButton variant="raised"
-              onClick={() => navigate(`/cpm/calculations?loop=${encodeURIComponent(loop.loopId)}`)}>
+              onClick={() => navigate(calculationsHref(loop.loopId))}>
               Full catalogue ›
             </ObcButton>
           </div>

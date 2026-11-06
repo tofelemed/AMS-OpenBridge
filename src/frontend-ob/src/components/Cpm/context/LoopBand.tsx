@@ -13,6 +13,7 @@ import LoopTree from '../explorer/LoopTree';
 import { serviceName } from '../loopName';
 import { useCpmScope } from '../plantScope';
 import { useStickyOffset } from './LoopContextBar';
+import { registryHref } from '../cpaHref';
 
 export const LoopBand: React.FC<{
   loopId: string | null | undefined;
@@ -60,7 +61,7 @@ export const LoopBand: React.FC<{
                 isError={loops.isError}
                 error={loops.error}
                 retry={() => void loops.refetch()}
-                onOpenRegistry={() => navigate('/cpm/registry')}
+                onOpenRegistry={() => navigate(registryHref())}
                 totalLoops={all.length}
               />
               {loopId && onClear && (

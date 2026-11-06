@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmCalculations, useLatestGates } from '../../../hooks/useCpm';
 import { EmptyState, KvRow, PanelHead } from '../shared';
+import { registryHref } from '../cpaHref';
 
 /** `windowKind`: the Explorer's fused window (CHG-089, 12h default). */
 export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
@@ -70,7 +71,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> 
           copy="Create asset relationships, then republish evidence — G13 cannot evaluate without them."
           action={{
             label: 'Open in Loop Registry',
-            onClick: () => navigate(`/cpm/registry?loop=${encodeURIComponent(loop.loopId)}`),
+            onClick: () => navigate(registryHref(loop.loopId)),
           }}
         />
       )}

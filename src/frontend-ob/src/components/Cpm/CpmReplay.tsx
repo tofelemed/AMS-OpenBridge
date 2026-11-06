@@ -19,7 +19,7 @@ import {
   EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
   fmtDateTime, QueryError } from './shared';
 import { LoopBand } from './context/LoopBand';
-import { pipelineHref } from './cpaHref';
+import { pipelineHref, registryHref } from './cpaHref';
 import { gateTone } from './gateStatus';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
@@ -267,7 +267,7 @@ export const CpmReplay: React.FC = () => {
           // CHG-098 (SME review 2 #29): plain cause, then the mapping; the historian series last.
           <EmptyState title="No raw historian data for this window"
             copy={`No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window. (Historian series: ${series})`}
-            next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined} />
+            next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined} />
         )}
         {points.length > 0 && (
           <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}

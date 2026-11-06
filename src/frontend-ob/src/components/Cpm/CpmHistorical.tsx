@@ -36,7 +36,7 @@ import RangeToolbar, { ExportMenu, SIGNAL_KEYS } from './historical/RangeToolbar
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import { CHART_HEIGHT, buildChartOption, type Segment } from './historical/chartOption';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
-import { replayHref } from './cpaHref';
+import { registryHref, replayHref } from './cpaHref';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import ChartZoomBar from '../charts/ChartZoomBar';
 import { healthSegments as toHealthSegments } from './health/HealthLane';
@@ -317,7 +317,7 @@ export const CpmHistorical: React.FC = () => {
               ? `No signal samples, KPI rows or evaluated windows were stored for this loop between the selected dates. Widen the range, or check the loop's signal mapping. (Historian series: ${series})`
               : 'Pick a loop in the band above to draw its signals, KPI overlay and verdicts.'}
             action={series ? { label: 'Widen to 30 days', onClick: () => { const r = presetRange(30 * 86_400_000); applyRange(r.from, r.to); } } : undefined}
-            next={series && loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined}
+            next={series && loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined}
           />
         )}
 

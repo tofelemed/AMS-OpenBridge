@@ -15,7 +15,7 @@ import { useCpmScope } from '../plantScope';
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
-import { listBundleSummaries, type ScopeKind } from '../../../api/cpm/config';
+import { listBundleSummaries } from '../../../api/cpm/config';
 import { useBundleSummaries, useConfigActions, useConfigCatalogue, useEffectiveConfig, useEffectiveSummary } from './useConfig';
 import { ConfigOverview } from './ConfigOverview';
 import { LoopConfigHeader } from './LoopConfigHeader';
@@ -25,20 +25,6 @@ import { EditorView, TABS, type ConfigTab } from './EditorView';
 
 export type ConfigView = 'effective' | 'bundles' | 'editor';
 const VIEWS: ConfigView[] = ['effective', 'bundles', 'editor'];
-
-/** Links from other pages (Governance's approval queue) keep their shape; a bundle opens the editor, a LOOP scope names the loop. */
-export const configHref = (q: { site?: string; scope?: ScopeKind; ref?: string; bundle?: string; gate?: string; tab?: ConfigTab; loop?: string; view?: ConfigView }) => {
-  const p = new URLSearchParams();
-  const loop = q.loop ?? (q.scope === 'LOOP' ? q.ref : undefined);
-  if (loop) p.set('loop', loop);
-  const view = q.view ?? (q.bundle ? 'editor' : loop ? 'effective' : undefined);
-  if (view) p.set('view', view);
-  if (q.bundle) p.set('bundle', q.bundle);
-  if (q.gate) p.set('gate', q.gate);
-  if (q.tab && q.tab !== 'properties') p.set('tab', q.tab);
-  const s = p.toString();
-  return `/cpm/config${s ? `?${s}` : ''}`;
-};
 
 export const GateConfigurationWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();

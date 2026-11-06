@@ -55,7 +55,7 @@ import { inputContextOf, vpAbsent } from './optionalInputs';
 import { basisOf } from './conclusionBasis';
 import { limitationsOf } from './explorer/summary/summaryText';
 import { INPUT_LIMITS_GATE } from './inputLimits';
-import { calculationsHref, explorerHref, pipelineHref } from './cpaHref';
+import { calculationsHref, explorerHref, pipelineHref, registryHref, replayHref } from './cpaHref';
 import { loopHealthSummary } from './health/TransmitterHealthPanel';
 
 export const CpmInvestigation: React.FC = () => {
@@ -304,11 +304,8 @@ export const CpmInvestigation: React.FC = () => {
 
           <section className="cpm-surface">
             <PanelHead eyebrow="Evidence" title="Signals over the evaluated window"
-              right={<ObcButton variant="normal" onClick={() => {
-                const q = new URLSearchParams({ loop: loopId ?? '' });
-                if (matrix.windowEnd) q.set('window', matrix.windowEnd);
-                navigate(`/cpm/replay?${q.toString()}`);
-              }}>Open in Evidence Replay ›</ObcButton>} />
+              right={<ObcButton variant="normal" onClick={() => navigate(replayHref(loopId ?? '', { window: matrix.windowEnd, kind: windowKind }))}>
+                Open in Evidence Replay ›</ObcButton>} />
             {trend.isLoading && <EmptyState title="Loading signals…" />}
             {trend.isError && (
               <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
@@ -317,7 +314,7 @@ export const CpmInvestigation: React.FC = () => {
               // CHG-098 (SME review 2 #29): plain wording, the series as detail, a route to the mapping.
               <EmptyState title="No historian data for this window"
                 copy={`No PV / SP / OP samples were stored for this loop over this window. Check its signal mapping in the Loop Registry. (Historian series: ${series})`}
-                next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` }] : undefined} />
+                next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined} />
             )}
             {points.length > 0 && loopId && <SignalTrend loopId={loopId} points={points} hasVp={hasVp} height={260} />}
           </section>

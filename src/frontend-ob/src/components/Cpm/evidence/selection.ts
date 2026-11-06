@@ -33,6 +33,9 @@ export function selectionSearch(s: EvidenceSelection): string {
 }
 
 /** The workbench URL for a gate cell (the cell must carry its method run id; without one there is nothing immutable to open). */
-export function workbenchHref(loopId: string, methodRunId: string, gate: string, mode: SelectionMode = 'FIXED'): string {
-  return `/cpm/evidence?${selectionSearch({ loopId, methodRunId, gate, mode })}`;
+export function workbenchHref(
+  loopId: string, methodRunId: string, gate = 'G15', opts: { mode?: SelectionMode; analysisRun?: string | null } = {},
+): string {
+  const search = selectionSearch({ loopId, methodRunId, gate, mode: opts.mode ?? 'FIXED' });
+  return `/cpm/evidence?${search}${opts.analysisRun ? `&analysisRun=${encodeURIComponent(opts.analysisRun)}` : ''}`;
 }

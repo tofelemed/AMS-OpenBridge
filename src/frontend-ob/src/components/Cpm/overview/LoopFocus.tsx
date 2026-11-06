@@ -14,7 +14,7 @@ import { useLoopLive, liveQuality } from '../../../hooks/useLoopLive';
 import { FacetPill, liveSignalQuality } from '../FacetPill';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
-import { pipelineHref } from '../cpaHref';
+import { pipelineHref, registryHref } from '../cpaHref';
 import { activeZone } from '../../../cpa/activeZone';
 
 // ── loop focus panel (signal row + envelope trend) ─────────────────────────
@@ -75,7 +75,7 @@ export const LoopFocus: React.FC<{
         <EmptyState title="No historian data for this loop"
           copy={`No PV / SP / OP samples were stored for this loop in the last 8 h. Check its signal mapping in the Loop Registry; if every loop is empty, check Pipeline Health. (Historian series: ${series})`}
           next={[
-            { label: 'Signal mapping in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loopId)}` },
+            { label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) },
             { label: 'Pipeline Health', to: pipelineHref() },
           ]} />
       )}

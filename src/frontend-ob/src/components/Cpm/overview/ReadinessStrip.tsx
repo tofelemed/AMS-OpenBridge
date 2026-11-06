@@ -10,6 +10,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmFleetSummary } from '../../../api/cpmApi';
 import { PanelHead } from '../shared';
 import { peersCopy, plantFactsCopy, positionerCopy } from './capabilityCopy';
+import { registryHref } from '../cpaHref';
 
 export const ReadinessStrip: React.FC<{ summary: CpmFleetSummary | undefined }> = ({ summary }) => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export const ReadinessStrip: React.FC<{ summary: CpmFleetSummary | undefined }> 
       <PanelHead eyebrow="Readiness" title="Configuration limits"
         right={
           <ObcButton variant="flat" title="Map signals and configure peers per loop in the Loop Registry"
-            onClick={() => navigate('/cpm/registry')}>
+            onClick={() => navigate(registryHref())}>
             Open Loop Registry ›
           </ObcButton>
         } />

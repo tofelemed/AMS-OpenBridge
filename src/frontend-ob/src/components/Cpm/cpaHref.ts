@@ -7,15 +7,21 @@
  * unit-tested and shared by every page that routes somewhere.
  *
  * Reader compatibility (do not "fix" without migrating the reader):
- * - Performance and the Explorer Summary read the fused window KIND from
+ * - Overview, Performance and Loop Explorer read the fused window KIND from
  *   `?window=` (e.g. `24h`), so `performanceHref` / `explorerHref` write `kind`
  *   under that name.
- * - Historical / Replay read `?window=` as the evaluated window END.
+ * - Historical, Replay, Evidence Workbench and Calculations read it from `?kind=`,
+ *   Investigation from `?profile=`.
+ * - Historical, Investigation, Replay, the Window Inspector and Calculations read
+ *   `?window=` as the evaluated window END.
  * - The Window Inspector reads its kind from `?profile=`.
  * - The Evidence Workbench opens an IMMUTABLE run via `evidence/selection.ts`
  *   (`workbenchHref`); `evidenceHref` here is the loop-level landing only.
  */
+import type { ScopeKind } from '../../api/cpm/config';
 import { DESTINATIONS } from '../../cpa/destinations';
+import { chosenKind } from '../../cpa/tabKind';
+import type { ConfigTab } from './config/EditorView';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import type { RowFilter } from './gateStatus';
 
@@ -32,12 +38,11 @@ const build = (path: string, query: Query): string => {
 };
 
 const RANGES = new Set(['8h', '24h', '7d', '30d', 'custom']);
-const WINDOW_KINDS = new Set(['12h', '24h']);
 
 /**
- * The link helper for the seven destinations (SPEC §2.2): carries plant scope, time range, and, where
- * the destination takes them, the window kind and the loop. A `window` that is an evaluated END on an
- * older page is not a kind, so it stays behind. `extra` wins over anything carried.
+ * The link helper for the sidebar: carries plant scope, time range, and, where the page takes them, the
+ * window kind under the name that page reads, and the loop. An evaluated window END stays behind: it
+ * travels only through in-page links. `extra` wins over anything carried.
  */
 export function cpaHref(path: string, current: URLSearchParams | string = '', extra: Query = {}): string {
   if (path === '/trend') return trendToolHref(current);
@@ -49,8 +54,8 @@ export function cpaHref(path: string, current: URLSearchParams | string = '', ex
   const range = q.get('range');
   if (from && to && (range === 'custom' || range == null)) Object.assign(carried, { range: 'custom', from, to });
   else if (range && range !== 'custom' && RANGES.has(range)) carried.range = range;
-  const window = q.get('window');
-  if (dest?.carriesWindow && window && WINDOW_KINDS.has(window)) carried.window = window;
+  const kind = chosenKind(q);
+  if (dest?.carriesWindow && kind) carried[dest.kindParam ?? 'kind'] = kind;
   if (dest?.carriesLoop) carried.loop = q.get('loop');
   return build(path, { ...carried, ...extra });
 }
@@ -62,8 +67,10 @@ export function trendToolHref(current: URLSearchParams | string = ''): string {
 }
 
 /** The loop hub. `gate` pre-selects a gate on the Summary strip; `kind` is the fused window kind the strip evaluates (`?window=`, as on Performance). */
-export const explorerHref = (loop: string, opts: { tab?: ExplorerTab; gate?: string | null; kind?: string | null } = {}) =>
-  build('/cpm/explorer', { loop, tab: opts.tab, gate: opts.gate, window: opts.kind });
+export const explorerHref = (loop: string, opts: {
+  tab?: ExplorerTab; gate?: string | null; kind?: string | null; from?: string | null; to?: string | null;
+} = {}) =>
+  build('/cpm/explorer', { loop, tab: opts.tab, gate: opts.gate, window: opts.kind, from: opts.from, to: opts.to });
 
 /** The fleet matrix. `gate` opens that cell's evidence panel; `kind` is the fused window kind. */
 export const performanceHref = (
@@ -93,9 +100,9 @@ export const evidenceHref = (loop: string, opts: { kind?: string | null; gate?: 
 export const responseHref = (loop: string, opts: { event?: string | null } = {}) =>
   build('/cpm/response', { loop, event: opts.event });
 
-/** Investigation on one loop. `kind` is the fused window kind it reads as `?profile=` (12h / 24h). */
-export const investigationHref = (loop: string, opts: { kind?: string | null } = {}) =>
-  build('/cpm/investigation', { loop, profile: opts.kind });
+/** Investigation on one loop. `kind` is the fused window kind it reads as `?profile=`; `window` an evaluated END. */
+export const investigationHref = (loop: string, opts: { kind?: string | null; window?: string | null; gate?: string | null } = {}) =>
+  build('/cpm/investigation', { loop, profile: opts.kind, window: opts.window, gate: opts.gate });
 
 /** Historical on one loop; `from` / `to` (ISO) carry the period being looked at (CHG-048), else its default range. */
 export const historicalHref = (loop: string, opts: {
@@ -108,9 +115,38 @@ export const historicalHref = (loop: string, opts: {
   build('/cpm/historical', { loop, from: opts.from, to: opts.to, kind: opts.kind, window: opts.window, signals: opts.signals, focus: opts.focus });
 
 /** The standalone calculations catalogue for one loop. */
-export const calculationsHref = (loop: string, opts: { metric?: string | null; kind?: string | null } = {}) =>
+export const calculationsHref = (loop: string, opts: { metric?: string | null; kind?: string | null; window?: string | null } = {}) =>
   // CHG-092 (SME review 2 #9): a KPI's proof opens the matching metric (CPLM id) on the matching fused window
-  build('/cpm/calculations', { loop, window: opts.kind, metric: opts.metric });
+  build('/cpm/calculations', { loop, kind: opts.kind, window: opts.window, metric: opts.metric });
+
+/** Trend on one loop's signals. `roles` limits the pens; `from` / `to` (ISO) pin the period. */
+export const trendHref = (loop: string, opts: { roles?: string[]; from?: string | null; to?: string | null } = {}) =>
+  build('/trend', { loop, roles: opts.roles?.join(','), from: opts.from, to: opts.to });
+
+/** Loop Registry: its list, or one loop's detail. */
+export const registryHref = (loop?: string | null) => build('/cpm/registry', { loop });
+
+/** Links from other pages keep their shape; a bundle opens the editor, a LOOP scope names the loop. */
+export const configHref = (q: {
+  site?: string; scope?: ScopeKind; ref?: string; bundle?: string; gate?: string; tab?: ConfigTab; loop?: string; view?: string;
+} = {}) => {
+  const loop = q.loop ?? (q.scope === 'LOOP' ? q.ref : undefined);
+  return build('/cpm/config', {
+    loop,
+    view: q.view ?? (q.bundle ? 'editor' : loop ? 'effective' : undefined),
+    bundle: q.bundle,
+    gate: q.gate,
+    tab: q.tab === 'properties' ? undefined : q.tab,
+  });
+};
+
+type AdminSection = 'users' | 'roles' | 'data-sources' | 'plant-model' | 'aliases' | 'system';
+
+/** One section of Administration. */
+export const adminHref = (section: AdminSection) => `/admin/${section}`;
+
+/** Governance holds the one audit trail. */
+export const governanceHref = () => '/cpm/governance';
 
 /** Pipeline Health has no loop scope: it explains freshness for the whole engine. */
 export const pipelineHref = () => '/cpm/pipeline';

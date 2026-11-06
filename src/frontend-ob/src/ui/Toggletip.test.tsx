@@ -339,18 +339,17 @@ describe('Toggletip template', () => {
     expect((panel() as HTMLElement).querySelector('.ui-toggletip__name')?.textContent).toBe('Time in normal mode');
   });
 
-  it('links to Evidence, Calculations with the metric, carrying the page context', () => {
-    renderTip(tip, '/cpm/loop?site=hdpe&loop=FIC-1&window=24h&junk=1');
+  it('links to Calculations with the metric, carrying the page context', () => {
+    renderTip(tip, '/cpm/explorer?site=hdpe&loop=FIC-1&window=24h&junk=1');
     fireEvent.click(button());
     const href = screen.getByRole('link', { name: 'Full calculation ›' }).getAttribute('href') ?? '';
     const [path, query] = href.split('?');
     const q = new URLSearchParams(query);
-    expect(path).toBe('/cpm/evidence');
-    expect(q.get('tab')).toBe('calculations');
+    expect(path).toBe('/cpm/calculations');
     expect(q.get('metric')).toBe('M-001');
     expect(q.get('site')).toBe('hdpe');
     expect(q.get('loop')).toBe('FIC-1');
-    expect(q.get('window')).toBe('24h');
+    expect(q.get('kind')).toBe('24h');
     expect(q.get('junk')).toBeNull();
   });
 

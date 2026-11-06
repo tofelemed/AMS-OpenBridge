@@ -81,6 +81,18 @@ describe('cpaHref', () => {
     expect(cpaHref('/cpm/pipeline', ctx)).not.toContain('window=');
   });
 
+  it('turns one page\'s window kind into the next page\'s', () => {
+    expect(cpaHref('/cpm/investigation', 'loop=A&window=24h')).toBe('/cpm/investigation?profile=24h&loop=A');
+    expect(cpaHref('/cpm/historical', 'loop=A&window=24h')).toBe('/cpm/historical?kind=24h&loop=A');
+    expect(cpaHref('/cpm/explorer', 'loop=A&profile=24h')).toBe('/cpm/explorer?window=24h&loop=A');
+    expect(cpaHref('/cpm/explorer', 'loop=A&kind=24h')).toBe('/cpm/explorer?window=24h&loop=A');
+  });
+
+  it('keeps the choice through a page that shows none', () => {
+    expect(cpaHref('/cpm/windows', 'loop=A&window=24h')).toBe('/cpm/windows?kind=24h&loop=A');
+    expect(cpaHref('/cpm/explorer', 'loop=A&kind=24h')).toContain('window=24h');
+  });
+
   it('does not carry an evaluated window END as a kind', () => {
     expect(cpaHref('/cpm/explorer', 'window=2026-11-04T12:00:00Z&loop=A')).toBe('/cpm/explorer?loop=A');
   });

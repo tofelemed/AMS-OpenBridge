@@ -17,6 +17,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmReadiness } from '../../../hooks/useCpm';
 import { EmptyState, PanelHead, QueryError, TonePill, loopTrendHref } from '../shared';
+import { registryHref } from '../cpaHref';
 
 const SIGNAL_MEANINGS: Record<string, string> = {
   PV: 'Process variable',
@@ -77,7 +78,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
       {roles.length === 0 && (
         <EmptyState title="No signal mappings" copy="The loop registry maps no PV / SP / OP tags for this loop, so no signal can be read or evaluated."
-          next={[{ label: 'Map its tags in the Loop Registry', to: `/cpm/registry?loop=${encodeURIComponent(loop.loopId)}` }]} />
+          next={[{ label: 'Map its tags in the Loop Registry', to: registryHref(loop.loopId) }]} />
       )}
 
       {roles.length > 0 && href && (

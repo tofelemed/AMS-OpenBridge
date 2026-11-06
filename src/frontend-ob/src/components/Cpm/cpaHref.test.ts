@@ -2,8 +2,7 @@
 // builders are the contract every in-page route follows.
 import { describe, it, expect } from 'vitest';
 import {
-  calculationsHref, eventsHref, evidenceHref, explorerHref, historicalHref, investigationHref, performanceHref, pipelineHref, replayHref,
-  responseHref, windowsHref,
+  adminHref, calculationsHref, configHref, eventsHref, evidenceHref, explorerHref, governanceHref, historicalHref, investigationHref, performanceHref, pipelineHref, registryHref, replayHref, responseHref, trendHref, windowsHref,
 } from './cpaHref';
 
 describe('cpaHref', () => {
@@ -62,7 +61,7 @@ describe('cpaHref', () => {
 describe('KPI proof opens the exact metric on the exact window (CHG-092, SME review 2 #9)', () => {
   it('carries the window kind and the CPLM id', () => {
     expect(calculationsHref('FIC10301', { kind: '24h', metric: 'CPLM-014' }))
-      .toBe('/cpm/calculations?loop=FIC10301&window=24h&metric=CPLM-014');
+      .toBe('/cpm/calculations?loop=FIC10301&kind=24h&metric=CPLM-014');
     expect(calculationsHref('FIC10301', { kind: null, metric: undefined })).toBe('/cpm/calculations?loop=FIC10301');
   });
 });
@@ -71,5 +70,45 @@ describe('a KPI or a finding opens its own window on the trend (CHG-097, SME rev
   it('carries the window kind, the window to shade, the signals and what was clicked', () => {
     expect(historicalHref('FIC1', { from: 'a', to: 'b', kind: '24h', window: 'b', signals: 'op,vp', focus: 'Time at an OP limit' }))
       .toBe('/cpm/historical?loop=FIC1&from=a&to=b&kind=24h&window=b&signals=op%2Cvp&focus=Time+at+an+OP+limit');
+  });
+});
+
+describe('links that carry the context (design 2026-11-06, section 4)', () => {
+  it('names the window kind in the way each page reads it', () => {
+    expect(investigationHref('A', { kind: '24h', window: 'T' })).toBe('/cpm/investigation?loop=A&profile=24h&window=T');
+    expect(historicalHref('A', { kind: '24h', window: 'T' })).toBe('/cpm/historical?loop=A&kind=24h&window=T');
+    expect(calculationsHref('A', { kind: '24h', window: 'T' })).toBe('/cpm/calculations?loop=A&kind=24h&window=T');
+    expect(explorerHref('A', { kind: '24h' })).toBe('/cpm/explorer?loop=A&window=24h');
+  });
+
+  it('carries the gate to Investigation', () => {
+    expect(investigationHref('A', { gate: 'G5' })).toBe('/cpm/investigation?loop=A&gate=G5');
+  });
+
+  it('carries the period to Loop Explorer', () => {
+    expect(explorerHref('A', { from: 'a', to: 'b', tab: 'History' })).toBe('/cpm/explorer?loop=A&tab=History&from=a&to=b');
+  });
+
+  it('opens Loop Registry on its list, or on one loop', () => {
+    expect(registryHref()).toBe('/cpm/registry');
+    expect(registryHref(null)).toBe('/cpm/registry');
+    expect(registryHref('A B')).toBe('/cpm/registry?loop=A+B');
+  });
+
+  it('names each Administration section', () => {
+    expect(adminHref('users')).toBe('/admin/users');
+    expect(adminHref('aliases')).toBe('/admin/aliases');
+    expect(adminHref('system')).toBe('/admin/system');
+    expect(governanceHref()).toBe('/cpm/governance');
+  });
+
+  it('builds a Trend link from the loop and its roles', () => {
+    expect(trendHref('A', { roles: ['PV', 'OP'], from: 'a', to: 'b' })).toBe('/trend?loop=A&roles=PV%2COP&from=a&to=b');
+    expect(trendHref('A')).toBe('/trend?loop=A');
+  });
+
+  it('lets a link name the configuration view and gate', () => {
+    expect(configHref({ loop: 'A', gate: 'G12' })).toBe('/cpm/config?loop=A&view=effective&gate=G12');
+    expect(configHref({ bundle: 'B' })).toBe('/cpm/config?view=editor&bundle=B');
   });
 });

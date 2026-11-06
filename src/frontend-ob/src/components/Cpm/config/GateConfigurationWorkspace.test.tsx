@@ -9,7 +9,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
 import { useAuthStore } from '../../../store/authStore';
-import { GateConfigurationWorkspace, configHref } from './GateConfigurationWorkspace';
+import { configHref } from '../cpaHref';
+import { GateConfigurationWorkspace } from './GateConfigurationWorkspace';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/apiFetch')>();

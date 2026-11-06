@@ -26,6 +26,7 @@ import type { ExplorerTab } from './explorer/readinessCauses';
 import { useCpmLoops } from '../../hooks/useCpm';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, windowKindOf } from './useWindowKind';
+import { registryHref } from './cpaHref';
 
 export const CpmExplorer: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -70,7 +71,7 @@ export const CpmExplorer: React.FC = () => {
     // A gate selected on the previous loop's Summary does not carry over.
     setParams(p => { p.set('loop', loopId); p.delete('gate'); return p; }, { replace: true });
 
-  const openRegistry = () => navigate('/cpm/registry');
+  const openRegistry = () => navigate(registryHref());
 
   return (
     <div className="cpm-screen">

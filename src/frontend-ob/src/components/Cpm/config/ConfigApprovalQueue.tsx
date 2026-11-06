@@ -10,7 +10,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { EmptyState, TonePill, fmtDateTime } from '../shared';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { listBundles, type Bundle } from '../../../api/cpm/config';
-import { configHref } from './GateConfigurationWorkspace';
+import { configHref } from '../cpaHref';
 import { bundleStateTone, shortHash } from './configSupport';
 
 const QUEUE_STATES = new Set(['VALIDATED', 'SHADOW_EVALUATED', 'APPROVED', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED']);

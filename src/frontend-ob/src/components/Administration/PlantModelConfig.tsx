@@ -32,6 +32,7 @@ import { toast } from 'react-toastify';
 import { T } from '../../styles/theme';
 import { ImportDialog } from './PlantModelImport';
 import { PlantModelStatus } from './PlantModelStatus';
+import { registryHref } from '../Cpm/cpaHref';
 
 const ASSET_API = (import.meta.env.VITE_ASSET_SERVICE_URL as string | undefined) || '/api/assets';
 
@@ -129,7 +130,7 @@ const NodeRow: React.FC<{
           // the projection names a device by its loopId and a signal
           // "<loopId> <ROLE>", so the first word is always the loop.
           <Link
-            to={`/cpm/registry?loop=${encodeURIComponent(node.name.split(' ')[0])}`}
+            to={registryHref(node.name.split(' ')[0])}
             title="Managed by the CPM Loop Registry — open the loop"
             style={{
               fontSize: '10px', fontWeight: 700, color: T.blue,

@@ -13,7 +13,7 @@ import type { CpmFleetScope } from '../../../api/cpmApi';
 import type { FleetKpiFigure, FleetKpis, FleetKpiScope } from '../../../api/cpm/fleetKpis';
 import { EmptyState, PanelHead, QueryError, fmtDateTime } from '../shared';
 import { Toggletip } from '../../../ui/Toggletip';
-import { kpiHref } from '../cpaHref';
+import { kpiHref, registryHref } from '../cpaHref';
 import { useFleetKpis } from '../kpi/useFleetKpis';
 import { KpiCard } from '../kpi/KpiCard';
 import { KPI_META, kpiDelta, kpiIconTone } from '../kpi/kpiMeta';
@@ -51,7 +51,7 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
       {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
       {k && k.monitored === 0 && <EmptyState title="No monitored loops"
         copy="No loop in this plant scope has monitoring enabled. Widen the plant scope above, or onboard and enable loops in the Loop Registry."
-        next={[{ label: 'Loop Registry', to: '/cpm/registry' }]} />}
+        next={[{ label: 'Loop Registry', to: registryHref() }]} />}
       {k && k.monitored > 0 && (
         <>
           <div className="cpm-kpicards cpm-kpicards--5" role="list" aria-label="Loop KPIs">

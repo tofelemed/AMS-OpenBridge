@@ -38,7 +38,7 @@ import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from
 import { useFleetKpis } from './kpi/useFleetKpis';
 import { headlineTiles, noneCountedText } from './performanceHeadline';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { explorerHref, pipelineHref, windowsHref } from './cpaHref';
+import { explorerHref, pipelineHref, registryHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
 import { evidenceScoreText } from './evidenceScore';
 import { effectiveInputFlags } from './inputLimits';
@@ -278,7 +278,7 @@ export const CpmPerformance: React.FC = () => {
           // CHG-098 (SME review 2 #29): the route, not only the instruction.
           <EmptyState title="No monitored loops"
             copy="No loop in this plant scope is monitored. Widen the plant scope in the header, or onboard loops in the Loop Registry to populate the matrix."
-            next={[{ label: 'Loop Registry', to: '/cpm/registry' }]} />
+            next={[{ label: 'Loop Registry', to: registryHref() }]} />
         )}
 
         {heatmapLoops.length > 0 && (

@@ -13,6 +13,7 @@
  * mirrors CpmReadinessController.Check(..., blocking:) — keep the two in step.
  */
 import type { CpmReadiness } from '../../../api/cpmApi';
+import { registryHref } from '../cpaHref';
 
 /** Mirrors `blocking: true` in cplm-api's CpmReadinessController. */
 const BLOCKING_IDS = new Set([
@@ -44,7 +45,7 @@ function targetFor(id: string, loopId: string): CauseTarget | null {
     case 'registry_row':
       return {
         kind: 'route',
-        href: `/cpm/registry?loop=${encodeURIComponent(loopId)}`,
+        href: registryHref(loopId),
         label: 'Loop Registry',
       };
     case 'evidence_short':
