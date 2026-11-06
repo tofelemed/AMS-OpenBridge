@@ -23,7 +23,9 @@ export const GateDialog: React.FC<{
   assessment: React.ReactNode;
   rows?: Array<{ label: string; value: React.ReactNode }>;
   actions: React.ReactNode;
-}> = ({ open, onClose, loop, gate, status, flags, loopResult, assessment, rows, actions }) => {
+  /** More under the rows, such as a disclosure of the rest of the evidence. */
+  children?: React.ReactNode;
+}> = ({ open, onClose, loop, gate, status, flags, loopResult, assessment, rows, actions, children }) => {
   if (!open) return null;
   const tier = TIER_GROUPS.find(t => t.keys.includes(gate))?.label;
   return createPortal(
@@ -34,6 +36,7 @@ export const GateDialog: React.FC<{
       <KvRow label="Loop result">{loopResult}</KvRow>
       <KvRow label="Assessment">{assessment}</KvRow>
       {rows?.map(row => <KvRow key={row.label} label={row.label}>{row.value}</KvRow>)}
+      {children}
     </Dialog>,
     document.body,
   );

@@ -1,17 +1,12 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U3 Performance.
+ * CPLM Phase 7: U3 Performance.
  *
- * Composition only: KPI tiles, the fleet gate roll-up, the gate matrix, the
- * docked evidence panel and the attention list each own their own file. The
- * screen's job here is the URL contract that ties them together.
- *
- * IA change from the CPA-parity version: the matrix is no longer the entry
- * point. The roll-up answers "where is the fleet failing" in one glance and the
- * matrix is its drill-down, filtered by default to loops that have something to
- * say. Selecting a gate opens evidence beside the matrix rather than on top of
- * it, because reading evidence and scanning the row is one task, not two.
+ * Composition only: the KPI tiles, the fleet gate summary and the list each own their own file. The screen's job
+ * here is the URL contract that ties them together. The list is one set of loops with a Findings / Gate matrix
+ * toggle; a gate opens in a dialog (CHG-135), because reading a gate is one task and a column beside the list
+ * only narrowed it.
  *
  * Every figure is real; where a metric has no model yet the tile says so.
  */
@@ -28,18 +23,16 @@ import {
 import { useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
-import GateEvidencePanel from './GateEvidencePanel';
 import PerformanceKpis from './performance/PerformanceKpis';
 import HowToReadDialog from './performance/HowToReadDialog';
-import AttentionList, { type RankBy } from './AttentionList';
-import { useBadActors } from './useBadActors';
+import SelectedLoopBand from './performance/SelectedLoopBand';
+import PerformanceGateDialog from './performance/PerformanceGateDialog';
+import { loopSortOf, type LoopSort } from './performance/loopSort';
+import { useLoopRank } from './performance/useLoopRank';
 import { buildTierGroups, isRowFilter, latestWindowEnd, matrixViewOf, type MatrixView } from './gateStatus';
 import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
 import { useFleetKpis } from './kpi/useFleetKpis';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, registryHref, windowsHref } from './cpaHref';
-import { diagnosisLabel } from './vocabulary';
-import { evidenceScoreText } from './evidenceScore';
 import { effectiveInputFlags } from './inputLimits';
 import { inputContextOf } from './optionalInputs';
 
@@ -50,8 +43,6 @@ const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
   { id: 'active-affected', label: 'Active affected-device condition' },
 ];
 
-/** Below this the workspace cannot carry a second column; evidence goes modal. */
-const DOCK_QUERY = '(min-width: 1200px)';
 /** A fused window older than this is called out rather than shown as current. */
 const STALE_AFTER_MS = 3 * 3_600_000;
 
@@ -63,8 +54,7 @@ export const CpmPerformance: React.FC = () => {
   const windowKind = windowKindOf(params.get('window'));   // CHG-089: 12h by default, 24h on request
   const selectedLoop = params.get('loop');
   const openGate = params.get('gate');
-  const [rankBy, setRankBy] = React.useState<RankBy>('confidence');
-  const docked = useMediaQuery(DOCK_QUERY);
+  const sort = loopSortOf(params.get('sort'));
 
   // ── URL contract. Mode + gate filter are shareable; page follows them.
   const modeParam = params.get('rows');
@@ -73,7 +63,7 @@ export const CpmPerformance: React.FC = () => {
     gate: params.get('fg'),
   };
   const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
-  // CHG-098 (SME review 2 #24): "Checks behind the result" by default; `?view=matrix` keeps the full G0–G15 grid
+  // Findings by default; `?view=matrix` is the gate matrix with all 17 gates
   const matrixView = matrixViewOf(params.get('view'));
 
   const write = React.useCallback((mutate: (p: URLSearchParams) => void) => {
@@ -90,6 +80,10 @@ export const CpmPerformance: React.FC = () => {
 
   const setMatrixView = React.useCallback((v: MatrixView) => {
     write(p => { if (v === 'matrix') p.set('view', v); else p.delete('view'); });
+  }, [write]);
+
+  const setSort = React.useCallback((v: LoopSort) => {
+    write(p => { if (v === 'evidence') p.delete('sort'); else p.set('sort', v); p.delete('page'); });
   }, [write]);
 
   const setPage = React.useCallback((n: number) => {
@@ -146,7 +140,7 @@ export const CpmPerformance: React.FC = () => {
       {HEALTH_FILTERS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
     </select>
   );
-  const badActors = useBadActors(scope.params, windowKind, rankBy, healthFilter);
+  const rank = useLoopRank(scope.params, windowKind, sort, healthFilter);
   const heatmap = useFleetHeatmap(scope.params, windowKind, healthFilter);
   // CHG-066: the loops' optional-input context, so the matrix marks a pass judged without an input like the Explorer does
   const registry = useCpmLoops();
@@ -182,10 +176,10 @@ export const CpmPerformance: React.FC = () => {
         // 1m…60m results live in the Window Inspector, and the ? says so. The reason for a disabled button rides on a
         // wrapping span (ObcButton takes no title) and in the text (CHG-098, SME review 2 #29).
         actions={<>
-          <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the matrix to open its per-window results'}>
+          <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the list to open its per-window results'}>
             <ObcButton variant="flat" disabled={!selectedLoop}
               onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
-              Window Inspector ›
+              Window Inspector ↗
             </ObcButton>
           </span>
           <WindowKindToggle value={windowKind} kinds={fusionKinds} onChange={v => write(p => p.set('window', v))} />
@@ -248,103 +242,38 @@ export const CpmPerformance: React.FC = () => {
               onSelectGate={gate => setFilter({ gate })}
             />
 
-            {/* The second column exists only when something occupies it, so an
-                idle matrix gets the full width back. */}
-            <div className={`cpm-matrix-layout${
-              docked && openGate ? ' cpm-matrix-layout--split' : ''}`}>
-              <div className="cpm-matrix-layout__main">
-                <GateMatrix
-                  loops={heatmapLoops}
-                  orderedGateKeys={orderedGateKeys}
-                  tierGroups={tierGroups}
-                  filter={scopeFilter}
-                  onFilterChange={setFilter}
-                  page={page}
-                  onPageChange={setPage}
-                  selectedLoopId={selectedLoop}
-                  onSelectLoop={selectLoop}
-                  onOpenLoop={openLoop}
-                  onOpenGate={openEvidence}
-                  inputFlagsOf={inputFlagsOf}
-                  view={matrixView}
-                  onViewChange={setMatrixView}
-                  toolbarStart={conditionFilter}
-                  fleetTotal={heatmap.data?.total ?? fleetTotal}
-                />
-
-                {selectedRow && (
-                  <div className="cpm-matrix-summary">
-                    <div>
-                      <strong>{selectedRow.loopId}</strong> · {selectedRow.displayName}
-                      <div className="cpm-event-row__sub">
-                        Selected row · latest fused result
-                        {selectedRow.windowEnd ? ` · ${fmtDateTime(selectedRow.windowEnd)}` : ''}
-                      </div>
-                    </div>
-                    <span className="cpm-copy">
-                      Final diagnosis {diagnosisLabel(selectedRow.diagnosis)}
-                      {selectedRow.confidence != null
-                        ? ` · ${evidenceScoreText(selectedRow.confidence)}` : ''}
-                    </span>
-                    <div className="cpm-filter-row">
-                      <ObcButton variant="raised"
-                        onClick={() => openEvidence(selectedRow.loopId, 'G15')}>
-                        Open fused evidence ›
-                      </ObcButton>
-                      <ObcButton variant="normal" title={`Open ${selectedRow.loopId} in the Loop Explorer`}
-                        onClick={() => openLoop(selectedRow.loopId)}>
-                        Open loop ›
-                      </ObcButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Undocked the same slot stacks below the matrix, and evidence goes modal further down instead. */}
-              {docked && selectedLoop && openGate && (
-                <GateEvidencePanel
-                  loopId={selectedLoop}
-                  gateKey={openGate}
-                  windowKind={windowKind}
-                  gateKeys={orderedGateKeys}
-                  onSelectGate={gate => openEvidence(selectedLoop, gate)}
-                  onClose={closeEvidence}
-                  docked
-                />
-              )}
-            </div>
+            <GateMatrix
+              loops={heatmapLoops}
+              orderedGateKeys={orderedGateKeys}
+              tierGroups={tierGroups}
+              filter={scopeFilter}
+              onFilterChange={setFilter}
+              page={page}
+              onPageChange={setPage}
+              selectedLoopId={selectedLoop}
+              onSelectLoop={selectLoop}
+              onOpenLoop={openLoop}
+              onOpenGate={openEvidence}
+              windowKind={windowKind}
+              inputFlagsOf={inputFlagsOf}
+              view={matrixView}
+              onViewChange={setMatrixView}
+              sort={sort}
+              onSortChange={setSort}
+              rank={rank}
+              toolbarStart={conditionFilter}
+              fleetTotal={heatmap.data?.total ?? fleetTotal}
+              band={selectedRow && <SelectedLoopBand row={selectedRow} windowKind={windowKind} onOpenLoop={openLoop} />}
+            />
           </>
         )}
       </section>
 
       <HowToReadDialog open={showGuide} onClose={() => setShowGuide(false)} summary={summary.data} />
 
-      <AttentionList
-        ranked={badActors.data?.loops ?? []}
-        heatmapLoops={heatmapLoops}
-        gateKeys={orderedGateKeys}
-        rankBy={rankBy}
-        onRankByChange={setRankBy}
-        isLoading={badActors.isLoading}
-        isError={badActors.isError}
-        error={badActors.error}
-        retry={() => void badActors.refetch()}
-        selectedLoopId={selectedLoop}
-        onSelectLoop={selectLoop}
-        onOpenLoop={openLoop}
-        onOpenGate={openEvidence}
-      />
-
-      {!docked && selectedLoop && openGate && (
-        <GateEvidencePanel
-          loopId={selectedLoop}
-          gateKey={openGate}
-          windowKind={windowKind}
-          gateKeys={orderedGateKeys}
-          onSelectGate={gate => openEvidence(selectedLoop, gate)}
-          onClose={closeEvidence}
-          docked={false}
-        />
+      {selectedRow && openGate && (
+        <PerformanceGateDialog row={selectedRow} gate={openGate} windowKind={windowKind} gateKeys={orderedGateKeys}
+          flags={inputFlagsOf(selectedRow.loopId)} onSelectGate={gate => openEvidence(selectedRow.loopId, gate)} onClose={closeEvidence} />
       )}
     </div>
   );

@@ -136,7 +136,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({ loop, gate
           onClick={() => navigate(replayHref(loop.loopId, { gate, window: matrix.windowEnd, kind: windowKind }))}>
           Evidence Replay ›
         </ObcButton>
-        <ObcButton variant="normal" title="This gate in the fleet matrix, with the docked evidence panel"
+        <ObcButton variant="normal" title="This gate in the fleet matrix, opened in its dialog"
           onClick={() => navigate(performanceHref({ loop: loop.loopId, gate, kind: windowKind }))}>
           Gate on Performance ›
         </ObcButton>

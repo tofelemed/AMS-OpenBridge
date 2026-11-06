@@ -1,0 +1,30 @@
+/* Performance list (CHG-135): placement and tone only; every size is the app's own token. */
+
+/* The list is as long as its 15 rows; the page scrolls, not the table */
+.cpm-matrix-scroll--list { max-height: none; }
+
+/* The selected loop above the list: tag, result, evidence score, then the two ways on at the end */
+.cpm-selected-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-2) var(--traverse-space-4);
+  margin: 0 0 var(--traverse-space-3);
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  border: 1px solid var(--border-divider-color);
+  border-radius: 8px;
+  background: var(--container-section-color);
+}
+.cpm-selected-band__links { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
+
+/* The result is a link in the matrix and a pill in Findings; both stay on one line */
+.cpm-matrix__result-link { white-space: nowrap; }
+.cpm-checks__score { font-variant-numeric: tabular-nums; }
+
+/* The rest of a gate's evidence, behind one disclosure in the gate dialog */
+.cpm-gate-more { margin-top: var(--traverse-space-3); }
+.cpm-gate-more > summary { cursor: pointer; color: var(--element-neutral-color); }
+.cpm-gate-more > summary:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}

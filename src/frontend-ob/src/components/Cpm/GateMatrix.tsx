@@ -1,55 +1,31 @@
 'use client';
 
 /**
- * Gate status matrix (U3) — the drill-down half of the calculation pathway.
+ * The Performance list (U3): one set of rows, two views. Findings (default) names the checks behind each
+ * result; the gate matrix shows all 17 gates as marks. The Findings / Gate matrix toggle rides the URL
+ * (`?view=matrix`), so a link opens the view it was copied from.
  *
- * Rebuilt for fleet scale. Three things changed and each fixes a defect that
- * only appears past a couple of dozen loops:
- *
- * 1. It no longer defaults to every loop. At 54 demo loops, 51 rows were solid
- *    em-dashes (no verdict yet) — 867 cells that said nothing. The segmented
- *    filter defaults to "Needs attention"; "Not evaluated" stays one click away
- *    because "why has my loop not been judged?" is a real question.
- * 2. Headers stick. A glyph-only grid whose G0..G15 labels have scrolled away is
- *    unreadable — you cannot tell G7 from G9. The tier row, the gate row, the
- *    loop column and the result column all pin.
- * 3. It is a real ARIA grid with one tab stop and arrow-key navigation. The old
- *    markup nested 17 buttons inside a row that was itself role="button" — both
- *    invalid and an 18-stop tab detour per row.
- *
- * 2026-09-20 (cpa-ui-fix-plan Phase 2): the loop cell is a ROUTE to the loop hub
- * (Explorer › Summary); selection stays with the gate cells, which also open the
- * evidence panel. The cell remains a native button on purpose: the grid's roving
- * tabindex moves focus with `element.focus()`, and `obc-button` renders its
- * <button> inside a shadow root without delegatesFocus, so it can neither take
- * that focus nor give up its own tab stop — 25 rows would become 25 extra stops.
- *
- * CHG-098 (SME review 2 #24): this grid is now the ADVANCED view. The default is "Checks behind the result"
- * (GateMatrixChecks) — per loop, only the gates that move its result, by name. Both share this toolbar, row set
- * and pager; the view rides the URL (`?view=matrix`) so a link opens the view it was copied from.
+ * This component owns what both views share: the toolbar's filters, the sort, the 15-row page and the empty states.
+ * It no longer defaults to every loop: "Needs attention" is the first row set, because at fleet scale most rows have
+ * no verdict yet. "Not evaluated" stays one choice away, since "why has my loop not been judged?" is a real question.
+ * A gate cell opens the gate's dialog; the page owns that dialog and the selected-loop band (`band`, above the table).
  */
 import React from 'react';
-import { serviceName } from './loopName';
-import { FilterChip } from '../../ui/forms/FilterChip';
-import { Pagination } from '../../ui/forms/Pagination';
-import { TextInput } from '../../ui/forms/TextInput';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
+import { Pagination } from '../../ui/forms/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { EmptyState } from './shared';
-import {
-  ROW_FILTERS, filterCounts, filterRows, gateName, glyphFor, type MatrixView, type RowFilter,
-} from './gateStatus';
-import { GateMatrixChecks, ResultCell } from './GateMatrixChecks';
+import { filterCounts, filterRows, type MatrixView, type RowFilter } from './gateStatus';
+import { GateMatrixChecks } from './GateMatrixChecks';
+import { GateLegend } from './GateLegend';
+import { GateMatrixGrid } from './performance/GateMatrixGrid';
+import { MatrixToolbar } from './performance/MatrixToolbar';
+import { sortLoops, type LoopSort } from './performance/loopSort';
+import { BAND_WORD, bandOf, type DiagnosisBandKey } from './vocabulary';
 
-const PAGE_SIZE = 25;
-const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
-/** CHG-098 (SME review 2 #24): the readable view first; the full matrix is the advanced one. */
-const VIEWS: { value: MatrixView; label: string }[] = [
-  { value: 'checks', label: 'Checks behind the result' },
-  { value: 'matrix', label: 'Full G0–G15 matrix' },
-];
+const PAGE_SIZE = 15;
 
-/** Shareable part of the filter — the free-text box stays local (see below). */
+/** Shareable part of the filter; the free-text box stays local (see below). */
 export interface MatrixScope { mode: RowFilter; gate: string | null }
 
 export interface GateMatrixProps {
@@ -65,33 +41,45 @@ export interface GateMatrixProps {
   /** The loop cell: open the loop hub (a route, push). */
   onOpenLoop: (loopId: string) => void;
   onOpenGate: (loopId: string, gate: string) => void;
+  windowKind: string;
   /** Fleet total from the summary endpoint, so the footer can name the shortfall. */
   fleetTotal?: number | null;
-  /** CHG-066: the loop's effective input flags — a pass judged without one of its inputs reads "OK on available data". */
+  /** CHG-066: the loop's effective input flags; a pass judged without one of its inputs reads "Pass on available data". */
   inputFlagsOf?: (loopId: string) => string[];
-  /** CHG-098: "checks" (default, readable) or "matrix" (the full G0–G15 grid). */
   view?: MatrixView;
-  onViewChange?: (view: MatrixView) => void;
+  onViewChange: (view: MatrixView) => void;
+  sort: LoopSort;
+  onSortChange: (sort: LoopSort) => void;
+  /** The server's ranking, for the control error and priority sorts. */
+  rank?: ReadonlyMap<string, number>;
   /** CHG-131: a filter of the page's own, in the same row. */
   toolbarStart?: React.ReactNode;
+  /** The selected-loop band, above the table. */
+  band?: React.ReactNode;
 }
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
-  loops, orderedGateKeys, tierGroups, filter, onFilterChange,
-  page, onPageChange, selectedLoopId, onSelectLoop, onOpenLoop, onOpenGate, fleetTotal, inputFlagsOf,
-  view = 'checks', onViewChange, toolbarStart,
+  loops, orderedGateKeys, tierGroups, filter, onFilterChange, page, onPageChange, selectedLoopId, onSelectLoop,
+  onOpenLoop, onOpenGate, windowKind, fleetTotal, inputFlagsOf, view = 'checks', onViewChange, sort, onSortChange, rank,
+  toolbarStart, band,
 }) => {
-  // The text box is deliberately NOT in the URL: it churns one history entry per
-  // keystroke and nobody shares "loops matching FIC-0". Mode and gate are, because
-  // "show me everything failing G1" is exactly the link an engineer pastes.
+  // The text box and the result filter are deliberately NOT in the URL: the box churns one history entry per keystroke
+  // and nobody shares "loops matching FIC-0". Mode and gate are, because "show me everything failing G1" is the link
+  // an engineer pastes.
   const [qDraft, setQDraft] = React.useState('');
   const q = useDebounce(qDraft, 250);
+  const [result, setResult] = React.useState<DiagnosisBandKey | ''>('');
   const effective = React.useMemo(() => ({ ...filter, q }), [filter, q]);
 
-  const counts = React.useMemo(
-    () => filterCounts(loops, orderedGateKeys), [loops, orderedGateKeys]);
-  const rows = React.useMemo(
-    () => filterRows(loops, orderedGateKeys, effective), [loops, orderedGateKeys, effective]);
+  const counts = React.useMemo(() => filterCounts(loops, orderedGateKeys), [loops, orderedGateKeys]);
+  const bands = React.useMemo(() => {
+    const present = new Set(loops.map(l => bandOf(l.diagnosis)));
+    return (Object.keys(BAND_WORD) as DiagnosisBandKey[]).filter(b => present.has(b));
+  }, [loops]);
+  const rows = React.useMemo(() => {
+    const filtered = filterRows(loops, orderedGateKeys, effective).filter(r => !result || bandOf(r.diagnosis) === result);
+    return sortLoops(filtered, sort, rank);
+  }, [loops, orderedGateKeys, effective, result, sort, rank]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), pageCount);
@@ -101,76 +89,23 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
 
   const start = (safePage - 1) * PAGE_SIZE;
   const visible = rows.slice(start, start + PAGE_SIZE);
+  const showing = rows.length === 0 ? '0' : `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)}`;
+  const count = `Showing ${showing} of ${rows.length}${fleetTotal != null && fleetTotal > loops.length
+    ? ` · matrix serves the first ${loops.length} of ${fleetTotal} loops in scope` : ''}`;
 
-  // ── Roving tabindex: the whole grid is ONE tab stop; arrows move the cursor.
-  const gridRef = React.useRef<HTMLTableElement>(null);
-  const [cursor, setCursor] = React.useState({ r: 0, c: 0 });
-  const movedByKey = React.useRef(false);
-  const colCount = orderedGateKeys.length + 1; // column 0 is the loop cell
-
-  React.useEffect(() => {
-    setCursor({ r: 0, c: 0 });
-  }, [safePage, filter.mode, filter.gate, q]);
-
-  React.useEffect(() => {
-    if (!movedByKey.current) return;
-    movedByKey.current = false;
-    gridRef.current
-      ?.querySelector<HTMLElement>(`[data-r="${cursor.r}"][data-c="${cursor.c}"]`)
-      ?.focus();
-  }, [cursor]);
-
-  const onGridKeyDown = (e: React.KeyboardEvent<HTMLTableSectionElement>) => {
-    if (!NAV_KEYS.includes(e.key)) return;
-    e.preventDefault();
-    movedByKey.current = true;
-    setCursor(cur => {
-      let { r, c } = cur;
-      if (e.key === 'ArrowLeft') c = Math.max(0, c - 1);
-      if (e.key === 'ArrowRight') c = Math.min(colCount - 1, c + 1);
-      if (e.key === 'ArrowUp') r = Math.max(0, r - 1);
-      if (e.key === 'ArrowDown') r = Math.min(visible.length - 1, r + 1);
-      if (e.key === 'Home') c = 0;
-      if (e.key === 'End') c = colCount - 1;
-      return { r, c };
-    });
-  };
-
-  const tabIndexOf = (r: number, c: number) => (r === cursor.r && c === cursor.c ? 0 : -1);
-
-  const showing = rows.length === 0
-    ? '0'
-    : `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)}`;
+  const back = () => onPageChange(1);   // a new row set invalidates the page number
+  const showAll = () => { setQDraft(''); setResult(''); onFilterChange({ mode: 'all', gate: null }); };
 
   return (
     <>
-      <div className="cpm-matrix-toolbar">
-        {/* CHG-131: one row of dropdowns. CHG-098: the view switch. */}
-        {onViewChange && (
-          <select className="cpm-select" aria-label="Matrix view" value={view} onChange={e => onViewChange(e.target.value as MatrixView)}>
-            {VIEWS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-          </select>
-        )}
-        {toolbarStart}
-        <select className="cpm-select" aria-label="Row filter" value={filter.mode} onChange={e => onFilterChange({ mode: e.target.value as RowFilter })}>
-          {ROW_FILTERS.map(f => <option key={f.value} value={f.value}>{`${f.label} ${counts[f.value]}`}</option>)}
-        </select>
+      <MatrixToolbar view={view} onViewChange={onViewChange} mode={filter.mode} counts={counts}
+        onModeChange={mode => { onFilterChange({ mode }); }}
+        bands={bands} band={result} onBandChange={b => { setResult(b); back(); }}
+        conditionFilter={toolbarStart} gate={filter.gate} onClearGate={() => onFilterChange({ gate: null })}
+        query={qDraft} onQueryChange={v => { setQDraft(v); back(); }}
+        sort={sort} onSortChange={onSortChange} count={count} />
 
-        {filter.gate && (
-          <FilterChip label={`Failing ${filter.gate}`} selected onToggle={() => onFilterChange({ gate: null })} />
-        )}
-
-        <div className="cpm-matrix-toolbar__search">
-          <TextInput label="Filter" placeholder="loop id or description" clearable value={qDraft} onChange={setQDraft} />
-        </div>
-
-        <span className="cpm-matrix-toolbar__count" aria-live="polite">
-          Showing {showing} of {rows.length}
-          {fleetTotal != null && fleetTotal > loops.length
-            ? ` · matrix serves the first ${loops.length} of ${fleetTotal} loops in scope`
-            : ''}
-        </span>
-      </div>
+      {band}
 
       {rows.length === 0 ? (
         <EmptyState
@@ -178,110 +113,27 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
           copy={
             q && fleetTotal != null && fleetTotal > loops.length
               ? `No match among the ${loops.length} loops loaded — the matrix serves the first ${loops.length} of ${fleetTotal} in scope, so this loop may be beyond them. Narrow the plant scope.`
-              : filter.gate || q
-                ? 'Clear the gate or text filter to widen the view.'
+              : filter.gate || q || result
+                ? 'Clear the gate, result or text filter to widen the view.'
                 : filter.mode === 'attention'
                   ? 'Every evaluated loop passed its gates in this window.'
                   : undefined
           }
-          action={
-            filter.gate || q || filter.mode !== 'all'
-              ? {
-                label: 'Show all loops',
-                onClick: () => { setQDraft(''); onFilterChange({ mode: 'all', gate: null }); },
-              }
-              : undefined
-          }
+          action={filter.gate || q || result || filter.mode !== 'all' ? { label: 'Show all loops', onClick: showAll } : undefined}
         />
       ) : (
         <>
           {view === 'checks' ? (
-            <GateMatrixChecks rows={visible} orderedGateKeys={orderedGateKeys} selectedLoopId={selectedLoopId}
+            <GateMatrixChecks rows={visible} orderedGateKeys={orderedGateKeys} selectedLoopId={selectedLoopId} windowKind={windowKind}
               onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
           ) : (
-          <div className="cpm-matrix-scroll">
-            <table
-              ref={gridRef}
-              className="cpm-matrix"
-              role="grid"
-              aria-label="Gate status by loop"
-              aria-rowcount={rows.length + 2}
-            >
-              <thead>
-                <tr aria-rowindex={1}>
-                  <th rowSpan={2} scope="col" className="cpm-matrix__loop">Loop</th>
-                  {tierGroups.map(g => (
-                    <th key={g.label} colSpan={g.keys.length} scope="colgroup"
-                      className="cpm-matrix__tier">{g.label}</th>
-                  ))}
-                  <th rowSpan={2} scope="col" className="cpm-matrix__result">Result</th>
-                </tr>
-                <tr aria-rowindex={2}>
-                  {/* CHG-098: code + readable name; below 1000 px the name folds into the abbr tooltip */}
-                  {orderedGateKeys.map(k => (
-                    <th key={k} scope="col" className="cpm-matrix__gate">
-                      <abbr title={gateName(k)}>{k}</abbr>
-                      <span className="cpm-matrix__gate-name">{gateName(k)}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody onKeyDown={onGridKeyDown}>
-                {visible.map((row, r) => {
-                  const selected = selectedLoopId?.toLowerCase() === row.loopId.toLowerCase();
-                  return (
-                    <tr
-                      key={row.loopId}
-                      aria-rowindex={start + r + 3}
-                      aria-selected={selected}
-                      className={selected ? 'cpm-matrix__row--selected' : undefined}
-                    >
-                      <th scope="row" className="cpm-matrix__loop">
-                        <button
-                          type="button"
-                          className="cpm-matrix__loop-btn"
-                          data-r={r}
-                          data-c={0}
-                          tabIndex={tabIndexOf(r, 0)}
-                          title="Open in the Loop Explorer"
-                          aria-label={`Open ${row.loopId}, ${row.displayName}, in the Loop Explorer`}
-                          onFocus={() => setCursor({ r, c: 0 })}
-                          onClick={() => onOpenLoop(row.loopId)}
-                        >
-                          <strong>{row.loopId} ›</strong>
-                          <span className="cpm-event-row__sub">{serviceName(row)}</span>
-                        </button>
-                      </th>
-                      {orderedGateKeys.map((k, gi) => {
-                        const g = glyphFor(row.gates[k], k, inputFlagsOf?.(row.loopId));
-                        const c = gi + 1;
-                        return (
-                          <td key={k} role="gridcell" className="cpm-matrix__cell-td">
-                            <button
-                              type="button"
-                              className={`cpm-matrix__cell cpm-matrix__cell--${g.tone}`}
-                              data-r={r}
-                              data-c={c}
-                              tabIndex={tabIndexOf(r, c)}
-                              aria-label={`${row.loopId}, gate ${k} ${gateName(k)}: ${g.label}`}
-                              title={`${k} ${gateName(k)}: ${g.word}`}
-                              onFocus={() => setCursor({ r, c })}
-                              onClick={() => { onSelectLoop(row.loopId); onOpenGate(row.loopId, k); }}
-                            >
-                              <span aria-hidden data-mark={g.meaning}>{g.glyph}</span>
-                            </button>
-                          </td>
-                        );
-                      })}
-                      <td role="gridcell" className="cpm-matrix__result">
-                        <ResultCell row={row} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+            <>
+              <GateLegend compact />
+              <GateMatrixGrid rows={visible} start={start} total={rows.length} orderedGateKeys={orderedGateKeys} tierGroups={tierGroups}
+                selectedLoopId={selectedLoopId} windowKind={windowKind}
+                resetKey={`${safePage}|${filter.mode}|${filter.gate}|${q}|${result}|${sort}`}
+                onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
+            </>
           )}
 
           {pageCount > 1 && (

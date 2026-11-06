@@ -89,7 +89,8 @@ describe('Gate matrix toolbar', () => {
   const mount = (over: Partial<React.ComponentProps<typeof GateMatrix>>, loops: CpmHeatmapLoop[] = []) => render(
     <MemoryRouter>
       <GateMatrix loops={loops} orderedGateKeys={[]} tierGroups={[]} filter={{ mode: 'all', gate: null }} onFilterChange={noop}
-        page={1} onPageChange={noop} selectedLoopId={null} onSelectLoop={noop} onOpenLoop={noop} onOpenGate={noop} {...over} />
+        page={1} onPageChange={noop} selectedLoopId={null} onSelectLoop={noop} onOpenLoop={noop} onOpenGate={noop}
+        windowKind="12h" onViewChange={noop} sort="tag" onSortChange={noop} {...over} />
     </MemoryRouter>,
   );
 
@@ -99,7 +100,7 @@ describe('Gate matrix toolbar', () => {
     mount({ onFilterChange, onViewChange });
     fireEvent.change(screen.getByRole('combobox', { name: 'Row filter' }), { target: { value: 'evaluated' } });
     expect(onFilterChange.mock.calls).toEqual([[{ mode: 'evaluated' }]]);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Matrix view' }), { target: { value: 'matrix' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gate matrix' }));
     expect(onViewChange.mock.calls).toEqual([['matrix']]);
   });
 

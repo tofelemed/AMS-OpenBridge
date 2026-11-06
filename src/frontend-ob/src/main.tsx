@@ -37,6 +37,7 @@ import './styles/cpm-evidence.css';
 import './styles/cpm-blocks.css';
 import './styles/cpm-overview.css';
 import './styles/cpm-performance.css';
+import './styles/cpm-perf-list.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';
 import './styles/cpm-responsive.css';

@@ -28,6 +28,7 @@ describe('cpaHref', () => {
 
   it('performanceHref writes the kind under ?window= (what Performance reads) and drops empties', () => {
     expect(performanceHref()).toBe('/cpm/performance');
+    expect(performanceHref({ sort: 'priority' })).toBe('/cpm/performance?sort=priority');
     expect(performanceHref({ loop: 'FIC10301', gate: 'G15', kind: '24h' }))
       .toBe('/cpm/performance?loop=FIC10301&gate=G15&window=24h');
     expect(performanceHref({ rows: 'attention', loop: null, gate: '' }))

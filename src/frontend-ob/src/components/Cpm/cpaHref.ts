@@ -24,6 +24,7 @@ import { chosenKind } from '../../cpa/tabKind';
 import type { ConfigTab } from './config/EditorView';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import type { RowFilter } from './gateStatus';
+import type { LoopSort } from './performance/loopSort';
 
 type Query = Record<string, string | number | null | undefined>;
 
@@ -74,8 +75,8 @@ export const explorerHref = (loop: string, opts: {
 
 /** The fleet matrix. `gate` opens that cell's evidence panel; `kind` is the fused window kind. */
 export const performanceHref = (
-  opts: { loop?: string | null; gate?: string | null; kind?: string | null; rows?: RowFilter } = {},
-) => build('/cpm/performance', { loop: opts.loop, gate: opts.gate, window: opts.kind, rows: opts.rows });
+  opts: { loop?: string | null; gate?: string | null; kind?: string | null; rows?: RowFilter; sort?: LoopSort } = {},
+) => build('/cpm/performance', { loop: opts.loop, gate: opts.gate, window: opts.kind, rows: opts.rows, sort: opts.sort });
 
 /** Loop Events. `event` selects an episode; `loop` narrows the list (honoured from Phase 6). */
 export const eventsHref = (

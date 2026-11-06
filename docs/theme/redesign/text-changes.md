@@ -328,3 +328,36 @@ Controls that changed place in this section, not removed:
 |---|---|
 | How to read (toggle for the docked guide) | Button above the gate tiles, opens a dialog |
 | Show the loops | Footer of each tile dialog, to the KPI drill-down |
+
+## Performance list, toggle, matrix and gate dialog (CHG-135, Task 8)
+
+| Was | Now | Where |
+|---|---|---|
+| Dropdown "Matrix view": "Checks behind the result" / "Full G0–G15 matrix" | Toggle "Findings" / "Gate matrix" at the end of the toolbar | List toolbar |
+| Eyebrow "Opportunity ranking", title "Loops needing attention", its own dropdown "By evidence score" / "By control error" | removed; both orders are in the Sort dropdown ("Evidence score", "Control error", with "Tag", "Result", "Priority") | List |
+| Second list of the same loops, with "#n", "driven by", "no gate flagged", "+n" | removed; the list's Checks column names the gates | List |
+| "no other check moved this result" under a loop | nothing | Findings |
+| "{n} further loop(s) returned by the ranking have no verdict yet and are not listed." | removed | List |
+| Findings columns Loop, Checks behind the result, Result | Loop, Result, Checks behind the result, Evidence, Review | Findings |
+| Check chip "G5 Oscillation (ACF) · Symptom seen" | "G5 Symptom seen" (gate name in its tooltip and the dialog) | Findings |
+| Matrix head: code and gate name under each code | code only (name in the tooltip) | Gate matrix |
+| Matrix result: pill, plus "last verdict ..." under it on every row | result as a one-line link to Investigation; "last verdict ..." only in the selected-loop band and the gate dialog, row tooltip | Gate matrix, Findings |
+| Loop cell "FIC10301 ›" | "FIC10301" | Both views |
+| Table label "Gate status by loop" / "Checks behind each loop's result" | "Gates by loop" / "Findings by loop" | Table names |
+| Strip "FIC10301 · title / Selected row · latest fused result · time / Final diagnosis X · evidence score N / Open fused evidence › / Open loop ›" | Band: tag, result pill, evidence score, last verdict when older, "Review X →", "Open loop"; shown only once a loop is selected | Above the list |
+| "Window Inspector ›" (header) | "Window Inspector ↗" | Header action |
+| Tooltip "Select a loop in the matrix to open its per-window results" | "Select a loop in the list to open its per-window results" | Header action |
+| Right-hand panel "Gate G5 evidence", "FIC10301 · BLOCKING", Close, previous and next icons; "{G} · latest fused result"; Result tile; "Last verdict" row | Dialog "FIC10301 · G5": tier, name, Check status, Loop result, Assessment, Reason; "Previous gate G4", "Next gate G6"; the rest under "More about this gate" | Gate dialog |
+| Panel buttons "Open in workbench ›", "Open in Evidence Replay ›", "Open full loop ›", "Window Inspector ›" | "Open in workbench →", "Open in Evidence Replay →", "Open full loop ↗" (under "More about this gate"); footer "Window Inspector ↗", "Review X →" | Gate dialog |
+| Unavailable-read states shown in the Result tile (UNAVAILABLE, NO WINDOW YET) | a line under "More about this gate"; a failed read also shows as Reason | Gate dialog |
+| Tooltip "This gate in the fleet matrix, with the docked evidence panel" | "This gate in the fleet matrix, opened in its dialog" | Loop Explorer, gate detail |
+
+| Control | Now on |
+|---|---|
+| Any result (new dropdown, from the diagnosis band) | List toolbar, after Needs attention |
+| Sort (evidence score, tag, result, control error, priority; `?sort=`) | List toolbar |
+| Review ↗ | Last column of Findings |
+| Result link | Last column of the gate matrix |
+| Previous and next gate | Gate dialog footer |
+| Gate key (compact, with Full key) | Above the gate matrix |
+

@@ -464,9 +464,6 @@
 .cpm-rollup__none { margin: 4px 0 12px; font-size: var(--cpm-text-small); }
 
 /* ── Matrix + evidence layout ── */
-.cpm-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-.cpm-matrix-layout--split { grid-template-columns: minmax(0, 1fr) 420px; }
-.cpm-matrix-layout__main { min-width: 0; }
 
 /* ── Evidence inspector (docked, and the narrow-viewport modal fallback) ── */
 .cpm-inspector {
@@ -513,74 +510,6 @@
 .cpm-inspector .cpm-kv { align-items: baseline; }
 .cpm-inspector .cpm-kv__label { flex: 0 0 auto; }
 .cpm-inspector .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; }
-
-/* ── Attention list (opportunity ranking) ── */
-.cpm-attention { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.cpm-attention__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 5px 8px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-}
-.cpm-attention__row:hover { background: var(--container-background-color); }
-.cpm-attention__row--selected {
-  border-color: var(--instrument-enhanced-primary-color);
-  background: var(--container-section-color);
-}
-.cpm-attention__main {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-}
-.cpm-attention__main:focus-visible,
-.cpm-attention__gate:focus-visible {
-  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-.cpm-attention__rank { color: var(--element-neutral-color); font-variant-numeric: tabular-nums; }
-.cpm-attention__id { display: flex; flex-direction: column; min-width: 0; }
-.cpm-attention__verdict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cpm-attention__metric { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
-.cpm-attention__gates { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.cpm-attention__gate {
-  background: var(--container-backdrop-color);
-  border: 1px solid var(--border-divider-color);
-  border-radius: 4px;
-  padding: 1px 7px;
-  font-size: var(--cpm-text-caption);
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--element-active-color);
-}
-.cpm-attention__gate:hover { border-color: var(--instrument-enhanced-primary-color); }
-.cpm-attention__footnote { margin-top: 10px; font-size: var(--cpm-text-small); }
-@media (max-width: 900px) {
-  .cpm-attention__row { grid-template-columns: 1fr; gap: 4px; }
-}
-
-.cpm-matrix-summary {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-divider-color);
-  border-radius: 8px;
-  flex-wrap: wrap;
-}
 
 /* ── Pipeline window rows (U1) ── */
 .cpm-window-rows { display: grid; gap: 6px; }

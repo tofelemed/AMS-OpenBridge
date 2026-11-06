@@ -1,60 +1,28 @@
 'use client';
 
 /**
- * Gate evidence panel (replaces GateEvidenceDrawer).
+ * The rest of a gate's evidence, shown under a disclosure in the gate dialog (PerformanceGateDialog): the window it
+ * was judged on, what the gate asks, its effect on the verdict, the observability flags and the onward actions.
+ * The status, the loop result, the assessment and the reason are the dialog's own, so they are not repeated here.
  *
- * Why it is no longer a modal drawer: the task on this screen is comparative —
- * "G1 failed, G4 and G10 need attention, what happened across this row?" The old
- * panel was `aria-modal` with a backdrop, so it dimmed and blocked the very
- * matrix you need to keep reading, and it was pinned to top:0 where the app
- * chrome could occlude its own title and Close button.
- *
- * It is now a NON-MODAL panel docked beside the matrix on a wide workspace: the
- * matrix stays live, the panel header sticks (Close can never scroll away), and
- * prev/next walk G0..G15 without going back to the grid. Below 1200px there is
- * no room for a second column, so it becomes a real modal dialog — the one place
- * a dialog is the right call.
- *
- * When no gate is selected the docked column is not wasted: it carries the
- * "how to read this" guidance that used to occupy a permanent card on a screen
- * engineers visit daily.
+ * It was a panel docked beside the matrix (CHG-135 removed it): reading a gate is one task, and a dialog serves it
+ * without taking a column from the list.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ReasonedButton } from './ReasonedButton';
-import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
-import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
-import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ApiError } from '../../api/apiFetch';
 import { useCpmCalculations, useCpmLoop, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
-import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
 import { workbenchHref } from './evidence/selection';
-import { explorerHref, replayHref, windowsHref } from './cpaHref';
+import { explorerHref, replayHref } from './cpaHref';
 import { confirmationProse } from './investigation/confirmationCopy';
-import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
-import { gateTone } from './gateStatus';
-import { codeLabel } from './vocabulary';
+import { KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { CodeLabel } from './CodeLabel';
 import { flagsForLoop, inputContextOf, vpAbsent } from './optionalInputs';
 
-/** Role per gate — the same static policy the registry aside shows. */
-export interface GateEvidencePanelProps {
-  loopId: string;
-  gateKey: string;
-  windowKind: string;
-  /** Ordered gate keys, so prev/next walk the pathway in tier order. */
-  gateKeys: string[];
-  onSelectGate: (gate: string) => void;
-  onClose: () => void;
-  /** True when there is room to dock beside the matrix (>= 1200px). */
-  docked: boolean;
-}
-
-/** The evidence itself — identical in both placements. */
-const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: string }> = ({
+export const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: string }> = ({
   loopId, gateKey, windowKind,
 }) => {
   const navigate = useNavigate();
@@ -73,49 +41,26 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
   // stand in for "still loading", "no window yet" (404) or "the request failed".
   const noWindowYet = gates.isError && gates.error instanceof ApiError && gates.error.status === 404;
   const fetchFailed = gates.isError && !noWindowYet;
-  const status = gates.isLoading ? 'LOADING'
-    : fetchFailed ? 'UNAVAILABLE'
-      : noWindowYet ? 'NO WINDOW YET'
-        : cell?.status ?? 'NOT_EVALUATED';
 
   return (
     <>
-      <p className="cpm-copy">
-        {def?.name ?? cell?.name ?? gateKey} · latest fused result
-        {matrix?.metadata.calculationVersion
-          ? ` · calculation v${matrix.metadata.calculationVersion}` : ''}
-        {matrix?.metadata.dynamicsProfileVersion
-          ? ` · profile v${matrix.metadata.dynamicsProfileVersion}` : ''}
-      </p>
-
-      <div className={`cpm-kpi cpm-kpi--${fetchFailed ? 'warn' : gateTone(status, gateKey)}`}
-        style={{ margin: '12px 0' }}>
-        <span className="cpm-kpi__caption">Result</span>
-        <span className="cpm-kpi__value">{codeLabel(status)}</span>
-        {fetchFailed && (
-          <span className="cpm-kpi__sub">
-            {gates.error instanceof Error ? gates.error.message : 'The service is unavailable.'}
-          </span>
-        )}
-        {noWindowYet && (
-          <span className="cpm-kpi__sub">
-            This loop has not completed a {windowKind} evaluation window.
-          </span>
-        )}
-        {!fetchFailed && !noWindowYet && cell?.reason && (
-          <span className="cpm-kpi__sub">{cell.reason}</span>
-        )}
-      </div>
+      {/* The status, reason and result are the dialog's; what stays here is a failed or missing read, never silent */}
+      {fetchFailed && (
+        <p className="cpm-copy" role="status">{gates.error instanceof Error ? gates.error.message : 'The service is unavailable.'}</p>
+      )}
+      {noWindowYet && <p className="cpm-copy" role="status">This loop has not completed a {windowKind} evaluation window.</p>}
+      {(matrix?.metadata.calculationVersion || matrix?.metadata.dynamicsProfileVersion) && (
+        <p className="cpm-copy">
+          {[matrix.metadata.calculationVersion && `Calculation v${matrix.metadata.calculationVersion}`,
+            matrix.metadata.dynamicsProfileVersion && `profile v${matrix.metadata.dynamicsProfileVersion}`].filter(Boolean).join(' · ')}
+        </p>
+      )}
 
       <PanelHead eyebrow="Contract" title="Window & attribution" />
       {/* Split across two rows: one line carrying both bounds plus a zone label
           overflowed the panel and read as a cropped value. */}
       <KvRow label="Window from">{matrix?.windowStart ? fmtDateTime(matrix.windowStart) : '—'}</KvRow>
       <KvRow label="Window to">{matrix?.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}</KvRow>
-      {/* audit F4: this is the loop's newest window; an older verdict is stated as older, with its age */}
-      {matrix?.lastVerdict && (
-        <KvRow label="Last verdict"><span title={matrix.lastVerdict.windowEnd ?? undefined}>{staleVerdictLine(matrix.lastVerdict)?.replace(/^last verdict /, '')}</span></KvRow>
-      )}
       <KvRow label="Gate role">{role}</KvRow>
       <KvRow label="Samples">{matrix?.sampleCount ?? '—'}</KvRow>
       <KvRow label="Source">{matrix?.metadata.calculationSource ?? 'flink'}</KvRow>
@@ -183,21 +128,17 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
               <ReasonedButton variant={replayPrimary ? 'normal' : 'raised'} disabled={workbench.disabled}
                 reason={workbench.disabled && !gates.isLoading ? workbench.title : null}
                 onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
-                Open in workbench ›
+                Open in workbench →
               </ReasonedButton>
             </span>
             <ObcButton variant={replayPrimary ? 'raised' : 'normal'}
               title={matrix?.windowEnd ? `Replay the ${windowKind} window ending ${fmtDateTime(matrix.windowEnd)}` : `Replay this loop's newest ${windowKind} window`}
               onClick={() => navigate(replay)}>
-              Open in Evidence Replay ›
-            </ObcButton>
-            <ObcButton variant="normal" title={`Per-window results for ${loopId} in the Window Inspector`}
-              onClick={() => navigate(windowsHref(loopId, { profile: windowKind }))}>
-              Window Inspector ›
+              Open in Evidence Replay →
             </ObcButton>
             <ObcButton variant="normal" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
               onClick={() => navigate(explorerHref(loopId, { tab: 'Calculations' }))}>
-              Open full loop ›
+              Open full loop ↗
             </ObcButton>
           </div>
         );
@@ -206,93 +147,4 @@ const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: stri
   );
 };
 
-export const GateEvidencePanel: React.FC<GateEvidencePanelProps> = ({
-  loopId, gateKey, windowKind, gateKeys, onSelectGate, onClose, docked,
-}) => {
-  const idx = gateKeys.indexOf(gateKey);
-  const prev = idx > 0 ? gateKeys[idx - 1] : null;
-  const next = idx >= 0 && idx < gateKeys.length - 1 ? gateKeys[idx + 1] : null;
-  const catalogue = useGateCatalogue();
-  const role = gateRole(catalogue.data, gateKey);
-
-  const head = (
-    <div className="cpm-inspector__head">
-      <div className="cpm-inspector__title">
-        <span className="cpm-eyebrow">{loopId} · {role}</span>
-        <h2 className="cpm-panel-title">Gate {gateKey} evidence</h2>
-      </div>
-      <div className="cpm-inspector__nav">
-        <CpmIconButton
-          label={prev ? `Previous gate, ${prev}` : 'Previous gate'}
-          disabled={!prev}
-          reason="Already the first gate"
-          onClick={() => { if (prev) onSelectGate(prev); }}
-        >
-          <ObiChevronLeftGoogle />
-        </CpmIconButton>
-        <CpmIconButton
-          label={next ? `Next gate, ${next}` : 'Next gate'}
-          disabled={!next}
-          reason="Already the last gate"
-          onClick={() => { if (next) onSelectGate(next); }}
-        >
-          <ObiChevronRightGoogle />
-        </CpmIconButton>
-        <CpmIconButton label="Close evidence panel" onClick={onClose}>
-          <ObiCloseGoogle />
-        </CpmIconButton>
-      </div>
-    </div>
-  );
-
-  // Docked: non-modal, in the page flow. No backdrop, no focus trap — the matrix
-  // stays operable, which is the entire point of not making this a dialog.
-  if (docked) {
-    return (
-      <aside
-        className="cpm-inspector"
-        aria-label={`${gateKey} evidence for ${loopId}`}
-        onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
-      >
-        {head}
-        <div className="cpm-inspector__body">
-          <EvidenceBody loopId={loopId} gateKey={gateKey} windowKind={windowKind} />
-        </div>
-      </aside>
-    );
-  }
-
-  return <ModalEvidence head={head} loopId={loopId} gateKey={gateKey}
-    windowKind={windowKind} onClose={onClose} />;
-};
-
-/** Narrow-viewport placement: a genuine modal dialog, with the trap and restore. */
-const ModalEvidence: React.FC<{
-  head: React.ReactNode;
-  loopId: string;
-  gateKey: string;
-  windowKind: string;
-  onClose: () => void;
-}> = ({ head, loopId, gateKey, windowKind, onClose }) => {
-  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
-  return (
-    <>
-      <div className="cpm-modal-backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="cpm-inspector cpm-inspector--modal"
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        aria-label={`${gateKey} evidence for ${loopId}`}
-      >
-        {head}
-        <div className="cpm-inspector__body">
-          <EvidenceBody loopId={loopId} gateKey={gateKey} windowKind={windowKind} />
-        </div>
-      </div>
-    </>
-  );
-};
-
-export default GateEvidencePanel;
+export default EvidenceBody;

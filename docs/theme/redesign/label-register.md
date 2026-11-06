@@ -46,3 +46,8 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Periodic diagnosis | Loops with periodic diagnosis | Periodic diagnosis | Performance tiles | Reference |
 | Performance key to the gate marks | How to read this | How to read | Performance gate summary | Reference |
 | Tile drill-down | (new) | Show the loops | Performance tile dialog | Reference |
+| Findings / Gate matrix toggle | Checks behind the result / Full G0–G15 matrix | Findings; Gate matrix | Performance list toolbar | Reference |
+| Any result | (new) | Any result | Performance list toolbar | Reference |
+| Sort | By evidence score / By control error | Sort: Evidence score, Tag, Result, Control error, Priority | Performance list toolbar | Reference |
+| Gate dialog disclosure | (new) | More about this gate | Performance gate dialog | Reference |
+
