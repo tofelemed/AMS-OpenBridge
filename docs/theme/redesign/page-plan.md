@@ -190,4 +190,6 @@ After seeing the plan built, the owner reviewed it on lab :3000 and approved the
 Gates: tsc 0, lint 0, 1,221 tests in 153 files, build OK, lint:theme 0.
 Walks: 59 of 59 on lab data, 0 server errors, 0 blocked. `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14, `control-edge` 52 views with 0 off the screen, link walk 75 links on 28 pages with 0 problems.
 
+**KPI drill-down (CHG-132):** the number, its trend and its loops on one screen. The calculation sits behind the `?`, and rows lost their repeats and the hierarchy line.
+
 Not built yet at the plant. Before release: control-engineer review of `text-changes.md`, and tell the SME that the summary left the other tabs (UI-101).

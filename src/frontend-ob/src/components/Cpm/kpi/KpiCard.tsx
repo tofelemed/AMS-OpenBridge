@@ -15,6 +15,17 @@ import { ObiTrendDown } from '@oicl/openbridge-webcomponents-react/icons/icon-tr
 import type { CpmTone } from '../shared';
 import type { KpiDelta, KpiIconTone } from './kpiMeta';
 
+/** The change since 24 h ago; the full sentence is its hover title. */
+export const KpiChange: React.FC<{ delta: KpiDelta }> = ({ delta }) => (
+  <span className={`cpm-kpicard__delta cpm-kpicard__delta--${delta.good == null ? 'flat' : delta.good ? 'good' : 'bad'}`}
+    title={delta.title}>
+    {delta.direction === 'up' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendUp /></span>}
+    {delta.direction === 'down' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendDown /></span>}
+    <span className="cpm-visually-hidden">{delta.direction === 'up' ? 'up' : delta.direction === 'down' ? 'down' : 'unchanged'} </span>
+    {delta.text}
+  </span>
+);
+
 export const KpiCard: React.FC<{
   Icon: React.ComponentType;
   value: React.ReactNode;
@@ -32,15 +43,7 @@ export const KpiCard: React.FC<{
   iconTone?: KpiIconTone;
 }> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none' }) => {
   const tipId = useId();
-  const change = delta && (
-    <span className={`cpm-kpicard__delta cpm-kpicard__delta--${delta.good == null ? 'flat' : delta.good ? 'good' : 'bad'}`}
-      title={delta.title}>
-      {delta.direction === 'up' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendUp /></span>}
-      {delta.direction === 'down' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendDown /></span>}
-      <span className="cpm-visually-hidden">{delta.direction === 'up' ? 'up' : delta.direction === 'down' ? 'down' : 'unchanged'} </span>
-      {delta.text}
-    </span>
-  );
+  const change = delta && <KpiChange delta={delta} />;
   const body = headed ? (
     <>
       <span className="cpm-kpicard__head">

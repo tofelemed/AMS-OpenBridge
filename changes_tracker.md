@@ -5761,3 +5761,23 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-132 — CPA: KPI drill-down, the number, its trend and its loops on one screen (2026-11-06, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner: "we need to redesign same - remove extra text - move calculation logic to ? etc - remove unnecassry explanations", then "also remove heirarchy from under the loop name".
+
+**Changed.**
+- **Band:** Overview link, KPI dropdown, the number with its denominator and share, `?`, 12h / 24h. It stays on screen while the list scrolls. The dropdown names the KPI, so the heading is for screen readers only.
+- **Behind the `?`:** rule, formula, threshold, basis, why this KPI, time computed and the change since 24 h ago. The four cards and the Proof panel are gone.
+- **Trend:** the heading is Trend, the range is one dropdown, the day rule and the low and high moved to its `?`, and the chart is 140 px high. Click a day and Back to now work as before.
+- **Loops:** count, the check against the KPI, reason dropdown and search share one row.
+- **Rows:** tag and name on one line, with the hierarchy line removed. The measure every row shares is named once in the column heading. A stale verdict is the one word Stale. The window's age goes when the measured value is that age. The Measured column goes when the verdict says the same. Proof links sit on one line from 1280 px.
+- **Narrow screens:** rows become cards at 900 px instead of 760 px, so a 768 px screen needs no sideways scroll.
+
+**Moved, nothing lost.** Every KPI still lists the loops and the values behind it, with its trend, picked days, reason filter, search, paging and all proof links. The only facts removed are repeats. A loop's location stays under Open details on its Loop Summary.
+
+**Before release:** control-engineer review of the CHG-132 lines in `docs/theme/redesign/text-changes.md`.
+**Verified:** tsc 0, lint 0, all tests in 155 files passed, build OK, lint:theme 0, `check-a11y` 70 scans with 0 findings of any level, `check-redirects` 27 of 27, `check-geometry` 14 of 14. A walk of the page on lab data passed: first loop row at 498 px (was 988), `?` holds all seven facts and stays on screen, range dropdown, clicking a day and Back to now, another KPI, empty search, nothing off the side at 1000, 768 and 390 px, 0 server errors, 0 blocked. **Not proven in a browser:** the reason dropdown, because the lab has no not-assessable loops; it is covered by unit tests. That walk ran before the last one-line change that keeps a row's value on one line.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

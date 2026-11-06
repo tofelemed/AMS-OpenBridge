@@ -2,22 +2,16 @@
  * CHG-082 / CHG-085: /cpm?review=&reason=&site=&area=&unit= — the proof of one Overview KPI, in place on
  * Overview's own address (CHG-121). The old /cpm/kpi?kpi= opens it too, until the redirects are on.
  *
- * 1. Four summary cards: the number (with its change since 24 h ago), the threshold, the window basis, when it was computed.
- * 2. "How this number is calculated": the rule, the formula, why the KPI exists and its reference.
- * 3. The loops behind it — exactly the loops the card counted (server `total` = the card's count) — each with its measured
- *    value against the rule, the verdict, the window and the links to the evidence.
- * The URL is the whole selection (shareable); the KPI picker and the reason filter rewrite it.
+ * CHG-132: the number in the band, its trend, then the loops behind it: exactly the loops the KPI counted (server `total` =
+ * its count), each with its measured value, verdict, window and links to the evidence. The calculation sits behind the
+ * number's ?. The URL is the whole selection (shareable); the KPI, reason and range dropdowns rewrite it.
  */
 import React, { useMemo, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
-import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
-import { ObiTime } from '@oicl/openbridge-webcomponents-react/icons/icon-time';
-import { ObiLimitsAttention } from '@oicl/openbridge-webcomponents-react/icons/icon-limits-attention';
-import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import { KPI_TREND_RANGES, type FleetKpiKey } from '../../api/cpm/fleetKpis';
-import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader, fmtDateTime } from './shared';
+import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime } from './shared';
 import { Toggletip } from '../../ui/Toggletip';
 import { ListPager } from '../shared/ListPager';
 import { useCpmScope } from './plantScope';
@@ -25,11 +19,13 @@ import { overviewHref } from './cpaHref';
 import { useFleetKpiLoops, useFleetKpiTrend, useFleetKpis } from './kpi/useFleetKpis';
 import { KpiTrendChart } from './kpi/KpiTrendChart';
 import { kpiSeries, plantDayLabel, pointLabel, seriesRange } from './kpi/kpiTrend';
-import { KPI_GROUPS, kpiTone, pct, reasonLabel } from './kpi/fleetKpiView';
+import { KPI_GROUPS, pct, reasonLabel } from './kpi/fleetKpiView';
 import { KPI_WHY } from './kpi/kpiProof';
-import { KPI_META, basisShort, kpiDelta } from './kpi/kpiMeta';
-import { KpiCard } from './kpi/KpiCard';
+import { KPI_META, kpiDelta, kpiIconTone } from './kpi/kpiMeta';
+import { KpiChange } from './kpi/KpiCard';
+import { KpiCalculation } from './kpi/KpiCalculation';
 import { KpiRowsTable } from './kpi/KpiRowsTable';
+import { useStickyOffset } from './context/LoopContextBar';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 
@@ -44,6 +40,7 @@ const DRILL_ONLY: Array<{ key: FleetKpiKey; label: string }> = [
 
 export const CpmKpiDrilldown: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  const bandRef = useStickyOffset();
   const kpiParam = params.has('review') ? 'review' : 'kpi';
   const kpi = (params.get(kpiParam) ?? 'acceptable') as FleetKpiKey;
   const reason = params.get('reason');
@@ -71,6 +68,7 @@ export const CpmKpiDrilldown: React.FC = () => {
   const isBarState = kpi.startsWith('bar-');
   const measureKey = (list.data?.rows[0]?.rowKey ?? kpi) as FleetKpiKey;
   const meta = KPI_META[measureKey];
+  const delta = k && figure && !isBarState ? kpiDelta(figure, k) : null;
   const options = useMemo(() => [
     ...KPI_GROUPS.flatMap(g => g.keys).map(key => ({ key, label: k?.kpis.find(f => f.key === key)?.label ?? key })),
     ...DRILL_ONLY,
@@ -83,100 +81,98 @@ export const CpmKpiDrilldown: React.FC = () => {
   };
   const label = figure?.label ?? options.find(o => o.key === kpi)?.label ?? 'KPI';
   const total = list.data?.total;
+  const showReasons = kpi === 'not-assessable' && (k?.notAssessableByReason.length ?? 0) > 0;
+  const loopsTitle = total == null ? 'Loading…' : [
+    `${total} ${total === 1 ? 'loop' : 'loops'}`,
+    reason && !showReasons ? reasonLabel(reason) : null,
+    day ? (pickedDay?.day ? `${pointLabel(pickedDay, true)} (${plantDayLabel(trend.data)})` : `as of ${fmtDateTime(day)}`) : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className="cpm-screen">
-      <RouterLink className="cpm-link cpm-kpi-back" to={overviewHref(kscope)}>
-        <span className="cpm-kpi-back__icon" aria-hidden><ObiChevronLeftGoogle /></span>Operations overview
-      </RouterLink>
-      <WorkspaceHeader page="/cpm/kpi" title={label}
-        actions={<>
-          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={k2 => { setPage(0); setWindowKind(k2); }} />
-          <label className="cpm-field cpm-kpi-proof__pick">
-            <span className="cpm-field__label">Show another KPI</span>
-            <select className="cpm-select" value={kpi} onChange={e => go({ [kpiParam]: e.target.value, reason: null })}>
-              {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </label>
-        </>} />
+      {/* The dropdown shows the KPI's name, so the heading is for screen readers only. */}
+      <h1 className="cpm-sr-only">{label}</h1>
+      <div ref={bandRef} className="cpm-loop-context cpm-band" role="region" aria-label="KPI and its controls">
+        <div className="cpm-band__row">
+          <RouterLink className="cpm-link cpm-kpi-back" to={overviewHref(kscope)}>
+            <span className="cpm-kpi-back__icon" aria-hidden><ObiChevronLeftGoogle /></span>Overview
+          </RouterLink>
+          <select className="cpm-select" aria-label="Show another KPI" value={kpi}
+            onChange={e => go({ [kpiParam]: e.target.value, reason: null })}>
+            {!options.some(o => o.key === kpi) && <option value={kpi}>{label}</option>}
+            {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+          {figure && (
+            <span className="cpm-kpi-figure">
+              {meta && <span className={`cpm-kpi-figure__icon cpm-kpicard__icon cpm-kpicard__icon--${kpiIconTone({ key: measureKey, count: figure.count })}`} aria-hidden><meta.Icon /></span>}
+              <span className="cpm-kpicard__value">{figure.count}</span>
+              <span className="cpm-kpicard__of">/ {figure.denominator} {figure.denominatorLabel}</span>
+              <strong className="cpm-kpi-figure__share">{pct(figure.count, figure.denominator)} %</strong>
+              {delta && delta.direction !== 'flat' && <KpiChange delta={delta} />}
+            </span>
+          )}
+          {k && <KpiCalculation figure={figure} meta={meta} why={KPI_WHY[measureKey]} kpis={k} delta={delta} />}
+          <div className="cpm-band__end">
+            <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={k2 => { setPage(0); setWindowKind(k2); }} />
+          </div>
+        </div>
+      </div>
 
       {kpis.isError && <QueryError title="KPI unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
-      {k && (
-        <div className="cpm-kpicards cpm-kpicards--4" aria-label="This KPI at a glance">
-          {figure && meta
-            ? <KpiCard size="large" Icon={meta.Icon} value={<>{figure.count}<span className="cpm-kpicard__of"> / {figure.denominator}</span></>}
-                label={`${pct(figure.count, figure.denominator)} % of ${figure.denominatorLabel}`} tone={kpiTone(figure)}
-                delta={isBarState ? null : kpiDelta(figure, k)} title={figure.rule} />
-            : <KpiCard size="large" Icon={meta?.Icon ?? ObiHelp} value={total ?? '…'} label="loop(s) in this list" />}
-          <KpiCard Icon={ObiLimitsAttention} value={<span className="cpm-kpicard__text">{meta ? meta.threshold(k.basis) : 'As listed'}</span>}
-            label="Threshold" />
-          <KpiCard Icon={ObiDatabase} value={<span className="cpm-kpicard__text">{basisShort(k.basis)}</span>} label="Basis" />
-          <KpiCard Icon={ObiTime} value={<span className="cpm-kpicard__text">{fmtDateTime(k.computedAt)}</span>}
-            label="Computed" sub="the change compares with 24 h earlier" />
-        </div>
-      )}
-
-      <section className="cpm-surface cpm-kpi-proof" aria-label="How this number is calculated">
-        <PanelHead eyebrow="Proof" title="How this number is calculated" />
-        <dl className="cpm-kpi-proof__grid">
-          {figure && <><dt>Rule</dt><dd>{figure.rule}.</dd></>}
-          {meta && <><dt>Formula</dt><dd><code className="cpm-kpi-proof__formula">{meta.formula}</code></dd></>}
-          {KPI_WHY[measureKey] && <><dt>Why this KPI</dt><dd>{KPI_WHY[measureKey]}</dd></>}
-        </dl>
-      </section>
 
       {!isBarState && (
-      <section className="cpm-surface" aria-label={`Last ${rangeLabel}`}>
-        <PanelHead eyebrow={`Each ${plantDayLabel(trend.data)} at its end, same rules`} title="How this number has moved"
-          help={<Toggletip variant="how-to" label="How to read this trend"><p>Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.</p></Toggletip>}
-          right={<div className="cpm-kpi-proof__reasons" role="group" aria-label="Trend range">
-            {KPI_TREND_RANGES.map(r => (
-              <ObcButton key={r.days} variant={r.days === rangeDays ? 'normal' : 'flat'} aria-pressed={r.days === rangeDays}
-                onClick={() => go({ range: r.days === 14 ? null : String(r.days) })}>{r.label}</ObcButton>
-            ))}
+      <section className="cpm-surface cpm-kpi-trend" aria-label={`Trend, last ${rangeLabel}`}>
+        <PanelHead title="Trend"
+          help={<Toggletip variant="how-to" label="How to read this trend">
+            <p>Each bar is one {plantDayLabel(trend.data)} at its end, under the same rules.</p>
+            <p>Click a day to list the loops it counted. Days with nothing kept read "no data", not 0 %.</p>
+            {range && <p>Between {range.min} % and {range.max} % over the days with data.</p>}
+          </Toggletip>}
+          right={<>
             {day && <ObcButton variant="flat" onClick={() => go({ day: null })}>Back to now</ObcButton>}
-          </div>} />
+            <select className="cpm-select cpm-kpi-range" aria-label="Trend range" value={rangeDays}
+              onChange={e => go({ range: Number(e.target.value) === 14 ? null : e.target.value })}>
+              {KPI_TREND_RANGES.map(r => <option key={r.days} value={r.days}>{r.label}</option>)}
+            </select>
+          </>} />
         {trend.isError && <QueryError title="The trend is unavailable" error={trend.error} retry={() => void trend.refetch()} />}
         {!trend.data && !trend.isError && <EmptyState title={`Loading the last ${rangeLabel}…`} />}
         {trend.data && (
           <>
             <KpiTrendChart trend={trend.data} kpi={kpi} selected={day} onPick={asOf => go({ day: asOf })} />
-            <p className="cpm-op__basis">
-              {range ? `Between ${range.min} % and ${range.max} % over the days with data.` : 'No day had anything to judge.'}
-            </p>
+            {!range && <p className="cpm-op__basis">No day had anything to judge.</p>}
           </>
         )}
       </section>
       )}
 
       <section className="cpm-surface" aria-label="Loops behind this KPI">
-        <PanelHead eyebrow="The loops behind the number"
-          title={total != null ? `${total} loop(s)${reason ? ` · ${reasonLabel(reason)}` : ''}${day ? ` · ${pickedDay?.day ? `${pointLabel(pickedDay, true)} (${plantDayLabel(trend.data)})` : `as of ${fmtDateTime(day)}`}` : ''}` : 'Loading…'}
-          right={total != null && !reason && (day
-            ? pickedDay && total === pickedDay.count ? <TonePill tone="good">matches that day</TonePill> : undefined
-            : figure && total === figure.count ? <TonePill tone="good">matches the card</TonePill> : undefined)} />
-        <div className="cpm-kpi-proof__tools">
-          <label className="cpm-field cpm-kpi-proof__search">
-            <span className="cpm-field__label">Search loops</span>
-            <input className="cpm-input" type="search" value={search} placeholder="Loop tag or name"
+        <div className="cpm-kpi-loops__head">
+          <div className="cpm-title-row">
+            <h2 className="cpm-panel-title">{loopsTitle}</h2>
+            {total != null && !reason && (day
+              ? pickedDay && total === pickedDay.count && <TonePill tone="good">matches that day</TonePill>
+              : figure && total === figure.count && <TonePill tone="good">matches the KPI</TonePill>)}
+          </div>
+          <div className="cpm-kpi-loops__tools">
+            {showReasons && (
+              <select className="cpm-select" aria-label="Narrow by reason" value={reason ?? ''}
+                onChange={e => go({ reason: e.target.value || null })}>
+                <option value="">{`All reasons · ${k!.states.notAssessable}`}</option>
+                {reason && !k!.notAssessableByReason.some(r => r.reason === reason)
+                  && <option value={reason}>{`${reasonLabel(reason)} · 0`}</option>}
+                {k!.notAssessableByReason.map(r => (
+                  <option key={r.reason} value={r.reason}>{`${reasonLabel(r.reason)} · ${r.count}`}</option>
+                ))}
+              </select>
+            )}
+            <input className="cpm-input" type="search" value={search} aria-label="Search loops" placeholder="Search loop tag or name"
               onChange={e => { setSearch(e.target.value); setPage(0); }} />
-          </label>
-          {kpi === 'not-assessable' && (k?.notAssessableByReason.length ?? 0) > 0 && (
-            <div className="cpm-kpi-proof__reasons" role="group" aria-label="Narrow by reason">
-              <ObcButton variant={!reason ? 'normal' : 'flat'} aria-pressed={!reason} onClick={() => go({ reason: null })}>
-                All reasons {k!.states.notAssessable}
-              </ObcButton>
-              {k!.notAssessableByReason.map(r => (
-                <ObcButton key={r.reason} variant={reason === r.reason ? 'normal' : 'flat'} aria-pressed={reason === r.reason}
-                  onClick={() => go({ reason: r.reason })}>{reasonLabel(r.reason)} {r.count}</ObcButton>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
         {list.isError && <QueryError title="The loop list is unavailable" error={list.error} retry={() => void list.refetch()} />}
         {list.data && list.data.rows.length === 0 && (
           <EmptyState title={search ? 'No loop matches the search' : 'No loop is in this KPI'}
-            copy={search ? 'Clear the search to see every loop behind the number.' : 'The count for this KPI is 0 in this scope — nothing to verify here. Back on the Overview, the other figures list their loops.'}
             // CHG-098 (SME review 2 #29): the way out is a button, not only an instruction.
             action={search ? { label: 'Clear search', onClick: () => { setSearch(''); setPage(0); } } : undefined} />
         )}

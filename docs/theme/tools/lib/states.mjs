@@ -45,7 +45,7 @@ export const SURFACES = [
   { slug: 'calculations', state: 'drawer', url: `/cpm/calculations?loop=${L}`, css: '.cpm-calc-row' },
   { slug: 'registry', state: 'add-loop-dialog', url: '/cpm/registry', text: /^Add loop/ },
   { slug: 'registry', state: 'bulk-import-dialog', url: '/cpm/registry', text: /^Bulk import/ },
-  { slug: 'kpi', state: 'picker', url: '/cpm/kpi?kpi=acceptable', text: /^Show another KPI/ },
+  { slug: 'kpi', state: 'picker', url: '/cpm/kpi?kpi=acceptable', css: 'select[aria-label="Show another KPI"]' },
   { slug: 'response', state: 'review-dialog', url: `/cpm/response?loop=${L}`, text: /^Review$/, expect: '[aria-label="Review system model"]' },
 ];
 

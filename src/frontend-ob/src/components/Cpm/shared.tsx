@@ -315,7 +315,7 @@ export const WorkspaceHeader: React.FC<{
 
 /** Panel head: eyebrow + h2 + optional right slot (CPA's .surface-head). */
 export const PanelHead: React.FC<{
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   right?: React.ReactNode;
   /** A ? Toggletip beside the title, for what would otherwise be a sentence under it. */
@@ -323,7 +323,7 @@ export const PanelHead: React.FC<{
 }> = ({ eyebrow, title, right, help }) => (
   <div className="cpm-panel-head">
     <div>
-      <span className="cpm-eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="cpm-eyebrow">{eyebrow}</span>}
       <div className="cpm-title-row">
         <h2 className="cpm-panel-title">{title}</h2>
         {help}

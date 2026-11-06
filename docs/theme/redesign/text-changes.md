@@ -225,3 +225,31 @@ The owner asked to remove repeated text, loop information and explanations that 
 - "No health data for this window", with its NE107 note that missing diagnostics are not OK.
 - "…is outside this trend range", with the rest of that sentence.
 - Units, every empty-state reason and recovery link, and row values that are that row's own, such as Unobservable, Degraded or Not mapped.
+
+## KPI drill-down (CHG-132)
+
+**Moved word for word to the number's `?`:** Rule, Formula, Threshold, Basis, Why this KPI, Computed. "Change since 24 h ago" now reads "Since 24 h ago", and "the change compares with 24 h earlier" went because that line says it.
+
+**Moved to the trend's `?`:** "Each … day at its end, same rules" and "Between x % and y % over the days with data." "No day had anything to judge." stays on screen, because it explains an empty chart.
+
+| Was | Now |
+|---|---|
+| Find problems, then the KPI's name as a heading | The KPI dropdown |
+| Operations overview (link) | Overview |
+| Show another KPI (label) | Screen readers only |
+| Proof / How this number is calculated | Behind the `?`, under that same title |
+| How this number has moved | Trend |
+| The loops behind the number | Gone. The count heads the list |
+| 165 loop(s) | 165 loops |
+| matches the card | matches the KPI |
+| Search loops (label) | The box reads "Search loop tag or name" |
+| Measured against the rule | The measure's own name when every row shares it, otherwise Measured |
+| Window judged | Window |
+| "Age of the newest result 85 days — above 60 min" in each row | "85 days — above 60 min", under the heading "Age of the newest result" |
+| Newest result 85 days ago (verdict of a stale loop) | Stale |
+| "The count for this KPI is 0 in this scope — nothing to verify here. Back on the Overview, the other figures list their loops." | Gone. The title says it: No loop is in this KPI |
+| "Clear the search to see every loop behind the number." | Gone. The Clear search button stays |
+
+**Removed from each row:** the Site › Area › Unit line, at the owner's request.
+
+**For the control-engineer review:** a stale loop's verdict is now the word Stale, with its age in the Measured column.

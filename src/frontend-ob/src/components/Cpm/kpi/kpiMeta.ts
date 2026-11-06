@@ -74,7 +74,7 @@ const ICON_TONE: Partial<Record<FleetKpiKey, KpiIconTone>> = {
 export const kpiIconTone = (f: Pick<FleetKpiFigure, 'key' | 'count'>): KpiIconTone =>
   (f.key === 'acceptable' ? (f.count > 0 ? 'good' : 'none') : ICON_TONE[f.key] ?? 'none');
 
-export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; title: string }
+export interface KpiDelta { points: number; direction: 'up' | 'down' | 'flat'; good: boolean | null; text: string; since?: string; title: string }
 
 /**
  * Change in the KPI's share since the same classification 24 h earlier, in PERCENTAGE POINTS ("+23 pp": 50 % → 73 % is
@@ -89,11 +89,13 @@ export function kpiDelta(f: FleetKpiFigure, k: FleetKpis): KpiDelta | null {
   const points = Math.round(now - then);
   const direction = points > 0 ? 'up' : points < 0 ? 'down' : 'flat';
   const better = KPI_META[f.key]?.higherIsBetter ?? false;
+  const since = `${Math.round(then)} % (${before.count} of ${before.denominator}) → ${Math.round(now)} % now `
+    + `(${f.count} of ${f.denominator}), ${direction === 'flat' ? 'no change' : `${Math.abs(points)} percentage points ${direction}`}`;
   return {
     points, direction,
     good: direction === 'flat' ? null : (direction === 'up') === better,
     text: direction === 'flat' ? '±0 pp' : `${points > 0 ? '+' : '−'}${Math.abs(points)} pp`,
-    title: `Change since 24 h ago: ${Math.round(then)} % (${before.count} of ${before.denominator}) → ${Math.round(now)} % now `
-      + `(${f.count} of ${f.denominator}), ${direction === 'flat' ? 'no change' : `${Math.abs(points)} percentage points ${direction}`}`,
+    since,
+    title: `Change since 24 h ago: ${since}`,
   };
 }

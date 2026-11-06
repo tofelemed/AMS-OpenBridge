@@ -65,7 +65,7 @@ export const KpiTrendChart: React.FC<{
   }, [days, selected, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <ReactECharts option={option} notMerge style={{ height: 180, width: '100%' }}
+    <ReactECharts option={option} notMerge style={{ height: 140, width: '100%' }}
       onEvents={{ click: (e: { dataIndex: number }) => { const d = days[e.dataIndex]; if (d) onPick(d.isNow ? null : d.asOf); } }}
       opts={{ renderer: 'svg' }} />
   );

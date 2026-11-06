@@ -144,15 +144,15 @@
 .cpm-eval-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-loop-summary__inline-action { margin-left: 8px; }
 
-/* CHG-082 / KPI Phase 3: the drill-down (/cpm/kpi). Each row proves one loop's place in the number; under 760 px a row
+/* CHG-082 / KPI Phase 3: the drill-down (/cpm/kpi). Each row proves one loop's place in the number; under 900 px a row
    becomes a labelled card so a phone never scrolls sideways. */
-.cpm-kpi-proof__pick { min-width: min(220px, 100%); }
-.cpm-kpi-proof__search { max-width: 360px; margin-bottom: 8px; }
 .cpm-kpi-table { width: 100%; }
 .cpm-kpi-table td { vertical-align: top; }
 .cpm-kpi-table__sub { display: block; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-kpi-table__links { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
-@media (max-width: 760px) {
+.cpm-kpi-table__links a { white-space: nowrap; }
+@media (min-width: 1280px) { .cpm-kpi-table__links { flex-wrap: nowrap; } }
+@media (max-width: 900px) {
   .cpm-kpi-table thead { display: none; }
   .cpm-kpi-table, .cpm-kpi-table tbody, .cpm-kpi-table tr, .cpm-kpi-table td { display: block; width: 100%; }
   .cpm-kpi-table tr { border: 1px solid var(--border-divider-color); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
@@ -166,7 +166,6 @@
 /* CHG-085 (KPI redesign): compact KPI cards — icon top-left, change top-right, the number, its label, its share.
    Tokens only (OpenBridge); left accent = the KPI's tone; the whole card is a link to its drill-down. */
 .cpm-kpicards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
-.cpm-kpicards--4 { grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); }
 /* CHG-119: the ten Overview cards, five to a row on a wide screen */
 .cpm-kpicards--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .cpm-kpicard {
@@ -237,34 +236,36 @@
 .cpm-kpimeter { position: relative; display: block; height: 6px; margin-top: 6px; max-width: 220px; border-radius: 3px; background: var(--border-divider-color); }
 .cpm-kpimeter__fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--instrument-enhanced-primary-color); }
 .cpm-kpimeter__mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--element-active-color); }
-.cpm-kpi-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: var(--cpm-text-small); }
+.cpm-kpi-back { display: inline-flex; align-items: center; gap: 4px; font-size: var(--cpm-text-small); }
 .cpm-kpi-back__icon { display: inline-flex; width: 18px; height: 18px; }
 .cpm-kpi-back__icon > * { width: 18px; height: 18px; }
-.cpm-kpi-proof__grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }
-.cpm-kpi-proof__grid dt { color: var(--element-neutral-color); font-size: var(--cpm-text-small); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
-.cpm-kpi-proof__grid dd { margin: 0; }
 .cpm-kpi-proof__formula {
   display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: var(--cpm-text-small); overflow-wrap: anywhere;
   background: var(--border-divider-color);
 }
-.cpm-kpi-proof__tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 8px; }
-.cpm-kpi-proof__reasons { display: flex; flex-wrap: wrap; gap: 4px; }
-.cpm-kpi-table__tag { display: block; }
+/* CHG-132: the number in the band and the tools on the title's row. */
+.cpm-kpi-figure { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); min-width: 0; }
+.cpm-kpi-figure .cpm-kpicard__value { font-size: var(--traverse-type-page-title); line-height: 1; }
+.cpm-kpi-figure__icon { flex: none; border: 0; }
+.cpm-kpi-figure__share { font-size: var(--traverse-type-body); font-variant-numeric: tabular-nums; }
+.cpm-kpi-range { width: auto; }
+.cpm-kpi-trend .cpm-panel-head { align-items: center; margin-bottom: 0; }
+.cpm-kpi-loops__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-4); margin-bottom: var(--traverse-space-2); }
+.cpm-kpi-loops__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-inline-start: auto; }
+.cpm-kpi-loops__tools .cpm-select { width: auto; max-width: 100%; }
+.cpm-kpi-loops__tools .cpm-input { width: 260px; max-width: 100%; }
+.cpm-kpi-table__name { color: var(--element-neutral-color); }
+.cpm-kpi-table__when { white-space: nowrap; }
 .cpm-kpi-table__measured { display: block; }
 .cpm-kpi-table__context { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 
 @media (max-width: 1100px) {
-  .cpm-kpicards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
   /* Column count varies here, so the tip takes the card's own width and cannot run off the side. */
   .cpm-kpicard__tip, .cpm-kpicards--5 > :nth-child(5n) .cpm-kpicard__tip { right: 0; left: 0; width: auto; }
 }
-@media (max-width: 760px) {
-  .cpm-kpi-proof__grid { grid-template-columns: minmax(0, 1fr); }
-  .cpm-kpi-proof__grid dt { padding-top: 6px; }
-}
 @media (max-width: 480px) {
-  .cpm-kpicards, .cpm-kpicards--4, .cpm-kpicards--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cpm-kpicards, .cpm-kpicards--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine, compact) */

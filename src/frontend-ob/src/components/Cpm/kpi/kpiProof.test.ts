@@ -2,7 +2,7 @@
 // for a value that was not measured), and the links to the evidence.
 import { describe, expect, it } from 'vitest';
 import type { FleetKpiRow } from '../../../api/cpm/fleetKpis';
-import { contextText, decidingText, proofLinks, verdictText } from './kpiProof';
+import { commonMeasure, contextText, decidingText, decidingValue, proofLinks, verdictText } from './kpiProof';
 
 const row = (over: Partial<FleetKpiRow>): FleetKpiRow => ({
   loopId: 'FIC1', state: 'Assessed', outcome: 'Finding', windowKind: '24h', windowEnd: '2026-10-10T12:00:00Z', ageSeconds: 600,
@@ -39,6 +39,30 @@ describe('KPI proof words (CHG-082)', () => {
     expect(links).toEqual(['Loop', 'Window', 'Calculations', 'Trend']);
     expect(proofLinks(row({ state: 'NeverEvaluated', windowEnd: null })).map(l => l.label)).toEqual(['Loop']);
     expect(proofLinks(row({})).find(l => l.label === 'Window')!.href).toBe('/cpm/windows?loop=FIC1&profile=24h&window=2026-10-10T12%3A00%3A00Z');
+  });
+});
+
+describe('each fact once in a row (CHG-132)', () => {
+  const age = (value: number | null) => row({ state: 'Stale', ageSeconds: 7200,
+    deciding: { label: 'Age of the newest result', value, threshold: 3600, unit: 'seconds', comparator: '<=', measured: value != null } });
+
+  it('gives the value without the name of the measure', () => {
+    expect(decidingValue(age(7200))).toBe('2 h — above 60 min');
+    expect(decidingText(age(7200))).toBe('Age of the newest result 2 h — above 60 min');
+    expect(decidingValue(age(null))).toBe('not measured');
+    expect(decidingText(age(null))).toBe('Age of the newest result: not measured');
+    expect(decidingValue(row({ state: 'NeverEvaluated' }))).toBe('No result yet');
+  });
+
+  it('names the measure once only when every row shares it', () => {
+    expect(commonMeasure([age(1), age(2)])).toBe('Age of the newest result');
+    expect(commonMeasure([age(1), row({})])).toBeNull();
+    expect(commonMeasure([row({})])).toBeNull();
+    expect(commonMeasure([])).toBeNull();
+  });
+
+  it('a stale verdict is one word; the age stays in Measured', () => {
+    expect(verdictText(age(7200))).toBe('Stale');
   });
 });
 

@@ -11,10 +11,10 @@ import { reasonLabel } from './fleetKpiView';
 const NO_FAULT = new Set(['NO_CALL', 'INSUFFICIENT_EVIDENCE']);
 const percent = (v: number) => `${Math.round(v * 1000) / 10} %`;
 
-/** "Time in AUTO / CASCADE 62 % — below 95 %": the value that put this loop here, against its threshold. */
-export function decidingText(row: FleetKpiRow): string {
+/** "62 % — below 95 %": the value that put this loop here, against its threshold. */
+export function decidingValue(row: FleetKpiRow): string {
   const d = row.deciding;
-  if (!d.measured || d.value == null) return d.label === 'State' ? stateText(row) : `${d.label}: not measured`;
+  if (!d.measured || d.value == null) return d.label === 'State' ? stateText(row) : 'not measured';
   const value = d.unit === 'fraction' ? percent(d.value) : d.unit === 'seconds' ? ageText(d.value * 1000).replace(/ ago$/, '')
     : `${Math.round(d.value)}`;
   const threshold = d.threshold == null ? '' : d.unit === 'fraction' ? percent(d.threshold)
@@ -24,7 +24,20 @@ export function decidingText(row: FleetKpiRow): string {
   const meets = d.comparator === '>=' ? d.value >= (d.threshold ?? 0) : d.comparator === '>' ? d.value > (d.threshold ?? 0)
     : d.comparator === '<' ? d.value < (d.threshold ?? 0) : d.value <= (d.threshold ?? 0);
   const word = meets ? cmp[d.comparator] : ({ '>=': 'below', '>': 'at or below', '<': 'at or above', '<=': 'above' } as Record<string, string>)[d.comparator];
-  return threshold ? `${d.label} ${value} — ${word} ${threshold}` : `${d.label} ${value}`;
+  return threshold ? `${value} — ${word} ${threshold}` : value;
+}
+
+/** "Time in AUTO / CASCADE 62 % — below 95 %": the same, with the name of the measure. */
+export function decidingText(row: FleetKpiRow): string {
+  const { label, measured, value } = row.deciding;
+  if (measured && value != null) return `${label} ${decidingValue(row)}`;
+  return label === 'State' ? stateText(row) : `${label}: not measured`;
+}
+
+/** CHG-132: the name of the measure when every row shares it, so the column heading says it once. */
+export function commonMeasure(rows: FleetKpiRow[]): string | null {
+  const label = rows[0]?.deciding.label;
+  return label && label !== 'State' && rows.every(r => r.deciding.label === label) ? label : null;
 }
 
 export function stateText(row: FleetKpiRow): string {
@@ -38,6 +51,8 @@ export function stateText(row: FleetKpiRow): string {
 
 /** The verdict as a word, with its evidence score only when there is a verdict. */
 export function verdictText(row: FleetKpiRow): string {
+  // CHG-132: the age is in the Measured column and the Window column, so the verdict is the one word
+  if (row.state === 'Stale') return 'Stale';
   if (row.state !== 'Assessed') return stateText(row);
   // NO_CALL / INSUFFICIENT_EVIDENCE are verdicts — judged, no fault reached the evidence threshold — never "not evaluated"
   const word = NO_FAULT.has(row.diagnosis ?? '') ? 'No fault identified' : row.diagnosis ? diagnosisLabel(row.diagnosis) : '—';
