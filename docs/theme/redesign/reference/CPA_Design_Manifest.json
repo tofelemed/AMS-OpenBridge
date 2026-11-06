@@ -1,0 +1,74 @@
+{
+  "built_on": "2026-11-06",
+  "views": 17,
+  "locked_core_pages": [
+    "overview",
+    "performance",
+    "events",
+    "explorer",
+    "historical",
+    "investigation",
+    "workbench",
+    "replay",
+    "inspector",
+    "calculations"
+  ],
+  "completed_remaining_pages": [
+    "response",
+    "registry",
+    "configuration",
+    "trend",
+    "pipeline",
+    "administration",
+    "governance"
+  ],
+  "source_sha256": {
+    "overview": "188845799e16f30f8921edaa0b2e24f0d6fe4ea4d2abce426d6b711ddbc041bc",
+    "performance": "fedcd0955f82bd41df6437118b3902bd33dca975b46d4d58954b3fc00d81ce14",
+    "events": "0430d8b9511a4d1ca58a913bc6a6ff7f1a65679d573c1b190129e7533ea2c117",
+    "explorer": "505eeaa73005c1d0b33a3e884f04e52387248eff4e6dc99225dcb08710346686",
+    "historical": "cfc11ddb5ba5059bcf24dacc932ec5ef2ea514f9073258b995f303333405785d",
+    "investigation": "93dca69405261c1de24e8eeb5de3487dc091b1d2eec2bfd33e5c5fa337236fd9",
+    "workbench": "51e55ffb78d2b7ef83c5c611f30b69dbae52eeefab61fe17c51ac554623cb34d",
+    "replay": "69a71d7a581b163608a39ee6340242d77390de1b1893338bc128877b45f3be2b",
+    "inspector": "c0c87348fa40bec7ca11a05db4b53d0ba788900392cb6e393105613c532299ce",
+    "calculations": "8bdeb9ec24d4be225a6ce0056aec7bc210d07689dc1811f89cfa525ba4421df0",
+    "response": "fe23136d1e2180dafa61e5da97c8ceaaa24bd8422678c994e50bf90a6c236d46",
+    "registry": "8a078d2f90c9332c26768610dcecc834f4f1bc269788392c9e598c9186463262",
+    "configuration": "5a4f71f6e1fc6f5fe7e417d1ff60486901e9670ef5e4a06b7d6b9911b22878fd",
+    "trend": "074de6a90666c125a23c3d77f2c4794ea6a2e0555f8f9c5a1195b2460667525f",
+    "pipeline": "1f752bad496e882b103f53e9d100d651a6471b9f187ab6561ce4ed34039161a0",
+    "administration": "02d91d98264f3b83f20f86046620e748e5f748ba612c6694a31a6a1c26b11bb3",
+    "governance": "28c8cb9e3a558985c1a5658cd7509651bf28f6bb9cd20b7c749b84c96b9a35fa"
+  },
+  "scope": "UI design reference only; no backend writes or runtime certification",
+  "delivery_files": {
+    "CPA_Final_Design.html": {
+      "sha256": "c79911b6e3ca8b0fcb981c8b12036a8185ccb60209da6e2bc914a754f8bd1fea",
+      "bytes": 2479693
+    },
+    "CPA_Implementation_Brief.md": {
+      "sha256": "9797ea101d79032d9bca9b0e9fde0841d5cdda9862250a0305a016cf9524f166",
+      "bytes": 23430
+    },
+    "CPA_Validation_Report.json": {
+      "sha256": "fef877b608f0a0c5d496ddc4b7b60c6da7c2fe746db33bc2055ef147b0c31f0c",
+      "bytes": 10973
+    },
+    "CPA_Final_Design_Preview.png": {
+      "sha256": "d81c242ccd1ffe5b3683f42e8b8dd70ac94fa12ed457bb881d29696c1be7fc7c",
+      "bytes": 158019
+    },
+    "START_HERE.md": {
+      "sha256": "84fe227f52d63ac5467ea325a105d7e87d03f0534daa3f08b05de630b77072ae",
+      "bytes": 1582
+    }
+  },
+  "validation": {
+    "views": 17,
+    "responsive_cases": 85,
+    "horizontal_overflow_cases": 0,
+    "final_script_errors": 0,
+    "local_only": true
+  }
+}

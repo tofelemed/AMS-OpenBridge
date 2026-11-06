@@ -1,0 +1,384 @@
+{
+ "panel": {
+  "paddingTop": {
+   "16px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "explorer-history",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "windows",
+    "calculations",
+    "registry",
+    "config",
+    "pipeline",
+    "governance"
+   ],
+   "0px": [
+    "events",
+    "workbench"
+   ],
+   "4px": [
+    "investigation",
+    "workbench"
+   ],
+   "8px": [
+    "config"
+   ]
+  },
+  "paddingLeft": {
+   "16px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "explorer-history",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "windows",
+    "calculations",
+    "registry",
+    "config",
+    "pipeline",
+    "governance"
+   ],
+   "0px": [
+    "events",
+    "workbench",
+    "config"
+   ]
+  },
+  "borderRadius": {
+   "8px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "explorer-history",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "windows",
+    "calculations",
+    "registry",
+    "config",
+    "pipeline",
+    "governance"
+   ]
+  }
+ },
+ "kpi": {
+  "paddingTop": {
+   "14px": [
+    "performance",
+    "performance-matrix",
+    "explorer",
+    "calculations",
+    "pipeline"
+   ],
+   "12px": [
+    "explorer"
+   ]
+  },
+  "paddingLeft": {
+   "16px": [
+    "performance",
+    "performance-matrix",
+    "explorer",
+    "calculations",
+    "pipeline"
+   ],
+   "14px": [
+    "explorer"
+   ]
+  },
+  "fontSize": {
+   "14px": [
+    "performance",
+    "performance-matrix",
+    "explorer",
+    "calculations",
+    "pipeline"
+   ]
+  }
+ },
+ "table cell": {
+  "fontSize": {
+   "13.02px": [
+    "events",
+    "config"
+   ]
+  },
+  "paddingTop": {
+   "6px": [
+    "events",
+    "config"
+   ]
+  },
+  "paddingLeft": {
+   "8px": [
+    "events",
+    "config"
+   ]
+  }
+ },
+ "button": {
+  "height": {
+   "40px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "historical",
+    "investigation",
+    "workbench",
+    "replay",
+    "windows",
+    "registry",
+    "trend",
+    "pipeline",
+    "governance",
+    "users",
+    "roles",
+    "plant-model",
+    "data-sources",
+    "tag-aliases"
+   ],
+   "50px": [
+    "overview"
+   ],
+   "auto": [
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "investigation",
+    "response",
+    "workbench",
+    "calculations",
+    "registry",
+    "governance",
+    "users",
+    "tag-aliases"
+   ],
+   "60.375px": [
+    "events"
+   ]
+  }
+ },
+ "select": {
+  "fontSize": {
+   "14px": [
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-calculations",
+    "historical",
+    "investigation",
+    "replay",
+    "calculations",
+    "config",
+    "governance"
+   ],
+   "13.02px": [
+    "historical",
+    "investigation",
+    "workbench",
+    "replay",
+    "windows"
+   ],
+   "13px": [
+    "users",
+    "settings"
+   ]
+  },
+  "height": {
+   "39px": [
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-calculations",
+    "historical",
+    "investigation",
+    "replay",
+    "calculations",
+    "config",
+    "governance"
+   ],
+   "40px": [
+    "performance",
+    "performance-matrix"
+   ],
+   "38px": [
+    "historical",
+    "investigation",
+    "workbench",
+    "replay",
+    "windows"
+   ],
+   "36px": [
+    "users",
+    "settings"
+   ]
+  }
+ },
+ "page heading": {
+  "fontSize": {
+   "19.6px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events"
+   ],
+   "28px": [
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "explorer-history",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "windows",
+    "calculations",
+    "registry",
+    "config",
+    "pipeline",
+    "governance",
+    "users",
+    "roles",
+    "settings",
+    "plant-model",
+    "data-sources",
+    "tag-aliases"
+   ]
+  }
+ },
+ "section heading": {
+  "fontSize": {
+   "14.7px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "explorer-calculations",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "windows",
+    "registry",
+    "config",
+    "pipeline",
+    "governance"
+   ],
+   "16.38px": [
+    "overview",
+    "explorer",
+    "explorer-signals",
+    "historical",
+    "response",
+    "workbench",
+    "pipeline",
+    "governance"
+   ],
+   "12.25px": [
+    "explorer",
+    "explorer-calculations",
+    "workbench"
+   ],
+   "18px": [
+    "users",
+    "roles"
+   ],
+   "16px": [
+    "settings",
+    "plant-model",
+    "data-sources",
+    "tag-aliases"
+   ]
+  }
+ },
+ "body text": {
+  "fontSize": {
+   "14px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "events",
+    "explorer",
+    "explorer-signals",
+    "historical",
+    "investigation",
+    "response",
+    "workbench",
+    "replay",
+    "registry",
+    "pipeline",
+    "governance"
+   ],
+   "13.02px": [
+    "overview",
+    "performance",
+    "performance-matrix",
+    "explorer",
+    "investigation",
+    "workbench"
+   ],
+   "12.25px": [
+    "historical",
+    "workbench"
+   ],
+   "13px": [
+    "users"
+   ],
+   "12px": [
+    "tag-aliases"
+   ]
+  }
+ },
+ "chart": {
+  "height": {
+   "464px": [
+    "historical"
+   ],
+   "260px": [
+    "investigation"
+   ],
+   "300px": [
+    "replay"
+   ],
+   "762px": [
+    "trend"
+   ]
+  }
+ }
+}
