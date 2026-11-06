@@ -18,7 +18,6 @@ import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState, QueryError, WorkspaceHeader } from './shared';
 import { LoopBand } from './context/LoopBand';
-import { loopTabOf } from './explorer/loopTabOf';
 import { useCpmScope } from './plantScope';
 import LoopSummaryRow from './explorer/summary/LoopSummaryRow';
 import LoopTree from './explorer/LoopTree';
@@ -28,11 +27,7 @@ import { useCpmLoops } from '../../hooks/useCpm';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, windowKindOf } from './useWindowKind';
 
-export const CpmExplorer: React.FC<{
-  /** Inside the Loop destination `tab` belongs to the host, so this page uses `sub`. */
-  /** Set when the Loop page's tab row chooses the tab. This page's own tab row is then not drawn (UI-062). */
-  hostTab?: ExplorerTab;
-}> = ({ hostTab }) => {
+export const CpmExplorer: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -40,7 +35,7 @@ export const CpmExplorer: React.FC<{
   // of the render branches, and leave an empty workspace with no explanation —
   // which is what a stale bookmark from a renamed tab produces.
   const rawTab = params.get('tab');
-  const tab: ExplorerTab = hostTab ?? (TABS.includes(rawTab as ExplorerTab) ? (rawTab as ExplorerTab) : 'Summary');
+  const tab: ExplorerTab = TABS.includes(rawTab as ExplorerTab) ? (rawTab as ExplorerTab) : 'Summary';
 
   // The fused window kind every tab evaluates; same name and default as Performance (`?window=`), so a hand-off between
   // the two keeps the window. CHG-089: 12h by default, chosen at the top of the page; a gate picked on the other window
@@ -88,9 +83,9 @@ export const CpmExplorer: React.FC<{
       {requestedId && (
         <LoopBand loopId={loop?.loopId ?? requestedId} onLoop={selectLoop}
           onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
-          {loop && hostTab === 'Summary' && (
+          {loop && tab === 'Summary' && (
             <LoopSummaryRow loop={loop} windowKind={windowKind}
-              onTab={t => setParams(p => { p.set('tab', loopTabOf(t)); return p; }, { replace: true })} />
+              onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })} />
           )}
         </LoopBand>
       )}
@@ -118,8 +113,7 @@ export const CpmExplorer: React.FC<{
             loop={loop}
             tab={tab}
             windowKind={windowKind}
-            hosted={!!hostTab}
-            onTab={t => setParams(p => { p.set('tab', hostTab ? loopTabOf(t) : t); return p; }, { replace: true })}
+            onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })}
           />
         ) : requestedId && isError ? (
           <section className="cpm-surface"><QueryError title="Loop registry unavailable" error={error} retry={() => void refetch()} /></section>

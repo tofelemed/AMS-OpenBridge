@@ -60,7 +60,7 @@ export const LoopBand: React.FC<{
                 isError={loops.isError}
                 error={loops.error}
                 retry={() => void loops.refetch()}
-                onOpenRegistry={() => navigate('/cpm/setup?tab=loops')}
+                onOpenRegistry={() => navigate('/cpm/registry')}
                 totalLoops={all.length}
               />
               {loopId && onClear && (

@@ -13,42 +13,53 @@ const repo = path.resolve(web, '../..');
 
 const source = fs.readFileSync(path.join(web, 'src/cpa/redirects.ts'), 'utf8');
 const { code } = await transform(source, { loader: 'ts', format: 'esm' });
-const { REDIRECTS, SHIPPED_PHASE, rewriteLegacy } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const { REDIRECTS, resolveRedirect } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 // Old route and query, then the new route and query, for every row. Unchanged rows have want = null.
 const CASES = [
   ['/cpm', 'site=a', null],
   ['/cpm/kpi', 'kpi=K&site=a', '/cpm?review=K&site=a'],
+  ['/cpm/kpi', '', '/cpm?review=acceptable'],
   ['/cpm/performance', 'window=12h&loop=L&gate=G0&rows=x&fg=y&page=1&view=v&health=h', null],
   ['/cpm/events', 'filter=f&event=1&sort=s&loop=L', null],
-  ['/cpm/explorer', 'loop=L', '/cpm/loop?loop=L&tab=summary'],
-  ['/cpm/explorer', 'loop=L&tab=Summary', '/cpm/loop?loop=L&tab=summary'],
-  ['/cpm/explorer', 'loop=L&tab=Signals', '/cpm/loop?loop=L&tab=signals'],
-  ['/cpm/explorer', 'loop=L&tab=Relationships', '/cpm/loop?loop=L&tab=signals'],
-  ['/cpm/explorer', 'loop=L&tab=Calculations', '/cpm/loop?loop=L&tab=calculations'],
-  ['/cpm/explorer', 'loop=L&tab=History', '/cpm/loop?loop=L&tab=history'],
-  ['/cpm/historical', 'loop=L&kpi=K&signals=s&from=f&to=t&normalize=1&focus=x', '/cpm/loop?loop=L&kpi=K&signals=s&from=f&to=t&normalize=1&focus=x&tab=historical'],
-  ['/cpm/historical', 'loop=L&window=2026-11-04T00:00:00Z', '/cpm/loop?loop=L&tab=historical&window=2026-11-04T00:00:00Z'],
-  ['/cpm/investigation', 'loop=L&profile=12h&case=C&mode=m&window=w', '/cpm/loop?loop=L&profile=12h&case=C&mode=m&window=w&tab=diagnosis'],
-  ['/cpm/response', 'loop=L&event=E&methodRun=R', '/cpm/loop?loop=L&event=E&methodRun=R&tab=model'],
-  ['/cpm/evidence', 'loop=L&gate=G&before=b&methodRun=R&view=v&kind=k', '/cpm/evidence?loop=L&gate=G&before=b&methodRun=R&view=v&kind=k&tab=gates'],
-  ['/cpm/replay', 'loop=L&gate=G&window=w', '/cpm/evidence?loop=L&gate=G&window=w&tab=replay'],
-  ['/cpm/windows', 'loop=L&profile=p&window=w', '/cpm/evidence?loop=L&profile=p&window=w&tab=windows'],
-  ['/cpm/calculations', 'loop=L&gate=G&metric=M', '/cpm/evidence?loop=L&gate=G&metric=M&tab=calculations'],
-  ['/cpm/registry', 'loop=L', '/cpm/setup?loop=L&tab=loops'],
-  ['/cpm/config', 'loop=L&view=v&bundle=B&gate=G&tab=T', '/cpm/setup?loop=L&view=v&bundle=B&gate=G&tab=configuration&sub=T'],
-  ['/cpm/pipeline', '', '/cpm/system?tab=pipeline'],
-  ['/cpm/governance', '', '/cpm/system?tab=governance'],
+  ['/cpm/explorer', 'loop=L&tab=Signals', null],
+  ['/cpm/historical', 'loop=L&kpi=K&signals=s&from=f&to=t&normalize=1&focus=x', null],
+  ['/cpm/investigation', 'loop=L&profile=12h&case=C&mode=m&window=w', null],
+  ['/cpm/response', 'loop=L&event=E&methodRun=R', null],
+  ['/cpm/evidence', 'loop=L&gate=G&before=b&methodRun=R&view=v&kind=k', null],
+  ['/cpm/replay', 'loop=L&gate=G&window=w', null],
+  ['/cpm/windows', 'loop=L&profile=p&window=w', null],
+  ['/cpm/calculations', 'loop=L&gate=G&metric=M', null],
+  ['/cpm/registry', 'loop=L', null],
+  ['/cpm/config', 'loop=L&view=v&bundle=B&gate=G&tab=T', null],
+  ['/cpm/pipeline', '', null],
+  ['/cpm/governance', '', null],
   ['/trend', 'tags=a&range=r&from=f&to=t', null],
-  ['/cpm/kpi', '', '/cpm?review=acceptable'],
   ['/admin', '', null],
-  ['/admin/users', '', '/cpm/system?tab=users'],
-  ['/admin/roles', '', '/cpm/system?tab=roles'],
-  ['/admin/audit', '', '/cpm/system?tab=governance'],
-  ['/admin/system', '', '/cpm/system?tab=settings'],
-  ['/admin/plant-model', 'search=b2', '/cpm/setup?search=b2&tab=plant-model'],
-  ['/admin/data-sources', '', '/cpm/setup?tab=data-sources'],
-  ['/admin/aliases', '', '/cpm/setup?tab=tag-aliases'],
+  ['/admin/users', '', null],
+  ['/admin/audit', '', '/cpm/governance'],
+  ['/cpm/loop', 'loop=L', '/cpm/explorer?loop=L'],
+  ['/cpm/loop', 'tab=summary&loop=L', '/cpm/explorer?loop=L'],
+  ['/cpm/loop', 'tab=signals&loop=L', '/cpm/explorer?loop=L&tab=Signals'],
+  ['/cpm/loop', 'tab=history&loop=L', '/cpm/explorer?loop=L&tab=History'],
+  ['/cpm/loop', 'tab=calculations&loop=L', '/cpm/explorer?loop=L&tab=Calculations'],
+  ['/cpm/loop', 'tab=historical&loop=L', '/cpm/historical?loop=L'],
+  ['/cpm/loop', 'tab=diagnosis&loop=L', '/cpm/investigation?loop=L'],
+  ['/cpm/loop', 'tab=model&loop=L&event=E', '/cpm/response?loop=L&event=E'],
+  ['/cpm/evidence', 'tab=gates&loop=L', '/cpm/evidence?loop=L'],
+  ['/cpm/evidence', 'tab=replay&loop=L&gate=G', '/cpm/replay?loop=L&gate=G'],
+  ['/cpm/evidence', 'tab=windows&loop=L', '/cpm/windows?loop=L'],
+  ['/cpm/evidence', 'tab=calculations&loop=L&metric=M', '/cpm/calculations?loop=L&metric=M'],
+  ['/cpm/setup', 'tab=loops&loop=L', '/cpm/registry?loop=L'],
+  ['/cpm/setup', 'tab=configuration&sub=T&loop=L', '/cpm/config?loop=L&tab=T'],
+  ['/cpm/setup', 'tab=plant-model&search=b2', '/admin/plant-model?search=b2'],
+  ['/cpm/setup', 'tab=data-sources', '/admin/data-sources'],
+  ['/cpm/setup', 'tab=tag-aliases', '/admin/aliases'],
+  ['/cpm/system', 'tab=pipeline', '/cpm/pipeline'],
+  ['/cpm/system', 'tab=governance', '/cpm/governance'],
+  ['/cpm/system', 'tab=users', '/admin/users'],
+  ['/cpm/system', 'tab=roles', '/admin/roles'],
+  ['/cpm/system', 'tab=settings', '/admin/system'],
 ];
 
 const canonical = url => {
@@ -69,7 +80,7 @@ for (const route of new Set(specRoutes)) {
 
 // 2. Every case holds.
 for (const [route, query, want] of CASES) {
-  const got = rewriteLegacy(route, query);
+  const got = resolveRedirect(route, query);
   if (canonical(got) !== canonical(want)) failures.push(`${route}?${query}\n  want ${want}\n  got  ${got}`);
 }
 
@@ -96,7 +107,7 @@ for (const p of linked) {
 }
 
 // 5. Rows that are on, in a real browser.
-const on = CASES.filter(([route, , want]) => want && (route === '/cpm/evidence' ? 6 : REDIRECTS.find(r => r.from === route)?.phase) <= SHIPPED_PHASE);
+const on = CASES.filter(([, , want]) => want);
 let opened = 0;
 if (process.env.CPA_BASE_URL && on.length) {
   const session = pathToFileURL(path.join(repo, 'docs/theme/tools/lib/session.mjs')).href;
@@ -127,7 +138,7 @@ if (process.env.CPA_BASE_URL && on.length) {
   await browser.close();
 }
 
-const summary = `check-redirects: ${new Set(specRoutes).size} SPEC routes, ${CASES.length} cases, ${on.length} rows on (phase ${SHIPPED_PHASE}), ${opened} opened in a browser`;
+const summary = `check-redirects: ${new Set(specRoutes).size} SPEC routes, ${CASES.length} cases, ${on.length} rows, ${opened} opened in a browser`;
 if (failures.length) {
   console.error(`${summary}\nFAILED ${failures.length}\n${failures.join('\n')}`);
   process.exit(1);

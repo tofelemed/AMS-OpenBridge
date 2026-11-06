@@ -12,7 +12,6 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { ObcIconButton } from '@oicl/openbridge-webcomponents-react/components/icon-button/icon-button';
 import type { CpmWindowSpec } from '../../api/cpmApi';
 import { activeZone } from '../../cpa/activeZone';
-import { TabEnd, useHostedTab } from '../../cpa/tabEnd';
 import { Toggletip } from '../../ui/Toggletip';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
 import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
@@ -295,10 +294,6 @@ export const WorkspaceHeader: React.FC<{
   actions?: React.ReactNode;
 }> = ({ page, eyebrow = page && CPM_PAGES[page].task, title, copy = page && CPM_PAGES[page].purpose, actions }) => {
   const help = copy ? <Toggletip variant="how-to" label={title}><p>{copy}</p></Toggletip> : null;
-  // CHG-128: as a tab the page needs no heading of its own, because the tab names it.
-  if (useHostedTab()) {
-    return <><h1 className="cpm-sr-only">{title}</h1><TabEnd>{actions}{help}</TabEnd></>;
-  }
   return (
     <header className="cpm-workspace-header">
       <div>

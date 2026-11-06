@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Plain /admin (the user menu's link) lands on the first section the role may open, then redirects to its tab.
+// Plain /admin (the sidebar's link) lands on the first section the role may open.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -37,16 +37,16 @@ const landing = (permissions: string[]) => {
     </MemoryRouter>,
   );
   const path = screen.getByRole('status').textContent ?? '';
-  return resolveRedirect(path, '');
+  return resolveRedirect(path, '') ?? path;
 };
 
 describe('the Administration link', () => {
   it.each([
-    [['admin.users.edit', 'rbac.manage'], '/cpm/system?tab=users'],
-    [['rbac.manage'], '/cpm/system?tab=roles'],
-    [['ingestion.view'], '/cpm/setup?tab=data-sources'],
-    [['admin.audit.view', 'asset.view'], '/cpm/setup?tab=plant-model'],
-    [['admin.audit.view'], '/cpm/system?tab=governance'],
+    [['admin.users.edit', 'rbac.manage'], '/admin/users'],
+    [['rbac.manage'], '/admin/roles'],
+    [['ingestion.view'], '/admin/data-sources'],
+    [['admin.audit.view', 'asset.view'], '/admin/plant-model'],
+    [['admin.audit.view'], '/cpm/governance'],
   ])('%j lands on %s', (permissions, tab) => {
     expect(landing(permissions)).toBe(tab);
   });

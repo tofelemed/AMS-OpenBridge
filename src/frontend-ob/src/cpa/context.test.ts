@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cpaHref } from '../components/Cpm/cpaHref';
 import { DESTINATIONS, SUITE_MODULES, destinationFor, visibleDestinations } from './destinations';
-import { resolveRedirect, rewriteLegacy } from './redirects';
+import { resolveRedirect } from './redirects';
 import { isoToZoneInput, siteDateTime, zoneAbbr, zoneInputToIso } from './siteTime';
 import { DEFAULT_RANGE, pickZone, readRange } from './useCpaContext';
 
@@ -107,53 +107,50 @@ describe('cpaHref', () => {
   });
 });
 
-describe('legacy URL rewrite (SPEC §2.3)', () => {
+describe('old addresses (design 2026-11-06, section 3)', () => {
   it.each([
     ['/cpm/kpi', 'kpi=K&site=a', '/cpm?review=K&site=a'],
     ['/cpm/kpi', '', '/cpm?review=acceptable'],
-    ['/admin/users', '', '/cpm/system?tab=users'],
-    ['/admin/roles', '', '/cpm/system?tab=roles'],
-    ['/admin/audit', '', '/cpm/system?tab=governance'],
-    ['/admin/system', '', '/cpm/system?tab=settings'],
-    ['/admin/plant-model', 'search=b2', '/cpm/setup?search=b2&tab=plant-model'],
-    ['/admin/data-sources', '', '/cpm/setup?tab=data-sources'],
-    ['/admin/aliases', '', '/cpm/setup?tab=tag-aliases'],
-    ['/cpm/explorer', 'loop=L', '/cpm/loop?loop=L&tab=summary'],
-    ['/cpm/explorer', 'loop=L&tab=Summary', '/cpm/loop?loop=L&tab=summary'],
-    ['/cpm/explorer', 'loop=L&tab=Signals', '/cpm/loop?loop=L&tab=signals'],
-    ['/cpm/explorer', 'loop=L&tab=Relationships', '/cpm/loop?loop=L&tab=signals'],
-    ['/cpm/explorer', 'loop=L&tab=Calculations', '/cpm/loop?loop=L&tab=calculations'],
-    ['/cpm/explorer', 'loop=L&tab=History', '/cpm/loop?loop=L&tab=history'],
-    ['/cpm/historical', 'loop=L&kpi=K&signals=pv&from=a&to=b&normalize=1&focus=x', '/cpm/loop?focus=x&from=a&kpi=K&loop=L&normalize=1&signals=pv&tab=historical&to=b'],
-    ['/cpm/historical', 'loop=L&window=2026-11-04T12:00:00Z', '/cpm/loop?loop=L&tab=historical&window=2026-11-04T12:00:00Z'],
-    ['/cpm/historical', 'loop=L&window=24h', '/cpm/loop?loop=L&tab=historical&window=24h'],
-    ['/cpm/investigation', 'loop=L&profile=12h&case=C&mode=m&window=w', '/cpm/loop?case=C&loop=L&mode=m&profile=12h&tab=diagnosis&window=w'],
-    ['/cpm/response', 'loop=L&event=E&methodRun=R', '/cpm/loop?event=E&loop=L&methodRun=R&tab=model'],
-    ['/cpm/evidence', 'loop=L&gate=G0&before=b&methodRun=R&view=v&kind=12h', '/cpm/evidence?before=b&gate=G0&kind=12h&loop=L&methodRun=R&tab=gates&view=v'],
-    ['/cpm/replay', 'loop=L&gate=G0&window=w', '/cpm/evidence?gate=G0&loop=L&tab=replay&window=w'],
-    ['/cpm/windows', 'loop=L&profile=12h&window=w', '/cpm/evidence?loop=L&profile=12h&tab=windows&window=w'],
-    ['/cpm/calculations', 'loop=L&gate=G0&metric=M', '/cpm/evidence?gate=G0&loop=L&metric=M&tab=calculations'],
-    ['/cpm/registry', 'loop=L', '/cpm/setup?loop=L&tab=loops'],
-    ['/cpm/config', 'loop=L&view=v&bundle=B&gate=G0&tab=rules', '/cpm/setup?bundle=B&gate=G0&loop=L&sub=rules&tab=configuration&view=v'],
-    ['/cpm/pipeline', '', '/cpm/system?tab=pipeline'],
-    ['/cpm/governance', '', '/cpm/system?tab=governance'],
-  ])('%s?%s', (path, search, want) => {
-    expect(sorted(rewriteLegacy(path, search))).toBe(sorted(want));
+    ['/admin/audit', '', '/cpm/governance'],
+    ['/cpm/loop', 'loop=A', '/cpm/explorer?loop=A'],
+    ['/cpm/loop', 'tab=summary&loop=A&window=24h', '/cpm/explorer?loop=A&window=24h'],
+    ['/cpm/loop', 'tab=historical&loop=A&site=s', '/cpm/historical?loop=A&site=s'],
+    ['/cpm/loop', 'tab=diagnosis&loop=A&profile=24h', '/cpm/investigation?loop=A&profile=24h'],
+    ['/cpm/loop', 'tab=model&loop=A&event=E', '/cpm/response?event=E&loop=A'],
+    ['/cpm/loop', 'tab=signals&loop=A', '/cpm/explorer?loop=A&tab=Signals'],
+    ['/cpm/loop', 'tab=history&loop=A', '/cpm/explorer?loop=A&tab=History'],
+    ['/cpm/loop', 'tab=calculations&loop=A', '/cpm/explorer?loop=A&tab=Calculations'],
+    ['/cpm/evidence', 'tab=gates&loop=A', '/cpm/evidence?loop=A'],
+    ['/cpm/evidence', 'tab=replay&loop=A&gate=G1', '/cpm/replay?gate=G1&loop=A'],
+    ['/cpm/evidence', 'tab=windows&loop=A', '/cpm/windows?loop=A'],
+    ['/cpm/evidence', 'tab=calculations&loop=A&metric=M', '/cpm/calculations?loop=A&metric=M'],
+    ['/cpm/setup', '', '/cpm/registry'],
+    ['/cpm/setup', 'tab=loops&loop=A', '/cpm/registry?loop=A'],
+    ['/cpm/setup', 'tab=configuration&sub=Effective&loop=A', '/cpm/config?loop=A&tab=Effective'],
+    ['/cpm/setup', 'tab=configuration&loop=A', '/cpm/config?loop=A'],
+    ['/cpm/setup', 'tab=plant-model&search=b2', '/admin/plant-model?search=b2'],
+    ['/cpm/setup', 'tab=data-sources', '/admin/data-sources'],
+    ['/cpm/setup', 'tab=tag-aliases', '/admin/aliases'],
+    ['/cpm/system', '', '/cpm/governance'],
+    ['/cpm/system', 'tab=pipeline', '/cpm/pipeline'],
+    ['/cpm/system', 'tab=governance', '/cpm/governance'],
+    ['/cpm/system', 'tab=users', '/admin/users'],
+    ['/cpm/system', 'tab=roles', '/admin/roles'],
+    ['/cpm/system', 'tab=settings', '/admin/system'],
+  ])('%s?%s lands on its own page', (path, search, to) => {
+    expect(sorted(resolveRedirect(path, search))).toBe(sorted(to));
   });
 
-  it.each(['/cpm', '/cpm/performance', '/cpm/events', '/trend', '/admin', '/cpm/loop'])('%s stays where it is', path => {
-    expect(rewriteLegacy(path, 'loop=L')).toBeNull();
+  it.each([
+    '/cpm', '/cpm/performance', '/cpm/events', '/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/response',
+    '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/registry', '/cpm/config', '/cpm/pipeline', '/cpm/governance',
+    '/trend', '/admin', '/admin/users', '/admin/roles', '/admin/system', '/admin/plant-model', '/admin/data-sources', '/admin/aliases',
+  ])('keeps %s at its address', path => {
+    expect(resolveRedirect(path, 'loop=A')).toBeNull();
   });
 
-  it('does not rewrite an Evidence URL that already has a tab', () => {
-    expect(rewriteLegacy('/cpm/evidence', 'tab=replay')).toBeNull();
-  });
-
-  it('keeps a row off until its phase ships', () => {
-    expect(resolveRedirect('/cpm/explorer', 'loop=L', 4)).toBeNull();
-    expect(resolveRedirect('/cpm/explorer', 'loop=L', 5)).toBe('/cpm/loop?loop=L&tab=summary');
-    expect(resolveRedirect('/cpm/kpi', 'kpi=K', 3)).toBeNull();
-    expect(resolveRedirect('/cpm/kpi', 'kpi=K', 4)).toBe('/cpm?review=K');
+  it('leaves an Evidence Workbench address without a tab alone', () => {
+    expect(resolveRedirect('/cpm/evidence', 'loop=A&methodRun=R&gate=G3')).toBeNull();
   });
 });
 

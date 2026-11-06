@@ -21,17 +21,16 @@ const ROUTES = [
   { name: 'Overview, loop selected', url: '/cpm?review=stale&loop=FIC10302' },
   { name: 'Performance', url: '/cpm/performance' },
   { name: 'Performance, matrix', url: '/cpm/performance?view=matrix' },
-  { name: 'Episodes', url: '/cpm/events' },
-  ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations']
-    .map(tab => ({ name: `Loop, ${tab}`, url: `/cpm/loop?tab=${tab}&loop=B2_027PIC` })),
-  ...['summary', 'historical', 'diagnosis', 'model']
-    .map(tab => ({ name: `Loop, ${tab}, no loop chosen`, url: `/cpm/loop?tab=${tab}`, fresh: true })),
-  ...['gates', 'replay', 'windows', 'calculations'].flatMap(tab => [
-    { name: `Evidence, ${tab}`, url: `/cpm/evidence?tab=${tab}&loop=FIC00701` },
-    { name: `Evidence, ${tab}, no loop chosen`, url: `/cpm/evidence?tab=${tab}`, fresh: true },
-  ]),
-  ...['loops', 'configuration', 'plant-model', 'data-sources', 'tag-aliases'].map(tab => ({ name: `Setup, ${tab}`, url: `/cpm/setup?tab=${tab}` })),
-  ...['pipeline', 'governance', 'users', 'roles', 'settings'].map(tab => ({ name: `System, ${tab}`, url: `/cpm/system?tab=${tab}` })),
+  { name: 'Loop Events', url: '/cpm/events' },
+  ...['Summary', 'Signals', 'Calculations', 'Relationships', 'History']
+    .map(tab => ({ name: `Loop Explorer, ${tab}`, url: `/cpm/explorer?tab=${tab}&loop=B2_027PIC` })),
+  ...['/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/response', '/cpm/evidence', '/cpm/replay', '/cpm/windows', '/cpm/calculations']
+    .flatMap(url => [
+      { name: url, url: `${url}?loop=FIC00701` },
+      { name: `${url}, no loop chosen`, url, fresh: true },
+    ]),
+  ...['/cpm/registry', '/cpm/config', '/cpm/pipeline', '/cpm/governance', '/admin/users', '/admin/roles', '/admin/system', '/admin/plant-model',
+    '/admin/data-sources', '/admin/aliases'].map(url => ({ name: url, url })),
 ];
 
 const env = requireEnv();

@@ -40,10 +40,7 @@ export const configHref = (q: { site?: string; scope?: ScopeKind; ref?: string; 
   return `/cpm/config${s ? `?${s}` : ''}`;
 };
 
-export const GateConfigurationWorkspace: React.FC<{
-  /** Inside the Setup destination `tab` belongs to the host, so this page reads `sub` (SPEC §2.3). */
-  tabParam?: string;
-}> = ({ tabParam = 'tab' }) => {
+export const GateConfigurationWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const scope = useCpmScope();
   const loops = useCpmLoops();
@@ -54,7 +51,7 @@ export const GateConfigurationWorkspace: React.FC<{
   const viewParam = params.get('view') as ConfigView | null;
   const view: ConfigView | 'overview' = bundleId && viewParam === 'editor' ? 'editor' : loopId ? (viewParam && VIEWS.includes(viewParam) && viewParam !== 'editor' ? viewParam : 'effective') : 'overview';
   const gate = params.get('gate') || 'G0';
-  const tab: ConfigTab = TABS.includes(params.get(tabParam) as ConfigTab) ? (params.get(tabParam) as ConfigTab) : 'properties';
+  const tab: ConfigTab = TABS.includes(params.get('tab') as ConfigTab) ? (params.get('tab') as ConfigTab) : 'properties';
 
   const perms = {
     read: useAuthStore(s => s.hasPermission('cpm.config.read')), draft: useAuthStore(s => s.hasPermission('cpm.config.draft')),
@@ -66,15 +63,13 @@ export const GateConfigurationWorkspace: React.FC<{
   // the automatic landing replaces the URL; every user navigation pushes (the back button retraces views)
   useEffect(() => { if (loopId && !viewParam) setParams(p => { p.set('view', 'effective'); return p; }, { replace: true }); }, [loopId, viewParam, setParams]);
   const go = useCallback((changes: Record<string, string | null>, replace = false) => {
-    // `tab` here is this page's own tab: inside Setup it must not touch the row of tabs (tabParam).
     setParams(p => {
       for (const [k, v] of Object.entries(changes)) {
-        const key = k === 'tab' ? tabParam : k;
-        if (v == null) p.delete(key); else p.set(key, v);
+        if (v == null) p.delete(k); else p.set(k, v);
       }
       return p;
     }, { replace });
-  }, [setParams, tabParam]);
+  }, [setParams]);
 
   const catalogue = useConfigCatalogue();
   const eff = useEffectiveConfig(loopId);

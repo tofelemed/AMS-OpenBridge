@@ -66,31 +66,22 @@ The site time zone is shown once in the header ("Times in GST") and as the abbre
 
 ### 2.3 Route map and redirects
 
-Every old URL redirects with `replace`, mapping its parameters as below. Unlisted parameters are carried unchanged. A redirect test covers every row (PRM-004 gate).
+Every page keeps the address the plant uses (design 2026-11-06). These old addresses redirect with `replace`. Unlisted parameters are carried unchanged. The table lives in `src/frontend-ob/src/cpa/redirects.ts`.
 
 | Old route and parameters | New route and parameters |
 |---|---|
-| `/cpm` | `/cpm` (unchanged) |
 | `/cpm/kpi?kpi=K` | `/cpm?review=K` |
-| `/cpm/performance?window,loop,gate,rows,fg,page,view,health` | `/cpm/performance` (unchanged) |
-| `/cpm/events?filter,event,sort,loop` | `/cpm/events` (unchanged; labelled "Episodes") |
-| `/cpm/explorer?loop=L` (tab Summary or none) | `/cpm/loop?loop=L&tab=performance` |
-| `/cpm/explorer?tab=Signals` / `Relationships` | `/cpm/loop?tab=signals` (`Relationships` opens that section) |
-| `/cpm/explorer?tab=Calculations` | `/cpm/evidence?tab=calculations` |
-| `/cpm/explorer?tab=History` | `/cpm/loop?tab=diagnosis` (episodes section) |
-| `/cpm/historical?loop,kpi,signals,from,to,window,normalize,focus` | `/cpm/loop?tab=performance&range=custom&from&to&signals&kpi&normalize&focus` |
-| `/cpm/investigation?loop,profile,case,mode,window` | `/cpm/loop?tab=diagnosis&case&profile&mode&window` |
-| `/cpm/response?loop,event,methodRun` | `/cpm/loop?tab=model&event&methodRun` |
-| `/cpm/evidence?loop,gate,before,methodRun,view,kind` | `/cpm/evidence?tab=gates` (others unchanged) |
-| `/cpm/replay?loop,gate,window` | `/cpm/evidence?tab=replay&gate&window` |
-| `/cpm/windows?loop,profile,window` | `/cpm/evidence?tab=windows&profile&window` |
-| `/cpm/calculations?loop,gate,metric` | `/cpm/evidence?tab=calculations&gate&metric` |
-| `/cpm/registry?loop` | `/cpm/setup?tab=loops&loop` |
-| `/cpm/config?loop,view,bundle,gate,tab` | `/cpm/setup?tab=configuration&view&bundle&gate&sub=<old tab>` |
-| `/cpm/pipeline` | `/cpm/system?tab=pipeline` |
-| `/cpm/governance` | `/cpm/system?tab=governance` |
-| `/trend?tags,range,from,to` | `/trend` (unchanged) |
-| `/admin/*` | `/admin/*` (unchanged; `/admin/system` hidden, CD21) |
+| `/admin/audit` | `/cpm/governance` |
+| `/cpm/loop?tab=summary`, or none | `/cpm/explorer` |
+| `/cpm/loop?tab=signals`, `history`, `calculations` | `/cpm/explorer?tab=Signals`, `History`, `Calculations` |
+| `/cpm/loop?tab=historical`, `diagnosis`, `model` | `/cpm/historical`, `/cpm/investigation`, `/cpm/response` |
+| `/cpm/evidence?tab=gates` | `/cpm/evidence` |
+| `/cpm/evidence?tab=replay`, `windows`, `calculations` | `/cpm/replay`, `/cpm/windows`, `/cpm/calculations` |
+| `/cpm/setup?tab=loops`, or none | `/cpm/registry` |
+| `/cpm/setup?tab=configuration&sub=T` | `/cpm/config?tab=T` |
+| `/cpm/setup?tab=plant-model`, `data-sources`, `tag-aliases` | `/admin/plant-model`, `/admin/data-sources`, `/admin/aliases` |
+| `/cpm/system?tab=pipeline`, `governance`, or none | `/cpm/pipeline`, `/cpm/governance` |
+| `/cpm/system?tab=users`, `roles`, `settings` | `/admin/users`, `/admin/roles`, `/admin/system` |
 
 ## 3. Page anatomy (all destinations)
 

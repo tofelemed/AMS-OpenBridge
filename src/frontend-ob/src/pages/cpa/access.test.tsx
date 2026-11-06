@@ -1,87 +1,41 @@
 // @vitest-environment jsdom
-// Each tab keeps the rule of the page it replaces: nobody gains or loses a page, role by role.
-import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { visibleDestinations } from '../../cpa/destinations';
-import SetupPage from './SetupPage';
-import SystemPage from './SystemPage';
+// Each page keeps its rule: nobody gains or loses a page, role by role.
+import { describe, expect, it } from 'vitest';
+import { visibleDestinations, type DestinationId } from '../../cpa/destinations';
 
-let held: string[] = [];
-const has = (p: string) => held.includes(p);
+const menu = (held: string[]): DestinationId[] => visibleDestinations(p => held.includes(p)).map(d => d.id);
 
-vi.mock('../../store/authStore', () => ({
-  useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: has }),
-}));
-vi.mock('../../app/guards', () => ({ RestrictedRoute: () => <p>restricted</p>, RouteFallback: () => null }));
-for (const path of [
-  '../../components/Cpm/LoopRegistry', '../../components/Cpm/config/GateConfigurationWorkspace',
-  '../../components/Cpm/CpmPipeline', '../../components/Cpm/CpmGovernance',
-  '../../components/Administration/PlantModelConfig', '../../components/Administration/DataSourcesConfig',
-  '../../components/Administration/AliasConfig', '../../components/Administration/UserManagementConfig',
-  '../../components/Administration/RolesConfig',
-  '../../components/Administration/SystemSettingsConfig',
-]) vi.doMock(path, () => ({ default: () => <p>page</p> }));
+const READING: DestinationId[] = [
+  'overview', 'performance', 'events', 'explorer', 'historical', 'investigation', 'workbench', 'replay', 'windows',
+  'calculations', 'response', 'registry',
+];
 
-afterEach(cleanup);
-
-const tabsOf = (Page: React.FC, search = '') => {
-  render(<MemoryRouter initialEntries={[`/x${search}`]}><React.Suspense fallback={null}><Page /></React.Suspense></MemoryRouter>);
-  const names = screen.queryAllByRole('tab').map(t => t.textContent);
-  cleanup();
-  return names;
-};
-const menu = () => visibleDestinations(has).map(d => d.id);
-
-describe('who sees which tab', () => {
-  it('a full administrator sees everything', () => {
-    held = ['analytics.view', 'cpm.manage', 'cpm.config.read', 'system.manage', 'asset.view', 'ingestion.view',
-      'admin.users.edit', 'rbac.manage', 'admin.audit.view'];
-    expect(tabsOf(SetupPage)).toEqual(['Loops', 'Configuration', 'Plant model', 'Data sources', 'Tag aliases']);
-    expect(tabsOf(SystemPage)).toEqual(['Pipeline', 'Governance', 'Users', 'Roles', 'Settings']);
+describe('who sees which page', () => {
+  it('a full administrator sees all 17', () => {
+    expect(menu(['analytics.view', 'historian.view', 'cpm.config.read', 'system.manage', 'admin.users.edit'])).toHaveLength(17);
   });
 
-  it('an operator gets no Administration section, as today', () => {
-    held = ['analytics.view', 'asset.view'];
-    expect(tabsOf(SetupPage)).toEqual(['Loops']);
-    expect(tabsOf(SystemPage)).toEqual([]);
-    expect(menu()).not.toContain('setup');
-    expect(menu()).not.toContain('system');
+  it('an operator reads the loops and gets no System page', () => {
+    expect(menu(['analytics.view', 'asset.view'])).toEqual(READING);
   });
 
-  it('an auditor keeps the trail, on Governance, and Settings, and gains nothing', () => {
-    held = ['analytics.view', 'admin.audit.view'];
-    expect(tabsOf(SystemPage)).toEqual(['Governance', 'Settings']);
-    expect(menu()).toContain('system');
+  it('an auditor keeps the trail, on Governance, and gains nothing', () => {
+    expect(menu(['analytics.view', 'admin.audit.view'])).toEqual([...READING, 'administration', 'governance']);
   });
 
-  it('an auditor who also reads assets keeps Plant model and Tag aliases', () => {
-    held = ['admin.audit.view', 'asset.view'];
-    expect(tabsOf(SetupPage)).toEqual(['Plant model', 'Tag aliases']);
-    expect(menu()).toContain('setup');
+  it('a role manager keeps Administration, and is offered no Set up page', () => {
+    expect(menu(['rbac.manage'])).toEqual(['administration', 'governance']);
   });
 
-  it('a role manager keeps Roles, and is offered no empty Setup', () => {
-    held = ['rbac.manage'];
-    expect(tabsOf(SystemPage)).toEqual(['Governance', 'Roles', 'Settings']);
-    expect(menu()).not.toContain('setup');
+  it('an ingestion viewer keeps Administration, where Data sources is', () => {
+    expect(menu(['ingestion.view'])).toEqual(['administration', 'governance']);
   });
 
-  it('an ingestion viewer keeps Data sources', () => {
-    held = ['ingestion.view'];
-    expect(tabsOf(SetupPage)).toEqual(['Data sources']);
-    expect(menu()).toContain('setup');
+  it('system.manage alone keeps Pipeline Health and Governance, and no Administration', () => {
+    expect(menu(['system.manage'])).toEqual(['pipeline', 'governance']);
   });
 
-  it('system.manage alone keeps Pipeline and Governance, and no Administration section', () => {
-    held = ['system.manage'];
-    expect(tabsOf(SystemPage)).toEqual(['Pipeline', 'Governance']);
-  });
-
-  it('a tab the role may not open shows the restricted state by address', () => {
-    held = ['analytics.view', 'asset.view'];
-    render(<MemoryRouter initialEntries={['/x?tab=plant-model']}><React.Suspense fallback={null}><SetupPage /></React.Suspense></MemoryRouter>);
-    expect(screen.getByText('restricted')).toBeTruthy();
+  it('gate configuration stays with its own permission', () => {
+    expect(menu(['cpm.config.read'])).toEqual(['config']);
   });
 });

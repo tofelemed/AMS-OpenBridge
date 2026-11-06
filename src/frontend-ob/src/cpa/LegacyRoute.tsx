@@ -1,4 +1,4 @@
-/** An old CPA route. It renders its page until the phase that ships its destination turns the row on. */
+/** An address with a row in redirects.ts. It renders its page when no row applies. */
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { resolveRedirect } from './redirects';

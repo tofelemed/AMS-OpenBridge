@@ -1,34 +1,16 @@
 'use client';
 
 /**
- * Explorer › the selected loop's workspace.
- *
- * Two changes over the previous version:
- *
- * 1. Real tabs. Five ObcButtons in a flex row are not a tablist — no
- *    aria-selected, no arrow-key movement, five tab stops, and no stated
- *    relationship to the panel below. The shared Tabs are that component, and
- *    their badge lets each tab carry its own count, so "Relationships 0"
- *    answers itself without a click.
- * 2. One readiness banner instead of four repetitions of the same prose, with
- *    each cause routed to the surface that can fix it.
- *
- * CHG-129: inside the Loop page the heading, the loop summary and the readiness bar leave the workspace. They sit behind the
- * Summary tab's one row (LoopSummaryRow), and the other tabs open straight on their own content.
+ * Explorer › the selected loop's workspace: five real tabs, each with its own count, so "Relationships 0"
+ * answers itself without a click. The heading sits above the page, and the result and readiness in the
+ * band above the tabs, on Summary only (LoopSummaryRow).
  */
 import React from 'react';
 import { Tabs, tabPanelProps } from '../../../ui/Tabs';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
-import { useCpmEvents, useCpmReadiness, useLatestGates } from '../../../hooks/useCpm';
-import { PanelHead, toneFor } from '../shared';
-import { useInstrumentHealth } from '../health/useInstrumentHealth';
-import { TransmitterHealthPanel, loopHealthSummary } from '../health/TransmitterHealthPanel';
-import { readinessCauses, type ExplorerTab } from './readinessCauses';
-import ReadinessBar, { readinessLine } from './ReadinessBar';
-import LoopSummaryCard from './summary/LoopSummaryCard';
-import { FacetPill, instrumentHealthText } from '../FacetPill';
-import { conditionOf } from './summary/summaryText';
+import { useCpmEvents, useLatestGates } from '../../../hooks/useCpm';
+import type { ExplorerTab } from './readinessCauses';
 import SummaryTab from './SummaryTab';
 import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
@@ -48,125 +30,30 @@ export const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status 
 interface LoopWorkspaceProps {
   loop: CpmLoop;
   tab: ExplorerTab;
-  /** The fused window kind (`?window=`) the verdict pill and the Summary gate strip read; one query key for both. */
+  /** The fused window kind (`?window=`) the Summary gate strip reads. */
   windowKind: string;
-  /** The Loop page's tab row chooses the tab and carries the counts, and Signals shows Relationships under it. */
-  hosted?: boolean;
   onTab: (t: ExplorerTab) => void;
 }
 
-/**
- * A tab of the Loop page: that tab's own content. The two reads below feed the counts in the Loop page's tab row, which reads
- * the same query keys without asking; readiness and instrument health wait for Open details.
- */
-const HostedTab: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowKind }) => {
-  useLatestGates(loop.loopId, windowKind);
-  useCpmEvents({ loopId: loop.loopId, ...HISTORY_QUERY });
-  return (
-    <section className="cpm-surface">
-      <div className="cpm-tabpanel">
-        {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} />}
-        {tab === 'Signals' && <SignalsTab loop={loop} />}
-        {tab === 'Signals' && <div className="cpm-tabpanel__next"><RelationshipsTab loop={loop} windowKind={windowKind} /></div>}
-        {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
-        {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
-        {tab === 'History' && <HistoryTab loop={loop} />}
-      </div>
-    </section>
-  );
-};
-
-export const LoopWorkspace: React.FC<LoopWorkspaceProps> = props => (props.hosted ? <HostedTab {...props} /> : <OwnPage {...props} />);
-
-const OwnPage: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowKind, onTab }) => {
+/** The tabs of one loop. The result sits in the band above them, on Summary only, with its details behind Open details. */
+export const LoopWorkspace: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowKind, onTab }) => {
+  // The same query keys as the tabs, so a count and its tab share one fetch.
   const gates = useLatestGates(loop.loopId, windowKind);
-  const readiness = useCpmReadiness(loop.loopId);
-  // Same query key as HistoryTab's, so react-query serves the badge count and
-  // the tab body from one fetch.
   const events = useCpmEvents({ loopId: loop.loopId, ...HISTORY_QUERY });
-
-  // A failed fetch is not a verdict: showing NOT_EVALUATED for a 500 says the
-  // engine declined to judge this loop, when in fact nobody asked it.
-  const gatesFailed = gates.isError && !isNoVerdictYet(gates.error);
-  const diagnosis = gatesFailed ? 'VERDICT UNAVAILABLE' : gates.data?.diagnosis ?? 'NOT_EVALUATED';
-
-  const summary = readinessCauses(readiness.data, loop.loopId);
-  const readinessInCard = !!gates.data && !!summary && summary.blocking === 0;
-
-  const signalCount = Object.keys(loop.tags).length;
-  const gateCount = gates.data?.gates.length ?? 0;
-  const linkCount = loop.links.length;
-  const episodeCount = events.data?.events.length ?? 0;
-
   const counts: Partial<Record<ExplorerTab, number>> = {
-    Signals: signalCount,
-    Calculations: gateCount,
-    Relationships: linkCount,
-    History: episodeCount,
+    Signals: Object.keys(loop.tags).length,
+    Calculations: gates.data?.gates.length ?? 0,
+    Relationships: loop.links.length,
+    History: events.data?.events.length ?? 0,
   };
   const tabs = TABS.map(t => ({ value: t, label: t, badge: counts[t] }));
 
-  // v2.5 (1H.6): transmitter health beside the verdict. The pill is the worst-of across bound
-  // roles; NOT CONFIGURED is an unavailable state (never OK). Click opens the drawer.
-  const instrumentHealth = useInstrumentHealth(loop.loopId);
-  const [healthOpen, setHealthOpen] = React.useState(false);
-  const healthSummary = loopHealthSummary(instrumentHealth.data);
-
   return (
     <section className="cpm-surface">
-      <PanelHead
-        eyebrow={loop.displayName}
-        title={loop.loopId}
-        right={
-          <span className="cpm-head-pills">
-            <button
-              type="button"
-              className="cpm-pill-button"
-              aria-expanded={healthOpen}
-              aria-controls="cpm-transmitter-health"
-              title="Transmitter health (Instrumental NE107)"
-              onClick={() => setHealthOpen(v => !v)}
-            >
-              <FacetPill facet="health" tone={healthSummary.tone}>{instrumentHealthText(healthSummary.label)}</FacetPill>
-            </button>
-            {/* CHG-098 (SME review 2 #20): the diagnosis is shown once — by the loop summary, which also pins its
-                window on the trend (SME #12). Without a served row (failed / no verdict yet) the pill says why. */}
-            {!gates.data && (
-              <FacetPill facet="diagnosis" tone={gatesFailed ? 'warn' : toneFor(diagnosis)}>
-                {gatesFailed ? 'Verdict unavailable' : conditionOf(diagnosis).label}
-              </FacetPill>
-            )}
-          </span>
-        }
-      />
-
-      {healthOpen && (
-        <div id="cpm-transmitter-health" className="cpm-health-drawer">
-          <TransmitterHealthPanel
-            health={instrumentHealth.data}
-            loading={instrumentHealth.isLoading}
-            error={instrumentHealth.error}
-          />
-        </div>
-      )}
-
-      {/* SME #4: the loop summary heads every tab — condition, severity, cause, next check (CHG-098: basis behind a disclosure). */}
-      {gates.data && (
-        <LoopSummaryCard loop={loop} matrix={gates.data} windowKind={windowKind} healthLabel={healthSummary.label}
-          more={readinessInCard && summary ? <ReadinessBar summary={summary} onTab={onTab} /> : undefined}
-          moreLine={readinessInCard && summary ? readinessLine(summary) : undefined} />
-      )}
-
-      {/* CHG-098 (SME review 2 #20): a blocking readiness bar stays above the tabs; one that only limits the
-          diagnosis sits in the summary's "Basis and limitations" disclosure, so the trend follows the summary. */}
-      {summary && !readinessInCard && <ReadinessBar summary={summary} onTab={onTab} />}
-
-      {(
-        <div className="cpm-tabs">
-          {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
-          <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
-        </div>
-      )}
+      <div className="cpm-tabs">
+        {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
+        <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
+      </div>
 
       {/* The panel is height-bounded so switching from the tall Summary chart to
           an empty Relationships tab no longer collapses the page under the

@@ -154,8 +154,8 @@ describe('context carry', () => {
   });
 
   it('carries the loop to loop pages and not to fleet pages', () => {
-    expect(carriedSearch('?loop=A', '/cpm/loop', '')).toBe('?loop=A');
-    expect(carriedSearch('?loop=A', '/cpm/registry', '')).toBe('?loop=A');
+    expect(carriedSearch('?loop=A', '/cpm/explorer', '')).toBe('?loop=A');
+    expect(carriedSearch('?loop=A', '/cpm/registry', '')).toBeNull();
     expect(carriedSearch('?loop=A', '/cpm/performance', '')).toBeNull();
   });
 

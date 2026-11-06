@@ -167,16 +167,3 @@
 .ui-state__reason { margin: var(--traverse-space-2) 0 0; color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); }
 .ui-state__action { margin-top: var(--traverse-space-3); }
 
-.dest { display: flex; flex-direction: column; gap: var(--traverse-size-panel-gap); }
-/* CHG-128: what a repeated heading carried sits at the end of the tab row. */
-.dest__tabrow { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3); border-bottom: 1px solid var(--traverse-border-subtle); }
-.dest__tabrow > .ui-tabs { flex: 1 1 320px; min-width: 0; border-bottom: 0; }
-.dest__tabend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); padding-bottom: 1px; }
-.dest__tabend:empty { display: none; }
-.dest__panel {
-  overflow: auto;
-  padding: var(--traverse-space-6);
-  background: var(--traverse-surface-panel);
-  border: 1px solid var(--traverse-border-subtle);
-  border-radius: var(--traverse-radius-panel);
-}

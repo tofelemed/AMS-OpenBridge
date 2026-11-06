@@ -1,20 +1,14 @@
 /**
- * SPEC §2.3: every old CPA URL and where it goes. Unlisted parameters are carried unchanged.
- * A row turns on in the phase that ships its destination (`phase` <= SHIPPED_PHASE), so an old
- * page stays reachable until its replacement exists. `check-redirects.mjs` covers every row.
+ * Old CPA addresses and where they go. Every page has its own address again (design 2026-11-06), so
+ * this is short: the KPI page, the audit log, and the tab hosts that only ever ran on the lab.
+ * Unlisted parameters are carried unchanged. `check-redirects.mjs` covers every row.
  */
-
-/**
- * The last phase that shipped destinations. Every row is on at 6 (page-plan.md step 5). Setting it
- * back to 2 brings the old pages back, which is why they stay in the routes for now.
- */
-export const SHIPPED_PHASE = 6;
-
 type Rewrite = (q: URLSearchParams) => { path: string; query: URLSearchParams };
 
 export interface RedirectRow {
   from: string;
-  phase: number;
+  /** Applies only when this holds. Without it the row always applies. */
+  when?: (q: URLSearchParams) => boolean;
   to: Rewrite;
 }
 
@@ -26,65 +20,74 @@ const with_ = (q: URLSearchParams, set: Record<string, string | null>) => {
   return next;
 };
 
-/**
- * page-plan.md: Explorer's tabs sit in Loop's row. Its Calculations are one loop's gate outcomes, not
- * the Evidence catalogue, and its History is not Diagnosis, so both keep a tab of their own.
- */
-const EXPLORER_TAB: Readonly<Record<string, string>> = {
-  Signals: 'signals', Relationships: 'signals', History: 'history', Calculations: 'calculations',
+/** Where one tab of an old host page went. `tab` is the page's own tab, if it opens on one. */
+interface TabTarget { path: string; tab?: string; subIsTab?: boolean }
+
+const fromTab = (tabs: Readonly<Record<string, TabTarget>>, fallback: TabTarget): Rewrite => q => {
+  const target = tabs[q.get('tab') ?? ''] ?? fallback;
+  const tab = target.subIsTab ? q.get('sub') : target.tab ?? null;
+  return { path: target.path, query: with_(q, { tab, sub: null }) };
 };
 
-const explorer: Rewrite = q => ({
-  path: '/cpm/loop',
-  query: with_(q, { tab: EXPLORER_TAB[q.get('tab') ?? ''] ?? 'summary' }),
-});
-
-const historical: Rewrite = q => ({ path: '/cpm/loop', query: with_(q, { tab: 'historical' }) });
+const EXPLORER: TabTarget = { path: '/cpm/explorer' };
+const WORKBENCH: TabTarget = { path: '/cpm/evidence' };
+const REGISTRY: TabTarget = { path: '/cpm/registry' };
+const GOVERNANCE: TabTarget = { path: '/cpm/governance' };
 
 export const REDIRECTS: readonly RedirectRow[] = [
-  { from: '/cpm/kpi', phase: 4, to: q => ({ path: '/cpm', query: with_(q, { kpi: null, review: q.get('kpi') ?? 'acceptable' }) }) },
-  { from: '/cpm/explorer', phase: 5, to: explorer },
-  { from: '/cpm/historical', phase: 5, to: historical },
-  { from: '/cpm/investigation', phase: 5, to: q => ({ path: '/cpm/loop', query: with_(q, { tab: 'diagnosis' }) }) },
-  { from: '/cpm/response', phase: 5, to: q => ({ path: '/cpm/loop', query: with_(q, { tab: 'model' }) }) },
-  { from: '/cpm/replay', phase: 6, to: q => ({ path: '/cpm/evidence', query: with_(q, { tab: 'replay' }) }) },
-  { from: '/cpm/windows', phase: 6, to: q => ({ path: '/cpm/evidence', query: with_(q, { tab: 'windows' }) }) },
-  { from: '/cpm/calculations', phase: 6, to: q => ({ path: '/cpm/evidence', query: with_(q, { tab: 'calculations' }) }) },
-  { from: '/cpm/registry', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'loops' }) }) },
+  { from: '/cpm/kpi', to: q => ({ path: '/cpm', query: with_(q, { kpi: null, review: q.get('kpi') ?? 'acceptable' }) }) },
+  { from: '/admin/audit', to: q => ({ path: '/cpm/governance', query: q }) },
   {
-    from: '/cpm/config', phase: 6,
-    to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'configuration', sub: q.get('tab') }) }),
+    from: '/cpm/loop',
+    to: fromTab({
+      summary: EXPLORER,
+      signals: { ...EXPLORER, tab: 'Signals' },
+      history: { ...EXPLORER, tab: 'History' },
+      calculations: { ...EXPLORER, tab: 'Calculations' },
+      historical: { path: '/cpm/historical' },
+      diagnosis: { path: '/cpm/investigation' },
+      model: { path: '/cpm/response' },
+    }, EXPLORER),
   },
-  { from: '/cpm/pipeline', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'pipeline' }) }) },
-  { from: '/cpm/governance', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'governance' }) }) },
-  { from: '/admin/users', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'users' }) }) },
-  { from: '/admin/roles', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'roles' }) }) },
-  { from: '/admin/audit', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'governance' }) }) },
-  { from: '/admin/system', phase: 6, to: q => ({ path: '/cpm/system', query: with_(q, { tab: 'settings' }) }) },
-  { from: '/admin/plant-model', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'plant-model' }) }) },
-  { from: '/admin/data-sources', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'data-sources' }) }) },
-  { from: '/admin/aliases', phase: 6, to: q => ({ path: '/cpm/setup', query: with_(q, { tab: 'tag-aliases' }) }) },
+  {
+    from: '/cpm/evidence',
+    when: q => q.has('tab'),
+    to: fromTab({
+      gates: WORKBENCH,
+      replay: { path: '/cpm/replay' },
+      windows: { path: '/cpm/windows' },
+      calculations: { path: '/cpm/calculations' },
+    }, WORKBENCH),
+  },
+  {
+    from: '/cpm/setup',
+    to: fromTab({
+      loops: REGISTRY,
+      configuration: { path: '/cpm/config', subIsTab: true },
+      'plant-model': { path: '/admin/plant-model' },
+      'data-sources': { path: '/admin/data-sources' },
+      'tag-aliases': { path: '/admin/aliases' },
+    }, REGISTRY),
+  },
+  {
+    // Governance when no tab is named: it opens for every role that could open System.
+    from: '/cpm/system',
+    to: fromTab({
+      pipeline: { path: '/cpm/pipeline' },
+      governance: GOVERNANCE,
+      users: { path: '/admin/users' },
+      roles: { path: '/admin/roles' },
+      settings: { path: '/admin/system' },
+    }, GOVERNANCE),
+  },
 ];
 
-const compose = (path: string, query: URLSearchParams) => {
-  const s = query.toString();
-  return s ? `${path}?${s}` : path;
-};
-
-/** Where an old URL goes, whatever phase its row ships in. Null for a URL that does not move. */
-export function rewriteLegacy(pathname: string, search: string): string | null {
+/** Where an old URL goes, or null for a URL that does not move. */
+export function resolveRedirect(pathname: string, search: string): string | null {
   const q = new URLSearchParams(search);
-  // The one old URL that keeps its path: Evidence gains a default tab.
-  if (pathname === '/cpm/evidence') return q.get('tab') ? null : compose(pathname, with_(q, { tab: 'gates' }));
-  const row = REDIRECTS.find(r => r.from === pathname);
+  const row = REDIRECTS.find(r => r.from === pathname && (r.when?.(q) ?? true));
   if (!row) return null;
   const { path, query } = row.to(q);
-  return compose(path, query);
-}
-
-/** The redirect in force now. */
-export function resolveRedirect(pathname: string, search: string, shipped = SHIPPED_PHASE): string | null {
-  const phase = pathname === '/cpm/evidence' ? 6 : REDIRECTS.find(r => r.from === pathname)?.phase;
-  if (phase == null || phase > shipped) return null;
-  return rewriteLegacy(pathname, search);
+  const s = query.toString();
+  return s ? `${path}?${s}` : path;
 }
