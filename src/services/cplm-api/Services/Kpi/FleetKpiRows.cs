@@ -26,7 +26,7 @@ public static class FleetKpiRows
             TravelPerDay = D(r.travel_per_day), ReversalsPerHour = D(r.reversals_per_hour), G14State = (string?)r.g14_state,
             LastVerdictWindowEnd = T(r.v_window_end), LastVerdictDiagnosis = (string?)r.v_diagnosis,
             G3Status = (string?)r.g3_status, G4Status = (string?)r.g4_status, GoodErrorPct = D(r.good_error_pct),
-            Mae = D(r.mae), PvSpan = D(r.pv_span),
+            Mae = D(r.mae), PvSpan = D(r.pv_span), VpExpectedUnmapped = (bool)(r.vp_expected_unmapped ?? false),
         };
     }
 
@@ -37,7 +37,7 @@ public static class FleetKpiRows
             => loops.OrderBy(l => l.Row.AutoPct ?? double.MaxValue).ThenBy(l => l.Row.LoopId),
         "saturated" => loops.OrderByDescending(l => l.Row.SaturationPct ?? -1).ThenBy(l => l.Row.LoopId),
         "manual-mode" => loops.OrderByDescending(l => l.Row.ManualPct ?? -1).ThenBy(l => l.Row.LoopId),   // CHG-089
-        "oscillating" or "valve" or "effort" or "finding" or "symptom"
+        "oscillating" or "valve" or "effort" or "finding" or "symptom" or "periodic"
             => loops.OrderByDescending(l => l.Row.Confidence ?? -1).ThenBy(l => l.Row.LoopId),
         "not-assessable" => loops.OrderBy(l => l.Row.Completeness ?? double.MaxValue).ThenBy(l => l.Row.LoopId),
         "stale" => loops.OrderByDescending(l => l.AgeSeconds ?? 0).ThenBy(l => l.Row.LoopId),
@@ -56,7 +56,7 @@ public static class FleetKpiRows
                 => Pct("Time in AUTO / CASCADE", r.AutoPct, t.NormalModeMin, ">="),
             "saturated" => Pct("Time with OP fully open or closed", r.SaturationPct, t.SaturationMax, ">"),
             "manual-mode" => Pct("Time in MANUAL", r.ManualPct, t.ManualModeMin, ">="),                         // CHG-089
-            "oscillating" or "valve" or "effort" or "finding" or "symptom"
+            "oscillating" or "valve" or "effort" or "finding" or "symptom" or "periodic"
                 => new { label = "Evidence score", value = r.Confidence is { } c ? Math.Round(c * 100) : (double?)null,
                          threshold = 75.0, unit = "score", comparator = ">=", measured = r.Confidence is not null },
             "not-assessable" when l.Reason is "INCOMPLETE_DATA" or "DATA_QUALIFICATION"

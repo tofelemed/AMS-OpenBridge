@@ -9,6 +9,7 @@ import type { CpmFleetScope } from '../cpmApi';
 export type FleetKpiKey =
   | 'all' | 'assessed' | 'acceptable' | 'no-fault-limited' | 'finding' | 'symptom' | 'oscillating' | 'valve' | 'effort'
   | 'normal-mode' | 'out-of-mode' | 'manual-mode' | 'saturated' | 'not-assessable' | 'stale' | 'never-evaluated'
+  | 'periodic' | 'capability'   // the Performance tiles' lists
   | FleetKpiBarKey;
 
 /** CHG-127: the Overview bar's states. Each loop is in exactly one, and each lists exactly its count. */

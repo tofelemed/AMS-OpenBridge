@@ -54,6 +54,8 @@ public sealed record KpiLoopRow
     public double? Mae { get; init; }
     /// <summary>pvMax − pvMin from the registry; null when not registered (error then has no comparable basis).</summary>
     public double? PvSpan { get; init; }
+    /// <summary>Task 7: a valve loop whose valve position is expected (registry applicability) but has no VP tag mapped. A registry fact, so it holds at any age.</summary>
+    public bool VpExpectedUnmapped { get; init; }
     public DateTimeOffset? LastVerdictWindowEnd { get; init; }
     public string? LastVerdictDiagnosis { get; init; }
 }

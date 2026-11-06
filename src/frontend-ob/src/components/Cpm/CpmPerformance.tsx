@@ -22,21 +22,20 @@ import type { CpmHealthFilter } from '../../api/cpmApi';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { windowKindOf } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import {
-  EmptyState, KpiTile, PanelHead, WorkspaceHeader, QueryError, fmtDateTime,
+  EmptyState, WorkspaceHeader, QueryError, fmtDateTime,
 } from './shared';
 import { useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
 import GateMatrix, { type MatrixScope } from './GateMatrix';
-import GateEvidencePanel, { GateGuidePanel } from './GateEvidencePanel';
-import { diagnosticCapabilityCopy } from './overview/capabilityCopy';
+import GateEvidencePanel from './GateEvidencePanel';
+import PerformanceKpis from './performance/PerformanceKpis';
+import HowToReadDialog from './performance/HowToReadDialog';
 import AttentionList, { type RankBy } from './AttentionList';
 import { useBadActors } from './useBadActors';
 import { buildTierGroups, isRowFilter, latestWindowEnd, matrixViewOf, type MatrixView } from './gateStatus';
 import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
 import { useFleetKpis } from './kpi/useFleetKpis';
-import { headlineTiles, noneCountedText } from './performanceHeadline';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { explorerHref, pipelineHref, registryHref, windowsHref } from './cpaHref';
 import { diagnosisLabel } from './vocabulary';
@@ -109,13 +108,10 @@ export const CpmPerformance: React.FC = () => {
     navigate(explorerHref(loopId, { tab: 'Summary', kind: windowKind }));
   }, [navigate, windowKind]);
 
-  // Guidance is ephemeral and personal — it does not belong in a shareable URL
-  // the way the row filter and the open gate do. Opening evidence takes the
-  // column back, so the two can never fight over it.
+  // Guidance is ephemeral and personal — it does not belong in a shareable URL the way the row filter and the open gate do.
   const [showGuide, setShowGuide] = React.useState(false);
 
   const openEvidence = React.useCallback((loopId: string, gate: string) => {
-    setShowGuide(false);
     write(p => { p.set('loop', loopId); p.set('gate', gate); });
   }, [write]);
 
@@ -150,13 +146,11 @@ export const CpmPerformance: React.FC = () => {
       {HEALTH_FILTERS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
     </select>
   );
-  const tiles = fleetKpis.data?.performance ? headlineTiles(fleetKpis.data.performance) : null;
   const badActors = useBadActors(scope.params, windowKind, rankBy, healthFilter);
   const heatmap = useFleetHeatmap(scope.params, windowKind, healthFilter);
   // CHG-066: the loops' optional-input context, so the matrix marks a pass judged without an input like the Explorer does
   const registry = useCpmLoops();
 
-  const capped = summary.data?.capability.loopsCappedByMissingVp ?? null;
   const fleetTotal = summary.data?.loops.total ?? null;
 
   const heatmapLoops = useMemo(() => heatmap.data?.loops ?? [], [heatmap.data]);
@@ -208,59 +202,23 @@ export const CpmPerformance: React.FC = () => {
         </>}
       />
 
-      <div className="cpm-kpi-row">
-        {/* CHG-093: neutral tones — these are fleet context, not a verdict (SME review 2 #22); the health filter narrows
-            the ranking and the matrix, not these scope-wide figures, and the tile says so */}
-        {(tiles ?? [
-          { caption: 'Good-error time', value: '—', sub: fleetKpis.isError ? 'could not be read' : 'loading…', title: '' },
-        ]).map(t => (
-          <KpiTile key={t.caption} caption={t.caption} value={t.value} title={t.title || undefined}
-            tone={t.caption === 'Loops with periodic diagnosis' && t.value !== '0' ? 'warn' : 'muted'}
-            sub={healthFilter ? `${t.sub} · whole scope, health filter not applied` : t.sub} />
-        ))}
-        {/* Replaces the "Potential savings —" tile, which spent a quarter of the
-            KPI row saying a model was not configured. Diagnostic capability is a
-            fleet fact that changes what an engineer does next. */}
-        <KpiTile caption="Diagnostic capability"
-          tone={capped != null && capped > 0 ? 'warn' : 'muted'}
-          value={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).value}
-          sub={diagnosticCapabilityCopy(fleetTotal ?? null, capped, summary.data?.capability).sub} />
-      </div>
-      {fleetKpis.data?.performance && noneCountedText(fleetKpis.data.performance) && (
-        <p className="cpm-copy">{noneCountedText(fleetKpis.data.performance)}</p>
-      )}
+      <PerformanceKpis performance={fleetKpis.data?.performance} failed={fleetKpis.isError} fleetTotal={fleetTotal}
+        capability={summary.data?.capability} scope={scope.params} windowKind={windowKind} healthFiltered={Boolean(healthFilter)} />
 
       <section className="cpm-surface">
-        <PanelHead
-          eyebrow="Calculation pathway"
-          title="Gate status by loop"
-          right={
-            <div className="cpm-pathway-head">
-              <button
-                type="button"
-                className="cpm-help-toggle"
-                aria-expanded={showGuide}
-                aria-controls="cpm-gate-guide"
-                onClick={() => setShowGuide(v => !v)}
-              >
-                <ObiHelp aria-hidden />
-                How to read this
-              </button>
-            </div>
-          }
-        />
-
-        {windowAgeMs != null && (
-          <p className={`cpm-freshness${stale ? ' cpm-freshness--stale' : ''}`} role="status">
-            {stale ? 'Stale · ' : ''}Newest fused window emitted {fmtAge(windowAgeMs)} ago
-            {newestWindow != null ? ` (${fmtDateTime(new Date(newestWindow).toISOString())})` : ''}
-            {/* A5: a verdict's age is explained by the engine, not by this screen. */}
-            <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
-              onClick={() => navigate(pipelineHref())}>
-              Pipeline Health ›
-            </ObcButton>
-          </p>
-        )}
+        {/* A verdict's age is explained by the engine, not by this screen (A5): the line shows only when the data is stale. */}
+        <div className="cpm-perf-bar">
+          {stale && windowAgeMs != null && newestWindow != null && (
+            <p className="cpm-freshness cpm-freshness--stale" role="status">
+              Stale · Newest fused window emitted {fmtAge(windowAgeMs)} ago ({fmtDateTime(new Date(newestWindow).toISOString())})
+              <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
+                onClick={() => navigate(pipelineHref())}>
+                Pipeline Health ↗
+              </ObcButton>
+            </p>
+          )}
+          <ObcButton variant="flat" onClick={() => setShowGuide(true)}>How to read</ObcButton>
+        </div>
 
         {heatmap.isLoading && <EmptyState title="Loading gate matrix…" />}
         {heatmap.isError && (
@@ -285,7 +243,7 @@ export const CpmPerformance: React.FC = () => {
           <>
             <GateRollup
               loops={heatmapLoops}
-              tierGroups={tierGroups}
+              gateKeys={orderedGateKeys}
               activeGate={scopeFilter.gate}
               onSelectGate={gate => setFilter({ gate })}
             />
@@ -293,7 +251,7 @@ export const CpmPerformance: React.FC = () => {
             {/* The second column exists only when something occupies it, so an
                 idle matrix gets the full width back. */}
             <div className={`cpm-matrix-layout${
-              docked && (openGate || showGuide) ? ' cpm-matrix-layout--split' : ''}`}>
+              docked && openGate ? ' cpm-matrix-layout--split' : ''}`}>
               <div className="cpm-matrix-layout__main">
                 <GateMatrix
                   loops={heatmapLoops}
@@ -342,10 +300,8 @@ export const CpmPerformance: React.FC = () => {
                 )}
               </div>
 
-              {/* One slot, three states: empty, requested guidance, or evidence.
-                  Undocked the same slot stacks below the matrix, and evidence
-                  goes modal further down instead. */}
-              {docked && selectedLoop && openGate ? (
+              {/* Undocked the same slot stacks below the matrix, and evidence goes modal further down instead. */}
+              {docked && selectedLoop && openGate && (
                 <GateEvidencePanel
                   loopId={selectedLoop}
                   gateKey={openGate}
@@ -355,13 +311,13 @@ export const CpmPerformance: React.FC = () => {
                   onClose={closeEvidence}
                   docked
                 />
-              ) : showGuide && (
-                <GateGuidePanel summary={summary.data} onClose={() => setShowGuide(false)} />
               )}
             </div>
           </>
         )}
       </section>
+
+      <HowToReadDialog open={showGuide} onClose={() => setShowGuide(false)} summary={summary.data} />
 
       <AttentionList
         ranked={badActors.data?.loops ?? []}

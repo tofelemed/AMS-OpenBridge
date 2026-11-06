@@ -95,6 +95,13 @@ export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
     p('good-error', i.goodErrorPct);
     if (i.g4Status) parts.push(`G4 ${i.g4Status.toLowerCase().replace(/_/g, ' ')}`);
     p('manual', i.manualPct);
+  } else if (kpi === 'assessed') {
+    // Task 7: the two Performance figures this list proves; a value that was not measured is left out, never a 0
+    p('good-error', i.goodErrorPct);
+    if (i.errorPctOfSpan != null) parts.push(`error ${(Math.round(i.errorPctOfSpan * 10) / 10).toFixed(1)} % of span`);
+  } else if (kpi === 'periodic') {
+    parts.push(row.family === 'FINAL_ELEMENT_NONLINEARITY' ? `valve nonlinearity, G14 ${i.g14State ? i.g14State.toLowerCase().replace(/_/g, ' ') : 'not reported'}`
+      : i.periodS != null ? `period ${Math.round(i.periodS)} s` : 'period not measured');
   } else if (kpi === 'normal-mode' || kpi === 'out-of-mode' || kpi === 'manual-mode') {
     p('manual', i.manualPct);
   }
@@ -149,5 +156,7 @@ export const KPI_WHY: Partial<Record<FleetKpiKey, string>> = {
   symptom: 'Detected or classified symptoms: evidence below 75, listed but not counted as findings.',
   'no-fault-limited': 'No fault identified, but a performance criterion was missed — out of normal mode more than 5 % of the window, at an OP limit more than 10 %, good-error share below the floor or not evaluated (G3), or strong actuator activity (G4) — so not counted as performing acceptably.',
   assessed: 'Loops whose fresh window was judged.',
+  periodic: 'Assessed loops whose current diagnosis is an oscillation or a valve (final-element) family, at detected or any stronger band.',
+  capability: 'Valve loops where the valve position is expected but its tag is not mapped: a valve fault there needs an approved test record to be confirmed. A registry fact, so stale loops count too.',
   all: 'Every monitored loop in scope.',
 };

@@ -19,7 +19,6 @@
  * "how to read this" guidance that used to occupy a permanent card on a screen
  * engineers visit daily.
  */
-import { GateLegend } from './GateLegend';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -28,13 +27,12 @@ import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
 import { ApiError } from '../../api/apiFetch';
-import type { CpmFleetSummary } from '../../api/cpmApi';
 import { useCpmCalculations, useCpmLoop, useGateCatalogue, useLatestGates } from '../../hooks/useCpm';
 import { staleVerdictLine } from './verdictAge';
 import { gateRole } from '../../api/cpm/catalogue';
 import { workbenchHref } from './evidence/selection';
 import { explorerHref, replayHref, windowsHref } from './cpaHref';
-import { confirmationProse, noVpFleetCopy } from './investigation/confirmationCopy';
+import { confirmationProse } from './investigation/confirmationCopy';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { CpmIconButton, KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { gateTone } from './gateStatus';
@@ -296,56 +294,5 @@ const ModalEvidence: React.FC<{
     </>
   );
 };
-
-/**
- * "How to read this view", opened on demand from the pathway header.
- *
- * It is not resident. A three-step tutorial that occupies a column of a screen
- * engineers use daily is chrome, not help — so the column stays empty (and the
- * matrix full width) until someone asks for it, and it yields that column back
- * to evidence the moment a gate is opened.
- */
-export const GateGuidePanel: React.FC<{
-  summary?: CpmFleetSummary;
-  onClose: () => void;
-}> = ({ summary, onClose }) => (
-  <aside
-    id="cpm-gate-guide"
-    className="cpm-inspector cpm-inspector--guide"
-    aria-label="How to read the gate matrix"
-    onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
-  >
-    <div className="cpm-inspector__head">
-      <div className="cpm-inspector__title">
-        <span className="cpm-eyebrow">How to read this view</span>
-        <h2 className="cpm-panel-title">Gates tell you why.</h2>
-      </div>
-      <div className="cpm-inspector__nav">
-        <CpmIconButton label="Close guidance" onClick={onClose}>
-          <ObiCloseGoogle />
-        </CpmIconButton>
-      </div>
-    </div>
-    <div className="cpm-inspector__body">
-      <GateLegend />
-      <ol className="cpm-copy cpm-guide-steps">
-        <li>Pick a gate in the roll-up to see which loops it is holding back.</li>
-        {/* CHG-098 (SME review 2 #24): the readable view is the default; the full matrix is the advanced one */}
-        <li>Each loop lists only the checks behind its result, by name. Click one to open its evidence here; switch to the full G0–G15 matrix to see every gate.</li>
-        <li>The result column is the fused verdict those gates produced.</li>
-      </ol>
-      {summary && (
-        <>
-          <PanelHead eyebrow="Diagnostic capability" title="What this fleet cannot yet decide" />
-          <p className="cpm-copy cpm-guide-note">
-            {noVpFleetCopy(summary.capability.loopsCappedByMissingVp)}{' '}
-            {summary.capability.loopsWithoutDisturbanceContext} have no peer links, so
-            stiction cannot be distinguished from an upstream disturbance.
-          </p>
-        </>
-      )}
-    </div>
-  </aside>
-);
 
 export default GateEvidencePanel;

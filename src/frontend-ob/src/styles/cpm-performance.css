@@ -1,0 +1,53 @@
+/* Performance: the fleet tiles and the gate count tiles. Placement and tone only; sizes are the app's own tokens. */
+
+/* A KPI tile that opens its dialog: the same card as .cpm-kpi, reset to behave as a button */
+.cpm-kpi--open {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cpm-kpi--open:hover { background: var(--container-background-color); }
+.cpm-kpi--open:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 2px;
+}
+
+/* One row above the gate tiles: the stale line when there is one, and How to read at the end */
+.cpm-perf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--traverse-space-2) var(--traverse-space-4);
+}
+.cpm-perf-bar .cpm-freshness { margin: 0 auto 0 0; }
+
+/* A gate count tile: the count and the code. Tone from the worst result it holds back. */
+.cpm-gate-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--traverse-space-2);
+  padding: var(--traverse-space-1) var(--traverse-space-2);
+  border: 1px solid var(--border-divider-color);
+  border-left: 3px solid var(--cpm-tone, var(--border-divider-color));
+  border-radius: 4px;
+  background: none;
+  color: var(--element-neutral-color);
+  font: inherit;
+  font-size: var(--cpm-text-caption);
+  cursor: pointer;
+}
+.cpm-gate-count--bad { --cpm-tone: var(--tone-danger); }
+.cpm-gate-count--warn { --cpm-tone: var(--tone-warning); }
+.cpm-gate-count:disabled { cursor: default; opacity: 0.55; }
+.cpm-gate-count:not(:disabled):hover { background: var(--container-background-color); }
+.cpm-gate-count--active {
+  border-color: var(--instrument-enhanced-primary-color);
+  background: var(--container-section-color);
+}
+.cpm-gate-count:focus-visible {
+  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
+  outline-offset: 1px;
+}
+.cpm-gate-count__n { font-weight: 600; color: var(--element-active-color); }

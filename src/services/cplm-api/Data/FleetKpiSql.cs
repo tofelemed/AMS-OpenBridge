@@ -8,7 +8,7 @@ namespace Traverse.CplmApi.Data;
 
 public static class FleetKpiSql
 {
-    public const string Rows = """
+    public const string Rows = $"""
         SELECT r.loop_id, r.display_name, r.site, r.area, r.unit, r.loop_type, r.criticality,
                n.window_end            AS n_window_end,
                n.diagnosis             AS n_diagnosis,
@@ -39,6 +39,8 @@ public static class FleetKpiSql
                -- SME review 2 #11: error is only compared across loops as a share of the registered PV span
                CASE WHEN jsonb_typeof(r.engineering->'pvMax') = 'number' AND jsonb_typeof(r.engineering->'pvMin') = 'number'
                     THEN (r.engineering->>'pvMax')::float8 - (r.engineering->>'pvMin')::float8 END AS pv_span,
+               -- Task 7: the "Diagnostic capability" gap, the same rule as the registry count in CpmFleetController
+               (NOT (r.tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'EXPECTED') AS vp_expected_unmapped,
                v.window_end            AS v_window_end,
                v.diagnosis             AS v_diagnosis
         FROM cpm.loop_registry r

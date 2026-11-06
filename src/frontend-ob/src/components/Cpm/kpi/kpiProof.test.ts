@@ -32,6 +32,12 @@ describe('KPI proof words (CHG-082)', () => {
       .toBe('', 'an exclusion of the same window is not a "last verdict"');
   });
 
+  it('an assessed loop shows the good-error share and the error as a share of span, and nothing it did not measure (Task 7)', () => {
+    expect(contextText(row({ inputs: { goodErrorPct: 0.82, errorPctOfSpan: 1.84 } }), 'assessed'))
+      .toBe('good-error 82 % · error 1.8 % of span');
+    expect(contextText(row({ inputs: { goodErrorPct: null, errorPctOfSpan: null } }), 'assessed')).toBe('');
+  });
+
   it('no evidence score without a verdict; links reach the loop, its window, the formula and the trend', () => {
     expect(verdictText(row({ state: 'NotAssessable', reason: 'INCOMPLETE_DATA', evidenceScore: null }))).toBe('Not assessable — incomplete data');
     expect(verdictText(row({ diagnosis: 'NO_CALL', evidenceScore: 10 }))).toBe('No fault identified · evidence 10');

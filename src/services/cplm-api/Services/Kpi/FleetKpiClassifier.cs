@@ -14,6 +14,7 @@ public static class FleetKpiClassifier
     {
         "all", "acceptable", "finding", "symptom", "no-fault-limited", "oscillating", "valve", "effort",
         "normal-mode", "out-of-mode", "manual-mode", "saturated", "not-assessable", "stale", "never-evaluated", "assessed",
+        "periodic", "capability",   // Task 7: the Performance tiles
     };
 
     private static readonly Dictionary<string, string> ExcludedReason = new(StringComparer.OrdinalIgnoreCase)
@@ -104,6 +105,10 @@ public static class FleetKpiClassifier
         "finding" => l.Outcome == KpiOutcome.Finding,
         "symptom" => l.Outcome == KpiOutcome.SymptomOnly,
         "no-fault-limited" => l.Outcome == KpiOutcome.NoFaultLimited,
+        // the Performance "Periodic diagnosis" tile: oscillation or valve family at detected or stronger (FleetKpiPerformance.Summarise)
+        "periodic" => l.State == KpiState.Assessed && l.Family is "OSCILLATION" or "FINAL_ELEMENT_NONLINEARITY",
+        // the "Diagnostic capability" gap: VP expected but not mapped (a registry fact, so any state)
+        "capability" => l.Row.VpExpectedUnmapped,
         "oscillating" => l.Outcome == KpiOutcome.Finding && l.Family == "OSCILLATION",
         "valve" => l.Outcome == KpiOutcome.Finding && l.Family == "FINAL_ELEMENT_NONLINEARITY",
         "effort" => l.Outcome == KpiOutcome.Finding && l.Family == "EXCESSIVE_EFFORT",

@@ -303,3 +303,28 @@ Controls that changed place in this section, not removed:
 |---|---|
 | Open analysis (focused analysis drawer) | Investigation, through Review X → |
 | Calculation basis | Dialog from the page foot |
+
+## Performance, KPI tiles and gate summary (CHG-135, Task 7)
+
+| Was | Now | Where |
+|---|---|---|
+| Tile "Median error (% of span)" | "Median error"; line "of PV span" | KPI tile |
+| Tile "Loops with periodic diagnosis" | "Periodic diagnosis"; line "of N assessed" | KPI tile |
+| Tile lines "mean · 118 of 120 assessed loop(s) · excluded: ...", "MAE ÷ PV span · ...", "oscillation or valve nonlinearity, detected or stronger · ..." | one short line; the basis is in the tile dialog ("72 of 72 assessed loops contribute", "Not counted: ...", "Not assessed: 165 stale, 76 never evaluated") | KPI tile, tile dialog |
+| "· whole scope, health filter not applied" on each tile | "The health filter does not narrow this figure: it counts the whole scope." | Tile dialog, only when the filter is on |
+| Diagnostic capability line "4 valve loop(s) with VP expected but not mapped — valve faults there need an approved test record to be confirmed" | line "4 without a mapped VP"; the full sentence is in the tile dialog | KPI tile, tile dialog |
+| Paragraph under the tiles "0 of 0 assessed loop(s), excluded: ..." | "0 of 0 assessed loops contribute" in the tile dialog | Tile dialog |
+| Eyebrow "Calculation pathway", title "Gate status by loop" | removed | Gate summary head |
+| "How to read this" (docked column, with its own heading "How to read this view" / "Gates tell you why.") | "How to read" dialog | Gate summary |
+| Step "Pick a gate in the roll-up to see which loops it is holding back." | "Pick a gate tile to see which loops it is holding back." | How to read |
+| Step "... Click one to open its evidence here; ..." | "... Click one to open its evidence; ..." | How to read |
+| Heading "What this fleet cannot yet decide" with the no-VP sentence and the peer sentence | the peer sentence only ("N loops have no peer links, ..."); the VP sentence is the capability tile's | How to read |
+| "Newest fused window emitted 12 min ago (time)" on every visit | shown only when stale: "Stale · Newest fused window emitted N ago (time)" | Above the gate tiles |
+| "Pipeline Health ›" | "Pipeline Health ↗" | Stale line |
+| Gate bars with a stacked height, count and code, then tier names below | count tiles (count and code) under their tier headings; the failed and attention split is in each tile's name | Gate summary |
+| Drill-down list for a tile | new lists "Assessed loops", "Periodic diagnosis", "Valve position expected but not mapped" in the KPI page's dropdown | KPI drill-down |
+
+| Control | Now on |
+|---|---|
+| How to read (toggle for the docked guide) | Button above the gate tiles, opens a dialog |
+| Show the loops | Footer of each tile dialog, to the KPI drill-down |

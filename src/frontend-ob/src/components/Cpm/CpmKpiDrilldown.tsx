@@ -36,6 +36,9 @@ const DRILL_ONLY: Array<{ key: FleetKpiKey; label: string }> = [
   { key: 'symptom', label: 'Symptom only' },
   { key: 'no-fault-limited', label: 'No fault, but out of mode or at limit' },
   { key: 'all', label: 'All monitored loops' },
+  { key: 'assessed', label: 'Assessed loops' },
+  { key: 'periodic', label: 'Periodic diagnosis' },
+  { key: 'capability', label: 'Valve position expected but not mapped' },
 ];
 
 export const CpmKpiDrilldown: React.FC = () => {

@@ -42,3 +42,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | No verdict | Insufficient | Insufficient evidence | Every gate surface | Reference |
 | State breakdown | Every monitored loop, one state each | Loop state breakdown | Overview | Reference |
 | Recent loop events | Recent context; Event trail | Recent events | Overview | Reference |
+| Median error | Median error (% of span) | Median error | Performance tiles | Reference |
+| Periodic diagnosis | Loops with periodic diagnosis | Periodic diagnosis | Performance tiles | Reference |
+| Performance key to the gate marks | How to read this | How to read | Performance gate summary | Reference |
+| Tile drill-down | (new) | Show the loops | Performance tile dialog | Reference |

@@ -417,8 +417,7 @@
   font-weight: 600;
 }
 
-/* ── Pathway header: legend + the on-demand guidance toggle ── */
-.cpm-pathway-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+/* ── The on-demand guidance toggle ── */
 .cpm-help-toggle {
   display: inline-flex;
   align-items: center;
@@ -461,50 +460,8 @@
   font-size: var(--cpm-text-caption);
 }
 
-/* ── Fleet gate roll-up ── */
-.cpm-rollup { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin: 4px 0 14px; }
+/* ── Fleet gate roll-up: the tiles live in cpm-performance.css ── */
 .cpm-rollup__none { margin: 4px 0 12px; font-size: var(--cpm-text-small); }
-.cpm-rollup__tier { display: flex; flex-direction: column; gap: 4px; }
-.cpm-rollup__bars { display: flex; gap: 3px; align-items: flex-end; }
-.cpm-rollup__tier-label {
-  font-size: var(--cpm-text-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--element-neutral-color);
-  border-top: 1px solid var(--border-divider-color);
-  padding-top: 3px;
-}
-.cpm-rollup__bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
-  min-width: 30px;
-  padding: 2px 3px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--element-neutral-color);
-  font: inherit;
-}
-.cpm-rollup__bar:disabled { cursor: default; opacity: 0.55; }
-.cpm-rollup__bar:not(:disabled):hover { background: var(--container-background-color); }
-.cpm-rollup__bar--active {
-  border-color: var(--instrument-enhanced-primary-color);
-  background: var(--container-section-color);
-}
-.cpm-rollup__bar:focus-visible {
-  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
-  outline-offset: 1px;
-}
-.cpm-rollup__stack { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 16px; height: 46px; }
-.cpm-rollup__seg { width: 100%; border-radius: 2px 2px 0 0; }
-.cpm-rollup__seg--bad { background: var(--tone-danger); }
-.cpm-rollup__seg--warn { background: var(--tone-warning); }
-.cpm-rollup__count { font-size: var(--cpm-text-caption); font-weight: 600; color: var(--element-active-color); }
-.cpm-rollup__key { font-size: var(--cpm-text-caption); }
 
 /* ── Matrix + evidence layout ── */
 .cpm-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
