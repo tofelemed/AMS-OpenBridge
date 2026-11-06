@@ -139,6 +139,14 @@
   text-transform: uppercase;
 }
 .shell-nav--rail .shell-nav__module-name { padding-inline: 0; text-align: center; }
+.shell-nav__group + .shell-nav__group { margin-top: var(--traverse-space-2); }
+.shell-nav__group-name {
+  margin: 0;
+  padding: var(--traverse-space-2) var(--traverse-space-3) var(--traverse-space-1);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 400;
+}
 .shell-nav__list { display: grid; gap: var(--traverse-space-1); margin: 0; padding: 0; list-style: none; }
 .shell-nav__entry { position: relative; }
 .shell-nav__item {

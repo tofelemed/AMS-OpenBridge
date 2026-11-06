@@ -12,32 +12,50 @@ const sorted = (url: string | null) => {
 };
 
 describe('destinations', () => {
-  it('lists seven destinations in the SPEC order', () => {
-    expect(DESTINATIONS.map(d => d.label)).toEqual(['Overview', 'Performance', 'Episodes', 'Loop', 'Evidence', 'Setup', 'System']);
+  it('lists 17 entries under six headings in the reference order', () => {
+    expect(DESTINATIONS.map(d => d.label)).toEqual([
+      'Overview', 'Performance', 'Loop Events', 'Loop Explorer', 'Historical', 'Investigation', 'Evidence Workbench',
+      'Evidence Replay', 'Window Inspector', 'Calculations', 'System Response', 'Loop Registry', 'Gate Configuration',
+      'Trend', 'Pipeline Health', 'Administration', 'Governance',
+    ]);
+    expect([...new Set(DESTINATIONS.map(d => d.group))]).toEqual([
+      'Find problems', 'Check a loop', 'Understand the cause', 'Set up', 'Engineering', 'System',
+    ]);
+  });
+
+  it('puts every page on the address the plant already uses', () => {
+    expect(DESTINATIONS.map(d => d.path)).toEqual([
+      '/cpm', '/cpm/performance', '/cpm/events', '/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/evidence',
+      '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/response', '/cpm/registry', '/cpm/config', '/trend',
+      '/cpm/pipeline', '/admin', '/cpm/governance',
+    ]);
   });
 
   it.each([
-    ['/cpm', 'overview'], ['/cpm/kpi', 'overview'], ['/cpm/performance', 'performance'], ['/cpm/events', 'episodes'],
-    ['/cpm/loop', 'loop'], ['/cpm/explorer', 'loop'], ['/cpm/historical', 'loop'], ['/cpm/investigation', 'loop'],
-    ['/cpm/response', 'loop'], ['/cpm/evidence', 'evidence'], ['/cpm/replay', 'evidence'], ['/cpm/windows', 'evidence'],
-    ['/cpm/calculations', 'evidence'], ['/cpm/setup', 'setup'], ['/cpm/registry', 'setup'], ['/cpm/config', 'setup'],
-    ['/cpm/system', 'system'], ['/cpm/pipeline', 'system'], ['/cpm/governance', 'system'], ['/admin/users', 'system'],
+    ['/cpm', 'overview'], ['/cpm/kpi', 'overview'], ['/cpm/performance', 'performance'], ['/cpm/events', 'events'],
+    ['/cpm/explorer', 'explorer'], ['/cpm/historical', 'historical'], ['/cpm/investigation', 'investigation'],
+    ['/cpm/evidence', 'workbench'], ['/cpm/replay', 'replay'], ['/cpm/windows', 'windows'], ['/cpm/calculations', 'calculations'],
+    ['/cpm/response', 'response'], ['/cpm/registry', 'registry'], ['/cpm/config', 'config'], ['/trend', 'trend'],
+    ['/cpm/pipeline', 'pipeline'], ['/cpm/governance', 'governance'], ['/admin', 'administration'], ['/admin/users', 'administration'],
   ])('%s belongs to %s', (path, id) => {
     expect(destinationFor(path)?.id).toBe(id);
   });
 
-  it('gives Tag trend no destination, because it is a tool', () => {
-    expect(destinationFor('/trend')).toBeUndefined();
+  it('hides an entry from a role without its permission', () => {
+    const ids = visibleDestinations(p => p === 'analytics.view').map(d => d.id);
+    expect(ids).not.toContain('pipeline');
+    expect(ids).not.toContain('config');
+    expect(ids).not.toContain('trend');
+    expect(ids).not.toContain('administration');
+    expect(ids).toContain('registry');
   });
 
-  it('shows an operator five destinations and hides Setup and System (RD4)', () => {
-    const labels = visibleDestinations(p => p === 'analytics.view').map(d => d.label);
-    expect(labels).toEqual(['Overview', 'Performance', 'Episodes', 'Loop', 'Evidence']);
+  it('shows Trend to a holder of historian.view alone', () => {
+    expect(visibleDestinations(p => p === 'historian.view').map(d => d.id)).toEqual(['trend']);
   });
 
-  it('shows Setup to a holder of either of its permissions', () => {
-    expect(visibleDestinations(p => p === 'cpm.manage').map(d => d.id)).toEqual(['setup']);
-    expect(visibleDestinations(p => p === 'cpm.config.read').map(d => d.id)).toEqual(['setup']);
+  it('shows Governance to an auditor, whose Audit log now lives there', () => {
+    expect(visibleDestinations(p => p === 'admin.audit.view').map(d => d.id)).toEqual(['administration', 'governance']);
   });
 
   it('keeps the suite order and deploys only CPA here', () => {
@@ -50,7 +68,7 @@ describe('cpaHref', () => {
   const ctx = 'site=hdpe&area=s100&unit=u1&range=7d&window=24h&loop=FIC1';
 
   it('carries scope, range, window and loop to a loop page', () => {
-    expect(sorted(cpaHref('/cpm/loop', ctx))).toBe('/cpm/loop?area=s100&loop=FIC1&range=7d&site=hdpe&unit=u1&window=24h');
+    expect(sorted(cpaHref('/cpm/explorer', ctx))).toBe('/cpm/explorer?area=s100&loop=FIC1&range=7d&site=hdpe&unit=u1&window=24h');
   });
 
   it('leaves the loop behind on fleet pages', () => {
@@ -58,13 +76,13 @@ describe('cpaHref', () => {
     expect(cpaHref('/cpm/performance', ctx)).not.toContain('loop=');
   });
 
-  it('leaves the window kind behind on Setup and System', () => {
-    expect(cpaHref('/cpm/setup', ctx)).not.toContain('window=');
-    expect(cpaHref('/cpm/system', ctx)).not.toContain('window=');
+  it('leaves the window kind behind on Set up and System pages', () => {
+    expect(cpaHref('/cpm/registry', ctx)).not.toContain('window=');
+    expect(cpaHref('/cpm/pipeline', ctx)).not.toContain('window=');
   });
 
   it('does not carry an evaluated window END as a kind', () => {
-    expect(cpaHref('/cpm/loop', 'window=2026-11-04T12:00:00Z&loop=A')).toBe('/cpm/loop?loop=A');
+    expect(cpaHref('/cpm/explorer', 'window=2026-11-04T12:00:00Z&loop=A')).toBe('/cpm/explorer?loop=A');
   });
 
   it('carries a custom range with both ends only', () => {
@@ -81,7 +99,7 @@ describe('cpaHref', () => {
   });
 
   it('lets extra win over the carried value and drops unrelated parameters', () => {
-    expect(sorted(cpaHref('/cpm/loop', 'loop=A&gate=G1&sort=x', { loop: 'B', tab: 'signals' }))).toBe('/cpm/loop?loop=B&tab=signals');
+    expect(sorted(cpaHref('/cpm/explorer', 'loop=A&gate=G1&sort=x', { loop: 'B', tab: 'Signals' }))).toBe('/cpm/explorer?loop=B&tab=Signals');
   });
 
   it('accepts URLSearchParams', () => {

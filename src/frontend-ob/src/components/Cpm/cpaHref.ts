@@ -40,6 +40,7 @@ const WINDOW_KINDS = new Set(['12h', '24h']);
  * older page is not a kind, so it stays behind. `extra` wins over anything carried.
  */
 export function cpaHref(path: string, current: URLSearchParams | string = '', extra: Query = {}): string {
+  if (path === '/trend') return trendToolHref(current);
   const q = typeof current === 'string' ? new URLSearchParams(current) : current;
   const dest = DESTINATIONS.find(d => d.path === path);
   const carried: Query = { site: q.get('site'), area: q.get('area'), unit: q.get('unit') };

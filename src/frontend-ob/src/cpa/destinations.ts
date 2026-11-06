@@ -1,75 +1,129 @@
 /**
- * The seven CPA destinations (SPEC §2.1, DEC-002 RD1) and the suite module order (RD4).
+ * The 17 CPA pages under six headings (design 2026-11-06, section 3), on the addresses the plant uses.
  * Plain data: the sidebar, the palette, links and the tests all read this one list.
  */
+import type { KindParam } from './tabKind';
+
 /** Who may open Administration today: the /admin/* route guard. */
 export const ADMIN_PERMISSIONS: readonly string[] = ['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage'];
 
-export type DestinationId = 'overview' | 'performance' | 'episodes' | 'loop' | 'evidence' | 'setup' | 'system';
+export type NavGroup = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Set up' | 'Engineering' | 'System';
+
+export type DestinationId =
+  | 'overview' | 'performance' | 'events' | 'explorer' | 'historical' | 'investigation' | 'workbench' | 'replay' | 'windows'
+  | 'calculations' | 'response' | 'registry' | 'config' | 'trend' | 'pipeline' | 'administration' | 'governance';
 
 export interface Destination {
   id: DestinationId;
   label: string;
+  group: NavGroup;
   path: string;
   /** What the page answers. The page itself carries no purpose sentence (SPEC §3). */
   purpose: string;
-  /** Shown in the sidebar to holders of any of these (RD4). Route guards are separate. */
+  /** Shown in the sidebar to holders of any of these. Equals the page's route guard. */
   showTo: readonly string[];
-  /** Also shown when this holds, for a tab that needs two permissions together. */
-  showWhen?: (hasPermission: (p: string) => boolean) => boolean;
-  /** Older routes that belong to this destination, for the selected state. */
+  /** Older routes that belong to this page, for the selected state. */
   covers: readonly string[];
-  /** SPEC §2.2: which pages the selected loop and the window kind travel to. */
+  /** Which pages the selected loop and the 12h / 24h choice travel to. */
   carriesLoop: boolean;
   carriesWindow: boolean;
+  /** Where this page reads the 12h / 24h choice. Without one, the choice travels as `kind`. */
+  kindParam?: KindParam;
+  /** The page reads `window` as an evaluated END, so a kind must not reach it there. */
+  windowIsEnd?: boolean;
 }
+
+const READ = ['analytics.view'] as const;
 
 export const DESTINATIONS: readonly Destination[] = [
   {
-    id: 'overview', label: 'Overview', path: '/cpm',
+    id: 'overview', label: 'Overview', group: 'Find problems', path: '/cpm',
     purpose: 'Which loops need review now, why, and how much of the fleet is assessed',
-    showTo: ['analytics.view'], covers: ['/cpm/kpi'], carriesLoop: false, carriesWindow: true,
+    showTo: READ, covers: ['/cpm/kpi'], carriesLoop: false, carriesWindow: true, kindParam: 'window',
   },
   {
-    id: 'performance', label: 'Performance', path: '/cpm/performance',
+    id: 'performance', label: 'Performance', group: 'Find problems', path: '/cpm/performance',
     purpose: 'Compare loops gate by gate and see which checks hold the fleet back',
-    showTo: ['analytics.view'], covers: [], carriesLoop: false, carriesWindow: true,
+    showTo: READ, covers: [], carriesLoop: false, carriesWindow: true, kindParam: 'window',
   },
   {
-    id: 'episodes', label: 'Episodes', path: '/cpm/events',
+    id: 'events', label: 'Loop Events', group: 'Find problems', path: '/cpm/events',
     purpose: 'Review, acknowledge and shelve diagnosis episodes',
-    showTo: ['analytics.view'], covers: [], carriesLoop: true, carriesWindow: true,
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'window',
   },
   {
-    id: 'loop', label: 'Loop', path: '/cpm/loop',
-    purpose: 'One loop: state, aligned trend, performance, diagnosis, model and signals',
-    showTo: ['analytics.view'],
-    covers: ['/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/response'],
-    carriesLoop: true, carriesWindow: true,
+    id: 'explorer', label: 'Loop Explorer', group: 'Check a loop', path: '/cpm/explorer',
+    purpose: 'One loop now: signals, KPIs and gates',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'window',
   },
   {
-    id: 'evidence', label: 'Evidence', path: '/cpm/evidence',
-    purpose: 'One evaluated window: gates, replay, windows and calculations',
-    showTo: ['analytics.view'], covers: ['/cpm/replay', '/cpm/windows', '/cpm/calculations'],
-    carriesLoop: true, carriesWindow: true,
+    id: 'historical', label: 'Historical', group: 'Check a loop', path: '/cpm/historical',
+    purpose: 'One loop over time: signals, mode and evaluated windows',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'kind', windowIsEnd: true,
   },
   {
-    id: 'setup', label: 'Setup', path: '/cpm/setup',
-    purpose: 'Loop registry, gate configuration, plant model, data sources and tag aliases',
-    showTo: ['cpm.manage', 'cpm.config.read', 'ingestion.view'],
-    showWhen: has => has('asset.view') && ADMIN_PERMISSIONS.some(has),
-    covers: ['/cpm/registry', '/cpm/config'],
-    carriesLoop: true, carriesWindow: false,
+    id: 'investigation', label: 'Investigation', group: 'Understand the cause', path: '/cpm/investigation',
+    purpose: 'Why this result, what is still unconfirmed, and what to check next',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'profile', windowIsEnd: true,
   },
   {
-    id: 'system', label: 'System', path: '/cpm/system',
-    purpose: 'Pipeline health, governance, users, roles, audit log and settings',
-    showTo: ['system.manage', ...ADMIN_PERMISSIONS], covers: ['/cpm/pipeline', '/cpm/governance', '/admin'],
-    carriesLoop: false, carriesWindow: false,
+    id: 'workbench', label: 'Evidence Workbench', group: 'Understand the cause', path: '/cpm/evidence',
+    purpose: 'One evaluated run, gate by gate',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'kind',
+  },
+  {
+    id: 'replay', label: 'Evidence Replay', group: 'Understand the cause', path: '/cpm/replay',
+    purpose: 'The raw signals behind one evaluated window',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'kind', windowIsEnd: true,
+  },
+  {
+    id: 'windows', label: 'Window Inspector', group: 'Understand the cause', path: '/cpm/windows',
+    purpose: 'Every window the engine emitted, with its sample count',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, windowIsEnd: true,
+  },
+  {
+    id: 'calculations', label: 'Calculations', group: 'Understand the cause', path: '/cpm/calculations',
+    purpose: 'Every stored value for one evaluated window',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true, kindParam: 'kind', windowIsEnd: true,
+  },
+  {
+    id: 'response', label: 'System Response', group: 'Understand the cause', path: '/cpm/response',
+    purpose: 'Response events and the loop model built from them',
+    showTo: READ, covers: [], carriesLoop: true, carriesWindow: true,
+  },
+  {
+    id: 'registry', label: 'Loop Registry', group: 'Set up', path: '/cpm/registry',
+    purpose: 'Every registered loop and its configuration',
+    showTo: READ, covers: [], carriesLoop: false, carriesWindow: false,
+  },
+  {
+    id: 'config', label: 'Gate Configuration', group: 'Set up', path: '/cpm/config',
+    purpose: 'What each loop runs under, and the bundles that change it',
+    showTo: ['cpm.config.read'], covers: [], carriesLoop: true, carriesWindow: false,
+  },
+  {
+    id: 'trend', label: 'Trend', group: 'Engineering', path: '/trend',
+    purpose: 'Any tags on one chart',
+    showTo: ['historian.view'], covers: [], carriesLoop: false, carriesWindow: false,
+  },
+  {
+    id: 'pipeline', label: 'Pipeline Health', group: 'System', path: '/cpm/pipeline',
+    purpose: 'Whether the analysis engine is running',
+    showTo: ['system.manage'], covers: [], carriesLoop: false, carriesWindow: false,
+  },
+  {
+    id: 'administration', label: 'Administration', group: 'System', path: '/admin',
+    purpose: 'Users, roles, data sources, plant model, tag aliases and settings',
+    showTo: ADMIN_PERMISSIONS, covers: [], carriesLoop: false, carriesWindow: false,
+  },
+  {
+    id: 'governance', label: 'Governance', group: 'System', path: '/cpm/governance',
+    purpose: 'Who changed what, and the audit trail',
+    showTo: ['system.manage', ...ADMIN_PERMISSIONS], covers: [], carriesLoop: false, carriesWindow: false,
   },
 ];
 
-/** The destination that owns a path, or undefined (Tag trend is a tool, not a destination). */
+/** The page that owns a path, or undefined for a path outside CPA. */
 export function destinationFor(pathname: string): Destination | undefined {
   const under = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
   return DESTINATIONS.find(d => d.path !== '/cpm' && under(d.path))
@@ -78,7 +132,7 @@ export function destinationFor(pathname: string): Destination | undefined {
 }
 
 export const visibleDestinations = (hasPermission: (p: string) => boolean): Destination[] =>
-  DESTINATIONS.filter(d => d.showTo.some(hasPermission) || d.showWhen?.(hasPermission));
+  DESTINATIONS.filter(d => d.showTo.some(hasPermission));
 
 /** Suite order (guide p.6). A module not deployed here is hidden, not disabled (RD4). */
 export const SUITE_MODULES: ReadonlyArray<{ id: string; label: string; deployed: boolean }> = [

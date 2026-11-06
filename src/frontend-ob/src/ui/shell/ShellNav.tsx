@@ -1,31 +1,58 @@
 /**
- * The sidebar (SPEC §6.1, RD4): suite modules in order, absent ones hidden, then CPA's
- * destinations. The selected rule is written in shell.css (guide p.28).
+ * The sidebar: suite modules in order, absent ones hidden, then CPA's 17 pages under their six
+ * headings. A heading with nothing the role may open is not shown. The rail keeps the icons and
+ * drops the headings. The selected rule is written in shell.css (guide p.28).
  */
 import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ObiChart } from '@oicl/openbridge-webcomponents-react/icons/icon-chart';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { ObiChevronRightGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-right-google';
+import { ObiCommandLocked } from '@oicl/openbridge-webcomponents-react/icons/icon-command-locked';
 import { ObiDashboard } from '@oicl/openbridge-webcomponents-react/icons/icon-dashboard';
 import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
+import { ObiHistoryGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-history-google';
 import { ObiListAltCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-list-alt-check-google';
+import { ObiMediaPlay } from '@oicl/openbridge-webcomponents-react/icons/icon-media-play';
 import { ObiMonitoring } from '@oicl/openbridge-webcomponents-react/icons/icon-monitoring';
 import { ObiNotification } from '@oicl/openbridge-webcomponents-react/icons/icon-notification';
+import { ObiSearch } from '@oicl/openbridge-webcomponents-react/icons/icon-search';
+import { ObiSettingsIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-iec';
+import { ObiSpeed } from '@oicl/openbridge-webcomponents-react/icons/icon-speed';
+import { ObiTable } from '@oicl/openbridge-webcomponents-react/icons/icon-table';
+import { ObiTimerGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-timer-google';
 import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
+import { ObiUserSettings } from '@oicl/openbridge-webcomponents-react/icons/icon-user-settings';
 import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrench';
-import { cpaHref, trendToolHref } from '../../components/Cpm/cpaHref';
-import { SUITE_MODULES, destinationFor, visibleDestinations, type DestinationId } from '../../cpa/destinations';
+import { cpaHref } from '../../components/Cpm/cpaHref';
+import { SUITE_MODULES, destinationFor, visibleDestinations, type Destination, type DestinationId } from '../../cpa/destinations';
 import { useAuthStore } from '../../store/authStore';
 
 const ICONS: Record<DestinationId, React.ComponentType> = {
   overview: ObiDashboard,
   performance: ObiChart,
-  episodes: ObiNotification,
-  loop: ObiDatabase,
-  evidence: ObiListAltCheckGoogle,
-  setup: ObiWrench,
-  system: ObiMonitoring,
+  events: ObiNotification,
+  explorer: ObiDatabase,
+  historical: ObiHistoryGoogle,
+  investigation: ObiSearch,
+  workbench: ObiListAltCheckGoogle,
+  replay: ObiMediaPlay,
+  windows: ObiTimerGoogle,
+  calculations: ObiTable,
+  response: ObiSpeed,
+  registry: ObiWrench,
+  config: ObiSettingsIec,
+  trend: ObiTrend,
+  pipeline: ObiMonitoring,
+  administration: ObiUserSettings,
+  governance: ObiCommandLocked,
+};
+
+/** Keeps the list's order, so each heading sits above its own entries. */
+const byGroup = (items: Destination[]): Array<[string, Destination[]]> => {
+  const groups = new Map<string, Destination[]>();
+  for (const d of items) groups.set(d.group, [...(groups.get(d.group) ?? []), d]);
+  return [...groups.entries()];
 };
 
 export const ShellNav: React.FC<{
@@ -51,39 +78,34 @@ export const ShellNav: React.FC<{
       {modules.map(m => (
         <div key={m.id} className="shell-nav__module">
           <div className="shell-nav__module-name">{m.label}</div>
-          <ul className="shell-nav__list">
-            {items.map(d => {
-              const Icon = ICONS[d.id];
-              const selected = d.id === current;
-              return (
-                <li key={d.id} className="shell-nav__entry">
-                  <Link
-                    to={cpaHref(d.path, location.search)}
-                    className="shell-nav__item"
-                    aria-current={selected ? 'page' : undefined}
-                    aria-label={d.label}
-                    aria-describedby={`nav-tip-${d.id}`}
-                  >
-                    <span className="ui-icon"><Icon /></span>
-                    <span className="shell-nav__label">{d.label}</span>
-                  </Link>
-                  <span id={`nav-tip-${d.id}`} role="tooltip" className="shell-nav__tip">
-                    {rail && <strong>{d.label}</strong>}
-                    {d.purpose}
-                  </span>
-                </li>
-              );
-            })}
-            {hasPermission('historian.view') && (
-              <li className="shell-nav__entry">
-                <Link to={trendToolHref(location.search)} className="shell-nav__item" aria-current={location.pathname === '/trend' ? 'page' : undefined}>
-                  <span className="ui-icon"><ObiTrend /></span>
-                  <span className="shell-nav__label">Trend</span>
-                </Link>
-                <span role="tooltip" className="shell-nav__tip"><strong>Trend</strong>Any tags on one chart</span>
-              </li>
-            )}
-          </ul>
+          {byGroup(items).map(([group, entries]) => (
+            <div key={group} role="group" className="shell-nav__group" aria-label={group}>
+              {!rail && <h2 className="shell-nav__group-name">{group}</h2>}
+              <ul className="shell-nav__list">
+                {entries.map(d => {
+                  const Icon = ICONS[d.id];
+                  return (
+                    <li key={d.id} className="shell-nav__entry">
+                      <Link
+                        to={cpaHref(d.path, location.search)}
+                        className="shell-nav__item"
+                        aria-current={d.id === current ? 'page' : undefined}
+                        aria-label={d.label}
+                        aria-describedby={`nav-tip-${d.id}`}
+                      >
+                        <span className="ui-icon"><Icon /></span>
+                        <span className="shell-nav__label">{d.label}</span>
+                      </Link>
+                      <span id={`nav-tip-${d.id}`} role="tooltip" className="shell-nav__tip">
+                        {rail && <strong>{d.label}</strong>}
+                        {d.purpose}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </div>
       ))}
       {onToggle && (

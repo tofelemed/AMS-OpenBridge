@@ -27,20 +27,29 @@ This specification says **what each page contains, where each current function g
 
 ### 2.1 Destinations
 
-| # | Destination | Path | Implements | ISA-101 level | Primary roles | Permission | Purpose |
-|---|---|---|---|---|---|---|---|
-| 1 | **Overview** | `/cpm` | CPA01 (p.11) | 1–2 | Operator, Reliability | `analytics.view` | Which loops need review now, why, and how much of the fleet is assessed |
-| 2 | **Performance** | `/cpm/performance` | CPA module layout (p.29) | 2 | Engineer | `analytics.view` | Compare loops gate by gate and see which checks hold the fleet back |
-| 3 | **Episodes** | `/cpm/events` | Event ledger (p.7) | 2 | Operator, Engineer, Reliability | `analytics.view` | Review, acknowledge and shelve diagnosis episodes |
-| 4 | **Loop** | `/cpm/loop` | CPA02 (p.12) | 3 | Engineer, Operator, Reliability | `analytics.view` | One loop: state, aligned trend, performance, diagnosis, model and signals |
-| 5 | **Evidence** | `/cpm/evidence` | Evidence step (p.29) | 4 | Engineer | `analytics.view` | One evaluated window: gates, replay, windows and calculations |
-| 6 | **Setup** | `/cpm/setup` | Support | Support | Admin, Engineer | `cpm.manage` or `cpm.config.read` | Loop registry and gate configuration |
-| 7 | **System** | `/cpm/system` | Support | Support | Admin | `system.manage` | Pipeline health and governance; link to Administration |
+Superseded 2026-11-06 by `docs/superpowers/specs/2026-11-06-cpa-structure-and-flow-design.md`: 17 pages under six headings, on the addresses the plant uses. The list is `src/frontend-ob/src/cpa/destinations.ts`.
 
-Tools outside the sidebar:
-- **Tag trend:** `/trend`, permission `historian.view` (RD6).
-- **Administration:** `/admin/*`; routes unchanged, rebuilt in the shell, reached from System.
-- **Command palette:** Ctrl+K, with a visible hint in the header search field.
+| Heading | Page | Path | Permission |
+|---|---|---|---|
+| Find problems | Overview | `/cpm` | `analytics.view` |
+| | Performance | `/cpm/performance` | `analytics.view` |
+| | Loop Events | `/cpm/events` | `analytics.view` |
+| Check a loop | Loop Explorer | `/cpm/explorer` | `analytics.view` |
+| | Historical | `/cpm/historical` | `analytics.view` |
+| Understand the cause | Investigation | `/cpm/investigation` | `analytics.view` |
+| | Evidence Workbench | `/cpm/evidence` | `analytics.view` |
+| | Evidence Replay | `/cpm/replay` | `analytics.view` |
+| | Window Inspector | `/cpm/windows` | `analytics.view` |
+| | Calculations | `/cpm/calculations` | `analytics.view` |
+| | System Response | `/cpm/response` | `analytics.view` |
+| Set up | Loop Registry | `/cpm/registry` | `analytics.view` |
+| | Gate Configuration | `/cpm/config` | `cpm.config.read` |
+| Engineering | Trend | `/trend` | `historian.view` |
+| System | Pipeline Health | `/cpm/pipeline` | `system.manage` |
+| | Administration | `/admin/*` | any Administration permission |
+| | Governance | `/cpm/governance` | `system.manage` or any Administration permission |
+
+Command palette: Ctrl+K, with a visible hint in the header search field.
 
 ### 2.2 Global URL context (RD3, RD5)
 
