@@ -275,3 +275,4 @@ Controls that changed place in this section, not removed:
 | Tab rows Gates, Replay, Windows, Calculations | Sidebar pages |
 | Tab rows Loops, Configuration, Plant model, Data sources, Tag aliases | Sidebar pages and Administration tabs |
 | Tab rows Pipeline, Governance, Users, Roles, Settings | Sidebar pages and Administration tabs |
+| Relationships under Signals, with Open in Loop Registry | Loop Explorer, Relationships tab |

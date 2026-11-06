@@ -6,16 +6,19 @@ import { chromium, requireEnv, login, goto, trackNetwork, waitStable } from './l
 import { installGuard } from './lib/guard.mjs';
 
 const LOOP = 'FIC00701';
-const tabs = (path, names, extra = '') => names.map(t => `${path}?tab=${t}${extra}`);
+const loopPages = ['/cpm/historical', '/cpm/investigation', '/cpm/response', '/cpm/evidence', '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/config'];
 const PAGES = [
   '/cpm', '/cpm?review=stale', '/cpm?review=all', `/cpm?loop=${LOOP}`, '/cpm/performance', `/cpm/performance?loop=${LOOP}`, '/cpm/events',
-  ...tabs('/cpm/loop', ['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations'], `&loop=${LOOP}`),
-  ...tabs('/cpm/evidence', ['gates', 'replay', 'windows', 'calculations'], `&loop=${LOOP}`),
-  ...tabs('/cpm/setup', ['loops', 'configuration'], `&loop=${LOOP}`),
-  ...tabs('/cpm/setup', ['plant-model', 'data-sources', 'tag-aliases']),
-  ...tabs('/cpm/system', ['pipeline', 'governance', 'users', 'roles', 'settings']),
+  ...['Summary', 'Signals', 'Calculations', 'Relationships', 'History'].map(t => `/cpm/explorer?loop=${LOOP}&tab=${t}`),
+  ...loopPages.map(p => `${p}?loop=${LOOP}`),
+  '/cpm/registry', '/cpm/pipeline', '/cpm/governance',
+  ...['users', 'roles', 'data-sources', 'plant-model', 'aliases', 'system'].map(s => `/admin/${s}`),
 ];
-const DESTINATIONS = new Set(['/cpm', '/cpm/performance', '/cpm/events', '/cpm/loop', '/cpm/evidence', '/cpm/setup', '/cpm/system', '/trend']);
+const DESTINATIONS = new Set([
+  '/cpm', '/cpm/performance', '/cpm/events', '/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/response', '/cpm/evidence',
+  '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/registry', '/cpm/config', '/cpm/pipeline', '/cpm/governance', '/trend',
+  '/admin/users', '/admin/roles', '/admin/data-sources', '/admin/plant-model', '/admin/aliases', '/admin/system',
+]);
 
 const [outFile] = process.argv.slice(2);
 const env = requireEnv();

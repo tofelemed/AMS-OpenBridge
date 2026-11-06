@@ -18,7 +18,7 @@ Paths beginning `api/`, `app/`, `components/`, `cpa/`, `hooks/`, `pages/`, `styl
 |---|---|
 | Loop Registry Delete | **Retire, keep history.** Stops monitoring, hides the loop from Overview and Performance, keeps everything browsable, can be undone. The existing hard delete gets no button. |
 | Backend scope | **Small cplm-api additions only.** Retire, the Periodic and Capability drill-downs, severity filter and EVT search, values on older windows. Everything else shows an honest "Not available". |
-| Review pace | **Section by section.** Lab rebuild and owner check after each section. Corrections carry into the next section. |
+| Review pace | **All sections, one by one, by subagents; stop only when everything is built and tested** (owner, 2026-11-07, replaces the earlier stop after each section). |
 | "Device info" | **Build and engine details** (jar and commit ids, worker ids, catalogue hashes, JobManager names) go into a closed `ui/TechnicalDetails.tsx` section. Data source connection fields stay as they are. |
 | Lab engine | **Restore it first**, as a separate task, so the owner can judge Overview and Performance with real findings. Task 0. |
 | Replay playback | **Left out.** No Play, step or speed. Keep our cursor and add the PV, SP, OP and Mode readout at the cursor. |
@@ -50,6 +50,7 @@ Paths beginning `api/`, `app/`, `components/`, `cpa/`, `hooks/`, `pages/`, `styl
 
 ## Global Constraints
 
+- No repetitive text and no useless explanation (owner, 2026-11-07): do not overload the UI. Each fact appears once on a page. No sentence that says what a heading already says, no eyebrow that repeats its heading, no repeated window, loop name or status. An explanation an engineer needs goes behind the `?`; one nobody needs is removed. Warnings, failure reasons and data states stay on screen.
 - Sizes stay exactly as today: font sizes, control heights, row heights, card padding and chart heights. The one exception is the PV, SP, OP, Mode row on Summary, which the owner asked for. New CSS may place things; it may not set a new size. Build from the app's real classes (`.cpm-surface`, `.cpm-kpi`, `.cpm-kpicard`, `.cpm-table`, `obc-button`). The size check in the Section check enforces this.
 - Links: one quiet style everywhere, built on `ObcButton` flat, with `→` for the next step in the journey and `↗` for something related. `›` goes.
 - Filters stay ours: Site, Area and Unit in the header only, dropdown selects, the `LoopBand` loop control. Never copy the reference's in-page Site, Area and Unit or its chip filters.
@@ -193,7 +194,7 @@ node ../../docs/theme/tools/size-check.mjs                # 0 differences from t
 node ../../docs/theme/tools/control-check.mjs             # every baseline control has a place, or is listed in text-changes.md
 ```
 
-Then push, tag the running images `pre-s<N>`, build the changed images from the worktree (`docker build -t docker-ams-frontend:redesign-<sha> -f infra/docker/frontend/Dockerfile --build-arg VITE_LOOP_ROOT_PREFIX=root.hdpev2.cpm --build-arg VITE_ENV_LABEL=Lab src/frontend-ob`; for cplm-api `docker build -t docker-cplm-api:redesign-<sha> --build-arg SOURCE_COMMIT=<sha> src/services/cplm-api`), tag them `latest`, and run `docker compose -p docker up -d --no-deps --no-build --force-recreate <services>` in `AMS-open/infra/docker`. Confirm each CPLM consumer group still has one member. Stop for the owner's check. Do not start the next section until the owner has answered.
+Lab rule: run tests with `--minWorkers=1 --maxWorkers=4`. A run on all cores starves the Docker VM and wedges the JobManager (`prod_decision.md` section 6). After the last section: push, tag the running images `pre-s<N>`, build the changed images from the worktree (`docker build -t docker-ams-frontend:redesign-<sha> -f infra/docker/frontend/Dockerfile --build-arg VITE_LOOP_ROOT_PREFIX=root.hdpev2.cpm --build-arg VITE_ENV_LABEL=Lab src/frontend-ob`; for cplm-api `docker build -t docker-cplm-api:redesign-<sha> --build-arg SOURCE_COMMIT=<sha> src/services/cplm-api`), tag them `latest`, and run `docker compose -p docker up -d --no-deps --no-build --force-recreate <services>` in `AMS-open/infra/docker`. Confirm each CPLM consumer group still has one member. Between sections, run the checks above on the local build and carry on.
 
 ---
 

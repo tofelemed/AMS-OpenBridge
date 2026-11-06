@@ -5783,3 +5783,24 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Plant:** nothing yet. This branch is not released (RD15).
 
 **Lab :3000, 2026-11-06:** `ams-frontend` and `cplm-api` rebuilt from `7e5caf19`, previous images tagged `pre-chg132` for rollback. Proven on the running server: `segments` sent, summing to 241 of 241 monitored, Stale 165 and Never evaluated 76; each state's list equals its count, names its state and shows no trend; a bar segment opens its list. Environment names unchanged, one member in `traverse-cpa-cplm-results` and in `traverse-cpa-cplm-results-frames`. This closes the "not proven" note under CHG-127.
+
+## CHG-133 — CPA: 17 pages on their own addresses, sidebar by section, links that carry the context (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner: multiple sections and pages were combined into single pages; separate them, and follow the SME reference for structure, flow and navigation, not for look. Design: `docs/superpowers/specs/2026-11-06-cpa-structure-and-flow-design.md`. Plan: `docs/superpowers/plans/2026-11-06-cpa-reference-redesign.md`.
+
+**Changed.**
+- **Sidebar:** six headings and 17 entries: Find problems, Check a loop, Understand the cause, Set up, Engineering, System.
+- **Pages:** the Loop, Evidence, Setup and System tab hosts are gone. Every page is back on the address the plant uses. The lab-only addresses `/cpm/loop`, `/cpm/setup`, `/cpm/system` and `/cpm/evidence?tab=` redirect to them.
+- **Loop Explorer:** its own five tabs. Relationships is its own tab again.
+- **Links:** one set of helpers carries loop, window, gate and kind. The 12h / 24h choice moves under the name each page reads. An evaluated window end travels only through in-page links. Calculations reads `kind`.
+- **Status words,** in one place: Pass, Symptom seen, Strong symptom, Insufficient evidence. Marks, colours and meanings do not change, and a pass on a diagnostic gate still reads Not seen.
+- **Shared blocks** for later sections: gate dialog, gate tier row, page foot, short dates, compact gate key.
+- **Accessibility:** the priority queue's preview button is named by the words on it.
+- **Checks:** `size-check.mjs` and `control-check.mjs` compare a build with the running one, for sizes and for controls.
+
+**Nothing lost.** Controls that moved are listed in `docs/theme/redesign/text-changes.md`.
+
+**Before release:** control-engineer review of the status words in `text-changes.md`.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released (RD15).

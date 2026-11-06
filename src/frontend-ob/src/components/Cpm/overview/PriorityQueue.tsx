@@ -86,8 +86,8 @@ export const PriorityQueue: React.FC<{
           </div>
           <button type="button" className="cpm-queue-row__preview"
             aria-pressed={isSelected}
-            aria-label={`Preview ${l.loopId} in the focus panel`}
             onClick={() => onPreview(l.loopId)}>
+            <span className="ui-sr">Preview {l.loopId}: </span>
             <span className="cpm-event-row__sub">{l.displayName} · {l.area ? locationLabel(l.area) : locationLabel(l.site, { site: true })}</span>
             <span className="cpm-queue-row__reason">
               <span className="cpm-queue-row__why">{priorityReasons(l, Date.now(), { impact: false }).join(' · ')}</span>

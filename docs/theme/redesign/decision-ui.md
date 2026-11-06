@@ -125,3 +125,7 @@ Governing order when documents conflict: Guide, skill, brief, DEC-001, DEC-002, 
 | UI-117 | 2026-11-06 | Review | **Each fact once in a KPI row** | One row said its age three times. A shared measure moves to the column heading, a stale verdict is Stale, and the Measured column goes when it only repeats the verdict | Yes |
 | UI-118 | 2026-11-06 | Review | **No hierarchy under the loop name in the KPI list** | The owner asked for it. The header already scopes the list, and Open details on the Loop Summary shows the location | Yes |
 | UI-119 | 2026-11-06 | Review | **KPI rows become cards at 900 px** | With values on one line a 768 px table needed a sideways scroll | Yes |
+| UI-120 | 2026-11-07 | Reference | **Loop Explorer keeps the band and gains tabs** | The plan said to fall back to the old page. That page brings back the summary card the owner removed on 6 November, and the approved spec orders heading, band, tabs, content. | Yes |
+| UI-121 | 2026-11-07 | Reference | **`/cpm/system` with no tab opens Governance** | It opens for every role that could open System. Lab-only address. | Yes |
+| UI-122 | 2026-11-07 | Reference | **`loopTrendHref` stays until Task 26** | Trend cannot read a loop before then, so moving its callers now would break their links. | Yes |
+| UI-123 | 2026-11-07 | Reference | **A pass reads Pass only on a check** | On a diagnostic gate a pass still reads Not seen, as SME-reviewed (CHG-098). Only the words change. | Yes |

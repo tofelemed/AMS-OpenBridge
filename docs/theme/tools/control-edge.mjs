@@ -11,10 +11,10 @@ const guard = { blocked: [], http429: [], apiCalls: 0, pacedMs: 0, trigger: null
 await installGuard(p, guard, { ratePerMin: 60 });
 await login(p, env);
 const LOOP = 'B2_027PIC';
-const routes = ['/cpm', '/cpm?review=stale', '/cpm?review=all', '/cpm/performance', '/cpm/events', ...['summary', 'historical', 'diagnosis', 'model', 'signals', 'history', 'calculations'].map(t => `/cpm/loop?tab=${t}&loop=${LOOP}`),
-  ...['gates', 'replay', 'windows', 'calculations'].map(t => `/cpm/evidence?tab=${t}&loop=FIC00701`),
-  ...['loops', 'configuration', 'plant-model', 'data-sources', 'tag-aliases'].map(t => `/cpm/setup?tab=${t}`),
-  ...['pipeline', 'governance', 'users', 'roles', 'settings'].map(t => `/cpm/system?tab=${t}`)];
+const routes = ['/cpm', '/cpm?review=stale', '/cpm?review=all', '/cpm/performance', '/cpm/events',
+  ...['Summary', 'Signals', 'Calculations', 'Relationships', 'History'].map(t => `/cpm/explorer?tab=${t}&loop=FIC00701`),
+  ...['historical', 'investigation', 'response', 'evidence', 'replay', 'windows', 'calculations', 'config'].map(p => `/cpm/${p}?loop=FIC00701`),
+  '/cpm/registry', '/cpm/pipeline', '/cpm/governance', ...['users', 'roles', 'data-sources', 'plant-model', 'aliases', 'system'].map(p => `/admin/${p}`)];
 const bad = [];
 let n = 0;
 for (const w of [390, 768]) {

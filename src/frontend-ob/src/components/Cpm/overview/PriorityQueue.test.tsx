@@ -22,6 +22,14 @@ const loop = (id: string): CpmRankedLoop => ({
 afterEach(cleanup);
 
 describe('priority queue rows (CHG-100)', () => {
+  it('names the preview button with the words on it, so voice control can find it', () => {
+    const { container } = render(<PriorityQueue loops={[loop('FIC1')]} loading={false} error={null} retry={() => {}}
+      shelvedCount={0} selectedId={null} onPreview={() => {}} onOpenLoop={() => {}} onViewAll={() => {}} onShelved={() => {}} />);
+    const button = container.querySelector('.cpm-queue-row__preview') as HTMLButtonElement;
+    expect(button.hasAttribute('aria-label')).toBe(false);
+    expect(button.textContent).toContain('Preview FIC1');
+  });
+
   it('a click anywhere on the row previews the loop; the loop button only opens it', () => {
     const onPreview = vi.fn();
     const onOpenLoop = vi.fn();

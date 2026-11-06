@@ -88,34 +88,40 @@
  },
  "kpi": {
   "paddingTop": {
+   "12px": [
+    "overview",
+    "explorer"
+   ],
    "14px": [
     "performance",
     "performance-matrix",
     "explorer",
+    "investigation",
     "calculations",
     "pipeline"
-   ],
-   "12px": [
-    "explorer"
    ]
   },
   "paddingLeft": {
+   "14px": [
+    "overview",
+    "explorer"
+   ],
    "16px": [
     "performance",
     "performance-matrix",
     "explorer",
+    "investigation",
     "calculations",
     "pipeline"
-   ],
-   "14px": [
-    "explorer"
    ]
   },
   "fontSize": {
    "14px": [
+    "overview",
     "performance",
     "performance-matrix",
     "explorer",
+    "investigation",
     "calculations",
     "pipeline"
    ]
@@ -166,10 +172,8 @@
     "data-sources",
     "tag-aliases"
    ],
-   "50px": [
-    "overview"
-   ],
    "auto": [
+    "overview",
     "performance",
     "performance-matrix",
     "events",
@@ -182,6 +186,9 @@
     "governance",
     "users",
     "tag-aliases"
+   ],
+   "50px": [
+    "overview"
    ],
    "60.375px": [
     "events"
@@ -300,20 +307,17 @@
     "pipeline",
     "governance"
    ],
-   "16.38px": [
-    "overview",
-    "explorer",
-    "explorer-signals",
-    "historical",
-    "response",
-    "workbench",
-    "pipeline",
-    "governance"
-   ],
    "12.25px": [
     "explorer",
     "explorer-calculations",
     "workbench"
+   ],
+   "16.38px": [
+    "explorer-signals",
+    "response",
+    "workbench",
+    "pipeline",
+    "governance"
    ],
    "18px": [
     "users",
@@ -331,12 +335,9 @@
   "fontSize": {
    "14px": [
     "overview",
-    "performance",
-    "performance-matrix",
     "events",
     "explorer",
     "explorer-signals",
-    "historical",
     "investigation",
     "response",
     "workbench",
@@ -367,11 +368,15 @@
  },
  "chart": {
   "height": {
+   "260px": [
+    "overview",
+    "investigation"
+   ],
+   "240px": [
+    "explorer"
+   ],
    "464px": [
     "historical"
-   ],
-   "260px": [
-    "investigation"
    ],
    "300px": [
     "replay"

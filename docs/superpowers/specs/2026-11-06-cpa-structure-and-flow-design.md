@@ -276,7 +276,7 @@ Add our loop selector. Choosing a loop loads its PV, SP, OP and VP pens straight
 
 ## 8. Build order
 
-You review on `:3000` after each section. Corrections carry forward, and the next section waits for your word. There are no separate mock-ups: you see real pages.
+All sections run one by one, by subagents, without a stop (owner, 2026-11-07). You review on `:3000` when everything is built and tested. There are no separate mock-ups: you see real pages.
 
 | Section | Pages | Tasks | Services |
 |---|---|---|---|
@@ -308,6 +308,7 @@ Everything else stays, including its failing-test-first steps.
 
 ## 10. Rules that hold throughout
 
+- **Text:** no repetitive text and no useless explanation. Each fact appears once on a page. Do not overload the UI (owner, 2026-11-07).
 - **Sizes:** font sizes, control heights, row heights, card padding and chart heights stay as today. The only exception is the PV, SP, OP, Mode row you asked for. New CSS may place things; it may not set a new size.
 - **Look:** Traverse colours, Day and Night only. No Bright theme, no reference palette or font. Trend pens stay `--signal-*`. Status marks stay `gateMark`, shape and meaning unchanged.
 - **Status words:** one set everywhere, from one place: Pass, Symptom seen, Strong symptom, Insufficient evidence. The control engineer reviews these.
