@@ -301,5 +301,5 @@ Controls that changed place in this section, not removed:
 
 | Control | Now on |
 |---|---|
-| Focused-loop drawer (Review evidence, Open analysis) | Investigation (drawer no longer mounted on Overview) |
+| Open analysis (focused analysis drawer) | Investigation, through Review X → |
 | Calculation basis | Dialog from the page foot |

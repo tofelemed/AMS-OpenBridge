@@ -15,8 +15,7 @@
  * carry the operator's explicit ?loop= selection.
  *
  * CHG-134 (reference redesign, Task 6): the queue tag and the preview's button open Investigation; the bottom row is
- * the clickable top finding and three recent events; the readiness strip moved to Loop Registry (Task 23), and
- * FocusedLoopDrawer is no longer mounted here.
+ * the clickable top finding and three recent events; the readiness strip moves to Loop Registry (Task 23).
  */
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
