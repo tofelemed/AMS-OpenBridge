@@ -80,8 +80,13 @@ describe('GateMatrix', () => {
     show({ sort: 'tag' });
     const sort = screen.getByRole('combobox', { name: 'Sort' }) as HTMLSelectElement;
     expect([...sort.options].map(o => o.value)).toEqual(['evidence', 'tag', 'result', 'error', 'priority']);
-    const loops = screen.getAllByRole('button', { name: /^Open .*in the Loop Explorer/ }).map(b => b.getAttribute('aria-label')?.split(',')[0]);
-    expect(loops).toEqual(['Open FIC-1', 'Open LIC-2', 'Open PIC-3']);
+    const btns = Array.from(document.querySelectorAll('.cpm-matrix__loop-btn'));
+    expect(btns.map(b => b.querySelector('strong')?.textContent)).toEqual(['FIC-1', 'LIC-2', 'PIC-3']);
+    // the name is the visible tag and description; "Open ..." rides on the title (axe label-content-name-mismatch)
+    btns.forEach(b => {
+      expect(b.getAttribute('aria-label')).toBeNull();
+      expect(b.getAttribute('title')).toBe('Open in the Loop Explorer');
+    });
   });
 
   it('filters by result with a new Any result dropdown', () => {
@@ -89,8 +94,9 @@ describe('GateMatrix', () => {
     const any = screen.getByRole('combobox', { name: 'Result' }) as HTMLSelectElement;
     expect([...any.options].map(o => o.text)).toContain('Any result');
     fireEvent.change(any, { target: { value: 'SUSPECTED' } });
-    expect(screen.queryByRole('button', { name: /Open FIC-1/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /Open PIC-3/ })).toBeTruthy();
+    const tags = () => Array.from(document.querySelectorAll('.cpm-matrix__loop-btn strong')).map(n => n.textContent);
+    expect(tags()).not.toContain('FIC-1');
+    expect(tags()).toContain('PIC-3');
   });
 
   it('puts the selected-loop band above the table only when one is given', () => {
@@ -103,6 +109,6 @@ describe('GateMatrix', () => {
   it('pages 15 rows at a time', () => {
     const many = Array.from({ length: 31 }, (_, i) => row(`L-${String(i).padStart(2, '0')}`, 'DETECTED_BACKLASH', 0.5, { G15: 'DETECTED' }));
     show({ loops: many });
-    expect(screen.getAllByRole('button', { name: /^Open L-/ })).toHaveLength(15);
+    expect(document.querySelectorAll('.cpm-matrix__loop-btn')).toHaveLength(15);
   });
 });

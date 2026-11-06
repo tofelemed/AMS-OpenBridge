@@ -66,7 +66,6 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
               <tr key={row.loopId} className={selected ? 'cpm-matrix__row--selected' : undefined}>
                 <th scope="row" className="cpm-matrix__loop">
                   <button type="button" className="cpm-matrix__loop-btn" title="Open in the Loop Explorer"
-                    aria-label={`Open ${row.loopId}, ${row.displayName}, in the Loop Explorer`}
                     onClick={() => onOpenLoop(row.loopId)}>
                     <strong>{row.loopId}</strong>
                     <span className="cpm-event-row__sub">{serviceName(row)}</span>

@@ -96,7 +96,6 @@ export const GateMatrixGrid: React.FC<{
                 <th scope="row" className="cpm-matrix__loop">
                   <button type="button" className="cpm-matrix__loop-btn" data-r={r} data-c={0} tabIndex={tabIndexOf(r, 0)}
                     title="Open in the Loop Explorer"
-                    aria-label={`Open ${row.loopId}, ${row.displayName}, in the Loop Explorer`}
                     onFocus={() => setCursor({ r, c: 0 })} onClick={() => onOpenLoop(row.loopId)}>
                     <strong>{row.loopId}</strong>
                     <span className="cpm-event-row__sub">{serviceName(row)}</span>

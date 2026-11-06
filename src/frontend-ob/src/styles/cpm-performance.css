@@ -23,6 +23,11 @@
 }
 .cpm-perf-bar .cpm-freshness { margin: 0 auto 0 0; }
 
+/* The fusion column keeps its full width: the Result column scrolls with the table instead of covering the last gates,
+   and a tier heading never wraps or clips */
+.cpm-matrix-scroll--list .cpm-matrix__result { position: static; }
+.cpm-matrix__tier { white-space: nowrap; padding-inline: var(--traverse-space-2); }
+
 /* The gate tiles sit clear of the filter toolbar under them */
 .cpm-rollup { margin-bottom: var(--traverse-space-4); }
 
