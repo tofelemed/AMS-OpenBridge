@@ -1,12 +1,12 @@
 /**
  * CHG-136: one fast condition (a G10 limit dwell or a G11 freeze, detected within a minute) beside the list, with
- * the two ways on: Review at the loop's short windows, and the Window Inspector for the same windows.
+ * the two ways on: Review in the Loop Explorer Summary at the condition's gate, and the Window Inspector at the 15m windows.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill } from '../shared';
-import { investigationHref, windowsHref } from '../cpaHref';
+import { explorerHref, windowsHref } from '../cpaHref';
 import type { ConditionRow } from './ConditionsPanel';
 
 /** The fast conditions are judged on the 15 minute windows. */
@@ -19,7 +19,7 @@ export const ConditionDetail: React.FC<{ row: ConditionRow }> = ({ row }) => {
       <PanelHead title={`${row.loopId} · ${row.gateLabel} ${row.label}`}
         right={<TonePill tone={row.open && !row.stale ? 'warn' : 'muted'}>{row.state}</TonePill>} />
       <div className="cpm-episode-review">
-        <ObcButton variant="raised" onClick={() => navigate(investigationHref(row.loopId, { kind: FAST_WINDOW }))}>
+        <ObcButton variant="raised" onClick={() => navigate(explorerHref(row.loopId, { tab: 'Summary', gate: row.gateLabel }))}>
           {`Review ${row.loopId} →`}
         </ObcButton>
       </div>

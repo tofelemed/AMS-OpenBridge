@@ -4,7 +4,7 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
@@ -68,8 +68,16 @@ describe('ConditionsPanel selection and detail (CHG-136)', () => {
 
   it('the detail gives Review and Window Inspector for the short windows', () => {
     const row = conditionRows([c({})], NOW)[0];
-    render(<MemoryRouter><ConditionDetail row={row} /></MemoryRouter>);
-    expect(screen.getByRole('button', { name: 'Review FIC10301 →' })).toBeTruthy();
+    const Where = () => { const l = useLocation(); return <output data-testid="where">{l.pathname + l.search}</output>; };
+    render(<MemoryRouter><ConditionDetail row={row} /><Where /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Review FIC10301 →' }));
+    const url = new URL(screen.getByTestId('where').textContent!, 'http://x');
+    expect(url.pathname).toBe('/cpm/explorer');
+    expect(url.searchParams.get('loop')).toBe('FIC10301');
+    expect(url.searchParams.get('gate')).toBe('G11');
+    expect(url.searchParams.get('window')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Window Inspector ↗' }));
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/windows?loop=FIC10301&profile=15m');
     expect(screen.getByRole('button', { name: 'Window Inspector ↗' })).toBeTruthy();
     expect(screen.getByText('Freeze')).toBeTruthy();
   });
