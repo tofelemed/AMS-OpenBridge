@@ -21,7 +21,9 @@ describe('GateRollup', () => {
     render(<GateRollup loops={LOOPS} gateKeys={ALL} activeGate={null} onSelectGate={onSelectGate} />);
     const g5 = screen.getByRole('button', { name: /G5/ });
     expect(g5.getAttribute('aria-label')).toMatch(/3 .*G5.*2 failed, 1 need attention/);
-    expect(g5.textContent).toBe('3G5');
+    // the spoken name begins with the visible words, in order (axe label-content-name-mismatch)
+    expect(g5.textContent).toBe('3 G5');
+    expect(g5.getAttribute('aria-label')!.startsWith('3 G5')).toBe(true);
     fireEvent.click(g5);
     expect(onSelectGate).toHaveBeenCalledWith('G5');
   });

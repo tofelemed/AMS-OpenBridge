@@ -23,6 +23,13 @@
 }
 .cpm-perf-bar .cpm-freshness { margin: 0 auto 0 0; }
 
+/* The gate tiles sit clear of the filter toolbar under them */
+.cpm-rollup { margin-bottom: var(--traverse-space-4); }
+
+/* "Review ↗" stays on one line, in Findings and in the matrix */
+.cpm-checks td:last-child,
+.cpm-matrix td.cpm-matrix__result-link { white-space: nowrap; }
+
 /* A gate count tile: the count and the code. Tone from the worst result it holds back. */
 .cpm-gate-count {
   display: inline-flex;

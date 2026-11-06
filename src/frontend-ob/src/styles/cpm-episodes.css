@@ -3,6 +3,17 @@
 /* The list's heading sits inside a surface with no padding of its own */
 .cpm-episodes__title { padding: var(--traverse-space-3) var(--traverse-space-3) 0; }
 
+/* One grid for the head and every row: minmax(0, ..) so no row sizes itself to its content, and the head carries the
+   rows' 3px edge so every value starts under its heading */
+.cpm-episodes .cpm-events-grid {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.6fr) minmax(0, 0.9fr) minmax(0, 0.6fr);
+  column-gap: var(--traverse-space-2);
+  border-left: 3px solid transparent;
+}
+.cpm-episodes .cpm-event-row--selected { border-left-color: var(--cpm-selected-edge); }
+/* the pill looks the same on the selected row: keep its own outline */
+.cpm-episodes .cpm-event-row--selected .cpm-pill { border-color: var(--border-divider-color); }
+
 /* Peak diagnosis and "EVT-n · 12h" are lines under the tag, one each */
 .cpm-episodes__line { display: block; }
 
@@ -12,15 +23,19 @@
 
 /* Peak evidence, qualified support, windows: one strip */
 .cpm-episode-strip {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--traverse-space-2) var(--traverse-space-4);
   margin: var(--traverse-space-3) 0;
   padding: var(--traverse-space-2) 0;
   border-top: 1px solid var(--border-divider-color);
   border-bottom: 1px solid var(--border-divider-color);
 }
-.cpm-episode-strip__item { display: inline-flex; align-items: baseline; gap: var(--traverse-space-2); }
+.cpm-episode-strip__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-1); min-width: 0; }
+.cpm-episode-strip__value { font-weight: 600; }
+
+/* Full history ↗ sits on the heading's row, on its baseline */
+.cpm-episode-activity .cpm-panel-head { align-items: center; }
 
 /* Activity & notes: time, then what happened */
 .cpm-episode-activity__list { list-style: none; margin: 0; padding: 0; }

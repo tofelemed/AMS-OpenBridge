@@ -146,13 +146,16 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
 
       <div className="cpm-episode-strip" role="group" aria-label="Evidence of this episode">
         <span className="cpm-episode-strip__item" title={EVIDENCE_SCORE_HELP}>
-          <span className="cpm-kv__label">Peak evidence</span> {evidenceScore(event.peak_confidence) ?? '—'}
+          <span className="cpm-episode-strip__value">{evidenceScore(event.peak_confidence) ?? '—'}</span>
+          <span className="cpm-kv__label">Peak evidence</span>
         </span>
         <span className="cpm-episode-strip__item">
-          <span className="cpm-kv__label">Qualified support</span> {supportText(event.qualified_support_ms)}
+          <span className="cpm-episode-strip__value">{supportText(event.qualified_support_ms)}</span>
+          <span className="cpm-kv__label">Qualified support</span>
         </span>
         <span className="cpm-episode-strip__item">
-          <span className="cpm-kv__label">Non-overlap windows</span> {event.window_count}
+          <span className="cpm-episode-strip__value">{event.window_count}</span>
+          <span className="cpm-kv__label">Non-overlap windows</span>
         </span>
       </div>
       <p className="cpm-copy cpm-source-line">

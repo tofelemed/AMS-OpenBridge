@@ -23,7 +23,7 @@ export const EpisodeList: React.FC<{
 }> = ({ title, events, selectedId, now, onSelect, notices, footer }) => (
   <section className="cpm-surface cpm-episodes" style={{ padding: 0 }}>
     <div className="cpm-episodes__title"><PanelHead title={title} /></div>
-    <div className="cpm-event-head cpm-table-head--sticky">
+    <div className="cpm-event-head cpm-events-grid cpm-table-head--sticky">
       <span>Loop / peak diagnosis</span>
       <span>Severity</span>
       <span>Review</span>
@@ -36,10 +36,9 @@ export const EpisodeList: React.FC<{
       const isSelected = selectedId === e.id;
       return (
         // CHG-100: the whole row selects (pointer); the button stays the keyboard / screen-reader control
-        <div key={e.id} className={`cpm-event-row cpm-event-row--dense cpm-row-click${isSelected ? ' cpm-event-row--selected' : ''}`}
+        <div key={e.id} className={`cpm-event-row cpm-events-grid cpm-event-row--dense cpm-row-click${isSelected ? ' cpm-event-row--selected' : ''}`}
           aria-current={isSelected ? 'true' : undefined} onClick={() => onSelect(e.id)}>
           <button type="button" className="cpm-event-row__select" aria-pressed={isSelected}
-            aria-label={`${e.loop_id}. Peak: ${diagnosisLabel(e.peak_diagnosis)}. EVT-${e.id} · ${e.window_kind}. Show this episode`}
             onClick={() => onSelect(e.id)}>
             <span className="cpm-event-row__title">{e.loop_id}</span>
             <span className="cpm-episodes__line">{diagnosisLabel(e.peak_diagnosis)}</span>

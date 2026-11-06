@@ -18,7 +18,7 @@ import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { windowKindOf } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import {
-  EmptyState, WorkspaceHeader, QueryError, fmtDateTime,
+  EmptyState, WorkspaceHeader, QueryError, PanelHead, fmtDateTime,
 } from './shared';
 import { useCpmScope } from './plantScope';
 import GateRollup from './GateRollup';
@@ -201,6 +201,8 @@ export const CpmPerformance: React.FC = () => {
 
       <section className="cpm-surface">
         {/* A verdict's age is explained by the engine, not by this screen (A5): the line shows only when the data is stale. */}
+        <PanelHead title="Gate summary"
+          right={<ObcButton variant="flat" onClick={() => setShowGuide(true)}>How to read</ObcButton>} />
         <div className="cpm-perf-bar">
           {stale && windowAgeMs != null && newestWindow != null && (
             <p className="cpm-freshness cpm-freshness--stale" role="status">
@@ -211,7 +213,6 @@ export const CpmPerformance: React.FC = () => {
               </ObcButton>
             </p>
           )}
-          <ObcButton variant="flat" onClick={() => setShowGuide(true)}>How to read</ObcButton>
         </div>
 
         {heatmap.isLoading && <EmptyState title="Loading gate matrix…" />}

@@ -93,12 +93,19 @@ describe('EventDetail layout (CHG-136)', () => {
     const strip = screen.getByRole('group', { name: 'Evidence of this episode' });
     expect(strip.textContent).toContain('100');
     expect(strip.textContent).toContain('9.9 h');
-    expect(strip.textContent).toMatch(/Non-overlap windows\s*1/);
+    expect(strip.textContent).toMatch(/1\s*Non-overlap windows/);
+    // three equal columns, the value above its label
+    const items = strip.querySelectorAll('.cpm-episode-strip__item');
+    expect(items).toHaveLength(3);
+    items.forEach(i => {
+      expect(i.children[0].className).toContain('cpm-episode-strip__value');
+      expect(i.children[1].className).toContain('cpm-kv__label');
+    });
   });
 
   it('prints — for qualified support on a pre-v2.5 row', () => {
     mount(frame({ qualified_support_ms: 0 }));
-    expect(screen.getByRole('group', { name: 'Evidence of this episode' }).textContent).toMatch(/Qualified support\s*—/);
+    expect(screen.getByRole('group', { name: 'Evidence of this episode' }).textContent).toMatch(/—\s*Qualified support/);
   });
 
   it('removes the old headings and keeps the explanations behind a ?', () => {

@@ -397,3 +397,12 @@ Controls that changed place in this section, not removed:
 | Full history ↗ | Activity & notes heading |
 | Review {tag} →, Window Inspector ↗ | Fast condition detail |
 | Technical details | Detail, last |
+
+## Section 1 check
+
+| Control | Now on |
+|---|---|
+| Gate names in the matrix head (G0 Data quality …) | The cell's title and the gate dialog |
+| "Open Gn evidence for <loop>" on matrix cells | A click on the cell, opening the gate dialog |
+| Opened sort header (Loop Events) | The order dropdown |
+| Close reason (Fast conditions) | Fast condition detail |

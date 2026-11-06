@@ -27,7 +27,7 @@ export const GateRollup: React.FC<{
   }
 
   return (
-    <div role="group" aria-label="Loops held back, by gate">
+    <div role="group" aria-label="Loops held back, by gate" className="cpm-rollup">
       <GateTierRow gates={gateKeys} tile={key => {
         const c = byKey.get(key) ?? { key, warn: 0, bad: 0, total: 0 };
         const active = activeGate === key;
@@ -47,7 +47,7 @@ export const GateRollup: React.FC<{
                   + `${active ? 'Showing' : 'Show'} only these loops in the list.`
             }
           >
-            <span className="cpm-gate-count__n" aria-hidden>{c.total === 0 ? '·' : c.total}</span>
+            <span className="cpm-gate-count__n" aria-hidden>{c.total === 0 ? '·' : c.total}</span>{' '}
             <span className="cpm-gate-count__code" aria-hidden>{key}</span>
           </button>
         );
