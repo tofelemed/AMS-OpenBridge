@@ -52,13 +52,17 @@ export function conditionRows(conditions: CpmCondition[], now: number): Conditio
   }));
 }
 
-export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: boolean; error: unknown; now?: number; onRetry?: () => void }> =
-  ({ conditions, isLoading, error, now = Date.now(), onRetry }) => {
+export const ConditionsPanel: React.FC<{
+  conditions: CpmCondition[]; isLoading: boolean; error: unknown; now?: number; onRetry?: () => void;
+  /** CHG-136: a row selects the condition shown in the detail beside the list. */
+  selectedKey?: string; onSelect?: (key: string) => void;
+}> =
+  ({ conditions, isLoading, error, now = Date.now(), onRetry, selectedKey, onSelect }) => {
     const rows = conditionRows(conditions, now);
     const open = rows.filter(r => r.open).length;
     return (
       <section className="cpm-surface">
-        <PanelHead eyebrow="Fast conditions · G10 limit dwell / G11 freeze" title={`Conditions${rows.length ? ` · ${open} open` : ''}`}
+        <PanelHead title={`Conditions${rows.length ? ` · ${open} open` : ''}`}
           help={<Toggletip variant="how-to" label="About fast conditions"><p>Detected within a minute, before the next fused window.</p></Toggletip>} />
         {isLoading && <EmptyState title="Loading the fast conditions…" />}
         {error != null && <QueryError title="Conditions unavailable" error={error} retry={onRetry} />}
@@ -73,13 +77,18 @@ export const ConditionsPanel: React.FC<{ conditions: CpmCondition[]; isLoading: 
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.key} data-open={r.open} data-stale={r.stale || undefined}>
+                  <tr key={r.key} data-open={r.open} data-stale={r.stale || undefined}
+                    className={onSelect ? 'cpm-row-click' : undefined}
+                    aria-current={selectedKey === r.key ? 'true' : undefined}
+                    tabIndex={onSelect ? 0 : undefined}
+                    onClick={onSelect ? () => onSelect(r.key) : undefined}
+                    onKeyDown={onSelect ? ev => { if (ev.key === 'Enter' && ev.target === ev.currentTarget) onSelect(r.key); } : undefined}>
                     <td>
                       <TonePill tone={r.open && !r.stale ? 'warn' : 'muted'}>{r.state}</TonePill>
                       {r.stale && <span className="cpm-event-row__sub" title="Open on record but not updated - the engine restarted or the loop's samples stopped"> stale · last update {r.lastUpdate}</span>}
                     </td>
                     <td>
-                      <Link className="cpm-link" to={`/cpm/evidence?loop=${encodeURIComponent(r.loopId)}&kind=15m`} title={`Open the 15m windows of ${r.loopId} in the workbench`}>{r.loopId}</Link>
+                      <Link className="cpm-link" onClick={ev => ev.stopPropagation()} to={`/cpm/evidence?loop=${encodeURIComponent(r.loopId)}&kind=15m`} title={`Open the 15m windows of ${r.loopId} in the workbench`}>{r.loopId}</Link>
                       <span className="cpm-event-row__sub"> {serviceName(r)}</span>
                     </td>
                     <td><span className="cpm-mono">{r.gateLabel}</span> {r.label}</td>

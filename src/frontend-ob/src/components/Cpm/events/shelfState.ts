@@ -10,7 +10,9 @@
  */
 import type { CpmEventAction, CpmEventFrame } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
-import { conditionOf } from './eventsState';
+import { diagnosisBand, toneFor } from '../shared';
+import { codeLabel } from '../vocabulary';
+import { availabilityOf, conditionOf } from './eventsState';
 
 export type ShelfState = 'ACTIVE' | 'EXPIRED';
 
@@ -66,6 +68,35 @@ export function stateView(e: CpmEventFrame, now: number): StateView {
   if (acked) return { label: 'Acknowledged', tone: 'good' };
   return { label: 'Unacknowledged', tone: 'warn' };
 }
+
+/**
+ * The Review column (CHG-136): one pill for what the operator has done, the shelf and the acknowledgement together —
+ * the same words as `stateView`, without the closed condition (that is the state line under it).
+ */
+export function reviewView(e: CpmEventFrame, now: number): StateView {
+  const acked = isAcknowledged(e);
+  const shelf = shelfState(e, now);
+  if (shelf === 'ACTIVE') return { label: `Shelved · ${shelfCountdown(e.shelve_until, now)}`, tone: 'muted' };
+  if (shelf === 'EXPIRED') return acked ? { label: 'Shelf expired', tone: 'muted' } : { label: 'Shelf expired · unreviewed', tone: 'warn' };
+  return acked ? { label: 'Acknowledged', tone: 'good' } : { label: 'Unacknowledged', tone: 'warn' };
+}
+
+/** The one state line under the Review pill: "Open", "Open · Unobservable" or "Closed". */
+export function stateLine(e: CpmEventFrame): string {
+  if (conditionOf(e) === 'CLOSED') return 'Closed';
+  return availabilityOf(e) === 'UNOBSERVABLE' ? 'Open · Unobservable' : 'Open';
+}
+
+/** The Severity word: the engine's severity when it wrote one, otherwise the band of the peak diagnosis. */
+export function severityWord(e: CpmEventFrame): StateView {
+  if (e.severity) return { label: codeLabel(e.severity), tone: toneFor(e.severity) };
+  const b = diagnosisBand(e.peak_diagnosis);
+  return { label: b.label, tone: b.tone === 'good' ? 'muted' : b.tone };
+}
+
+export const SEVERITY_FILTERS = [
+  { value: 'HIGH', label: 'High' }, { value: 'MEDIUM', label: 'Medium' }, { value: 'LOW', label: 'Low' },
+] as const;
 
 export type EventFilterKey = 'all' | 'open' | 'unobservable' | 'unacknowledged' | 'acknowledged' | 'shelved' | 'shelfExpired' | 'closed';
 

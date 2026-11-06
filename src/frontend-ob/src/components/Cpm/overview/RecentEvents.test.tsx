@@ -55,7 +55,8 @@ describe('RecentEvents', () => {
     page({});
     show();
     fireEvent.click(screen.getByRole('button', { name: /All events/ }));
-    expect(screen.getByTestId('where').textContent).toBe('/cpm/events');
+    // CHG-136: Loop Events opens on Open episodes, so "All events" says so
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/events?filter=all');
   });
 
   it('keeps a failure on screen', () => {

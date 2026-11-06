@@ -27,7 +27,7 @@ public sealed class CpmEventPageController : ControllerBase
 
     /// <summary>
     /// One page of episodes: state tab, loop, plant scope (site / area / unit from the registry) and free text
-    /// (loop tag, loop name, family, diagnosis) applied in SQL; `total` is the filtered count and `counts` every
+    /// (loop tag, loop name, family, diagnosis, or an EVT number) and a severity applied in SQL; `total` is the filtered count and `counts` every
     /// tab's count under the same loop / scope / search, so the tabs describe the fleet, not a slice.
     /// Active shelves are included (the Shelved tab needs them); the Unacknowledged tab leaves them out.
     /// </summary>
@@ -42,6 +42,7 @@ public sealed class CpmEventPageController : ControllerBase
         [FromQuery] string sort = "triage",
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? severity = null,
         CancellationToken ct = default)
     {
         if (!EventPageSql.Filters.Contains(state))
@@ -55,7 +56,7 @@ public sealed class CpmEventPageController : ControllerBase
         var args = new DynamicParameters(new
         {
             loopId = Blank(loopId), site = Blank(site), area = Blank(area), unit = Blank(unit),
-            q = EventPageSql.Pattern(q), limit = pageSize, offset = (long)(page - 1) * pageSize,
+            q = EventPageSql.Pattern(q), eventId = EventPageSql.EventId(q), severity = Blank(severity), limit = pageSize, offset = (long)(page - 1) * pageSize,
         });
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
         var counts = (IDictionary<string, object>)await conn.QueryFirstAsync(EventPageSql.Counts(), args);

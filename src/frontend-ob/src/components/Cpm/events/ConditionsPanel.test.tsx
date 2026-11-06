@@ -2,10 +2,14 @@
 // windows) get a view on Loop Events: open first with their age and duration, closed ones with their
 // close reason, each row leading to the loop's short windows in the workbench.
 import React from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
+}));
 import { ConditionsPanel, conditionRows } from './ConditionsPanel';
+import { ConditionDetail } from './ConditionDetail';
 import type { CpmCondition } from '../../../api/cpm/conditions';
 
 afterEach(cleanup);
@@ -45,5 +49,28 @@ describe('ConditionsPanel', () => {
     expect(screen.getByText(/boom/)).toBeTruthy();
     rerender(<MemoryRouter><ConditionsPanel conditions={[]} isLoading={false} error={null} now={NOW} /></MemoryRouter>);
     expect(screen.getByText(/No fast conditions/)).toBeTruthy();
+  });
+});
+
+describe('ConditionsPanel selection and detail (CHG-136)', () => {
+  it('has no eyebrow; a row selects the condition and marks it current', () => {
+    const picked: string[] = [];
+    const list = [c({}), c({ loopId: 'FIC20' })];
+    const key = conditionRows(list, NOW)[1].key;
+    render(<MemoryRouter><ConditionsPanel conditions={list} isLoading={false} error={null} now={NOW}
+      selectedKey={key} onSelect={k => picked.push(k)} /></MemoryRouter>);
+    expect(screen.queryByText(/G10 limit dwell/)).toBeNull();
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[1].getAttribute('aria-current')).toBe('true');
+    fireEvent.click(rows[0]);
+    expect(picked).toEqual([conditionRows(list, NOW)[0].key]);
+  });
+
+  it('the detail gives Review and Window Inspector for the short windows', () => {
+    const row = conditionRows([c({})], NOW)[0];
+    render(<MemoryRouter><ConditionDetail row={row} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Review FIC10301 →' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Window Inspector ↗' })).toBeTruthy();
+    expect(screen.getByText('Freeze')).toBeTruthy();
   });
 });

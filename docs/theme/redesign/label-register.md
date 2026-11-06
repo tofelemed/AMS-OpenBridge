@@ -51,3 +51,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Sort | By evidence score / By control error | Sort: Evidence score, Tag, Result, Control error, Priority | Performance list toolbar | Reference |
 | Gate dialog disclosure | (new) | More about this gate | Performance gate dialog | Reference |
 
+| Episodes / Fast conditions toggle | (new) | Episodes · n open; Fast conditions · n open | Loop Events header | Reference |
+| Severity dropdown | (new) | All severity, High, Medium, Low | Loop Events filter row | Reference |
+| Review (column) | State | Review | Loop Events list | Reference |
+| Activity & notes | History ›, Loop notes | Activity & notes, Full history ↗ | Loop Events detail | Reference |

@@ -361,3 +361,39 @@ Controls that changed place in this section, not removed:
 | Previous and next gate | Gate dialog footer |
 | Gate key (compact, with Full key) | Above the gate matrix |
 
+
+## Loop Events (CHG-136, Task 9)
+
+| Was | Now | Where |
+|---|---|---|
+| Columns Event, Severity, State, Opened (sortable headings) | Loop / peak diagnosis, Severity, Review, Opened (plain headings; the order is the Order dropdown) | List |
+| Row: "Peak: X" title, "EVT-n · 24h", the loop as "FIC10301 ›", severity pill, up to three state pills (Now:, state, availability), date and time | Row: tag, peak diagnosis, "EVT-n · 12h"; one severity word; one Review pill with one state line ("Open", "Open · Unobservable", "Closed"); "5 Nov · 13:45" | List |
+| Nothing above the list | Heading "Open episodes" (the state filter's name + "episodes") | List |
+| Empty search: "No episode matches “q” under this filter — search covers loop tag, loop name, family and diagnosis." | "No episode matches “q” under this filter." | Empty state |
+| Empty filter: "No episode matches this state filter and plant scope." / "No diagnosis episode is recorded yet. Episodes appear here when…" | "No episode matches this filter and plant scope." | Empty state |
+| Find placeholder "loop, service, family or diagnosis" | "loop, EVT number, family or diagnosis" | Filter row |
+| Fast conditions panel under the list, eyebrow "Fast conditions · G10 limit dwell / G11 freeze" | toggle "Fast conditions · n open" in the header; its own view and detail; eyebrow removed | Header, conditions view |
+| Detail header "EVT-n" / "Peak: X", pills Severity, Now:, State | "EVT-n · Episode details", tag ↗, severity pill, "Peak · X", "Latest · Y" only when it differs | Detail |
+| "FIC10301 ›" and "Episode period ›" | "FIC10301 ↗" and "Episode period ↗" | Detail |
+| "What happened / Episode" and "The {family} family was reported across … peaking at … ; the latest window reports …" | removed (peak, latest, windows and support are in the lines and the strip) | Detail |
+| "Evidence / Provenance": Fault family, Peak evidence score, Resolution, Calculation version, Dynamics profile | Peak evidence in the strip; the rest under Technical details | Detail |
+| "Operator state / Review and shelf", rows Acknowledgement, Review note, Shelf, Shelf reason | rows Review, Review note, Shelf, Shelf reason | Detail |
+| Availability sentence under the rows ("Still open: the newest window could not be judged…", "Open and observed: …", "Closed by…") | behind the ? on the Availability row | Detail |
+| "This episode has closed but was never acknowledged — …" under the actions | behind a ? on the Review row (closed, unreviewed episodes only) | Detail |
+| "Review note (optional)" field, hidden once acknowledged, placeholder "Why this was acknowledged" | "Note", placeholder "Optional", always shown; feeds Acknowledge and Save note | Detail |
+| "History ›" under the actions, History list inline | "Full history ↗" in Activity & notes, opening a dialog "EVT-n · Full history" | Detail |
+| "Loop notes / Notes on EVT-n", "No loop note is linked to this episode.", "Loading notes…" | removed; notes are in the Activity & notes timeline and in the Full history dialog | Detail |
+| Qualified support in the family sentence ("n non-overlap window(s) · 9.9 h of qualified support"; "n evaluation window(s)" without support) | strip "Peak evidence 100 · Qualified support 9.9 h · Non-overlap windows 1"; "—" when no support is recorded | Detail |
+| Dates "15/10/2026, 10:32 CEST" in the detail | "15 Oct · 10:32" (fmtWhen) | Detail |
+| Deep links to an episode opened on All events only through `?filter=all` set by the caller | `eventsHref({ event, filter: 'all' })` from loop notes; Recent events "All events →" carries `filter=all` | Links |
+
+| Control | Now on |
+|---|---|
+| Episodes \| Fast conditions toggle with open counts | Page header |
+| Severity dropdown "All severity / High / Medium / Low" (`?severity=`) | Filter row |
+| Review {tag} → (full width) | Detail, under the peak |
+| Save note | Detail actions |
+| Unshelve… | Detail actions, only while the episode has a shelf (was always there, disabled) |
+| Full history ↗ | Activity & notes heading |
+| Review {tag} →, Window Inspector ↗ | Fast condition detail |
+| Technical details | Detail, last |

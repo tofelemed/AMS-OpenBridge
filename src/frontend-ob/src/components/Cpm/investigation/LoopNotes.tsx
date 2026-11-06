@@ -124,7 +124,7 @@ const NoteRow: React.FC<{ n: LoopNote; episodes: CpmEventFrame[]; canManage: boo
         <TonePill tone={o.tone}>{o.label}</TonePill>
         <span>{n.createdBy ?? 'unknown'} · {fmtInstant(n.createdAt)}</span>
         {n.methodRunId && <Link className="cpm-link" to={evidenceHref(loopId)}>evaluated window ›</Link>}
-        {n.eventId != null && <Link className="cpm-link" to={eventsHref({ loop: loopId, event: n.eventId })}>{episode ? episodeLabel(episode) : `EVT-${n.eventId}`} ›</Link>}
+        {n.eventId != null && <Link className="cpm-link" to={eventsHref({ loop: loopId, event: n.eventId, filter: 'all' })}>{episode ? episodeLabel(episode) : `EVT-${n.eventId}`} ›</Link>}
       </div>
       <p className="cpm-loop-notes__text">{n.note || <span className="cpm-metric-na">(no text)</span>}</p>
       {canManage && (

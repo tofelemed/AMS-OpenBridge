@@ -56,6 +56,13 @@ export function supportCopy(e: Pick<CpmEventFrame, 'qualified_support_ms' | 'win
   return `${e.window_count} non-overlapping window(s) · ${h >= 48 ? `${(h / 24).toFixed(1)} d` : `${h.toFixed(1)} h`} of qualified support`;
 }
 
+/** Qualified support as one short value: hours, or days from 48 h; "—" when none is recorded (never 0). */
+export function supportText(ms: number | null | undefined): string {
+  if (ms == null || !(ms > 0)) return '—';
+  const h = ms / 3_600_000;
+  return h >= 48 ? `${(h / 24).toFixed(1)} d` : `${h.toFixed(1)} h`;
+}
+
 export type EventFilterKey = 'all' | 'open' | 'unobservable' | 'unacknowledged' | 'acknowledged' | 'closed';
 
 export const EVENT_FILTERS: { key: EventFilterKey; label: string }[] = [

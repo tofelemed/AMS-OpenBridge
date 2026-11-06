@@ -21,7 +21,7 @@ public static class EventPageSql
         e.severity, e.window_count, e.ack_state, e.acked_by, e.acked_at,
         e.shelve_until, e.note, e.calculation_version, e.dynamics_profile_version,
         e.availability_state, e.condition_state, e.result_revision, e.qualified_support_ms, e.close_reason,
-        e.shelf_state, e.shelved_by, e.shelved_at, e.shelve_reason
+        e.shelf_state, e.shelved_by, e.shelved_at, e.shelve_reason, e.support_until
         """;
 
     private const string Closed = "(e.condition_state = 'CLOSED' OR e.closed_at IS NOT NULL)";
@@ -48,7 +48,9 @@ public static class EventPageSql
         AND (@site::text IS NULL OR r.site = @site)
         AND (@area::text IS NULL OR r.area = @area)
         AND (@unit::text IS NULL OR r.unit = @unit)
+        AND (@severity::text IS NULL OR lower(e.severity) = lower(@severity))
         AND (@q::text IS NULL
+             OR (@eventId::bigint IS NOT NULL AND e.id = @eventId)
              OR e.loop_id ILIKE @q ESCAPE '\' OR e.family ILIKE @q ESCAPE '\'
              OR e.peak_diagnosis ILIKE @q ESCAPE '\' OR r.display_name ILIKE @q ESCAPE '\')
         """;
@@ -84,6 +86,15 @@ public static class EventPageSql
         FROM analytics.cplm_event_frames e
         WHERE e.id = @id
         """;
+
+    /// <summary>"EVT-16905", "evt 16905" or "16905" → the episode number; anything else (or an overflow) → null.</summary>
+    public static long? EventId(string? q)
+    {
+        var t = q?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        if (t.StartsWith("EVT", StringComparison.OrdinalIgnoreCase)) t = t[3..].TrimStart('-', ' ');
+        return t.Length > 0 && t.All(char.IsAsciiDigit) && long.TryParse(t, out var id) ? id : null;
+    }
 
     /// <summary>Free text → a contains-pattern with LIKE wildcards escaped; blank → null (no search).</summary>
     public static string? Pattern(string? q)

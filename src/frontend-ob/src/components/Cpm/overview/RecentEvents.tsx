@@ -24,7 +24,7 @@ export const RecentEvents: React.FC<{
   return (
     <section className="cpm-surface">
       <PanelHead title="Recent events"
-        right={<ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop }))}>All events →</ObcButton>} />
+        right={<ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop, filter: 'all' }))}>All events →</ObcButton>} />
       {events.isError && <QueryError title="Recent events unavailable" error={events.error} retry={() => void events.refetch()} />}
       {events.isLoading && <EmptyState title="Loading events…" />}
       {!events.isLoading && !events.isError && rows.length === 0 && (

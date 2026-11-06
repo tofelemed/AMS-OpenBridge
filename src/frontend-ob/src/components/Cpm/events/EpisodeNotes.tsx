@@ -1,12 +1,11 @@
 /**
- * SME review #22 (CHG-058): the loop notes linked to this diagnosis episode, and linking one written before the
+ * SME review #22 (CHG-058; CHG-136: inside the Full history dialog, no heading of its own): the loop notes linked to this diagnosis episode, and linking one written before the
  * episode opened. Linking is a record, not an acknowledgement.
  */
 import React, { useState } from 'react';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { useEventNotes, useLinkLoopNote, useLoopNotes } from '../../../hooks/useLoopNotes';
 import { useAuthStore } from '../../../store/authStore';
-import { PanelHead } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
 import { fmtInstant } from '../context/LoopContextBar';
 import { codeLabel } from '../vocabulary';
@@ -25,19 +24,16 @@ export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const notes = linked.data?.investigations ?? [];
   return (
     <section className="cpm-episode-notes" data-testid="episode-notes">
-      <PanelHead eyebrow="Loop notes" title={`Notes on EVT-${event.id}`} />
-      {notes.length === 0
-        ? <p className="cpm-metric-na">{linked.isLoading ? 'Loading notes…' : 'No loop note is linked to this episode.'}</p>
-        : (
-          <ol className="cpm-loop-notes__list">
-            {notes.map(n => (
-              <li key={n.refId} className="cpm-loop-notes__item">
-                <div className="cpm-loop-notes__meta">{n.createdBy ?? 'unknown'} · {fmtInstant(n.createdAt)} · {codeLabel(n.outcome)}</div>
-                <p className="cpm-loop-notes__text">{n.note}</p>
-              </li>
-            ))}
-          </ol>
-        )}
+      {notes.length > 0 && (
+        <ol className="cpm-loop-notes__list">
+          {notes.map(n => (
+            <li key={n.refId} className="cpm-loop-notes__item">
+              <div className="cpm-loop-notes__meta">{n.createdBy ?? 'unknown'} · {fmtInstant(n.createdAt)} · {codeLabel(n.outcome)}</div>
+              <p className="cpm-loop-notes__text">{n.note}</p>
+            </li>
+          ))}
+        </ol>
+      )}
       {unlinked.length > 0 && (
         <div className="cpm-filter-row">
           <label className="cpm-field cpm-field--compact">

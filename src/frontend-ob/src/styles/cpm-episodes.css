@@ -1,0 +1,33 @@
+/* Loop Events (CHG-136): placement and tone only; every size is the app's own token or class. */
+
+/* The list's heading sits inside a surface with no padding of its own */
+.cpm-episodes__title { padding: var(--traverse-space-3) var(--traverse-space-3) 0; }
+
+/* Peak diagnosis and "EVT-n · 12h" are lines under the tag, one each */
+.cpm-episodes__line { display: block; }
+
+/* Review X → runs the full width of the detail */
+.cpm-episode-review { display: flex; margin: var(--traverse-space-2) 0; }
+.cpm-episode-review > * { flex: 1; }
+
+/* Peak evidence, qualified support, windows: one strip */
+.cpm-episode-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--traverse-space-2) var(--traverse-space-4);
+  margin: var(--traverse-space-3) 0;
+  padding: var(--traverse-space-2) 0;
+  border-top: 1px solid var(--border-divider-color);
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-episode-strip__item { display: inline-flex; align-items: baseline; gap: var(--traverse-space-2); }
+
+/* Activity & notes: time, then what happened */
+.cpm-episode-activity__list { list-style: none; margin: 0; padding: 0; }
+.cpm-episode-activity__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--traverse-space-1) var(--traverse-space-3);
+  padding: var(--traverse-space-1) 0;
+  border-bottom: 1px solid var(--border-divider-color);
+}

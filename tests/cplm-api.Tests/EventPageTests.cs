@@ -52,7 +52,7 @@ public sealed class EventPageTests : IAsyncLifetime
     private static JsonElement Json(IActionResult r) => JsonSerializer.SerializeToElement(((OkObjectResult)r).Value);
 
     private async Task<JsonElement> Page(string state = "all", string? q = null, int page = 1, int pageSize = 20, string sort = "triage") =>
-        Json(await Api().GetPage(state, _loop, q, null, null, null, sort, page, pageSize, default));
+        Json(await Api().GetPage(state, _loop, q, null, null, null, sort, page, pageSize, null, default));
 
     private static long[] Ids(JsonElement page) => page.GetProperty("events").EnumerateArray().Select(e => e.GetProperty("id").GetInt64()).ToArray();
 
@@ -106,8 +106,8 @@ public sealed class EventPageTests : IAsyncLifetime
     [Fact]
     public async Task Unknown_state_or_sort_is_a_400_and_page_size_is_capped()
     {
-        (await Api().GetPage("bogus", _loop, null, null, null, null, "triage", 1, 20, default)).Should().BeOfType<BadRequestObjectResult>();
-        (await Api().GetPage("all", _loop, null, null, null, null, "bogus", 1, 20, default)).Should().BeOfType<BadRequestObjectResult>();
+        (await Api().GetPage("bogus", _loop, null, null, null, null, "triage", 1, 20, null, default)).Should().BeOfType<BadRequestObjectResult>();
+        (await Api().GetPage("all", _loop, null, null, null, null, "bogus", 1, 20, null, default)).Should().BeOfType<BadRequestObjectResult>();
         (await Page(pageSize: 5000)).GetProperty("pageSize").GetInt32().Should().Be(CpmEventPageController.MaxPageSize);
         EventPageSql.Pattern("  ").Should().BeNull();
     }
