@@ -157,7 +157,7 @@ describe('GateEvidenceWorkspace', () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15`);
     await waitFor(() => expect(screen.getByRole('button', { name: /^Gate: G15/ })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /^Gate: G15/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^G0 OK: Data quality/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^G0 Pass: Data quality/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
     fireEvent.click(screen.getByRole('button', { name: 'Hide explain' }));
     expect(screen.getByRole('button', { name: 'Show explain' })).toBeTruthy();

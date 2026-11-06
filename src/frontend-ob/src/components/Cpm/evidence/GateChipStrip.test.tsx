@@ -50,17 +50,17 @@ describe('GateChipStrip', () => {
     render(<GateChipStrip chips={chips} selected="G5" onOpen={() => {}} />);
     const groups = screen.getAllByRole('group');
     expect(groups.map(g => g.getAttribute('aria-label'))).toEqual(['Eligibility', 'Performance', 'Diagnostic evidence', 'Confirmation', 'Fusion']);
-    const g5 = screen.getByRole('button', { name: 'G5 Seen: Oscillation (ACF), symptom seen, limited by the sampling rate' });
+    const g5 = screen.getByRole('button', { name: 'G5 Symptom seen: Oscillation (ACF), symptom seen, limited by the sampling rate' });
     expect(g5.getAttribute('aria-current')).toBe('true');
-    expect(g5.textContent).toContain('◐G5 Seen');
-    expect(screen.getByRole('button', { name: 'G0 OK: Data quality, check passed' }).getAttribute('aria-current')).toBeNull();
+    expect(g5.textContent).toContain('◐G5 Symptom seen');
+    expect(screen.getByRole('button', { name: 'G0 Pass: Data quality, check passed' }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('button', { name: /^G12 / }).textContent).toContain('—');
   });
 
   it('opens a gate on click and disables gates with no run on this tier, saying why', () => {
     const onOpen = vi.fn();
     render(<GateChipStrip chips={chips} selected="G5" onOpen={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: 'G0 OK: Data quality, check passed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'G0 Pass: Data quality, check passed' }));
     expect(onOpen).toHaveBeenCalledWith('G0', 'g0-run');
     const g1 = screen.getByRole('button', { name: /^G1 / });
     expect((g1 as HTMLButtonElement).disabled).toBe(true);

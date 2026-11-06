@@ -4,25 +4,46 @@
  * CHG-098 (SME review 2 #24): grouped — checks, window, symptoms, result, no result — so a failed check, symptom
  * evidence, an exclusion and "no evaluation" are told apart by group and word as well as by symbol.
  */
-import React from 'react';
-import { GATE_LEGEND } from './gateStatus';
+import React, { useState } from 'react';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { Dialog } from '../../ui/Dialog';
+import { GATE_LEGEND, type GateMeaning } from './gateStatus';
 
 const GROUPS = [...new Set(GATE_LEGEND.map(l => l.group))];
 
-export const GateLegend: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={`cpm-gate-legend${className ? ` ${className}` : ''}`} role="note" aria-label="Gate symbols">
-    {GROUPS.map(group => (
-      <span key={group} className="cpm-gate-legend__group">
-        <span className="cpm-gate-legend__group-label">{group}</span>
-        {GATE_LEGEND.filter(l => l.group === group).map(l => (
-          <span key={l.meaning} className="cpm-gate-legend__item">
-            <span className={`cpm-gate-legend__glyph cpm-matrix__cell--${l.tone}`} aria-hidden data-mark={l.meaning}>{l.glyph}</span>
-            {l.text}
-          </span>
-        ))}
-      </span>
-    ))}
-  </div>
+/** The marks a reader meets most. The compact key shows these in one row, and the rest behind Full key. */
+const COMMON: ReadonlySet<GateMeaning> = new Set<GateMeaning>(['ok', 'attention', 'excluded', 'seen', 'not-seen', 'none']);
+
+const Item: React.FC<{ entry: (typeof GATE_LEGEND)[number] }> = ({ entry }) => (
+  <span className="cpm-gate-legend__item">
+    <span className={`cpm-gate-legend__glyph cpm-matrix__cell--${entry.tone}`} aria-hidden data-mark={entry.meaning}>{entry.glyph}</span>
+    {entry.text}
+  </span>
 );
+
+export const GateLegend: React.FC<{ className?: string; compact?: boolean }> = ({ className, compact }) => {
+  const [full, setFull] = useState(false);
+  if (compact) {
+    return (
+      <div className={`cpm-gate-legend${className ? ` ${className}` : ''}`} role="note" aria-label="Gate symbols">
+        <span className="cpm-gate-legend__group">
+          {GATE_LEGEND.filter(l => COMMON.has(l.meaning)).map(l => <Item key={l.meaning} entry={l} />)}
+        </span>
+        <ObcButton variant="flat" onClick={() => setFull(true)}>Full key</ObcButton>
+        <Dialog open={full} onClose={() => setFull(false)} title="Gate status key"><GateLegend /></Dialog>
+      </div>
+    );
+  }
+  return (
+    <div className={`cpm-gate-legend${className ? ` ${className}` : ''}`} role="note" aria-label="Gate symbols">
+      {GROUPS.map(group => (
+        <span key={group} className="cpm-gate-legend__group">
+          <span className="cpm-gate-legend__group-label">{group}</span>
+          {GATE_LEGEND.filter(l => l.group === group).map(l => <Item key={l.meaning} entry={l} />)}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 export default GateLegend;

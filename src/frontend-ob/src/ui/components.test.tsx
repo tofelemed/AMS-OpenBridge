@@ -89,14 +89,14 @@ describe('GateBadge: one symbol per meaning, everywhere', () => {
   };
 
   it.each([
-    ['PASS', 'G0', '✓', 'OK'],
+    ['PASS', 'G0', '✓', 'Pass'],
     ['WARN', 'G3', '!', 'Attention'],
     ['FAIL', 'G3', '✕', 'Failed'],
     ['FAIL', 'G0', '⊘', 'Not usable'],
     ['EXCLUDED_MODE', 'G3', '⊖', 'Excluded'],
     ['PASS', 'G7', '◯', 'Not seen'],
-    ['WARN', 'G7', '◐', 'Seen'],
-    ['STRONG', 'G7', '⬤', 'Strong'],
+    ['WARN', 'G7', '◐', 'Symptom seen'],
+    ['STRONG', 'G7', '⬤', 'Strong symptom'],
     ['SUSPECTED', 'G15', '△', 'Suspected'],
     ['CONFIRMED', 'G15', '▲', 'Confirmed'],
     ['CONTRADICTED', 'G15', '◇', 'Ruled out'],

@@ -44,7 +44,7 @@ export const isNoResult = (meaning: GateMeaning): boolean => NO_RESULT.has(meani
 export interface GateGlyph {
   glyph: string;
   tone: CpmTone;
-  /** The short word shown beside the gate ("Strong", "Not seen"). */
+  /** The word shown beside the gate ("Strong symptom", "Not seen"). */
   word: string;
   /** Spoken / hover form. The glyph alone gives a screen reader "✓ button" and nothing else. */
   label: string;
@@ -62,9 +62,9 @@ export interface GateGlyph {
  * Glyphs are the large geometric forms (✕ ◯ ⬤): the small ones (× ○ ●) render at half the height of ✓ ◐ ▲.
  */
 const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
-  ok: { glyph: '✓', tone: 'good', word: 'OK', label: 'check passed' },
+  ok: { glyph: '✓', tone: 'good', word: 'Pass', label: 'check passed' },
   // CHG-064 (SME #24): a pass with an input missing is grey — green is kept for a pass on full inputs (ISA-101, NE107)
-  'ok-limited': { glyph: '✓', tone: 'muted', word: 'OK on available data', label: 'check passed on the inputs available' },
+  'ok-limited': { glyph: '✓', tone: 'muted', word: 'Pass on available data', label: 'check passed on the inputs available' },
   attention: { glyph: '!', tone: 'warn', word: 'Attention', label: 'check needs attention' },
   failed: { glyph: '✕', tone: 'bad', word: 'Failed', label: 'check failed' },
   unusable: { glyph: '⊘', tone: 'muted', word: 'Not usable', label: 'window not usable for this check' },
@@ -72,8 +72,8 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   excluded: { glyph: '⊖', tone: 'muted', word: 'Excluded', label: 'excluded on purpose (mode or operating region)' },
   'not-seen': { glyph: '◯', tone: 'muted', word: 'Not seen', label: 'symptom not seen by this method' },
   'not-seen-limited': { glyph: '◯', tone: 'muted', word: 'Not seen on available data', label: 'symptom not seen on the inputs available' },
-  seen: { glyph: '◐', tone: 'warn', word: 'Seen', label: 'symptom seen' },
-  strong: { glyph: '⬤', tone: 'warn', word: 'Strong', label: 'strong symptom evidence' },
+  seen: { glyph: '◐', tone: 'warn', word: 'Symptom seen', label: 'symptom seen' },
+  strong: { glyph: '⬤', tone: 'warn', word: 'Strong symptom', label: 'strong symptom evidence' },
   // CHG-092 (SME 2 #6): G15 carries the diagnosis band — same word as the result pill, amber below confirmed
   detected: { glyph: '△', tone: 'warn', word: 'Detected', label: 'condition detected (weak evidence)' },
   classified: { glyph: '△', tone: 'warn', word: 'Classified', label: 'condition classified (moderate evidence)' },
@@ -88,7 +88,7 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
 };
 
 const NO_VERDICT_WORD: Record<string, string> = {
-  NOT_EVALUATED: 'Not evaluated', INSUFFICIENT_EVIDENCE: 'Insufficient', INSUFFICIENT_DATA: 'Insufficient',
+  NOT_EVALUATED: 'Not evaluated', INSUFFICIENT_EVIDENCE: 'Insufficient evidence', INSUFFICIENT_DATA: 'Insufficient evidence',
   NOT_APPLICABLE: 'N/A', PENDING: 'Pending', NOT_CONFIRMED: 'Not confirmed', DISABLED: 'Disabled', LEGACY_FLAG_ONLY: 'Older result',
 };
 
@@ -118,7 +118,7 @@ export function gateMeaning(status: string | null | undefined, gate?: string | n
 /**
  * The mark for a gate result: symbol, colour, word and spoken label. Pass the gate key whenever known, and the
  * window's input flags (`effectiveInputFlags`) where the surface has them: a pass judged without one of the gate's
- * inputs then reads "OK on available data" and names what was missing (CHG-064).
+ * inputs then reads "Pass on available data" and names what was missing (CHG-064).
  */
 export function gateMark(status: string | null | undefined, gate?: string | null, inputFlags?: readonly string[] | null): GateGlyph {
   let meaning = gateMeaning(status, gate);
@@ -143,7 +143,7 @@ export const glyphFor = gateMark;
  * check, symptom evidence, an exclusion and "no evaluation" read as four different things, and every mark is in it.
  */
 const LEGEND_GROUPS: Array<{ group: string; items: Array<[GateMeaning, string]> }> = [
-  { group: 'Checks', items: [['ok', 'check OK'], ['ok-limited', 'OK on available data (an input missing)'], ['attention', 'check needs attention'], ['failed', 'check failed']] },
+  { group: 'Checks', items: [['ok', 'check passed'], ['ok-limited', 'pass on available data (an input missing)'], ['attention', 'check needs attention'], ['failed', 'check failed']] },
   { group: 'Window', items: [['unusable', 'window not usable'], ['excluded', 'excluded on purpose (mode / region)']] },
   { group: 'Symptoms', items: [['not-seen', 'symptom not seen'], ['seen', 'symptom seen'], ['strong', 'strong symptom']] },
   { group: 'Result', items: [['suspected', 'detected / classified / suspected'], ['confirmed', 'confirmed'], ['ruled-out', 'ruled out']] },

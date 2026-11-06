@@ -17,15 +17,15 @@ describe('gateMark', () => {
 
   it('gives the three former red crosses three different marks', () => {
     expect(gateMark('FAIL', 'G0')).toMatchObject({ glyph: '⊘', tone: 'muted', word: 'Not usable' });
-    expect(gateMark('STRONG', 'G7')).toMatchObject({ glyph: '⬤', tone: 'warn', word: 'Strong' });
+    expect(gateMark('STRONG', 'G7')).toMatchObject({ glyph: '⬤', tone: 'warn', word: 'Strong symptom' });
     expect(gateMark('CONFIRMED', 'G15')).toMatchObject({ glyph: '▲', tone: 'bad', word: 'Confirmed' });
     expect(gateMark('FAIL', 'G3')).toMatchObject({ glyph: '✕', tone: 'bad', word: 'Failed' });
   });
 
   it('separates a check that passed from a symptom that was not seen', () => {
-    expect(gateMark('PASS', 'G1')).toMatchObject({ glyph: '✓', tone: 'good', word: 'OK' });
+    expect(gateMark('PASS', 'G1')).toMatchObject({ glyph: '✓', tone: 'good', word: 'Pass' });
     expect(gateMark('PASS', 'G5')).toMatchObject({ glyph: '◯', tone: 'muted', word: 'Not seen' });
-    expect(gateMark('WARN', 'G5')).toMatchObject({ glyph: '◐', tone: 'warn', word: 'Seen' });
+    expect(gateMark('WARN', 'G5')).toMatchObject({ glyph: '◐', tone: 'warn', word: 'Symptom seen' });
     expect(gateMark('WARN', 'G3')).toMatchObject({ glyph: '!', tone: 'warn', word: 'Attention' });
   });
 
@@ -76,5 +76,30 @@ describe('gateMark', () => {
     expect(gateName('G7')).toBe('Stiction shape');
     expect(gateName('G99')).toBe('G99');
     expect([matrixViewOf(null), matrixViewOf('matrix'), matrixViewOf('junk')]).toEqual(['checks', 'matrix', 'checks']);
+  });
+});
+
+describe('one set of status words (design 2026-11-06, section 10)', () => {
+  it('says Pass for a check that passed', () => {
+    expect(gateMark('PASS', 'G0').word).toBe('Pass');
+  });
+
+  it('keeps Not seen for a pass on a diagnostic gate, never a tick', () => {
+    expect(gateMark('PASS', 'G5')).toMatchObject({ word: 'Not seen', glyph: '◯' });
+  });
+
+  it('names symptoms in full', () => {
+    expect(gateMark('WARN', 'G5').word).toBe('Symptom seen');
+    expect(gateMark('STRONG', 'G7').word).toBe('Strong symptom');
+  });
+
+  it('says Insufficient evidence for both insufficient states', () => {
+    expect(gateMark('INSUFFICIENT_EVIDENCE', 'G15').word).toBe('Insufficient evidence');
+    expect(gateMark('INSUFFICIENT_DATA', 'G15').word).toBe('Insufficient evidence');
+  });
+
+  it('keeps the mark and tone: only the word changes', () => {
+    expect(gateMark('PASS', 'G0')).toMatchObject({ glyph: '✓', tone: 'good', meaning: 'ok' });
+    expect(gateMark('STRONG', 'G7')).toMatchObject({ glyph: '⬤', tone: 'warn', meaning: 'strong' });
   });
 });

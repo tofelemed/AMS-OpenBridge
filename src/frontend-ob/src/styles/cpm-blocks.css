@@ -1,0 +1,29 @@
+/* Shared blocks of the reference redesign. Placement only: sizes come from the app's existing tokens. */
+
+.cpm-tier-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--traverse-space-4);
+}
+.cpm-tier-row__tier { flex: 1 1 auto; min-width: 0; }
+.cpm-tier-row__name {
+  margin: 0 0 var(--traverse-space-2);
+  color: var(--traverse-text-secondary);
+  font-size: var(--cpm-text-caption);
+  font-weight: 400;
+}
+.cpm-tier-row__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--traverse-space-2);
+}
+
+.cpm-gate-dialog__name { margin: 0 0 var(--traverse-space-3); font-weight: 600; }
+
+.cpm-page-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--traverse-space-4);
+  margin-top: var(--traverse-space-4);
+}

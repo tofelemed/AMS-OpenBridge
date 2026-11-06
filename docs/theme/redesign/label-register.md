@@ -34,3 +34,9 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | View | Full G0–G15 matrix | Full gate matrix | Performance | 4 |
 | Gate filter chip | Failing G1 | Held back by Mode / service · G1 | Performance | 4 |
 | Evidence action | Open in workbench; Open fused evidence | Open evidence | Performance | 4 |
+| Page group | Episodes; Loop; Evidence; Setup; System | Loop Events; Loop Explorer; Historical; Investigation; Evidence Workbench; Evidence Replay; Window Inspector; Calculations; System Response; Loop Registry; Gate Configuration; Pipeline Health; Administration; Governance | Sidebar | Reference |
+| Check passed | OK | Pass | Every gate surface | Reference |
+| Check passed, input missing | OK on available data | Pass on available data | Every gate surface | Reference |
+| Symptom | Seen | Symptom seen | Every gate surface | Reference |
+| Strong symptom | Strong | Strong symptom | Every gate surface | Reference |
+| No verdict | Insufficient | Insufficient evidence | Every gate surface | Reference |

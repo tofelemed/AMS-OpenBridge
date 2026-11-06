@@ -253,3 +253,25 @@ The owner asked to remove repeated text, loop information and explanations that 
 **Removed from each row:** the Site › Area › Unit line, at the owner's request.
 
 **For the control-engineer review:** a stale loop's verdict is now the word Stale, with its age in the Measured column.
+
+## Reference redesign, Section 0 (CHG-133)
+
+For the control engineer: gate status words change in one place, `gateMark`. Marks, colours and meanings do not change. A pass on a diagnostic gate still reads "Not seen", never "Pass".
+
+| Was | Now | Where |
+|---|---|---|
+| OK | Pass | Every gate surface |
+| OK on available data | Pass on available data | Every gate surface |
+| Seen | Symptom seen | Every gate surface |
+| Strong | Strong symptom | Every gate surface |
+| Insufficient | Insufficient evidence | Every gate surface |
+| check OK | check passed | Gate key |
+
+Controls that changed place in this section, not removed:
+
+| Control | Now on |
+|---|---|
+| Tab rows Summary, Historical, Diagnosis, Model, Signals, History, Calculations | Sidebar pages and Loop Explorer tabs |
+| Tab rows Gates, Replay, Windows, Calculations | Sidebar pages |
+| Tab rows Loops, Configuration, Plant model, Data sources, Tag aliases | Sidebar pages and Administration tabs |
+| Tab rows Pipeline, Governance, Users, Roles, Settings | Sidebar pages and Administration tabs |

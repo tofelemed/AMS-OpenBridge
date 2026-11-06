@@ -34,6 +34,7 @@ import './styles/cpm.css';
 import './ui/ui.css';
 import './ui/components.css';
 import './styles/cpm-evidence.css';
+import './styles/cpm-blocks.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';
 import './styles/cpm-responsive.css';

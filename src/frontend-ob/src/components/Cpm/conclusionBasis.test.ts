@@ -1,5 +1,5 @@
 // CHG-064 (SME #24): a verdict names what it rests on and what it was judged without; a pass without one of its
-// inputs is "OK on available data", not a green OK.
+// inputs is "Pass on available data", not a green Pass.
 import { describe, expect, it } from 'vitest';
 import type { CpmGateMatrix } from '../../api/cpm/gates';
 import { basisOf, notCheckedOf } from './conclusionBasis';
@@ -45,7 +45,7 @@ it('the basis cites only gates that saw the symptom on this window', () => {
 describe('PASS on available data', () => {
   it('a pass judged without one of its inputs is grey and names the missing input', () => {
     const mk = gateMark('PASS', 'G12', ['NO_STEP_TEST']);
-    expect(mk).toMatchObject({ meaning: 'ok-limited', tone: 'muted', word: 'OK on available data', limitedBy: ['no approved step test'] });
+    expect(mk).toMatchObject({ meaning: 'ok-limited', tone: 'muted', word: 'Pass on available data', limitedBy: ['no approved step test'] });
     expect(gateMark('PASS', 'G12', [])).toMatchObject({ meaning: 'ok', tone: 'good' });
     expect(gateMark('PASS', 'G11', ['HEALTH_NOT_CONFIGURED'])).toMatchObject({ meaning: 'not-seen-limited', word: 'Not seen on available data' });
     expect(gateMark('PASS', 'G3', ['HEALTH_NOT_CONFIGURED']).meaning).toBe('ok');   // flag does not limit G3
