@@ -1,9 +1,29 @@
 {
   "note": "Patterns for baseline controls whose name holds a loop tag or a gate, so one row in text-changes.md cannot list them. Each moved on purpose.",
   "patterns": [
-    { "pattern": "^preview .* in the focus panel$", "why": "the button is named by the words on it" },
-    { "pattern": "^open g evidence for ", "why": "a matrix cell opens the gate dialog" },
-    { "pattern": "^g(base performance|data quality|diagnosis band|disturbance context|horch oddness|mode / service|oscillation \\(acf\\)|phase geometry|roperating region|sensor health|setpoint activity|spectral \\(fft\\)|step-test evidence|stiction shape|valve / saturation|vp confirmation|actuator effort)$", "why": "the matrix head shows codes; the name is on the cell's title and in the gate dialog" },
-    { "pattern": "^g actuator effort: ", "why": "the label holds live gate status" }
+    {
+      "pattern": "^preview .* in the focus panel$",
+      "why": "the button is named by the words on it"
+    },
+    {
+      "pattern": "^open g evidence for ",
+      "why": "a matrix cell opens the gate dialog"
+    },
+    {
+      "pattern": "^g(base performance|data quality|diagnosis band|disturbance context|horch oddness|mode / service|oscillation \\(acf\\)|phase geometry|roperating region|sensor health|setpoint activity|spectral \\(fft\\)|step-test evidence|stiction shape|valve / saturation|vp confirmation|actuator effort)$",
+      "why": "the matrix head shows codes; the name is on the cell's title and in the gate dialog"
+    },
+    {
+      "pattern": "^g actuator effort: ",
+      "why": "the label holds live gate status"
+    },
+    {
+      "pattern": "^(fic|lic|pic|tic|aic|b_pic)[a-z_]* (gate g|flow |level |pressure |temperature |hexane |reactor |analyser |b )",
+      "why": "a matrix row or cell name holds the loop tag and its live status"
+    },
+    {
+      "pattern": "^sort by opened$",
+      "why": "the Opened sort header went as a second copy of the order dropdown"
+    }
   ]
 }
