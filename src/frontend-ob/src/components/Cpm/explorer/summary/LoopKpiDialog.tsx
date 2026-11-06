@@ -30,7 +30,7 @@ export const LoopKpiDialog: React.FC<{
       )}>
       <KvRow label="Value">{measured ? card.value : 'Not measured in this window'}</KvRow>
       {card.delta && <KvRow label="Change">{card.delta.title}</KvRow>}
-      <KvRow label="Judged by">{card.gate} {gateName(card.gate)}</KvRow>
+      <KvRow label={card.judged ? 'Judged by' : 'Related gate'}>{card.gate} {gateName(card.gate)}</KvRow>
       <KvRow label="Meaning">{card.title}{card.relevant ? " Bears on this loop's current finding." : ''}</KvRow>
     </Dialog>,
     document.body,

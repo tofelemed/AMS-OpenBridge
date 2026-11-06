@@ -36,4 +36,3 @@ button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor
 .cpm-gate-tile--warn .cpm-gate-tile__mark { color: var(--traverse-status-warning-fg); }
 .cpm-gate-tile--bad .cpm-gate-tile__mark { color: var(--traverse-status-danger-fg); }
 .cpm-gate-tile--muted .cpm-gate-tile__mark { color: var(--traverse-text-muted); }
-.cpm-gate-results__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2); }

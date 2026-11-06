@@ -16,7 +16,7 @@ const CARD: LoopKpiCardModel = {
   key: 'good-error', label: 'Good-error time', Icon: () => null, value: '13 %', sub: '|PV − SP| inside the good band · G3 warn', tone: 'warn',
   delta: { points: -4, direction: 'down', good: false, text: '−4 pp', title: 'Change since the window 24 h earlier: 17 % → 13 %' },
   title: 'Time with |PV − SP| inside the good-error band ÷ window time (CPLM-014), judged by G3.',
-  proof: 'calculations', metric: 'CPLM-014', group: 'control', relevant: false, gate: 'G3', bar: null,
+  proof: 'calculations', metric: 'CPLM-014', group: 'control', relevant: false, gate: 'G3', judged: true, bar: null,
 };
 const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
 const open = (card = CARD, onInspect = vi.fn()) => {
@@ -37,6 +37,16 @@ describe('LoopKpiDialog', () => {
     expect(screen.getByRole('dialog').textContent).toContain('17 % → 13 %');
     fireEvent.click(screen.getByRole('button', { name: 'Inspect G3 →' }));
     expect(onInspect).toHaveBeenCalledWith('G3');
+  });
+
+  it('says Judged by for a KPI a gate judges and Related gate for a context KPI, with Inspect Gn → on both', () => {
+    open();
+    expect(screen.getByRole('dialog').textContent).toContain('Judged byG3');
+    cleanup();
+    open({ ...CARD, key: 'variability', label: 'PV variability (2σ)', gate: 'G3', judged: false });
+    expect(screen.getByRole('dialog').textContent).toContain('Related gateG3');
+    expect(screen.getByRole('dialog').textContent).not.toContain('Judged by');
+    expect(screen.getByRole('button', { name: 'Inspect G3 →' })).toBeTruthy();
   });
 
   it('keeps the drill-down to where the number is proven', () => {

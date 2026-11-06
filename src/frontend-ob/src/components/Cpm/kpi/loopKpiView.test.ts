@@ -76,6 +76,18 @@ describe('green only where it means acceptable control (CHG-092, SME review 2 #2
     expect(c.service.title).toMatch(/95 %/);   // the rule is in the meaning, which the dialog shows
   });
 
+  it('only the cards a gate judges say so; the context cards get a related gate', () => {
+    const c = byKey(K());
+    expect(Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.judged]))).toMatchObject({
+      service: true, 'good-error': true, error: true, travel: true, reversals: true, coverage: true, variability: false, saturation: false, sp: false,
+    });
+  });
+
+  it('leaves no trailing separator when the gate has no result', () => {
+    const c = byKey(K({ current: { ...K().current!, gates: {} } }));
+    expect(c.coverage.sub).toBe('17100 of 17280 samples');
+  });
+
   it('every card sits in one of the three groups', () => {
     const groups = new Set(loopKpiCards(K()).map(c => c.group));
     expect([...groups].sort()).toEqual(['actuator', 'control', 'evidence']);

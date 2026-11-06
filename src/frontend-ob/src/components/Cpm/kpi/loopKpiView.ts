@@ -37,6 +37,8 @@ export interface LoopKpiCardModel {
   relevant: boolean;
   /** The engine gate that judges this number; the card's dialog offers Inspect Gn →. */
   gate: string;
+  /** False for context-only KPIs (variability, time at an OP limit, setpoint changes): the gate is related, not the judge. */
+  judged: boolean;
   /** The card's share as 0..100 where it is a share of something (coverage), for its bar. */
   bar: number | null;
 }
@@ -51,6 +53,8 @@ const gateTone = (s?: string | null): CpmTone =>
 const gateText = (g: string, s?: string | null) => (s ? `${g} ${s.toLowerCase().replace(/_/g, ' ')}` : '');
 const join = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' · ');
 
+/** Cards whose own meaning says context or a fleet rule, not a gate verdict. */
+const CONTEXT_ONLY: ReadonlySet<string> = new Set(['variability', 'saturation', 'sp']);
 const GATE_OF: Record<string, string> = {
   service: 'G1', 'good-error': 'G3', error: 'G3', variability: 'G3', saturation: 'G10', travel: 'G4', reversals: 'G4', sp: 'G2', coverage: 'G0',
 };
@@ -123,13 +127,13 @@ export function loopKpiCards(k: LoopKpis): LoopKpiCardModel[] {
   const finding = /^(DETECTED|CLASSIFIED|SUSPECTED|CONFIRMED)_(.+)$/.exec((w?.diagnosis ?? '').toUpperCase());
   const relevantKeys = new Set(finding ? RELEVANT_TO[finding[2]] ?? [] : []);
   const passTone = (s?: string | null): CpmTone => (s === 'PASS' ? (finding ? 'muted' : 'good') : gateTone(s));
-  const card = (c: Omit<LoopKpiCardModel, 'delta' | 'value' | 'group' | 'relevant' | 'gate' | 'bar'> & { unit: string; higherIsBetter: boolean | null; digits?: number },
+  const card = (c: Omit<LoopKpiCardModel, 'delta' | 'value' | 'group' | 'relevant' | 'gate' | 'judged' | 'bar'> & { unit: string; higherIsBetter: boolean | null; digits?: number },
     tone?: CpmTone): LoopKpiCardModel => {
     const v = shown(c.key, w, pvSpan);
     return {
       key: c.key, label: c.label, Icon: c.Icon, sub: v == null ? (c.key === 'error' || c.key === 'variability') && !pvSpan ? 'no PV span registered' : '' : c.sub,
       tone: v == null ? 'muted' : tone ?? c.tone, title: c.title, proof: c.proof, metric: METRIC_OF[c.key],
-      group: GROUP_OF[c.key] ?? 'control', gate: GATE_OF[c.key], bar: c.key === 'coverage' && v != null && v <= 100 ? v : null, relevant: relevantKeys.has(c.key) || (c.key === 'saturation' && (raw('saturation_pct') ?? 0) > SATURATION_MAX),
+      group: GROUP_OF[c.key] ?? 'control', gate: GATE_OF[c.key], judged: !CONTEXT_ONLY.has(c.key), bar: c.key === 'coverage' && v != null && v <= 100 ? v : null, relevant: relevantKeys.has(c.key) || (c.key === 'saturation' && (raw('saturation_pct') ?? 0) > SATURATION_MAX),
       value: v == null ? '—' : `${fmt(v, c.digits ?? 1)}${c.unit === '%' ? ' %' : c.unit ? ` ${c.unit}` : ''}`,
       delta: delta(c.key, k, pvSpan, c.unit, c.higherIsBetter),
     };
@@ -167,7 +171,7 @@ export function loopKpiCards(k: LoopKpis): LoopKpiCardModel[] {
       sub: 'operator / cascade setpoint activity',
       title: 'Setpoint changes per hour in the window. Context: frequent changes point at an operator compensating or a cascade master.' }),
     card({ key: 'coverage', label: 'Data coverage', Icon: ObiDatabase, unit: '%', higherIsBetter: true, digits: 0, tone: 'muted', proof: 'windows',
-      sub: `${raw('sample_count') != null && raw('expected_sample_count') != null ? `${Math.round(raw('sample_count')!)} of ${Math.round(raw('expected_sample_count')!)} samples · ` : ''}${gateText('G0', g.G0)}`,
+      sub: join(raw('sample_count') != null && raw('expected_sample_count') != null && `${Math.round(raw('sample_count')!)} of ${Math.round(raw('expected_sample_count')!)} samples`, gateText('G0', g.G0)),
       title: 'Samples received ÷ samples expected on the declared grid (CPLM-001). Below 95 % the window cannot be judged (G0).' },
       // data present is not good control: neutral when complete, amber when the window cannot be fully judged
       comp == null ? undefined : comp >= COMPLETENESS_MIN ? 'muted' : 'warn'),
