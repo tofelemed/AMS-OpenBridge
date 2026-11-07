@@ -21,14 +21,12 @@ describe('CursorReadout', () => {
     expect(screen.getByText('OP').nextSibling?.textContent).toBe('40.00');
     expect(screen.getByText('Mode').nextSibling?.textContent).toBe('AUT');
   });
-  it('reads Not recorded for a blank mode, and for quality', () => {
+  it('reads Not recorded for a blank mode', () => {
     for (const mode of [undefined, null, '', '  ']) {
       cleanup();
       render(<CursorReadout points={pts(10, { mode: mode as never })} cursorPct={50} timeZone="UTC" />);
       expect(screen.getByText('Mode').nextSibling?.textContent).toBe('Not recorded');
-      expect(screen.getByText('Quality').nextSibling?.textContent).toBe('Not recorded');
       expect(screen.queryByText('AUT')).toBeNull();
-      expect(screen.queryByText('Good')).toBeNull();
     }
   });
   it('reads no value as a dash, never zero', () => {

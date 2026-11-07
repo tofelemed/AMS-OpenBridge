@@ -96,3 +96,4 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Gate dropdown | Gate | Evidence check | Evidence Replay | 17 |
 | Export | Export package | Evidence package | Evidence Replay | 17 |
 | Controller mode at the cursor | Mode; MODE | Mode | Evidence Replay | 17 |
+| Window's AUTO share (G1 auto_pct) | Controller mode; In AUTO (%) | Time in AUTO | Evidence Replay verdict card | 17 |

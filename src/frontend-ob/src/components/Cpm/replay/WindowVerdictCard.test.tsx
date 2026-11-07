@@ -32,9 +32,9 @@ describe('WindowVerdictCard', () => {
     fireEvent.change(screen.getByLabelText('Evidence check'), { target: { value: 'G15' } });
     expect(onGate).toHaveBeenCalledWith('G15');
   });
-  it('reads the controller mode as Not recorded when the window stored none', () => {
+  it('reads Time in AUTO as Not reported when the window stored none', () => {
     view();
-    expect(screen.getByText('Controller mode').nextSibling?.textContent).toBe('Not recorded');
+    expect(screen.getByText('Time in AUTO').nextSibling?.textContent).toBe('Not reported');
   });
   it('a metric the window did not store reads Not reported, behind the disclosure', () => {
     view({ gateKey: 'G3' });

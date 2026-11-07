@@ -51,7 +51,7 @@ export const WindowVerdictCard: React.FC<{
         </span>
       </KvRow>
       {cell?.reason && <KvRow label="Reason">{codeLabel(cell.reason)}</KvRow>}
-      <KvRow label="Controller mode">{autoPct != null ? `In AUTO ${(autoPct * 100).toFixed(1)} %` : 'Not recorded'}</KvRow>
+      <KvRow label="Time in AUTO">{formatMetric(autoPct, true)}</KvRow>
       {(GATE_METRICS[gateKey] ?? []).length > 0 && (
         <details className="cpm-replay-metrics">
           <summary>{gateKey} metric values</summary>

@@ -1,6 +1,6 @@
 /**
  * Task 17: what the stored sample under the replay cursor says. PV, SP, OP and Mode come from the historian slice; a value the
- * slice did not store reads "Not recorded" (mode, quality) or a dash (a number), never AUT, Good or 0. The time is the site's.
+ * slice did not store reads "Not recorded" (mode) or a dash (a number), never AUT or 0. The time is the site's.
  */
 import React from 'react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
@@ -16,7 +16,7 @@ export const CursorReadout: React.FC<{ points: CpmTrendPoint[]; cursorPct: numbe
   if (i < 0) return null;
   const p = points[i];
   const items: [string, string][] = [
-    ['PV', num(p.pv)], ['SP', num(p.sp)], ['OP', num(p.op)], ['Mode', text(p.mode)], ['Quality', text(p.quality)],
+    ['PV', num(p.pv)], ['SP', num(p.sp)], ['OP', num(p.op)], ['Mode', text(p.mode)],
   ];
   return (
     <div className="cpm-readout" role="status" aria-label="Values at the replay cursor">

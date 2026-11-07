@@ -777,8 +777,8 @@ None.
 | Text | Where |
 |---|---|
 | Tabs Raw historian, Normalize, Features, Gate checks, Fusion, with one info line | Above the chart |
-| Readout PV, SP, OP, Mode, Quality, "Sample n / N", site time. Mode and Quality read "Not recorded" when the slice stored none | Under the chart |
-| Window verdict, Evidence check, Selected check, Controller mode (In AUTO % from the window, else Not recorded), Open retained proof ↗ | Right column |
+| Readout PV, SP, OP, Mode, "Sample n / N", site time. Mode reads "Not recorded" when the slice stored none | Under the chart |
+| Window verdict, Evidence check, Selected check, Time in AUTO (the window's G1 share, e.g. 60 %, else Not reported), Open retained proof ↗ | Right column |
 | Evidence Workbench ↗, Run details ↗ (opens the Workbench Identity & raw tab) | Header, identity line |
 
 | Control | Now on |
@@ -789,3 +789,10 @@ None.
 | Gate catalogue retry | Top of the right column |
 | Re-run this window | Right column (decision 3 and Task 18 change what it does) |
 | Window start to end row | Removed; the band's window select names the window |
+
+### Fix round 1
+
+| Was | Now |
+|---|---|
+| Readout row Quality (never requested, always Not recorded) | Removed |
+| Controller mode: In AUTO x % | Time in AUTO: x % (it is the window's share, not a mode) |
