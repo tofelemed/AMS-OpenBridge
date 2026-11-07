@@ -991,3 +991,27 @@ None.
 | Run details ↗ (Calculations) | Stays inline after the band's facts; the facts wrap among themselves |
 | Run details ↗ (Replay) | Stays on the identity line (the 64-character line limit no longer applies there) |
 | Count check pill (Window Inspector) | Fits its content; the selected row's pill has the same outline as the others |
+
+## Task 23 (CHG-147): Loop Registry list
+
+### Removed, reworded or moved
+
+| Page | Was | Now |
+|---|---|---|
+| Loop Registry | Title "Loop registry" with the sentence "Add individual loops or validate a bulk registry import. Onboarded loops are evaluated immediately; the readiness report is the activation gate." behind the first ? | "Loop Registry"; the one ? holds the readiness-gating fact (G14 needs a VP tag, G13 needs peers) |
+| Loop Registry | A second ? "About readiness-gated configuration" (two paragraphs) | Merged into the one ? beside the title |
+| Loop Registry | Eyebrow "Registered assets" over "{n} control-loop records" | Heading "Loop assets" with "{n} loops" |
+| Loop Registry | Find box "Find by loop, service, area, unit or type" | "Find loop" (it still matches loop, service, area, unit and type) |
+| Loop Registry | Columns Loop / service, Loop model (registry), Type, VP, Profile, State | Loop (service under it), Loop type, VP. Model, Profile and State leave the list; they stay in the loop's page |
+| Loop Registry | Empty panel "Select a loop - Pick a loop in the registry list to see its profile, signal mapping and readiness, and to edit it." | Removed. Until Loop Detail lands, `?loop=` shows the profile panel full width under "← Loop Registry" |
+| Loop Registry | The "Inactive" state pill on every inactive loop | Inactive loops are retired loops: hidden by default, "Retired" pill when Show retired is on |
+| Loop Registry | Configuration limits section on Overview (heading, eyebrow "Readiness", Open Loop Registry button, bullet list, plant-facts paragraph) | One line on this page: "{n} valve positions expected but not mapped", "{n} peer links expected but missing"; what each means and the plant facts sit behind a ? |
+
+### Moved or new
+
+| Control | Now on |
+|---|---|
+| Configuration limits (ReadinessStrip) | Loop Registry, above the list (it was not mounted on Overview any more) |
+| Show retired | Loop assets heading, beside Find loop (URL `retired=1`) |
+| Search and page | The URL (`search`, `page`), so Back from a loop returns to the same list |
+| Add loop, Bulk import | Header; disabled with "Needs the cpm.manage permission" under the button without that permission (they were always enabled in the UI before) |

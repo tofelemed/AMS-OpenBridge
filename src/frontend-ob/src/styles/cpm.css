@@ -184,24 +184,6 @@
   border-bottom: 1px solid var(--border-divider-color);
 }
 
-/* ── Registry table (U10) ── */
-.cpm-reg-head, .cpm-reg-row {
-  display: grid;
-  grid-template-columns: 1.35fr 0.8fr 0.65fr 0.5fr 0.8fr 0.6fr;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 12px;
-}
-.cpm-reg-head {
-  font-size: var(--cpm-text-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--element-neutral-color);
-  border-bottom: 1px solid var(--border-divider-color);
-}
-.cpm-reg-row { border-bottom: 1px solid var(--border-divider-color); cursor: pointer; border-left: 3px solid transparent; }
-.cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
-.cpm-reg-row--selected { border-left-color: var(--instrument-enhanced-primary-color); }
 
 /* ── Banner (U10 draft-first / U11 restricted) ── */
 .cpm-banner {

@@ -1,0 +1,10 @@
+/* Loop Registry list (CHG-147): placement only, no new sizes. */
+.cpm-reg-tools { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cpm-reg-retired { display: inline-flex; align-items: center; gap: 6px; }
+.cpm-reg-count { margin: 0; padding: 0 12px 6px; }
+.cpm-reg-table { width: 100%; }
+.cpm-reg-table th { text-align: left; }
+.cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-reg-link { color: var(--element-active-color); text-decoration: none; }
+.cpm-reg-link:hover { text-decoration: underline; }
+.cpm-readiness--line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; }

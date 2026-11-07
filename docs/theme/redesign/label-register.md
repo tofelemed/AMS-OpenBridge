@@ -116,3 +116,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Calculation and profile versions | Calc version (build hash) | "Calculation v{x} · profile v{y}" | Evidence Workbench run bar | CHG-145 s3 |
 | Verdict card check row | Selected check | Check result | Evidence Replay | CHG-145 s3 |
 | Samples a window would hold | {n} samples nominal at {p} s | Nominal {n} samples at {p} s | Evidence Workbench | CHG-145 s3 |
+| Registry list heading | Registered assets; control-loop records | Loop assets, "{n} loops" | Loop Registry | 23 |
+| Retired loop | Inactive | Retired (pill; hidden unless Show retired) | Loop Registry | 23 |
+| Configuration limits counts | Valve position expected but not mapped; Peer links expected but missing | "{n} valve positions expected but not mapped"; "{n} peer links expected but missing" | Loop Registry | 23 |

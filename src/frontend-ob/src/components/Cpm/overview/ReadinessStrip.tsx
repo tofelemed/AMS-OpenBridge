@@ -1,44 +1,27 @@
 /**
- * SME review #5 (CHG-043): configuration limits in their own readiness section,
- * below the operating picture and in neutral styling. Missing positioner feedback
- * and unconfigured peers limit what the engine can CONFIRM; they are not loop
- * problems, so they no longer take half the headline tiles in caution yellow.
+ * Configuration limits as one compact line on Loop Registry (CHG-147; was an Overview section, SME #5).
+ * Missing positioner feedback and unconfigured peers limit what the engine can CONFIRM; they are not loop
+ * problems, so they stay neutral. What each count means sits behind the ?.
  */
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmFleetSummary } from '../../../api/cpmApi';
-import { PanelHead } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { peersCopy, plantFactsCopy, positionerCopy } from './capabilityCopy';
-import { registryHref } from '../cpaHref';
 
 export const ReadinessStrip: React.FC<{ summary: CpmFleetSummary | undefined }> = ({ summary }) => {
-  const navigate = useNavigate();
   if (!summary) return null;
   const noVp = summary.capability.loopsCappedByMissingVp;
   const noPeers = summary.capability.loopsWithoutDisturbanceContext;
-  const items = [
-    { count: noVp, ...positionerCopy(noVp) },
-    { count: noPeers, ...peersCopy(noPeers) },
-  ];
+  const facts = plantFactsCopy(summary.capability);
   return (
-    <section className="cpm-surface cpm-readiness" aria-label="Readiness: configuration limits">
-      <PanelHead eyebrow="Readiness" title="Configuration limits"
-        right={
-          <ObcButton variant="flat" title="Map signals and configure peers per loop in the Loop Registry"
-            onClick={() => navigate(registryHref())}>
-            Open Loop Registry ›
-          </ObcButton>
-        } />
-      <ul className="cpm-readiness__list">
-        {items.map(i => (
-          <li key={i.caption}>
-            <strong>{i.count}</strong> {i.caption.toLowerCase()}
-            <span className="cpm-op__muted"> · {i.sub}</span>
-          </li>
-        ))}
-      </ul>
-      {plantFactsCopy(summary.capability) && <p className="cpm-op__muted cpm-readiness__facts">{plantFactsCopy(summary.capability)}</p>}
+    <section className="cpm-surface cpm-readiness cpm-readiness--line" aria-label="Configuration limits">
+      <span><strong>{noVp}</strong> valve positions expected but not mapped</span>
+      <span><strong>{noPeers}</strong> peer links expected but missing</span>
+      <Toggletip variant="how-to" label="What the limits mean">
+        <p>{positionerCopy(noVp).sub}.</p>
+        <p>{peersCopy(noPeers).sub}.</p>
+        {facts && <p>{facts}</p>}
+      </Toggletip>
     </section>
   );
 };
