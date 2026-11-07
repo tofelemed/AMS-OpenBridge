@@ -62,23 +62,7 @@ public sealed class CpmFleetController : ControllerBase
 
         // CHG-059 (SME #23): an unmapped VP / missing peer links is a configuration gap only where it is EXPECTED;
         // a drive has no valve, a valve without a positioner is a plant fact (counted apart, not as gaps).
-        var registry = await conn.QueryFirstOrDefaultAsync($"""
-            SELECT COUNT(*)::int AS total,
-                   COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE))::int AS monitored,
-                   COUNT(*) FILTER (WHERE COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE))::int AS with_peer_links,
-                   COUNT(*) FILTER (WHERE tags ? 'vp')::int AS with_vp,
-                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'EXPECTED')::int AS vp_expected_unmapped,
-                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'NOT_INSTALLED')::int AS vp_not_installed,
-                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {Traverse.CplmApi.Services.Registry.OptionalInputs.VpApplicabilitySql} = 'NOT_APPLICABLE')::int AS vp_not_applicable,
-                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
-                                    AND {Traverse.CplmApi.Services.Registry.OptionalInputs.PeerApplicabilitySql} = 'EXPECTED')::int AS peers_expected_missing,
-                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
-                                    AND {Traverse.CplmApi.Services.Registry.OptionalInputs.PeerApplicabilitySql} <> 'EXPECTED')::int AS peers_not_applicable
-            FROM cpm.loop_registry
-            WHERE (@site::text IS NULL OR site = @site)
-              AND (@area::text IS NULL OR area = @area)
-              AND (@unit::text IS NULL OR unit = @unit)
-            """, new { site, area, unit });
+        var registry = await conn.QueryFirstOrDefaultAsync(FleetRegistrySummarySql.Registry, new { site, area, unit });
 
         // One row per loop: its newest real verdict at this resolution.
         var byDiagnosis = await conn.QueryAsync<(string Diagnosis, int Count)>(

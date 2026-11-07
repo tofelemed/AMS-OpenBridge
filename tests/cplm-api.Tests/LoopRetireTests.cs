@@ -33,9 +33,9 @@ public sealed class LoopRetireTests
                 {
                     var id = (string)args![0]!; var retire = (bool)args[1]!;
                     Calls.Add((id, retire));
-                    if (!Retired.TryGetValue(id, out var was)) return Task.FromResult(LoopRetireOutcome.NotFound);
+                    if (!Retired.TryGetValue(id, out var was)) return Task.FromResult(new LoopRetireResult(LoopRetireOutcome.NotFound, null));
                     Retired[id] = retire;
-                    return Task.FromResult(was == retire ? LoopRetireOutcome.Unchanged : LoopRetireOutcome.Changed);
+                    return Task.FromResult(new LoopRetireResult(was == retire ? LoopRetireOutcome.Unchanged : LoopRetireOutcome.Changed, id));
                 }
             }
             throw new NotSupportedException(m?.Name);
@@ -65,8 +65,10 @@ public sealed class LoopRetireTests
     public void Retire_sets_is_active_false_and_monitoring_disabled()
     {
         LoopRetireSql.Retire.Should().Contain("is_active = FALSE");
-        LoopRetireSql.Retire.Should().Contain("jsonb_set(monitoring, '{enabled}', 'false'");
-        LoopRetireSql.Retire.Should().Contain("WHERE loop_id = @loopId");
+        LoopRetireSql.Retire.Should().Contain("'{enabled}', 'false'");
+        LoopRetireSql.Retire.Should().Contain("'{enabled_before_retire}'", "the prior flag is kept for Restore");
+        LoopRetireSql.Retire.Should().Contain("WHERE lower(loop_id) = lower(@loopId)");
+        LoopRetireSql.Retire.Should().NotContain("peerLinksConfigured");
     }
 
     [Fact]
@@ -85,7 +87,9 @@ public sealed class LoopRetireTests
     public void Restore_sets_both_back()
     {
         LoopRetireSql.Restore.Should().Contain("is_active = TRUE");
-        LoopRetireSql.Restore.Should().Contain("jsonb_set(monitoring, '{enabled}', 'true'");
+        LoopRetireSql.Restore.Should().Contain("monitoring->'enabled_before_retire', 'true'::jsonb", "the prior flag returns, true when none was kept");
+        LoopRetireSql.Restore.Should().Contain("monitoring - 'enabled_before_retire'", "the kept key is removed");
+        LoopRetireSql.Restore.Should().Contain("WHERE lower(loop_id) = lower(@loopId)");
         LoopRetireSql.Restore.Should().Contain("is_active = FALSE", "only a retired loop is touched");
     }
 
@@ -101,6 +105,23 @@ public sealed class LoopRetireTests
 
         r.Calls.Should().BeEmpty();
         a.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Reason_over_500_characters_is_400()
+    {
+        var (c, r, _) = Make();
+        r.Retired["L1"] = false;
+        (await c.Retire("L1", new CpmLoopRetireRequest(new string('x', 501)), default)).Should().BeOfType<BadRequestObjectResult>();
+        (await c.Restore("L1", new CpmLoopRetireRequest(new string('x', 501)), default)).Should().BeOfType<BadRequestObjectResult>();
+        (await c.Retire("L1", new CpmLoopRetireRequest(new string('x', 500)), default)).Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public void The_overview_registry_counts_leave_out_retired_loops()
+    {
+        FleetRegistrySummarySql.Registry.Should().Contain("WHERE is_active");
+        FleetRegistrySummarySql.Registry.Should().Contain("AS peers_expected_missing");
     }
 
     [Fact]

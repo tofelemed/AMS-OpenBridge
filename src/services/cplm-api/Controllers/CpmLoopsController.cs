@@ -247,6 +247,8 @@ public sealed class CpmLoopsController : ControllerBase
         var reason = request?.Reason?.Trim();
         if (string.IsNullOrEmpty(reason))
             return BadRequest(new { error = "REASON_REQUIRED", message = "A reason is required to retire a loop." });
+        if (reason.Length > LoopRetireSql.MaxReasonLength)
+            return ReasonTooLong();
         return await SetRetired(loopId, true, reason, ct);
     }
 
@@ -255,12 +257,24 @@ public sealed class CpmLoopsController : ControllerBase
     [Authorize(Policy = "cpm.manage")]
     public Task<IActionResult> Restore(string loopId,
         [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CpmLoopRetireRequest? request,
-        CancellationToken ct) =>
-        SetRetired(loopId, false, request?.Reason?.Trim(), ct);
+        CancellationToken ct)
+    {
+        var reason = request?.Reason?.Trim();
+        if (reason is { Length: > LoopRetireSql.MaxReasonLength })
+            return Task.FromResult(ReasonTooLong());
+        return SetRetired(loopId, false, reason, ct);
+    }
+
+    private IActionResult ReasonTooLong() => BadRequest(new
+    {
+        error = "REASON_TOO_LONG", message = $"The reason is at most {LoopRetireSql.MaxReasonLength} characters.",
+    });
 
     private async Task<IActionResult> SetRetired(string loopId, bool retire, string? reason, CancellationToken ct)
     {
-        var outcome = await _registry.SetRetiredAsync(loopId, retire, ct);
+        var result = await _registry.SetRetiredAsync(loopId, retire, ct);
+        var outcome = result.Outcome;
+        loopId = result.LoopId ?? loopId;
         if (outcome == LoopRetireOutcome.NotFound)
             return NotFound(new { error = $"Loop '{loopId}' is not registered" });
         var changed = outcome == LoopRetireOutcome.Changed;

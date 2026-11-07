@@ -5,22 +5,20 @@ namespace Traverse.CplmApi.Services;
 public sealed partial class CpmLoopRegistryService
 {
     /// <summary>
-    /// Retires or restores one loop. After a change it republishes the loop's evidence on the same metadata
-    /// broadcast onboarding uses (the activate path), so the engines read the row as it now stands.
+    /// Retires or restores one loop (matched without regard to case). Engines are not told: they stop by losing
+    /// input, because ingestion drops an inactive loop at its next registry refresh.
     /// </summary>
-    public async Task<LoopRetireOutcome> SetRetiredAsync(string loopId, bool retire, CancellationToken ct)
+    public async Task<LoopRetireResult> SetRetiredAsync(string loopId, bool retire, CancellationToken ct)
     {
         await EnsureSchemaAsync(ct);
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
-        var changed = await conn.ExecuteAsync(retire ? LoopRetireSql.Retire : LoopRetireSql.Restore, new { loopId });
-        if (changed == 0)
+        var changed = await conn.QueryFirstOrDefaultAsync<string>(retire ? LoopRetireSql.Retire : LoopRetireSql.Restore, new { loopId });
+        if (changed is not null)
         {
-            var exists = await conn.ExecuteScalarAsync<bool>(
-                "SELECT EXISTS (SELECT 1 FROM cpm.loop_registry WHERE loop_id = @loopId)", new { loopId });
-            return exists ? LoopRetireOutcome.Unchanged : LoopRetireOutcome.NotFound;
+            _logger.LogInformation("Loop {LoopId} {Action}", changed, retire ? "retired" : "restored");
+            return new LoopRetireResult(LoopRetireOutcome.Changed, changed);
         }
-        await PublishEvidenceAsync(loopId, ct);
-        _logger.LogInformation("Loop {LoopId} {Action}", loopId, retire ? "retired" : "restored");
-        return LoopRetireOutcome.Changed;
+        var stored = await conn.QueryFirstOrDefaultAsync<string>(LoopRetireSql.StoredId, new { loopId });
+        return new LoopRetireResult(stored is null ? LoopRetireOutcome.NotFound : LoopRetireOutcome.Unchanged, stored);
     }
 }
