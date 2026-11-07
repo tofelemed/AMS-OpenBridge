@@ -824,6 +824,17 @@ None.
 | Control | Now on |
 |---|---|
 | Re-run this window | Right column card; opens the Re-run dialog (Create run) |
-| Compare with the original ↗ | Re-run dialog footer, when finished; sets `?rerun=` on this page |
+| Open the new run ↗ | Re-run dialog footer, when the run has its stored result; opens it in the Workbench with `analysisRun`. The original stays on Replay |
 | Evidence package | Header; opens the Evidence package dialog (Download package) |
 | Run details ↗ | Identity line; opens the Run details dialog |
+
+### Fix round 1
+
+| Was | Now |
+|---|---|
+| Compare with the original ↗ (set `?rerun=`) | Open the new run ↗ (Workbench) |
+| "It uses the window's governed bundle and today's engine build…" | "It uses the settings the window ran under, or the engine default if none are held, and today's engine build. The result can differ from the original." |
+| Radio "Governed bundle of this window" | "Settings of this window" |
+| Cached: status line and a second sentence | One sentence |
+| Package dialog file list under the description | Removed |
+| New: "Still running. Check again in a minute."; "The run ended without a stored result yet."; Check again; "Downloaded, but not complete: …" | Honest states |

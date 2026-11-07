@@ -209,8 +209,7 @@ export const CpmReplay: React.FC = () => {
             <WindowVerdictCard row={selected} loopId={loopId ?? ''} gateKey={gateKey} gateOptions={gateOptions} kpiRow={kpiRow}
               question={def?.question} onGate={g => setParams(p => { p.set('gate', g); return p; }, { replace: true })} />
             {loopId && (
-              <RerunCard loopId={loopId} row={selected} timeZone={timeZone}
-                onCompare={id => setParams(p => { p.set('rerun', id); if (!p.get('window') && selected.windowEnd) p.set('window', selected.windowEnd); return p; }, { replace: true })} />
+              <RerunCard loopId={loopId} row={selected} timeZone={timeZone} />
             )}
           </div>
         </div>

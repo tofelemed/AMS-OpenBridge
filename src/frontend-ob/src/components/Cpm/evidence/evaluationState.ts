@@ -70,6 +70,7 @@ const REFUSALS: Record<string, string> = {
   TOO_MANY_EVALUATIONS_IN_FLIGHT: 'You already have 3 evaluations running. Wait for one to finish.',
   ON_DEMAND_DISABLED: 'On-demand evaluation is turned off on this server.',
   SITE_OUT_OF_SCOPE: 'This loop is outside your plant scope.',
+  IDEMPOTENCY_KEY_REUSED: 'The request matched a run that cannot be reused. Try again.',
   ANALYSIS_RUN_SUBMIT_FAILED: 'The request could not be handed to the evaluation job (Kafka). Try again.',
 };
 
