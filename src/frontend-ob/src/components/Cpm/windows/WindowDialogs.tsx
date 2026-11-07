@@ -11,10 +11,11 @@ import type { CpmKpiRow, CpmLoop, CpmWindowSpec } from '../../../api/cpmApi';
 import { Dialog } from '../../../ui/Dialog';
 import { GateBadge } from '../../../ui/GateBadge';
 import { Toggletip } from '../../../ui/Toggletip';
-import { KvRow, fmtDuration, fmtWindowShape, loopTrendHref } from '../shared';
+import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
 import { gateName } from '../gateStatus';
 import { fmtInstant } from '../context/LoopContextBar';
-import { historicalHref } from '../cpaHref';
+import { historicalHref, trendHref } from '../cpaHref';
+import { loopPens } from '../../Designer/trend/loopPens';
 import { SHORT_GATES, WindowResults } from './WindowResults';
 
 interface DialogProps { open: boolean; onClose: () => void }
@@ -50,9 +51,9 @@ export const RecordDetailsDialog: React.FC<DialogProps & {
   const navigate = useNavigate();
   if (!open) return null;
   const range = { from: row.window_start, to: row.window_end };
-  // /trend reads the pens from `tags`, so the link is built from the loop's tags, pinned to the window.
-  const trend = loop && row.window_start && row.window_end
-    ? loopTrendHref(loop.tags, '8h', { from: new Date(row.window_start), to: new Date(row.window_end) }) : null;
+  // /trend reads the loop's PV, SP, OP and VP pens itself, pinned to the window.
+  const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
+    ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const go = (href: string) => { onClose(); navigate(href); };
   return createPortal(
     <Dialog open onClose={onClose} title="Record details" size="wide" footer={<>

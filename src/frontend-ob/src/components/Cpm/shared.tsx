@@ -177,33 +177,6 @@ export function classifyMode(mode: string | null | undefined): ModeClass {
   return 'unknown';
 }
 
-/**
- * Deep link to the Trend page for a loop's mapped signals. Meaningful since the
- * signal-asset projection: loop tag paths now resolve through the UNS to the
- * loop pipeline's real transports (root.<site>.cpm.<loop>.<role> + the loop's
- * live Sparkplug device), so a /trend pen on them draws actual data.
- *
- * Numeric roles only — MODE is a TEXT series and a line chart on it is noise;
- * it has its own ribbon on Historical.
- */
-export function loopTrendHref(
-  tags: Record<string, string>, range = '8h',
-  /** Optional explicit window — lands on /trend PINNED to it (?from=&to=),
-   * so an episode or Historical range carries over instead of resetting to live. */
-  window?: { from: Date; to: Date },
-): string | null {
-  const paths = ['PV', 'SP', 'OP', 'VP']
-    .map(r => tags[r])
-    .filter((p): p is string => !!p);
-  if (paths.length === 0) return null;
-  const q = new URLSearchParams({ tags: [...new Set(paths)].join(','), range });
-  if (window) {
-    q.set('from', window.from.toISOString());
-    q.set('to', window.to.toISOString());
-  }
-  return `/trend?${q.toString()}`;
-}
-
 /** Diagnosis / band / state → tone, in one place so every screen agrees. */
 export function toneFor(value: string | null | undefined): CpmTone {
   if (!value) return 'muted';

@@ -98,12 +98,12 @@ describe('SelectedWindow', () => {
     expect(useRawWindow).toHaveBeenCalled();
   });
 
-  it('opens Trend with the loop tags, pinned to the window', () => {
+  it('opens Trend on the loop, pinned to the window', () => {
     mount(row());
     fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in Trend ↗' }));
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
-    expect(where).toContain('/trend?tags=root.hdpe.FIC10401.PV,root.hdpe.FIC10401.SP');
+    expect(where).toContain('/trend?loop=FIC10401&from=2026-11-04T13:35:00.000Z');
     expect(where).toContain('from=2026-11-04T13:35:00.000Z');
   });
 });

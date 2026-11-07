@@ -51,9 +51,9 @@ describe('SignalsTab', () => {
     tab();
     fireEvent.click(within(screen.getByRole('row', { name: /SP/ })).getByRole('button', { name: 'Show in trend ↗' }));
     const href = String(nav.mock.calls[0][0]);
-    expect(href).toContain('/trend');
-    expect(decodeURIComponent(href)).toContain('root.a.sp');
-    expect(decodeURIComponent(href)).not.toContain('root.a.pv');
+    expect(href).toContain('/trend?loop=');
+    expect(href).toContain('roles=SP');
+    expect(href).not.toContain('PV');
   });
 
   it('ends with the signal quality, Signal bindings → and Open signals in Trend ↗', () => {

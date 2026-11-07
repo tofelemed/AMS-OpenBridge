@@ -42,7 +42,6 @@ export const TrendLegend: React.FC<{
         </div>
       );
     })}
-    {pens.length === 0 && <div className="trend-core__pen-empty">No tags selected</div>}
   </div>
 );
 

@@ -61,10 +61,10 @@ export function cpaHref(path: string, current: URLSearchParams | string = '', ex
   return build(path, { ...carried, ...extra });
 }
 
-/** Tag trend is a tool, not a destination: it keeps the plant scope for the way back, and nothing else. */
+/** Trend is a tool, not a destination: it keeps the plant scope for the way back and the loop it was showing (UI-136). Its range and tags stay its own. */
 export function trendToolHref(current: URLSearchParams | string = ''): string {
   const q = typeof current === 'string' ? new URLSearchParams(current) : current;
-  return build('/trend', { site: q.get('site'), area: q.get('area'), unit: q.get('unit') });
+  return build('/trend', { site: q.get('site'), area: q.get('area'), unit: q.get('unit'), loop: q.get('loop') });
 }
 
 /** The loop hub. `gate` pre-selects a gate on the Summary strip; `kind` is the fused window kind the strip evaluates (`?window=`, as on Performance). */
@@ -120,9 +120,9 @@ export const calculationsHref = (loop: string, opts: { metric?: string | null; k
   // CHG-092 (SME review 2 #9): a KPI's proof opens the matching metric (CPLM id) on the matching fused window
   build('/cpm/calculations', { loop, kind: opts.kind, window: opts.window, metric: opts.metric });
 
-/** Trend on one loop's signals. `roles` limits the pens; `from` / `to` (ISO) pin the period. */
-export const trendHref = (loop: string, opts: { roles?: string[]; from?: string | null; to?: string | null } = {}) =>
-  build('/trend', { loop, roles: opts.roles?.join(','), from: opts.from, to: opts.to });
+/** Trend on one loop's signals. `roles` limits the pens; `range` is a preset; `from` / `to` (ISO) pin the period. */
+export const trendHref = (loop: string, opts: { roles?: string[]; range?: string | null; from?: string | null; to?: string | null } = {}) =>
+  build('/trend', { loop, roles: opts.roles?.join(','), range: opts.range, from: opts.from, to: opts.to });
 
 /** Loop Registry: its list, or one loop's detail. */
 export const registryHref = (loop?: string | null) => build('/cpm/registry', { loop });

@@ -24,8 +24,11 @@ export function carriedSearch(prevSearch: string, nextPath: string, nextSearch: 
 
   let changed = false;
   for (const key of ['site', 'area', 'unit']) changed = add(key, prev.get(key)) || changed;
-  // Trend keeps the plant scope for the way back, and nothing else: its own range and tags are its own.
-  if (trend) return changed ? `?${next.toString()}` : null;
+  // Trend keeps the plant scope for the way back and the loop (UI-136): its own range and tags are its own.
+  if (trend) {
+    changed = add('loop', prev.get('loop')) || changed;
+    return changed ? `?${next.toString()}` : null;
+  }
 
   const range = prev.get('range');
   if (!next.has('range') && !next.has('from') && !next.has('to')) {

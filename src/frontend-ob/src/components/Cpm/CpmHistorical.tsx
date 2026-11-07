@@ -14,7 +14,7 @@ import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, PanelHead, QueryError, WorkspaceHeader, loopTrendHref } from './shared';
+import { EmptyState, PanelHead, QueryError, WorkspaceHeader } from './shared';
 import { fmtWhen } from './blocks/whenText';
 import { LoopBand } from './context/LoopBand';
 import TimeRangeBar from './trend/TimeRangeBar';
@@ -32,7 +32,7 @@ import { selectedWindowOf } from './historical/selectWindow';
 import { modeSegmentsOf, resultMarkers } from './historical/lanes';
 import { CHART_HEIGHT, buildChartOption } from './historical/chartOption';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
-import { explorerHref, registryHref, replayHref } from './cpaHref';
+import { explorerHref, registryHref, replayHref, trendHref } from './cpaHref';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
 import { healthSegments as toHealthSegments } from './health/HealthLane';
 import { parseCustomRange, RANGE_PRESETS, activePreset, presetRange, spanOf, stepRange } from './historical/timeRange';
@@ -172,8 +172,8 @@ export const CpmHistorical: React.FC = () => {
     loopId, loop, series, from, to, timeZone, windows: full, truncated: fullCapped, cap: WINDOW_CAP, selected: selectedFull,
   });
 
-  const toggledTags = Object.fromEntries(
-    signals.map(s => [s.toUpperCase(), loop?.tags[s.toUpperCase()] ?? '']).filter(([, path]) => path));
+  // The signals on show that the loop maps; Trend draws exactly those pens.
+  const toggledRoles = signals.map(s => s.toUpperCase()).filter(r => loop?.tags[r]);
   const windowsError = history.error ?? summaries.error;
 
   return (
@@ -217,7 +217,7 @@ export const CpmHistorical: React.FC = () => {
           overlays={KPI_OVERLAYS}
           overlayKey={overlay.key}
           onOverlay={key => write(p => p.set('kpi', key))}
-          trendHref={loopTrendHref(toggledTags, '8h', { from, to })}
+          trendHref={loopId && toggledRoles.length > 0 ? trendHref(loopId, { roles: toggledRoles, from: from.toISOString(), to: to.toISOString() }) : null}
           onOpenTrend={href => navigate(href)}
           normalize={normalize}
           onToggleNormalize={() => write(p => { if (normalize) p.delete('normalize'); else p.set('normalize', '1'); })}

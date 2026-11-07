@@ -159,6 +159,11 @@ describe('context carry', () => {
     expect(carriedSearch('?loop=A', '/cpm/performance', '')).toBeNull();
   });
 
+  it('carries the loop to Trend, with the plant scope and nothing else', () => {
+    expect(carriedSearch('?site=hdpe&loop=A&range=7d', '/trend', '')).toBe('?site=hdpe&loop=A');
+    expect(carriedSearch('?loop=A', '/trend', '?loop=B')).toBeNull();
+  });
+
   it('carries a window kind under the name the next page reads', () => {
     expect(carriedSearch('?window=24h', '/cpm/performance', '')).toBe('?window=24h');
     expect(carriedSearch('?window=24h', '/cpm/replay', '')).toBe('?kind=24h');

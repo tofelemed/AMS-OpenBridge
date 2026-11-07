@@ -13,9 +13,10 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmReadiness } from '../../../hooks/useCpm';
-import { EmptyState, QueryError, TonePill, loopTrendHref } from '../shared';
+import { EmptyState, QueryError, TonePill } from '../shared';
 import { FacetPill } from '../FacetPill';
-import { registryHref } from '../cpaHref';
+import { registryHref, trendHref } from '../cpaHref';
+import { PEN_ROLES, loopPens } from '../../Designer/trend/loopPens';
 import { useSignalValues } from './summary/useSignalValues';
 
 const SIGNAL_MEANINGS: Record<string, string> = {
@@ -57,7 +58,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
     return { value: s?.value ?? '—', unit: s?.value != null ? s.unit : '' };
   };
 
-  const href = loopTrendHref(loop.tags);
+  const href = loopPens(loop).length > 0 ? trendHref(loop.loopId, { range: '8h' }) : null;
 
   return (
     <div>
@@ -87,7 +88,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
             {roles.map(([role, path]) => {
               const v = shown(role);
               // One pen per row: the same helper as the foot link, given this signal alone.
-              const rowHref = loopTrendHref({ [role]: path });
+              const rowHref = (PEN_ROLES as readonly string[]).includes(role) ? trendHref(loop.loopId, { roles: [role], range: '8h' }) : null;
               return (
                 <tr key={role}>
                   <th scope="row">

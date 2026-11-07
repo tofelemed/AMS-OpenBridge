@@ -1,0 +1,7 @@
+/* Task 26: the Trend page sits in the same screen frame as the other CPA pages; the chart takes the rest of the height. */
+.cpm-screen.trend-page { padding: var(--cpa-screen-pad); gap: 16px; }
+.trend-page__chart { position: relative; }
+.trend-page__empty {
+  position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
+  margin: 0; pointer-events: none; color: var(--traverse-text-secondary);
+}

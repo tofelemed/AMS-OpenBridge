@@ -1082,3 +1082,23 @@ None.
 | Effective layer and Profile tiles | Link to the loop's Bundles view |
 | Worker alignment tile | Opens the APPLY acknowledgements disclosure on Effective |
 | Gate role policy | Gate Configuration |
+
+### Task 26: Trend (CHG-149)
+
+#### Removed or reworded
+
+| Was | Now |
+|---|---|
+| `0 pens`, `1 pen` beside the mode label | Removed |
+| `No tags selected` in the legend | Removed; an empty chart says Choose a loop (Choose a loop is hidden without analytics.view) |
+| `LIVE` on a chart with no pens | LIVE shows only while the chart has pens; PINNED WINDOW is unchanged |
+| Page title `Trend` in its own bar | Header: eyebrow Engineering, title Trend |
+| New: `{loop} has no signal tags mapped.` | Shown when a chosen loop has no PV, SP, OP or VP tag |
+
+#### Moved or new
+
+| Control | Now on |
+|---|---|
+| From, To, Apply window, Live ›, pinned and live label | Inside the loop band, after the loop control (a plain row without analytics.view) |
+| Loop selector | The loop band, Trend (needs analytics.view) |
+| Open loop ↗ | The loop band's end, Trend, once a loop is chosen |

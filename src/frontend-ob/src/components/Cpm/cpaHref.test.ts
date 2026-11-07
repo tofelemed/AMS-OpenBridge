@@ -2,7 +2,7 @@
 // builders are the contract every in-page route follows.
 import { describe, it, expect } from 'vitest';
 import {
-  adminHref, calculationsHref, configHref, eventsHref, evidenceHref, explorerHref, governanceHref, historicalHref, investigationHref, performanceHref, pipelineHref, registryHref, replayHref, responseHref, trendHref, windowsHref,
+  adminHref, calculationsHref, cpaHref, configHref, eventsHref, evidenceHref, explorerHref, governanceHref, historicalHref, investigationHref, performanceHref, pipelineHref, registryHref, replayHref, responseHref, trendHref, windowsHref,
 } from './cpaHref';
 
 describe('cpaHref', () => {
@@ -107,6 +107,11 @@ describe('links that carry the context (design 2026-11-06, section 4)', () => {
   it('builds a Trend link from the loop and its roles', () => {
     expect(trendHref('A', { roles: ['PV', 'OP'], from: 'a', to: 'b' })).toBe('/trend?loop=A&roles=PV%2COP&from=a&to=b');
     expect(trendHref('A')).toBe('/trend?loop=A');
+    expect(trendHref('A', { roles: ['SP'], range: '8h' })).toBe('/trend?loop=A&roles=SP&range=8h');
+  });
+
+  it('keeps the loop and the plant scope when the sidebar opens Trend', () => {
+    expect(cpaHref('/trend', '?site=hdpe&loop=A&tags=x&range=7d')).toBe('/trend?site=hdpe&loop=A');
   });
 
   it('lets a link name the configuration view and gate', () => {
