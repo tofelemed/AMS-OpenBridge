@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { CpmIconButton, PanelHead } from '../shared';
+import { copyText } from '../../../utils/copyText';
 import { signalRows } from './loopDetailFacts';
 
 export const SignalMapping: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
@@ -14,15 +15,7 @@ export const SignalMapping: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
     const t = setTimeout(() => setCopy(null), 2000);
     return () => clearTimeout(t);
   }, [copy]);
-  const doCopy = async (role: string, path: string) => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
-      await navigator.clipboard.writeText(path);
-      setCopy({ role, ok: true });
-    } catch {
-      setCopy({ role, ok: false });
-    }
-  };
+  const doCopy = async (role: string, path: string) => setCopy({ role, ok: await copyText(path) });
   const rows = signalRows(loop);
   return (
     <section className="cpm-surface" aria-label="Signal mapping">

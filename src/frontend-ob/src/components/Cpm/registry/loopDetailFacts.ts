@@ -11,12 +11,12 @@ export function vpStateText(loop: CpmLoop): string {
   const c = inputContextOf(loop)!;
   if (c.vp === 'NOT_INSTALLED') return 'Not installed';
   if (c.vp === 'NOT_APPLICABLE') return 'Not applicable';
-  return c.vpMapped ? 'Applicable · mapped' : 'Expected · not mapped';
+  return c.vpMapped ? 'Applicable · mapped' : 'Expected · not mapped: G14 cannot confirm a final-element fault';
 }
 
 export function peerText(loop: CpmLoop): string {
   if (loop.links.length > 0) return loop.links.map(l => `${l.relType} → ${l.toLoopId}`).join(', ');
-  return peerApplicabilityOf(loop) === 'EXPECTED' ? 'None · expected' : 'Not applicable';
+  return peerApplicabilityOf(loop) === 'EXPECTED' ? 'None · expected: G13 not evaluated' : 'Not applicable';
 }
 
 export function acquisitionText(loop: CpmLoop): string {

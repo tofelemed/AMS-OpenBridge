@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
 import { CpmIconButton } from '../shared';
 import { shortId } from './format';
+import { copyText } from '../../../utils/copyText';
 
 export const CopyableId: React.FC<{ label: string; value: string | null | undefined; chars?: number }> = ({ label, value, chars = 8 }) => {
   const [copied, setCopied] = useState(false);
@@ -16,10 +17,8 @@ export const CopyableId: React.FC<{ label: string; value: string | null | undefi
   }, [copied]);
   if (!value) return <span className="cpm-copy-id"><span className="cpm-mono">—</span></span>;
   const copy = async () => {
-    try {
-      await navigator.clipboard?.writeText(value);
-      setCopied(true);
-    } catch { /* insecure context or denied: the full id is still in the title */ }
+    // denied or unsupported: the full id is still in the title
+    setCopied(await copyText(value));
   };
   return (
     <span className="cpm-copy-id" title={value} data-copied={copied ? 'true' : undefined}>

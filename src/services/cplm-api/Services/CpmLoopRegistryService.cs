@@ -129,22 +129,24 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
                     "one series and silently merged. Choose an id that differs by more than punctuation.");
             }
 
-            var tags = request.Tags ?? Array.Empty<CpmTagMapEntry>();
+            // An edit keeps what the request does not carry (source tags, engineering keys, evidence keys) and
+            // never revives a retired loop: read the stored row inside this transaction.
+            var stored = await conn.QueryFirstOrDefaultAsync<StoredLoopRow>(
+                "SELECT is_active AS IsActive, monitoring::text AS Monitoring, engineering::text AS Engineering FROM cpm.loop_registry WHERE loop_id = @loopId",
+                new { loopId = request.LoopId }, tx);
+            Registry.RegistryEditMerge.EnsureNotRetired(stored?.IsActive, request.LoopId);
+            var storedTags = (await conn.QueryAsync<StoredTagRow>(
+                "SELECT signal_role AS Role, uns_path AS Path, source_system AS System, source_tag AS Tag FROM cpm.loop_tag_map WHERE loop_id = @loopId",
+                new { loopId = request.LoopId }, tx))
+                .Select(r => new CpmTagMapEntry(r.Role, r.Path, r.System, r.Tag)).ToList();
+            var tags = Registry.RegistryEditMerge.MergeTagSources(storedTags, request.Tags ?? Array.Empty<CpmTagMapEntry>());
             // tags JSONB mirrors every mapped role, VP included — CPA's version
             // hard-coded pv/sp/op/mode and silently dropped vp.
             var tagsJson = JsonSerializer.Serialize(
                 tags.ToDictionary(t => t.SignalRole.ToLowerInvariant(), t => t.UnsPath));
-            var monitoringJson = JsonSerializer.Serialize(new Dictionary<string, object>
-            {
-                ["enabled"] = request.EnableMonitoring,
-                ["cplmPipeline"] = "cplm-three-stage-system",
-                ["evidence"] = new Dictionary<string, object>
-                {
-                    ["stepTestApproved"] = request.StepTestApproved,
-                    // Derived from real edges at publish time, never hand-set.
-                    ["peerLinksConfigured"] = false
-                }
-            });
+            var monitoringJson = Registry.RegistryEditMerge.MergeMonitoring(stored?.Monitoring, request.EnableMonitoring, request.StepTestApproved);
+            var engineeringJson = Registry.RegistryEditMerge.MergeEngineering(stored?.Engineering,
+                HasRange(request.Engineering) ? SerializeRange(request.Engineering!) : null);
 
             // v2.5 (2G.1): the loop model dimensions - resolved in C# against the stored row so an
             // EXPLICIT declaration is never overwritten by a loop_type preset (the resolution rule
@@ -195,9 +197,7 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
                     criticality = (request.Criticality ?? "medium").ToLowerInvariant(),
                     monitoring = monitoringJson,
                     tags = tagsJson,
-                    engineering = HasRange(request.Engineering)
-                        ? SerializeRange(request.Engineering!)
-                        : null,
+                    engineering = engineeringJson,
                     thresholdProfileId = request.ThresholdProfileId
                 }, tx);
 
@@ -253,6 +253,9 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
         var dto = await GetAsync(request.LoopId, ct);
         return dto!;
     }
+
+    private sealed record StoredLoopRow(bool IsActive, string? Monitoring, string? Engineering);
+    private sealed record StoredTagRow(string Role, string Path, string? System, string? Tag);
 
     private static readonly char[] LoopIdForbidden =
         { '/', '\\', '?', '#', '%', '&', ';', '|', '$', '"', '\'', '<', '>', '`', '{', '}', '[', ']' };

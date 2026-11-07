@@ -175,6 +175,16 @@ export function firstProblem(checks: Record<string, string | null | undefined>, 
 }
 
 /**
+ * A VP applicability the registry never declared is derived (a drive or a direct action has no valve). The form shows the
+ * derived value; unless the user changed it, it is not sent, so the loop stays derived instead of becoming explicit.
+ */
+function derivedKept(form: WizardState, editLoop: CpmLoop | undefined): WizardState {
+  if (!editLoop || editLoop.engineering?.vpApplicability) return form;
+  const shown = vpApplicabilityOf(editLoop) === 'NOT_INSTALLED' ? 'NOT_INSTALLED' : vpApplicabilityOf(editLoop) === 'EXPECTED' ? 'EXPECTED' : 'NOT_APPLICABLE';
+  return form.vpApplicability === shown ? { ...form, vpApplicability: '' } : form;
+}
+
+/**
  * The activate request. Activate is an upsert, so an edit must send back what the form does not show:
  * the asset link and the step-test approval of the stored loop.
  */
@@ -193,7 +203,7 @@ export function activateRequestOf(form: WizardState, editLoop: CpmLoop | undefin
     tags,
     thresholdProfileId: form.thresholdProfileId.trim() || null,
     enableMonitoring: form.enableMonitoring,
-    engineering: engineeringOf(form),
+    engineering: engineeringOf(derivedKept(form, editLoop)),
     allowUnmodelledLocation,
     // v2.5 (2G.1): only an explicit declaration is sent; omitted keeps a stored EXPLICIT model or takes the preset
     model: modelOf(form.model),

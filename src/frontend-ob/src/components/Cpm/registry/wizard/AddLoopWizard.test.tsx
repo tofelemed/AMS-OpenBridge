@@ -118,4 +118,11 @@ describe('AddLoopWizard (edit)', () => {
     const req = saveEdit({ ...loop, engineering: { ...loop.engineering, vpApplicability: 'NOT_INSTALLED' } } as unknown as CpmLoop);
     expect((req.engineering as Record<string, string>).vpApplicability).toBe('NOT_INSTALLED');
   });
+
+  it('keeps a derived VP applicability derived unless the user changes it', () => {
+    const drive = { ...loop, model: { serviceFamily: 'FLOW', dynamicClass: 'FAST_SELF_REG', objectiveType: 'TIGHT', topology: 'SINGLE',
+      commandPath: 'OP_TO_VFD', acquisition: { mode: 'PERIODIC' }, classificationSource: 'EXPLICIT' } } as unknown as CpmLoop;
+    const req = saveEdit(drive);
+    expect((req.engineering as Record<string, string>).vpApplicability).toBeUndefined();
+  });
 });

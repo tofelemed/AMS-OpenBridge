@@ -21,16 +21,19 @@ vi.mock('./RetireLoopDialog', () => ({
   RetireLoopDialog: (p: { mode: string; onDone: (r: unknown) => void }) => (
     <div role="dialog">{p.mode} dialog
       <button onClick={() => p.onDone({ loopId: 'FIC1', retired: p.mode === 'retire', changed: false, note: 'Already retired' })}>finish</button>
+      <button onClick={() => p.onDone({ loopId: 'FIC1', retired: p.mode === 'retire', changed: true, note: null })}>done</button>
     </div>),
 }));
 
 let loops: CpmLoop[] = [];
 let readiness: Partial<CpmReadiness> | undefined;
 let events: unknown[] = [];
+let eventsError = false;
+const eventsArgs: unknown[][] = [];
 vi.mock('../../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops }, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
   useCpmReadiness: () => ({ data: readiness }),
-  useCpmEvents: () => ({ data: { events } }),
+  useCpmEvents: (...a: unknown[]) => { eventsArgs.push(a); return { data: { events }, isError: eventsError }; },
   useRepublishEvidence: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -54,7 +57,7 @@ const asUser = (permissions: string[]) => useAuthStore.setState({
   user: { user_id: 'u', username: 'u', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't',
 });
 
-beforeEach(() => { loops = [loop()]; readiness = undefined; events = []; asUser(['cpm.manage', 'asset.view']); });
+beforeEach(() => { loops = [loop()]; readiness = undefined; events = []; eventsError = false; eventsArgs.length = 0; asUser(['cpm.manage', 'asset.view']); });
 afterEach(cleanup);
 
 describe('LoopDetail', () => {
@@ -109,7 +112,7 @@ describe('LoopDetail', () => {
       return v;
     };
     expect(vp(loop())).toMatch(/^Applicable · mapped/);
-    expect(vp(loop({ tags: { PV: 'a/b/c.pv' } }))).toMatch(/^Expected · not mapped/);
+    expect(vp(loop({ tags: { PV: 'a/b/c.pv' } }))).toMatch(/^Expected · not mapped: G14 cannot confirm a final-element fault/);
     expect(vp(loop({ tags: {}, engineering: { vpApplicability: 'NOT_APPLICABLE' } as CpmLoop['engineering'] }))).toMatch(/^Not applicable/);
     expect(vp(loop({ tags: {}, engineering: { vpApplicability: 'NOT_INSTALLED' } as CpmLoop['engineering'] }))).toMatch(/^Not installed/);
   });
@@ -119,7 +122,7 @@ describe('LoopDetail', () => {
     open();
     expect((screen.getByRole('button', { name: 'Edit configuration' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Retire' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getAllByText('Needs the cpm.manage permission').length).toBe(2);
+    expect(screen.getAllByText('Needs the cpm.manage permission').length).toBe(3);
   });
 
   it('opens the editor from Edit configuration', () => {
@@ -147,8 +150,10 @@ describe('LoopDetail', () => {
     loops = [loop({ isActive: false })];
     events = [{ id: 7, family: 'STICTION', opened_at: '2026-11-06T10:00:00Z', condition_state: 'OPEN' }];
     open();
-    expect(screen.getAllByText('Loop retired').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Loop retired').length).toBe(1);
+    expect(screen.getByText('Retired')).toBeTruthy();
     expect(screen.getByText('Open episode')).toBeTruthy();
+    expect(eventsArgs.at(-1)).toEqual([{ loopId: 'FIC1', openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 30_000, true]);
     fireEvent.click(screen.getByRole('button', { name: /^Evidence/ }));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/evidence?loop=FIC1');
   });
@@ -182,5 +187,45 @@ describe('LoopDetail', () => {
     open('fic1');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('FIC1');
     expect(screen.getByText('gate role policy')).toBeTruthy();
+  });
+
+  it('does not read the open episode of an active loop', () => {
+    open();
+    expect(eventsArgs.at(-1)?.[2]).toBe(false);
+  });
+
+  it('disables Edit on a retired loop and says to restore first', () => {
+    loops = [loop({ isActive: false })];
+    open();
+    expect((screen.getByRole('button', { name: 'Edit configuration' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Restore the loop first')).toBeTruthy();
+  });
+
+  it('disables Re-project without cpm.manage, with the reason', () => {
+    asUser(['cpm.read']);
+    open();
+    expect((screen.getByRole('button', { name: /Re-project/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getAllByText('Needs the cpm.manage permission').length).toBe(3);
+  });
+
+  it('says so when the open episode of a retired loop could not be read', () => {
+    loops = [loop({ isActive: false })];
+    eventsError = true;
+    open();
+    expect(screen.getByText(/could not be read/)).toBeTruthy();
+  });
+
+  it('shows the G13 consequence when peers are expected but absent', () => {
+    loops = [loop({ links: [] })];
+    open();
+    expect(screen.getByText(/None · expected: G13 not evaluated/)).toBeTruthy();
+  });
+
+  it('reads Retired at once after a successful retire, before the list refetch lands', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Retire' }));
+    fireEvent.click(screen.getByRole('button', { name: 'done' }));
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy();
+    expect(screen.getByText('Retired')).toBeTruthy();
   });
 });

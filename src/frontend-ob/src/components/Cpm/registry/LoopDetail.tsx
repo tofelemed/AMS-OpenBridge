@@ -6,7 +6,7 @@
  * retired), Open loop, Evidence, Effective rules and Re-project. A retired loop keeps its history links; its
  * open episode is left as it is and marked (UI-131).
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Toggletip } from '../../../ui/Toggletip';
@@ -27,18 +27,23 @@ import { SignalMapping } from './SignalMapping';
 import { factsOf, missingFields, plantPath } from './loopDetailFacts';
 
 const NEEDS_MANAGE = 'Needs the cpm.manage permission';
+const RESTORE_FIRST = 'Restore the loop first';
 
 export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ loopId, onBack }) => {
   const navigate = useNavigate();
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = data?.loops ?? [];
-  const loop = loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
+  const stored = loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
+  // After Retire or Restore the page follows the answer at once, until the list refetch agrees with it.
+  const [asked, setAsked] = useState<boolean | null>(null);
+  useEffect(() => { if (asked !== null && stored?.isActive === asked) setAsked(null); }, [asked, stored?.isActive]);
+  const loop = stored && asked !== null ? { ...stored, isActive: asked } : stored;
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const canSeeTree = useAuthStore(s => s.hasPermission('asset.view'));
   const readiness = useCpmReadiness(loop?.loopId);
   const retired = !!loop && !loop.isActive;
-  const episodes = useCpmEvents({ loopId: loop?.loopId, openOnly: true, limit: 1, sort: 'recent' }, 30_000, retired);
+  const episodes = useCpmEvents({ loopId: loop?.loopId, openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 30_000, retired);
   const republish = useRepublishEvidence();
   const user = useReceiptUser();
   const [editing, setEditing] = useState(false);
@@ -67,6 +72,7 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
 
   const done = (r: LoopRetireResult) => {
     setDialog(null);
+    if (r.changed) setAsked(!r.retired);
     setReceipt(receiptDone(r.changed
       ? `${r.retired ? 'Retired' : 'Restored'} ${r.loopId} ${byNow(user)}.`
       : (r.note ?? `${r.loopId} was already ${r.retired ? 'retired' : 'active'}; nothing changed.`), loop.loopId));
@@ -79,7 +85,7 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
         title={loop.loopId}
         actions={(
           <>
-            <ReasonedButton variant="normal" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setEditing(true)}>Edit configuration</ReasonedButton>
+            <ReasonedButton variant="normal" disabled={!canManage || retired} reason={canManage ? RESTORE_FIRST : NEEDS_MANAGE} onClick={() => setEditing(true)}>Edit configuration</ReasonedButton>
             <ReasonedButton variant="normal" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setDialog(retired ? 'restore' : 'retire')}>
               {retired ? 'Restore' : 'Retire'}
             </ReasonedButton>
@@ -94,7 +100,7 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
       </div>
 
       <section className="cpm-surface" aria-label="Loop facts">
-        <PanelHead title="Facts" right={<TonePill tone={retired ? 'muted' : st.tone}>{retired ? 'Loop retired' : st.label}</TonePill>} />
+        <PanelHead title="Facts" right={<TonePill tone={retired ? 'muted' : st.tone}>{retired ? 'Retired' : st.label}</TonePill>} />
         {factsOf(loop).map(([label, value]) => <KvRow key={label} label={label}>{value}</KvRow>)}
         <KvRow label="Plant path">
           {plantPath(loop)}
@@ -114,13 +120,20 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
             {`${open.family} since ${fmtDateTime(open.opened_at)} `}<TonePill tone="muted">Loop retired</TonePill>
           </KvRow>
         )}
+        {retired && episodes.isError && (
+          <KvRow label="Open episode">
+            The open episode could not be read{' '}
+            <ObcButton variant="flat" onClick={() => void episodes.refetch?.()}>Retry</ObcButton>
+          </KvRow>
+        )}
       </section>
 
       <SignalMapping loop={loop} />
 
       <section className="cpm-surface" aria-label="Readiness">
         <PanelHead title="Readiness" />
-        {missing.length === 0 && <p className="cpm-copy">{readiness.isLoading ? 'Checking readiness…' : readiness.isError ? 'Readiness unavailable.' : 'Nothing missing'}</p>}
+        {readiness.isError && <QueryError title="Readiness unavailable" error={readiness.error} retry={() => void readiness.refetch()} />}
+        {missing.length === 0 && !readiness.isError && <p className="cpm-copy">{readiness.isLoading ? 'Checking readiness…' : 'Nothing missing'}</p>}
         {missing.map(c => <KvRow key={c.id} label={c.label}>{c.message ?? 'Missing'}</KvRow>)}
       </section>
 
@@ -136,9 +149,10 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
         </KvRow>
         {m && <KvRow label="Objective / topology / command">{m.objectiveType} · {m.topology} · {m.commandPath}</KvRow>}
         <div className="cpm-loop-model__links">
-          <ObcButton
+          <ReasonedButton
             variant="normal"
-            disabled={republish.isPending}
+            disabled={!canManage || republish.isPending}
+            reason={canManage ? null : NEEDS_MANAGE}
             onClick={() => republish.mutate(loop.loopId, {
               // CHG-098 (SME review 2 #27): what was republished, by whom and when, or why it failed, stays on screen
               onSuccess: r => setReceipt(receiptDone(`Republished ${loop.loopId} ${byNow(user)}: ${r.links} link(s) live on the broadcast${
@@ -147,7 +161,7 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
             })}
           >
             {republish.isPending ? 'Republishing…' : 'Re-project links & republish evidence'}
-          </ObcButton>
+          </ReasonedButton>
         </div>
       </section>
 
