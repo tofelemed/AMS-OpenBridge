@@ -147,7 +147,8 @@ export const CpmPerformance: React.FC = () => {
   // CHG-066: the loops' optional-input context, so the matrix marks a pass judged without an input like the Explorer does
   const registry = useCpmLoops();
 
-  const fleetTotal = summary.data?.loops.total ?? null;
+  // the capability tile counts the monitored loops: the population its drill-down lists
+  const fleetTotal = summary.data?.loops.monitored ?? null;
 
   const heatmapLoops = useMemo(() => heatmap.data?.loops ?? [], [heatmap.data]);
   const inputFlagsOf = useMemo(() => {

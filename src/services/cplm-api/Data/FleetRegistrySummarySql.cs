@@ -10,14 +10,18 @@ public static class FleetRegistrySummarySql
                    COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE))::int AS monitored,
                    COUNT(*) FILTER (WHERE COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE))::int AS with_peer_links,
                    COUNT(*) FILTER (WHERE tags ? 'vp')::int AS with_vp,
-                   -- the Diagnostic capability tile: its drill-down lists the monitored loops (FleetKpiSql.Rows), so the count is monitored loops only
+                   -- every limit count (valve position, peers, plant facts) is of monitored loops: the Diagnostic capability tile's drill-down lists them (FleetKpiSql.Rows)
                    COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE)
                                     AND NOT (tags ? 'vp') AND {OptionalInputs.VpApplicabilitySql} = 'EXPECTED')::int AS vp_expected_unmapped,
-                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {OptionalInputs.VpApplicabilitySql} = 'NOT_INSTALLED')::int AS vp_not_installed,
-                   COUNT(*) FILTER (WHERE NOT (tags ? 'vp') AND {OptionalInputs.VpApplicabilitySql} = 'NOT_APPLICABLE')::int AS vp_not_applicable,
-                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
+                   COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE)
+                                    AND NOT (tags ? 'vp') AND {OptionalInputs.VpApplicabilitySql} = 'NOT_INSTALLED')::int AS vp_not_installed,
+                   COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE)
+                                    AND NOT (tags ? 'vp') AND {OptionalInputs.VpApplicabilitySql} = 'NOT_APPLICABLE')::int AS vp_not_applicable,
+                   COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE)
+                                    AND NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
                                     AND {OptionalInputs.PeerApplicabilitySql} = 'EXPECTED')::int AS peers_expected_missing,
-                   COUNT(*) FILTER (WHERE NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
+                   COUNT(*) FILTER (WHERE COALESCE((monitoring->>'enabled')::boolean, FALSE)
+                                    AND NOT COALESCE((monitoring->'evidence'->>'peerLinksConfigured')::boolean, FALSE)
                                     AND {OptionalInputs.PeerApplicabilitySql} <> 'EXPECTED')::int AS peers_not_applicable
             FROM cpm.loop_registry
             WHERE is_active

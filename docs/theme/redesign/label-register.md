@@ -141,3 +141,4 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Replay refusal | Replay holds 12 h and 24 h windows | Evidence Workbench, Evidence Replay | CHG-153 |
 | Retired loop | Retired (the pill Loop Registry uses) | Loop band, loop list | CHG-153 |
 | No-fault window without a score | Not stored | Historical, Selected window | CHG-153 |
+| Back link of a response run in the Workbench | Back to System Response ↗ | Evidence Workbench | CHG-153 |

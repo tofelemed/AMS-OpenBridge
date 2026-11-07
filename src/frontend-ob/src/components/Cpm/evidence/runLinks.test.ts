@@ -21,6 +21,22 @@ describe('backLink', () => {
   });
 });
 
+describe('backLink for a response (G12) run', () => {
+  it('goes back to System Response for that run, never to a window kind that does not exist', () => {
+    const l = backLink({ loopId: 'L1', gate: 'G12', kind: 'event', toMs: OLD_MS, methodRunId: 'ev-1' });
+    expect(l.label).toBe('Back to System Response ↗');
+    expect(l.href.startsWith('/cpm/response')).toBe(true);
+    expect(l.href).toContain('methodRun=ev-1');
+    expect(l.href).not.toContain('profile=event');
+  });
+  it('every kind a run can carry maps to a page that exists', () => {
+    const page = (kind: string) => backLink({ loopId: 'L1', gate: 'G3', kind, toMs: OLD_MS, methodRunId: 'r' }).href.split('?')[0];
+    for (const k of ['1m', '5m', '15m', '4h']) expect(page(k)).toBe('/cpm/windows');
+    for (const k of ['12h', '24h']) expect(page(k)).toBe('/cpm/investigation');
+    expect(page('event')).toBe('/cpm/response');
+  });
+});
+
 describe('replayLink', () => {
   it('is offered for 12h and 24h', () => {
     const l = replayLink({ loopId: 'L1', gate: 'G3', kind: '12h', toMs: OLD_MS });

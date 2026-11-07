@@ -1230,3 +1230,11 @@ None.
 |---|---|
 | Pipeline Health links (Investigation, Replay, Performance, Explorer Summary, Calculations, Loop KPIs, Readiness causes, Overview loop focus, Next checks, Case triage) | shown only with system.manage |
 | Plant tree ↗ (Loop Registry detail) | shown only with asset.view and an administration permission |
+
+## CHG-153 second pass
+
+| Where | Was | Now |
+|---|---|---|
+| Evidence Workbench, link for a response (G12) run | Back to Window Inspector ↗ (profile event) | Back to System Response ↗ |
+| Historical, Evidence score of a no-fault window that has a score | Not stored | the score |
+| Evidence Replay refusal, Window Inspector link | no window | carries the window end |

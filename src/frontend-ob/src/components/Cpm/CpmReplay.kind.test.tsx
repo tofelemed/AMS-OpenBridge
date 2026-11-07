@@ -7,7 +7,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const noQuery = { data: undefined, isLoading: false, isError: false, error: null, refetch: vi.fn() };
-const { atRow } = vi.hoisted(() => ({ atRow: { row: undefined as unknown } }));
+const { atRow, loopsAsked } = vi.hoisted(() => ({ atRow: { row: undefined as unknown }, loopsAsked: [] as Array<{ hook: string; loop: unknown }> }));
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
@@ -24,25 +24,25 @@ vi.mock('./replay/RerunCard', () => ({ RerunCard: () => null }));
 vi.mock('./replay/PackageDialog', () => ({ PackageDialog: () => null }));
 vi.mock('./replay/RunDetailsDialog', () => ({ RunDetailsDialog: () => null }));
 vi.mock('./evidence/useEvidenceWindows', () => ({
-  useEvidenceWindows: (_l: unknown, kind: string) => ({ options: [], isLoading: false, error: null, refetch: vi.fn(), hasMore: false, loadMore: vi.fn(), isLoadingMore: false, kind }),
+  useEvidenceWindows: (l: unknown, kind: string) => (loopsAsked.push({ hook: 'windows', loop: l }), { options: [], isLoading: false, error: null, refetch: vi.fn(), hasMore: false, loadMore: vi.fn(), isLoadingMore: false, kind }),
 }));
 vi.mock('./evidence/useWindowAt', async (orig) => ({
   ...(await orig<typeof import('./evidence/useWindowAt')>()),
-  useWindowAt: () => ({ row: atRow.row, rerun: false, others: [], notFound: false, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+  useWindowAt: (l: unknown) => (loopsAsked.push({ hook: 'at', loop: l }), { row: atRow.row, rerun: false, others: [], notFound: false, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
 }));
 vi.mock('../../hooks/useCpm', () => ({
   useCpmCalculations: () => ({ ...noQuery, data: { gates: [] } }),
   useCpmEvents: () => noQuery,
-  useCpmKpisRange: () => ({ data: { samples: [{ window_end: '2026-11-05T08:00:00Z', sample_period_sec: 7 }] } }),
+  useCpmKpisRange: (l: unknown) => (loopsAsked.push({ hook: 'kpis', loop: l }), { data: { samples: [{ window_end: '2026-11-05T08:00:00Z', sample_period_sec: 7 }] } }),
   useCpmLoops: () => ({ data: { loops: [{ loopId: 'L1', timezone: 'UTC', tags: {} }] } }),
   useGateCatalogue: () => noQuery,
-  useRawSlice: () => ({ ...noQuery, data: undefined }),
+  useRawSlice: (series: unknown) => (loopsAsked.push({ hook: 'raw', loop: series }), { ...noQuery, data: undefined }),
 }));
 
 import { CpmReplay } from './CpmReplay';
 
 const mount = (search: string) => render(<MemoryRouter initialEntries={[`/cpm/replay${search}`]}><CpmReplay /></MemoryRouter>);
-afterEach(() => { cleanup(); atRow.row = undefined; });
+afterEach(() => { cleanup(); atRow.row = undefined; loopsAsked.length = 0; });
 
 describe('Replay window kinds', () => {
   it.each(['15m', '4h'])('says it cannot open a %s window and shows no window', (kind) => {
@@ -50,6 +50,15 @@ describe('Replay window kinds', () => {
     mount(`?loop=L1&kind=${kind}&window=2026-11-05T08:00:00Z`);
     expect(screen.getByText('Replay holds 12 h and 24 h windows')).toBeTruthy();
     expect(screen.queryByText(/Original run/)).toBeNull();
+  });
+
+  it('fetches nothing for a refused kind, and its Window Inspector link carries the window end', () => {
+    mount('?loop=L1&kind=15m&window=2026-11-05T08:00:00Z');
+    expect(loopsAsked.length).toBeGreaterThan(0);
+    expect(loopsAsked.filter(c => c.loop !== undefined)).toEqual([]);
+    const href = screen.getByRole('link', { name: /Window Inspector/ }).getAttribute('href') ?? '';
+    expect(decodeURIComponent(href)).toContain('window=2026-11-05T08:00:00Z');
+    expect(href).toContain('profile=15m');
   });
 
   it('still opens a 12h window', () => {

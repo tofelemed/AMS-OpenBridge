@@ -4,7 +4,7 @@
  * 4h run into a 12h one: Investigation and Replay hold 12h and 24h only, so a run of any other kind goes back to the
  * Window Inspector, which lists every kind, and has no Replay.
  */
-import { investigationHref, replayHref, windowsHref } from '../cpaHref';
+import { investigationHref, replayHref, responseHref, windowsHref } from '../cpaHref';
 import { WINDOW_KINDS } from '../useWindowKind';
 
 export const REPLAY_UNAVAILABLE = 'Replay holds 12 h and 24 h windows';
@@ -22,6 +22,8 @@ export interface RunRef {
   kind: string;
   /** The run's own support end (ms), when the run has loaded. */
   toMs?: number | null;
+  /** The run's id: a response (event) run is found by it on System Response. */
+  methodRunId?: string | null;
   /** The end of the run's window as listed, when it is among the loaded windows. */
   listedEnd?: string | null;
 }
@@ -30,6 +32,8 @@ export interface BackLink { label: string; href: string }
 
 export function backLink(r: RunRef): BackLink {
   const end = r.listedEnd || isoOf(r.toMs);
+  // a response run (G12) has the kind "event": System Response resolves it from the run
+  if (r.kind === 'event' && r.methodRunId) return { label: 'Back to System Response ↗', href: responseHref(r.loopId, { methodRun: r.methodRunId }) };
   if (isFusedKind(r.kind)) {
     return { label: 'Back to Investigation ↗', href: investigationHref(r.loopId, { kind: r.kind, window: end, gate: r.gate }) };
   }

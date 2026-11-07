@@ -15,7 +15,6 @@ import { EmptyState, KvRow, PanelHead, TonePill, diagnosisBand } from '../shared
 import { workbenchHref } from '../evidence/selection';
 import { fmtWhen } from '../blocks/whenText';
 import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
-import { hasVerdict } from '../metricAvailability';
 import { Toggletip } from '../../../ui/Toggletip';
 import { TechnicalDetails } from '../../../ui/TechnicalDetails';
 import { NotStored, pctOf } from './EvaluatedWindows';
@@ -60,7 +59,7 @@ export const SelectedWindowPanel: React.FC<{
   const navigate = useNavigate();
   const run = win ? windowRun(win) : null;
   const band = win ? diagnosisBand(win.diagnosis) : null;
-  const score = win && hasVerdict(win.diagnosis) ? evidenceScore(win.confidence) : null;
+  const score = win && isJudged(conditionOf(win.diagnosis).kind) ? evidenceScore(win.confidence) : null;
   return (
     <section className="cpm-surface cpm-hist-selected">
       <PanelHead title="Selected window" />

@@ -11,7 +11,11 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: ({ children, onClick, disabled }: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     <button onClick={onClick} disabled={disabled}>{children}</button>,
 }));
-vi.mock('./performance/PerformanceKpis', () => ({ default: () => null, PerformanceKpis: () => null }));
+const kpiProps = vi.hoisted(() => ({ last: undefined as undefined | { fleetTotal: number | null } }));
+vi.mock('./performance/PerformanceKpis', () => {
+  const C = (p: { fleetTotal: number | null }) => { kpiProps.last = p; return null; };
+  return { default: C, PerformanceKpis: C };
+});
 vi.mock('./performance/HowToReadDialog', () => ({ default: () => null }));
 vi.mock('./plantScope', () => ({ useCpmScope: () => ({ params: {} }) }));
 vi.mock('./kpi/useFleetKpis', () => ({ useFleetKpis: () => ({ data: undefined, isError: false }) }));
@@ -25,7 +29,7 @@ const ROWS = [{
 vi.mock('../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops: [] } }),
   useCpmResolutions: () => ({ data: { fusion: { firesOn: ['12h', '24h'] }, windows: [] } }),
-  useFleetSummary: () => ({ data: { loops: { total: 1 } } }),
+  useFleetSummary: () => ({ data: { loops: { total: 5, monitored: 3 } } }),
   useFleetHeatmap: () => ({ data: { loops: ROWS, gateKeys: KEYS, total: 1 }, isLoading: false, isError: false }),
   useFleetRankings: () => ({ data: undefined }),
   useLatestGates: () => ({
@@ -77,5 +81,11 @@ describe('Performance list', () => {
     page('/cpm/performance?rows=all');
     for (const gone of ['Opportunity ranking', 'Loops needing attention', 'driven by', 'Selected row · latest fused result', 'Final diagnosis'])
       expect(screen.queryByText(new RegExp(gone))).toBeNull();
+  });
+
+  // CHG-153: the capability tile's X/Y counts one population, the monitored loops (its drill-down), not every active loop
+  it('hands the capability tile the monitored loops as its total', () => {
+    page('/cpm/performance?rows=all');
+    expect(kpiProps.last?.fleetTotal).toBe(3);
   });
 });

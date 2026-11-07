@@ -61,12 +61,16 @@ export const CpmReplay: React.FC = () => {
   const timeZone = loop?.timezone || 'UTC';
   // CHG-140: the list is the one Gates and Investigation read; the window is read at its exact end, a re-run included
   // (the original outranks a re-run of the same end). ?window= may carry a kind from another page: never an end then.
-  const list = useEvidenceWindows(loopId, windowKind, 'fused', timeZone);
+  // a kind Replay does not hold fetches nothing: the page says so below
+  const askedKind = params.get('kind');
+  const refused = !!askedKind && !(WINDOW_KINDS as readonly string[]).includes(askedKind);
+  const fetchLoop = refused ? undefined : loopId;
+  const list = useEvidenceWindows(fetchLoop, windowKind, 'fused', timeZone);
   const windows = list.options;
   const endParam = params.get('window');
   const windowEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
   const rerunId = windowEnd ? params.get('rerun') : null;
-  const at = useWindowAt(loopId, windowKind, windowEnd, rerunId);
+  const at = useWindowAt(fetchLoop, windowKind, windowEnd, rerunId);
   const selected: CpmGateMatrix | undefined = at.row;
   const windowNotStored = !!windowEnd && at.notFound;
   const g15Run = selected?.methodRunIds?.G15;
@@ -74,7 +78,7 @@ export const CpmReplay: React.FC = () => {
   // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values. `to` is load-bearing: the
   // endpoint orders DESC LIMIT n inside from..to, so an open `to` drops this window once ten newer ones exist.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
-    loopId, windowKind,
+    fetchLoop, windowKind,
     selected?.windowStart ?? undefined,
     selected?.windowEnd ?? undefined, 10,
     !!selected?.windowStart,
@@ -82,7 +86,7 @@ export const CpmReplay: React.FC = () => {
 
   // Raw slice for the selected window, walked page by page (each below IoTDB's REST row limit) until the window is
   // complete or the 200k-point budget is reached - and a cut is SAID, never implied. Mode comes with it; a blank reads Not recorded.
-  const series = loopId ? loopSeries(loopId) : undefined;
+  const series = fetchLoop ? loopSeries(fetchLoop) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
   const raw = useRawSlice(series, winStart, winEnd, 'pv,sp,op,vp,mode', 9_000, 200_000);
@@ -107,7 +111,7 @@ export const CpmReplay: React.FC = () => {
   const [dialog, setDialog] = useState<'package' | 'details' | null>(null);
 
   // The loop's open event frame: loop notes attach to it.
-  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId);
+  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!fetchLoop);
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
 
   const dropWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('rerun'); };
@@ -121,8 +125,7 @@ export const CpmReplay: React.FC = () => {
   );
 
   // A link may name a kind Replay does not hold (15m, 4h): say so, never show the 12h window in its place.
-  const askedKind = params.get('kind');
-  if (askedKind && !(WINDOW_KINDS as readonly string[]).includes(askedKind)) {
+  if (refused) {
     return (
       <div className="cpm-screen">
         <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Replay" />
@@ -130,7 +133,7 @@ export const CpmReplay: React.FC = () => {
           <EmptyState title={REPLAY_UNAVAILABLE}
             copy={`Replay cannot open a ${askedKind} window. Open it in the Window Inspector, or replay a 12 h or 24 h window.`}
             action={{ label: 'Replay 12 h windows', onClick: () => setParams(p => { p.set('kind', '12h'); dropWindow(p); return p; }, { replace: true }) }}
-            next={loopId ? [{ label: 'Window Inspector', to: windowsHref(loopId, { profile: askedKind }) }] : undefined} />
+            next={loopId ? [{ label: 'Window Inspector', to: windowsHref(loopId, { profile: askedKind, window: windowEnd }) }] : undefined} />
         </section>
       </div>
     );

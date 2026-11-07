@@ -76,6 +76,12 @@ describe('SelectedWindowPanel', () => {
   });
 
   // CHG-153: a no-fault window is a result; only an excluded, short or unevaluated window has no verdict
+  it('shows the score of a no-fault window when it has one', () => {
+    show({ window: { ...win, diagnosis: 'NO_CALL', confidence: 0.4 } });
+    expect(screen.getByText('40')).toBeTruthy();
+    expect(screen.queryByText('Not stored')).toBeNull();
+  });
+
   it('does not say a no-fault window has no verdict', () => {
     show({ window: { ...win, diagnosis: 'NO_CALL', confidence: null } });
     expect(screen.queryByText('No verdict in this window')).toBeNull();

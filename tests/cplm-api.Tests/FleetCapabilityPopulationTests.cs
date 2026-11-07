@@ -27,6 +27,16 @@ public sealed class FleetCapabilityPopulationTests
         line.Should().Contain(Monitored, "the drill-down lists the monitored loops, so the number must count the same ones");
     }
 
+    [Theory]
+    [InlineData("vp_not_installed")]
+    [InlineData("vp_not_applicable")]
+    [InlineData("peers_expected_missing")]
+    [InlineData("peers_not_applicable")]
+    public void Every_limit_count_on_the_Overview_line_and_the_tile_is_one_population(string alias)
+    {
+        Expression(FleetRegistrySummarySql.Registry, alias).Should().Contain(Monitored);
+    }
+
     [Fact]
     public void The_drill_down_rows_are_the_monitored_loops()
     {

@@ -252,7 +252,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
     );
   }
 
-  const runRef = { loopId: selection.loopId, gate: selection.gate, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd };
+  const runRef = { loopId: selection.loopId, gate: selection.gate, methodRunId: selection.methodRunId, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd };
   const back = backLink(runRef);
   const replay = replayLink(runRef);
 

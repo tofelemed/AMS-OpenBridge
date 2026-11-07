@@ -20,3 +20,12 @@ describe('hasGap vp', () => {
     expect(hasGap(loop({ isActive: false }), 'vp')).toBe(false);
   });
 });
+
+describe('hasGap peers', () => {
+  it('counts a monitored loop that expects peers and has none', () => {
+    expect(hasGap(loop(), 'peers')).toBe(true);
+  });
+  it('does not count a registered loop that is not monitored', () => {
+    expect(hasGap(loop({ monitoringEnabled: false }), 'peers')).toBe(false);
+  });
+});
