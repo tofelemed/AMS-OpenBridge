@@ -6010,3 +6010,5 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`, `cplm-api` (the engineering clear in activate). **No migration, no config.**
 
 **Plant:** not deployed. This branch is not released.
+
+**Lab :3000, 2026-11-07 17:11 local:** `ams-frontend` and `cplm-api` rebuilt from `2f5ff876` (images `redesign-2f5ff876`, tagged `latest`); previous images tagged `pre-reference` for rollback. Proven on the running server: both containers on the new image ids, cplm-api healthy, gateway health 200, the new wording in the served bundle, one member in `traverse-cpa-cplm-results`. Browser gates not re-run on :3000: the lab disk watch stops Docker every 10 min while C: is under 20 GB.
