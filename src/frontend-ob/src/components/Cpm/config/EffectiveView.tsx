@@ -6,7 +6,7 @@
  * gate result it names the bundle THAT run carried and says plainly when it is not the one active today.
  * Read-only: every value is the server's resolution.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
 import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
@@ -27,12 +27,15 @@ export interface EffectiveViewProps {
   /** A drawer inside another page: no layer stack, the table only. */
   compact?: boolean;
   /** Opens the worker acknowledgements (the Worker alignment tile leads here). */
-  workersOpen?: boolean;
+  openWorkersSignal?: number;
 }
 
-export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash, initialGate, catalogue, compact, workersOpen }) => {
+export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash, initialGate, catalogue, compact, openWorkersSignal }) => {
   const [query, setQuery] = useState('');
   const [opened, setOpened] = useState<string | null>(null);
+  const workersBox = useRef<HTMLDetailsElement>(null);
+  // every tile click opens it, whatever state the user left it in; its own toggle stays the user's
+  useEffect(() => { if (openWorkersSignal && workersBox.current) workersBox.current.open = true; }, [openWorkersSignal]);
   const gates = useMemo(() => overridesByGate(eff), [eff]);
   const gateKeys = useMemo(() => Object.keys(gates).sort((a, b) => gateRank(a) - gateRank(b)), [gates]);
   const [picked, setPicked] = useState<string | null>(initialGate && gates[initialGate] ? initialGate : null);
@@ -105,7 +108,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
         </table>
       )}
 
-      <details className="cpm-config-workers" id="config-workers" open={workersOpen || undefined}>
+      <details className="cpm-config-workers" id="config-workers" ref={workersBox}>
         <summary><TonePill tone={workers.tone}>{workers.text}</TonePill> <span className="cpm-event-row__sub">APPLY acknowledgements</span></summary>
         <table className="cpm-table" data-table="effective-workers">
           <thead><tr><th>job</th><th>jar</th><th>catalogue</th><th>applied</th></tr></thead>

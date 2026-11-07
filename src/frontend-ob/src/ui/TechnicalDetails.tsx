@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
+import { copyText } from '../utils/copyText';
 import './technical-details.css';
 
 const MESSAGE_MS = 3000;
@@ -18,15 +19,8 @@ export interface TechnicalDetail {
   mono?: boolean;
 }
 
-/** Where the API is missing, `navigator.clipboard` is undefined and the call throws into the catch. */
-async function writeToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** Plant pages are served over http, where `navigator.clipboard` is missing: copyText falls back to a textarea. */
+const writeToClipboard = copyText;
 
 export const TechnicalDetails: React.FC<{ items: TechnicalDetail[] }> = ({ items }) => {
   const [message, setMessage] = useState('');

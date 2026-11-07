@@ -119,8 +119,22 @@ describe('GateConfigurationWorkspace', () => {
     renderAt('?loop=FIC10302');
     await waitFor(() => expect(screen.getByText('Worker alignment')).toBeTruthy());
     expect(document.getElementById('config-workers')!.hasAttribute('open')).toBe(false);
-    fireEvent.click(screen.getByText('Worker alignment').closest('button')!);
-    await waitFor(() => expect(document.getElementById('config-workers')!.hasAttribute('open')).toBe(true));
+    const tile = () => screen.getByText('Worker alignment').closest('button')!;
+    const box = () => document.getElementById('config-workers') as HTMLDetailsElement;
+    fireEvent.click(tile());
+    await waitFor(() => expect(box().hasAttribute('open')).toBe(true));
+    box().open = false;                                       // the user closes it
+    fireEvent.click(tile());                                  // the tile opens it every time
+    await waitFor(() => expect(box().open).toBe(true));
+    box().open = false;
+    expect(box().open).toBe(false);                           // its own toggle still works
+  });
+
+  it('a failed catalogue read is shown with a retry on a loop page; a missing catalogue is never "no warning"', async () => {
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => { if (url.includes('/configuration/catalogue')) throw new Error('catalogue down'); return respond(url); });
+    renderAt('?loop=FIC10302');
+    await waitFor(() => expect(screen.getByText('Catalogue unavailable')).toBeTruthy());
+    expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
   });
 
   it('the Bundles view reads the three levels on demand and a version opens the editor', async () => {

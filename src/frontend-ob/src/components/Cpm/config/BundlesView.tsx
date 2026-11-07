@@ -83,8 +83,8 @@ export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId
           );
         })}
       </ol>
-      {createError != null && <p className="cpm-field__error" role="alert">{createError instanceof Error ? createError.message : String(createError)}</p>}
-      {drafting && <DraftBundleDialog levels={levels} creating={creating} onClose={() => setDrafting(false)} onCreate={req => { setDrafting(false); onCreate(req); }} />}
+      {createError != null && !drafting && <p className="cpm-field__error" role="alert">{createError instanceof Error ? createError.message : String(createError)}</p>}
+      {drafting && <DraftBundleDialog levels={levels} creating={creating} error={createError} onClose={() => setDrafting(false)} onCreate={onCreate} />}
     </section>
   );
 };

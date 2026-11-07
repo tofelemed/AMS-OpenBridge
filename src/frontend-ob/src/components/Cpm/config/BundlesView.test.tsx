@@ -51,7 +51,21 @@ describe('BundlesView', () => {
     fireEvent.change(screen.getByLabelText('Draft note'), { target: { value: 'tighten G4' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create draft' }));         // LOOP is the first level
     expect(onCreate).toHaveBeenCalledWith({ scopeKind: 'LOOP', scopeRef: 'FIC10302', parentBundleId: 'l3', note: 'tighten G4' });
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();                                  // stays open until the draft succeeds
+  });
+
+  it('a failed draft shows its error in the dialog and keeps the note; a second submit is blocked while it runs', () => {
+    const props = { levels, activeBundleId: 'l2', canDraft: true, onOpen: () => {}, onCreate: vi.fn() };
+    const { rerender } = render(<BundlesView {...props} creating={false} createError={null} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare bundle draft' }));
+    fireEvent.change(screen.getByLabelText('Draft note'), { target: { value: 'keep me' } });
+    rerender(<BundlesView {...props} creating createError={null} />);
+    expect((screen.getByRole('button', { name: 'Creating…' }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<BundlesView {...props} creating={false} createError={new Error('409 parent moved')} />);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('alert').textContent).toMatch(/409 parent moved/);
+    expect((within(dialog).getByLabelText('Draft note') as HTMLInputElement).value).toBe('keep me');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);                             // the error once
   });
 
   it('without the draft permission the button is disabled and the reason is on screen; the level lines sit behind a ?', () => {

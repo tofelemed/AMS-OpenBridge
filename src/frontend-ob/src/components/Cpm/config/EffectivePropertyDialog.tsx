@@ -20,6 +20,7 @@ export const EffectivePropertyDialog: React.FC<{
   <Dialog open title={property} onClose={onClose}>
     <KvRow label="Value"><span className="cpm-mono">{valueText(value)}</span></KvRow>
     <KvRow label="Source">{isLayerSource(source) ? <TonePill tone={source === 'FACTORY' ? 'muted' : 'good'}>{source}</TonePill> : 'unset'}</KvRow>
+    {!entry && <p className="cpm-copy">The catalogue is not loaded, so class, id and unit are not shown.</p>}
     {entry && (
       <>
         <KvRow label="Class"><TonePill tone={classTone(entry.changeClass)}>{entry.changeClass}</TonePill></KvRow>

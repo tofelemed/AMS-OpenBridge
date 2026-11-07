@@ -26,6 +26,7 @@ describe('draftRequest', () => {
   it('takes the newest version of the chosen level as parent, and the level\'s own reference', () => {
     expect(draftRequest('LOOP', levels, 'tighten')).toEqual({ scopeKind: 'LOOP', scopeRef: 'FIC10302', parentBundleId: 'l3', note: 'tighten' });
     expect(draftRequest('PROFILE', levels, '')).toEqual({ scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG', parentBundleId: null, note: undefined });
+    expect(draftRequest('SITE', levels, '   ').note).toBeUndefined();   // whitespace is no note
     expect(draftRequest('SITE', levels, '')).toEqual({ scopeKind: 'SITE', scopeRef: null, parentBundleId: 's4', note: undefined });
   });
 });

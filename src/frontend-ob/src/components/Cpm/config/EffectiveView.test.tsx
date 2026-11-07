@@ -91,4 +91,10 @@ describe('EffectiveView', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('says so in one line when the catalogue is not loaded', () => {
+    render(<EffectiveView eff={eff} />);
+    fireEvent.click(screen.getByRole('button', { name: /G0\.coverage_min/ }));
+    expect(within(screen.getByRole('dialog')).getByText(/catalogue is not loaded/i)).toBeTruthy();
+  });
 });

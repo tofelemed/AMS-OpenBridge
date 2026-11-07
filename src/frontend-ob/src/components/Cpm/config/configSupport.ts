@@ -167,6 +167,7 @@ export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmT
 export function workerAlignment(eff: EffectiveConfig): { value: string; sub: string; tone: CpmTone } {
   const ws = eff.workers.filter(w => w.required !== false);
   const jars = new Set(ws.map(w => w.jarSha256)).size;
+  if (ws.length === 0) return { value: 'No worker has reported', sub: 'nothing to compare', tone: 'muted' };
   const n = `${ws.length} worker${ws.length === 1 ? '' : 's'}`;
   if (!eff.bundle) return { value: n, sub: `${jars > 1 ? `${jars} different jars · ` : ''}factory layer, nothing to acknowledge`, tone: jars > 1 ? 'warn' : 'muted' };
   const applied = ws.filter(w => w.ack?.status === 'ACK' && w.ack.bundleHash === eff.bundle!.contentHash).length;

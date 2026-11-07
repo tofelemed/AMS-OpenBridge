@@ -33,7 +33,7 @@ const VIEWS: ConfigView[] = ['effective', 'bundles', 'editor'];
 export const GateConfigurationWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const [workersOpen, setWorkersOpen] = useState(false);
+  const [workersSignal, setWorkersSignal] = useState(0);
   const scope = useCpmScope();
   const loops = useCpmLoops();
   const loopList = useMemo(() => loops.data?.loops ?? [], [loops.data]);
@@ -93,7 +93,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
   );
   const openWorkers = () => {
     if (view !== 'effective') go({ view: 'effective' });
-    setWorkersOpen(true);
+    setWorkersSignal(n => n + 1);
     window.setTimeout(() => document.getElementById('config-workers')?.scrollIntoView?.({ block: 'nearest' }), 0);
   };
   const rolePolicy = <section className="cpm-surface" aria-label="Gate role policy"><GateRolePolicy /></section>;
@@ -129,13 +129,14 @@ export const GateConfigurationWorkspace: React.FC = () => {
   return (
     <div className="cpm-screen cpm-config-workspace">
       <LoopConfigHeader loopId={loopId!} eff={eff.data} loading={eff.isLoading} catalogue={catalogue.data} onOpenWorkers={openWorkers} band={toolbar} />
+      {catalogue.isError && <QueryError title="Catalogue unavailable" error={catalogue.error} retry={() => void catalogue.refetch()} />}
       {eff.isError && <QueryError title="Effective configuration unavailable" error={eff.error} retry={() => void eff.refetch()} />}
       <div className="cpm-tabs">
         <Tabs idBase="config-view" label="Views" options={tabs} value={view} onChange={id => { if (id !== view) go({ view: id }); }} />
       </div>
       <div {...tabPanelProps('config-view', view)}>
       {view === 'effective' && (eff.data
-        ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} workersOpen={workersOpen} /></section>
+        ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} openWorkersSignal={workersSignal} /></section>
         : !eff.isError && <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>)}
       {view === 'bundles' && (
         <BundlesView activeBundleId={eff.data?.bundle?.bundleId} canDraft={perms.draft} creating={actions.create.isPending} createError={actions.create.isError ? actions.create.error : null}

@@ -21,20 +21,23 @@ export function draftRequest(kind: keyof Levels, levels: Levels, note: string): 
 export const DraftBundleDialog: React.FC<{
   levels: Levels;
   creating: boolean;
+  /** A failed draft: shown here, with the note still typed, until the draft succeeds. */
+  error?: unknown;
   onClose: () => void;
   onCreate: (req: DraftRequest) => void;
-}> = ({ levels, creating, onClose, onCreate }) => {
+}> = ({ levels, creating, error, onClose, onCreate }) => {
   const [kind, setKind] = useState<keyof Levels>('LOOP');
   const [note, setNote] = useState('');
   const level = levels[kind];
   const waiting = level.loading && level.bundles.length === 0;
   const unreadable = level.error != null;
+  const noRef = kind !== 'SITE' && level.ref === '…';   // the loop's profile or site is not known yet
   return (
     <Dialog open title="Prepare bundle draft" onClose={onClose}
       footer={(
         <>
           <ObcButton variant="flat" onClick={onClose}>Cancel</ObcButton>
-          <ObcButton variant="raised" disabled={creating || waiting || unreadable} onClick={() => onCreate(draftRequest(kind, levels, note))}>
+          <ObcButton variant="raised" disabled={creating || waiting || unreadable || noRef} onClick={() => onCreate(draftRequest(kind, levels, note))}>
             {creating ? 'Creating…' : 'Create draft'}
           </ObcButton>
         </>
@@ -51,6 +54,7 @@ export const DraftBundleDialog: React.FC<{
       </fieldset>
       {waiting && <p className="cpm-copy" aria-busy="true">Loading the {kind} versions…</p>}
       {unreadable && <p className="cpm-field__error" role="alert">The {kind} versions could not be read, so a draft cannot start from the right one.</p>}
+      {error != null && <p className="cpm-field__error" role="alert">{error instanceof Error ? error.message : String(error)}</p>}
       <input className="cpm-input" value={note} onChange={e => setNote(e.target.value)} placeholder="draft note" aria-label="Draft note" />
     </Dialog>
   );
