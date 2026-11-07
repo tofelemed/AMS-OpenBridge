@@ -413,10 +413,10 @@ export function usePipelineMetrics(refetchMs = 20_000) {
 /** A8 recompute: submit, then poll until finished, then refetch gate queries. */
 export function useRecompute(loopId: string | undefined) {
   const qc = useQueryClient();
-  const [handle, setHandle] = React.useState<{ replayId: string; jobId: string } | null>(null);
+  const [handle, setHandle] = React.useState<{ replayId: string; jobId: string; analysisRunId?: string } | null>(null);
   const submit = useMutation({
     mutationFn: () => cpm.recomputeLoop(loopId!),
-    onSuccess: (h) => setHandle({ replayId: h.replayId, jobId: h.jobId }),
+    onSuccess: (h) => setHandle({ replayId: h.replayId, jobId: h.jobId, analysisRunId: h.analysisRunId }),
   });
   const status = useQuery({
     queryKey: ['cpm', 'replay-status', handle?.replayId ?? ''],
@@ -435,5 +435,5 @@ export function useRecompute(loopId: string | undefined) {
       void qc.invalidateQueries({ queryKey: ['cpm', 'kpis-range'] });
     }
   }, [status.data?.finished, qc]);
-  return { submit, status: handle ? status.data : null, reset: () => setHandle(null) };
+  return { submit, status: handle ? status.data : null, analysisRunId: handle?.analysisRunId ?? null, reset: () => setHandle(null) };
 }

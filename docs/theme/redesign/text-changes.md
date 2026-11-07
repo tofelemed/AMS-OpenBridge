@@ -1102,3 +1102,34 @@ None.
 | From, To, Apply window, Live ›, pinned and live label | Inside the loop band, after the loop control (a plain row without analytics.view) |
 | Loop selector | The loop band, Trend (needs analytics.view) |
 | Open loop ↗ | The loop band's end, Trend, once a loop is chosen |
+
+### Task 27: Pipeline Health
+
+#### Removed, moved behind a `?`, or reworded
+
+| Was | Now |
+|---|---|
+| Eyebrow `Runtime internals` | Removed |
+| `The Flink/Kafka runtime that produces every verdict. This view is read-only…` | Unchanged text, behind the title `?` |
+| `One row per supervised job` (eyebrow `Required jobs`) | Observed jobs |
+| `Latency / backpressure / parallelism are not exposed by the proxy — shown as "—", not estimated.` | Behind the Observed jobs `?`, with the MISSING rule; the cells read Not exposed |
+| `—` for a value the page does not have | Not exposed |
+| `not exposed by the metrics proxy` (Watermark lag, Kafka consumer lag tiles) | Telemetry card rows, value Not exposed (with Latency, Backpressure, Parallelism) |
+| `analysis engine answering (JobManager)` | `analysis engine answering`; `(JobManager)`, its address and the unexpected-job list in Technical details |
+| `Checkpoint success` tile (%) and `Managed state` tile | Checkpoint age and Checkpoints ok / failed tiles; state size is in the job dialog |
+| `Prove the pipeline with a real round trip` | End-to-end verification |
+| `Submits an A8 recompute on {loop} (first monitored loop) and waits…` | Behind the verification `?`; the loop is chosen in the setup dialog |
+| `Round trip: Completed in Ns · replay {id}` | Round trip, Analysis run (the real run id); replay id and engine job id in Technical details |
+| `Where a sample becomes a verdict` and its Source / Compute / Store boxes | Behind the Telemetry `?`; Last fused verdict stays a row |
+| `Checkpoint behaviour while this page is open`, `Where this history comes from`, `N sample(s) · 20 s cadence` | Checkpoint history disclosure (closed): `Held only while this page is open` |
+| `REQUIRED JOBS RUNNING` header pill | Removed; the Required jobs tile says it |
+| Role, Last ckpt duration and State size columns | In the job dialog |
+| `(Flink JobManager did not answer.)` and `(No required job matched the Flink job overview.)` | Removed from the empty states |
+
+#### Moved or new
+
+| Control | Now on |
+|---|---|
+| Run E2E verification | Run end-to-end verification, opens a setup dialog (loop control, Start verification); still needs cpm.manage |
+| A job row | Job name opens a read-only dialog |
+| Checkpoint chart | Closed disclosure on the Telemetry card |

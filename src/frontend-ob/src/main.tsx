@@ -51,6 +51,7 @@ import './styles/cpm-explorer.css';
 import './styles/cpm-episodes.css';
 import './styles/cpm-overview.css';
 import './styles/cpm-performance.css';
+import './styles/cpm-pipeline.css';
 import './styles/cpm-perf-list.css';
 import './styles/cpm-context.css';
 import './styles/cpm-loop-summary.css';

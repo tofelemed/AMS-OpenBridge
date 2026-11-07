@@ -577,7 +577,7 @@ export const getRawCursor = (
 // ── Recompute (A8, U8) ──────────────────────────────────────────────────────
 
 export const recomputeLoop = (loopId: string) =>
-  apiJson<{ loopId: string; replayId: string; jobId: string; statusUrl: string }>(
+  apiJson<{ loopId: string; replayId: string; jobId: string; analysisRunId: string; statusUrl: string }>(
     `${BASE}/loops/${encodeURIComponent(loopId)}/recompute`, { method: 'POST' });
 
 export const getReplayStatus = (replayId: string, jobId: string) =>
