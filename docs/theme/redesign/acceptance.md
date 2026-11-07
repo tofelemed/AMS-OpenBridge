@@ -15,7 +15,7 @@ Results are Pass, Fail, Not run, or Not in this release. Nothing here certifies 
 | A5 Evidence integrity | Not run | `/cpm/investigation`, `/cpm/evidence`, `/cpm/replay` | Status words, `conditionOf` and no-fault facts were fixed at the source and are tested, but the control engineer has not reviewed them (`text-changes.md`). The original run and a new re-run are kept apart in code (Re-run opens the new run in the Workbench); a re-run needs a write on the lab, see A9. |
 | A6 Configuration correctness | Not run | `/cpm/registry`, loop page, `/cpm/config` | Validation, retire and activate rules are covered by tests (409 `LOOP_RETIRED`, row error on import, keys kept on activate). No configuration change was saved on the lab; see A9. |
 | A7 Feedback | Pass | Pipeline Health, Governance, Registry, Trend | Loading, empty, read-error and unavailable states were seen in the browser, including a run captured while the engine restarted: the pages said so and showed no success. A failed loop list shows the read error; a failed draft keeps its errors. |
-| A8 Responsive and accessibility | Pass | All pages, Day and Night, at 320, 390, 736, 1024 and 1440 px | Control-edge: 54 views, 0 off the screen. Geometry: 14 measurements, 0 failing. Accessibility: 74 scans, 0 serious. Keyboard-only and touch were not run as a separate pass. |
+| A8 Responsive and accessibility | Partly: widths and themes pass; keyboard-only and touch not run | All pages, Day and Night, at 320, 390, 736, 1024 and 1440 px | Control-edge: 54 views, 0 off the screen. Geometry: 14 measurements, 0 failing. Accessibility: 74 scans, 0 serious. Keyboard-only and touch were not run as a separate pass. |
 | A9 Persistence and security | Not run for writes | Retire, Restore, Edit, notes, reviews, config changes | Writes on the shared lab need the owner's approval, so none were made. Proven without a write: the retire and restore SQL ran on the real schema inside a rolled-back transaction on FIC10401. The flags and `enabled_before_retire` were right, a second retire wrote nothing, the 4 tag rows were kept and the row was unchanged after the rollback. Tests cover the rest (permissions, reason length, 409, audit events `CPM_LOOP_RETIRED` and `CPM_LOOP_RESTORED`). |
 | A10 Exports and runtime | Not run for writes and exports | Pipeline Health, Governance, Re-run, evidence package | Re-run and verification need a write on the lab and were not run. The pages show the service's own words for the audit-chain check and for job states. The evidence package zip holds `manifest.json` and `evidence-package.json`; its content was not compared with a selection in the browser. |
 
@@ -29,7 +29,12 @@ Results are Pass, Fail, Not run, or Not in this release. Nothing here certifies 
 | Audit before and after values | Not in this release | Not served today. |
 | Audit chain range, count and algorithm | Not in this release | Not served today; audit-service is outside this plan. |
 
-Final browser gates on the release build: see the closing message
+Final gates on the release build (f5761378, 7 Nov):
+
+- Static: tsc 0, lint 0, theme 0, 1927 of 1927 frontend tests, build OK. cplm-api: 369 passed, 6 failed, all known before this branch (ConfigLifecycleTests x5 need a database, ReadinessJobsTests x1 supervisor list).
+- Browser: redirects 25 of 25; accessibility 74 scans, 0 critical or serious; geometry 14 measurements, 0 failing; control edge 54 views, 0 off the screen; links 49 clicked, 0 problems; sizes 0 differences beyond the three recorded in baseline/size-exceptions.json.
+- Controls: every baseline control has a place. Two names were absent in this run only because their data was absent: Overview's "Not assessable" chip shows only when such loops exist, and Governance's permission matrix rows were still loading (they were present in the Section 5 run, code unchanged).
+- Lab deploy: not done. C: had 4.1 GB free and Docker's disk was still growing, so building the two images could fill the drive. The images are to be built once space is freed.
 
 ## Hand-offs
 

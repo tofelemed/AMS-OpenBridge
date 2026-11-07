@@ -80,6 +80,22 @@
     {
       "pattern": "^(fic|lic|pic|tic|aic|b_pic)[a-z_]*$",
       "why": "a ranking row names a live loop tag"
+    },
+    {
+      "pattern": "^ckpts ok/failed$|^last ckpt age$",
+      "why": "the Pipeline columns read OK / failed and Checkpoint age; duration and state size moved to the job dialog"
+    },
+    {
+      "pattern": "^about the audit trail$",
+      "why": "the one remaining help sits on the page heading"
+    },
+    {
+      "pattern": "^about the plant model$|^about this strip$",
+      "why": "merged into the Plant model `?`, which keeps the identity rule and the five stages"
+    },
+    {
+      "pattern": "^about source configuration$",
+      "why": "the tab is named Data sources and its help moved to the detail"
     }
   ]
 }
