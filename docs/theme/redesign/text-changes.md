@@ -1015,3 +1015,12 @@ None.
 | Show retired | Loop assets heading, beside Find loop (URL `retired=1`) |
 | Search and page | The URL (`search`, `page`), so Back from a loop returns to the same list |
 | Add loop, Bulk import | Header; disabled with "Needs the cpm.manage permission" under the button without that permission (they were always enabled in the UI before) |
+
+### Task 23 fix round 1
+
+| Page | Was | Now |
+|---|---|---|
+| Loop Registry | Configuration limit counts as plain text | Each count is a link: `?gap=vp`, `?gap=peers` list only the loops behind it, with one line "Loops with {gap}." and Clear |
+| Loop Registry | "{n} loops" under the heading | "{n} loops" beside Show retired, with " · {k} retired hidden" when any are hidden |
+| Loop Registry | No state shown | One pill beside the loop name only when abnormal: Degraded, Not monitored, Retired |
+| Loop Registry | A read failure removed the limits line | "Configuration limits unavailable" with Retry |

@@ -5,8 +5,8 @@
  * page and the retired switch stay in the URL so Back returns to the same list. Retired loops are hidden
  * unless asked for.
  */
-import React, { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
 import { useCpmLoops, useFleetSummary } from '../../hooks/useCpm';
@@ -21,6 +21,7 @@ import BulkImportDialog from './BulkImportDialog';
 import ReasonedButton from './ReasonedButton';
 import ReadinessStrip from './overview/ReadinessStrip';
 import { vpCellLabel } from './optionalInputs';
+import { abnormalPill, GAP_LABEL, hasGap, parseGap, type RegistryGap } from './registryGap';
 
 const PAGE_SIZE = 25;
 const NEEDS_MANAGE = 'Needs the cpm.manage permission';
@@ -31,22 +32,40 @@ export const LoopRegistry: React.FC = () => {
   const selectedId = params.get('loop') ?? '';
   const search = params.get('search') ?? '';
   const showRetired = params.get('retired') === '1';
+  const gap = parseGap(params.get('gap'));
+  const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editLoop, setEditLoop] = useState<CpmLoop | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
-  const summary = useFleetSummary();
   const loops = useMemo(() => data?.loops ?? [], [data]);
   const scope = useCpmScope();
+  const summary = useFleetSummary(scope.params);
+  const inScope = useMemo(() => loops.filter(l => scope.matches(l) && loopMatchesQuery(l, search)), [loops, search, scope]);
+  const retiredHidden = showRetired || gap ? 0 : inScope.filter(l => !l.isActive).length;
   const filtered = useMemo(
-    () => loops.filter(l => (showRetired || l.isActive) && scope.matches(l) && loopMatchesQuery(l, search)),
-    [loops, search, scope, showRetired]);
+    () => inScope.filter(l => gap ? hasGap(l, gap) : showRetired || l.isActive),
+    [inScope, gap, showRetired]);
 
-  // Search, page and the retired switch live in the URL, so Back from a loop returns to the same list.
-  const set = (k: string, v: string | null) => setParams(p => { if (v) p.set(k, v); else p.delete(k); return p; }, { replace: true });
-  const onSearch = (v: string) => setParams(p => { if (v) p.set('search', v); else p.delete('search'); p.delete('page'); return p; }, { replace: true });
+  // A new Site, Area or Unit starts the list at page 1 (not on first render, so Back keeps its page).
+  const scopeKey = `${scope.site}|${scope.area}|${scope.unit}`;
+  const lastScope = useRef(scopeKey);
+  useEffect(() => {
+    if (lastScope.current === scopeKey) return;
+    lastScope.current = scopeKey;
+    setParams(p => { p.delete('page'); return p; }, { replace: true });
+  }, [scopeKey, setParams]);
+
+  // Search, page, the retired switch and the gap filter live in the URL, so Back from a loop returns to the same list.
+  const set = (k: string, v: string | null) => setParams(p => {
+    if (v) p.set(k, v); else p.delete(k);
+    if (k !== 'page' && k !== 'loop') p.delete('page');
+    return p;
+  }, { replace: true });
+  const onSearch = (v: string) => set('search', v);
+  const gapHref = (g: RegistryGap) => { const q = new URLSearchParams(params); q.set('gap', g); q.delete('page'); q.delete('loop'); return `${registryHref()}?${q}`; };
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(params.get('page')) || 1), pageCount);
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -78,12 +97,13 @@ export const LoopRegistry: React.FC = () => {
         </>
       ) : (
         <>
-          <ReadinessStrip summary={summary.data} />
+          <ReadinessStrip summary={summary.data} isError={summary.isError} error={summary.error} retry={() => void summary.refetch()} gapHref={gapHref} />
           <section className="cpm-surface">
             <PanelHead
               title="Loop assets"
               right={
                 <span className="cpm-reg-tools">
+                  <span className="cpm-event-row__sub">{filtered.length} loops{retiredHidden > 0 ? ` · ${retiredHidden} retired hidden` : ''}</span>
                   <label className="cpm-reg-retired">
                     <input type="checkbox" checked={showRetired} onChange={e => set('retired', e.target.checked ? '1' : null)} />
                     Show retired
@@ -92,7 +112,11 @@ export const LoopRegistry: React.FC = () => {
                 </span>
               }
             />
-            <p className="cpm-event-row__sub cpm-reg-count">{filtered.length} loops</p>
+            {gap && (
+              <p className="cpm-event-row__sub cpm-reg-count">
+                Loops with {GAP_LABEL[gap]}. <ObcButton variant="flat" onClick={() => set('gap', null)}>Clear</ObcButton>
+              </p>
+            )}
             {isLoading && <EmptyState title="Loading registry…" />}
             {isError && <QueryError title="Registry unavailable" error={error} retry={() => void refetch()} />}
             {!isLoading && !isError && filtered.length === 0 && (
@@ -104,10 +128,10 @@ export const LoopRegistry: React.FC = () => {
                 <thead><tr><th>Loop</th><th>Loop type</th><th>VP</th></tr></thead>
                 <tbody>
                   {rows.map(loop => (
-                    <tr key={loop.loopId} className="cpm-reg-row">
+                    <tr key={loop.loopId} className="cpm-reg-row" onClick={() => navigate(hrefFor(loop.loopId))}>
                       <td>
-                        <Link to={hrefFor(loop.loopId)} className="cpm-reg-link"><strong>{loop.loopId}</strong></Link>
-                        {!loop.isActive && <> <TonePill tone="muted">Retired</TonePill></>}
+                        <Link to={hrefFor(loop.loopId)} className="cpm-reg-link" onClick={e => e.stopPropagation()}><strong>{loop.loopId}</strong></Link>
+                        {abnormalPill(loop) && <> <TonePill tone={loop.isActive && loop.monitoringEnabled ? 'warn' : 'muted'}>{abnormalPill(loop)}</TonePill></>}
                         <div className="cpm-event-row__sub">{serviceName(loop)}</div>
                       </td>
                       <td>{loop.loopType}</td>

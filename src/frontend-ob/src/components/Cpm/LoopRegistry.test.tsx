@@ -2,7 +2,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
 import { LoopRegistry } from './LoopRegistry';
 import { useAuthStore } from '../../store/authStore';
 import type { CpmLoop } from '../../api/cpmApi';
@@ -24,16 +24,19 @@ const loop = (id: string, over: Partial<CpmLoop> = {}): CpmLoop => ({
 let loops: CpmLoop[] = [];
 vi.mock('../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops }, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
-  useFleetSummary: () => ({ data: { capability: { loopsCappedByMissingVp: 236, loopsWithoutDisturbanceContext: 241 } } }),
+  useFleetSummary: () => fleet,
 }));
+const okFleet = { data: { capability: { loopsCappedByMissingVp: 236, loopsWithoutDisturbanceContext: 241 } }, isError: false, error: null, refetch: vi.fn() };
+let fleet: Record<string, unknown> = okFleet;
 
 const Where = () => { const l = useLocation(); return <div data-testid="where">{l.pathname + l.search}</div>; };
-const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><LoopRegistry /><Where /></MemoryRouter>);
+const SetSite = () => { const [, set] = useSearchParams(); return <button onClick={() => set(p => { p.set('site', 'hdpe'); return p; })}>pick site</button>; };
+const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><LoopRegistry /><Where /><SetSite /></MemoryRouter>);
 const asUser = (permissions: string[]) => useAuthStore.setState({
   user: { user_id: 'u', username: 'u', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't',
 });
 
-beforeEach(() => { loops = [loop('FIC1'), loop('FIC2', { loopType: 'PIC' })]; asUser(['cpm.manage']); });
+beforeEach(() => { fleet = okFleet; loops =[loop('FIC1'), loop('FIC2', { loopType: 'PIC' })]; asUser(['cpm.manage']); });
 afterEach(cleanup);
 
 describe('LoopRegistry list', () => {
@@ -95,5 +98,80 @@ describe('LoopRegistry list', () => {
   it('shows the existing detail panel for ?loop= until the detail page lands', () => {
     open('/cpm/registry?loop=FIC2');
     expect(screen.getByText('detail of FIC2')).toBeTruthy();
+  });
+
+  it('each limit count opens the loops behind it, and Clear returns', () => {
+    loops = [
+      loop('A1', { tags: {} }),                                        // VP expected, not mapped
+      loop('A2'),                                                      // VP mapped
+      loop('A3', { tags: {}, engineering: { vpApplicability: 'NOT_APPLICABLE' } as CpmLoop['engineering'] }),
+      loop('A4', { tags: {}, isActive: false }),                       // retired: not counted by the server
+      loop('B1', { links: [{ toLoopId: 'A2', relType: 'UPSTREAM', origin: 'x' } as CpmLoop['links'][number]] }),
+    ];
+    open('/cpm/registry?page=1');
+    fireEvent.click(screen.getByRole('link', { name: /236 valve positions/ }));
+    expect(screen.getByTestId('where').textContent).toContain('gap=vp');
+    expect(screen.getAllByRole('link', { name: /^A\d$/ }).map(a => a.textContent)).toEqual(['A1']);
+    expect(screen.getByText(/Loops with a valve position expected but not mapped/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByTestId('where').textContent).not.toContain('gap=');
+    fireEvent.click(screen.getByRole('link', { name: /241 peer links/ }));
+    expect(screen.getByTestId('where').textContent).toContain('gap=peers');
+    expect(screen.queryByRole('link', { name: 'B1' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'A1' })).toBeTruthy();
+  });
+
+  it('shows one pill beside the name only for an abnormal state', () => {
+    loops = [
+      loop('GOOD'),
+      loop('DEG', { observabilityFlags: ['NO_VP'], tags: {} }),
+      loop('OFF', { monitoringEnabled: false }),
+      loop('OLD', { isActive: false }),
+    ];
+    open('/cpm/registry?retired=1');
+    const rowOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!;
+    expect(within(rowOf('GOOD')).queryByText(/Degraded|Not monitored|Retired/)).toBeNull();
+    expect(within(rowOf('DEG')).getByText('Degraded')).toBeTruthy();
+    expect(within(rowOf('OFF')).getByText('Not monitored')).toBeTruthy();
+    expect(within(rowOf('OLD')).getByText('Retired')).toBeTruthy();
+  });
+
+  it('says how many retired loops are hidden', () => {
+    loops = [loop('FIC1'), loop('OLD1', { isActive: false }), loop('OLD2', { isActive: false })];
+    open('/cpm/registry');
+    expect(screen.getByText('1 loops · 2 retired hidden')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Show retired/ }));
+    expect(screen.getByText('3 loops')).toBeTruthy();
+  });
+
+  it('starts at page 1 when Site changes, search changes or Show retired flips', () => {
+    loops = Array.from({ length: 30 }, (_, i) => loop(`L${String(i).padStart(2, '0')}`));
+    open('/cpm/registry?page=2');
+    expect(screen.getByText('Page 2 of 2')).toBeTruthy();
+    fireEvent.click(screen.getByText('pick site'));
+    expect(screen.getByTestId('where').textContent).not.toContain('page=');
+    cleanup();
+    open('/cpm/registry?page=2');
+    fireEvent.click(screen.getByRole('checkbox', { name: /Show retired/ }));
+    expect(screen.getByTestId('where').textContent).not.toContain('page=');
+    cleanup();
+    open('/cpm/registry?page=2');
+    fireEvent.change(screen.getByLabelText('Find loop'), { target: { value: 'L0' } });
+    expect(screen.getByTestId('where').textContent).not.toContain('page=');
+  });
+
+  it('says so, with a retry, when the limits cannot be read', () => {
+    const refetch = vi.fn();
+    fleet = { data: undefined, isError: true, error: new Error('boom'), refetch };
+    open('/cpm/registry');
+    expect(screen.getByText('Configuration limits unavailable')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it('opens the loop from a click anywhere on the row', () => {
+    open('/cpm/registry');
+    fireEvent.click(screen.getByRole('link', { name: 'FIC2' }).closest('tr')!.querySelectorAll('td')[1]);
+    expect(screen.getByTestId('where').textContent).toContain('loop=FIC2');
   });
 });

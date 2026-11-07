@@ -4,6 +4,7 @@
 .cpm-reg-count { margin: 0; padding: 0 12px 6px; }
 .cpm-reg-table { width: 100%; }
 .cpm-reg-table th { text-align: left; }
+.cpm-reg-row { cursor: pointer; }
 .cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
 .cpm-reg-link { color: var(--element-active-color); text-decoration: none; }
 .cpm-reg-link:hover { text-decoration: underline; }
