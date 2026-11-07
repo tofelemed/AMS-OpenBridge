@@ -1,12 +1,12 @@
 /**
- * CHG-098 (SME review 2 #25): ordering of the Calculations catalogue. The catalogue is client-side (a fixed list of
+ * CHG-098 (SME review 2 #25; Task 20 dropped the Gate column, so no gate key): ordering of the Calculations catalogue. The catalogue is client-side (a fixed list of
  * stored metrics), so sorting the whole filtered list here is honest — unlike a server-paged list, where sorting one
  * page would mislead. Status sorts by severity of the gate verdict, not by its label text.
  */
 import type { MetricDef } from './calcCatalogue';
 import type { SortDir } from './SortHeader';
 
-export type CalcSortKey = 'id' | 'name' | 'gate' | 'status';
+export type CalcSortKey = 'id' | 'name' | 'status';
 export interface CalcSort { key: CalcSortKey; dir: SortDir }
 export type Tone = 'good' | 'warn' | 'bad' | 'muted';
 
@@ -26,7 +26,6 @@ export function sortMetrics(list: readonly MetricDef[], sort: CalcSort, toneOf: 
   const cmp = (a: MetricDef, b: MetricDef): number => {
     switch (sort.key) {
       case 'name': return natural(a.name, b.name);
-      case 'gate': return natural(a.gate, b.gate);
       case 'status': return TONE_RANK[toneOf(a)] - TONE_RANK[toneOf(b)];
       default: return natural(a.id, b.id);
     }

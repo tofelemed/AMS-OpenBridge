@@ -52,18 +52,6 @@
 .cpm-event-row--dense { padding-top: 6px; padding-bottom: 6px; }
 .cpm-event-row--dense .cpm-event-row__states { flex-direction: row; flex-wrap: wrap; }
 
-/* Phone: the Calculations heading row is hidden as a grid (rows become stacked cards), but its sort buttons stay as
-   one wrapping sort bar. Not sticky there — a wrapped bar would cover too much of a small screen. */
-@media (max-width: 600px) {
-  .cpm-event-head.cpm-calc-row.cpm-table-head--sticky {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 12px;
-    position: static;
-  }
-  .cpm-event-head.cpm-calc-row.cpm-table-head--sticky > span { display: none; }
-}
-
 /* Visible completion of an operator action (acknowledge, shelve, unshelve, note link, republish). The live region
    stays mounted so it is announced; it takes no space while empty. */
 .cpm-action-receipt {

@@ -1,365 +1,150 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U9 Calculations & parameters.
- * CPA-prototype IA parity: loop selector + stat tiles + filterable, paginated
- * catalogue + calculation drawer. The catalogue lists only metrics our result
- * tables actually carry (one row per stored metric, grouped by gate), with
- * latest values read from the real short/long feature rows — honest coverage,
- * not the prototype's generated 143-row fixture.
+ * Calculations (/cpm/calculations?loop=&metric=&window=&kind=&gate=). The 19 stored metrics for one loop, by category, with
+ * the selected one in the right column (Task 20; it was a paged table and a modal drawer). Every value belongs to the window
+ * the verdict judges: the newest fused window, or the exact window `?window=` names. A metric the engine did not calculate
+ * says so and why; it is never 0. The first visible row is selected when the URL names none, and `?metric=` follows the choice.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import {
-  EmptyState, TonePill, WorkspaceHeader, toneFor, fmtDateTime,
-  fmtWindowShape, windowSpecsOf, QueryError,
-} from './shared';
-import { fmtPeriod } from './context/LoopContextBar';
+import { EmptyState, QueryError, WorkspaceHeader } from './shared';
 import { LoopBand } from './context/LoopBand';
-import {
-  useCpmCalculations, useCpmKpis, useCpmLoops, useCpmResolutions, useLatestGates,
-} from '../../hooks/useCpm';
-import { ApiError } from '../../api/apiFetch';
-import CalcDrawer from './CalcDrawer';
-import { METRICS, type MetricDef } from './calcCatalogue';
-import { diagnosisLabel } from './vocabulary';
-import { gateMark } from './gateStatus';
-import { fmtQuantity } from './evidence/format';
-import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from './metricAvailability';
-import { evidenceScore } from './evidenceScore';
-import { Toggletip } from '../../ui/Toggletip';
-import SortHeader from './SortHeader';
+import { fmtInstant } from './context/LoopContextBar';
+import { investigationHref } from './cpaHref';
+import { conditionOf } from './explorer/summary/summaryText';
+import { METRICS } from './calcCatalogue';
 import { DEFAULT_CALC_SORT, calcOrderText, nextCalcSort, sortMetrics, type CalcSort, type CalcSortKey } from './calcSort';
-
-/** gates/latest 404 = "no fused window yet" — an answer, not a failure. */
-const isNoVerdict = (e: unknown) => e instanceof ApiError && e.status === 404;
-
+import SortHeader from './SortHeader';
+import CalcBand from './calc/CalcBand';
+import CalcFilters, { type CategoryChoice } from './calc/CalcFilters';
+import CalcPanel from './calc/CalcPanel';
+import CalcList from './calc/CalcList';
+import { useCalcValues } from './calc/useCalcValues';
 
 export const CpmCalculations: React.FC = () => {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  // CHG-089: the fused window (?window=, 12h default)
+  // CHG-089: the fused window kind (12h default). ?window= here is an evaluated END, as calculationsHref writes it.
   const [windowKind, setWindowKind] = useWindowKind('kind');
-  const [search, setSearch] = useState('');
-  // C5 — the gate filter LIVES in the URL, not in state seeded from it once.
-  // The old useState initializer meant the command palette's ?gate=G7 did
-  // nothing if this page was already mounted (params changed, state didn't),
-  // and changing the filter never updated the URL, so the view wasn't shareable.
-  const gateFilter = params.get('gate') ?? 'all';
-  const setGateFilter = (g: string) =>
-    setParams(p => { if (g === 'all') p.delete('gate'); else p.set('gate', g); return p; }, { replace: true });
-  const [kindFilter, setKindFilter] = useState('all');
-  const [page, setPage] = useState(0);
-  const [drawer, setDrawer] = useState<MetricDef | null>(null);
-  // CHG-098 (SME review 2 #25): column sort over the whole filtered catalogue (client-side list, so honest)
-  const [sort, setSort] = useState<CalcSort>(DEFAULT_CALC_SORT);
-  const PAGE = 12;
-
-  const { data: loopData } = useCpmLoops();
-  const loops = useMemo(() => loopData?.loops ?? [], [loopData]);
-  // Case-insensitive, like every loop lookup in cplm-api.
-  // No default selection: registry order is arbitrary, so `loops[0]` is a
-  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
-  // fallback was fixed for, minus the URL. It also fired this page's whole
-  // query set for a loop nobody asked for.
+  const endParam = params.get('window');
+  const windowEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
   const loopId = params.get('loop') ?? undefined;
-  const loop = loopId
-    ? loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase())
+  const metricParam = params.get('metric');
+  // The gate filter lives in the URL: the command palette's ?gate=G7 works on a mounted page and a view can be shared.
+  const gateParam = params.get('gate') ?? 'all';
+  const [search, setSearch] = useState('');
+  const [result, setResult] = useState('all');
+  const [category, setCategory] = useState<CategoryChoice>('All');
+  const [sort, setSort] = useState<CalcSort>(DEFAULT_CALC_SORT);
+  // Below 1280 px the panel is a drawer: a link that names a metric opens it.
+  const [drawer, setDrawer] = useState(() => params.has('metric'));
+
+  const v = useCalcValues(loopId, windowKind, windowEnd);
+  const loop = v.loop;
+  const timeZone = loop?.timezone || 'UTC';
+
+  const inCategory = useMemo(() => METRICS.filter(m => category === 'All' || m.category === category), [category]);
+  const gates = useMemo(() => ['all', ...new Set(inCategory.map(m => m.gate))], [inCategory]);
+  const gate = gates.includes(gateParam) ? gateParam : 'all';
+  const views = useMemo(() => METRICS.map(v.viewOf), [v.viewOf]);
+  const results = useMemo(() => [...new Set(views.map(x => x.status.label))], [views]);
+
+  const q = search.trim().toLowerCase();
+  const filtered = views.filter(x =>
+    (category === 'All' || x.metric.category === category)
+    && (gate === 'all' || x.metric.gate === gate)
+    && (result === 'all' || x.status.label === result)
+    && (!q || [x.metric.name, x.metric.id, x.metric.unit].some(t => t.toLowerCase().includes(q))));
+  const tone = new Map(views.map(x => [x.metric.id, x.status.tone]));
+  const ordered = sortMetrics(filtered.map(x => x.metric), sort, m => tone.get(m.id) ?? 'muted');
+  const byId = new Map(views.map(x => [x.metric.id, x]));
+  const visible = ordered.map(m => byId.get(m.id)!);
+
+  const named = metricParam
+    ? visible.find(x => x.metric.id.toLowerCase() === metricParam.toLowerCase() || x.metric.field === metricParam)
     : undefined;
+  const selected = named ?? visible[0];
+  const selectedId = selected?.metric.id;
+  // The URL always names the metric on screen: the first visible row when none (or a hidden one) is named.
+  useEffect(() => {
+    if (loop && selectedId && metricParam !== selectedId)
+      setParams(p => { p.set('metric', selectedId); return p; }, { replace: true });
+  }, [loop, selectedId, metricParam, setParams]);
 
-  const gates = useLatestGates(loop?.loopId, windowKind);
-  // CHG-092 (SME review 2 #9): every value on this page belongs to the SAME window as the verdict that judges it — the
-  // fused window's long row also carries the short-tier metrics computed over that window (vw_*). The separate 60 min
-  // row used to fill the short metrics while the 12 h gate judged them.
-  const longKpis = useCpmKpis(loop?.loopId, windowKind, 1);
-  const catalogue = useCpmCalculations();
-  // Honest window labels (audit.md §4.5): "60m" alone read as a tumbling
-  // minute-hour; it is a sliding window. The shape comes from the served
-  // contract, same source as the Window Inspector's selector.
-  const resolutions = useCpmResolutions();
-  const windowShapeOf = (kind: string): string => {
-    const s = windowSpecsOf(resolutions.data, () => 0).find(w => w.kind === kind);
-    const shape = s ? fmtWindowShape(s) : '';
-    return shape ? `${kind} — ${shape}` : kind;
-  };
-
-  const latestLong = longKpis.data?.samples[0];
-  /** The column that holds this metric on the fused window's row (short-tier metrics: the vw_ = verdict-window copy). */
-  const fieldOf = (m: MetricDef) => (m.source === 'short' ? `vw_${m.field}` : m.field);
-
-  const valueOf = (m: MetricDef): number | null => {
-    if (m.source === 'gate') return gates.data?.confidence ?? null;
-    const v = latestLong?.[fieldOf(m)];
-    return typeof v === 'number' ? v : null;
-  };
-
-  /** SME review 2 #8: why a value is not shown — never a bare "—" beside a gate verdict. */
-  const notMeasuredWhy = (m: MetricDef): string => {
-    if (m.source === 'gate') return gates.data ? 'the fused result carries no evidence score' : 'no result yet';
-    if (longKpis.isError) return 'the result could not be read';
-    if (!latestLong) return 'no window result yet';
-    return 'engine version without this metric';
-  };
-
-  /**
-   * C1 — the engine's qualification flags (P1-9/P1-10). A short row with
-   * sufficient_data=false carries ZEROED mae/rmse/iae because the engine
-   * DECLINED the window; a long row with long_metrics_qualified=false was
-   * computed on a window that failed G0. The API ships both flags precisely so
-   * a UI never renders those values as clean measurements — and this page did.
-   */
-  const availabilityOf = (m: MetricDef): MetricAvailability | null => {
-    // CHG-053: per metric, not only per window — a placeholder 0 from a method that did not qualify
-    // (period with no clean cycle, shape gate not evaluated) is not a measurement either
-    // the fused window's own qualification (long_metrics_qualified = its aligned short slice passed G0)
-    const ctx = m.source === 'gate' ? (gates.data ? contextOfMatrix(gates.data) : null)
-      : latestLong ? contextOfRow(latestLong, 'long') : null;
-    return ctx ? metricAvailability(ctx, m.field, valueOf(m)) : null;
-  };
-  const disqualificationOf = (m: MetricDef): string | null => {
-    const a = availabilityOf(m);
-    return a && a.state !== 'measured' && valueOf(m) != null ? `${a.short}: ${a.reason}` : null;
-  };
-
-  /** C2 — WHEN the "latest" value is from; a 4-day-old number without a
-   * timestamp reads as current. */
-  const windowEndOf = (m: MetricDef): string | null => {
-    if (m.source === 'gate') return gates.data?.windowEnd ?? null;
-    return typeof latestLong?.window_end === 'string' ? latestLong.window_end : null;
-  };
-  /** SME review 2 #9: the window as start – end, not only its end. Its size is the toggle at the top; the drawer gives the duration. */
-  const windowText = (m: MetricDef): string => {
-    const start = m.source === 'gate' ? gates.data?.windowStart ?? null
-      : typeof latestLong?.window_start === 'string' ? latestLong.window_start : null;
-    const end = windowEndOf(m);
-    if (!end) return 'None yet';
-    return `${start ? `${fmtDateTime(start)} – ` : 'ends '}${fmtDateTime(end)}`;
-  };
-
-  const statusOf = (m: MetricDef): { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' } => {
-    const cell = gates.data?.gates.find(g => g.key === m.gate);
-    // SME review 2 #8: the verdict belongs to the GATE; a value that was not measured is never shown beside a green OK
-    if (cell && valueOf(m) == null && !['NOT_EVALUATED', 'PENDING'].includes(cell.status))
-      return { label: `${m.gate} ${gateMark(cell.status, cell.key).word.toLowerCase()} · this value not measured`, tone: 'muted' };
-    // P2-12: PENDING and INSUFFICIENT_EVIDENCE also mean "not judged" - they
-    // previously fell through to the else branch and were labelled "Outside"
-    // (i.e. out of spec), which is a verdict the engine never issued.
-    if (!cell || ['NOT_EVALUATED', 'PENDING', 'INSUFFICIENT_EVIDENCE'].includes(cell.status))
-      return { label: 'Not evaluated', tone: 'muted' };
-    // CHG-052: the same mark as the gate strips — a diagnostic gate's PASS is "Not seen", not "Acceptable"
-    const mark = gateMark(cell.status, cell.key);
-    return { label: mark.word, tone: mark.tone };
-  };
-
-  const gateKeys = useMemo(
-    () => ['all', ...new Set(METRICS.map(m => m.gate))], []);
-  const kindKeys = useMemo(
-    () => ['all', ...new Set(METRICS.map(m => m.kind))], []);
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return METRICS.filter(m =>
-      (gateFilter === 'all' || m.gate === gateFilter)
-      && (kindFilter === 'all' || m.kind === kindFilter)
-      && (!q || m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)));
-  }, [search, gateFilter, kindFilter]);
-  // Not memoized: a few dozen rows, and statusOf reads the gates query on every render anyway.
-  const ordered = sortMetrics(filtered, sort, m => statusOf(m).tone);
-  const pages = Math.max(1, Math.ceil(ordered.length / PAGE));
-  // Clamped: a URL-driven filter change (command palette) shrinks `filtered`
-  // without the selects' setPage(0) running.
-  const safePage = Math.min(page, pages - 1);
-  const rows = ordered.slice(safePage * PAGE, safePage * PAGE + PAGE);
-
-  // Position in the CURRENT result set, so prev/next walk what you filtered to, in the order shown.
-  const drawerIndex = drawer ? ordered.findIndex(m => m.id === drawer.id) : -1;
-  // CHG-098 (SME review 2 #25): prev/next in the drawer turn the page with it, so the selected row is on screen on close
-  useEffect(() => { if (drawerIndex >= 0) setPage(Math.floor(drawerIndex / PAGE)); }, [drawerIndex]);
-  const sortBy = (key: CalcSortKey) => { setSort(s => nextCalcSort(s, key)); setPage(0); };
+  const setGate = (g: string) => setParams(p => { if (g === 'all') p.delete('gate'); else p.set('gate', g); return p; }, { replace: true });
+  const pick = (id: string) => { setParams(p => { p.set('metric', id); return p; }, { replace: true }); setDrawer(true); };
+  const clearFilters = () => { setSearch(''); setResult('all'); setCategory('All'); setGate('all'); };
+  const sortBy = (key: CalcSortKey) => setSort(s => nextCalcSort(s, key));
   const head = (key: CalcSortKey, label: string, title?: string) => (
     <SortHeader label={label} title={title} onSort={() => sortBy(key)}
       active={sort.key === key ? sort.dir : null} orderText={calcOrderText(sort)} />
   );
-
-  // CHG-092 (SME review 2 #9): ?metric=CPLM-010 (from a KPI's proof link) opens that metric for the ?window= kind
-  const metricParam = params.get('metric');
-  useEffect(() => {
-    if (!metricParam || !loop) return;
-    const m = METRICS.find(x => x.id.toLowerCase() === metricParam.toLowerCase() || x.field === metricParam);
-    if (m) setDrawer(m);
-  }, [metricParam, loop]);
-
-  const observed = METRICS.filter(m => valueOf(m) != null).length;
-  /**
-   * The assessment is a GATE verdict, replicated onto each metric that gate
-   * covers — so counting metrics said "5 require review" when the truth was
-   * "one gate needs review and it happens to carry five metrics". Count the
-   * distinct gates, which is the unit actually being assessed.
-   */
-  const gateTally = useMemo(() => {
-    const byGate = new Map<string, 'good' | 'warn' | 'bad' | 'muted'>();
-    for (const m of METRICS) if (!byGate.has(m.gate)) byGate.set(m.gate, statusOf(m).tone);
-    const tones = [...byGate.values()];
-    return {
-      good: tones.filter(t => t === 'good').length,
-      review: tones.filter(t => t === 'warn' || t === 'bad').length,
-      muted: tones.filter(t => t === 'muted').length,
-      total: tones.length,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- statusOf closes over the gates query; the data identity below is the real dep.
-  }, [gates.data]);
-
-  // CHG-130: the column goes only when the band's dates are true for every row
-  const bandEnd = gates.data?.windowEnd ? Date.parse(gates.data.windowEnd) : NaN;
-  const oneWindow = Number.isFinite(bandEnd) && filtered.every(m => { const end = windowEndOf(m); return !!end && Date.parse(end) === bandEnd; });
+  const noWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('metric'); };
 
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm/calculations"
         title="Calculations"
-        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
+        actions={<>
+          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />
+          <ObcButton variant="flat" disabled={!loopId}
+            onClick={() => { if (loopId) navigate(investigationHref(loopId, { kind: windowKind, window: v.matrix?.windowEnd ?? windowEnd })); }}>
+            Back to Investigation {'↗'}
+          </ObcButton>
+        </>}
       />
       <LoopBand loopId={loop?.loopId ?? loopId}
-        onLoop={id => { setParams(p => { p.set('loop', id); return p; }, { replace: true }); setPage(0); }}
-        onClear={() => { setParams(p => { p.delete('loop'); return p; }, { replace: true }); setPage(0); }}>
-        {loop && <span className="cpm-band__meta">{fmtPeriod({ label: 'Latest results', start: gates.data?.windowStart, end: gates.data?.windowEnd })}</span>}
+        onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}
+        onClear={() => setParams(p => { p.delete('loop'); noWindow(p); return p; }, { replace: true })}>
+        {loop && <CalcBand matrix={v.matrix} timeZone={timeZone} verdictFailed={v.verdictFailed} />}
       </LoopBand>
-      {longKpis.isError && (
-        <QueryError title="KPI rows unavailable — values below are missing, not absent" error={longKpis.error}
-          retry={() => void longKpis.refetch()} />
+      {v.kpiError != null && (
+        <QueryError title="Window values unavailable — the values below are missing, not absent" error={v.kpiError} retry={v.retryKpis} />
       )}
+      {v.windowError != null && <QueryError title="Window unavailable" error={v.windowError} retry={v.retryWindow} />}
 
       {!loop && (
         <section className="cpm-surface">
           <EmptyState level={2} title="Select a loop"
-            copy="Pick a loop above. The catalogue then lists every stored metric with this loop's latest value and the gate that judges it." />
+            copy="Pick a loop above. The list then shows each calculation with this loop's latest value and the gate that judges it." />
+        </section>
+      )}
+      {loop && v.notStored && (
+        <section className="cpm-surface">
+          <EmptyState title="That window is not stored"
+            copy={`The service holds no result for the ${windowKind} window ending ${fmtInstant(windowEnd, timeZone)}. Full gate results are kept for a limited time.`}
+            action={{ label: 'Show the newest window', onClick: () => setParams(p => { noWindow(p); return p; }, { replace: true }) }} />
         </section>
       )}
 
-      {loop && (<>
-      <div className="cpm-kpi-row">
-        <StatTile caption="Metrics stored" value={observed} />
-        {/* The hardcoded 17 fallback is the exact claim the Relationships tab
-            stopped making — say nothing rather than assert a pack size. */}
-        <StatTile caption="Evidence gates in the pack" value={catalogue.data?.gates.length ?? '—'} />
-        {/* SME review 2 #22: a count is context, not a verdict — neutral, not green */}
-        <StatTile caption="Gates acceptable" value={`${gateTally.good}/${gateTally.total}`} />
-        <StatTile caption="Gates needing review" value={gateTally.review}
-          tone={gateTally.review > 0 ? 'warn' : 'good'} />
-        <StatTile caption="Gates not evaluated" value={gateTally.muted} tone="muted" />
-      </div>
-
-      <section className="cpm-surface">
-        <div className="cpm-toolbar" style={{ marginBottom: 12 }}>
-          <input className="cpm-input" style={{ flex: 1, minWidth: 220 }}
-            placeholder={`Search ${loop?.loopId ?? ''} calculations`}
-            value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
-          <select className="cpm-select" aria-label="Filter by gate" value={gateFilter}
-            onChange={e => { setGateFilter(e.target.value); setPage(0); }}>
-            {gateKeys.map(g => <option key={g} value={g}>{g === 'all' ? 'All gates' : g}</option>)}
-          </select>
-          {/* The list was hardcoded and offered "Parameter", which no metric in
-              METRICS carries — a filter option that could only ever return zero
-              results. Derived from the catalogue instead. */}
-          <select className="cpm-select" aria-label="Filter by type" value={kindFilter}
-            onChange={e => { setKindFilter(e.target.value); setPage(0); }}>
-            {kindKeys.map(k =>
-              <option key={k} value={k}>{k === 'all' ? 'All types' : k}</option>)}
-          </select>
-          <span className="cpm-filter-count">{filtered.length} result(s)</span>
-          {/* C4: a FAILED gates fetch is not a NOT_EVALUATED verdict — the
-              404 "no fused window yet" is, and keeps the muted pill. */}
-          {gates.isError && !isNoVerdict(gates.error) ? (
-            <TonePill tone="warn">VERDICT UNAVAILABLE</TonePill>
-          ) : (
-            <TonePill tone={toneFor(gates.data?.diagnosis)}>{diagnosisLabel(gates.data?.diagnosis)}</TonePill>
+      {loop && !v.notStored && (
+        <div className="cpm-master-detail">
+          <section className="cpm-surface">
+            <CalcFilters search={search} onSearch={setSearch} gate={gate} gates={gates} onGate={setGate}
+              result={result} results={results} onResult={setResult} category={category}
+              onCategory={c => { setCategory(c); if (gateParam !== 'all' && !METRICS.some(m => (c === 'All' || m.category === c) && m.gate === gateParam)) setGate('all'); }}
+              shown={visible.length} available={METRICS.length}
+              filtered={!!q || result !== 'all' || category !== 'All' || gate !== 'all'} onClear={clearFilters} />
+            <CalcList rows={visible} selectedId={selectedId} onSelect={pick} head={head} />
+            {visible.length === 0 && (
+              <EmptyState title="No calculation matches the filters" />
+            )}
+          </section>
+          {selected && (
+            <CalcPanel view={selected} loopId={loop.loopId} runId={v.runIdOf(selected.metric.gate)}
+              pvUnit={loop.engineering?.pvUnit ?? null}
+              verdict={v.matrix?.diagnosis ? conditionOf(v.matrix.diagnosis).label : null}
+              stamped={v.stamped} deployed={v.deployed} open={drawer} onClose={() => setDrawer(false)} />
           )}
-          <span className="cpm-copy">{loop.loopType} · profile {loop.thresholdProfileId ?? 'default'}</span>
         </div>
-
-        {/* CHG-098 (SME review 2 #25): the headings stay in view while the page scrolls, and sort the catalogue */}
-        <div className={`cpm-event-head cpm-calc-row${oneWindow ? ' cpm-calc-row--one-window' : ''} cpm-table-head--sticky`}>
-          {head('id', 'ID')}{head('name', 'Calculation / parameter')}{head('gate', 'Gate')}
-          <span className="cpm-calc-row__value-head">Value
-            <Toggletip variant="how-to" label="When a value is not measured"><p>Not measured: the engine version that wrote this window has no such metric, or the window gave it nothing to work from. Open the row for its reason.</p></Toggletip>
-          </span>
-          {!oneWindow && <span>Window</span>}
-          {head('status', 'Gate result', 'The verdict of the gate that judges this metric, on the same window. Sorts needing attention first.')}
-        </div>
-        {rows.map(m => {
-          const v = valueOf(m);
-          const st = statusOf(m);
-          const disq = disqualificationOf(m);
-          const isOpen = drawer?.id === m.id;
-          return (
-            // CHG-098 (SME review 2 #25): the row whose drawer is open is marked, not only hovered
-            <div key={m.id} className={`cpm-event-row cpm-event-row--dense cpm-calc-row${oneWindow ? ' cpm-calc-row--one-window' : ''}${isOpen ? ' cpm-event-row--selected' : ''}`}
-              aria-current={isOpen ? 'true' : undefined}
-              onClick={() => setDrawer(m)} role="button" tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawer(m); } }}>
-              <span className="cpm-mono">{m.id}</span>
-              <span>
-                <span className="cpm-event-row__title">{m.name}</span>
-                <div className="cpm-event-row__sub">{m.description}</div>
-              </span>
-              <span>{m.gate}</span>
-              {/* C1: a value from a DECLINED window is a zeroed placeholder the
-                  engine told us not to trust — never render it as a measurement. */}
-              <span title={disq ?? undefined}>
-                {disq ? <span className="cpm-metric-na">{availabilityOf(m)?.short}</span>
-                  : v != null ? (m.field === 'confidence' ? `${evidenceScore(v)} / 100` : fmtQuantity(v, m.unit))
-                  : <span className="cpm-metric-na" title={notMeasuredWhy(m)}>Not measured</span>}
-              </span>
-              {/* C2: WHEN, not just which resolution — "latest" without a
-                  timestamp reads as current on a stale historian. */}
-              {!oneWindow && (
-                <span className="cpm-event-row__sub">
-                  <span title={windowShapeOf(windowKind)}>{windowText(m)}</span>
-                </span>
-              )}
-              <TonePill tone={st.tone}>{st.label}</TonePill>
-            </div>
-          );
-        })}
-        {rows.length === 0 && (
-          <EmptyState title="No matching metrics" copy="No calculation matches the search and filters above."
-            action={{ label: 'Clear search and filters', onClick: () => { setSearch(''); setKindFilter('all'); setGateFilter('all'); } }} />
-        )}
-
-        <div className="cpm-wizard-footer">
-          <span title={safePage === 0 ? 'Already on the first page' : undefined}><ObcButton variant="normal" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}>Previous</ObcButton></span>
-          <span className="cpm-copy">Page {safePage + 1} of {pages}</span>
-          <span title={safePage >= pages - 1 ? 'Already on the last page' : undefined}><ObcButton variant="normal" disabled={safePage >= pages - 1} onClick={() => setPage(Math.min(pages - 1, safePage + 1))}>Next</ObcButton></span>
-        </div>
-      </section>
-
-      </>)}
-
-      {drawer && loop && (
-        <CalcDrawer metric={drawer} loopId={loop.loopId}
-          onPrev={drawerIndex > 0 ? () => setDrawer(ordered[drawerIndex - 1]) : undefined}
-          onNext={drawerIndex >= 0 && drawerIndex < ordered.length - 1
-            ? () => setDrawer(ordered[drawerIndex + 1]) : undefined}
-          value={valueOf(drawer)} status={statusOf(drawer)}
-          disqualification={disqualificationOf(drawer)}
-          windowEnd={windowEndOf(drawer)}
-          catalogue={catalogue.data}
-          gateMatrix={gates.data}
-          row={drawer.source === 'gate' ? undefined : latestLong}
-          onClose={() => setDrawer(null)} />
       )}
     </div>
   );
 };
-
-const StatTile: React.FC<{ caption: string; value: React.ReactNode; tone?: 'good' | 'warn' | 'bad' | 'muted' }> =
-  ({ caption, value, tone }) => (
-    <div className={`cpm-kpi${tone ? ` cpm-kpi--${tone}` : ''}`}>
-      <span className="cpm-kpi__caption">{caption}</span>
-      <span className="cpm-kpi__value">{value}</span>
-    </div>
-  );
 
 export default CpmCalculations;

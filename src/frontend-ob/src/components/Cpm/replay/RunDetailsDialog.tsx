@@ -8,6 +8,7 @@ import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import { Dialog } from '../../../ui/Dialog';
 import { KvRow, TonePill } from '../shared';
 import { windowLabel } from '../windowLabel';
+import { gateTally } from '../calc/calcView';
 import { useEvidenceManifest } from '../evidence/useEvidence';
 
 const dash = (v: string | number | null | undefined) => (v == null || v === '' ? 'Not reported' : String(v));
@@ -19,12 +20,16 @@ export const RunDetailsDialog: React.FC<{
   const m = row.metadata;
   const manifest = useEvidenceManifest(open ? row.methodRunIds?.G15 : undefined);
   const readiness = manifest.data?.readiness;
+  const tally = gateTally(row.gates ?? [], row.diagnosis);
   return (
     <Dialog open={open} onClose={onClose} title="Run details"
       footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
       <KvRow label="Window">{windowLabel(row, timeZone)}</KvRow>
       <KvRow label="Result">{m.replayId ? `Re-run ${m.replayId}` : 'Original run'}</KvRow>
       <KvRow label="Samples">{row.sampleCount != null ? row.sampleCount.toLocaleString('en-US') : 'Not reported'}</KvRow>
+      {tally.total > 0 && (
+        <KvRow label="Gates">{`${tally.total} gates · ${tally.review} need review · ${tally.notJudged} not judged`}</KvRow>
+      )}
       <KvRow label="Decision run (G15)">{dash(row.methodRunIds?.G15)}</KvRow>
       <KvRow label="Bundle">{dash(short(row.bundleHash))}</KvRow>
       <KvRow label="Calculation">{`v${dash(m.calculationVersion)} · profile v${dash(m.dynamicsProfileVersion)}`}</KvRow>

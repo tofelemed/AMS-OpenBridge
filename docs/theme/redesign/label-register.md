@@ -107,3 +107,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Window created_at | emitted | Stored | Window Inspector | 19 |
 | Window list walk | Newer window / Older window; Previous / Next | Newer / Older | Window Inspector | 19 |
 | Window sample coverage | Sample density | Sample density | Window Inspector | 19 |
+| Calculation category | All types; Calculation; Decision | Category: All, Control error, Actuator, Data & mode, Oscillation, Decision | Calculations | 20 |
+| Not measured | Not measured; N/A | Not calculated (the availability word when the engine says why) | Calculations | 20 |
+| Calculation list count | {n} result(s) | {n} shown / 19 available | Calculations | 20 |

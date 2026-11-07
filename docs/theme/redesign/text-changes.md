@@ -889,3 +889,51 @@ None.
 | Previous / Next | Newer / Older |
 | Derived nominal marked only in the right column | "· derived" under the ratio in the list too |
 | New: Sample density ↗ (dialog), Open in Trend ↗ built from the loop's tags | |
+
+## Task 20 (CHG-145): Calculations
+
+### Removed or reworded
+
+| Was | Now | Where |
+|---|---|---|
+| Tiles "Metrics stored", "Evidence gates in the pack", "Gates acceptable", "Gates needing review", "Gates not evaluated" | Removed. "{n} gates · {r} need review · {m} not judged" in Run details ↗ | Page, Run details |
+| "All types" filter (Calculation / Decision) | Category toggle: All, Control error, Actuator, Data & mode, Oscillation, Decision | Filters |
+| "{n} result(s)" | "{n} shown / 19 available", and Clear filters when a filter is on | Filters |
+| "Search {loop} calculations"; "Filter by gate"; "Filter by type" | Find calculation (placeholder "Name, ID or unit"); Gate; Gate result. The Gate list holds the gates of the chosen category | Filters |
+| "{loop type} · profile {id}" (for example "FIC · profile default") | Removed. The loop control names the loop; the versions are in the band | Band |
+| "Latest results · 12h fused window · start – end" | "12 h window · start → end" (`windowSpan`) | Band |
+| Verdict pill beside the count | Verdict chip in the band, from `conditionOf` | Band |
+| Columns ID and Gate; row descriptions; Window column | "CPLM-010 · G3" under the name; descriptions removed (the method is in the right column); the Window column went because the band names the one window every row belongs to | List |
+| "Not measured", with its reason on hover | "Not calculated", with its reason as the second line | List, right column |
+| "Not evaluated" for an INSUFFICIENT_EVIDENCE gate | "Insufficient evidence": it is a verdict (`gateMark`). The decision gate (G15) is judged by its window's diagnosis (`conditionOf` / `isJudged`) | List |
+| "G3 pass · this value not measured" in the Gate result pill | The gate's own word; the value column says the number is missing | List |
+| "Page 1 of 2", Previous, Next | Removed: all 19 on one list | List |
+| `?` on Value: "Not measured: the engine version that wrote this window has no such metric…" | Removed: each row now says why it is Not calculated | List |
+| Drawer tab "Definition": description, Contract (Loop, Gate, Kind, Stored in, Output unit, Engine, Calculation version, Dynamics profile) | Right column: name, id, value, unit, method, related gate. Loop is the band; calculation and profile versions are in the band and Run details; Kind, Stored in and Engine removed | Right column |
+| Drawer tab "Validation": "What produced this value" (Engine, Emitted, Window, Samples in window) | Window in the band; samples, run, bundle, engine build and computed time in Run details ↗ | Run details |
+| "Is this value current?" (Stamped on this value, Deployed now, and the recompute sentence) | A warning in the right column only when the value's calculation version differs from the deployed one: "This value was written by v{a}; the calculation deployed now is v{b}. Recompute the window before citing it." The "No calculation version is stored on this row" sentence removed | Right column |
+| "Has this been produced before?" (Gate observed in stored results; Window qualification; Evidence-score band; the catalogue note) | Removed. A value from a window that did not qualify reads as its availability word ("N/A", "Insufficient data") with the engine's reason, as before | List, right column |
+| Drawer tab "History": "Recent diagnosis history" (10 episodes) | Removed from this page; verdicts over time are in Historical | n/a |
+| Modal drawer with Previous / Next calculation and Close | `ui/Inspector`: right column at 1280 px and up, a drawer below | Right column |
+| "Select a loop … lists every stored metric…" | "Pick a loop above. The list then shows each calculation with this loop's latest value and the gate that judges it." | Empty state |
+| "KPI rows unavailable — values below are missing, not absent" | "Window values unavailable — the values below are missing, not absent" | Error |
+| Method text | New, one formula and one sentence per metric, written from the engine (`calcMethods.ts`). CPLM-020 is std(OP) ÷ std(PV). CPLM-003 and CPLM-014 count samples, not time. The catalogue descriptions of those three are corrected the same way | Right column |
+
+### Moved controls
+
+| Control | Now on |
+|---|---|
+| Window kind toggle (12h, 24h) | Header, with Back to Investigation ↗ |
+| Gate result sort | The Gate result heading (id and name sort from the Calculation heading, a second button "ID"); the Gate sort went with the Gate column |
+| Open in the drawer: previous / next calculation | The list: click or arrow to another row |
+| Run details | Band: Run details ↗ (dialog, in the body) |
+
+### New text
+
+| Where | Text |
+|---|---|
+| Header | Back to Investigation ↗ |
+| Right column | Id, Value, Unit, Method (formula, sentence), Related gate, Signal engineering unit (metrics in PV units), the gate-versus-verdict sentence "{Gn} is the gate's own result. The window's verdict is {verdict}."; Open Gn proof → (disabled with "No run is stored for Gn on this window."), Retained value & identity ↗, Original configuration with `?` "Rules and thresholds belong to the selected run.", Inspect parameters ↗ |
+| Band | "Verdict unavailable" when the newest verdict could not be read |
+| Not stored | "That window is not stored" for a `?window=` the service holds no result for; Show the newest window |
+| Run details | Gates row |
