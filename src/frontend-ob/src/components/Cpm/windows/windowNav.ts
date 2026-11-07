@@ -1,7 +1,8 @@
 /**
  * Window Inspector navigation. Rows arrive newest first. The selected window is identified by its `window_end`
- * (the `?window=` URL parameter). The newest loaded row is selected when none is named, or when the named one is
- * not loaded: never a different window by accident, and never an empty right column while rows exist.
+ * (the `?window=` URL parameter). The newest loaded row is selected only when none is named. A named window that is not
+ * among the rows (not loaded yet, or hidden by the filter) selects nothing: the URL never names one window while the
+ * panel shows another.
  */
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { historicalHref, replayHref } from '../cpaHref';
@@ -20,8 +21,8 @@ export interface WindowView {
 
 export function resolveWindowView(rows: CpmKpiRow[], selectedEnd: string | null): WindowView | null {
   if (rows.length === 0) return null;
-  const found = selectedEnd ? rows.findIndex(r => r.window_end === selectedEnd) : -1;
-  const index = found < 0 ? 0 : found;
+  const index = selectedEnd ? rows.findIndex(r => r.window_end === selectedEnd) : 0;
+  if (index < 0) return null;
   return {
     selected: rows[index],
     index,

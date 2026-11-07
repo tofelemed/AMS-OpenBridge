@@ -30,8 +30,8 @@ describe('resolveWindowView', () => {
     expect(resolveWindowView(rows, '2026-09-13T11:30:00Z')?.older).toBeNull();
   });
 
-  it('falls back to the newest, not to another window, when ?window= is not loaded; none without rows', () => {
-    expect(resolveWindowView(rows, '2026-09-13T09:00:00Z')?.index).toBe(0);
+  it('selects nothing, not another window, when ?window= is not among the rows; none without rows', () => {
+    expect(resolveWindowView(rows, '2026-09-13T09:00:00Z')).toBeNull();
     expect(resolveWindowView([], '2026-09-13T12:00:00Z')).toBeNull();
   });
 });

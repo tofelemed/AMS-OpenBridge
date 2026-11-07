@@ -4,18 +4,20 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import type { CpmKpiRow } from '../../../api/cpmApi';
+import type { CpmKpiRow, CpmLoop } from '../../../api/cpmApi';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('../../../hooks/useCpm', () => ({ useRawWindow: vi.fn() }));
+vi.mock('../../../hooks/useCpm', () => ({
+  useRawWindow: vi.fn(() => ({ isLoading: false, isError: false, data: { points: [], count: 0, hasMore: false } })),
+}));
 
 import SelectedWindow from './SelectedWindow';
 import { useRawWindow } from '../../../hooks/useCpm';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.mocked(useRawWindow).mockClear(); });
 
 const row = (o: Record<string, unknown> = {}) => ({
   window_start: '2026-11-04T13:35:00Z', window_end: '2026-11-04T13:50:00Z', created_at: '2026-11-04T13:51:10Z',
@@ -25,9 +27,10 @@ const row = (o: Record<string, unknown> = {}) => ({
 }) as unknown as CpmKpiRow;
 
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
+const TAGS = { PV: 'root.hdpe.FIC10401.PV', SP: 'root.hdpe.FIC10401.SP' };
 const mount = (r: CpmKpiRow, kind = '15m', isLong = false) => render(
   <MemoryRouter>
-    <SelectedWindow row={r} loopId="FIC10401" kind={kind} spec={undefined} isLong={isLong}
+    <SelectedWindow row={r} loopId="FIC10401" loop={{ loopId: 'FIC10401', tags: TAGS } as unknown as CpmLoop} kind={kind} spec={undefined} isLong={isLong}
       timeZone="UTC" open onClose={() => undefined} />
     <Where />
   </MemoryRouter>);
@@ -87,8 +90,20 @@ describe('SelectedWindow', () => {
     expect(screen.queryByRole('button', { name: 'Feature flags ↗' })).toBeNull();
   });
 
-  it('does not read raw data when a window is selected', () => {
+  it('reads raw data only when Sample density opens, never on selecting a window', () => {
     mount(row());
     expect(useRawWindow).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Sample density ↗' }));
+    expect(screen.getByRole('dialog', { name: 'Sample density' })).toBeTruthy();
+    expect(useRawWindow).toHaveBeenCalled();
+  });
+
+  it('opens Trend with the loop tags, pinned to the window', () => {
+    mount(row());
+    fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Trend ↗' }));
+    const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
+    expect(where).toContain('/trend?tags=root.hdpe.FIC10401.PV,root.hdpe.FIC10401.SP');
+    expect(where).toContain('from=2026-11-04T13:35:00.000Z');
   });
 });

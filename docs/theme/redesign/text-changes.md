@@ -856,7 +856,7 @@ None.
 | "Window contract / What happens at each boundary" (On open, While open, On close) | Behind a ? in Engine & timing | Detail |
 | "The engine declined to evaluate this window…" | Behind a ? beside the Declined tag | Detail |
 | "Statistics are per window kind over its latest 12 emitted windows…" and eyebrow "Across window sizes" | Behind a ? in the heading; eyebrow removed | Compare |
-| Sections "Sample density" and "Raw historian coverage across the window" (the raw read) | Removed (no sample-density chart) | Detail |
+| Sections "Sample density" and "Raw historian coverage across the window" | Sample density ↗ dialog; the raw slice is read only when it opens; "Bad-quality exclusion counts live in the G0 result…" removed | Detail |
 | "Open range in Historical ›", "Open in Trend ›" | "Open range in Historical ↗", "Open in Trend ↗" in the Record details footer | Detail |
 | "Rows appear once… or check Pipeline Health if they are overdue" | "…Choose another profile above."; the Pipeline Health link only for system.manage | Empty state |
 | "CHECKING RUNTIME…" chip | Removed while metrics load; the runtime chip stays | Header |
@@ -867,7 +867,7 @@ None.
 
 | Control | Now on |
 |---|---|
-| Newer / Older window buttons | Previous / Next in the list bar |
+| Newer / Older window buttons | Newer / Older in the list bar (Older loads the next page at the last loaded row) |
 | Open range in Historical, Open in Trend | Record details dialog footer |
 | Compare across window sizes | Under the list and the right column |
 | Load older windows | Under the list |
@@ -878,3 +878,14 @@ None.
 |---|---|
 | List bar | "Sample count" filter: All, Matches, Over nominal, Under nominal, Declined |
 | Right column | Window, Received, Nominal ("derived" when not served), Ratio, Difference, Message (declined only), Tag (Short features, Long diagnostics), Stored; Inspect this window →; View record details ↗; Feature flags ↗ (short only); Engine & timing ↗ |
+
+### Fix round 1
+
+| Was | Now |
+|---|---|
+| Row "14:00 → 14:00" for a window that starts the day before | "3 Nov 14:00 → 14:00": the start date shows when it differs from the end date |
+| A `?window=` not loaded, or hidden by the filter, selected the newest row | Selects nothing: "This window is not in the loaded list." (Load older windows, Show the newest window) or "This window is hidden by the Sample count filter." (Clear filter) |
+| Filter with no match: bare header | "No window matches this filter." with Clear filter; Load older stays |
+| Previous / Next | Newer / Older |
+| Derived nominal marked only in the right column | "· derived" under the ratio in the list too |
+| New: Sample density ↗ (dialog), Open in Trend ↗ built from the loop's tags | |

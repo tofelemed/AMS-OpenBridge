@@ -7,21 +7,24 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
+import type { CpmKpiRow, CpmLoop, CpmWindowSpec } from '../../../api/cpmApi';
 import { Dialog } from '../../../ui/Dialog';
 import { GateBadge } from '../../../ui/GateBadge';
 import { Toggletip } from '../../../ui/Toggletip';
-import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
+import { KvRow, fmtDuration, fmtWindowShape, loopTrendHref } from '../shared';
 import { gateName } from '../gateStatus';
 import { fmtInstant } from '../context/LoopContextBar';
-import { historicalHref, trendHref } from '../cpaHref';
+import { historicalHref } from '../cpaHref';
 import { SHORT_GATES, WindowResults } from './WindowResults';
 
 interface DialogProps { open: boolean; onClose: () => void }
 
 const Close: React.FC<{ onClose: () => void }> = ({ onClose }) => <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>;
 
-/** G2r defaults to a pass on a declined window: nothing was evaluated, so it says so rather than show a lone tick. */
+/**
+ * G2r defaults to PASS on a declined window (CplmShortFeatureResult): nothing was evaluated, so it says so rather than show a lone
+ * tick. G1, G2, G3 and G4 default to PENDING there, which already reads Pending.
+ */
 export const flagStatus = (row: CpmKpiRow, key: string, field: string, declined: boolean): string | null => {
   if (declined && key === 'G2r') return 'NOT_EVALUATED';
   const v = row[field];
@@ -42,16 +45,19 @@ export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declin
 };
 
 export const RecordDetailsDialog: React.FC<DialogProps & {
-  row: CpmKpiRow; loopId: string; tier: 'short' | 'long'; timeZone: string;
-}> = ({ open, onClose, row, loopId, tier, timeZone }) => {
+  row: CpmKpiRow; loopId: string; loop: CpmLoop | undefined; tier: 'short' | 'long'; timeZone: string;
+}> = ({ open, onClose, row, loopId, loop, tier, timeZone }) => {
   const navigate = useNavigate();
   if (!open) return null;
   const range = { from: row.window_start, to: row.window_end };
+  // /trend reads the pens from `tags`, so the link is built from the loop's tags, pinned to the window.
+  const trend = loop && row.window_start && row.window_end
+    ? loopTrendHref(loop.tags, '8h', { from: new Date(row.window_start), to: new Date(row.window_end) }) : null;
   const go = (href: string) => { onClose(); navigate(href); };
   return createPortal(
     <Dialog open onClose={onClose} title="Record details" size="wide" footer={<>
       <ObcButton variant="flat" onClick={() => go(historicalHref(loopId, { ...range, window: row.window_end }))}>Open range in Historical {'↗'}</ObcButton>
-      <ObcButton variant="flat" onClick={() => go(trendHref(loopId, range))}>Open in Trend {'↗'}</ObcButton>
+      {trend && <ObcButton variant="flat" onClick={() => go(trend)}>Open in Trend {'↗'}</ObcButton>}
       <Close onClose={onClose} />
     </>}>
       <KvRow label="Window">{fmtInstant(row.window_start, timeZone)} {'→'} {fmtInstant(row.window_end, timeZone)}</KvRow>

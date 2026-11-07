@@ -1,13 +1,13 @@
 /**
  * Task 19: the windows of one profile, newest first. A row is the window's time of day (the date is said once, in a
  * section head), its samples over nominal with the ratio, and its count check. A declined window stays in the count check.
- * The bar above holds the sample-count filter, "n matching / m loaded" and Previous / Next.
+ * The bar above holds the sample-count filter, "n matching / m loaded" and Newer / Older.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { TonePill } from '../shared';
-import { clockOf, dayOf } from '../windowLabel';
+import { dayOf, rangeOf } from '../windowLabel';
 import { isDeclined } from './WindowResults';
 import { countCheck, fmtCount, nominalOf } from './windowMath';
 
@@ -30,8 +30,8 @@ export function countFilterOf(row: CpmKpiRow, tier: 'short' | 'long'): Exclude<C
 export const WindowListBar: React.FC<{
   filter: CountFilter; onFilter: (f: CountFilter) => void;
   matching: number; loaded: number;
-  hasNewer: boolean; hasOlder: boolean; onPrevious: () => void; onNext: () => void;
-}> = ({ filter, onFilter, matching, loaded, hasNewer, hasOlder, onPrevious, onNext }) => (
+  hasNewer: boolean; hasOlder: boolean; onNewer: () => void; onOlder: () => void;
+}> = ({ filter, onFilter, matching, loaded, hasNewer, hasOlder, onNewer, onOlder }) => (
   <div className="cpm-toolbar cpm-master-detail__bar">
     <label className="cpm-field">
       <span className="cpm-field__label">Sample count</span>
@@ -40,8 +40,8 @@ export const WindowListBar: React.FC<{
       </select>
     </label>
     <span className="cpm-filter-count">{matching} matching / {loaded} loaded</span>
-    <ObcButton variant="flat" disabled={!hasNewer} onClick={onPrevious}>Previous</ObcButton>
-    <ObcButton variant="flat" disabled={!hasOlder} onClick={onNext}>Next</ObcButton>
+    <ObcButton variant="flat" disabled={!hasNewer} onClick={onNewer}>Newer</ObcButton>
+    <ObcButton variant="flat" disabled={!hasOlder} onClick={onOlder}>Older</ObcButton>
   </div>
 );
 
@@ -72,13 +72,13 @@ export const WindowList: React.FC<{
             {newDay && <div className="cpm-master-detail__section" role="presentation">{heading}</div>}
             <div role="listitem">
               <div className={`cpm-event-row${selected ? ' cpm-event-row--selected' : ''}`} style={{ gridTemplateColumns: COLUMNS }}
-                tabIndex={0} aria-current={selected ? 'true' : undefined}
+                role="button" tabIndex={0} aria-current={selected ? 'true' : undefined}
                 onClick={pick}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}>
-                <span className="cpm-event-row__title">{clockOf(r.window_start, timeZone)} {'→'} {clockOf(r.window_end, timeZone)}</span>
+                <span className="cpm-event-row__title">{rangeOf(r.window_start, r.window_end, timeZone)}</span>
                 <span>
                   <span className="cpm-mono">{nominal ? `${fmtCount(received)} / ${fmtCount(nominal.value)}` : fmtCount(received)}</span>
-                  {check && <div className="cpm-event-row__sub">{(check.ratio * 100).toFixed(0)}%</div>}
+                  {check && <div className="cpm-event-row__sub">{(check.ratio * 100).toFixed(0)}%{nominal?.derived ? ' · derived' : ''}</div>}
                 </span>
                 {declined
                   ? <TonePill tone="bad">Declined</TonePill>

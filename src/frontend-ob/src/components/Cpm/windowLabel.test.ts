@@ -1,7 +1,7 @@
 // SME review #18 (CHG-054): a window is named by its size and end — sliding 24 h windows that end on the
 // same day (and often share a verdict) still read differently.
 import { describe, expect, it } from 'vitest';
-import { clockOf, dayOf, profileLabel, windowLabel, windowSize, windowSpan } from './windowLabel';
+import { clockOf, dayOf, profileLabel, rangeOf, windowLabel, windowSize, windowSpan } from './windowLabel';
 
 describe('windowLabel', () => {
   it('names the size from the kind, or from the span', () => {
@@ -36,5 +36,13 @@ describe('list and profile labels', () => {
     expect(dayOf('2026-11-04T13:35:00Z', 'UTC')).toBe('4 Nov');
     expect(dayOf('2026-11-04T23:35:00Z', 'Asia/Dubai')).toBe('5 Nov');
     expect(clockOf(null, 'UTC')).toBe('—');
+  });
+});
+
+describe('rangeOf', () => {
+  it('shows the start date when it differs from the end date', () => {
+    expect(rangeOf('2026-11-04T13:35:00Z', '2026-11-04T13:50:00Z', 'UTC')).toBe('13:35 → 13:50');
+    expect(rangeOf('2026-11-03T23:50:00Z', '2026-11-04T00:05:00Z', 'UTC')).toBe('3 Nov 23:50 → 00:05');
+    expect(rangeOf('2026-11-03T14:00:00Z', '2026-11-04T14:00:00Z', 'UTC')).toBe('3 Nov 14:00 → 14:00');
   });
 });

@@ -7,10 +7,11 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { CpmKpiRow } from '../../api/cpmApi';
 
-const { kpis, perms, rawSpy } = vi.hoisted(() => ({
+const { kpis, perms, rawSpy, nextSpy } = vi.hoisted(() => ({
   kpis: { rows: [] as unknown[], hasNext: false },
   perms: { manage: false },
   rawSpy: vi.fn(),
+  nextSpy: vi.fn(),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
@@ -36,7 +37,7 @@ vi.mock('../../hooks/useCpm', () => {
     usePipelineMetrics: () => ({ data: undefined }),
     useCpmKpisPaged: () => ({
       data: { pages: [{ samples: kpis.rows }] }, isLoading: false, isError: false, hasNextPage: kpis.hasNext,
-      isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn(),
+      isFetchingNextPage: false, fetchNextPage: nextSpy, refetch: vi.fn(),
     }),
     useCpmKpisByResolution: () => ({ data: { byResolution: {} }, isLoading: false }),
     useRawWindow: (...a: unknown[]) => rawSpy(...a),
@@ -67,7 +68,7 @@ beforeEach(() => {
   kpis.hasNext = false;
   kpis.rows = [row(NEWEST, { sample_count: 181 }), row(MID), row(OLD, { sample_count: 4, sufficient_data: false })];
 });
-afterEach(() => { cleanup(); rawSpy.mockReset(); });
+afterEach(() => { cleanup(); rawSpy.mockReset(); nextSpy.mockReset(); vi.unstubAllGlobals(); });
 
 describe('Window Inspector', () => {
   it('selects the newest row by default', () => {
@@ -119,11 +120,11 @@ describe('Window Inspector', () => {
     expect(screen.getByText('1 matching / 3 loaded')).toBeTruthy();
   });
 
-  it('walks the windows with Previous and Next', () => {
+  it('walks the windows with Newer and Older', () => {
     mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Older' }));
     expect(url()).toContain(`window=${MID}`);
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Newer' }));
     expect(url()).toContain(`window=${NEWEST}`);
   });
 
@@ -146,5 +147,62 @@ describe('Window Inspector', () => {
   it('asks for a loop first', () => {
     mount('');
     expect(screen.getByText('Select a loop')).toBeTruthy();
+  });
+
+  it('selects nothing, and says so, when ?window= is not loaded', () => {
+    kpis.hasNext = true;
+    mount(`?loop=FIC10401&profile=15m&window=${encodeURIComponent('2026-10-01T10:00:00Z')}`);
+    expect(screen.getByText('This window is not in the loaded list.')).toBeTruthy();
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Load older windows' })).toBeTruthy();
+  });
+
+  it('says a named window is hidden by the filter, and Clear filter brings it back', () => {
+    mount(`?loop=FIC10401&profile=15m&window=${encodeURIComponent(MID)}`);
+    fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
+    expect(screen.getByText('This window is hidden by the Sample count filter.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
+  });
+
+  it('shows No window matches this filter, with Clear filter and Load older', () => {
+    kpis.hasNext = true;
+    kpis.rows = [row(NEWEST), row(MID)];
+    mount();
+    fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
+    expect(screen.getByText('No window matches this filter.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load older windows' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(screen.getAllByText('Matches').length).toBeGreaterThan(0);
+  });
+
+  it('opens the drawer below 1280 px when the URL names a window, and only then', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    mount(`?loop=FIC10401&profile=15m&window=${encodeURIComponent(MID)}`);
+    expect(screen.getByRole('dialog', { name: '15 min window' })).toBeTruthy();
+    cleanup();
+    mount();
+    expect(screen.queryByRole('dialog', { name: '15 min window' })).toBeNull();
+  });
+
+  it('loads more at the last loaded window when Older is pressed, then moves to the next one', async () => {
+    kpis.hasNext = true;
+    kpis.rows = [row(NEWEST)];
+    nextSpy.mockResolvedValue({ data: { pages: [{ samples: [row(NEWEST), row(MID)] }] } });
+    mount();
+    const older = screen.getByRole('button', { name: 'Older' }) as HTMLButtonElement;
+    expect(older.disabled).toBe(false);
+    fireEvent.click(older);
+    await vi.waitFor(() => expect(url()).toContain(`window=${MID}`));
+    expect(nextSpy).toHaveBeenCalled();
+  });
+
+  it('gives a row its button role, marks a derived nominal, and dates a window that crosses midnight', () => {
+    kpis.rows = [row('2026-11-04T00:05:00Z', { expected_sample_count: undefined, completeness: 1, sample_count: 180 }),
+      row('2026-11-03T14:00:00Z', { window_start: '2026-11-03T02:00:00Z' })];
+    mount();
+    expect(screen.getAllByRole('button').some(b => b.textContent?.includes('derived'))).toBe(true);
+    expect(screen.getByText('3 Nov 23:50 → 00:05')).toBeTruthy();
+    expect(screen.getByText('02:00 → 14:00')).toBeTruthy();
   });
 });

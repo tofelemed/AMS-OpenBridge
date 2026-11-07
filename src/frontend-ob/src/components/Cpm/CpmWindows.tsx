@@ -3,7 +3,7 @@
 /**
  * Window Inspector (/cpm/windows?loop=&profile=&window=). The windows the engine stored for one loop and profile,
  * newest first, with the selected one beside the list in the right column (Task 19; it was a separate view).
- * The newest loaded window is selected unless ?window= names a loaded one. A row click reads nothing more: the
+ * The newest loaded window is selected when none is named; a named window that is not loaded selects nothing and says so. A row click reads nothing more: the
  * counts are on the row, and the window opens in Replay or the Workbench from "Inspect this window".
  * Compare across window sizes sits under the list.
  */
@@ -32,7 +32,8 @@ export const CpmWindows: React.FC = () => {
   const loopId = params.get('loop') ?? undefined;
   const profile = params.get('profile') ?? '15m';
   const [filter, setFilter] = useState<CountFilter>('all');
-  const [drawer, setDrawer] = useState(false);
+  // Below 1280 px the panel is a drawer: a link that names a window opens it.
+  const [drawer, setDrawer] = useState(() => params.has('window'));
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
@@ -49,13 +50,18 @@ export const CpmWindows: React.FC = () => {
   const isLong = spec ? spec.tier === 'long'
     : (resolutions.data?.longWindows ?? ['4h', '12h', '24h']).includes(profile);
   const tier = isLong ? 'long' : 'short';
-  const timeZone = loops.find(l => l.loopId === loopId)?.timezone || 'UTC';
+  const loop = loops.find(l => l.loopId === loopId);
+  const timeZone = loop?.timezone || 'UTC';
 
   const rows = useMemo(() => kpis.data?.pages.flatMap(p => p.samples) ?? [], [kpis.data]);
   const shown = useMemo(
     () => (filter === 'all' ? rows : rows.filter(r => countFilterOf(r, tier) === filter)),
     [rows, filter, tier]);
-  const view = resolveWindowView(shown, params.get('window'));
+  const named = params.get('window');
+  const view = resolveWindowView(shown, named);
+  // A named window that is not selected is either hidden by the filter or not loaded yet: say which, select nothing.
+  const missing = named && !view && rows.length > 0 ? (rows.some(r => r.window_end === named) ? 'filtered' : 'unloaded') : null;
+  const passes = (r: typeof rows[number]) => filter === 'all' || countFilterOf(r, tier) === filter;
   const selectWindow = (windowEnd: string) => {
     setParams(p => { p.set('window', windowEnd); return p; }, { replace: true });
     setDrawer(true);
@@ -69,6 +75,16 @@ export const CpmWindows: React.FC = () => {
 
   const optionsOf = (list: typeof specs) => list.map(w => <option key={w.kind} value={w.kind}>{profileLabel(w)}</option>);
   const goTo = (end: string | null | undefined) => { if (end) selectWindow(end); };
+  // Older at the last loaded row loads the next page, then moves to the window after this one.
+  const older = async () => {
+    if (view?.older) return goTo(view.older.window_end);
+    if (!view || !kpis.hasNextPage) return;
+    const next = await kpis.fetchNextPage();
+    const all = (next.data?.pages.flatMap(p => p.samples) ?? []).filter(passes);
+    const at = all.findIndex(r => r.window_end === view.selected.window_end);
+    goTo(all[at + 1]?.window_end);
+  };
+  const clearWindow = () => setParams(p => { p.delete('window'); return p; }, { replace: true });
 
   return (
     <div className="cpm-screen">
@@ -112,8 +128,16 @@ export const CpmWindows: React.FC = () => {
             )}
             {rows.length > 0 && (<>
               <WindowListBar filter={filter} onFilter={setFilter} matching={shown.length} loaded={rows.length}
-                hasNewer={!!view?.newer} hasOlder={!!view?.older}
-                onPrevious={() => goTo(view?.newer?.window_end)} onNext={() => goTo(view?.older?.window_end)} />
+                hasNewer={!!view?.newer} hasOlder={!!view?.older || (!!view && !!kpis.hasNextPage)}
+                onNewer={() => goTo(view?.newer?.window_end)} onOlder={() => void older()} />
+              {missing && (
+                <EmptyState title={missing === 'filtered' ? 'This window is hidden by the Sample count filter.' : 'This window is not in the loaded list.'}
+                  copy={missing === 'filtered' ? undefined : 'Load older windows to reach it.'}
+                  action={missing === 'filtered' ? { label: 'Clear filter', onClick: () => setFilter('all') } : { label: 'Show the newest window', onClick: clearWindow }} />
+              )}
+              {!missing && shown.length === 0 && (
+                <EmptyState title="No window matches this filter." action={{ label: 'Clear filter', onClick: () => setFilter('all') }} />
+              )}
               <WindowList rows={shown} selectedEnd={view?.selected.window_end ?? null} tier={tier}
                 timeZone={timeZone} onSelect={selectWindow} />
               {kpis.hasNextPage && (
@@ -126,7 +150,7 @@ export const CpmWindows: React.FC = () => {
             </>)}
           </section>
           {view && (
-            <SelectedWindow row={view.selected} loopId={loopId} kind={profile} spec={spec} isLong={isLong}
+            <SelectedWindow row={view.selected} loopId={loopId} loop={loop} kind={profile} spec={spec} isLong={isLong}
               timeZone={timeZone} open={drawer} onClose={() => setDrawer(false)} />
           )}
         </div>

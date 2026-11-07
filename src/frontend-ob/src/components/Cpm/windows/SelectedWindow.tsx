@@ -5,22 +5,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
+import type { CpmKpiRow, CpmLoop, CpmWindowSpec } from '../../../api/cpmApi';
 import { Inspector } from '../../../ui/Inspector';
 import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, TonePill } from '../shared';
 import { fmtInstant } from '../context/LoopContextBar';
 import { windowSize } from '../windowLabel';
+import { SampleDensityDialog } from './SampleDensityDialog';
 import { EngineTimingDialog, FeatureFlagsDialog, RecordDetailsDialog } from './WindowDialogs';
 import { isDeclined } from './WindowResults';
 import { countCheck, fmtCount, nominalOf } from './windowMath';
 import { inspectTarget, windowRef } from './windowNav';
 
-type Dialogs = 'flags' | 'record' | 'engine' | null;
+type Dialogs = 'flags' | 'record' | 'engine' | 'density' | null;
 
 export const SelectedWindow: React.FC<{
   row: CpmKpiRow;
   loopId: string;
+  loop: CpmLoop | undefined;
   kind: string;
   spec: CpmWindowSpec | undefined;
   isLong: boolean;
@@ -28,7 +30,7 @@ export const SelectedWindow: React.FC<{
   /** Below 1280 px the panel is a drawer that shows only while open. */
   open: boolean;
   onClose: () => void;
-}> = ({ row, loopId, kind, spec, isLong, timeZone, open, onClose }) => {
+}> = ({ row, loopId, loop, kind, spec, isLong, timeZone, open, onClose }) => {
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<Dialogs>(null);
   const tier = isLong ? 'long' : 'short';
@@ -72,11 +74,13 @@ export const SelectedWindow: React.FC<{
         <div className="cpm-master-detail__links">
           {link('View record details', 'record')}
           {!isLong && link('Feature flags', 'flags')}
+          {link('Sample density', 'density')}
           {link('Engine & timing', 'engine')}
         </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />
-      <RecordDetailsDialog open={dialog === 'record'} onClose={close} row={row} loopId={loopId} tier={tier} timeZone={timeZone} />
+      <RecordDetailsDialog open={dialog === 'record'} onClose={close} row={row} loopId={loopId} loop={loop} tier={tier} timeZone={timeZone} />
+      <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} />
       <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} />
     </>
   );

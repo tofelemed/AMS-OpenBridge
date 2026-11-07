@@ -76,3 +76,9 @@ export function dayOf(v: string | number | null | undefined, tz?: string): strin
   const p = (t: Intl.DateTimeFormatPartTypes) => parts.find(x => x.type === t)?.value ?? '';
   return `${p('day')} ${p('month')}`;
 }
+
+/** "13:35 → 13:50" within one day; "3 Nov 23:50 → 00:05" when the window starts the day before its end (the list's section head is the end date). */
+export function rangeOf(start: string | number | null | undefined, end: string | number | null | undefined, tz?: string): string {
+  const from = dayOf(start, tz) !== dayOf(end, tz) && start != null ? `${dayOf(start, tz)} ` : '';
+  return `${from}${clockOf(start, tz)} → ${clockOf(end, tz)}`;
+}

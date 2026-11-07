@@ -105,3 +105,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Expected samples | Expected samples; Nominal | Nominal | Window Inspector | 19 |
 | Window flags | Gate tick string | Feature flags | Window Inspector | 19 |
 | Window created_at | emitted | Stored | Window Inspector | 19 |
+| Window list walk | Newer window / Older window; Previous / Next | Newer / Older | Window Inspector | 19 |
+| Window sample coverage | Sample density | Sample density | Window Inspector | 19 |
