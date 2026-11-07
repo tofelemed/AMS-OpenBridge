@@ -59,8 +59,10 @@ describe('ModelHistory', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('keeps the permission sentence on the disabled Review button', () => {
+  it('shows the permission sentence as the disabled Review button reason', () => {
     render(<ModelHistoryBody models={[model({ modelState: 'CANDIDATE' })]} timeZone="UTC" onReview={() => {}} canReview={false} />);
-    expect(document.querySelector('[title="Model review needs the cpm.model.review permission."]')).toBeTruthy();
+    const button = document.querySelector('[aria-describedby]')!;
+    const why = screen.getByText('Model review needs the cpm.model.review permission.');
+    expect(button.getAttribute('aria-describedby')).toBe(why.id);
   });
 });

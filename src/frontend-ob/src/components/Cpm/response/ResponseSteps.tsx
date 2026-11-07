@@ -12,6 +12,7 @@ const STEPS: Array<[string, string, string]> = [
 const STATES: Array<[string, string]> = [
   ['Accepted', 'Eligible for model fitting'],
   ['Rejected', 'Failed a qualification rule'],
+  ['Ineligible', 'The loop measurement or controller state excluded the event'],
   ['Censored', 'Incomplete response observation'],
 ];
 

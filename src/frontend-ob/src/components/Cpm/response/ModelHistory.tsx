@@ -31,7 +31,7 @@ export const ModelHistoryBody: React.FC<{
   if (models.length === 0) return null;  // the summary tile says there is no model
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (
-    <section className="cpm-surface">
+    <section id="response-models" tabIndex={-1} className="cpm-surface">
       <PanelHead eyebrow="Models" title="Model history (as-of now)"
         help={(
           <Toggletip variant="how-to" label="How to read the model history">
@@ -74,12 +74,9 @@ export const ModelHistoryBody: React.FC<{
               <td className="cpm-mono">{m.revision}</td>
               <td>{m.reviewedBy ? `${m.reviewedBy}${m.reviewNote ? ` — ${m.reviewNote}` : ''}` : '—'}</td>
               <td>
-                {/* CHG-098 (SME review 2 #29): a disabled Review says why — the permission on hover, a superseded model on screen in its row. */}
-                <span title={!canReview ? REVIEW_NEEDS_PERMISSION
-                  : m.modelState === 'SUPERSEDED' ? 'A newer revision replaced this model; review the current one instead' : undefined}>
-                  <ReasonedButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
-                    reason={canReview && m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
-                </span>
+                {/* CHG-098 (SME review 2 #29): a disabled Review says why on screen: the missing permission, or the superseded model. */}
+                <ReasonedButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
+                  reason={!canReview ? REVIEW_NEEDS_PERMISSION : m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
               </td>
             </tr>
             ))}

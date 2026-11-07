@@ -949,7 +949,7 @@ None.
 | "Step-test settings (Gate Configuration › G12)" | "Check G12 settings" (button, only with cpm.config.read, opens that loop's Effective view at G12) |
 | "Setpoint changes in Historical" | "Review setpoint changes →" |
 | "No system model for this loop. A model is estimated from an accepted response event…" (Model history empty state) | The System model tile reads None (no accepted event) or Not estimated; the Model history panel is absent with no models |
-| "Model review needs the cpm.model.review permission." (paragraph under the page) | The same sentence on each disabled Review button (hover) |
+| "Model review needs the cpm.model.review permission." (paragraph under the page) | The same sentence as the reason shown with each disabled Review button |
 | G12 evidence view: "G12 is event-keyed: its evidence (...) belongs to a response event, not a window. Open the response workspace for the event; the artifacts of this run are listed below by the generic renderer." | Behind a ? on the panel head. Button "Open in System Response →" (was ›, and a full page reload) |
 
 ### Moved or new
@@ -962,6 +962,6 @@ None.
 
 | Where | Text |
 |---|---|
-| Tiles | Response events; Accepted events; System model ("No accepted event" under None) |
+| Tiles | Response events; Accepted events (each with "loaded", plus "n censored not counted" when the list hides them; "None loaded" past one page with no accepted event); System model. Each tile links to the list or Model history |
 | Empty panel | Response analysis; four steps (1 · Capture, 2 · Qualify, 3 · Estimate, 4 · Review) |
-| Dialog | Event states explained ↗: Accepted, Rejected, Censored; "Every event shows its rule and reason. No model is created without an accepted event." |
+| Dialog | Event states explained ↗: Accepted, Rejected, Ineligible, Censored; "Every event shows its rule and reason. No model is created without an accepted event." |

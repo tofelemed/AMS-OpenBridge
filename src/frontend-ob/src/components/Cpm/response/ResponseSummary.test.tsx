@@ -30,13 +30,27 @@ describe('responseFacts', () => {
     expect(responseFacts(events.slice(0, 3), false, []).events).toBe('3');
   });
 
-  it('shows the best model state, and no model without an accepted event', () => {
+  it('shows the best model state held, whatever the events', () => {
     expect(responseFacts([ev({})], false, [model('CANDIDATE'), model('ACTIVE_BASELINE')]).model).toBe('Active baseline');
     expect(responseFacts([ev({})], false, [model('CANDIDATE')]).model).toBe('Candidate');
-    expect(responseFacts([ev({})], false, []).model).toBe('Not estimated');
-    const none = responseFacts([ev({ eligibility: 'INELIGIBLE', modelState: 'NONE' })], false, [model('VALIDATED')]);
-    expect(none.accepted).toBe('0');
-    expect(none.model).toBe('None');
+    expect(responseFacts([ev({})], false, []).model).toBe('None');
+    // a model in force with no accepted event is still the model held
+    const held = responseFacts([ev({ eligibility: 'INELIGIBLE', modelState: 'NONE' })], false, [model('VALIDATED')]);
+    expect(held.accepted).toBe('0');
+    expect(held.model).toBe('Validated');
+    expect(responseFacts([], false, [], 'loading').model).toBe('Loading');
+    expect(responseFacts([], false, [], 'error').model).toBe('Not available');
+  });
+
+  it('says None loaded, not 0+, when more pages exist and none loaded is accepted', () => {
+    const rejected = [ev({ eligibility: 'INELIGIBLE', modelState: 'NONE' })];
+    expect(responseFacts(rejected, true, []).accepted).toBe('None loaded');
+    expect(responseFacts(rejected, false, []).accepted).toBe('0');
+  });
+
+  it('does not count pending events as accepted', () => {
+    const pending = [ev({ captureState: 'CAPTURING', evaluationState: 'WAITING', modelState: 'NONE' }), ev({ eventId: 'p2', evaluationState: 'PENDING', modelState: 'NONE' }), ev({ eventId: 'ok' })];
+    expect(responseFacts(pending, false, []).accepted).toBe('1');
   });
 });
 
@@ -47,6 +61,21 @@ describe('ResponseTiles', () => {
     expect(screen.getByText('Accepted events')).toBeTruthy();
     expect(screen.getByText('System model')).toBeTruthy();
     expect(screen.getByText('Validated')).toBeTruthy();
+  });
+
+  it('names its basis and links each tile to its source', () => {
+    document.body.innerHTML = '';
+    render(<><ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} /><div id="response-events" tabIndex={-1} /><div id="response-models" tabIndex={-1} /></>);
+    expect(screen.getAllByText('loaded, 4 censored not counted')).toHaveLength(2);
+    fireEvent.click(screen.getByText('System model').closest('a')!);
+    expect(document.activeElement?.id).toBe('response-models');
+    fireEvent.click(screen.getByText('Response events').closest('a')!);
+    expect(document.activeElement?.id).toBe('response-events');
+  });
+
+  it('leaves a tile without a source unlinked', () => {
+    render(<ResponseTiles events={[]} hasMore={false} models={[]} />);
+    expect(screen.getByText('System model').closest('a')).toBeNull();
   });
 });
 
@@ -79,5 +108,6 @@ describe('ResponseEmpty', () => {
     fireEvent.click(screen.getByText(/Event states explained/));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('Eligible for model fitting')).toBeTruthy();
+    expect(screen.getByText('Ineligible')).toBeTruthy();
   });
 });

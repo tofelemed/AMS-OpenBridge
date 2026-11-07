@@ -119,7 +119,10 @@ export const ResponseWorkspace: React.FC = () => {
       <WorkspaceHeader eyebrow="Understand the cause" title="System response"
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`} />
       {band}
-      {events.isSuccess && models.isSuccess && <ResponseTiles events={flat} hasMore={!!events.hasNextPage} models={models.data?.models ?? []} />}
+      {events.isSuccess && (
+        <ResponseTiles events={flat} hasMore={!!events.hasNextPage} models={models.data?.models} censoredHidden={showCensored ? 0 : censoredCount}
+          modelsStatus={models.isError ? 'error' : models.isSuccess ? 'ready' : 'loading'} />
+      )}
       {nothingYet ? (
         <ResponseEmpty loopId={loopId} canConfig={canConfig} censoredCount={0} />
       ) : (

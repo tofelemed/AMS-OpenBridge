@@ -20,4 +20,10 @@ describe('G12Response', () => {
     fireEvent.click(screen.getByText(/Open in System Response/));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/response?loop=FIC1&methodRun=run+1');
   });
+
+  it('does not link without a loop', () => {
+    const manifest = { methodRunId: 'run 1', artifacts: [] } as unknown as GateViewProps['manifest'];
+    render(<MemoryRouter><G12Response {...({ manifest } as GateViewProps)} /></MemoryRouter>);
+    expect(screen.queryByText(/Open in System Response/)).toBeNull();
+  });
 });

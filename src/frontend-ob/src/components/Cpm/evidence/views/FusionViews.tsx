@@ -36,9 +36,11 @@ export const G12Response: React.FC<GateViewProps> = ({ manifest }) => {
             <p>The artifacts of this run are listed below by the generic renderer.</p>
           </Toggletip>
         )} />
-      <ObcButton variant="raised" onClick={() => navigate(responseHref(loopId ?? '', { methodRun: runId }))}>
-        Open in System Response {'→'}
-      </ObcButton>
+      {loopId && (
+        <ObcButton variant="raised" onClick={() => navigate(responseHref(loopId, { methodRun: runId }))}>
+          Open in System Response {'→'}
+        </ObcButton>
+      )}
     </section>
   );
 };

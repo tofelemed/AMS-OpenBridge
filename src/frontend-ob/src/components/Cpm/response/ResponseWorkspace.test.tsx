@@ -44,7 +44,7 @@ describe('ResponseWorkspace', () => {
     expect(screen.queryByText(/Setpoint changes in Historical/)).toBeNull();
     expect(screen.getByText('Check G12 settings')).toBeTruthy();
     expect(screen.getByText('Open loop ↗')).toBeTruthy();
-    expect(screen.getByText('None')).toBeTruthy();                       // no model without an accepted event
+    expect(screen.getByText('None')).toBeTruthy();                       // no model held
     cleanup();
     draw([]);
     expect(screen.queryByText('Check G12 settings')).toBeNull();

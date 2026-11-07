@@ -111,5 +111,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Not measured | Not measured; N/A | Not calculated (the availability word when the engine says why) | Calculations | 20 |
 | Calculation list count | {n} result(s) | {n} shown / 19 available | Calculations | 20 |
 | Response counts | Response events (n); Events | Response events; Accepted events; System model (tiles). "n+" past one page | System Response | 21 |
-| Event qualification words | Candidate censored; Ineligible; Rejected | Accepted / Rejected / Censored, in Event states explained | System Response | 21 |
+| Event qualification words | Candidate censored; Ineligible; Rejected | Accepted / Rejected / Ineligible / Censored, in Event states explained | System Response | 21 |
 | Model groups | Models by state | Candidate; Validated; Baseline; Other (rejected, expired, superseded) | System Response | 21 |

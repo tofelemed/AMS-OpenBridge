@@ -8,3 +8,4 @@
 .cpm-response-states dt { font-weight: 600; }
 .cpm-response-states dd { margin: 0; }
 .cpm-table__group th { text-align: left; font-weight: 600; }
+.cpm-response-tile { color: inherit; text-decoration: none; }

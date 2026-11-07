@@ -1,6 +1,6 @@
 /**
- * Task 21: the System Response summary. Three tiles (events, accepted events, the model state) and, when a loop has
- * no event to show, one panel that says why and where to go. A model is never claimed without an accepted event.
+ * Task 21: the System Response summary. Three tiles (events, accepted events, the model state), each a link to what is
+ * behind it, and, when a loop has no event to show, one panel that says why and where to go.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,30 +12,69 @@ import { codeLabel } from '../vocabulary';
 import { eventRowView } from './responseCopy';
 import { ResponseSteps } from './ResponseSteps';
 
-export interface ResponseFacts { events: string; accepted: string; model: string; modelNote: string | null }
+export const EVENTS_ID = 'response-events';
+export const MODELS_ID = 'response-models';
+
+export interface ResponseFacts { events: string; accepted: string; model: string }
+export type ModelsStatus = 'loading' | 'error' | 'ready';
 
 const NOT_ACCEPTED = new Set(['CENSORED', 'INELIGIBLE', 'REJECTED']);
+const PENDING = new Set(['PENDING', 'WAITING', 'CAPTURING']);
 const MODEL_RANK = ['ACTIVE_BASELINE', 'VALIDATED', 'CANDIDATE'];
 
-/** Counts are of the events loaded: past one page they are a lower bound, so they read "50+". */
-export function responseFacts(events: ResponseEventSummary[], hasMore: boolean, models: SystemModel[]): ResponseFacts {
+const isAccepted = (e: ResponseEventSummary): boolean => {
+  const state = eventRowView(e).state.toUpperCase();
+  return !NOT_ACCEPTED.has(state) && ![state, e.captureState, e.evaluationState].some(x => PENDING.has((x ?? '').toUpperCase()));
+};
+
+/**
+ * Counts are of the events loaded: past one page they are a lower bound, so they read "50+". The model tile is the best
+ * state held (baseline, then validated, then candidate), whatever the events say.
+ */
+export function responseFacts(events: ResponseEventSummary[], hasMore: boolean, models: SystemModel[], status: ModelsStatus = 'ready'): ResponseFacts {
   const plus = hasMore ? '+' : '';
-  const accepted = events.filter(e => !NOT_ACCEPTED.has(eventRowView(e).state)).length;
-  if (accepted === 0) return { events: `${events.length}${plus}`, accepted: `0${plus}`, model: 'None', modelNote: 'No accepted event' };
+  const accepted = events.filter(isAccepted).length;
   const best = MODEL_RANK.find(s => models.some(m => m.modelState === s));
-  return { events: `${events.length}${plus}`, accepted: `${accepted}${plus}`, model: best ? codeLabel(best) : 'Not estimated', modelNote: null };
+  return {
+    events: `${events.length}${plus}`,
+    accepted: accepted === 0 && hasMore ? 'None loaded' : `${accepted}${plus}`,
+    model: status === 'loading' ? 'Loading' : status === 'error' ? 'Not available' : best ? codeLabel(best) : 'None',
+  };
 }
 
-export const ResponseTiles: React.FC<{ events: ResponseEventSummary[]; hasMore: boolean; models: SystemModel[] }> = ({ events, hasMore, models }) => {
-  const f = responseFacts(events, hasMore, models);
+const jump = (id: string) => (ev: React.MouseEvent) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  ev.preventDefault();
+  el.scrollIntoView?.({ block: 'start' });
+  el.focus();
+};
+
+const Tile: React.FC<{ caption: string; value: string; sub?: string; to?: string }> = ({ caption, value, sub, to }) => {
+  const body = (
+    <>
+      <span className="cpm-kpi__caption">{caption}</span><span className="cpm-kpi__value">{value}</span>
+      {sub && <span className="cpm-kpi__sub">{sub}</span>}
+    </>
+  );
+  return to
+    ? <a className="cpm-kpi cpm-response-tile" href={`#${to}`} onClick={jump(to)}>{body}</a>
+    : <div className="cpm-kpi">{body}</div>;
+};
+
+export const ResponseTiles: React.FC<{
+  events: ResponseEventSummary[]; hasMore: boolean; models: SystemModel[] | undefined; modelsStatus?: ModelsStatus;
+  /** Censored candidates the list leaves out: the counts say what they exclude. */
+  censoredHidden?: number;
+}> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0 }) => {
+  const f = responseFacts(events, hasMore, models ?? [], modelsStatus);
+  const basis = censoredHidden > 0 ? `loaded, ${censoredHidden} censored not counted` : 'loaded';
+  const eventsTo = events.length > 0 ? EVENTS_ID : undefined;
   return (
     <div className="cpm-kpi-row cpm-response-tiles">
-      <div className="cpm-kpi"><span className="cpm-kpi__caption">Response events</span><span className="cpm-kpi__value">{f.events}</span></div>
-      <div className="cpm-kpi"><span className="cpm-kpi__caption">Accepted events</span><span className="cpm-kpi__value">{f.accepted}</span></div>
-      <div className="cpm-kpi">
-        <span className="cpm-kpi__caption">System model</span><span className="cpm-kpi__value">{f.model}</span>
-        {f.modelNote && <span className="cpm-kpi__sub">{f.modelNote}</span>}
-      </div>
+      <Tile caption="Response events" value={f.events} sub={basis} to={eventsTo} />
+      <Tile caption="Accepted events" value={f.accepted} sub={basis} to={eventsTo} />
+      <Tile caption="System model" value={f.model} to={(models ?? []).length > 0 ? MODELS_ID : undefined} />
     </div>
   );
 };
