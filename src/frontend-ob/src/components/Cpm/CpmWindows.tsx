@@ -1,52 +1,45 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U7 Window inspector (/cpm/windows?loop=&profile=&window=).
- * CPA-prototype IA parity: profile toolbar with a live runtime chip and the
- * emitted-window list. Selecting a window opens its own sub-page (CHG-025:
- * windows/WindowDetail.tsx — results, metadata grid with boundary semantics and
- * expected-vs-actual samples, the sample-density bar from real raw historian
- * counts, the window contract strip and the across-window-sizes comparison).
- * The list is hidden while a window is open; Back returns to it and Newer/Older
- * walk the loaded windows. Late/out-of-order counts are DG-4 — the jobs do not
- * record them today, so they render as "—".
+ * Window Inspector (/cpm/windows?loop=&profile=&window=). The windows the engine stored for one loop and profile,
+ * newest first, with the selected one beside the list in the right column (Task 19; it was a separate view).
+ * The newest loaded window is selected unless ?window= names a loaded one. A row click reads nothing more: the
+ * counts are on the row, and the window opens in Replay or the Workbench from "Inspect this window".
+ * Compare across window sizes sits under the list.
  */
-import React, { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import {
-  EmptyState, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime, fmtWindowShape, windowSpecsOf, QueryError } from './shared';
+import { EmptyState, TonePill, WorkspaceHeader, QueryError, windowSpecsOf } from './shared';
 import { LoopBand } from './context/LoopBand';
 import { pipelineHref } from './cpaHref';
-import {
-  useCpmKpisPaged, useCpmLoops, useCpmResolutions, usePipelineMetrics,
-} from '../../hooks/useCpm';
-import { GateStrip, isDeclined } from './windows/WindowResults';
-import WindowDetail from './windows/WindowDetail';
+import { useAuthStore } from '../../store/authStore';
+import { useCpmKpisPaged, useCpmLoops, useCpmResolutions, usePipelineMetrics } from '../../hooks/useCpm';
+import WindowList, { WindowListBar, countFilterOf, type CountFilter } from './windows/WindowList';
+import SelectedWindow from './windows/SelectedWindow';
+import CompareAcrossKinds from './windows/CompareAcrossKinds';
 import { resolveWindowView } from './windows/windowNav';
-import { PROFILE_SECONDS, completenessOf, fmtBytesless } from './windows/windowMath';
+import { PROFILE_SECONDS } from './windows/windowMath';
+import { profileLabel } from './windowLabel';
 
 export const CpmWindows: React.FC = () => {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const canManage = useAuthStore(s => s.hasPermission('system.manage'));
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
-  // No default selection: registry order is arbitrary, so `loops[0]` is a
-  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
-  // fallback was fixed for, minus the URL. It also fired this page's whole
-  // query set for a loop nobody asked for.
+  // No default loop: registry order is arbitrary, so `loops[0]` would be a CHOICE presented as a default.
   const loopId = params.get('loop') ?? undefined;
   const profile = params.get('profile') ?? '15m';
+  const [filter, setFilter] = useState<CountFilter>('all');
+  const [drawer, setDrawer] = useState(false);
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
-  // Keyset-paged (audit.md B-7): the old fixed limit of 12 made 12 minutes of
-  // 1m history the most this page could ever show. Load-older walks the cursor.
+  // Keyset-paged (audit.md B-7): Load older walks the cursor.
   const kpis = useCpmKpisPaged(loopId, profile, 24);
 
-  // The served window contract — the authority on assigner/slide/lateness. This
-  // page previously asserted its own version and got two facts wrong. windowSpecsOf
-  // keeps the selector populated (names only) if the API predates `windows`.
+  // The served window contract is the authority on assigner, slide and lateness.
   const specs = useMemo(
     () => windowSpecsOf(resolutions.data, k => (PROFILE_SECONDS[k] ?? 0) * 1000),
     [resolutions.data]);
@@ -55,157 +48,92 @@ export const CpmWindows: React.FC = () => {
   const spec = specs.find(w => w.kind === profile);
   const isLong = spec ? spec.tier === 'long'
     : (resolutions.data?.longWindows ?? ['4h', '12h', '24h']).includes(profile);
-  // W4: window length prefers the SERVED contract; the local map is only the
-  // fallback. With `?? 900` alone, a window kind this map has never heard of
-  // silently billed its expectations against 15 minutes.
-  const profileS = spec?.sizeMs != null
-    ? spec.sizeMs / 1000
-    : PROFILE_SECONDS[profile] ?? 900;
+  const tier = isLong ? 'long' : 'short';
+  const timeZone = loops.find(l => l.loopId === loopId)?.timezone || 'UTC';
 
   const rows = useMemo(() => kpis.data?.pages.flatMap(p => p.samples) ?? [], [kpis.data]);
-  // CHG-025: the ?window= parameter opens that window's sub-page; a value that names
-  // no LOADED row falls back to the list rather than opening a different window.
-  const view = resolveWindowView(rows, params.get('window'));
-  const selectWindow = (windowEnd: string) =>
+  const shown = useMemo(
+    () => (filter === 'all' ? rows : rows.filter(r => countFilterOf(r, tier) === filter)),
+    [rows, filter, tier]);
+  const view = resolveWindowView(shown, params.get('window'));
+  const selectWindow = (windowEnd: string) => {
     setParams(p => { p.set('window', windowEnd); return p; }, { replace: true });
-  const backToList = () => setParams(p => { p.delete('window'); return p; }, { replace: true });
+    setDrawer(true);
+  };
+  const setProfile = (kind: string) =>
+    setParams(p => { p.set('profile', kind); p.delete('window'); return p; }, { replace: true });
 
-  // Watermark chip: DG-1 gives job state + checkpoint age; watermark lag itself
-  // is listed unavailable by the proxy, so the chip reports what is real.
-  const cplmJob = metrics.data?.jobs.find(j =>
-    j.role === 'cplm' && j.name.toLowerCase().includes(isLong ? 'long' : 'short'));
+  // Job state and checkpoint age: watermark lag itself is unavailable from the metrics proxy, so the chip reports what is real.
+  const cplmJob = metrics.data?.jobs.find(j => j.role === 'cplm' && j.name.toLowerCase().includes(isLong ? 'long' : 'short'));
   const anyCplm = cplmJob ?? metrics.data?.jobs.find(j => j.role === 'cplm');
+
+  const optionsOf = (list: typeof specs) => list.map(w => <option key={w.kind} value={w.kind}>{profileLabel(w)}</option>);
+  const goTo = (end: string | null | undefined) => { if (end) selectWindow(end); };
 
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm/windows"
-        title="Window inspector"
-        actions={
-          metrics.data ? (
-            <TonePill tone={anyCplm?.state === 'RUNNING' ? 'good' : anyCplm ? 'bad' : 'muted'}>
-              {anyCplm
-                ? `${anyCplm.name.replace('AMS - ', '')} · ${anyCplm.state}`
-                  + (anyCplm.checkpoint?.lastCompletedAgeSec != null
-                    ? ` · ckpt ${anyCplm.checkpoint.lastCompletedAgeSec}s ago` : '')
-                : 'CPLM jobs not visible'}
+        title="Window Inspector"
+        actions={<>
+          {anyCplm && (
+            <TonePill tone={anyCplm.state === 'RUNNING' ? 'good' : 'bad'}>
+              {anyCplm.name.replace('AMS - ', '')} {'·'} {anyCplm.state}
+              {anyCplm.checkpoint?.lastCompletedAgeSec != null ? ` · ckpt ${anyCplm.checkpoint.lastCompletedAgeSec}s ago` : ''}
             </TonePill>
-          ) : <TonePill tone="muted">CHECKING RUNTIME…</TonePill>
-        }
+          )}
+          {canManage && <ObcButton variant="flat" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
+        </>}
       />
       <LoopBand loopId={loopId}
         onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
         onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}>
-        <select className="cpm-select" aria-label="Window profile" value={profile}
-          onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
-          {/* Labels come from the served window contract. They used to be
-              hardcoded as "{w} tumbling" for every short kind — true only of
-              1m; 5m/10m/15m/30m/60m are SLIDING windows with overlap. */}
-          <optgroup label="Short features (G0–G4)">
-            {shortSpecs.map(w => {
-              const shape = fmtWindowShape(w);
-              return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
-            })}
-          </optgroup>
-          <optgroup label="Long diagnostics (G5–G11)">
-            {longSpecs.map(w => {
-              const shape = fmtWindowShape(w);
-              return <option key={w.kind} value={w.kind}>{w.kind}{shape ? ` — ${shape}` : ''}</option>;
-            })}
-          </optgroup>
+        <select className="cpm-select" aria-label="Window profile" value={profile} onChange={e => setProfile(e.target.value)}>
+          <optgroup label="Short features (G0–G4)">{optionsOf(shortSpecs)}</optgroup>
+          <optgroup label="Long diagnostics (G5–G11)">{optionsOf(longSpecs)}</optgroup>
         </select>
       </LoopBand>
 
-      <section className="cpm-surface">
-        {!loopId && (
+      {!loopId && (
+        <section className="cpm-surface">
           <EmptyState level={2} title="Select a loop"
-            copy="Pick a control loop above to inspect the windows the engine emitted for it." />
-        )}
-        {loopId && view.view === 'list' && (<>
-        <PanelHead eyebrow="Emitted windows" title="Latest results"
-          right={<span className="cpm-copy">{rows.length} loaded · newest first</span>} />
-        {kpis.isLoading && <EmptyState title="Loading windows…" />}
-        {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
-        {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
-          // CHG-098 (SME review 2 #29): plain wording ("Flink tier") and a route forward.
-          <EmptyState title={`No ${profile} windows stored for this loop`}
-            copy="Rows appear once the analysis engine has evaluated a window of this size. Choose another window profile above, or check Pipeline Health if they are overdue."
-            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
-        )}
-        {rows.map(r => {
-          const comp = completenessOf(r, profileS);
-          const declined = isDeclined(r, isLong ? 'long' : 'short');
-          return (
-            <div key={r.window_end ?? r.created_at}
-              className="cpm-event-row"
-              style={{ gridTemplateColumns: isLong ? '1.6fr 1fr 1fr 0.8fr' : '1.6fr 0.8fr 0.9fr 1fr 0.9fr' }}
-              role="button" tabIndex={0}
-              onClick={() => { if (r.window_end) selectWindow(r.window_end); }}
-              onKeyDown={e => {
-                if ((e.key === 'Enter' || e.key === ' ') && r.window_end) {
-                  e.preventDefault();
-                  selectWindow(r.window_end);
-                }
-              }}>
-              <span>
-                <span className="cpm-event-row__title">
-                  {r.window_end ? fmtDateTime(r.window_end) : '—'}
-                </span>
-                <div className="cpm-event-row__sub">
-                  {r.window_start ? `from ${fmtDateTime(r.window_start)}` : ''}
+            copy="Pick a control loop above to inspect the windows the engine stored for it." />
+        </section>
+      )}
+      {loopId && (
+        <div className="cpm-master-detail">
+          <section className="cpm-surface">
+            {kpis.isLoading && <EmptyState title="Loading windows…" />}
+            {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
+            {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
+              <EmptyState title={`No ${profile} windows stored for this loop`}
+                copy="Rows appear once the analysis engine has evaluated a window of this size. Choose another profile above."
+                next={canManage ? [{ label: 'Pipeline Health', to: pipelineHref() }] : undefined} />
+            )}
+            {rows.length > 0 && (<>
+              <WindowListBar filter={filter} onFilter={setFilter} matching={shown.length} loaded={rows.length}
+                hasNewer={!!view?.newer} hasOlder={!!view?.older}
+                onPrevious={() => goTo(view?.newer?.window_end)} onNext={() => goTo(view?.older?.window_end)} />
+              <WindowList rows={shown} selectedEnd={view?.selected.window_end ?? null} tier={tier}
+                timeZone={timeZone} onSelect={selectWindow} />
+              {kpis.hasNextPage && (
+                <div className="cpm-filter-row">
+                  <ObcButton variant="normal" disabled={kpis.isFetchingNextPage} onClick={() => void kpis.fetchNextPage()}>
+                    {kpis.isFetchingNextPage ? 'Loading…' : 'Load older windows'}
+                  </ObcButton>
                 </div>
-              </span>
-              <span className="cpm-event-row__sub">
-                {fmtBytesless(typeof r.sample_count === 'number' ? r.sample_count : null)} samples
-              </span>
-              {/* Per-window gate verdicts (audit.md B-1): served since Phase A;
-                  fusion never fires on short windows so this is the only place
-                  G0–G4/G2r can be seen at these granularities. */}
-              {!isLong && <GateStrip row={r} />}
-              {/* P2-13: every CPM timestamp names its zone — this was the one
-                  bare toLocaleTimeString left on the page. */}
-              <span className="cpm-event-row__sub">
-                emitted {fmtDateTime(r.created_at)}
-              </span>
-              {declined
-                ? <TonePill tone="bad">DECLINED</TonePill>
-                : (
-                  <TonePill tone={comp == null ? 'muted' : comp >= 0.9 ? 'good' : comp >= 0.5 ? 'warn' : 'bad'}>
-                    {comp != null ? `${(comp * 100).toFixed(0)}% full` : 'UNKNOWN'}
-                  </TonePill>
-                )}
-            </div>
-          );
-        })}
-        {rows.length > 0 && kpis.hasNextPage && (
-          <div className="cpm-filter-row" style={{ marginTop: 8 }}>
-            <ObcButton variant="normal" disabled={kpis.isFetchingNextPage}
-              onClick={() => void kpis.fetchNextPage()}>
-              {kpis.isFetchingNextPage ? 'Loading…' : 'Load older windows'}
-            </ObcButton>
-          </div>
-        )}
-        </>)}
-      </section>
+              )}
+            </>)}
+          </section>
+          {view && (
+            <SelectedWindow row={view.selected} loopId={loopId} kind={profile} spec={spec} isLong={isLong}
+              timeZone={timeZone} open={drawer} onClose={() => setDrawer(false)} />
+          )}
+        </div>
+      )}
 
-      {loopId && view.view === 'detail' && (
-        <WindowDetail
-          loopId={loopId}
-          loop={loops.find(l => l.loopId === loopId)}
-          profile={profile}
-          spec={spec}
-          isLong={isLong}
-          profileS={profileS}
-          selected={view.selected}
-          index={view.index}
-          loaded={rows.length}
-          newer={view.newer}
-          older={view.older}
-          shortSpecs={shortSpecs}
-          onBack={backToList}
-          onSelect={selectWindow}
-          onPickKind={k => setParams(p => { p.set('profile', k); p.delete('window'); return p; }, { replace: true })}
-        />
+      {loopId && shortSpecs.length > 0 && (
+        <CompareAcrossKinds loopId={loopId} shortSpecs={shortSpecs} activeKind={profile} onPickKind={setProfile} />
       )}
     </div>
   );

@@ -1,18 +1,12 @@
 'use client';
 
 /**
- * U7b — per-window RESULTS for the Window Inspector. The inspector previously
- * fetched every feature value on /kpis and rendered none of them (audit.md §4.3):
- * the finest-granularity calculations existed end-to-end and died one render
- * short of the screen. This panel shows what the selected window actually
- * carried — the metric values and, on the short tier, the per-window G0–G4/G2r
- * verdicts that fusion never covers (it fires on 12h/24h only).
+ * U7b — per-window RESULTS for the Window Inspector: the metric values the selected window carried. The
+ * short-tier flags (G0–G4, G2r) have their own dialog (FeatureFlagsDialog); fusion never covers them.
  */
 import React from 'react';
 import type { CpmKpiRow } from '../../../api/cpmApi';
-import { KvRow, PanelHead, TonePill, EmptyState } from '../shared';
-import { gateTone, glyphFor } from '../gateStatus';
-import { codeLabel } from '../vocabulary';
+import { KvRow } from '../shared';
 import { contextOfRow, metricAvailability } from '../metricAvailability';
 import { MetricValue } from '../MetricValue';
 
@@ -64,108 +58,21 @@ export const fmtVal = (v: unknown, pct = false): string => {
 export const isDeclined = (row: CpmKpiRow, tier: 'short' | 'long'): boolean =>
   tier === 'short' ? row.sufficient_data === false : row.long_metrics_qualified === false;
 
-/**
- * Compact per-row gate glyph strip for the emitted-windows list (short tier
- * only — long windows carry G5–G11 in the payload, not as served columns yet).
- */
-export const GateStrip: React.FC<{ row: CpmKpiRow }> = ({ row }) => {
-  const spoken = SHORT_GATES
-    .map(g => `${g.key} ${String(row[g.field] ?? 'not reported')}`).join(', ');
-  return (
-    <span className="cpm-mono" role="img" aria-label={`Gates: ${spoken}`}>
-      {SHORT_GATES.map(g => {
-        const status = row[g.field];
-        const { glyph, tone } = glyphFor(typeof status === 'string' ? status : null, g.key);
-        return (
-          <span key={g.key} title={`${g.key} · ${g.name}: ${String(status ?? '—')}`}
-            className={`cpm-tone-${tone}`}
-            style={{ color: 'var(--cpm-tone, var(--element-neutral-color))', marginRight: 2 }}>
-            {glyph}
-          </span>
-        );
-      })}
-    </span>
-  );
-};
-
-export const WindowResultsPanel: React.FC<{
-  row: CpmKpiRow | undefined;
-  tier: 'short' | 'long';
-  /** Embedded mode (e.g. inside an Explorer tab): no surface wrapper/head. */
-  bare?: boolean;
-}> = ({ row, tier, bare = false }) => {
-  const Wrap: React.FC<{ children: React.ReactNode }> = bare
-    ? ({ children }) => <div>{children}</div>
-    : ({ children }) => <section className="cpm-surface">{children}</section>;
-  if (!row) {
-    return (
-      <Wrap>
-        {!bare && <PanelHead eyebrow="Window results" title="What the selected window carried" />}
-        <EmptyState title="Select an emitted window above"
-          copy="Its gate results and metrics appear here." />
-      </Wrap>
-    );
-  }
-  const declined = isDeclined(row, tier);
+/** The metric values of one window, in two columns. */
+export const WindowResults: React.FC<{ row: CpmKpiRow; tier: 'short' | 'long' }> = ({ row, tier }) => {
   const metrics = tier === 'short' ? SHORT_METRICS : LONG_METRICS;
   const half = Math.ceil(metrics.length / 2);
   const ctx = contextOfRow(row, tier);
-  return (
-    <Wrap>
-      {!bare && (
-        <PanelHead eyebrow="Window results" title="What the selected window carried"
-          right={declined ? (
-            <TonePill tone="bad">
-              {tier === 'short' ? 'DECLINED — insufficient data' : 'UNQUALIFIED — failed G0'}
-            </TonePill>
-          ) : undefined} />
-      )}
-      {bare && declined && (
-        <p><TonePill tone="bad">
-          {tier === 'short' ? 'DECLINED — insufficient data' : 'UNQUALIFIED — failed G0'}
-        </TonePill></p>
-      )}
-      {declined && (
-        <p className="cpm-copy">
-          The engine declined to evaluate this window
-          {tier === 'short'
-            ? ' (G0 failed or fewer than 10 samples). Metric fields are “not computed”, not zero.'
-            : ' fully (its aligned short slice failed G0). Values below are the exclusion’s decision inputs, not performance measurements.'}
-        </p>
-      )}
-      {tier === 'short' && (
-        <div className="cpm-filter-row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-          {SHORT_GATES.map(g => {
-            const status = row[g.field];
-            const label = typeof status === 'string' ? codeLabel(status) : '—';
-            return (
-              <span key={g.key} title={g.name}>
-                <TonePill tone={gateTone(typeof status === 'string' ? status : null, g.key)}>
-                  {g.key} {label}
-                </TonePill>
-              </span>
-            );
-          })}
-        </div>
-      )}
-      <div className="cpm-grid-2">
-        <div>
-          {metrics.slice(0, half).map(m => (
-            <KvRow key={m.field} label={m.label}>
-              <MetricValue a={metricAvailability(ctx, m.field, row[m.field])} className="cpm-mono" text={fmtVal(row[m.field], m.pct)} />
-            </KvRow>
-          ))}
-        </div>
-        <div>
-          {metrics.slice(half).map(m => (
-            <KvRow key={m.field} label={m.label}>
-              <MetricValue a={metricAvailability(ctx, m.field, row[m.field])} className="cpm-mono" text={fmtVal(row[m.field], m.pct)} />
-            </KvRow>
-          ))}
-        </div>
-      </div>
-    </Wrap>
+  const column = (list: typeof metrics) => (
+    <div>
+      {list.map(m => (
+        <KvRow key={m.field} label={m.label}>
+          <MetricValue a={metricAvailability(ctx, m.field, row[m.field])} className="cpm-mono" text={fmtVal(row[m.field], m.pct)} />
+        </KvRow>
+      ))}
+    </div>
   );
+  return <div className="cpm-grid-2">{column(metrics.slice(0, half))}{column(metrics.slice(half))}</div>;
 };
 
-export default WindowResultsPanel;
+export default WindowResults;

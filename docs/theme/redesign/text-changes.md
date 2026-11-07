@@ -838,3 +838,43 @@ None.
 | Cached: status line and a second sentence | One sentence |
 | Package dialog file list under the description | Removed |
 | New: "Still running. Check again in a minute."; "The run ended without a stored result yet."; Check again; "Downloaded, but not complete: …" | Honest states |
+
+## Task 19 (CHG-144): Window Inspector
+
+### Removed or reworded
+
+| Was | Now | Where |
+|---|---|---|
+| "Latest results", eyebrow "Emitted windows", "{n} loaded · newest first" | Removed; "{n} matching / {m} loaded" in the list bar | List |
+| "from {date}" under each row; the end date on every row | Time of day "13:35 → 13:50"; the date once in a section head | List |
+| "{n} samples"; "{n}% full"; "UNKNOWN" | Samples / nominal "181 / 180" with the ratio under it; Count check "Matches", "+1 sample", "−1 sample", "Declined", "Not reported" | List |
+| "emitted {date}" | Stored (in the right column) | Selected window |
+| Tick string per row (GateStrip) | Feature flags ↗ dialog naming G0, G1, G2, G2r, G3, G4 | Selected window |
+| "‹ All 15m windows"; "Window 3 of 24 loaded · 15m · {loop}"; heading with the date and emitted line | Removed; the window is selected in the list and Previous / Next walk it | Detail |
+| Section "Window results" / "What the selected window carried" | Record details ↗ dialog | Selected window |
+| "Contract for the selected window"; Late events / Out-of-order events "— (DG-4: not recorded by the jobs)" | Engine & timing ↗ dialog (size / slide, lateness, minimum samples); the two DG-4 rows removed | Detail |
+| "Window contract / What happens at each boundary" (On open, While open, On close) | Behind a ? in Engine & timing | Detail |
+| "The engine declined to evaluate this window…" | Behind a ? beside the Declined tag | Detail |
+| "Statistics are per window kind over its latest 12 emitted windows…" and eyebrow "Across window sizes" | Behind a ? in the heading; eyebrow removed | Compare |
+| Sections "Sample density" and "Raw historian coverage across the window" (the raw read) | Removed (no sample-density chart) | Detail |
+| "Open range in Historical ›", "Open in Trend ›" | "Open range in Historical ↗", "Open in Trend ↗" in the Record details footer | Detail |
+| "Rows appear once… or check Pipeline Health if they are overdue" | "…Choose another profile above."; the Pipeline Health link only for system.manage | Empty state |
+| "CHECKING RUNTIME…" chip | Removed while metrics load; the runtime chip stays | Header |
+| Profile options "15m — 15 min / 5 min slide" | "15 min · 5 min slide"; "1 min · tumbling"; "12 h · 15 min cadence" | Band |
+| Title "Window inspector" | "Window Inspector" | Header |
+
+### Moved controls
+
+| Control | Now on |
+|---|---|
+| Newer / Older window buttons | Previous / Next in the list bar |
+| Open range in Historical, Open in Trend | Record details dialog footer |
+| Compare across window sizes | Under the list and the right column |
+| Load older windows | Under the list |
+
+### New text
+
+| Where | Text |
+|---|---|
+| List bar | "Sample count" filter: All, Matches, Over nominal, Under nominal, Declined |
+| Right column | Window, Received, Nominal ("derived" when not served), Ratio, Difference, Message (declined only), Tag (Short features, Long diagnostics), Stored; Inspect this window →; View record details ↗; Feature flags ↗ (short only); Engine & timing ↗ |

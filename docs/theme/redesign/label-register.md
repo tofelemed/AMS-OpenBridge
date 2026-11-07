@@ -101,3 +101,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Re-run comparison | Open the new run ↗ | Open the new run ↗ | Evidence Replay | 18 |
 | Package download | Download package | Download package | Evidence Replay | 18 |
 | Run details | Run details ↗ | Run details | Evidence Replay | 18 |
+| Window count check | Completeness; Actual samples; % full; UNKNOWN | Count check (Matches, +n sample) | Window Inspector | 19 |
+| Expected samples | Expected samples; Nominal | Nominal | Window Inspector | 19 |
+| Window flags | Gate tick string | Feature flags | Window Inspector | 19 |
+| Window created_at | emitted | Stored | Window Inspector | 19 |

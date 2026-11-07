@@ -11,6 +11,7 @@
 import React, { useMemo, useState } from 'react';
 import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
 import { useCpmKpisByResolution } from '../../../hooks/useCpm';
+import { Toggletip } from '../../../ui/Toggletip';
 import { PanelHead, TonePill, fmtWindowShape } from '../shared';
 import { fmtVal, isDeclined } from './WindowResults';
 
@@ -82,7 +83,12 @@ export const CompareAcrossKinds: React.FC<{
   const kpis = useCpmKpisByResolution(loopId, kinds, 12);
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Across window sizes" title="Same loop, every short granularity"
+      <PanelHead title="Same loop, every short granularity"
+        help={
+          <Toggletip variant="how-to" label="Across window sizes">
+            <p>Statistics are per window kind over its latest 12 emitted windows; declined windows are excluded. Kinds other than 1m are sliding windows whose samples overlap: values are comparable side by side but must never be summed across rows. Click a row to inspect that granularity.</p>
+          </Toggletip>
+        }
         right={
           <label className="cpm-field">
             <span className="cpm-field__label">Metric</span>
@@ -112,12 +118,6 @@ export const CompareAcrossKinds: React.FC<{
           </tbody>
         </table>
       </div>
-      <p className="cpm-copy">
-        Statistics are per window kind over its latest 12 emitted windows; declined
-        windows are excluded. Kinds other than 1m are sliding windows whose samples
-        overlap — values are comparable side by side but must never be summed across
-        rows. Click a row to inspect that granularity.
-      </p>
     </section>
   );
 };
