@@ -1,6 +1,6 @@
-// Task 15 fix: "no gate on it carries a verdict" was said of every INSUFFICIENT* window, including
-// INSUFFICIENT_EVIDENCE, which is a verdict (no fault reached the evidence threshold). It is said only of a window
-// the engine did not judge: too few samples, or an exclusion.
+// Task 15 fix + Task 16: the whole-window sentence is said only of a window the engine did not judge (too few samples, or an
+// exclusion), never of INSUFFICIENT_EVIDENCE, which is a verdict. It never says "no verdict": the gates of a short window
+// read Insufficient evidence (gateMark), which is one.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -20,7 +20,7 @@ const show = (diagnosis: string) => {
   fused.diagnosis = diagnosis;
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <ExplainWhy gate="G15" name="Decision" run={run} manifest={undefined} status="INSUFFICIENT_EVIDENCE" reason={null} eligibilityDetail={null} />
+      <ExplainWhy gate="G15" run={run} manifest={undefined} eligibilityDetail={null} />
     </QueryClientProvider>,
   );
 };
@@ -28,17 +28,18 @@ const show = (diagnosis: string) => {
 describe('ExplainWhy, the whole-window sentence', () => {
   it('does not say a no-fault window carries no verdict', () => {
     show('INSUFFICIENT_EVIDENCE');
-    expect(screen.queryByText(/no gate on it carries a verdict/)).toBeNull();
+    expect(screen.queryByText(/no diagnosis|not enough to reach/)).toBeNull();
     expect(screen.queryByText(/The whole window/)).toBeNull();
   });
 
   it('still says it of a window with too few samples', () => {
     show('INSUFFICIENT_DATA');
-    expect(screen.getByText(/The whole window: .* — no gate on it carries a verdict/)).toBeTruthy();
+    expect(screen.getByText(/The whole window: .* — not enough to reach a diagnosis/)).toBeTruthy();
+    expect(screen.queryByText(/carries a verdict/)).toBeNull();   // its gates read Insufficient evidence, which is a verdict word
   });
 
   it('still says it of an excluded window, with its real reason', () => {
     show('EXCLUDED_MODE');
-    expect(screen.getByText(/The whole window: excluded: loop not in automatic — no gate on it carries a verdict/)).toBeTruthy();
+    expect(screen.getByText(/The whole window: excluded: loop not in automatic — no diagnosis was reached/)).toBeTruthy();
   });
 });

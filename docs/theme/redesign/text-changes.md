@@ -703,3 +703,47 @@ Two choices need your ruling. Each is built as stated and is a small change eith
 | Gate key under the strip | Key button in the rail, opening a dialog |
 | Reconstruct evidence (was under More) | Run bar |
 | Newest, window kind, jump and Evaluate | Still under More |
+
+## Task 16 (CHG-142): Evidence Workbench, four tabs
+
+### Removed or reworded
+
+| Was | Now | Where |
+|---|---|---|
+| The right "Explain" column, collapsed or open, with Hide explain and Show explain | Removed. Its content sits on the four tabs | Workbench |
+| Strip "Verdict · G3 · {status} · {sentence} · Back to conclusion" under the run bar | Removed. The rail, the run bar and the verdict card already say it | Workbench |
+| What the gate asks, under the verdict card title and again in the Explain column | Said once, on Rules & parameters | Verdict card, Rules & parameters |
+| "Why this result" result sentence, repeated from the verdict card | Not repeated. The verdict card says it; on a loop with no valve position it says "this loop has no valve position, so it does not apply" | Proof |
+| Next-action paragraphs under "Why this result" | Not repeated. The state panel under the inputs gives the next action once | Proof |
+| "Evidence behind it" followed by "{n} samples of this run's window, {k} retained artifact(s) shown in the evidence section" | Removed. The run bar has the samples, the artifacts are on the page. "Evidence behind it" stays for the decision gate, with the cause breakdown | Proof |
+| "The whole window: {result} — no gate on it carries a verdict." (too few samples) | "The whole window: {result} — not enough to reach a diagnosis." The gates of such a window read Insufficient evidence, which is a verdict word | Proof, What remains open |
+| "The whole window: {result} — no gate on it carries a verdict." (exclusion) | "The whole window: {result} — no diagnosis was reached." | Proof, What remains open |
+| Section "Evidence for G3 · name" with the line "The run's own artifacts for this gate: what it computed, and from what." | Removed. The artifacts follow the inputs table | Proof |
+| Section "Signal context" with the line "PV / SP and OP / VP from the historian over this run's window - context, not the run's own qualification." | "Signal context, not retained gate proof." on its own tab | Signal context |
+| "Configuration this run used ›" | "Configuration used by this run ↗" | Rules & parameters |
+| "No retained artifact declares parameters for this gate{ yet}." | "No parameter was retained for this run." | Rules & parameters |
+| Sections "Configuration": "The governed bundle this run ran under." and "Identity": "Run, bundle and source ids - copyable." | Removed. The headings say it | Rules & parameters, Identity & raw |
+| Run id ↗ opened the run it was already on | Opens Identity & raw (`?sub=identity`) | Run bar |
+
+### Moved behind a ?
+
+None.
+
+### New text
+
+| Text | Where |
+|---|---|
+| Tabs "Proof", "Rules & parameters", "Signal context", "Identity & raw" | Tab row |
+| "See rules & parameters →", "View signal context →" | Proof |
+| Input table columns Input, Metric, Value, Unit; "{n} samples nominal at {p} s" | Proof |
+| "This run is pinned: these are the parameters and configuration it ran under, not those in force now." | Rules & parameters |
+| "Copy run ID", "Copy identity record", "Artifacts", Basis "Retained" or "Rebuilt", "Raw record", "No artifact is held for this run." | Identity & raw |
+
+| Control | Now on |
+|---|---|
+| Hide explain, Show explain | Gone with the column |
+| Configuration this run used | Rules & parameters, "Configuration used by this run ↗" |
+| Bundle hash, Identity ids | Rules & parameters (bundle), Identity & raw (all ids) |
+| Window flags card | Identity & raw |
+| Signal context lanes | Signal context tab |
+| Copy run id (icon beside Run id ↗) | Still on the run bar; "Copy run ID" also on Identity & raw |

@@ -1,25 +1,21 @@
 /**
- * SME review #19 (CHG-055): "Why this result" in four parts — the result in one sentence, each measured value
- * against the threshold that applied when the run happened, the evidence behind it, and what remains open.
- * For the decision gate the evidence is split into observed symptoms and possible causes (CauseBreakdown).
- * The fused row of the window and the effective configuration at the run's time are fetched only while
- * this section is open.
+ * SME review #19 (CHG-055) + Task 16: "Why this result" on the Proof tab — each measured value against the threshold that
+ * applied when the run happened, for the decision gate the observed symptoms and possible causes (CauseBreakdown), and what
+ * remains open. The result sentence is the verdict card's and the thresholds' source line is on Rules & parameters, so
+ * neither is said here again.
  */
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFusedRow } from './useFusedRow';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import { getEffectiveConfig } from '../../../api/cpm/config';
-import { gateMark, isNoResult } from '../gateStatus';
-import { codeLabel, diagnosisLabel, lowerFirst } from '../vocabulary';
+import { diagnosisLabel, lowerFirst } from '../vocabulary';
 import { conditionOf, limitationOf } from '../explorer/summary/summaryText';
 import { CauseBreakdownRows } from '../CauseBreakdown';
 import { whyRows } from './whyRules';
-import { reasonSentence } from './verdictCopy';
-import { fmtInstant } from '../context/LoopContextBar';
 import type { InputContext } from '../optionalInputs';
-import { INPUT_LIMITS_GATE, effectiveInputFlags } from '../inputLimits';
-import { flagsForLoop, vpAbsent } from '../optionalInputs';
+import { INPUT_LIMITS_GATE } from '../inputLimits';
+import { flagsForLoop } from '../optionalInputs';
 import { useAuthStore } from '../../../store/authStore';
 
 /** Which window flags limit which gate's claim: the missing inputs (shared, CHG-064) plus the method limits. */
@@ -29,11 +25,10 @@ const LIMITS_GATE: Record<string, string[]> = {
 };
 
 export const ExplainWhy: React.FC<{
-  gate: string; name: string; run: MethodRun | undefined; manifest: EvidenceManifest | undefined;
-  status: string | null; reason: string | null; eligibilityDetail: string | null; timeZone?: string;
+  gate: string; run: MethodRun | undefined; manifest: EvidenceManifest | undefined; eligibilityDetail: string | null;
   /** CHG-059: the loop's optional-input context (VP / peers applicability). */
   inputs?: InputContext;
-}> = ({ gate, name, run, manifest, status, reason, eligibilityDetail, timeZone, inputs }) => {
+}> = ({ gate, run, manifest, eligibilityDetail, inputs }) => {
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
   const row = useFusedRow(run?.loopId, run);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
@@ -51,24 +46,18 @@ export const ExplainWhy: React.FC<{
   };
   const rows = whyRows(gate, { prov, row: fused, cfg: p => cfg.data?.properties?.[p], eligibilityDetail });
 
-  const mark = gateMark(status, gate, effectiveInputFlags(fused?.observabilityFlags, inputs));
-  // CHG-077: G14's NO_VP on a loop without a valve position is the plant fact, not "not mapped"
-  const reasonText = reason === 'NO_VP' && vpAbsent(inputs) ? 'this loop has no valve position, so it does not apply'
-    : reason ? reasonSentence(reason, { gate, eligibilityDetail }) : '';
-  const result = status
-    ? `${gate} ${name}: ${isNoResult(mark.meaning) ? lowerFirst(codeLabel(status)) : mark.label}${reasonText ? ` — ${reasonText}` : ''}.`
-    : `${gate} ${name}: no verdict recorded for this run.`;
   const flags = fused?.observabilityFlags ?? [];
   const open = [...new Set(flagsForLoop(flags, inputs).filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
-  // Task 15: only a window the engine did not judge. NO_CALL and INSUFFICIENT_EVIDENCE are verdicts (conditionOf: no-fault).
+  // Only a window the engine did not judge. NO_CALL and INSUFFICIENT_EVIDENCE are verdicts (conditionOf: no-fault), and the gates
+  // of a short window read Insufficient evidence, so "no verdict" is never said.
   const cond = conditionOf(fused?.diagnosis);
-  if (cond.kind === 'insufficient' || cond.kind === 'excluded') open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — no gate on it carries a verdict.`);
+  if (cond.kind === 'insufficient' || cond.kind === 'excluded') {
+    open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — ${cond.kind === 'insufficient' ? 'not enough to reach a diagnosis' : 'no diagnosis was reached'}.`);
+  }
   if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
 
   return (
     <div className="cpm-why" data-testid="explain-why">
-      {(reasonText || !status) && <p className="cpm-copy cpm-why__result">{result}</p>}
-
       <h3 className="cpm-eyebrow">Measured vs required</h3>
       {rows.length > 0 ? (
         <dl className="cpm-why__rows">
@@ -86,18 +75,12 @@ export const ExplainWhy: React.FC<{
       ) : (
         <p className="cpm-metric-na">{cfg.isLoading || row.isLoading ? 'Loading the thresholds that applied…' : 'This gate reports a state, not a measured value against a threshold.'}</p>
       )}
-      {cfg.data && (
-        <p className="cpm-why__source">Thresholds: {cfg.data.profileId} profile{cfg.data.bundle ? ` · bundle v${cfg.data.bundle.version}` : ' · factory / profile layers'}, as in force at {fmtInstant(run?.support.toMs, timeZone)}.</p>
-      )}
 
-      <h3 className="cpm-eyebrow">Evidence behind it</h3>
-      {gate === 'G15' && fused ? (
-        <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
-      ) : (
-        <p className="cpm-copy">
-          {run?.support.sampleCount != null ? `${run.support.sampleCount.toLocaleString('en-GB')} samples` : 'The samples'} of this run's window
-          {manifest ? `, ${manifest.artifacts.filter(a => a.gate === gate).length} retained artifact(s) — shown in the evidence section` : ''}.
-        </p>
+      {gate === 'G15' && fused && (
+        <>
+          <h3 className="cpm-eyebrow">Evidence behind it</h3>
+          <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
+        </>
       )}
 
       <h3 className="cpm-eyebrow">What remains open</h3>

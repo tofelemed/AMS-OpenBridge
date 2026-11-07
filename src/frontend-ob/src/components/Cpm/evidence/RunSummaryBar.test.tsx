@@ -57,7 +57,7 @@ describe('RunSummaryBar', () => {
     bar({ run: { ...run, identity: { ...run.identity, purpose: 'SHADOW' } } });
     expect(screen.getByText('SHADOW')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Run id/ }));
-    expect(screen.getByTestId('loc').textContent).toBe(`/cpm/evidence?loop=FIC10405&methodRun=${run.methodRunId}&gate=G5&mode=FIXED`);
+    expect(screen.getByTestId('loc').textContent).toBe(`/cpm/evidence?loop=FIC10405&methodRun=${run.methodRunId}&gate=G5&mode=FIXED&sub=identity`);
   });
 
   it('asks to reconstruct through its handler', () => {

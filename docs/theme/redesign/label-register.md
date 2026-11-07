@@ -88,3 +88,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Arrays held for the run | Evidence NONE; No arrays held; Not retained; Evidence not retained | Proof retained (when held); "Evidence not retained for this run" (when not) | Evidence Workbench | 15 |
 | Engine result of the window | Verdict; Diagnosis | Loop result | Evidence Workbench | 15 |
 | Version of the calculation | Build commit; Source commit | Calc version | Evidence Workbench | 15 |
+| Gate question, method, parameters, configuration | What this gate asks; Method; Parameters used; Configuration | Rules & parameters | Evidence Workbench | 16 |
+| Window's result of the run's own artifacts | Evidence for G3; Why this result; Measured vs required | Proof | Evidence Workbench | 16 |
+| Identity, flags and raw record of a run | Identity; Flags on this window | Identity & raw | Evidence Workbench | 16 |
+| Samples a window would hold | Expected samples | "{n} samples nominal at {p} s" (the expected count is not served) | Evidence Workbench | 16 |

@@ -52,7 +52,7 @@ export const RunSummaryBar: React.FC<RunSummaryBarProps> = ({ run, selection, re
       </div>
       <div className="cpm-run-bar__actions">
         <ObcButton variant="flat"
-          onClick={() => navigate(workbenchHref(selection.loopId, selection.methodRunId, selection.gate, { mode: selection.mode, analysisRun }))}>
+          onClick={() => navigate(workbenchHref(selection.loopId, selection.methodRunId, selection.gate, { mode: selection.mode, analysisRun, sub: 'identity' }))}>
           Run id ↗
         </ObcButton>
         <CopyableId label="run id" value={selection.methodRunId} />

@@ -2,8 +2,8 @@
  * v2.5 Task 2E.3 (spec §3.1-3.2, R13; NR-031) + the 2026-09-17 redesign: the gate evidence
  * workbench. It opens like every loop page - the loop band, here with its evaluated window - and reads one
  * IMMUTABLE method run named in the URL; "Newest" is an explicit navigation within the loaded window list, never a
- * "latest" read. Task 15 layout: header → loop band → [gate rail | run bar → evidence basis → reading column
- * (verdict, evidence, signal context, flags) + collapsible explain column → Evidence Replay link].
+ * "latest" read. Layout: header → loop band → [gate rail | run bar → evidence basis → verdict → four tabs (Proof, Rules &
+ * parameters, Signal context, Identity & raw; ?sub=, kept by goTo) → Evidence Replay link]. There is no right column.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -19,12 +19,14 @@ import { RunSummaryBar } from './RunSummaryBar';
 import { ReconstructDialog } from './ReconstructDialog';
 import { useFusedRow } from './useFusedRow';
 import { chipsOf } from './GateChipStrip';
-import { VerdictCard, WindowFlags } from './VerdictCard';
-import { ExplainPanel, useExplainCollapsed } from './ExplainPanel';
-import { SignalContextLanes } from './SignalContextLanes';
-import { EvidenceArtifactRenderer } from './EvidenceArtifactRenderer';
-import { GateResultStatePanel, classifyGateResult } from './GateResultState';
-import { parseSelection } from './selection';
+import { VerdictCard } from './VerdictCard';
+import { classifyGateResult } from './GateResultState';
+import { parseSelection, tabOf, type WorkbenchTab } from './selection';
+import { ProofTab } from './tabs/ProofTab';
+import { RulesTab } from './tabs/RulesTab';
+import { SignalTab } from './tabs/SignalTab';
+import { IdentityTab } from './tabs/IdentityTab';
+import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
 import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
 import { EvidenceBasisBar } from './EvidenceBasisBar';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
@@ -38,17 +40,18 @@ import { chipCells, gateReasonOf, gateStatusOf } from './gateFacts';
 import { verdictSentence } from './verdictCopy';
 import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf, zoneLabel } from './timezone';
-import { buildTierGroups, gateTone } from '../gateStatus';
+import { buildTierGroups } from '../gateStatus';
 import { conditionOf } from '../explorer/summary/summaryText';
 import { investigationHref, replayHref } from '../cpaHref';
 import { useAuthStore } from '../../../store/authStore';
-import CollapsibleSection from '../CollapsibleSection';
-import ConclusionStrip from '../ConclusionStrip';
-import { codeLabel } from '../vocabulary';
-import { inputContextOf } from '../optionalInputs';
+import { inputContextOf, vpAbsent } from '../optionalInputs';
 import { effectiveInputFlags } from '../inputLimits';
 
 const DEFAULT_KIND = '12h';   // CHG-089
+const TABS: Array<TabOption<WorkbenchTab>> = [
+  { value: 'proof', label: 'Proof' }, { value: 'rules', label: 'Rules & parameters' },
+  { value: 'signal', label: 'Signal context' }, { value: 'identity', label: 'Identity & raw' },
+];
 
 export const GateEvidenceWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -86,7 +89,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const view = params.get('view');
   const manifest = { ...rawManifest, data: viewedManifest(rawManifest.data, view) };
   const setView = (v: string | null) => setParams(p => { if (v) p.set('view', v); else p.delete('view'); return p; }, { replace: true });
-  const [explainCollapsed, toggleExplain] = useExplainCollapsed();
+  const tab = tabOf(params.get('sub'));
+  const setTab = (t: WorkbenchTab) => setParams(p => { if (t === 'proof') p.delete('sub'); else p.set('sub', t); return p; }, { replace: true });
   const canReconstruct = useAuthStore(s => s.hasPermission('cpm.analysis.create'));
   // the dialog closes by itself once the service has acknowledged; the page then states the accepted request
   useEffect(() => { if (reconstruct.isSuccess) setReconOpen(false); }, [reconstruct.isSuccess]);
@@ -157,7 +161,9 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const arts = useGateArtifacts(state.kind === 'READY' ? manifest.data : undefined, selection?.gate ?? '');
   const eligibilityDetail = currentOption?.methodEligibility?.[selection?.gate ?? '']?.detail ?? null;
   const headline = useMemo(() => (selection ? headlineOf(selection.gate, arts) : []), [selection, arts]);
-  const sentence = selection ? verdictSentence({ gate: selection.gate, name: entry?.name ?? selection.gate, status, reason, headline, eligibilityDetail }) : '';
+  // CHG-077: G14's NO_VP on a loop without a valve position is the plant fact, not "not mapped"
+  const sentenceReason = reason === 'NO_VP' && vpAbsent(inputContextOf(loop)) ? 'VP_NOT_APPLICABLE' : reason;
+  const sentence = selection ? verdictSentence({ gate: selection.gate, name: entry?.name ?? selection.gate, status, reason: sentenceReason, headline, eligibilityDetail }) : '';
   const inputFlags = useMemo(() => effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)), [currentOption, loop]);
   const chips = useMemo(() => chipsOf({
     siblings: run.data?.methodRunIds ?? {},
@@ -255,48 +261,33 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <div className="cpm-workbench__main">
       <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness} loopResult={loopResult} analysisRun={analysisRunParam}
         reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct} />
-      {/* SME #13 (CHG-050): the verdict stays in view while the evidence below it is read. */}
-      <ConclusionStrip targetId="cpm-conclusion" active={!!run.data} label="Verdict"
-        tone={status ? gateTone(status, selection.gate) : 'muted'} text={`${selection.gate} · ${status ? codeLabel(status) : 'no verdict'}`} detail={sentence} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
-      <div className={`cpm-evidence-body${explainCollapsed ? ' cpm-evidence-body--explain-closed' : ''}`}>
-        <div className="cpm-evidence-centre" aria-busy={run.isLoading || manifest.isLoading}>
-          <div id="cpm-conclusion">
-            <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline}
-              tier={gateTier} question={entry?.definition} inputFlags={inputFlags} />
-          </div>
-          {state.kind === 'READY' && manifest.data ? (
-            <CollapsibleSection id="wb-evidence" defaultOpen title={`Evidence for ${selection.gate}${entry ? ` · ${entry.name}` : ''}`}
-              summary="The run's own artifacts for this gate: what it computed, and from what.">
-              <EvidenceArtifactRenderer gate={selection.gate} manifest={manifest.data} timeZone={timeZone} timeFmt={timeFmt}
-                onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }} />
-            </CollapsibleSection>
-          ) : state.kind === 'LOADING' ? (
-            <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" aria-hidden />
-          ) : (
-            <GateResultStatePanel state={state}
-              onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
-              onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined} />
-          )}
-          {reconstruct.isSuccess && (
-            <p className="cpm-copy" role="status">
-              Reconstruction accepted (run {reconstruct.data.analysisRunId}){runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
-              It is stored beside the retained proof, never over it; this page lists it above when it arrives.
-              <ObcButton variant="flat" onClick={() => void rawManifest.refetch()}>Refresh</ObcButton>
-            </p>
-          )}
-          {reconstruct.isError && !reconOpen && <p className="cpm-field__error" role="alert">Reconstruction refused: {(reconstruct.error as Error).message}</p>}
-          {run.data ? (
-            <CollapsibleSection id="wb-signal-context" title="Signal context"
-              summary="PV / SP and OP / VP from the historian over this run's window — context, not the run's own qualification.">
-              <SignalContextLanes loopId={run.data.loopId} methodRunIds={run.data.methodRunIds} fromMs={run.data.support.fromMs} toMs={run.data.support.toMs} timeZone={timeZone} timeFmt={timeFmt} />
-            </CollapsibleSection>
-          ) : <div className="cpm-surface cpm-skeleton cpm-skeleton--lanes" aria-hidden />}
-          <WindowFlags row={currentOption?.flags} inputs={inputContextOf(loop)} />
-        </div>
-        <ExplainPanel gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} state={state} status={status} reason={reason}
-          eligibilityDetail={eligibilityDetail} timeZone={timeZone} inputs={inputContextOf(loop)} collapsed={explainCollapsed} onToggle={toggleExplain} />
+      <div aria-busy={run.isLoading || manifest.isLoading}>
+        <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline}
+          tier={gateTier} inputFlags={inputFlags} />
+      </div>
+      {reconstruct.isSuccess && (
+        <p className="cpm-copy" role="status">
+          Reconstruction accepted (run {reconstruct.data.analysisRunId}){runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
+          It is stored beside the retained proof, never over it; this page lists it above when it arrives.
+          <ObcButton variant="flat" onClick={() => void rawManifest.refetch()}>Refresh</ObcButton>
+        </p>
+      )}
+      {reconstruct.isError && !reconOpen && <p className="cpm-field__error" role="alert">Reconstruction refused: {(reconstruct.error as Error).message}</p>}
+      <Tabs idBase="workbench" label="Evidence Workbench views" options={TABS} value={tab} onChange={setTab} />
+      <div {...tabPanelProps('workbench', tab)}>
+        {tab === 'proof' && (
+          <ProofTab gate={selection.gate} run={run.data} manifest={manifest.data} state={state} eligibilityDetail={eligibilityDetail}
+            timeZone={timeZone} timeFmt={timeFmt} inputs={inputContextOf(loop)}
+            onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
+            onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined}
+            onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }}
+            onRules={() => setTab('rules')} onSignal={() => setTab('signal')} />
+        )}
+        {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} timeZone={timeZone} />}
+        {tab === 'signal' && <SignalTab run={run.data} timeZone={timeZone} timeFmt={timeFmt} />}
+        {tab === 'identity' && <IdentityTab run={run.data} manifest={manifest.data} flags={currentOption?.flags} inputs={inputContextOf(loop)} />}
       </div>
       {run.data && (
         <div className="cpm-workbench__foot">

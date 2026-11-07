@@ -97,7 +97,6 @@ describe('GateEvidenceWorkspace', () => {
     vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => respond(url));
     vi.mocked(fetchMod.apiFetch).mockReset();
     vi.mocked(fetchMod.apiFetch).mockImplementation(async () => ({ ok: true, status: 200, json: async () => [], arrayBuffer: async () => new ArrayBuffer(0) }) as unknown as Response);
-    try { localStorage.removeItem('ams-evidence-explain-collapsed'); } catch { /* jsdom */ }
     asUser(['cpm.analysis.create']);
   });
   afterEach(cleanup);
@@ -107,7 +106,7 @@ describe('GateEvidenceWorkspace', () => {
     await waitFor(() => expect(screen.getAllByText(/Base performance/).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/5m pinned run/).length).toBeGreaterThan(0);   // the run is pinned; MODE FIXED is gone
     expect(screen.queryByText(/FIXED/)).toBeNull();
-    fireEvent.click(Array.from(document.querySelectorAll('summary')).find(s => s.textContent === 'Identity')!);   // CHG-050: collapsed by default
+    fireEvent.click(screen.getByRole('tab', { name: 'Identity & raw' }));
     expect(screen.getAllByText(/profile:ef9abb/).length).toBeGreaterThan(0);
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
     expect(urls().some(u => u.includes('/fleet/'))).toBe(false);
@@ -208,16 +207,50 @@ describe('GateEvidenceWorkspace', () => {
     expect(sel.options[sel.selectedIndex].textContent).toMatch(/Not evaluated: not enough data \(too few samples\)/);
   });
 
-  it('the gate rail opens another gate of the same window and the explain panel collapses (remembered)', async () => {
+  it('the gate rail opens another gate of the same window', async () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15`);
     const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
     await waitFor(() => expect(within(rail).getByRole('button', { name: /^G15 / }).getAttribute('aria-current')).toBe('true'));
     expect(screen.queryByRole('button', { name: /^Gate: G15/ })).toBeNull();   // the dropdown is gone
     fireEvent.click(within(rail).getByRole('button', { name: /^G0 Pass: Data quality/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
-    fireEvent.click(screen.getByRole('button', { name: 'Hide explain' }));
-    expect(screen.getByRole('button', { name: 'Show explain' })).toBeTruthy();
-    expect(localStorage.getItem('ams-evidence-explain-collapsed')).toBe('true');
+  });
+
+  it('keeps the chosen tab when the gate changes, and shows Proof for an unknown tab', async () => {
+    renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15&sub=rules`);
+    const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
+    expect(screen.getByRole('tab', { name: 'Rules & parameters' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Pass: Data quality/ }));
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('gate=G0'));
+    expect(screen.getByTestId('loc').textContent).toContain('sub=rules');
+    expect(screen.getByRole('tab', { name: 'Rules & parameters' }).getAttribute('aria-selected')).toBe('true');
+    cleanup();
+    renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15&sub=nonsense`);
+    await screen.findByRole('navigation', { name: 'Gates of this window' });
+    expect(screen.getByRole('tab', { name: 'Proof' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('has no Explain column, no repeated verdict strip, and says what the gate asks once, on Rules & parameters', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.queryByText(/Back to conclusion/)).toBeNull();
+    expect(screen.queryByText('Error against the objective')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Rules & parameters' }));
+    expect(screen.getAllByText('Error against the objective')).toHaveLength(1);
+  });
+
+  it('labels Signal context as not retained proof', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3&sub=signal`);
+    expect(await screen.findByText('Signal context, not retained gate proof.')).toBeTruthy();
+  });
+
+  it('opens the Identity & raw tab from Run id', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    fireEvent.click(screen.getByRole('button', { name: /Run id/ }));
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('sub=identity'));
+    expect(screen.getByRole('tab', { name: 'Identity & raw' }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('a short-tier gate on a fused row is stated as evaluated on the short windows, with the link', async () => {

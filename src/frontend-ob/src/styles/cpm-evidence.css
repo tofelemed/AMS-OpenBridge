@@ -14,7 +14,6 @@
 @media (max-width: 1200px) {
   .cpm-response-columns { grid-template-columns: 1fr; }
 }
-.cpm-evidence-centre,
 .cpm-response-centre,
 .cpm-response-detail {
   display: flex;
@@ -29,18 +28,6 @@
   overflow: auto;
 }
 
-/* ── Workbench body (v2.5 redesign): reading column + explain column ── */
-.cpm-evidence-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-}
-.cpm-evidence-body--explain-closed { grid-template-columns: minmax(0, 1fr) 48px; }
-@media (max-width: 1200px) {
-  .cpm-evidence-body, .cpm-evidence-body--explain-closed { grid-template-columns: 1fr; }
-  .cpm-explain { position: static; max-height: none; }
-}
 /* skeletons reserve the height a panel will take (no layout shift while artifacts decode) */
 .cpm-skeleton { min-height: 120px; border-radius: 8px; background: var(--container-backdrop-color); opacity: 0.6; animation: cpm-skeleton-pulse 1.4s ease-in-out infinite; }
 .cpm-skeleton--lanes { min-height: 260px; }
@@ -106,32 +93,6 @@
 .cpm-fact__value { display: inline-flex; align-items: center; gap: 6px; }
 .cpm-copy-id { display: inline-flex; align-items: center; gap: 2px; }
 .cpm-copy-id__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
-
-/* ── Explain panel (v2.5 workbench redesign): the collapsible right column ── */
-.cpm-explain {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-.cpm-explain--collapsed { width: 40px; padding: 4px; align-items: center; }
-.cpm-explain__head { display: flex; align-items: center; gap: 8px; }
-.cpm-explain__head .cpm-eyebrow { flex: 1; }
-.cpm-explain__section { display: flex; flex-direction: column; gap: 4px; }
-.cpm-explain__params {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 2px 12px;
-  margin: 0;
-  font-size: var(--cpm-text-small);
-}
-.cpm-explain__params dt { color: var(--element-neutral-color); }
-.cpm-explain__params dd { margin: 0; overflow-wrap: anywhere; }
-.cpm-explain__identity { display: flex; flex-direction: column; }
 
 /* ── Verdict card (v2.5 workbench redesign): the answer first ── */
 .cpm-verdict { border-left: 4px solid var(--cpm-tone, var(--element-neutral-color)); }

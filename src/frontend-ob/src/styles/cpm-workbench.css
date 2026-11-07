@@ -6,6 +6,13 @@
 }
 .cpm-workbench__main { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
 .cpm-workbench__foot { display: flex; justify-content: flex-start; }
+/* Task 16: the four tabs. Each panel is a column of surfaces; the links sit in a row under them. */
+.cpm-workbench__tab { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
+.cpm-workbench__links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-workbench__raw { margin: 0; overflow: auto; max-height: 60vh; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cpm-workbench__params { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: var(--cpm-text-small); }
+.cpm-workbench__params dt { color: var(--element-neutral-color); }
+.cpm-workbench__params dd { margin: 0; overflow-wrap: anywhere; }
 
 .cpm-rail {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-2);
@@ -42,7 +49,6 @@
 .cpm-recon { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--traverse-space-1) var(--traverse-space-4); margin: 0; }
 .cpm-recon dt { color: var(--element-neutral-color); }
 .cpm-recon dd { margin: 0; overflow-wrap: anywhere; }
-.cpm-explain__head { justify-content: space-between; }
 
 /* below 850 px the rail is the native picker, over the page */
 @media (max-width: 849px) {

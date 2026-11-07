@@ -40,12 +40,6 @@
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 
-/* The explain column no longer scrolls inside the page: it flows, its sections collapse instead. */
-.cpm-screen .cpm-explain { position: static; max-height: none; overflow: visible; }
-
-/* Inside the explain column the sections are rows of that one surface, not surfaces of their own. */
-.cpm-explain .cpm-collapsible { background: none; border: 0; box-shadow: none; padding: 0; }
-
 /* The investigation note now has a full-width card of its own: the field spans a readable measure. */
 .cpm-investigation-note .cpm-textarea { display: block; width: 100%; max-width: 72ch; resize: vertical; }
 
@@ -105,7 +99,6 @@
 /* "Why this result" (SME #19, CHG-055): result · measured vs required · evidence · what remains open. */
 .cpm-why { display: flex; flex-direction: column; gap: 6px; }
 .cpm-why .cpm-eyebrow { margin: 8px 0 0; }
-.cpm-why__result { font-weight: 600; margin: 0; }
 .cpm-why__rows { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 4px 10px; margin: 0; }
 .cpm-why__rows dt { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-why__rows dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; overflow-wrap: anywhere; }
@@ -117,7 +110,6 @@
 }
 .cpm-why__source { margin: 0; font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
 .cpm-why__open { margin: 0; padding-left: 18px; }
-.cpm-why__next { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-cause-list { margin: 0; padding-left: 16px; }
 .cpm-cause-list__detail { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
 .cpm-cause { display: grid; grid-template-columns: minmax(110px, 0.28fr) minmax(0, 1fr); gap: 8px 12px; margin: 8px 0; }
@@ -125,11 +117,6 @@
 .cpm-cause__items { margin: 0; }
 .cpm-cause-list li + li { margin-top: 2px; }
 @media (max-width: 600px) { .cpm-cause { grid-template-columns: minmax(0, 1fr); } .cpm-cause__items { margin-bottom: 4px; } }
-/* The explain column is narrow: the cause breakdown stacks label over list there. */
-.cpm-explain .cpm-cause { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-.cpm-explain .cpm-cause__items { margin-bottom: 6px; }
-.cpm-explain .cpm-why__rows { grid-template-columns: minmax(0, 1fr); }
-.cpm-explain .cpm-why__rows dd { margin-bottom: 6px; }
 
 /* Evidence-score meaning beside the result (SME #20, CHG-056). */
 .cpm-score-note { margin: 2px 0 8px; font-size: var(--cpm-text-small); color: var(--element-neutral-color); }

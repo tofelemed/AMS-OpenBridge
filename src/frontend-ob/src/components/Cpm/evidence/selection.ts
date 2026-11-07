@@ -32,10 +32,15 @@ export function selectionSearch(s: EvidenceSelection): string {
   return p.toString();
 }
 
+/** The Workbench's four tabs, in `?sub=`. An unknown or absent value is Proof. */
+export const WORKBENCH_TABS = ['proof', 'rules', 'signal', 'identity'] as const;
+export type WorkbenchTab = typeof WORKBENCH_TABS[number];
+export const tabOf = (sub: string | null): WorkbenchTab => (WORKBENCH_TABS as readonly string[]).includes(sub ?? '') ? sub as WorkbenchTab : 'proof';
+
 /** The workbench URL for a gate cell (the cell must carry its method run id; without one there is nothing immutable to open). */
 export function workbenchHref(
-  loopId: string, methodRunId: string, gate = 'G15', opts: { mode?: SelectionMode; analysisRun?: string | null } = {},
+  loopId: string, methodRunId: string, gate = 'G15', opts: { mode?: SelectionMode; analysisRun?: string | null; sub?: WorkbenchTab } = {},
 ): string {
   const search = selectionSearch({ loopId, methodRunId, gate, mode: opts.mode ?? 'FIXED' });
-  return `/cpm/evidence?${search}${opts.analysisRun ? `&analysisRun=${encodeURIComponent(opts.analysisRun)}` : ''}`;
+  return `/cpm/evidence?${search}${opts.analysisRun ? `&analysisRun=${encodeURIComponent(opts.analysisRun)}` : ''}${opts.sub && opts.sub !== 'proof' ? `&sub=${opts.sub}` : ''}`;
 }
