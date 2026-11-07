@@ -14,7 +14,7 @@ import { Dialog } from '../../../../ui/Dialog';
 import { evidenceScoreText } from '../../evidenceScore';
 import { hasVerdict } from '../../metricAvailability';
 import { persistingText } from '../../overview/priorityReason';
-import { fmtDateTime } from '../../shared';
+import { fmtWhen } from '../../blocks/whenText';
 import { HISTORY_QUERY } from '../historyQuery';
 import { fmtLocation } from '../../context/LoopContextBar';
 import { FacetPill, instrumentHealthText } from '../../FacetPill';
@@ -62,7 +62,7 @@ export const LoopSummaryRow: React.FC<{
   return (
     <>
       <div className="cpm-band__result">
-        {gates.data?.windowEnd && <span className="cpm-band__meta">Latest {windowKind} · {fmtDateTime(gates.data.windowEnd)}</span>}
+        {gates.data?.windowEnd && <span className="cpm-band__meta">Latest {windowKind} · {fmtWhen(gates.data.windowEnd)}</span>}
         <strong>{result}</strong>
         {fact && <span className="cpm-band__meta">{fact}</span>}
         {age && <span className="cpm-band__tag">window ended {age}</span>}

@@ -41,14 +41,14 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
 
   return (
     <div>
-      {gates.isLoading && <EmptyState title="Loading…" />}
+      {gates.isLoading && <EmptyState level={2} title="Loading…" />}
       {gates.isError && !isNoVerdictYet(gates.error) && (
         <QueryError title="Gate results unavailable"
           error={gates.error} retry={() => void gates.refetch()} />
       )}
       {!gates.isLoading && !matrix && (!gates.isError || isNoVerdictYet(gates.error)) && (
         // CHG-098 (SME review 2 #29): the next step when the verdict is overdue.
-        <EmptyState title="No fused verdict yet"
+        <EmptyState level={2} title="No fused verdict yet"
           copy={`Fusion fires on ${firesOn.join(' / ')} windows; results appear once one has been evaluated. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue.`}
           next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
       )}

@@ -32,6 +32,7 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   if (v.noData) {
     return (
       <EmptyState
+        level={2}
         title="No operating data"
         copy={`Nothing is publishing live values for this loop, and no samples were stored in ${v.rolling ? 'the last 8 hours' : 'this period'}. Check its signal mapping in the Loop Registry, or pick another period. (Historian series: ${v.series})`}
         next={[{ label: 'Signal mapping in the Loop Registry', to: registryHref(loop.loopId) }]}

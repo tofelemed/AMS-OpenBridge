@@ -63,6 +63,14 @@ describe('LoopSummaryRow', () => {
     expect(screen.getByRole('button', { name: 'Open details' })).toBeTruthy();
   });
 
+  it('prints the window end short, once: "Latest 12h · 6 Nov · 23:45"', () => {
+    hooks.gates.mockReturnValue({ data: { diagnosis: 'SUSPECTED_OSCILLATION', confidence: 1, windowEnd: '2026-11-06T23:45:00Z', gates: [] }, isLoading: false, isError: false });
+    const { container } = row();
+    expect(band(container)).toMatch(/Latest 12h · [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2}$|Latest 12h · [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2}[^:]/);
+    expect(band(container)).not.toMatch(/UTC|[0-9]{2}[/][0-9]{2}[/][0-9]{4}/);
+    expect(band(container).match(/Latest 12h/g)).toHaveLength(1);
+  });
+
   it('opens the Workbench from Review evidence →', () => {
     row();
     fireEvent.click(screen.getByRole('button', { name: 'Review evidence →' }));

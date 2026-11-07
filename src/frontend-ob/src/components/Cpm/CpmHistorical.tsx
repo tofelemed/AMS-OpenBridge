@@ -224,11 +224,12 @@ export const CpmHistorical: React.FC = () => {
         />
         {exporter.error && <p className="cpm-field__error" role="alert">{exporter.error}</p>}
 
-        {trend.isLoading && <EmptyState title="Loading trend…" />}
+        {trend.isLoading && <EmptyState level={2} title="Loading trend…" />}
         {/* "Trend unavailable", not "Historian unreachable": the error may be a 403 or a validation 400. */}
         {trend.isError && <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />}
         {!trend.isLoading && !trend.isError && !hasAnyLane && (
           <EmptyState
+            level={2}
             title={series ? 'Nothing recorded in this range' : 'Select a loop'}
             copy={series
               ? "No signal samples, KPI rows or evaluated windows were stored for this loop between the selected dates. Widen the range, or check the loop's signal mapping."
