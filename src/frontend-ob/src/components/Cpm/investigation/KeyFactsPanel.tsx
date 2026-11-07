@@ -1,6 +1,6 @@
 /**
- * Investigation › Key facts. CHG-129: when every fact has the same answer, one line names them all, so six identical tiles do not
- * push the evidence off the screen. The tiles return as soon as any value differs.
+ * Every measure of Numeric evidence, in its dialog. CHG-129: when every fact has the same answer, one line names them all, so six
+ * identical tiles do not push the evidence off the screen. The tiles return as soon as any value differs.
  */
 import React from 'react';
 import type { CpmGateMatrix } from '../../../api/cpmApi';

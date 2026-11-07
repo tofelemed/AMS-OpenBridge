@@ -28,11 +28,15 @@ export function parseExplanations(raw: string | undefined | null): Explanation[]
   });
 }
 
-export const EngineTrace: React.FC<{ entries: Array<[string, string | undefined | null]> }> = ({ entries }) => {
+export const EngineTrace: React.FC<{
+  entries: Array<[string, string | undefined | null]>;
+  /** Open from the start, inside a disclosure that is already closed. */
+  open?: boolean;
+}> = ({ entries, open }) => {
   const shown = entries.filter(([, v]) => v != null && v !== '');
   if (shown.length === 0) return null;
   return (
-    <details className="cpm-chart__more" data-advanced="engine-trace">
+    <details className="cpm-chart__more" data-advanced="engine-trace" open={open}>
       <summary>Advanced — engine trace (raw codes)</summary>
       <dl className="cpm-engine-trace">
         {shown.map(([k, v]) => (

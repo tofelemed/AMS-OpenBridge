@@ -165,7 +165,7 @@ export const GATE_NAMES: Readonly<Record<string, string>> = {
 export const gateName = (gate: string): string => GATE_NAMES[gate] ?? gate;
 
 /** Meanings that do not move a loop's result: a pass, a symptom not seen, or no result at all. */
-const QUIET: ReadonlySet<GateMeaning> = new Set<GateMeaning>(['ok', 'ok-limited', 'not-seen', 'not-seen-limited', ...NO_RESULT]);
+export const QUIET: ReadonlySet<GateMeaning> = new Set<GateMeaning>(['ok', 'ok-limited', 'not-seen', 'not-seen-limited', ...NO_RESULT]);
 
 /**
  * CHG-098 (SME review 2 #24): the gates behind a row's current result — every gate whose mark says something

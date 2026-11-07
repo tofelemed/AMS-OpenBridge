@@ -35,7 +35,7 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 const f2 = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2).replace(/\.?0+$/, '') || '0');
-const NONE = 'no threshold configured for this profile';
+export const NO_THRESHOLD = 'no threshold configured for this profile';
 
 /** A value the row may hold as a placeholder: shown as its availability, never as a number (CHG-053). */
 function metric(src: WhySources, field: string): { n: number | null; text: string | null } {
@@ -48,13 +48,13 @@ function metric(src: WhySources, field: string): { n: number | null; text: strin
 function requirement(label: string, value: number | null, min: number | null, fmt: (n: number) => string = f2, unit = ''): WhyRow | null {
   if (value == null) return null;
   return min == null
-    ? { label, value: `${fmt(value)}${unit}`, against: NONE, ok: null }
+    ? { label, value: `${fmt(value)}${unit}`, against: NO_THRESHOLD, ok: null }
     : { label, value: `${fmt(value)}${unit}`, against: `≥ ${fmt(min)}${unit} required`, ok: value >= min };
 }
 
 function detection(label: string, value: number | null, warn: number | null, high: number | null, missing: string | null): WhyRow | null {
   if (value == null) return missing ? { label, value: missing, against: '', ok: null } : null;
-  if (warn == null && high == null) return { label, value: f2(value), against: NONE, ok: null };
+  if (warn == null && high == null) return { label, value: f2(value), against: NO_THRESHOLD, ok: null };
   const parts = [warn != null ? `attention at ${f2(warn)}` : null, high != null ? `high at ${f2(high)}` : null].filter(Boolean).join(' · ');
   const where = high != null && value >= high ? 'above the high level' : warn != null && value >= warn ? 'above the attention level' : 'below the attention level';
   return { label, value: `${f2(value)} — ${where}`, against: parts, ok: null };
@@ -80,11 +80,11 @@ export function whyRows(gate: string, src: WhySources): WhyRow[] {
       const period = num(src.prov('acf_series', 'period_s')) ?? m('acf_period_s');
       const lo = c('G5.period_min_s'), hi = c('G5.period_max_s');
       if (period != null && period > 0)
-        rows.push({ label: 'Oscillation period', value: fmtDuration(period * 1000), against: lo != null && hi != null ? `${fmtDuration(lo * 1000)} – ${fmtDuration(hi * 1000)} resolvable` : NONE, ok: lo != null && hi != null ? period >= lo && period <= hi : null });
+        rows.push({ label: 'Oscillation period', value: fmtDuration(period * 1000), against: lo != null && hi != null ? `${fmtDuration(lo * 1000)} – ${fmtDuration(hi * 1000)} resolvable` : NO_THRESHOLD, ok: lo != null && hi != null ? period >= lo && period <= hi : null });
       else rows.push({ label: 'Oscillation period', value: metric(src, 'acf_period_s').text ?? 'not found', against: '', ok: null });
       if (src.eligibilityDetail) {
         const min = c('G5.min_samples_per_period');
-        rows.push({ label: 'Sampling', value: src.eligibilityDetail, against: min != null ? `≥ ${min} samples per period required` : NONE, ok: /</.test(src.eligibilityDetail) ? false : null });
+        rows.push({ label: 'Sampling', value: src.eligibilityDetail, against: min != null ? `≥ ${min} samples per period required` : NO_THRESHOLD, ok: /</.test(src.eligibilityDetail) ? false : null });
       }
       break;
     }
@@ -103,7 +103,7 @@ export function whyRows(gate: string, src: WhySources): WhyRow[] {
     case 'G10': {
       const d = m('sat_limit_dwell_s');
       const warn = c('G10.limit_dwell_warn_s');
-      if (d != null) rows.push({ label: 'Time at an output limit', value: fmtDuration(d * 1000), against: warn != null ? `attention at ${fmtDuration(warn * 1000)}` : NONE, ok: null });
+      if (d != null) rows.push({ label: 'Time at an output limit', value: fmtDuration(d * 1000), against: warn != null ? `attention at ${fmtDuration(warn * 1000)}` : NO_THRESHOLD, ok: null });
       const s = m('saturation_pct');
       if (s != null) rows.push({ label: 'Saturated samples', value: `${(s * 100).toFixed(1)} %`, against: '', ok: null });
       break;

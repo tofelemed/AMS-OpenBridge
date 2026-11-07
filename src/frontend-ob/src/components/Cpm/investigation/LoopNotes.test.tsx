@@ -62,4 +62,23 @@ describe('LoopNotes', () => {
     renderNotes(null);
     expect(screen.getByText('Needs the cpm.manage permission')).toBeTruthy();
   });
+
+  it('takes its heading, button and side links from the page, and keeps attach, acknowledge and the save', () => {
+    render(<MemoryRouter><LoopNotes loopId="FIC10401" openFrame={frame} window={{ methodRunId: 'run-15', label: '24 h · ends 6 Oct 10:00' }}
+      title="Record your review" saveLabel="Save review" links={<a href="#x">Related events ↗</a>} /></MemoryRouter>);
+    expect(screen.getByRole('heading', { level: 2, name: 'Record your review' })).toBeTruthy();
+    expect(screen.queryByText('Record it')).toBeNull();
+    expect(screen.getByText('Related events ↗')).toBeTruthy();
+    expect(screen.getByLabelText(/Attach to this evaluated window/)).toBeTruthy();
+    expect(screen.getByLabelText(/Also acknowledge the open episode EVT-77/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Loop note'), { target: { value: 'reviewed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save review' }));
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps its own words on a page that names none', () => {
+    renderNotes(null);
+    expect(screen.getByRole('heading', { level: 2, name: 'Loop notes' })).toBeTruthy();
+    expect(screen.getByText('Record it')).toBeTruthy();
+  });
 });

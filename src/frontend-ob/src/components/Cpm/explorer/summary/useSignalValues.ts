@@ -5,6 +5,7 @@
  */
 import { useMemo } from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
+import type { CpmTrendPoint } from '../../../../api/cpm/kpis';
 import { useCpmTrend, useLoopLastValues } from '../../../../hooks/useCpm';
 import { liveQuality, useLoopLive } from '../../../../hooks/useLoopLive';
 import { loopSeries } from '../../../../utils/loopSeries';
@@ -14,6 +15,10 @@ import { useTrendRange } from '../../trend/useTrendRange';
 import { ageText } from './summaryText';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
+
+/** A signal in a trend bucket, the SAME aggregate the chart pen draws: PV and OP from the bucket average, SP from last_value. */
+export const bucketValue = (point: CpmTrendPoint | undefined, m: 'pv' | 'sp' | 'op'): number | null =>
+  m === 'sp' ? num(point?.[m]) : num(point?.[`${m}_avg`]) ?? num(point?.[m]);
 
 /** Age of a stored value, in the app's age words (summaryText.ageText). */
 const ageLabel = (ts: number | undefined): string => (ts ? ageText(Date.now() - ts) : 'earlier');
@@ -60,8 +65,7 @@ export function useSignalValues(loop: CpmLoop) {
   const signals: SignalValue[] = (['pv', 'sp', 'op'] as const).map(m => {
     const lv = live[m];
     const liveVal = lv && typeof lv.value === 'number' ? lv.value.toFixed(2) : null;
-    // Read the SAME aggregate the chart pen draws: PV and OP from the bucket average, SP from last_value.
-    const stored = m === 'sp' ? num(last?.[m]) : num(last?.[`${m}_avg`]) ?? num(last?.[m]);
+    const stored = bucketValue(last, m);
     const heldVal = num(held[m]?.value);
     const shown = liveVal ?? (stored != null ? stored.toFixed(2) : heldVal != null ? heldVal.toFixed(2) : null);
     return {

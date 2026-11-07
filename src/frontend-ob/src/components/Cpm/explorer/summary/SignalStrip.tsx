@@ -7,14 +7,17 @@
  * value has the same age the age is said once, beside the quality. With no publisher and no stored value the row
  * is one honest empty state, not four dashes that read like measured zeros.
  *
- * Used on Loop Explorer Summary and again on Investigation, so it takes the loop and nothing else.
+ * `SignalStrip` is the loop now, on Loop Explorer Summary. `SignalStripAt` is the same row at one moment, on Investigation:
+ * a page about an evaluated window must not show today's values beside it, so it reads only the bucket it is given.
  */
 import React from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
+import type { CpmTrendPoint } from '../../../../api/cpm/kpis';
+import { modeLabel } from '../../../../utils/modeVocabulary';
 import { FacetPill } from '../../FacetPill';
 import { EmptyState } from '../../shared';
 import { registryHref } from '../../cpaHref';
-import { liveSource, useSignalValues } from './useSignalValues';
+import { bucketValue, liveSource, useSignalValues } from './useSignalValues';
 
 export { liveSource };
 
@@ -50,6 +53,19 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
         <FacetPill facet="signal" tone={v.quality.tone}>{v.quality.text}</FacetPill>
         {v.oneAge && <span className="cpm-signal-strip__age">last stored {v.oneAge}</span>}
       </p>
+    </div>
+  );
+};
+
+export const SignalStripAt: React.FC<{ point: CpmTrendPoint }> = ({ point }) => {
+  const mode = modeLabel(point.mode);
+  return (
+    <div className="cpm-signal-strip" role="group" aria-label="Signals at the window end">
+      {(['pv', 'sp', 'op'] as const).map(m => (
+        <Signal key={m} caption={m.toUpperCase()} value={bucketValue(point, m)?.toFixed(2) ?? '—'} sub={m === 'op' ? '%' : undefined} />
+      ))}
+      <Signal caption="MODE" value={mode.label} sub={mode.tone === 'warn' || mode.tone === 'bad' ? mode.note : undefined} />
+      <p className="cpm-signal-strip__quality"><span className="cpm-signal-strip__age">at window end</span></p>
     </div>
   );
 };

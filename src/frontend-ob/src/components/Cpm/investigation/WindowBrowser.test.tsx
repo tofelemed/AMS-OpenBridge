@@ -20,7 +20,7 @@ const opt = (i: number): WindowOption => ({
 const many = Array.from({ length: 100 }, (_, i) => opt(i));
 const props = (over = {}) => ({
   windows: many, hasMore: true, isLoadingMore: false, loadMore: vi.fn(), matrix: row(many[0].windowEnd), previous: undefined,
-  comparison: { state: 'loading' as const }, windowKind: '12h', setParams: vi.fn(), ...over,
+  comparison: { state: 'loading' as const }, windowKind: '12h', onWindow: vi.fn(), ...over,
 });
 
 describe('WindowBrowser', () => {
@@ -45,6 +45,19 @@ describe('WindowBrowser', () => {
     render(<WindowBrowser {...props({ comparison: { state: 'missing', end: many[1].windowEnd } })} />);
     expect(screen.queryByText(/only one evaluated window/i)).toBeNull();
     expect(screen.getByText(/has no full stored result to compare against/)).toBeTruthy();
+  });
+
+  it('opens the window that was picked', () => {
+    const onWindow = vi.fn();
+    render(<WindowBrowser {...props({ onWindow })} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Ends / })[1]);
+    expect(onWindow).toHaveBeenCalledWith(many[1].windowEnd);
+  });
+
+  it('sits in the dialog with no heading of its own', () => {
+    render(<WindowBrowser {...props()} />);
+    expect(screen.queryByText('Window browser')).toBeNull();
+    expect(screen.queryByRole('heading')).toBeNull();
   });
 });
 

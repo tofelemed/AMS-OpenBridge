@@ -67,3 +67,15 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | M-078 (window KPI) | In AUTO; Time in normal mode | Time in normal mode | Historical selected window | 12 |
 | Window list result | Verdict | Result | Historical | 12 |
 | Window not stored | none (new state) | That window is not stored; Open the newest window / Replay the newest window | Investigation, Evidence Replay | 13 |
+| Result of a window, where the strip keeps it in view | Final conclusion; Verdict | Result (Workbench keeps Verdict until its task) | Investigation | 14 |
+| Severity on the result card | Severity | Engine severity | Investigation | 14 |
+| Leading mechanism on the result card | Possible cause; Main reason | Cause, with "· not confirmed" until G14 confirms it | Investigation | 14 |
+| Cause when no mechanism qualified | no mechanism qualified; No mechanism qualified | Not established (a finding); Not qualified (a window not judged) | Investigation | 14 |
+| Engine recommendation | Next-best action; Engine recommendation | Next check | Investigation | 14 |
+| Section under the result | Reasoning chain | Why this result | Investigation | 14 |
+| Time at the output limit on G10 | Symptom seen | limit symptom (the card summary only; the gate itself keeps Symptom seen) | Investigation | 14 |
+| Numeric evidence section | Key facts; Numeric evidence on this window | Numeric evidence | Investigation | 14 |
+| Loop note section | Loop notes | Record your review (Replay keeps Loop notes until its task) | Investigation | 14 |
+| Save button | Save note | Save review (Replay keeps Save note until its task) | Investigation | 14 |
+| Trend zoom reset | Reset | Full window | Investigation | 14 |
+| Values in a gate's proof | Measured vs required | Calculated values | Investigation | 14 |

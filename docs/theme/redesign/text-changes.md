@@ -545,3 +545,73 @@ Controls that changed place in this section, not removed:
 | Control | Now on |
 |---|---|
 | Result of this window (Original result / Re-run {id}) | New select in the Replay band, only when a window holds more than one result; writes `?rerun=` |
+
+## Task 14 (CHG-141): Investigation
+
+For the control engineer: the status words all come from `gateMark`. The one new status phrase is "limit symptom", on the Diagnostic evidence card only, for G10. Please review it, and the Next checks wording below.
+
+### Removed or reworded
+
+| Was | Now | Where |
+|---|---|---|
+| Eyebrow "Final conclusion" | Removed. The card opens with the window: "Latest evaluated window · 12 h · ends {date}" or "Earlier window · …" | Result card |
+| Strip label "Final conclusion" | "Result" | Strip that keeps the result in view |
+| Pill "no verdict" | Removed. A window with no verdict shows Time in normal mode, Time at an OP limit and Data coverage instead | Result card |
+| Pill "evidence score {n}" | Fact "Evidence score" | Result card |
+| "Severity" | "Engine severity" | Result card |
+| Eyebrow "Next-best action", heading "Engine recommendation" | Bar "Next check" with Start with evidence ↓. With no recommendation on a finding: "Compare PV, SP and OP over this window." (the old fallback sent the reader to this page) | Result card |
+| "Basis" row | One line under "Why this result": "Confirmed from …" | Why this result |
+| "Not checked" and "Limitations" rows | One list, "What is still unconfirmed" (a judged window) or "Limits on this conclusion" (a window not judged) | Beside the gates |
+| "Reason" row on a window not judged | First line of "Limits on this conclusion", so it stays on screen | Beside the gates |
+| "Reason —" row, "see Advanced below", "see Advanced on the conclusion card", "none — verdict fused cleanly" | Removed. A reason in words sits under Technical details; an engine string stays in the trace | Technical details |
+| Collapsible "Reasoning chain — how the engine got there", "Eligibility → Evidence → Fusion · fused cleanly", the stage questions ("Is the window evaluable at all?" and the rest), the GOOD / WARN / BAD pill per stage | Removed. Five cards with a summary each, and the gates of the chosen card with their marks | Why this result |
+| Summary "Leading: {cause} · {state}" on the closed Hypothesis comparison | Removed. Cause is on the result card, G14 under Technical details | Investigation |
+| Eyebrow "Hypothesis comparison" above "Mechanisms and the evidence for each" and above "Family and detector scores" | Removed: the dialog title says it | Hypothesis comparison dialog |
+| Eyebrow "Evidence", heading "Signals over the evaluated window" | Removed. The values and trend need no heading | Investigation |
+| Eyebrow "Key facts", heading "Numeric evidence on this window" | "Numeric evidence", behind ?: "The measures stored on this window. A value the engine did not qualify shows why, never 0." | Numeric evidence |
+| Eyebrow "Window browser", heading "Recent windows", ? "Newest first; pick one to make it CURRENT." | Removed. Dialog title "Compare recent {kind} windows" | Compare windows dialog |
+| Eyebrow "Record it", heading "Loop notes", button "Save note" | "Record your review", "Save review". Replay keeps its words until its task | Investigation |
+| ? "A note stays on the loop. Saving it never acknowledges…" | "A note stays on the loop and never changes the engine's result. Saving it never acknowledges…" | Loop notes, both pages |
+| "evaluated window ›", "EVT-{id} ›" | "evaluated window ↗", "EVT-{id} ↗" | Loop notes, both pages |
+| "Open in Evidence Replay ›" | "Evidence Replay ↗" | Trend foot |
+| "Calculation proof ›" (to Calculations) | "Calculation proof →" in the Numeric evidence dialog, now with the window end | Numeric evidence dialog |
+| "Reset" | "Full window" | Investigation trend; other trends keep Reset |
+| "Pick a loop above — or a case, then a loop — to follow its evidence from raw signals to the fused conclusion." | "Pick a loop above, or a case under More and then a loop, to follow its evidence from raw signals to the fused result." | No loop chosen |
+
+### Moved behind a ?
+
+| Text | Now behind |
+|---|---|
+| The evidence-score paragraph ("Evidence score: how fully the observed symptoms match…"). A cap on this window's score stays on screen in the limits list: "Evidence score capped at 54: …" | ? on Evidence score |
+| "(NE107: missing diagnostics are not OK)" | ? beside "No health data for this window — not checked" |
+
+### New text
+
+| Text | Where |
+|---|---|
+| Cause: "Not established", "Not qualified", "· not confirmed". ? "The title names what was observed. A valve, controller, process or instrument cause is a separate claim, shown here only when the engine qualified one." | Result card |
+| "Last verdict {diagnosis} · {age}" (was the Last verdict row; same words) | Under the title, never as the title |
+| Card summaries, built from `gateMark`: "All pass", "G1 · Excluded", "G3 attention · G4 pass", "G5 / G9 symptom seen", "Not seen", "Not seen on available data", "Not evaluated", "G12 / G13 not evaluated · G14 n/a", "G15 · Confirmed". Own words: "limit symptom", "Not applicable to this excluded case" | Why this result |
+| "at window end" | Values above the trend |
+| Finding: "Compare PV, SP and OP over the same window", "Inspect the checks contributing to this diagnosis", "Review evidence for the physical cause" | Next checks |
+| Mode exclusion: "Confirm whether manual operation was intended", "Review how this loop entered manual mode", "Review the open output-limit condition" (only when G10 spoke). Other exclusions: "Review why this window was excluded", "Review this period" | Next checks |
+| Short of data: "See the samples each window received", "Check the signal mapping", "Review when the data stopped". Not evaluated: "Check what the loop is still missing", "Check that the analysis engine is running". Healthy: "Review earlier windows" | Next checks |
+| "Calculated values", "This gate reports a state, not a measured value." | Calculation proof dialog |
+| "No other measure on this window." | Numeric evidence |
+| "If manual operation was intended, the exclusion needs no change to the controller. If it was not, review the operator or logic change that took the loop out of automatic or cascade." | Mode context dialog |
+| "No evaluated window is open", "Choose a loop first" (why Compare windows is off) | Header |
+
+| Control | Now on |
+|---|---|
+| Source select (Live / Historical) | Removed. The window select replaces it: the newest window is the first option |
+| Profile select (12h fused / 24h fused) | 12h / 24h toggle in the header, still `?profile=` |
+| Evaluated window select | Always in the band (was only under Historical); pre-v2.5 and history-only windows are listed but not selectable there, and stay reachable in Compare windows |
+| Analysis case | Under More in the band |
+| Load older windows | Under More, and Older › in Compare windows |
+| Window tiles and the Previous / Current table | Compare windows dialog, from the header |
+| Hypothesis comparison | Dialog: from Record your review, and from Next checks on a finding. Holds the Observed, Possible cause, Evidence against and Not assessed rows |
+| Key facts tiles | Numeric evidence dialog, View all measures → |
+| Instrument health lane | Under the trend |
+| Window span, Selected family, G14 confirmation, Reason, Disqualifiers, engine trace | Technical details & engine trace, closed; the trace opens with it |
+| New: Calculation proof ↗, {gate} proof ↗, All 17 gate results →, Start with evidence ↓, Related events ↗, Mode context | Investigation |
+| Chosen card and open gate | In the address, `?tier=` and `?gate=`; `?gate=` from Performance and Calculations now opens that gate |

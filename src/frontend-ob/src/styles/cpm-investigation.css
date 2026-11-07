@@ -1,0 +1,69 @@
+/* CHG-141 Investigation: where the blocks sit. Placement only: every size comes from the classes the blocks already use. */
+.cpm-inv-hero { display: grid; gap: var(--traverse-space-3); }
+.cpm-inv-hero__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
+.cpm-inv-hero__result { display: grid; gap: var(--traverse-space-1); min-width: 0; }
+.cpm-inv-hero__class { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: var(--traverse-space-1) 0 0; }
+.cpm-inv-hero__class dd { margin: 0; }
+.cpm-inv-hero__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--traverse-space-3); min-width: 0; }
+.cpm-inv-hero__next {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3);
+  padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle);
+}
+.cpm-inv-hero__check { display: grid; gap: var(--traverse-space-1); margin: 0; min-width: 0; }
+
+.cpm-inv-why { display: grid; gap: var(--traverse-space-2); }
+.cpm-inv-why .cpm-panel-head { align-items: center; margin-bottom: 0; }
+.cpm-inv-why__basis { max-width: none; }
+/* The chosen card: an edge and weight as well as colour, as the segmented control marks its choice. */
+.cpm-inv-cards > [aria-pressed='true'] { border-color: var(--traverse-focus); }
+.cpm-inv-cards > [aria-pressed='true'] .cpm-kpicard__label { font-weight: 600; }
+
+.cpm-inv-work {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start;
+  scroll-margin-top: var(--cpm-context-h, 0px);
+}
+.cpm-inv-trend { min-width: 0; }
+/* Evidence Replay ↗ stands at the far end of the zoom row. */
+.cpm-inv-trend .chart-zoombar > :last-child { margin-left: auto; }
+
+.cpm-inv-gates { display: grid; }
+.cpm-inv-gate { border-top: 1px solid var(--traverse-border-subtle); }
+.cpm-inv-gate:first-child { border-top: 0; }
+.cpm-inv-gate__head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); width: 100%;
+  padding: var(--traverse-space-2) 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+.cpm-inv-gate__head:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 1px; }
+.cpm-inv-gate__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.cpm-inv-gate__detail { display: grid; justify-items: start; gap: var(--traverse-space-1); padding-bottom: var(--traverse-space-2); }
+
+.cpm-inv-proof { margin-top: var(--traverse-space-3); }
+.cpm-inv-proof h3 { margin: 0 0 var(--traverse-space-1); }
+
+.cpm-inv-limits { display: grid; gap: var(--traverse-space-1); margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); }
+
+.cpm-inv-lower { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
+.cpm-inv-checks { display: grid; margin: 0; padding: 0; list-style: none; }
+.cpm-inv-checks li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-1) var(--traverse-space-3);
+  padding: var(--traverse-space-1) 0; border-top: 1px solid var(--traverse-border-subtle);
+}
+.cpm-inv-checks li:first-child { border-top: 0; }
+.cpm-inv-numeric { display: grid; justify-items: start; gap: var(--traverse-space-2); }
+
+.cpm-inv-review { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
+.cpm-inv-review__links { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin-top: var(--traverse-space-2); }
+
+.cpm-inv-allgates .cpm-tier-row__tier { flex-basis: 100%; }
+.cpm-inv-allgates .cpm-tier-row__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 var(--traverse-space-3); }
+
+@media (max-width: 1100px) {
+  .cpm-inv-hero__top, .cpm-inv-work, .cpm-inv-lower { grid-template-columns: minmax(0, 1fr); }
+  .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 736px) {
+  .cpm-inv-review { grid-template-columns: minmax(0, 1fr); }
+  .cpm-inv-hero__facts { grid-template-columns: minmax(0, 1fr); }
+  .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cpm-kpicards--5.cpm-inv-cards > :last-child { grid-column: 1 / -1; }
+}

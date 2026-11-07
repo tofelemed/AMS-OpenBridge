@@ -1,13 +1,11 @@
 /**
- * Recent evaluated windows with a PREVIOUS/CURRENT delta table over the key facts.
+ * Recent evaluated windows with a PREVIOUS/CURRENT delta table over the key facts, in the Compare windows dialog (CHG-141).
  * Split out of CpmInvestigation in v2.5 (1E.2).
  */
 import React, { useEffect, useRef, useState } from 'react';
-import type { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpmApi';
-import { Toggletip } from '../../../ui/Toggletip';
-import { PanelHead, toneFor } from '../shared';
+import { toneFor } from '../shared';
 import { KEY_FACTS, fmtFact } from './keyFacts';
 import { diagnosisLabel } from '../vocabulary';
 import { contextOfMatrix, metricAvailability } from '../metricAvailability';
@@ -22,8 +20,6 @@ import { comparisonNote, type Comparison } from './comparisonNote';
 
 const PAGE = 5;
 
-type SetParams = ReturnType<typeof useSearchParams>[1];
-
 export const WindowBrowser: React.FC<{
   /** The loop's evaluated windows, newest first: the same list the Evidence pages read (useEvidenceWindows). */
   windows: WindowOption[];
@@ -34,8 +30,9 @@ export const WindowBrowser: React.FC<{
   previous: CpmGateMatrix | undefined;
   comparison: Comparison;
   windowKind: string;
-  setParams: SetParams;
-}> = ({ windows, hasMore, isLoadingMore, loadMore, matrix, previous, comparison, windowKind, setParams }) => {
+  /** Opens the window that was picked, by its end. */
+  onWindow: (end: string) => void;
+}> = ({ windows, hasMore, isLoadingMore, loadMore, matrix, previous, comparison, windowKind, onWindow }) => {
   const metrics = matrix.metrics ?? {};
   // CHG-054: page through the windows five at a time; open on the page holding the CURRENT window
   const at = Math.max(0, windows.findIndex(w => sameInstant(w.windowEnd, matrix.windowEnd)));
@@ -60,9 +57,7 @@ export const WindowBrowser: React.FC<{
   };
   const notComparable = [side(previous, 'Previous'), side(matrix, 'Current')].filter(Boolean).join(' · ');
   return (
-    <section className="cpm-surface">
-      <PanelHead eyebrow="Window browser" title="Recent windows"
-        help={<Toggletip variant="how-to" label="How this is ordered"><p>Newest first; pick one to make it CURRENT.</p></Toggletip>} />
+    <>
       {/* SME #18 (CHG-054): each window by its END and SIZE — sliding windows share a date and often a verdict */}
       <div className="cpm-window-tiles" role="list" aria-label={`Evaluated ${windowKind} windows`}>
         {shown.map(w => {
@@ -73,11 +68,7 @@ export const WindowBrowser: React.FC<{
             <button type="button"
               className={`cpm-window-tile${current ? ' cpm-window-tile--current' : ''}`}
               aria-current={current ? 'true' : undefined} title={windowSpan({ windowStart: w.windowStart, windowEnd: w.windowEnd, windowKind })}
-              onClick={() => setParams(p => {
-                p.set('mode', 'historical');
-                if (w.windowEnd) p.set('window', w.windowEnd);
-                return p;
-              }, { replace: true })}>
+              onClick={() => { if (w.windowEnd) onWindow(w.windowEnd); }}>
               <span className="cpm-window-tile__end">Ends {fmtInstant(w.windowEnd)}{latest && <span className="cpm-window-tile__tag">Latest</span>}</span>
               <span className="cpm-window-tile__sub">
                 <span className={`cpm-dot cpm-tone-${toneFor(w.diagnosis ?? null)}`} aria-hidden />
@@ -155,7 +146,7 @@ export const WindowBrowser: React.FC<{
       ) : (
         <p className="cpm-copy" style={{ marginTop: 8 }}>{comparisonNote(comparison)}</p>
       )}
-    </section>
+    </>
   );
 };
 

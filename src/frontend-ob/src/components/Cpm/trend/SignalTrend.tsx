@@ -39,7 +39,10 @@ export const SignalTrend: React.FC<{
   xRange?: { fromMs: number; toMs: number } | null;
   evaluated?: { startMs: number; endMs: number; label: string } | null;
   yBounds?: { pv: { min: number; max: number } | null; op: { min: number; max: number } | null } | null;
-}> = ({ loopId, points, hasVp, height = 240, live = false, caption, help, xRange, evaluated, yBounds }) => {
+  /** The zoom bar's Reset word, and links that belong in that row. */
+  resetLabel?: string;
+  foot?: React.ReactNode;
+}> = ({ loopId, points, hasVp, height = 240, live = false, caption, help, xRange, evaluated, yBounds, resetLabel, foot }) => {
   const loops = useCpmLoops();
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
   const range = loop?.engineering ?? null;
@@ -91,7 +94,7 @@ export const SignalTrend: React.FC<{
       </div>
       <ReactECharts option={option} style={{ height }} notMerge
         onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-      <ChartZoomBar box={box} hasData={points.length > 0} live={live} />
+      <ChartZoomBar box={box} hasData={points.length > 0} live={live} resetLabel={resetLabel}>{foot}</ChartZoomBar>
     </div>
   );
 };

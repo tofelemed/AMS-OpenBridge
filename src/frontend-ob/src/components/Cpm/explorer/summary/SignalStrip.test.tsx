@@ -14,7 +14,7 @@ vi.mock('../../../../hooks/useLoopLive', () => ({
 }));
 vi.mock('../../trend/useTrendRange', () => ({ useTrendRange: () => ({ from: new Date(0), to: new Date(1), live: true }) }));
 
-import { SignalStrip } from './SignalStrip';
+import { SignalStrip, SignalStripAt } from './SignalStrip';
 
 const LOOP = { loopId: 'FIC00701' } as CpmLoop;
 const NOW = Date.now();
@@ -55,5 +55,26 @@ describe('SignalStrip', () => {
     const { container } = strip();
     expect(container.textContent).toMatch(/No operating data/);
     expect(container.querySelector('.cpm-signal')).toBeNull();
+  });
+});
+
+describe('SignalStripAt', () => {
+  it('reads one trend bucket, the same aggregates the pens draw, and says when', () => {
+    const { container } = render(<SignalStripAt point={{ ts: 1, pv: 9, pv_avg: 12.345, sp: 12, op_avg: 48.2, mode: 'MAN' }} />);
+    const items = [...container.querySelectorAll('.cpm-signal')];
+    expect(items.map(i => i.querySelector('.cpm-signal__caption')?.textContent)).toEqual(['PV', 'SP', 'OP', 'MODE']);
+    expect(items.map(i => i.querySelector('.cpm-signal__value')?.textContent)).toEqual(['12.35', '12.00', '48.20', 'MAN']);
+    expect(container.textContent).toContain('at window end');
+  });
+
+  it('never reads the live feed: an older window keeps its own values', () => {
+    hooks.live.mockClear();
+    render(<SignalStripAt point={{ ts: 1, pv: 1, sp: 2, op: 3, mode: 'AUTO' }} />);
+    expect(hooks.live).not.toHaveBeenCalled();
+  });
+
+  it('shows a value that was not stored as a dash, never 0', () => {
+    const { container } = render(<SignalStripAt point={{ ts: 1, pv: 4, sp: null, op: null, mode: null }} />);
+    expect([...container.querySelectorAll('.cpm-signal__value')].map(v => v.textContent)).toEqual(['4.00', '—', '—', '—']);
   });
 });

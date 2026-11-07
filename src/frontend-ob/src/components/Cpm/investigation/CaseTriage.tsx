@@ -1,30 +1,22 @@
 /**
- * The Investigation page's controls in the loop band (CHG-129): analysis case, live or historical, profile and evaluated window,
- * each one dropdown. Cases come from the fleet's served verdicts (`cases.ts`). A case narrows the loop control's list.
+ * The Investigation page's analysis case, under More in the loop band (CHG-141). Cases come from the fleet's served verdicts
+ * (`cases.ts`). A case narrows the loop control's list. The window choice and 12h / 24h moved out of here: the page holds them.
  */
 import React from 'react';
 import type { useSearchParams } from 'react-router-dom';
-import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { EmptyState } from '../shared';
-import { diagnosisLabel } from '../vocabulary';
 import type { useCpmScope } from '../plantScope';
 import { CASE_LABEL } from './cases';
-import { windowLabel } from '../windowLabel';
-import type { WindowOption } from '../evidence/useEvidenceWindows';
-import { sameInstant } from '../evidence/useWindowAt';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
-export const CaseControls: React.FC<{
+export const CaseSelect: React.FC<{
   cases: [string, number][];
   caseFilter: string | null;
-  mode: string;
-  windowKind: string;
-  windows: WindowOption[];
-  matrix: CpmGateMatrix | undefined;
   setParams: SetParams;
-}> = ({ cases, caseFilter, mode, windowKind, windows, matrix, setParams }) => (
-  <>
+}> = ({ cases, caseFilter, setParams }) => (
+  <label className="cpm-field cpm-field--compact">
+    <span className="cpm-field__label">Case</span>
     <select className="cpm-select" aria-label="Analysis case" value={caseFilter ?? ''}
       onChange={e => setParams(p => {
         if (e.target.value) { p.set('case', e.target.value); p.delete('loop'); } else p.delete('case');
@@ -33,37 +25,15 @@ export const CaseControls: React.FC<{
       <option value="">All cases</option>
       {cases.map(([c, n]) => <option key={c} value={c}>{`${CASE_LABEL[c] ?? c} · ${n}`}</option>)}
     </select>
-    <select className="cpm-select" aria-label="Source" value={mode}
-      onChange={e => setParams(p => { p.set('mode', e.target.value); if (e.target.value === 'live') p.delete('window'); return p; }, { replace: true })}>
-      <option value="live">Live</option>
-      <option value="historical">Historical</option>
-    </select>
-    <select className="cpm-select" aria-label="Profile" value={windowKind}
-      onChange={e => setParams(p => { p.set('profile', e.target.value); p.delete('window'); return p; }, { replace: true })}>
-      <option value="12h">12h fused</option>
-      <option value="24h">24h fused</option>
-    </select>
-    {mode === 'historical' && (
-      <select className="cpm-select" aria-label="Evaluated window"
-        value={windows.find(w => sameInstant(w.windowEnd, matrix?.windowEnd))?.windowEnd ?? matrix?.windowEnd ?? ''}
-        onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
-        {matrix?.windowEnd && !windows.some(w => sameInstant(w.windowEnd, matrix.windowEnd)) && (
-          <option value={matrix.windowEnd}>{windowLabel({ windowKind, windowEnd: matrix.windowEnd })} · {diagnosisLabel(matrix.diagnosis)}</option>
-        )}
-        {windows.map(w => (
-          <option key={w.windowEnd} value={w.windowEnd}>
-            {windowLabel({ windowKind, windowEnd: w.windowEnd })} · {diagnosisLabel(w.diagnosis ?? null)}
-          </option>
-        ))}
-      </select>
-    )}
-    {/* One announcement of the resolved selection across the controls above. */}
-    <span className="cpm-sr-only" aria-live="polite">
-      Source: {mode === 'live' ? 'live, the latest verdict' : 'historical'}.
-      Profile {windowKind} fused.
-      {caseFilter ? ` Case filter: ${CASE_LABEL[caseFilter] ?? caseFilter}.` : ' No case filter.'}
-    </span>
-  </>
+  </label>
+);
+
+/** One announcement of the resolved selection, outside More so it is heard while More is closed. */
+export const CaseAnnouncement: React.FC<{ caseFilter: string | null; windowKind: string }> = ({ caseFilter, windowKind }) => (
+  <span className="cpm-sr-only" aria-live="polite">
+    Profile {windowKind} fused.
+    {caseFilter ? ` Case filter: ${CASE_LABEL[caseFilter] ?? caseFilter}.` : ' No case filter.'}
+  </span>
 );
 
 /** No verdict to triage in this scope: says why, and offers the way out. */

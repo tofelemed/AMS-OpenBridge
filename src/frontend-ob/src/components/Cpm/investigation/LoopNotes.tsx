@@ -3,7 +3,8 @@
  * the loop; it can name the evaluated window it was written on (the window's decision evidence is pinned) and the
  * diagnosis episode it is about, now or later ("Link to episode…"). Acknowledging an open episode is a separate,
  * explicit choice (ISA-18.2: acknowledgement is a deliberate act) — the old box sent the note AS the
- * acknowledgement. Replaces the "Investigation note" card on Investigation and Evidence Replay.
+ * acknowledgement. Replaces the "Investigation note" card on Investigation and Evidence Replay. Saving a note never
+ * changes the engine's result. A page can name the section and the button, and add links beside the notes (CHG-141).
  */
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -34,7 +35,12 @@ export const LoopNotes: React.FC<{
   window?: { methodRunId?: string | null; label: string } | null;
   /** The loop's open, unacknowledged episode, if any. */
   openFrame?: CpmEventFrame | null;
-}> = ({ loopId, window, openFrame }) => {
+  /** The section's heading and its button, where the page names them. */
+  title?: string;
+  saveLabel?: string;
+  /** Links beside the note list. */
+  links?: React.ReactNode;
+}> = ({ loopId, window, openFrame, title, saveLabel = 'Save note', links }) => {
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
   const notes = useLoopNotes(loopId);
   const episodes = useCpmEvents({ loopId, openOnly: false, limit: 20, sort: 'recent' }, 60_000, !!loopId);
@@ -64,40 +70,47 @@ export const LoopNotes: React.FC<{
 
   return (
     <section className="cpm-surface cpm-loop-notes" data-testid="loop-notes">
-      <PanelHead eyebrow="Record it" title="Loop notes"
-        help={<Toggletip variant="how-to" label="About loop notes"><p>A note stays on the loop. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.</p></Toggletip>}
+      <PanelHead eyebrow={title ? undefined : 'Record it'} title={title ?? 'Loop notes'}
+        help={<Toggletip variant="how-to" label="About loop notes"><p>A note stays on the loop and never changes the engine’s result. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.</p></Toggletip>}
         right={<span className="cpm-copy">{notes.data ? `${notes.data.count} note(s)` : ''}</span>} />
-      <textarea className="cpm-textarea" rows={3} value={text} maxLength={MAX_NOTE_LENGTH + 1}
-        placeholder="Observation, action taken, follow-up owner… (no episode needed)" aria-label="Loop note"
-        onChange={e => setText(e.target.value)} />
-      <div className="cpm-loop-notes__options">
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label">Outcome</span>
-          <select className="cpm-select" value={outcome} onChange={e => setOutcome(e.target.value as NoteOutcome)}>
-            {OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-        {window?.methodRunId && (
-          <label className="cpm-check">
-            <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
-            Attach to this evaluated window ({window.label}) — its evidence is kept
-          </label>
-        )}
-        {openFrame && (
-          <label className="cpm-check">
-            <input type="checkbox" checked={alsoAck} onChange={e => setAlsoAck(e.target.checked)} />
-            Also acknowledge the open episode EVT-{openFrame.id} and link the note to it
-          </label>
-        )}
+      <div className={links ? 'cpm-inv-review' : undefined}>
+        <div>
+          <textarea className="cpm-textarea" rows={3} value={text} maxLength={MAX_NOTE_LENGTH + 1}
+            placeholder="Observation, action taken, follow-up owner… (no episode needed)" aria-label="Loop note"
+            onChange={e => setText(e.target.value)} />
+          <div className="cpm-loop-notes__options">
+            <label className="cpm-field cpm-field--compact">
+              <span className="cpm-field__label">Outcome</span>
+              <select className="cpm-select" value={outcome} onChange={e => setOutcome(e.target.value as NoteOutcome)}>
+                {OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            {window?.methodRunId && (
+              <label className="cpm-check">
+                <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
+                Attach to this evaluated window ({window.label}) — its evidence is kept
+              </label>
+            )}
+            {openFrame && (
+              <label className="cpm-check">
+                <input type="checkbox" checked={alsoAck} onChange={e => setAlsoAck(e.target.checked)} />
+                Also acknowledge the open episode EVT-{openFrame.id} and link the note to it
+              </label>
+            )}
+          </div>
+          <div className="cpm-filter-row">
+            <ReasonedButton variant="raised" disabled={!canManage || trimmed.length === 0 || !!reason || create.isPending} reason={reason} onClick={save}>
+              {create.isPending ? 'Saving…' : saveLabel}
+            </ReasonedButton>
+            {create.isSuccess && <TonePill tone="good">Saved</TonePill>}
+            {create.isError && <span className="cpm-field__error" role="alert">{(create.error as Error)?.message ?? 'The note was not saved.'}</span>}
+          </div>
+        </div>
+        <div>
+          <NoteList notes={notes.data?.investigations ?? []} loading={notes.isLoading} episodes={episodes.data?.events ?? []} canManage={canManage} loopId={loopId} />
+          {links && <div className="cpm-inv-review__links">{links}</div>}
+        </div>
       </div>
-      <div className="cpm-filter-row">
-        <ReasonedButton variant="raised" disabled={!canManage || trimmed.length === 0 || !!reason || create.isPending} reason={reason} onClick={save}>
-          {create.isPending ? 'Saving…' : 'Save note'}
-        </ReasonedButton>
-        {create.isSuccess && <TonePill tone="good">Saved</TonePill>}
-        {create.isError && <span className="cpm-field__error" role="alert">{(create.error as Error)?.message ?? 'The note was not saved.'}</span>}
-      </div>
-      <NoteList notes={notes.data?.investigations ?? []} loading={notes.isLoading} episodes={episodes.data?.events ?? []} canManage={canManage} loopId={loopId} />
     </section>
   );
 };
@@ -123,8 +136,8 @@ const NoteRow: React.FC<{ n: LoopNote; episodes: CpmEventFrame[]; canManage: boo
       <div className="cpm-loop-notes__meta">
         <TonePill tone={o.tone}>{o.label}</TonePill>
         <span>{n.createdBy ?? 'unknown'} · {fmtInstant(n.createdAt)}</span>
-        {n.methodRunId && <Link className="cpm-link" to={evidenceHref(loopId)}>evaluated window ›</Link>}
-        {n.eventId != null && <Link className="cpm-link" to={eventsHref({ loop: loopId, event: n.eventId, filter: 'all' })}>{episode ? episodeLabel(episode) : `EVT-${n.eventId}`} ›</Link>}
+        {n.methodRunId && <Link className="cpm-link" to={evidenceHref(loopId)}>evaluated window ↗</Link>}
+        {n.eventId != null && <Link className="cpm-link" to={eventsHref({ loop: loopId, event: n.eventId, filter: 'all' })}>{episode ? episodeLabel(episode) : `EVT-${n.eventId}`} ↗</Link>}
       </div>
       <p className="cpm-loop-notes__text">{n.note || <span className="cpm-metric-na">(no text)</span>}</p>
       {canManage && (

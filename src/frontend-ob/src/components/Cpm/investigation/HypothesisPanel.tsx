@@ -54,7 +54,7 @@ export const HypothesisPanel: React.FC<{
     const rows = LEGACY_ROWS.map(h => ({ ...h, value: metrics[h.field] })).filter(h => h.value != null);
     return (
       <>
-        <PanelHead eyebrow="Hypothesis comparison" title="Family and detector scores"
+        <PanelHead title="Family and detector scores"
           right={<TonePill tone="muted">Older result</TonePill>} />
         <p className="cpm-copy">
           This result predates v2.5: it carries family scores but no observations, hypotheses or
@@ -84,7 +84,7 @@ export const HypothesisPanel: React.FC<{
 
   return (
     <>
-      <PanelHead eyebrow="Hypothesis comparison" title="Mechanisms and the evidence for each"
+      <PanelHead title="Mechanisms and the evidence for each"
         right={<TonePill tone="muted">revision {verdict.resultRevision}</TonePill>} />
       {ids.length === 0 && (
         <EmptyState title="No hypotheses on this window"

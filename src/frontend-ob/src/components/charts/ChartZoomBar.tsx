@@ -16,11 +16,13 @@ export interface ChartZoomBarProps {
   hasData?: boolean;
   /** A rolling / polling chart: state that the viewport is held while zoomed. */
   live?: boolean;
+  /** Reset's word where the whole range has a name, such as Full window. */
+  resetLabel?: string;
   /** Extra controls rendered after the zoom buttons (e.g. Historical's Apply). */
   children?: React.ReactNode;
 }
 
-export const ChartZoomBar: React.FC<ChartZoomBarProps> = ({ box, hasData = true, live = false, children }) => (
+export const ChartZoomBar: React.FC<ChartZoomBarProps> = ({ box, hasData = true, live = false, resetLabel = 'Reset', children }) => (
   <div className="chart-zoombar" role="group" aria-label="Chart zoom">
     <ObcButton variant={box.selecting ? 'normal' : 'flat'} disabled={!hasData}
       aria-pressed={box.selecting}
@@ -34,7 +36,7 @@ export const ChartZoomBar: React.FC<ChartZoomBarProps> = ({ box, hasData = true,
     </ObcButton>
     <ObcButton variant="flat" disabled={!box.zoomed} title={box.zoomed ? 'Show the whole loaded range again' : 'The whole loaded range is shown'}
       onClick={box.reset}>
-      Reset
+      {resetLabel}
     </ObcButton>
     {live && box.zoomed && <span className="chart-zoombar__note">live · viewport held while zoomed, Reset to follow</span>}
     {children}

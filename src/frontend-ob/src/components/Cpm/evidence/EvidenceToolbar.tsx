@@ -27,14 +27,15 @@ export interface EvidenceWindowProps {
 export interface EvidenceMoreProps {
   loopId: string | undefined;
   kind: string;
-  kinds: WindowKindOption[];
+  /** Left out where the page chooses the kind itself. */
+  kinds?: WindowKindOption[];
   windowsError: unknown;
   onRetryWindows: () => void;
   hasMore: boolean;
   onLoadMore: () => void;
   loadingMore: boolean;
-  onKind: (kind: string) => void;
-  onJump: (beforeIso: string) => void;
+  onKind?: (kind: string) => void;
+  onJump?: (beforeIso: string) => void;
   /** More actions on this window: Newest, Reconstruct, evaluate a window. */
   children?: React.ReactNode;
 }
@@ -72,24 +73,26 @@ export const EvidenceMore: React.FC<EvidenceMoreProps> = (p) => {
       )}
     >
       <div className="cpm-evidence-more">
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label" id={`${ids}-kind`}>Window</span>
-          <select className="cpm-select" aria-labelledby={`${ids}-kind`} value={p.kind} onChange={e => p.onKind(e.target.value)}>
-            {(['fused', 'short', 'long'] as WindowTier[]).map(tier => {
-              const items = p.kinds.filter(k => k.tier === tier);
-              return items.length ? (
-                <optgroup key={tier} label={TIER_LABEL[tier]}>
-                  {items.map(k => <option key={k.kind} value={k.kind}>{k.label}</option>)}
-                </optgroup>
-              ) : null;
-            })}
-          </select>
-        </label>
+        {p.kinds && (
+          <label className="cpm-field cpm-field--compact">
+            <span className="cpm-field__label" id={`${ids}-kind`}>Window</span>
+            <select className="cpm-select" aria-labelledby={`${ids}-kind`} value={p.kind} onChange={e => p.onKind?.(e.target.value)}>
+              {(['fused', 'short', 'long'] as WindowTier[]).map(tier => {
+                const items = p.kinds?.filter(k => k.tier === tier) ?? [];
+                return items.length ? (
+                  <optgroup key={tier} label={TIER_LABEL[tier]}>
+                    {items.map(k => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+                  </optgroup>
+                ) : null;
+              })}
+            </select>
+          </label>
+        )}
         {p.windowsError ? <ObcButton variant="flat" onClick={p.onRetryWindows}>Retry</ObcButton> : null}
         {p.loopId && p.hasMore && (
           <ObcButton variant="flat" disabled={p.loadingMore} onClick={p.onLoadMore}>{p.loadingMore ? 'Loading older…' : 'Load older windows'}</ObcButton>
         )}
-        {p.loopId && (
+        {p.loopId && p.onJump && (
           <div className="cpm-evidence-toolbar__jump">
             <label className="cpm-field cpm-field--compact">
               <span className="cpm-field__label" id={`${ids}-jump`}>Jump to date</span>
@@ -97,7 +100,7 @@ export const EvidenceMore: React.FC<EvidenceMoreProps> = (p) => {
             </label>
             {/* CHG-098 (SME review 2 #29): a disabled Go says why on hover */}
             <span title={!jump ? 'Pick a date and time first' : undefined}>
-              <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump(new Date(fromSiteInput(jump)).toISOString()); }}>Go</ObcButton>
+              <ObcButton variant="flat" disabled={!jump} onClick={() => { if (jump) p.onJump?.(new Date(fromSiteInput(jump)).toISOString()); }}>Go</ObcButton>
             </span>
           </div>
         )}
