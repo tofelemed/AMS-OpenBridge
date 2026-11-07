@@ -16,11 +16,12 @@ const LOOPS = [
 let pensSeen: Array<{ path: string; color?: string; label?: string; lineStyle?: string }> = [];
 type CoreProps = { pens: typeof pensSeen; onRemovePen?: (p: string) => void; onSampleAge?: (age: number | null, rangeMs: number) => void; emptyLegendText?: string };
 let core: CoreProps = { pens: [] };
-let loopsState = { loading: false };
+let loopsState = { loading: false, error: null as Error | null };
+const refetch = vi.fn();
 vi.mock('../../store/authStore', () => ({
   useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: p => held.includes(p) }),
 }));
-vi.mock('../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: loopsState.loading ? undefined : { loops: LOOPS }, isLoading: loopsState.loading, isError: false }) }));
+vi.mock('../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: loopsState.loading || loopsState.error ? undefined : { loops: LOOPS }, isLoading: loopsState.loading, isError: !!loopsState.error, error: loopsState.error, refetch }) }));
 vi.mock('./TrendCore', () => ({
   RANGES: [{ label: '15m', ms: 900000 }, { label: '8h', ms: 28800000 }],
   default: (p: CoreProps) => { pensSeen = p.pens; core = p; return <div data-testid="core" data-empty={p.emptyLegendText} />; },
@@ -37,7 +38,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 const Where = () => { const l = useLocation(); return <span data-testid="where">{l.pathname + l.search}</span>; };
 const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><TrendPage /><Where /></MemoryRouter>);
 
-beforeEach(() => { held.length = 0; held.push('historian.view', 'analytics.view'); pensSeen = []; loopsState = { loading: false }; });
+beforeEach(() => { held.length = 0; held.push('historian.view', 'analytics.view'); pensSeen = []; loopsState = { loading: false, error: null }; });
 afterEach(cleanup);
 
 describe('TrendPage with a loop', () => {
@@ -140,10 +141,19 @@ describe('TrendPage empty and permissions', () => {
     open('/trend?loop=NOPE');
     expect(screen.getByRole('status').textContent).toBe('Loop not found');
     cleanup();
-    loopsState = { loading: true };
+    loopsState = { loading: true, error: null };
     open('/trend?loop=FIC1');
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByTestId('trend-page')).toBeTruthy();
+  });
+
+  it('shows the read error with a retry, not Loop not found', () => {
+    loopsState = { loading: false, error: new Error('loops unavailable') };
+    open('/trend?loop=FIC1');
+    expect(screen.getByText('loops unavailable')).toBeTruthy();
+    expect(screen.queryByText('Loop not found')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalled();
   });
 
   it('leaves the empty legend to the band with the selector, and to the old text without it', () => {

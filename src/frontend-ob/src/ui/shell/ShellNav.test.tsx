@@ -69,10 +69,10 @@ describe('ShellNav', () => {
     expect(screen.getByRole('link', { name: 'Governance' })).toBeTruthy();
   });
 
-  it('keeps Trend to the plant scope, as today', () => {
+  it('keeps Trend to the plant scope and the loop, never the range or window', () => {
     held = EVERYTHING;
-    nav('/cpm/explorer?loop=A&site=hdpe&window=24h');
-    expect(screen.getByRole('link', { name: 'Trend' }).getAttribute('href')).toBe('/trend?site=hdpe');
+    nav('/cpm/explorer?loop=A&site=hdpe&window=24h&from=a&to=b&range=custom');
+    expect(screen.getByRole('link', { name: 'Trend' }).getAttribute('href')).toBe('/trend?site=hdpe&loop=A');
   });
 
   it('opens Loop Registry on its list, not on the selected loop', () => {

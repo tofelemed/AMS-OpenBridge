@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import TrendCore, { type PenSpec, RANGES } from './TrendCore';
 import { LoopBand } from '../Cpm/context/LoopBand';
-import { WorkspaceHeader } from '../Cpm/shared';
+import { QueryError, WorkspaceHeader } from '../Cpm/shared';
 import { explorerHref } from '../Cpm/cpaHref';
 import { useCpmLoops } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
@@ -36,9 +36,11 @@ interface ViewProps {
   /** Every loop the user can pick from; undefined when the selector is not offered (no analytics.view). */
   loops?: CpmLoop[];
   loading?: boolean;
+  /** The loop list failed to load: say so, never "Loop not found". */
+  loadError?: { error: unknown; retry: () => void };
 }
 
-const TrendView: React.FC<ViewProps> = ({ loops, loading }) => {
+const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const canPick = loops !== undefined;
@@ -167,7 +169,7 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading }) => {
   );
 
   const noTags = !!loop && tagPaths.length === 0 && !hasTags;
-  const notFound = canPick && !!loopId && !loop && !loading;
+  const notFound = canPick && !!loopId && !loop && !loading && !loadError;
 
   return (
     <div className="cpm-screen trend-page" data-testid="trend-page">
@@ -185,6 +187,7 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading }) => {
         <div className="trend-page__head">{controls}</div>
       )}
       <div className="trend-page__chart">
+        {loadError && <QueryError title="Loops unavailable" error={loadError.error} retry={loadError.retry} />}
         {notFound && <p className="trend-page__empty" role="status">Loop not found</p>}
         {noTags && <p className="trend-page__empty" role="status">{loop.loopId} has no signal tags mapped.</p>}
         <TrendCore
@@ -209,7 +212,8 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading }) => {
 /** The loop list is read only with analytics.view; the page itself needs only historian.view. */
 const WithLoops: React.FC = () => {
   const q = useCpmLoops();
-  return <TrendView loops={q.data?.loops ?? []} loading={q.isLoading} />;
+  return <TrendView loops={q.data?.loops ?? []} loading={q.isLoading}
+    loadError={q.isError ? { error: q.error, retry: () => void q.refetch() } : undefined} />;
 };
 
 export const TrendPage: React.FC = () => {
