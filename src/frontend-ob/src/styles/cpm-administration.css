@@ -14,3 +14,4 @@
 .cpm-admin-source[aria-current="true"] { background: var(--container-backdrop-color); box-shadow: inset 3px 0 0 var(--traverse-focus); }
 .cpm-admin-source__line { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); align-items: center; }
 .cpm-admin-bar--end { justify-content: flex-end; }
+.cpm-admin-source__type { display: block; color: var(--element-neutral-color); }

@@ -760,7 +760,6 @@ body {
 /* AlarmStateIcon — constrain the obi-* icon glyph to fit the 24px status circle. */
 .alarm-state-icon svg { width: 14px; height: 14px; }
 /* Admin hub tab icons + category chips — obi-* glyphs need explicit sizing. */
-.admin-tab-icon svg { width: 16px; height: 16px; }
 .category-icon svg { width: 16px; height: 16px; }
 /* Dashboard obi-* icon glyphs (small badge / medium tile / large empty-state). */
 .dash-icon-sm svg { width: 16px; height: 16px; }

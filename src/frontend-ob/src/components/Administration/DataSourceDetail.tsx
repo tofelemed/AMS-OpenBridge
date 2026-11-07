@@ -38,7 +38,6 @@ export const DataSourceDetail: React.FC<Props> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <h3 className="cpm-panel-title">{source.name}</h3>
-          <Pill text={source.isActive ? 'Active' : 'Off'} color={source.isActive ? T.success : T.textMuted} />
           <Pill text={source.sourceType} color={T.blue} />
           {profile && <Pill text={profile.displayName} color={T.blue} />}
           {mqtt?.topics?.[0] && <Pill text={mqtt.topics[0]} color={T.success} mono />}

@@ -86,7 +86,7 @@ export const DataSourcesConfig: React.FC = () => {
   const shown = needle
     ? sources.filter(s => [s.name, s.sourceType, s.connectionUrl].some(v => v.toLowerCase().includes(needle)))
     : sources;
-  const selected = sources.find(s => s.configId === selectedId) ?? shown[0];
+  const selected = shown.find(s => s.configId === selectedId) ?? shown[0];
 
   return (
     <>
@@ -140,7 +140,7 @@ export const DataSourcesConfig: React.FC = () => {
                   <strong>{s.name}</strong>
                   <Pill text={s.isActive ? 'Active' : 'Off'} color={s.isActive ? T.success : T.textMuted} />
                 </span>
-                <span className="cpm-admin-user__full">{s.sourceType}</span>
+                <span className="cpm-admin-source__type">{s.sourceType}</span>
               </button>
             ))}
             {shown.length === 0 && <p>No data source matches the search.</p>}

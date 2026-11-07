@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { resolveRedirect } from '../../cpa/redirects';
+import { LegacyRoute } from '../../cpa/LegacyRoute';
 import Administration from './Administration';
 
 let held: string[] = [];
@@ -100,5 +101,17 @@ describe('the Administration tabs', () => {
     open(['admin.users.edit'], '/admin/audit');
     expect((screen.getByRole('button', { name: 'Open Governance →' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/does not include the audit log/i)).toBeTruthy();
+  });
+
+  it('reaches Governance from the Audit log tab through the redirect', () => {
+    held = everything;
+    render(
+      <MemoryRouter initialEntries={['/admin/users']}>
+        <Routes><Route path="/admin/*" element={<LegacyRoute><Administration /></LegacyRoute>} /></Routes>
+        <Where />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Audit log' }));
+    expect(screen.getByRole('status').textContent).toBe('/cpm/governance');
   });
 });

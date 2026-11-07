@@ -379,7 +379,7 @@ export const PlantModelConfig: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <Toggletip variant="how-to" label="Onboarding stages"><PlantModelStatus /></Toggletip>
+        <Toggletip variant="how-to" label="Onboarding stages"><p>Path segments are permanent identity; names are labels.</p><PlantModelStatus /></Toggletip>
         {canEdit && (
           <span style={{ display: 'inline-flex', gap: 8 }}>
             <ObcButton variant="normal" onClick={() => setImportOpen(true)}>Import CSV</ObcButton>
