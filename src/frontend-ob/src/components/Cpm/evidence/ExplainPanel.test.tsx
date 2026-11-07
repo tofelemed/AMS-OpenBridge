@@ -56,6 +56,12 @@ describe('ExplainPanel', () => {
     expect(screen.getByTitle('4ea1da78ead8')).toBeTruthy();
   });
 
+  it('has no "Explain" eyebrow: the panel is named for assistive technology only', () => {
+    render(<ExplainPanel gate="G5" run={run} entry={entry} manifest={manifest} state={ready} status="WARN" reason="BANDWIDTH" eligibilityDetail={null} collapsed={false} onToggle={() => {}} />);
+    expect(screen.queryByText('Explain')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Explain' })).toBeTruthy();
+  });
+
   it('opens the configuration this run used on request', () => {
     const perms = ['cpm.config.read'];   // CHG-081: SuperAdmin only
     useAuthStore.setState({ user: { user_id: 'u', username: 'superadmin', email: '', role: 'SuperAdmin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });

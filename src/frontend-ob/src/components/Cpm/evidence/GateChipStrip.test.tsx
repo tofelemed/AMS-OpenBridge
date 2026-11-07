@@ -1,10 +1,8 @@
-// v2.5 workbench (audit F15): the gates of the window as ONE row of status chips - the matrix's own
-// glyph vocabulary (✓ ! × —) grouped by tier, every chip a selector (click / arrow keys / Enter),
-// the selected gate marked, a gate with no run on this tier disabled with the reason on hover.
-import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { chipsOf, GateChipStrip, type GateChip } from './GateChipStrip';
+// v2.5 workbench (audit F15): the gates of the window as chips - status and run per gate, from the fused
+// cells or the tier payload. Task 15: the strip and the dropdown became GateRail (GateRail.test.tsx).
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { chipsOf } from './GateChipStrip';
 import type { GateCatalogue } from '../../../api/cpm/catalogue';
 
 afterEach(cleanup);
@@ -40,42 +38,5 @@ describe('chipsOf', () => {
     expect(chips.find(c => c.gate === 'G3')).toMatchObject({ status: 'FAIL', methodRunId: 'b' });
     expect(chips.find(c => c.gate === 'G2r')).toMatchObject({ status: 'PASS', methodRunId: null });
     expect(chips.find(c => c.gate === 'G5')).toMatchObject({ status: null, methodRunId: null });
-  });
-});
-
-describe('GateChipStrip', () => {
-  const chips: GateChip[] = chipsOf({ siblings, cells: fusedCells, result: null, catalogue });
-
-  it('renders five tier groups with labelled, glyph-bearing, accessible chips and marks the selected gate', () => {
-    render(<GateChipStrip chips={chips} selected="G5" onOpen={() => {}} />);
-    const groups = screen.getAllByRole('group');
-    expect(groups.map(g => g.getAttribute('aria-label'))).toEqual(['Eligibility', 'Performance', 'Diagnostic evidence', 'Confirmation', 'Fusion']);
-    const g5 = screen.getByRole('button', { name: 'G5 Symptom seen: Oscillation (ACF), symptom seen, limited by the sampling rate' });
-    expect(g5.getAttribute('aria-current')).toBe('true');
-    expect(g5.textContent).toContain('◐G5 Symptom seen');
-    expect(screen.getByRole('button', { name: 'G0 Pass: Data quality, check passed' }).getAttribute('aria-current')).toBeNull();
-    expect(screen.getByRole('button', { name: /^G12 / }).textContent).toContain('—');
-  });
-
-  it('opens a gate on click and disables gates with no run on this tier, saying why', () => {
-    const onOpen = vi.fn();
-    render(<GateChipStrip chips={chips} selected="G5" onOpen={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: 'G0 Pass: Data quality, check passed' }));
-    expect(onOpen).toHaveBeenCalledWith('G0', 'g0-run');
-    const g1 = screen.getByRole('button', { name: /^G1 / });
-    expect((g1 as HTMLButtonElement).disabled).toBe(true);
-    expect(g1.getAttribute('title')).toMatch(/no run on this tier/);
-  });
-
-  it('moves a roving tab stop with the arrow keys and skips disabled chips', () => {
-    render(<GateChipStrip chips={chips} selected="G0" onOpen={() => {}} />);
-    const g0 = screen.getByRole('button', { name: /^G0 / });
-    expect(g0.getAttribute('tabindex')).toBe('0');
-    fireEvent.keyDown(g0, { key: 'ArrowRight' });
-    const g3 = screen.getByRole('button', { name: /^G3 / });
-    expect(g3.getAttribute('tabindex')).toBe('0');               // G1, G2, G2r have no run: skipped
-    expect(g0.getAttribute('tabindex')).toBe('-1');
-    fireEvent.keyDown(g3, { key: 'End' });
-    expect(screen.getByRole('button', { name: /^G15 / }).getAttribute('tabindex')).toBe('0');
   });
 });

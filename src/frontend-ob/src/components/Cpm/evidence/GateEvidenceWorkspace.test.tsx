@@ -4,12 +4,13 @@
 // the gate strip, the window steppers and "Newest" all navigate within the loaded window list.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
 import { GateEvidenceWorkspace } from './GateEvidenceWorkspace';
 import { parseSelection, selectionSearch } from './selection';
+import { useAuthStore } from '../../../store/authStore';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/apiFetch')>();
@@ -85,6 +86,9 @@ function renderAt(search: string) {
   );
 }
 
+const asUser = (permissions: string[]) =>
+  useAuthStore.setState({ user: { user_id: 'u', username: 'eng', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't' });
+const posts = () => vi.mocked(fetchMod.apiJson).mock.calls.filter(c => String(c[0]).endsWith('/analysis-runs') && (c[1] as RequestInit | undefined)?.method === 'POST');
 const urls = () => vi.mocked(fetchMod.apiJson).mock.calls.map(c => String(c[0]));
 
 describe('GateEvidenceWorkspace', () => {
@@ -94,13 +98,15 @@ describe('GateEvidenceWorkspace', () => {
     vi.mocked(fetchMod.apiFetch).mockReset();
     vi.mocked(fetchMod.apiFetch).mockImplementation(async () => ({ ok: true, status: 200, json: async () => [], arrayBuffer: async () => new ArrayBuffer(0) }) as unknown as Response);
     try { localStorage.removeItem('ams-evidence-explain-collapsed'); } catch { /* jsdom */ }
+    asUser(['cpm.analysis.create']);
   });
   afterEach(cleanup);
 
   it('renders the selected run from the URL and never requests the latest gates', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await waitFor(() => expect(screen.getAllByText(/Base performance/).length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/FIXED/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/5m pinned run/).length).toBeGreaterThan(0);   // the run is pinned; MODE FIXED is gone
+    expect(screen.queryByText(/FIXED/)).toBeNull();
     fireEvent.click(Array.from(document.querySelectorAll('summary')).find(s => s.textContent === 'Identity')!);   // CHG-050: collapsed by default
     expect(screen.getAllByText(/profile:ef9abb/).length).toBeGreaterThan(0);
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
@@ -114,6 +120,51 @@ describe('GateEvidenceWorkspace', () => {
     expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0);
   });
 
+  it('states that nothing is retained once: not as EVIDENCE NONE, No arrays held or a Not retained pill', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await waitFor(() => expect(screen.getAllByText(/Evidence not retained for this run/).length).toBe(1));
+    for (const gone of [/No arrays held/, /EVIDENCE/, /^Not retained$/, /^NONE$/, /^Explain$/, /Read the evidence below/]) expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.queryByText(/The live path keeps the arrays/)).toBeNull();   // behind the ?
+    expect(screen.getByRole('button', { name: 'Evidence not retained for this run' })).toBeTruthy();
+  });
+
+  it('asks in a dialog before reconstructing: no request until confirmed, then the real state', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });   // the run has loaded: the bar's button is live
+    fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
+    const d = await screen.findByRole('dialog', { name: 'Reconstruct evidence' });
+    expect(d.textContent).toContain('FIC10302');
+    expect(d.textContent).toContain('G3 Base performance');
+    expect(d.textContent).toContain(RUN);
+    expect(posts()).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Reconstruct' }));
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows the refusal in the dialog and never an accepted line', async () => {
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/analysis-runs') && init?.method === 'POST') throw new Error('503 engine busy');
+      return respond(url);
+    });
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });   // the run has loaded: the bar's button is live
+    fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reconstruct' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/Reconstruction refused: 503 engine busy/));
+    expect(screen.queryByText(/Reconstruction accepted/)).toBeNull();
+  });
+
+  it('disables Reconstruct with a reason for a user without cpm.analysis.create', async () => {
+    asUser([]);
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    for (const b of screen.getAllByRole('button', { name: /Reconstruct evidence/ })) expect((b as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getAllByText(/cpm\.analysis\.create/).length).toBeGreaterThan(0);
+    expect(posts()).toHaveLength(0);
+  });
+
   // 2026-10-03 (Marun): the plant reconstructs a window in ~20 s, but the workspace refetched the manifest once
   // (too early) and then held it for 30 s, so the charts only appeared on a reselect. While a reconstruction is
   // pending the manifest is polled; the hook stops by itself once readiness is COMPLETE.
@@ -121,10 +172,11 @@ describe('GateEvidenceWorkspace', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-      await waitFor(() => expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0));
+      await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
       // the hook coalesces manifest reads into the batch endpoint; a poll is one more batch (or single) read
       const manifestGets = () => urls().filter(u => u.endsWith('/method-runs/evidence/batch') || u.endsWith(`/method-runs/${RUN}/evidence`)).length;
-      fireEvent.click(screen.getAllByText(/Reconstruct evidence/)[0]);
+      fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
+      fireEvent.click(await screen.findByRole('button', { name: 'Reconstruct' }));
       await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
       await vi.advanceTimersByTimeAsync(1_000);
       const afterAccept = manifestGets();                      // the one invalidation refetch
@@ -153,11 +205,12 @@ describe('GateEvidenceWorkspace', () => {
     expect(sel.options[sel.selectedIndex].textContent).toMatch(/Not evaluated: not enough data \(too few samples\)/);
   });
 
-  it('the gate list opens another gate of the same window and the explain panel collapses (remembered)', async () => {
+  it('the gate rail opens another gate of the same window and the explain panel collapses (remembered)', async () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15`);
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Gate: G15/ })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /^Gate: G15/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^G0 Pass: Data quality/ }));
+    const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
+    await waitFor(() => expect(within(rail).getByRole('button', { name: /^G15 / }).getAttribute('aria-current')).toBe('true'));
+    expect(screen.queryByRole('button', { name: /^Gate: G15/ })).toBeNull();   // the dropdown is gone
+    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Pass: Data quality/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
     fireEvent.click(screen.getByRole('button', { name: 'Hide explain' }));
     expect(screen.getByRole('button', { name: 'Show explain' })).toBeTruthy();

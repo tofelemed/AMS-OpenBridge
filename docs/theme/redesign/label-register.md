@@ -84,3 +84,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Cause on a no-fault window | {mechanism} · not confirmed; Not qualified | None identified | Investigation | 14 fix |
 | Case for a no-fault loop | Not evaluable | No fault identified | Investigation | 14 fix |
 | Window heading on the result card | Latest evaluated window | Latest window | Investigation | 14 fix |
+| Run fixed in the URL | Mode FIXED; Selection mode | Pinned run | Evidence Workbench | 15 |
+| Arrays held for the run | Evidence NONE; No arrays held; Not retained; Evidence not retained | Proof retained (when held); "Evidence not retained for this run" (when not) | Evidence Workbench | 15 |
+| Engine result of the window | Verdict; Diagnosis | Loop result | Evidence Workbench | 15 |
+| Version of the calculation | Build commit; Source commit | Calc version | Evidence Workbench | 15 |

@@ -12,7 +12,7 @@ import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import { getEffectiveConfig } from '../../../api/cpm/config';
 import { gateMark, isNoResult } from '../gateStatus';
 import { codeLabel, diagnosisLabel, lowerFirst } from '../vocabulary';
-import { limitationOf } from '../explorer/summary/summaryText';
+import { conditionOf, limitationOf } from '../explorer/summary/summaryText';
 import { CauseBreakdownRows } from '../CauseBreakdown';
 import { whyRows } from './whyRules';
 import { reasonSentence } from './verdictCopy';
@@ -60,8 +60,9 @@ export const ExplainWhy: React.FC<{
     : `${gate} ${name}: no verdict recorded for this run.`;
   const flags = fused?.observabilityFlags ?? [];
   const open = [...new Set(flagsForLoop(flags, inputs).filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
-  const d = (fused?.diagnosis ?? '').toUpperCase();
-  if (d.startsWith('INSUFFICIENT') || d.startsWith('EXCLUDED')) open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — no gate on it carries a verdict.`);
+  // Task 15: only a window the engine did not judge. NO_CALL and INSUFFICIENT_EVIDENCE are verdicts (conditionOf: no-fault).
+  const cond = conditionOf(fused?.diagnosis);
+  if (cond.kind === 'insufficient' || cond.kind === 'excluded') open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — no gate on it carries a verdict.`);
   if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
 
   return (

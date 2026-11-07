@@ -6,6 +6,7 @@
 import React from 'react';
 import { KpiTile, PanelHead, TonePill } from '../shared';
 import { gateTone } from '../gateStatus';
+import { GateBadge } from '../../../ui/GateBadge';
 import type { GateState } from './GateResultState';
 import type { Headline } from './views/headlines';
 import { codeLabel } from '../vocabulary';
@@ -20,13 +21,20 @@ export interface VerdictCardProps {
   state: GateState;
   sentence: string;
   headline: Headline[];
+  /** Task 15: the gate's tier ("Diagnostic evidence"), as the eyebrow; "Verdict" without it. */
+  tier?: string;
+  /** Task 15: what the gate asks, under the title. */
+  question?: string | null;
+  /** The window's input flags, for a mark that depends on them (gateMark). */
+  inputFlags?: readonly string[] | null;
 }
 
-export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline }) => {
+export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline, tier, question, inputFlags }) => {
   const tone = status ? gateTone(status, gate) : 'muted';
   return (
     <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
-      <PanelHead eyebrow="Verdict" title={`${gate} · ${name}`} right={status ? <TonePill tone={tone}>{codeLabel(status)}</TonePill> : undefined} />
+      <PanelHead eyebrow={tier ?? 'Verdict'} title={`${gate} · ${name}`} right={status ? <GateBadge status={status} gate={gate} inputFlags={inputFlags} /> : undefined} />
+      {question && <p className="cpm-verdict__question">{question}</p>}
       {/* The card's heading and pill already say it when the sentence has nothing to add */}
       {sentence !== `${gate} ${name}: ${codeLabel(status)}.` && <p className="cpm-verdict__sentence">{sentence}</p>}
       {state.kind === 'READY' && headline.length > 0 && (

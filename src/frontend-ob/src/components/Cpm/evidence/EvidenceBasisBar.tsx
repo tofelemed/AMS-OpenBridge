@@ -21,6 +21,8 @@ export const EvidenceBasisBar: React.FC<{
 }> = ({ manifest, view, timeZone, onView, onOpenRun, evaluated }) => {
   if (!manifest) return null;
   const basis = basisOf(manifest, view, timeZone, evaluated);
+  // Task 15: nothing held is said once, by the state panel under the verdict; the bar speaks only of arrays that exist
+  if (basis.kind === 'NONE') return null;
   const newest = manifest.reconstructions?.[0];
   // nothing to switch to when the rebuild is all there is (REBUILT_LOST)
   const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST';

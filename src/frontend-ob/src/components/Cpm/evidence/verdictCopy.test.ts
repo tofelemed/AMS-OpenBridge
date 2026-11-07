@@ -37,7 +37,8 @@ describe('verdict copy', () => {
     const p = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'WARN', reason: 'BANDWIDTH', state: ready });
     expect(p[0]).toMatch(/^The engine judged G5 Oscillation \(ACF\) warning/);
     expect(p.join(' ')).toMatch(/limited by the acquisition grid/);
-    expect(p[p.length - 1]).toMatch(/Read the evidence below/);
+    expect(p.join(' ')).not.toMatch(/Read the evidence below|named on the right/);   // Task 15: said by the page itself
+    expect(p).toHaveLength(1);
     const notEval: GateState = { kind: 'NOT_EVALUATED', title: 'NOT_EVALUATED - the engine looked and declined', detail: 'Reason: G0_FAIL.', stillValid: 'This is a verdict, not missing data.', action: 'NONE', tone: 'warn' };
     const q = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'NOT_EVALUATED', reason: 'G0_FAIL', state: notEval });
     expect(q[q.length - 1]).toMatch(/Meet the prerequisite/);

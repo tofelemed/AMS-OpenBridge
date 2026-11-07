@@ -8,6 +8,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, type CpmTone } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
 import { codeLabel, phrase } from '../vocabulary';
 
 export type GateStateKind =
@@ -95,6 +96,7 @@ export const GateResultStatePanel: React.FC<{
   reconstructReason?: string;
 }> =
   ({ state, onReconstruct, onRetry, onGoToLatest, busy, reconstructReason }) => {
+    const notRetained = state.kind === 'NOT_RETAINED';
     const action =
       state.action === 'RECONSTRUCT' && onReconstruct ? { label: busy ? 'Reconstruction requested…' : 'Reconstruct evidence', onClick: onReconstruct }
       : state.action === 'RETRY' && onRetry ? { label: 'Retry', onClick: onRetry }
@@ -102,8 +104,10 @@ export const GateResultStatePanel: React.FC<{
       : undefined;
     return (
       <div className="cpm-gate-state" data-state={state.kind}>
-        <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>
-        <EmptyState title={state.title} copy={state.detail} action={action} />
+        {/* Task 15: "not retained" is the title; no pill saying it again, and the policy sentence sits behind a ? */}
+        {!notRetained && <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>}
+        <EmptyState title={state.title} copy={notRetained ? undefined : state.detail} action={action} />
+        {notRetained && <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>}
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}
         {state.action === 'RECONSTRUCT' && !onReconstruct && (

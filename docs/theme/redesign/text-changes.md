@@ -658,3 +658,48 @@ Two choices need your ruling. Each is built as stated and is a small change eith
 | A no-fault window opens its card on | Diagnostic evidence (was Eligibility) |
 | Related events ↗ | Carries the episode open at this window's end, `?event=`; with none, the loop only |
 | Window select, picking the newest window | Drops `?window=`, so the page follows the newest again |
+
+## Task 15 (CHG-142): Evidence Workbench, gate rail and run bar
+
+### Removed or reworded
+
+| Was | Now | Where |
+|---|---|---|
+| Header: eyebrow "Understand the cause · Evidence workbench", title "{loop} · {name} — {gate} {gate name}" | Eyebrow "Understand the cause", title "Evidence Workbench". The loop is in the band, the gate in the rail and the verdict card | Workbench header |
+| Fact "Mode" with the pill FIXED (or FROZEN, REPLAY, COMPARE) | "{kind} pinned run", for example "12h pinned run". A pinned run is the run fixed in the URL, not the controller's mode | Run bar |
+| Fact "Evidence" with the pill NONE ("EVIDENCE NONE") | Removed when nothing is held. When arrays are held: "Proof retained · COMPLETE" | Run bar |
+| Evidence basis bar "No arrays held" | Removed. The bar speaks only of arrays that exist | Workbench |
+| Pill "Not retained" above the state panel | Removed. The panel's heading "Evidence not retained for this run" says it once | State panel |
+| Fact "Age: computed 20 min ago" | Removed from the bar (not in the reference's run bar) | Run bar |
+| Fact "Coverage: 1,977 samples" | "1,977 samples" | Run bar |
+| Fact "Run" with the copy button | "Run id ↗" (opens this exact run) and the copy button | Run bar |
+| "EXPLAIN" heading of the right column | Removed. The column keeps its Hide and Show control, and its name for assistive technology | Explain column |
+| "Read the evidence below; every value is this run's own, computed under the configuration named on the right." | Removed | Why this result |
+| "The whole window: {result} — no gate on it carries a verdict." on a no-fault window (NO_CALL, INSUFFICIENT_EVIDENCE) | Not said. A no-fault window is judged; the sentence stays for too few samples and for an exclusion | Why this result |
+| Reconstruct evidence: clicking it sent the request at once | A dialog first names the loop, gate, window and run; the request is sent on Reconstruct only | Workbench |
+| "Reconstruction running…" in More | "Reconstruction requested…" on the run bar button, until the service acknowledges | Run bar |
+| Verdict card eyebrow "Verdict" and a status pill | Eyebrow is the gate's tier; the status is a `GateBadge`; under the title, what the gate asks | Verdict card |
+
+### Moved behind a ?
+
+| Was | Now | Where |
+|---|---|---|
+| "The live path keeps the arrays for windows with a finding, at most once an hour per loop and window; Reconstruct rebuilds them from the run's window, labelled as rebuilt." | Behind the ? beside the heading "Evidence not retained for this run" | State panel |
+
+### New text
+
+| Text | Where |
+|---|---|
+| "Back to Investigation ↗" | Header |
+| "Proof retained", "Loop result", "Calc version" | Run bar facts |
+| "Reconstructing evidence needs the cpm.analysis.create permission" | Run bar and state panel, when the user lacks the permission |
+| "Key" (opens "Gate status key") | Rail |
+| "Evidence Replay ↗" | Foot |
+| Dialog "Reconstruct evidence": Loop, Gate, Window, Run, Cancel, Reconstruct, Requesting…, "Reconstruction refused: {message}" | Dialog |
+
+| Control | Now on |
+|---|---|
+| Gate dropdown (`GateMenu`) | Left rail, all 17 gates by tier with code, name and mark; a native select below 850 px |
+| Gate key under the strip | Key button in the rail, opening a dialog |
+| Reconstruct evidence (was under More) | Run bar |
+| Newest, window kind, jump and Evaluate | Still under More |
