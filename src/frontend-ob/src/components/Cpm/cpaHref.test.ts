@@ -55,6 +55,7 @@ describe('cpaHref', () => {
     expect(evidenceHref('FIC10301', { kind: '24h' })).toBe('/cpm/evidence?loop=FIC10301&kind=24h');
     expect(responseHref('FIC10301')).toBe('/cpm/response?loop=FIC10301');
     expect(responseHref('FIC10301', { event: 'ca1d45b1' })).toBe('/cpm/response?loop=FIC10301&event=ca1d45b1');
+    expect(responseHref('FIC10301', { methodRun: 'r1' })).toBe('/cpm/response?loop=FIC10301&methodRun=r1');
     expect(calculationsHref('FIC10301')).toBe('/cpm/calculations?loop=FIC10301');
   });
 });

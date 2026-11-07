@@ -97,9 +97,9 @@ export const windowsHref = (
 export const evidenceHref = (loop: string, opts: { kind?: string | null; gate?: string | null } = {}) =>
   build('/cpm/evidence', { loop, kind: opts.kind, gate: opts.gate });
 
-/** System Response. `event` is a response event id (never a loop-event frame id). */
-export const responseHref = (loop: string, opts: { event?: string | null } = {}) =>
-  build('/cpm/response', { loop, event: opts.event });
+/** System Response. `event` is a response event id (never a loop-event frame id); `methodRun` resolves to its event on arrival. */
+export const responseHref = (loop: string, opts: { event?: string | null; methodRun?: string | null } = {}) =>
+  build('/cpm/response', { loop, event: opts.event, methodRun: opts.methodRun });
 
 /** Investigation on one loop. `kind` is the fused window kind it reads as `?profile=`; `window` an evaluated END. */
 export const investigationHref = (loop: string, opts: { kind?: string | null; window?: string | null; gate?: string | null } = {}) =>

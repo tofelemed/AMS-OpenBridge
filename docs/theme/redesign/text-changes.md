@@ -938,3 +938,30 @@ None.
 | Values not stored | "The values for the window above are not stored, so every value below reads Not calculated." |
 | Not stored | "That window is not stored" for a `?window=` the service holds no result for; Show the newest window |
 | Run details | Gates row |
+
+## Task 21 (CHG-145): System Response summary, empty state and event steps
+
+### Removed or reworded
+
+| Was | Now |
+|---|---|
+| "Events are captured from qualifying setpoint or output changes; none qualified in the retained period. A system model needs at least one accepted event." (two copies: full width and centre) | One panel "No qualifying response event": "A qualifying setpoint or output step is needed before a model can be estimated." Censored candidates are stated in one line when there are any |
+| "Step-test settings (Gate Configuration › G12)" | "Check G12 settings" (button, only with cpm.config.read, opens that loop's Effective view at G12) |
+| "Setpoint changes in Historical" | "Review setpoint changes →" |
+| "No system model for this loop. A model is estimated from an accepted response event…" (Model history empty state) | The System model tile reads None (no accepted event) or Not estimated; the Model history panel is absent with no models |
+| "Model review needs the cpm.model.review permission." (paragraph under the page) | The same sentence on each disabled Review button (hover) |
+| G12 evidence view: "G12 is event-keyed: its evidence (...) belongs to a response event, not a window. Open the response workspace for the event; the artifacts of this run are listed below by the generic renderer." | Behind a ? on the panel head. Button "Open in System Response →" (was ›, and a full page reload) |
+
+### Moved or new
+
+| Control | Now on |
+|---|---|
+| Open loop ↗ | System Response band, after the loop control |
+| Event row click | Sets `event` in the address (no navigation away) |
+| Model history rows | Grouped under Candidate, Validated, Baseline, Other |
+
+| Where | Text |
+|---|---|
+| Tiles | Response events; Accepted events; System model ("No accepted event" under None) |
+| Empty panel | Response analysis; four steps (1 · Capture, 2 · Qualify, 3 · Estimate, 4 · Review) |
+| Dialog | Event states explained ↗: Accepted, Rejected, Censored; "Every event shows its rule and reason. No model is created without an accepted event." |

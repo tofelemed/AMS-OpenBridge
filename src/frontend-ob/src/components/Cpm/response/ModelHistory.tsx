@@ -6,21 +6,29 @@
 import React from 'react';
 import { ReasonedButton } from '../ReasonedButton';
 import { Toggletip } from '../../../ui/Toggletip';
-import { EmptyState, PanelHead, TonePill } from '../shared';
+import { PanelHead, TonePill } from '../shared';
 import type { SystemModel } from '../../../api/cpm/response';
 import { CpmChart, type CpmSeries } from '../evidence/CpmChart';
 import { formatInZone } from '../evidence/timezone';
 import { MODEL_PARAMS, displayUnit, fmt, paramLabel, paramPoints, stateTone, uncertaintyMeaning } from './responseSupport';
 import { codeLabel } from '../vocabulary';
 
+const GROUPS: Array<[string, string[]]> = [['Candidate', ['CANDIDATE']], ['Validated', ['VALIDATED']], ['Baseline', ['ACTIVE_BASELINE']]];
+/** Candidate, validated and baseline; any other state (rejected, expired, superseded) follows as Other. */
+function groupModels(models: SystemModel[]): Array<[string, SystemModel[]]> {
+  const known = new Set(GROUPS.flatMap(([, s]) => s));
+  const out: Array<[string, SystemModel[]]> = GROUPS.map(([name, states]) => [name, models.filter(m => states.includes(m.modelState))]);
+  out.push(['Other', models.filter(m => !known.has(m.modelState))]);
+  return out.filter(([, list]) => list.length > 0);
+}
+const REVIEW_NEEDS_PERMISSION = 'Model review needs the cpm.model.review permission.';
+
 export const ModelHistoryBody: React.FC<{
   models: SystemModel[]; timeZone: string; canReview: boolean; onReview: (m: SystemModel) => void;
   /** The loop's registered PV unit (registry engineering.pvUnit), for the kernel's PV_EU placeholder. */
   pvUnit?: string | null;
 }> = ({ models, timeZone, canReview, onReview, pvUnit }) => {
-  if (models.length === 0) {
-    return <EmptyState title="No system model for this loop" copy="A model is estimated from an accepted response event (a qualifying setpoint or output step); this loop has none yet. Once one exists, its candidate, validated and baseline models are reviewed here." />;
-  }
+  if (models.length === 0) return null;  // the summary tile says there is no model
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (
     <section className="cpm-surface">
@@ -53,7 +61,10 @@ export const ModelHistoryBody: React.FC<{
       <table className="cpm-table" data-table="models">
         <thead><tr><th>created</th><th>family</th><th>path</th><th>estimator</th><th>state</th><th>rev</th><th>review</th><th /></tr></thead>
         <tbody>
-          {models.map(m => (
+          {groupModels(models).map(([group, list]) => (
+            <React.Fragment key={group}>
+            <tr className="cpm-table__group"><th colSpan={8}>{group} ({list.length})</th></tr>
+            {list.map(m => (
             <tr key={m.modelId}>
               <td className="cpm-mono">{formatInZone(Date.parse(m.createdAt), timeZone)}</td>
               <td>{m.family}</td>
@@ -63,15 +74,16 @@ export const ModelHistoryBody: React.FC<{
               <td className="cpm-mono">{m.revision}</td>
               <td>{m.reviewedBy ? `${m.reviewedBy}${m.reviewNote ? ` — ${m.reviewNote}` : ''}` : '—'}</td>
               <td>
-                {/* CHG-098 (SME review 2 #29): a disabled Review says why — the permission on hover (the page states it once
-                    below the table), a superseded model on screen in its row. */}
-                <span title={!canReview ? 'Reviewing a model needs the cpm.model.review permission'
+                {/* CHG-098 (SME review 2 #29): a disabled Review says why — the permission on hover, a superseded model on screen in its row. */}
+                <span title={!canReview ? REVIEW_NEEDS_PERMISSION
                   : m.modelState === 'SUPERSEDED' ? 'A newer revision replaced this model; review the current one instead' : undefined}>
                   <ReasonedButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
                     reason={canReview && m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
                 </span>
               </td>
             </tr>
+            ))}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

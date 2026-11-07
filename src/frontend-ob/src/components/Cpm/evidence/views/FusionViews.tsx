@@ -5,7 +5,10 @@
  * list, not a waterfall). G13 (the aligned peer analysis, 2F.1) lives in G13Interaction.tsx.
  */
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { Toggletip } from '../../../../ui/Toggletip';
+import { responseHref } from '../../cpaHref';
 import { KvRow, PanelHead, TonePill, fmtDuration } from '../../shared';
 import { codeLabel, phrase } from '../../vocabulary';
 import { CodeLabel } from '../../CodeLabel';
@@ -21,16 +24,20 @@ const list = (s: string | undefined) => (s ?? '').split(';').map(x => x.trim()).
 
 // ── G12 ────────────────────────────────────────────────────────────────────────────────────────
 export const G12Response: React.FC<GateViewProps> = ({ manifest }) => {
+  const navigate = useNavigate();
   const runId = manifest.methodRunId;
   const loopId = manifest.artifacts[0]?.provenance?.loop_id;
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G12" title="System response" />
-      <p className="cpm-copy">
-        G12 is event-keyed: its evidence (accepted samples, input reconstruction, fit, holdout prediction, residuals, candidate models, delay objective curve, parameter intervals, Bode where valid) belongs to a response event, not a window. Open the response workspace for the event; the artifacts of this run are listed below by the generic renderer.
-      </p>
-      <ObcButton variant="raised" onClick={() => { window.location.assign(`/cpm/response?loop=${encodeURIComponent(loopId ?? '')}&methodRun=${encodeURIComponent(runId)}`); }}>
-        Open in System Response ›
+      <PanelHead eyebrow="G12" title="System response"
+        help={(
+          <Toggletip variant="how-to" label="About the G12 evidence">
+            <p>G12 is event-keyed: its evidence (accepted samples, input reconstruction, fit, holdout prediction, residuals, candidate models, delay objective curve, parameter intervals, Bode where valid) belongs to a response event, not a window.</p>
+            <p>The artifacts of this run are listed below by the generic renderer.</p>
+          </Toggletip>
+        )} />
+      <ObcButton variant="raised" onClick={() => navigate(responseHref(loopId ?? '', { methodRun: runId }))}>
+        Open in System Response {'→'}
       </ObcButton>
     </section>
   );

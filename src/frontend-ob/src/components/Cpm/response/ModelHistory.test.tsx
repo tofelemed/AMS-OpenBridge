@@ -45,9 +45,22 @@ describe('ModelHistory', () => {
     expect(screen.getAllByText(/Review/).length).toBeGreaterThan(0);
   });
 
-  it('states the absence of models rather than drawing an empty chart', () => {
-    render(<ModelHistoryBody models={[]} timeZone="UTC" onReview={() => {}} canReview />);
+  it('groups models as candidate, validated and baseline, then the rest', () => {
+    const models = [model({ modelId: 'x', modelState: 'SUPERSEDED' }), model({ modelId: 'b', modelState: 'ACTIVE_BASELINE' }), model({ modelId: 'v', modelState: 'VALIDATED' }), model({ modelId: 'c', modelState: 'CANDIDATE' })];
+    render(<ModelHistoryBody models={models} timeZone="UTC" onReview={() => {}} canReview />);
+    const heads = Array.from(document.querySelectorAll('tr.cpm-table__group')).map(r => r.textContent);
+    expect(heads).toEqual(['Candidate (1)', 'Validated (1)', 'Baseline (1)', 'Other (1)']);
+    expect(document.querySelectorAll('tbody tr:not(.cpm-table__group)')).toHaveLength(4);
+  });
+
+  it('draws nothing without models: the summary tile says so', () => {
+    const { container } = render(<ModelHistoryBody models={[]} timeZone="UTC" onReview={() => {}} canReview />);
     expect(captured).toHaveLength(0);
-    expect(screen.getByText(/No system model/)).toBeTruthy();
+    expect(container.textContent).toBe('');
+  });
+
+  it('keeps the permission sentence on the disabled Review button', () => {
+    render(<ModelHistoryBody models={[model({ modelState: 'CANDIDATE' })]} timeZone="UTC" onReview={() => {}} canReview={false} />);
+    expect(document.querySelector('[title="Model review needs the cpm.model.review permission."]')).toBeTruthy();
   });
 });

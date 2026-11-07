@@ -1,0 +1,10 @@
+/* Task 21: System Response summary tiles, empty panel and steps. Placement only; sizes come from the app's own classes. */
+.cpm-response-tiles { margin-bottom: var(--traverse-space-3); }
+.cpm-response-empty__actions { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin: var(--traverse-space-2) 0; }
+.cpm-response-steps { list-style: none; margin: var(--traverse-space-3) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--traverse-space-2); }
+.cpm-response-steps__step { display: flex; flex-direction: column; gap: var(--traverse-space-1); padding: var(--traverse-space-2); border: 1px solid var(--border-divider-color); border-radius: var(--traverse-radius-control); }
+.cpm-response-states { margin: 0 0 var(--traverse-space-2); }
+.cpm-response-states > div { display: flex; justify-content: space-between; gap: var(--traverse-space-3); padding: var(--traverse-space-1) 0; border-bottom: 1px solid var(--border-divider-color); }
+.cpm-response-states dt { font-weight: 600; }
+.cpm-response-states dd { margin: 0; }
+.cpm-table__group th { text-align: left; font-weight: 600; }

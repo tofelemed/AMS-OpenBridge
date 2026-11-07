@@ -13,6 +13,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
+import { ResponseEmpty, ResponseTiles } from './ResponseSummary';
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
@@ -20,7 +21,8 @@ import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/respons
 import { useEvidenceManifest, useMethodRun } from '../evidence/useEvidence';
 import { useGateArtifacts } from '../evidence/useGateArtifacts';
 import { siteZoneOf } from '../evidence/timezone';
-import { historicalHref, responseHref } from '../cpaHref';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { explorerHref } from '../cpaHref';
 import { EventList } from './EventList';
 import { ResultCard } from './ResultCard';
 import { EventAside } from './EventAside';
@@ -48,6 +50,7 @@ export const ResponseWorkspace: React.FC = () => {
   const loop = loopList.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
   const timeZone = siteZoneOf(loop);
   const canReview = useAuthStore(s => s.hasPermission('cpm.model.review'));
+  const canConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
 
   // audit F20: censored candidates are most of the table; they are counted, and listed only on request
   const [showCensored, setShowCensored] = useState(false);
@@ -58,8 +61,8 @@ export const ResponseWorkspace: React.FC = () => {
   const runLookup = useMethodRun(!eventParam && methodRunParam ? methodRunParam : undefined);
   useEffect(() => {
     const id = runLookup.data?.result?.event_id;
-    if (!eventParam && loopId && typeof id === 'string' && id) navigate(responseHref(loopId, { event: id }), { replace: true });
-  }, [runLookup.data, eventParam, loopId, navigate]);
+    if (!eventParam && loopId && typeof id === 'string' && id) setParams(p => { p.set('event', id); p.delete('methodRun'); return p; }, { replace: true });
+  }, [runLookup.data, eventParam, loopId, setParams]);
 
   const selected: ResponseEventSummary | undefined = flat.find(e => e.eventId === eventParam);
   const noEvents = events.isSuccess && flat.length === 0 && !showCensored;
@@ -82,7 +85,9 @@ export const ResponseWorkspace: React.FC = () => {
   const band = (
     <LoopBand loopId={loopId}
       onLoop={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
-      onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })} />
+      onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })}>
+      {loopId && <ObcButton variant="flat" title={`Open ${loopId} in the Loop Explorer`} onClick={() => navigate(explorerHref(loopId))}>Open loop {'↗'}</ObcButton>}
+    </LoopBand>
   );
 
   if (!loopId) {
@@ -114,31 +119,19 @@ export const ResponseWorkspace: React.FC = () => {
       <WorkspaceHeader eyebrow="Understand the cause" title="System response"
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`} />
       {band}
+      {events.isSuccess && models.isSuccess && <ResponseTiles events={flat} hasMore={!!events.hasNextPage} models={models.data?.models ?? []} />}
       {nothingYet ? (
-        <section className="cpm-surface">
-          <EmptyState level={2} title="No response events for this loop"
-            copy="Events are captured from qualifying setpoint or output changes; none qualified in the retained period. A system model needs at least one accepted event."
-            next={[
-              { label: 'Step-test settings (Gate Configuration › G12)', to: `/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective&gate=G12` },
-              { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
-            ]} />
-        </section>
+        <ResponseEmpty loopId={loopId} canConfig={canConfig} censoredCount={0} />
       ) : (
       <div className="cpm-response-columns">
         <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}
-          hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => navigate(responseHref(loopId, { event: e.eventId }))}
+          hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => setParams(p => { p.set('event', e.eventId); p.delete('methodRun'); return p; })}
           censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored} />
 
         <div className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
           {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
           {!eventParam && !methodRunParam && (noEvents ? (
-            // SME #21 (CHG-057): nothing to choose — say why and where to go, instead of "choose an event on the left"
-            <EmptyState title="No response events for this loop"
-              copy={`Events are captured from qualifying setpoint or output changes; none qualified in the retained period${censoredCount > 0 ? ` (${censoredCount} captured candidate${censoredCount === 1 ? ' was' : 's were'} censored — show them on the left to read why)` : ''}. A system model needs at least one accepted event.`}
-              next={[
-                { label: 'Step-test settings (Gate Configuration › G12)', to: `/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective&gate=G12` },
-                { label: 'Setpoint changes in Historical', to: historicalHref(loopId) },
-              ]} />
+            <ResponseEmpty loopId={loopId} canConfig={canConfig} censoredCount={censoredCount} />
           ) : <EmptyState title="No event selected" copy="Choose an event in the list on the left to see its result, response chart, fit residuals, candidate models and frequency response." />)}
           {!eventParam && methodRunParam && (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)}
           {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}
@@ -168,7 +161,6 @@ export const ResponseWorkspace: React.FC = () => {
           {models.isError ? <QueryError error={models.error} retry={() => void models.refetch()} /> : (
             <ModelHistoryBody models={models.data?.models ?? []} timeZone={timeZone} pvUnit={loop?.engineering?.pvUnit} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />
           )}
-          {!canReview && <p className="cpm-copy">Model review needs the cpm.model.review permission.</p>}
         </div>
 
         <aside className="cpm-response-detail" aria-label="Selected response event">
