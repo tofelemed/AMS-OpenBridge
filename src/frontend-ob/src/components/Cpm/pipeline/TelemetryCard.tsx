@@ -16,6 +16,12 @@ import { NOT_EXPOSED } from './mergeJobs';
 
 interface Sample { t: number; ckptAgeSec: number | null; ckptDurMs: number | null }
 
+/** The largest value read; null when none was read, so the chart shows a gap, not 0. */
+const maxOf = (xs: Array<number | null | undefined>) => {
+  const v = xs.filter((x): x is number => x != null);
+  return v.length ? Math.max(...v) : null;
+};
+
 const NOT_CARRIED = ['Watermark lag', 'Kafka consumer lag', 'Latency', 'Backpressure', 'Parallelism'];
 
 export const TelemetryCard: React.FC<{
@@ -29,8 +35,8 @@ export const TelemetryCard: React.FC<{
     if (!metrics || metrics.collectedAt === lastCollected.current) return;
     lastCollected.current = metrics.collectedAt;
     const cplm = metrics.jobs.filter(j => j.role === 'cplm' && j.checkpoint);
-    const age = cplm.length ? Math.max(...cplm.map(j => j.checkpoint!.lastCompletedAgeSec ?? 0)) : null;
-    const dur = cplm.length ? Math.max(...cplm.map(j => j.checkpoint!.lastDurationMs ?? 0)) : null;
+    const age = cplm.length ? maxOf(cplm.map(j => j.checkpoint!.lastCompletedAgeSec)) : null;
+    const dur = cplm.length ? maxOf(cplm.map(j => j.checkpoint!.lastDurationMs)) : null;
     setSamples(prev => [...prev.slice(-119), { t: new Date(metrics.collectedAt).getTime(), ckptAgeSec: age, ckptDurMs: dur }]);
   }, [metrics]);
 
@@ -80,8 +86,7 @@ export const TelemetryCard: React.FC<{
       {NOT_CARRIED.map(label => <KvRow key={label} label={label}>{NOT_EXPOSED}</KvRow>)}
       <KvRow label="Last fused verdict">{verdictAge}</KvRow>
       <details className="cpm-pipeline-history" onToggle={e => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
-        <summary>Checkpoint history · {samples.length} reading(s)</summary>
-        <p className="cpm-copy">Held only while this page is open</p>
+        <summary>Checkpoint history · Held only while this page is open · {samples.length} reading(s)</summary>
         {open && (samples.length < 2
           ? <EmptyState title="Collecting…" copy="The chart needs two readings; keep this page open." />
           : (

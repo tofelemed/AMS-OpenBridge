@@ -1,11 +1,14 @@
+import { fmtDuration } from '../shared';
 import type { CpmJobMetrics, CpmJobRole, CpmPipelineJob } from '../../../api/cpmApi';
 
-/** One required job: the supervisor's list joined with what the engine reports about it. */
+/** One job: the supervisor's required list joined with what the engine reports about it. */
 export interface JobRow {
   name: string;
   role: CpmJobRole;
   state: string;
   running: boolean;
+  /** False for a job the engine runs that the required list does not name. */
+  required: boolean;
   /** Null when the engine does not list the job. */
   jid: string | null;
   startTime: string | null;
@@ -13,26 +16,35 @@ export interface JobRow {
   checkpoint: CpmJobMetrics['checkpoint'];
 }
 
+const fromMetrics = (m: CpmJobMetrics, required: boolean): JobRow => ({
+  name: m.name, role: m.role, state: m.state, running: m.state === 'RUNNING', required, jid: m.jid,
+  startTime: m.startTime, uptimeSec: m.uptimeSec, checkpoint: m.checkpoint,
+});
+
 /**
  * Every required job is a row. A job the engine does not list keeps the supervisor's state (MISSING) and no
- * numbers: a value that was not read is null, never zero. With no supervisor list the engine's own rows stand.
+ * numbers: a value that was not read is null, never zero. A running job the required list does not name follows
+ * as its own row, marked not required, so it is never hidden. With no supervisor list the engine's rows stand.
+ * Two engine entries with one name: the RUNNING one wins.
  */
 export function mergeJobs(metricsJobs: CpmJobMetrics[], statusJobs: CpmPipelineJob[]): JobRow[] {
-  if (statusJobs.length === 0) {
-    return metricsJobs.map(m => ({
-      name: m.name, role: m.role, state: m.state, running: m.state === 'RUNNING', jid: m.jid,
-      startTime: m.startTime, uptimeSec: m.uptimeSec, checkpoint: m.checkpoint,
-    }));
+  if (statusJobs.length === 0) return metricsJobs.map(m => fromMetrics(m, true));
+  const byName = new Map<string, CpmJobMetrics>();
+  for (const m of metricsJobs) {
+    const seen = byName.get(m.name);
+    if (!seen || (seen.state !== 'RUNNING' && m.state === 'RUNNING')) byName.set(m.name, m);
   }
-  const byName = new Map(metricsJobs.map(m => [m.name, m]));
-  return statusJobs.map(s => {
+  const required = new Set(statusJobs.map(s => s.name));
+  const rows = statusJobs.map((s): JobRow => {
     const m = byName.get(s.name);
     const state = m?.state ?? s.state;
     return {
-      name: s.name, role: s.role, state, running: state === 'RUNNING',
+      name: s.name, role: s.role, state, running: state === 'RUNNING', required: true,
       jid: m?.jid ?? null, startTime: m?.startTime ?? null, uptimeSec: m?.uptimeSec ?? null, checkpoint: m?.checkpoint ?? null,
     };
   });
+  const extras = [...byName.values()].filter(m => !required.has(m.name)).map(m => fromMetrics(m, false));
+  return [...rows, ...extras];
 }
 
 export const NOT_EXPOSED = 'Not exposed';
@@ -56,4 +68,4 @@ export const fmtMs = (ms: number | null | undefined) => {
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 };
 
-export const fmtAge = (sec: number | null | undefined) => (sec == null ? NOT_EXPOSED : `${sec} s`);
+export const fmtAge = (sec: number | null | undefined) => (sec == null ? NOT_EXPOSED : fmtDuration(sec * 1000));

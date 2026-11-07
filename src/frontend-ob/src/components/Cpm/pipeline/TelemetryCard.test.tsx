@@ -11,7 +11,7 @@ afterEach(cleanup);
 describe('TelemetryCard', () => {
   it('says the chart holds only what was collected while the page is open', () => {
     render(<TelemetryCard metrics={undefined} lastVerdictAgeMin={5} />);
-    expect(screen.getByText('Held only while this page is open')).toBeTruthy();
+    expect(screen.getByText(/Held only while this page is open/)).toBeTruthy();
   });
 
   it('shows Not exposed for what the engine metrics do not carry', () => {

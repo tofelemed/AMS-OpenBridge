@@ -9,7 +9,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', (
 afterEach(cleanup);
 
 const row = (over: Partial<JobRow> = {}): JobRow => ({
-  name: 'AMS - CPLM Gate Fusion Engine', role: 'cplm', state: 'RUNNING', running: true, jid: 'abc123',
+  name: 'AMS - CPLM Gate Fusion Engine', role: 'cplm', state: 'RUNNING', running: true, required: true, jid: 'abc123',
   startTime: '2026-11-07T00:00:00Z', uptimeSec: 7200,
   checkpoint: { completed: 40, failed: 2, lastDurationMs: 1500, lastSizeBytes: 3_145_728, lastCompletedAgeSec: 12 }, ...over,
 });

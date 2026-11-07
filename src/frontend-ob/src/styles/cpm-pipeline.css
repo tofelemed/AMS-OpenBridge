@@ -1,7 +1,6 @@
 /* Pipeline Health: placement only. Sizes come from .cpm-table, .cpm-kv and .cpm-surface. */
-.cpm-pipeline-job { display: grid; gap: var(--obc-spacing-xs, 0.5rem); }
-.cpm-pipeline-id { font-family: var(--obc-font-family-mono, monospace); overflow-wrap: anywhere; }
-.cpm-pipeline-history { margin-top: var(--obc-spacing-xs, 0.5rem); }
+.cpm-pipeline-job { display: grid; gap: var(--traverse-space-2); }
+.cpm-pipeline-history { margin-top: var(--traverse-space-2); }
 .cpm-pipeline-history > summary { cursor: pointer; }
 .cpm-pipeline-open { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .cpm-pipeline-open:hover { text-decoration: underline; }

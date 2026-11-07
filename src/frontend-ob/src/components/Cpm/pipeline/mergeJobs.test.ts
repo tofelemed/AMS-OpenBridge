@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeJobs } from './mergeJobs';
+import { fmtAge, mergeJobs } from './mergeJobs';
 import type { CpmJobMetrics, CpmPipelineJob } from '../../../api/cpmApi';
 
 const names = Array.from({ length: 13 }, (_, i) => `AMS - Job ${i + 1}`);
@@ -28,5 +28,25 @@ describe('mergeJobs', () => {
 
   it('falls back to the metrics rows when the status list is unavailable', () => {
     expect(mergeJobs([metric(names[0], 'RUNNING')], [])).toHaveLength(1);
+  });
+
+  it('adds a running job the required list does not name as its own row', () => {
+    const rows = mergeJobs([metric(names[0], 'RUNNING'), metric('AMS - Extra Job', 'RUNNING')], status);
+    expect(rows).toHaveLength(14);
+    expect(rows[13]).toMatchObject({ name: 'AMS - Extra Job', required: false, state: 'RUNNING' });
+    expect(rows.filter(r => r.required)).toHaveLength(13);
+    expect(rows[2].state).toBe('MISSING');
+  });
+
+  it('lets the RUNNING entry win when the engine lists a name twice', () => {
+    const rows = mergeJobs([metric(names[0], 'CANCELED'), metric(names[0], 'RUNNING')], status);
+    expect(rows[0].state).toBe('RUNNING');
+    const rows2 = mergeJobs([metric(names[0], 'RUNNING'), metric(names[0], 'CANCELED')], status);
+    expect(rows2[0].state).toBe('RUNNING');
+  });
+
+  it('formats a long checkpoint age as a duration', () => {
+    expect(fmtAge(5400)).toBe('1.5 h');
+    expect(fmtAge(null)).toBe('Not exposed');
   });
 });

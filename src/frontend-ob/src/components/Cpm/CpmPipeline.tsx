@@ -6,8 +6,9 @@
  * and the end-to-end verification really round-trips a recompute on a reference loop. What the metrics proxy does
  * not carry reads "Not exposed", never an estimate. Build and engine identifiers sit under Technical details.
  */
+import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
-import { EmptyState, KpiTile, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
+import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
 import {
   useCpmLoops, useCpmPipelineStatus, useFleetRankings, usePipelineMetrics, useRecompute,
 } from '../../hooks/useCpm';
@@ -17,6 +18,7 @@ import { TechnicalDetails } from '../../ui/TechnicalDetails';
 import { JobDialog, jobLabel } from './pipeline/JobDialog';
 import { TelemetryCard } from './pipeline/TelemetryCard';
 import { VerificationCard } from './pipeline/VerificationCard';
+import { PipelineTiles, JOBS_ID } from './pipeline/PipelineTiles';
 import { NOT_EXPOSED, fmtAge, fmtUptime, mergeJobs, type JobRow } from './pipeline/mergeJobs';
 
 export const CpmPipeline: React.FC = () => {
@@ -32,13 +34,6 @@ export const CpmPipeline: React.FC = () => {
   const rows = useMemo(() => mergeJobs(metrics.data?.jobs ?? [], status.data?.jobs ?? []), [metrics.data, status.data]);
   const [open, setOpen] = useState<string | null>(null);
   const openRow: JobRow | undefined = rows.find(r => r.name === open);
-  const runningCount = rows.filter(r => r.running).length;
-
-  const observed = rows.filter(r => r.checkpoint);
-  const ckptOk = observed.reduce((a, r) => a + r.checkpoint!.completed, 0);
-  const ckptFailed = observed.reduce((a, r) => a + r.checkpoint!.failed, 0);
-  const ages = observed.map(r => r.checkpoint!.lastCompletedAgeSec).filter((x): x is number => x != null);
-  const oldestAge = ages.length ? Math.max(...ages) : null;
 
   const lastVerdictEnd = useMemo(() => {
     const ends = (rankings.data?.loops ?? [])
@@ -59,26 +54,20 @@ export const CpmPipeline: React.FC = () => {
   useEffect(() => {
     if (replayStatus?.finished && startedAt != null && elapsedS == null) setElapsedS(Math.round((Date.now() - startedAt) / 1000));
   }, [replayStatus?.finished, startedAt, elapsedS]);
-  const busy = submit.isPending || (replayStatus != null && !replayStatus.finished);
+  // The run may still be going while its state cannot be read, so the start stays blocked until it reports finished.
+  const busy = submit.isPending || (submit.isSuccess && !replayStatus?.finished);
+  const qc = useQueryClient();
+  const [runLoop, setRunLoop] = useState<string | null>(null);
 
-  const statusTone = status.isError ? 'warn' : status.data?.allRequiredRunning ? 'good' : 'bad';
   return (
     <div className="cpm-screen">
       <WorkspaceHeader title="Pipeline health"
         copy="The Flink/Kafka runtime that produces every verdict. This view is read-only; job lifecycle is owned by the supervisor." />
 
-      <div className="cpm-kpi-row">
-        {/* PH3: a failed status query must not sit at '…' forever. */}
-        <KpiTile caption="Required jobs" tone={statusTone}
-          value={status.isError ? '—' : status.data ? `${runningCount}/${rows.length}` : '…'}
-          sub={status.isError ? 'status endpoint unreachable'
-            : status.data?.jobManagerReachable ? 'analysis engine answering' : 'analysis engine not answering'} />
-        <KpiTile caption="Checkpoint age" tone="muted" value={oldestAge != null ? fmtAge(oldestAge) : NOT_EXPOSED} sub="oldest last checkpoint" />
-        <KpiTile caption="Checkpoints ok / failed" tone={observed.length > 0 && ckptFailed === 0 ? 'good' : 'warn'}
-          value={observed.length > 0 ? `${ckptOk.toLocaleString()} / ${ckptFailed}` : NOT_EXPOSED} sub="since job start" />
-      </div>
+      <PipelineTiles rows={rows} statusLoaded={!!status.data} statusError={status.isError}
+        engineAnswering={status.data?.jobManagerReachable} allRequiredRunning={status.data?.allRequiredRunning} />
 
-      <section className="cpm-surface">
+      <section id={JOBS_ID} tabIndex={-1} className="cpm-surface">
         <PanelHead title="Observed jobs"
           help={<Toggletip variant="how-to" label="What this table leaves out">
             <p>Latency, backpressure and parallelism are not exposed by the proxy and are not estimated. A required job the engine does not list reads MISSING.</p>
@@ -106,6 +95,7 @@ export const CpmPipeline: React.FC = () => {
                   <tr key={r.name}>
                     <td style={{ textAlign: 'left' }}>
                       <button type="button" className="cpm-pipeline-open" onClick={() => setOpen(r.name)}>{jobLabel(r.name)}</button>
+                      {!r.required && <span className="cpm-copy"> Not on the required list</span>}
                     </td>
                     <td><TonePill tone={r.running ? 'good' : 'bad'}>{r.state}</TonePill></td>
                     <td>{fmtUptime(r.uptimeSec)}</td>
@@ -126,10 +116,11 @@ export const CpmPipeline: React.FC = () => {
 
       <div className="cpm-grid-2">
         <TelemetryCard metrics={metrics.data} lastVerdictAgeMin={lastVerdictAgeMin} />
-        <VerificationCard loopId={loopId} onLoop={setChosen} canManage={canManage} busy={busy}
+        <VerificationCard loopId={loopId} runLoopId={runLoop} started={submit.isSuccess}
+          onRecheck={() => void qc.invalidateQueries({ queryKey: ['cpm', 'replay-status'] })} onLoop={setChosen} canManage={canManage} busy={busy}
           error={submit.isError ? ((submit.error as Error)?.message ?? 'unknown') : null}
           status={replayStatus} analysisRunId={analysisRunId} elapsedS={elapsedS}
-          onRun={() => { reset(); setStartedAt(Date.now()); setElapsedS(null); submit.mutate(); }} />
+          onRun={() => { reset(); setRunLoop(loopId ?? null); setStartedAt(Date.now()); setElapsedS(null); submit.mutate(); }} />
       </div>
       {openRow && <JobDialog job={openRow} onClose={() => setOpen(null)} />}
     </div>
