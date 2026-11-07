@@ -3,12 +3,12 @@
  * the engineering payload, and (CHG-098 (SME review 2 #28)) the validation that blocks Continue with a reason.
  * Split out of AddLoopWizard.tsx so the wizard stays readable and the rules are unit-tested on their own.
  */
-import type { CpmLoop } from '../../../../api/cpmApi';
+import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../../../api/cpmApi';
 import { isValidPvUnit } from '../../../../utils/escapeHtml';
 import { SIGNAL_ROLES, deriveSignalPath, isResolvablePath, type PlantLocation, type SignalRole } from '../../plantLocation';
 import { applicabilityOf, type OptionalInputForm } from '../../OptionalInputFields';
 import { vpApplicabilityOf } from '../../optionalInputs';
-import { emptyModelForm, type ModelForm } from './ClassificationStep';
+import { emptyModelForm, modelOf, type ModelForm } from './ClassificationStep';
 
 export interface WizardState {
   loopId: string; displayName: string; site: string; area: string; unit: string;
@@ -64,7 +64,8 @@ export function initialForm(editLoop?: CpmLoop): WizardState {
     opMin: numText(editLoop.engineering?.opMin), opMax: numText(editLoop.engineering?.opMax),
     pvUnit: editLoop.engineering?.pvUnit ?? '',
     // CHG-077: the checkbox shows what the loop is today (declared, or derived from its command path)
-    vpApplicability: vpApplicabilityOf(editLoop) === 'EXPECTED' ? 'EXPECTED' : 'NOT_APPLICABLE',
+    // NOT_INSTALLED is its own declaration (a positioner that is not fitted): an edit keeps it, never turns it into NOT_APPLICABLE
+    vpApplicability: vpApplicabilityOf(editLoop) === 'NOT_INSTALLED' ? 'NOT_INSTALLED' : vpApplicabilityOf(editLoop) === 'EXPECTED' ? 'EXPECTED' : 'NOT_APPLICABLE',
     peerApplicability: editLoop.engineering?.peerApplicability ?? '',
     model: modelFormOf(editLoop.model),
   };
@@ -171,4 +172,31 @@ export function rangeChecks(form: WizardState): Partial<Record<RangeKey | 'pvUni
 export function firstProblem(checks: Record<string, string | null | undefined>, labels: Record<string, string>): string | null {
   for (const [k, v] of Object.entries(checks)) if (v) return `${labels[k] ?? k}: ${v}`;
   return null;
+}
+
+/**
+ * The activate request. Activate is an upsert, so an edit must send back what the form does not show:
+ * the asset link and the step-test approval of the stored loop.
+ */
+export function activateRequestOf(form: WizardState, editLoop: CpmLoop | undefined, allowUnmodelledLocation: boolean): CpmActivateRequest {
+  const tags: CpmTagMapEntry[] = [];
+  for (const [role, path] of [['PV', form.pv], ['SP', form.sp], ['OP', form.op], ['MODE', form.mode], ['VP', form.vp]] as const)
+    if (path.trim()) tags.push({ signalRole: role, unsPath: path.trim() });
+  return {
+    loopId: form.loopId.trim(),
+    displayName: form.displayName.trim(),
+    site: form.site.trim(),
+    area: form.area.trim() || null,
+    unit: form.unit.trim() || null,
+    loopType: form.loopType,
+    criticality: form.criticality,
+    tags,
+    thresholdProfileId: form.thresholdProfileId.trim() || null,
+    enableMonitoring: form.enableMonitoring,
+    engineering: engineeringOf(form),
+    allowUnmodelledLocation,
+    // v2.5 (2G.1): only an explicit declaration is sent; omitted keeps a stored EXPLICIT model or takes the preset
+    model: modelOf(form.model),
+    ...(editLoop ? { assetId: editLoop.assetId, stepTestApproved: editLoop.stepTestApproved } : {}),
+  };
 }

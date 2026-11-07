@@ -11,11 +11,10 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
 import { useCpmLoops, useFleetSummary } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
-import type { CpmLoop } from '../../api/cpmApi';
 import { useCpmScope, loopMatchesQuery } from './plantScope';
 import { registryHref } from './cpaHref';
 import { serviceName } from './loopName';
-import ProfileAside from './ProfileAside';
+import LoopDetail from './registry/LoopDetail';
 import AddLoopWizard from './AddLoopWizard';
 import BulkImportDialog from './BulkImportDialog';
 import ReasonedButton from './ReasonedButton';
@@ -35,7 +34,6 @@ export const LoopRegistry: React.FC = () => {
   const gap = parseGap(params.get('gap'));
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [editLoop, setEditLoop] = useState<CpmLoop | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
 
@@ -72,8 +70,6 @@ export const LoopRegistry: React.FC = () => {
   const goPage = (n: number) => set('page', n > 1 ? String(n) : null);
   const hrefFor = (id: string) => { const q = new URLSearchParams(params); q.set('loop', id); return `${registryHref()}?${q}`; };
 
-  const selected = selectedId ? loops.find(l => l.loopId.toLowerCase() === selectedId.toLowerCase()) : undefined;
-
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
@@ -88,13 +84,7 @@ export const LoopRegistry: React.FC = () => {
         }
       />
       {selectedId ? (
-        // Interim until the Loop Detail page (Task 24): the profile panel, full width, under a way back to the list.
-        <>
-          <div><ObcButton variant="flat" onClick={() => set('loop', null)}>← Loop Registry</ObcButton></div>
-          {selected
-            ? <ProfileAside loop={selected} onEdit={() => setEditLoop(selected)} />
-            : <section className="cpm-surface"><EmptyState title={`No loop ${selectedId}`} copy="It was renamed, removed or never onboarded." /></section>}
-        </>
+        <LoopDetail loopId={selectedId} onBack={() => set('loop', null)} />
       ) : (
         <>
           <ReadinessStrip summary={summary.data} isError={summary.isError} error={summary.error} retry={() => void summary.refetch()} gapHref={gapHref} />
@@ -153,7 +143,6 @@ export const LoopRegistry: React.FC = () => {
       )}
 
       {wizardOpen && <AddLoopWizard existing={loops} onClose={() => setWizardOpen(false)} />}
-      {editLoop && <AddLoopWizard existing={loops} editLoop={editLoop} onClose={() => setEditLoop(null)} />}
       {importOpen && <BulkImportDialog existing={loops} onClose={() => setImportOpen(false)} />}
     </div>
   );

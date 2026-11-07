@@ -11,7 +11,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('./ProfileAside', () => ({ default: (p: { loop: CpmLoop }) => <aside>detail of {p.loop.loopId}</aside> }));
+vi.mock('./registry/LoopDetail', () => ({ default: (p: { loopId: string; onBack: () => void }) => <aside>detail of {p.loopId}<button onClick={p.onBack}>‹ Loop Registry</button></aside> }));
 vi.mock('./AddLoopWizard', () => ({ default: () => <div>wizard</div> }));
 vi.mock('./BulkImportDialog', () => ({ default: () => <div>import</div> }));
 
@@ -57,7 +57,7 @@ describe('LoopRegistry list', () => {
     const where = screen.getByTestId('where').textContent!;
     expect(where).toContain('loop=FIC1');
     expect(where).toContain('search=FIC');
-    fireEvent.click(screen.getByRole('button', { name: '← Loop Registry' }));
+    fireEvent.click(screen.getByRole('button', { name: '‹ Loop Registry' }));
     const back = screen.getByTestId('where').textContent!;
     expect(back).not.toContain('loop=');
     expect(back).toContain('search=FIC');
@@ -95,7 +95,7 @@ describe('LoopRegistry list', () => {
     expect(screen.getByText('Retired')).toBeTruthy();
   });
 
-  it('shows the existing detail panel for ?loop= until the detail page lands', () => {
+  it('shows the loop detail page for ?loop=', () => {
     open('/cpm/registry?loop=FIC2');
     expect(screen.getByText('detail of FIC2')).toBeTruthy();
   });

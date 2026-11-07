@@ -119,3 +119,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Registry list heading | Registered assets; control-loop records | Loop assets, "{n} loops" | Loop Registry | 23 |
 | Retired loop | Inactive | Retired (pill; hidden unless Show retired) | Loop Registry | 23 |
 | Configuration limits counts | Valve position expected but not mapped; Peer links expected but missing | "{n} valve positions expected but not mapped"; "{n} peer links expected but missing" | Loop Registry | 23 |
+| Retire a loop | Delete; Inactive | Retire (Restore to undo); state "Loop retired" | Loop Detail | 24 |
+| Loop configuration entry | Edit loop | Edit configuration | Loop Detail | 24 |
+| VP applicability | None on this loop; Expected but not mapped | Applicable · mapped; Expected · not mapped; Not installed; Not applicable | Loop Detail | 24 |

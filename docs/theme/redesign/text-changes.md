@@ -1024,3 +1024,32 @@ None.
 | Loop Registry | "{n} loops" under the heading | "{n} loops" beside Show retired, with " · {k} retired hidden" when any are hidden |
 | Loop Registry | No state shown | One pill beside the loop name only when abnormal: Degraded, Not monitored, Retired |
 | Loop Registry | A read failure removed the limits line | "Configuration limits unavailable" with Retry |
+
+### Task 24 Loop Detail, edit and retire
+
+| Page | Was | Now |
+|---|---|---|
+| Loop Detail | "Assigned profile" eyebrow, loop id as title | Loop id as the page title; no eyebrow |
+| Loop Detail | "(declared)" / "(preset from loop type)" beside Loop model | Behind a ? beside Model: "Declared by a person in the registry." / "Set from the loop type; declare it in the registry to make it explicit." |
+| Loop Detail | "G9 geometry is supporting-only. It cannot create a stiction suspect without qualified independent evidence." under the role list | Behind the ? on the Gate role policy heading, same words |
+| Loop Detail | Site / area / unit | Plant path |
+| Loop Detail | Valve position: free text ("None on this loop — G14 does not apply") | Applicable · mapped, Expected · not mapped, Not installed, Not applicable |
+| Loop Detail | Peer links: "None — expected; G13 not evaluated" | "None · expected" or "Not applicable" |
+| Loop Detail | Acquisition: "· grid undeclared" | Same words; "Not served" when the registry sends no model |
+| Loop Detail | Observability: CLEAR pill or flag pills | Same, on the Facts section |
+| Loop Detail | Readiness was not on the aside (only in the wizard after saving) | Readiness section: each check not met by name with its message, or "Nothing missing" |
+| Loop Detail | Objective / topology / command | Same row in Loop model |
+| Retire | No such control | Dialog: "The loop stops being monitored. Its history stays, and Restore brings it back." Restore: "The loop is monitored again as it was before it was retired." |
+| Retired loop | Inactive | "Loop retired" pill in Facts; "Open episode" row with "Loop retired" when an episode is still open |
+
+| Control | Now on |
+|---|---|
+| Edit loop | Loop Detail header, as Edit configuration (needs cpm.manage, reason under the button) |
+| Evidence workbench › | Loop Detail, Evidence → |
+| Effective configuration › / Hide effective configuration | Loop Detail, Effective rules ↗ (opens Gate Configuration for the loop; the inline drawer is not on this page) |
+| View in plant tree ↗ | Loop Detail Plant path row, Plant tree ↗ (asset.view) |
+| Re-project links & republish evidence, with its receipt | Loop Detail, Loop model section (receipt under the header) |
+| Gate role policy rows | Loop Detail, last section (`config/GateRolePolicy.tsx`) |
+| Add loop, Bulk import | Loop Registry list only (the header carries them there) |
+| Open loop | Loop Detail, Open loop → |
+| Retire, Restore | Loop Detail header |

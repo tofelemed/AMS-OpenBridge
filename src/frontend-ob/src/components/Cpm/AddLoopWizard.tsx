@@ -18,7 +18,7 @@ import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { PanelHead, TonePill, KvRow } from './shared';
 import { useActivateLoop, useCpmReadiness, useCpmRegistryContract } from '../../hooks/useCpm';
-import type { CpmActivateRequest, CpmLoop, CpmTagMapEntry } from '../../api/cpmApi';
+import type { CpmLoop } from '../../api/cpmApi';
 import { ClassificationStep, isExplicit, modelOf } from './registry/wizard/ClassificationStep';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { PlantLocationPicker, deriveSignalPath, historianNode, loopIdProblem } from './plantLocation';
@@ -27,7 +27,7 @@ import { NO_VP_COPY } from './investigation/confirmationCopy';
 import { OptionalInputFields, hasVpChecked } from './OptionalInputFields';
 import { factStateLabel } from './optionalInputs';
 import { ReasonedButton } from './ReasonedButton';
-import { engineeringOf, firstProblem, initialForm, rangeChecks, signalChecks, withDerivedPaths, type WizardState } from './registry/wizard/wizardForm';
+import { activateRequestOf, firstProblem, initialForm, rangeChecks, signalChecks, withDerivedPaths, type WizardState } from './registry/wizard/wizardForm';
 import { SignalPathField } from './registry/wizard/SignalPathField';
 import { ReviewStep } from './registry/wizard/ReviewStep';
 
@@ -91,33 +91,8 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
   const signalProblem = firstProblem(Object.fromEntries(PATH_FIELDS.map(([k]) => [k, paths[k].error])), PATH_LABELS);
   const stepProblem = step === 0 ? identityProblem : step === 1 ? classificationProblem : step === 2 ? signalProblem : null;
 
-  const buildRequest = (): CpmActivateRequest => {
-    const tags: CpmTagMapEntry[] = [];
-    const add = (role: string, path: string) => {
-      if (path.trim()) tags.push({ signalRole: role, unsPath: path.trim() });
-    };
-    add('PV', form.pv); add('SP', form.sp); add('OP', form.op);
-    add('MODE', form.mode); add('VP', form.vp);
-    return {
-      loopId: form.loopId.trim(),
-      displayName: form.displayName.trim(),
-      site: form.site.trim(),
-      area: form.area.trim() || null,
-      unit: form.unit.trim() || null,
-      loopType: form.loopType,
-      criticality: form.criticality,
-      tags,
-      thresholdProfileId: form.thresholdProfileId.trim() || null,
-      enableMonitoring: form.enableMonitoring,
-      engineering: engineeringOf(form),
-      allowUnmodelledLocation: manualLoc,
-      // v2.5 (2G.1): only an explicit declaration is sent; omitted keeps a stored EXPLICIT model or takes the preset
-      model: modelOf(form.model),
-    };
-  };
-
   const save = () => {
-    activate.mutate(buildRequest(), { onSuccess: (loop) => setSavedLoopId(loop.loopId) });
+    activate.mutate(activateRequestOf(form, editLoop, manualLoc), { onSuccess: (loop) => setSavedLoopId(loop.loopId) });
   };
 
   const loopTypes = contract.data?.loopTypes ?? ['FIC', 'PIC', 'PIC_GAS', 'PIC_VAPOUR', 'LIC', 'TIC', 'UNKNOWN'];

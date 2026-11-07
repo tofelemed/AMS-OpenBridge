@@ -98,4 +98,24 @@ describe('AddLoopWizard (edit)', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy SP · Setpoint * path' })); });
     expect(screen.getByText('Copy failed: select the text')).toBeTruthy();
   });
+
+  const saveEdit = (l: CpmLoop) => {
+    render(<AddLoopWizard existing={[l]} editLoop={l} onClose={() => {}} />);
+    fireEvent.click(continueBtn());
+    fireEvent.click(continueBtn());
+    fireEvent.click(continueBtn());
+    fireEvent.click(screen.getByRole('button', { name: 'Update loop' }));
+    return mutate.mock.calls[0][0] as Record<string, unknown>;
+  };
+
+  it('keeps assetId and stepTestApproved through an edit', () => {
+    const req = saveEdit({ ...loop, assetId: 'a1b2', stepTestApproved: true } as unknown as CpmLoop);
+    expect(req.assetId).toBe('a1b2');
+    expect(req.stepTestApproved).toBe(true);
+  });
+
+  it('keeps NOT_INSTALLED through an edit', () => {
+    const req = saveEdit({ ...loop, engineering: { ...loop.engineering, vpApplicability: 'NOT_INSTALLED' } } as unknown as CpmLoop);
+    expect((req.engineering as Record<string, string>).vpApplicability).toBe('NOT_INSTALLED');
+  });
 });
