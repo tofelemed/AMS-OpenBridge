@@ -41,6 +41,8 @@ import { Toggletip } from '../../ui/Toggletip';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
 import { sameInstant, useWindowAt } from './evidence/useWindowAt';
 import { fmtInstant } from './context/LoopContextBar';
+import { WindowResultSelect } from './replay/WindowResultSelect';
+import { useRefreshOnRerun } from './replay/useRefreshOnRerun';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 // CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
@@ -88,7 +90,8 @@ export const CpmReplay: React.FC = () => {
   const windows = list.options;
   const endParam = params.get('window');
   const windowEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
-  const at = useWindowAt(loopId, windowKind, windowEnd);
+  const rerunId = windowEnd ? params.get('rerun') : null;
+  const at = useWindowAt(loopId, windowKind, windowEnd, rerunId);
   const selected: CpmGateMatrix | undefined = at.row;
   const windowNotStored = !!windowEnd && at.notFound;
   const selectedValue = windows.find(w => sameInstant(w.windowEnd, selected?.windowEnd))?.windowEnd ?? selected?.windowEnd ?? '';
@@ -140,6 +143,7 @@ export const CpmReplay: React.FC = () => {
 
   // A8 recompute round trip.
   const { submit, status, reset } = useRecompute(loopId);
+  useRefreshOnRerun(!!status?.finished);
   const recomputeBusy = submit.isPending || (status != null && !status.finished);
 
   // Engineer note → acknowledge the loop's open event frame with the note.
@@ -194,7 +198,7 @@ export const CpmReplay: React.FC = () => {
           */}
             <select className="cpm-select" aria-label="Evaluated window" value={selectedValue}
               disabled={windows.length === 0 && !selected}
-              onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
+              onChange={e => setParams(p => { p.set('window', e.target.value); p.delete('rerun'); return p; }, { replace: true })}>
               {windows.length === 0 && !selected && (
                 <option value="">
                   {!loopId ? 'Select a loop first'
@@ -212,6 +216,10 @@ export const CpmReplay: React.FC = () => {
                 </option>
               ))}
             </select>
+            {selected && (
+              <WindowResultSelect row={selected} others={at.others}
+                onChange={id => setParams(p => { if (id) p.set('rerun', id); else p.delete('rerun'); if (!p.get('window') && selected.windowEnd) p.set('window', selected.windowEnd); return p; }, { replace: true })} />
+            )}
             <select className="cpm-select" aria-label="Gate" value={gateKey}
               disabled={gateOptions.length === 0}
               onChange={e => setParams(p => { p.set('gate', e.target.value); return p; }, { replace: true })}>

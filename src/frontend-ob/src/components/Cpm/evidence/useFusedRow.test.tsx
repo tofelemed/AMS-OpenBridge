@@ -45,4 +45,20 @@ describe('useFusedRow', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.row).toBeUndefined();
   });
+
+  it('finds a REPLAY row, which stores only the 12-character prefix of the run id', async () => {
+    const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    getGateHistory.mockResolvedValue(page(live, row('2026-10-05T12:30:00Z', { diagnosis: 'CONFIRMED', replayId: '0f8fad5bd9cb' })));
+    const { result } = renderHook(() => useFusedRow('FIC10401', run(id)), { wrapper: wrap });
+    await waitFor(() => expect(result.current.row).toBeDefined());
+    expect(result.current.row?.diagnosis).toBe('CONFIRMED');
+  });
+
+  it('finds an EVALUATE row, which stores the whole run id', async () => {
+    const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    getGateHistory.mockResolvedValue(page(live, row('2026-10-05T12:30:00Z', { diagnosis: 'CONFIRMED', replayId: id })));
+    const { result } = renderHook(() => useFusedRow('FIC10401', run(id)), { wrapper: wrap });
+    await waitFor(() => expect(result.current.row).toBeDefined());
+    expect(result.current.row?.diagnosis).toBe('CONFIRMED');
+  });
 });

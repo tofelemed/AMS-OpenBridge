@@ -75,6 +75,38 @@ describe('useWindowAt', () => {
   });
 });
 
+describe('useWindowAt, original and re-runs of one end', () => {
+  beforeEach(() => getGateHistory.mockReset());
+  const rows = () => page(
+    row('2026-10-05T12:30:00Z', { replayId: 'rr-1', diagnosis: 'CONFIRMED' }),
+    row('2026-10-05T12:30:00Z', { diagnosis: 'NO_CALL' }));
+
+  it('returns the other rows of that end, original first, so a re-run stays reachable', async () => {
+    getGateHistory.mockResolvedValue(rows());
+    const { result } = renderHook(() => useWindowAt('FIC10401', '12h', '2026-10-05T12:30:00Z'), { wrapper: wrap });
+    await waitFor(() => expect(result.current.row).toBeDefined());
+    expect(result.current.row?.diagnosis).toBe('NO_CALL');
+    expect(result.current.others.map(r => r.metadata.replayId)).toEqual(['rr-1']);
+  });
+
+  it('opens the named re-run when asked, and the original becomes the other', async () => {
+    getGateHistory.mockResolvedValue(rows());
+    const { result } = renderHook(() => useWindowAt('FIC10401', '12h', '2026-10-05T12:30:00Z', 'rr-1'), { wrapper: wrap });
+    await waitFor(() => expect(result.current.row).toBeDefined());
+    expect(result.current.row?.diagnosis).toBe('CONFIRMED');
+    expect(result.current.rerun).toBe(true);
+    expect(result.current.others.map(r => r.diagnosis)).toEqual(['NO_CALL']);
+  });
+
+  it('a named re-run that is not stored is not found, not the original', async () => {
+    getGateHistory.mockResolvedValue(rows());
+    const { result } = renderHook(() => useWindowAt('FIC10401', '12h', '2026-10-05T12:30:00Z', 'zzz'), { wrapper: wrap });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.notFound).toBe(true);
+    expect(result.current.row).toBeUndefined();
+  });
+});
+
 describe('usePreviousEnd', () => {
   beforeEach(() => getWindowSummaries.mockReset());
   it('is the next older window end whether or not the server includes the window itself', async () => {

@@ -44,6 +44,14 @@ describe('RecentEvents', () => {
       .toBe('/cpm/investigation?loop=LIC10501&profile=12h&window=2026-11-05T13%3A45%3A00Z');
   });
 
+  it("opens the event's own window size, not the Overview's", () => {
+    page({ data: { events: [ev(9, { window_kind: '24h' })] } });
+    show();   // the Overview shows 12h
+    fireEvent.click(screen.getByRole('link', { name: /LIC10501/ }));
+    expect(screen.getByTestId('where').textContent)
+      .toBe('/cpm/investigation?loop=LIC10501&profile=24h&window=2026-11-05T13%3A45%3A00Z');
+  });
+
   it('opens Investigation for the loop when the event has no opening time', () => {
     page({ data: { events: [ev(8, { opened_at: null })] } });
     show();

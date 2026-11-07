@@ -534,3 +534,14 @@ Controls that changed place in this section, not removed:
 | Control | Now on |
 |---|---|
 | Source select, Live | also clears `?window=` |
+
+## Task 13 fix round 1 (CHG-140)
+
+| Was | Now | Where |
+|---|---|---|
+| "The window this link pointed at is not in the current range — showing the newest evaluated window instead." | "The window this link pointed at is not in the current range, so none is selected. Choose one in the list, or widen the range." (no window is shown in its place; the "No window selected" empty state is not repeated beside it) | Historical, Selected window |
+| Window browser tooltip "Already showing the oldest loaded windows" | "Already showing the oldest stored windows" | Investigation, window browser |
+
+| Control | Now on |
+|---|---|
+| Result of this window (Original result / Re-run {id}) | New select in the Replay band, only when a window holds more than one result; writes `?rerun=` |

@@ -32,7 +32,7 @@ export const RecentEvents: React.FC<{
       )}
       {rows.map(e => (
         <RouterLink key={e.id} className="cpm-recent-row"
-          to={investigationHref(e.loop_id, { kind: windowKind, window: e.opened_at })}>
+          to={investigationHref(e.loop_id, { kind: e.window_kind ?? windowKind, window: e.opened_at })}>
           <span className="cpm-event-row__sub">{fmtWhen(e.opened_at)}</span>
           <span>{e.loop_id}</span>
           <span>{diagnosisLabel(e.peak_diagnosis)}</span>

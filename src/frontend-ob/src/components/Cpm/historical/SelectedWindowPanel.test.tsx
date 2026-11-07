@@ -67,4 +67,11 @@ describe('SelectedWindowPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Widen to 30 days' }));
     expect(onWiden).toHaveBeenCalled();
   });
+
+  it('says a linked window is not in the range and shows no other window in its place', () => {
+    show({ window: undefined, fellBack: true });
+    expect(screen.getByRole('status').textContent).toContain('not in the current range, so none is selected');
+    expect(screen.queryByText('No window selected')).toBeNull();
+    expect(document.body.textContent).not.toContain('newest evaluated window');
+  });
 });

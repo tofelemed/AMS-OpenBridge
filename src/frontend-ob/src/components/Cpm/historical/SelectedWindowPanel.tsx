@@ -71,11 +71,11 @@ export const SelectedWindowPanel: React.FC<{
           action={{ label: 'Widen to 30 days', onClick: onWiden }}
         />
       )}
-      {!win && !noWindows && <EmptyState title="No window selected" copy="Choose one in the list or on the Result lane." />}
+      {!win && !noWindows && !fellBack && <EmptyState title="No window selected" copy="Choose one in the list or on the Result lane." />}
 
       {fellBack && (
         <p className="cpm-copy" role="status">
-          The window this link pointed at is not in the current range — showing the newest evaluated window instead.
+          The window this link pointed at is not in the current range, so none is selected. Choose one in the list, or widen the range.
         </p>
       )}
 

@@ -28,6 +28,7 @@ import EvaluatedWindows from './historical/EvaluatedWindows';
 import ChartFoot from './historical/ChartFoot';
 import ChartCaptions from './historical/ChartCaptions';
 import { WINDOW_CAP, useWindowKpis } from './historical/useWindowKpis';
+import { selectedWindowOf } from './historical/selectWindow';
 import { modeSegmentsOf, resultMarkers } from './historical/lanes';
 import { CHART_HEIGHT, buildChartOption } from './historical/chartOption';
 import { useInstrumentHealthHistory } from './health/useInstrumentHealth';
@@ -104,8 +105,8 @@ export const CpmHistorical: React.FC = () => {
   const kpiRows = useMemo(() => kpis.data?.samples ?? [], [kpis.data]);
 
   const selectedWindowEnd = params.get('window');
-  const selectedWindow = windows.find(w => w.windowEnd === selectedWindowEnd) ?? windows[windows.length - 1];
-  const windowFellBack = !!selectedWindowEnd && windows.length > 0 && !windows.some(w => w.windowEnd === selectedWindowEnd);
+  // CHG-140: a window named in the address is that window or is not found, never the newest in its place
+  const { window: selectedWindow, notFound: windowFellBack } = selectedWindowOf(windows, selectedWindowEnd);
   const selectedFull = full.find(w => w.windowEnd === selectedWindow?.windowEnd);
 
   // ── Lane segments, from real instants.

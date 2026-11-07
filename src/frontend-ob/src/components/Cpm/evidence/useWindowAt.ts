@@ -24,19 +24,25 @@ export function preferOriginal(rows: CpmGateMatrix[]): CpmGateMatrix | undefined
   return rows.find(r => !isRerun(r)) ?? rows[0];
 }
 
+/** Every row at one end, the original first (a re-run follows it); the newest end's rows for `null`. */
+export function rowsAtEnd(rows: CpmGateMatrix[], endMs: number | null): CpmGateMatrix[] {
+  const ends = rows.map(r => instantMs(r.windowEnd)).filter(Number.isFinite);
+  const end = endMs ?? (ends.length ? Math.max(...ends) : NaN);
+  const at = rows.filter(r => instantMs(r.windowEnd) === end);
+  return [...at.filter(r => !isRerun(r)), ...at.filter(isRerun)];
+}
+
 /** The row for `endMs`, or the newest window's row for `null`; undefined when nothing matches. */
 export function pickWindow(rows: CpmGateMatrix[], endMs: number | null): CpmGateMatrix | undefined {
-  if (endMs == null) {
-    const newest = Math.max(...rows.map(r => instantMs(r.windowEnd)).filter(Number.isFinite));
-    return Number.isFinite(newest) ? preferOriginal(rows.filter(r => instantMs(r.windowEnd) === newest)) : undefined;
-  }
-  return preferOriginal(rows.filter(r => instantMs(r.windowEnd) === endMs));
+  return rowsAtEnd(rows, endMs)[0];
 }
 
 export interface WindowAt {
   row: CpmGateMatrix | undefined;
   /** The row is a re-run: no original is stored for this end. */
   rerun: boolean;
+  /** The other rows stored at this end (the original first, then re-runs), so each stays reachable. */
+  others: CpmGateMatrix[];
   /** An end was named and the service holds no result for it. */
   notFound: boolean;
   isLoading: boolean;
@@ -45,20 +51,22 @@ export interface WindowAt {
   refetch: () => void;
 }
 
-export function useWindowAt(loop: string | undefined, kind: string, end: string | null): WindowAt {
+/** `rerunId` (a row's `metadata.replayId`) opens that re-run instead of the original. */
+export function useWindowAt(loop: string | undefined, kind: string, end: string | null, rerunId?: string | null): WindowAt {
   const endMs = end ? instantMs(end) : null;
   const badEnd = end != null && !Number.isFinite(endMs);
   const iso = endMs != null && Number.isFinite(endMs) ? new Date(endMs).toISOString() : undefined;
   const q = useQuery({
     queryKey: ['cpm', 'window-at', loop ?? '', kind, iso ?? 'newest'],
     // a named window reads ANY purpose, so a re-run is reachable; the newest is the live result
-    queryFn: ({ signal }) => getGateHistory(loop!, kind, iso, iso, iso ? 10 : 20, signal, true, iso ? 'ANY' : 'LIVE'),
+    queryFn: ({ signal }) => getGateHistory(loop!, kind, iso, iso, iso ? 25 : 20, signal, true, iso ? 'ANY' : 'LIVE'),
     enabled: !!loop && !badEnd,
     staleTime: 60_000,
   });
-  const row = badEnd ? undefined : pickWindow(q.data?.windows ?? [], endMs);
+  const atEnd = badEnd ? [] : rowsAtEnd(q.data?.windows ?? [], endMs);
+  const row = rerunId ? atEnd.find(r => r.metadata?.replayId === rerunId) : atEnd[0];
   return {
-    row, rerun: !!row && isRerun(row),
+    row, rerun: !!row && isRerun(row), others: atEnd.filter(r => r !== row),
     notFound: badEnd || (end != null && !q.isLoading && !q.isError && !!q.data && !row),
     isLoading: !badEnd && !!loop && q.isLoading, isError: q.isError, error: q.error, refetch: () => { void q.refetch(); },
   };
