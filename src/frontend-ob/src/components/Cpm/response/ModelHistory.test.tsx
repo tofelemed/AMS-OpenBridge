@@ -7,6 +7,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { ModelHistoryBody } from './ModelHistory';
 import type { SystemModel } from '../../../api/cpm/response';
 
+vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
+  ObcButton: (p: Record<string, unknown>) => React.createElement('button', { disabled: p.disabled as boolean, 'aria-describedby': p['aria-describedby'] as string, onClick: p.onClick as () => void }, p.children as React.ReactNode),
+}));
 const captured: unknown[] = [];
 vi.mock('echarts-for-react', () => ({ default: (props: { option: unknown }) => { captured.push(props.option); return React.createElement('div', { 'data-testid': 'echarts' }); } }));
 afterEach(() => { cleanup(); captured.length = 0; });
@@ -59,10 +62,11 @@ describe('ModelHistory', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('shows the permission sentence as the disabled Review button reason', () => {
-    render(<ModelHistoryBody models={[model({ modelState: 'CANDIDATE' })]} timeZone="UTC" onReview={() => {}} canReview={false} />);
-    const button = document.querySelector('[aria-describedby]')!;
-    const why = screen.getByText('Model review needs the cpm.model.review permission.');
-    expect(button.getAttribute('aria-describedby')).toBe(why.id);
+  it('shows the permission sentence once, and every disabled Review button is described by it', () => {
+    render(<ModelHistoryBody models={[model({ modelId: 'a', modelState: 'CANDIDATE' }), model({ modelId: 'b', modelState: 'VALIDATED' })]} timeZone="UTC" onReview={() => {}} canReview={false} />);
+    const why = screen.getByText('Model review needs the cpm.model.review permission.');   // getBy: exactly one
+    const buttons = document.querySelectorAll('[aria-describedby]');
+    expect(buttons).toHaveLength(2);
+    buttons.forEach(b => { expect(b.getAttribute('aria-describedby')).toBe(why.id); expect((b as HTMLButtonElement).disabled).toBe(true); });
   });
 });

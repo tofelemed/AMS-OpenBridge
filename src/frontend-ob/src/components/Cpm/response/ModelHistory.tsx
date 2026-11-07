@@ -3,7 +3,8 @@
  * markers at the model's creation instant with its ± uncertainty as separate markers - never a
  * line joining models (no trajectory was estimated). The table carries state, revision, review.
  */
-import React from 'react';
+import React, { useId } from 'react';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ReasonedButton } from '../ReasonedButton';
 import { Toggletip } from '../../../ui/Toggletip';
 import { PanelHead, TonePill } from '../shared';
@@ -28,6 +29,7 @@ export const ModelHistoryBody: React.FC<{
   /** The loop's registered PV unit (registry engineering.pvUnit), for the kernel's PV_EU placeholder. */
   pvUnit?: string | null;
 }> = ({ models, timeZone, canReview, onReview, pvUnit }) => {
+  const noteId = useId();
   if (models.length === 0) return null;  // the summary tile says there is no model
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   return (
@@ -57,6 +59,7 @@ export const ModelHistoryBody: React.FC<{
         ];
         return <CpmChart key={param} title={unit ? `${label} (${unit})` : label} series={series} xKind="time" timeZone={timeZone} height={280} />;
       })}
+      {!canReview && <p id={noteId} className="cpm-copy">{REVIEW_NEEDS_PERMISSION}</p>}
       <div className="cpm-matrix-scroll">
       <table className="cpm-table" data-table="models">
         <thead><tr><th>created</th><th>family</th><th>path</th><th>estimator</th><th>state</th><th>rev</th><th>review</th><th /></tr></thead>
@@ -75,8 +78,10 @@ export const ModelHistoryBody: React.FC<{
               <td>{m.reviewedBy ? `${m.reviewedBy}${m.reviewNote ? ` — ${m.reviewNote}` : ''}` : '—'}</td>
               <td>
                 {/* CHG-098 (SME review 2 #29): a disabled Review says why on screen: the missing permission, or the superseded model. */}
-                <ReasonedButton variant="flat" disabled={!canReview || m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
-                  reason={!canReview ? REVIEW_NEEDS_PERMISSION : m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
+                {canReview
+                  ? <ReasonedButton variant="flat" disabled={m.modelState === 'SUPERSEDED'} onClick={() => onReview(m)}
+                    reason={m.modelState === 'SUPERSEDED' ? 'Superseded: review the current revision' : null}>Review</ReasonedButton>
+                  : <ObcButton variant="flat" disabled aria-describedby={noteId}>Review</ObcButton>}
               </td>
             </tr>
             ))}
