@@ -518,3 +518,19 @@ Controls that changed place in this section, not removed:
 | Evidence package ↗ | New button in the selected window; the Export menu entry stays |
 | Result key | New dialog from the chart foot |
 | Loop Explorer ↗ | New: end of the band, before Export |
+
+## Task 13 (CHG-140): one window on every page
+
+| Was | Now | Where |
+|---|---|---|
+| "Only one evaluated window stored — no PREVIOUS to compare against yet." (shown beside a list of 100) | "No earlier evaluated window is stored, so there is nothing to compare against." only when none exists; otherwise "Loading the previous window…", "The previous window (ends {date}) has no full stored result to compare against.", "The previous window could not be read." | Investigation, window browser |
+| "The window this link pointed at is not among the fetched results — showing the newest evaluated window instead." | Empty state "That window is not stored": "The service holds no result for the {kind} window ending {date}. Full gate results are kept for a limited time, so a window this old, or one never evaluated, cannot be opened." with "Open the newest window"; the newest is no longer shown in its place | Investigation |
+| "The window this link pointed at is not among the fetched results — replaying the newest evaluated window instead." | Empty state "That window is not stored": "The service holds no result for the {kind} window ending {date}, so it cannot be replayed. Full gate results are kept for a limited time." with "Replay the newest window" | Evidence Replay |
+| Window browser count "1–5 of 100" | "1–5 of 100+" while older windows remain; "Older ›" loads them | Investigation, window browser |
+| Window row "{start} → {end}" | adds " · re-run (no original stored)" when only a re-run holds that end | Investigation |
+| "· replay {id}" in Calculation | "· re-run {id}" | Evidence Replay, Summary |
+| Eyebrow "Effective configuration" in the drawer opened from a run | "Configuration this run used" (read at the run's window end) | Why this result drawer |
+
+| Control | Now on |
+|---|---|
+| Source select, Live | also clears `?window=` |

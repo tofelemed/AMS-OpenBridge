@@ -12,12 +12,14 @@ import { useEffectiveConfig } from './useConfig';
 import { bundleLabel, bundleStateTone } from './configSupport';
 import { EffectiveView } from './EffectiveView';
 
-export const EffectiveConfigDrawer: React.FC<{ loopId: string; runBundleHash?: string | null; onClose?: () => void; gateFilter?: string }> = ({ loopId, runBundleHash, onClose, gateFilter }) => {
-  const q = useEffectiveConfig(loopId);
+export const EffectiveConfigDrawer: React.FC<{ loopId: string; runBundleHash?: string | null; onClose?: () => void; gateFilter?: string;
+  /** The instant (ISO) the configuration is read at: a run's window end. Without it, the configuration in force now. */
+  at?: string }> = ({ loopId, runBundleHash, onClose, gateFilter, at }) => {
+  const q = useEffectiveConfig(loopId, at);
   const eff = q.data;
   return (
     <section className="cpm-surface cpm-config-effective-drawer" data-testid="effective-config-drawer">
-      <PanelHead eyebrow="Effective configuration" title={loopId}
+      <PanelHead eyebrow={at ? 'Configuration this run used' : 'Effective configuration'} title={loopId}
         right={<span className="cpm-config-inline">
           {eff && <TonePill tone={bundleStateTone(eff.state)}>{eff.bundle ? bundleLabel(eff.bundle) : 'factory layer'}</TonePill>}
           <Link className="cpm-link" to={`/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective`}>Open in Gate Configuration ›</Link>

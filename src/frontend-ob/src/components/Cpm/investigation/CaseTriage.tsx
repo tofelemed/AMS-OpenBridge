@@ -10,6 +10,8 @@ import { diagnosisLabel } from '../vocabulary';
 import type { useCpmScope } from '../plantScope';
 import { CASE_LABEL } from './cases';
 import { windowLabel } from '../windowLabel';
+import type { WindowOption } from '../evidence/useEvidenceWindows';
+import { sameInstant } from '../evidence/useWindowAt';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
 
@@ -18,7 +20,7 @@ export const CaseControls: React.FC<{
   caseFilter: string | null;
   mode: string;
   windowKind: string;
-  windows: CpmGateMatrix[];
+  windows: WindowOption[];
   matrix: CpmGateMatrix | undefined;
   setParams: SetParams;
 }> = ({ cases, caseFilter, mode, windowKind, windows, matrix, setParams }) => (
@@ -32,7 +34,7 @@ export const CaseControls: React.FC<{
       {cases.map(([c, n]) => <option key={c} value={c}>{`${CASE_LABEL[c] ?? c} · ${n}`}</option>)}
     </select>
     <select className="cpm-select" aria-label="Source" value={mode}
-      onChange={e => setParams(p => { p.set('mode', e.target.value); return p; }, { replace: true })}>
+      onChange={e => setParams(p => { p.set('mode', e.target.value); if (e.target.value === 'live') p.delete('window'); return p; }, { replace: true })}>
       <option value="live">Live</option>
       <option value="historical">Historical</option>
     </select>
@@ -42,11 +44,15 @@ export const CaseControls: React.FC<{
       <option value="24h">24h fused</option>
     </select>
     {mode === 'historical' && (
-      <select className="cpm-select" aria-label="Evaluated window" value={matrix?.windowEnd ?? ''}
+      <select className="cpm-select" aria-label="Evaluated window"
+        value={windows.find(w => sameInstant(w.windowEnd, matrix?.windowEnd))?.windowEnd ?? matrix?.windowEnd ?? ''}
         onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
+        {matrix?.windowEnd && !windows.some(w => sameInstant(w.windowEnd, matrix.windowEnd)) && (
+          <option value={matrix.windowEnd}>{windowLabel({ windowKind, windowEnd: matrix.windowEnd })} · {diagnosisLabel(matrix.diagnosis)}</option>
+        )}
         {windows.map(w => (
-          <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-            {windowLabel(w)} · {diagnosisLabel(w.diagnosis)}
+          <option key={w.windowEnd} value={w.windowEnd}>
+            {windowLabel({ windowKind, windowEnd: w.windowEnd })} · {diagnosisLabel(w.diagnosis ?? null)}
           </option>
         ))}
       </select>

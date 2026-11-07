@@ -28,9 +28,14 @@ import type { CpmGateMatrix } from '../../api/cpmApi';
 import { HYPOTHESIS_LABEL } from '../../api/cpm/verdict';
 import {
   useCpmEvents, useCpmLoops, useCpmTrend,
-  useFleetRankings, useGateHistory, useLatestGates,
+  useFleetRankings, useLatestGates,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
+import { chosenKind } from '../../cpa/tabKind';
+import { DEFAULT_WINDOW_KIND, WINDOW_KINDS } from './useWindowKind';
+import { useEvidenceWindows } from './evidence/useEvidenceWindows';
+import { isRerun, usePreviousEnd, useWindowAt } from './evidence/useWindowAt';
+import type { Comparison } from './investigation/comparisonNote';
 import { CaseControls, NoEvaluatedLoops } from './investigation/CaseTriage';
 import { HypothesisPanel } from './investigation/HypothesisPanel';
 import { ReasoningChain } from './investigation/ReasoningChain';
@@ -55,6 +60,7 @@ import { inputContextOf, vpAbsent } from './optionalInputs';
 import { basisOf } from './conclusionBasis';
 import { limitationsOf } from './explorer/summary/summaryText';
 import { INPUT_LIMITS_GATE } from './inputLimits';
+import { fmtInstant } from './context/LoopContextBar';
 import { calculationsHref, explorerHref, pipelineHref, registryHref, replayHref } from './cpaHref';
 import { loopHealthSummary } from './health/TransmitterHealthPanel';
 
@@ -69,7 +75,9 @@ export const CpmInvestigation: React.FC = () => {
   // Plant scope (A6.3): case list narrows to a section/unit.
   const scope = useCpmScope();
   // CHG-065: the case chips count the same window kind the page shows (was always 24h)
-  const rankings = useFleetRankings(scope.params, params.get('profile') === '24h' ? '24h' : '12h', 'confidence', 200);
+  // The window kind: ?profile=, else a kind carried in ?window= or ?kind= (a link from another page). An END is never read as one.
+  const windowKind = chosenKind(params, 'profile') ?? DEFAULT_WINDOW_KIND;
+  const rankings = useFleetRankings(scope.params, windowKind, 'confidence', 200);
 
   const caseFilter = params.get('case');
   const allLoops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
@@ -89,41 +97,36 @@ export const CpmInvestigation: React.FC = () => {
   // fallback was fixed for, minus the URL. It also fired this page's whole
   // query set for a loop nobody asked for.
   const loopId = params.get('loop') ?? undefined;
-  const mode = params.get('mode') === 'historical' ? 'historical' : 'live';
-  const windowKind = params.get('profile') === '24h' ? '24h' : '12h';
+  // ?window= is an evaluated window END unless it is a kind ('12h' / '24h'). Naming an end opens that window (historical).
+  const endParam = params.get('window');
+  const selectedEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
+  const mode = params.get('mode') === 'historical' || selectedEnd ? 'historical' : 'live';
+  const loop = allLoops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
+  const timeZone = loop?.timezone || 'UTC';
 
-  const latest = useLatestGates(loopId, windowKind);
-  const history = useGateHistory(loopId, windowKind);
-  const windows = useMemo(() => {
-    const rows = history.data?.windows ?? [];
-    return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));
-  }, [history.data]);
-
-  const selectedEnd = params.get('window');
-  const matrix: CpmGateMatrix | undefined = mode === 'historical'
-    ? (windows.find(w => w.windowEnd === selectedEnd) ?? windows[0])
-    : latest.data;
-  // Deep-linked window not in the fetched set → fell back to newest; say so.
-  const windowFellBack = mode === 'historical' && !!selectedEnd && windows.length > 0
-    && !windows.some(w => w.windowEnd === selectedEnd);
+  const latest = useLatestGates(loopId, windowKind, mode === 'live');
+  // CHG-140: the window list is the one the Evidence pages read; the window itself is read at its exact end.
+  const list = useEvidenceWindows(loopId, windowKind, 'fused', timeZone);
+  const windows = list.options;
+  const at = useWindowAt(mode === 'historical' ? loopId : undefined, windowKind, selectedEnd);
+  const matrix: CpmGateMatrix | undefined = mode === 'historical' ? at.row : latest.data;
+  const windowNotStored = mode === 'historical' && !!selectedEnd && at.notFound;
   // gates/latest answers 404 for "no fused window yet" — a real answer, not a
   // failure; it must render as the no-verdict empty state, not an error card.
   const noVerdictYet = latest.isError
     && latest.error instanceof ApiError && latest.error.status === 404;
-  // findIndex returns -1 when the current verdict is not among the fetched
-  // history — in live mode that happens whenever `latest` is newer than the
-  // gate-history page. `-1 + 1 = 0` then made windows[0], the NEWEST window, the
-  // "PREVIOUS" one, so the delta table compared the window against itself and
-  // reported "unchanged / 0 pt" as a finding.
-  const previous = useMemo(() => {
-    if (!matrix) return undefined;
-    const i = windows.findIndex(w => w.windowEnd === matrix.windowEnd);
-    return i >= 0 ? windows[i + 1] : undefined;
-  }, [matrix, windows]);
+  // The PREVIOUS window is the next older one in the same list, read at its own end; never the current window against itself.
+  const prevEnd = usePreviousEnd(matrix ? loopId : undefined, windowKind, matrix?.windowEnd);
+  const prevRow = useWindowAt(prevEnd.end ? loopId : undefined, windowKind, prevEnd.end);
+  const previous = prevRow.row;
+  const comparison: Comparison = prevEnd.isError ? { state: 'unavailable' }
+    : prevEnd.isLoading ? { state: 'loading' }
+      : !prevEnd.end ? { state: 'none' }
+        : previous ? { state: 'ready' }
+          : prevRow.isLoading ? { state: 'loading' } : { state: 'missing', end: prevEnd.end };
 
   // Evidence chart over the verdict's own window.
   const series = loopId ? loopSeries(loopId) : undefined;
-  const loop = allLoops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
   // I10: on a stiction-diagnosis investigation, VP-vs-OP is the direct visual
   // signature of a sticking valve — draw the VP pen whenever the loop maps one.
   const hasVp = !!loop?.tags['VP'];
@@ -183,14 +186,15 @@ export const CpmInvestigation: React.FC = () => {
       {mode === 'live' && latest.isError && !noVerdictYet && (
         <QueryError title="Verdict unavailable" error={latest.error} retry={() => void latest.refetch()} />
       )}
-      {mode === 'historical' && history.isError && (
-        <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />
+      {mode === 'historical' && at.isError && (
+        <QueryError title="Gate history unavailable" error={at.error} retry={at.refetch} />
       )}
-      {windowFellBack && (
-        <p className="cpm-copy" role="status">
-          The window this link pointed at is not among the fetched results — showing the
-          newest evaluated window instead.
-        </p>
+      {windowNotStored && (
+        <section className="cpm-surface">
+          <EmptyState title="That window is not stored"
+            copy={`The service holds no result for the ${windowKind} window ending ${fmtInstant(selectedEnd, timeZone)}. Full gate results are kept for a limited time, so a window this old, or one never evaluated, cannot be opened.`}
+            action={{ label: 'Open the newest window', onClick: () => setParams(p => { p.delete('window'); p.set('mode', 'live'); return p; }, { replace: true }) }} />
+        </section>
       )}
       {!loopId && cases.length > 0 && (
         <section className="cpm-surface">
@@ -199,8 +203,8 @@ export const CpmInvestigation: React.FC = () => {
         </section>
       )}
       {loopId && !matrix
-        && !(mode === 'live' ? latest.isLoading : history.isLoading)
-        && !(mode === 'live' ? latest.isError && !noVerdictYet : history.isError) && (
+        && !(mode === 'live' ? latest.isLoading : at.isLoading)
+        && !(mode === 'live' ? latest.isError && !noVerdictYet : at.isError) && !windowNotStored && (
         <section className="cpm-surface">
           {/* CHG-098 (SME review 2 #29): routes to the loop's readiness and to the engine. */}
           <EmptyState title="No fused verdict for this loop"
@@ -240,6 +244,7 @@ export const CpmInvestigation: React.FC = () => {
               <KvRow label="Window">
                 {matrix.windowStart ? fmtDateTime(matrix.windowStart) : '—'} →{' '}
                 {matrix.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}
+                {isRerun(matrix) && ' · re-run (no original stored)'}
               </KvRow>
               {/* audit F4: the newest window is what is shown; an older verdict is named as older, with its age */}
               {matrix.lastVerdict && (
@@ -333,8 +338,8 @@ export const CpmInvestigation: React.FC = () => {
           </div>
 
 
-          <WindowBrowser windows={windows} matrix={matrix} previous={previous}
-            windowKind={windowKind} setParams={setParams} />
+          <WindowBrowser windows={windows} hasMore={list.hasMore} isLoadingMore={list.isLoadingMore} loadMore={list.loadMore}
+            matrix={matrix} previous={previous} comparison={comparison} windowKind={windowKind} setParams={setParams} />
         </>
       )}
 

@@ -7,8 +7,8 @@
  */
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useFusedRow } from './useFusedRow';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
-import { getGateHistory } from '../../../api/cpm/gates';
 import { getEffectiveConfig } from '../../../api/cpm/config';
 import { gateMark, isNoResult } from '../gateStatus';
 import { codeLabel, diagnosisLabel, lowerFirst } from '../vocabulary';
@@ -35,11 +35,7 @@ export const ExplainWhy: React.FC<{
   inputs?: InputContext;
 }> = ({ gate, name, run, manifest, status, reason, eligibilityDetail, timeZone, inputs }) => {
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
-  const row = useQuery({
-    queryKey: ['cpm', 'why-row', run?.loopId, run?.windowKind, endIso],
-    queryFn: ({ signal }) => getGateHistory(run!.loopId, run!.windowKind, endIso, endIso, 1, signal, true),
-    enabled: !!run && run.tier === 'fusion', staleTime: 5 * 60_000,
-  });
+  const row = useFusedRow(run?.loopId, run);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const cfg = useQuery({
     queryKey: ['cpm', 'why-config', run?.loopId, endIso],
@@ -47,7 +43,7 @@ export const ExplainWhy: React.FC<{
     // CHG-081: only for whoever may read the configuration (SuperAdmin) - the rows fall back to the run's provenance
     enabled: !!run && canReadConfig, staleTime: 5 * 60_000,
   });
-  const fused = row.data?.windows?.[0];
+  const fused = row.row;
   const prov = (kind: string, key: string) => {
     const a = manifest?.artifacts.find(x => x.gate === gate && x.kind === kind);
     const v = a?.provenance?.[key];

@@ -37,6 +37,8 @@ export interface WindowOption {
   flags: { observabilityFlags: string[]; familyDisqualifiers: string[]; insufficientEvidenceReason: string | null } | undefined;
   methodEligibility: CpmWindowSummary['methodEligibility'];
   purpose: string | null;
+  /** The fused window's verdict (a fused option only); pickers show it beside the window. */
+  diagnosis?: string | null;
 }
 
 const age = (endIso: string, now: number) => Math.max(0, now - Date.parse(endIso));
@@ -61,7 +63,7 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
       tone, ageMs: ms, sampleCount: r.sampleCount, methodRunIds: ids, hasRunIds,
       gates: (r.gates ?? []).map(g => ({ key: g.key, status: g.status, reason: g.reason })),
       flags: { observabilityFlags: r.observabilityFlags ?? [], familyDisqualifiers: r.familyDisqualifiers ?? [], insufficientEvidenceReason: r.insufficientEvidenceReason ?? null },
-      methodEligibility: r.methodEligibility ?? null, purpose: null,
+      methodEligibility: r.methodEligibility ?? null, purpose: null, diagnosis: r.diagnosis,
     };
   });
 }

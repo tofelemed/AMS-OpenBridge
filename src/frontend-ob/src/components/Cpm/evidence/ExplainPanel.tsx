@@ -122,7 +122,7 @@ export const ExplainPanel: React.FC<ExplainPanelProps> = ({ gate, run, entry, ma
             <KvRow label="Bundle"><CopyableId label="Bundle hash" value={run.identity.bundleHash} chars={16} /></KvRow>
             {/* CHG-081: reading the configuration is SuperAdmin only; the bundle hash stays for everyone */}
             {canReadConfig && <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide configuration used' : 'Configuration this run used ›'}</ObcButton>}
-            {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={run.loopId} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
+            {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={run.loopId} at={new Date(run.support.toMs).toISOString()} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
           </>
         ) : <p className="cpm-copy">—</p>}
       </CollapsibleSection>

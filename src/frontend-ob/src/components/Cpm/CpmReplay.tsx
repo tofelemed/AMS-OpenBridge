@@ -25,7 +25,7 @@ import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
 import {
   useCpmCalculations, useCpmEvents, useCpmKpisRange,
-  useCpmLoops, useGateCatalogue, useGateHistory, useRawSlice, useRecompute,
+  useCpmLoops, useGateCatalogue, useRawSlice, useRecompute,
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { ReplayChart } from './replay/ReplayChart';
@@ -38,6 +38,9 @@ import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 import { readable } from './evidence/format';
 import { Toggletip } from '../../ui/Toggletip';
+import { useEvidenceWindows } from './evidence/useEvidenceWindows';
+import { sameInstant, useWindowAt } from './evidence/useWindowAt';
+import { fmtInstant } from './context/LoopContextBar';
 
 /** Long-tier metric fields relevant per gate (real stored fields only). */
 // CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
@@ -77,20 +80,18 @@ export const CpmReplay: React.FC = () => {
   const gateKey = params.get('gate') ?? 'G15';
 
   const calc = useCpmCalculations();
-  // CHG-066: the Replay page also shows re-run (REPLAY) windows; every other page reads LIVE windows only
-  const history = useGateHistory(loopId, windowKind, undefined, undefined, 'ANY');
-  const windows = useMemo(() => {
-    const rows = history.data?.windows ?? [];
-    return [...rows].sort((a, b) => (b.windowEnd ?? '').localeCompare(a.windowEnd ?? ''));
-  }, [history.data]);
-  const windowEnd = params.get('window');
-  const selected: CpmGateMatrix | undefined =
-    windows.find(w => w.windowEnd === windowEnd) ?? windows[0];
-  // The deep-linked window may not be among the fetched newest 100 — keep the
-  // fallback (a blank replay helps nobody) but SAY it happened rather than
-  // silently replaying a different window than the link named.
-  const windowFellBack = !!windowEnd && windows.length > 0
-    && !windows.some(w => w.windowEnd === windowEnd);
+  const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
+  const timeZone = loop?.timezone || 'UTC';
+  // CHG-140: the list is the one Gates and Investigation read; the window is read at its exact end, a re-run included
+  // (the original outranks a re-run of the same end). ?window= may carry a kind from another page: never an end then.
+  const list = useEvidenceWindows(loopId, windowKind, 'fused', timeZone);
+  const windows = list.options;
+  const endParam = params.get('window');
+  const windowEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
+  const at = useWindowAt(loopId, windowKind, windowEnd);
+  const selected: CpmGateMatrix | undefined = at.row;
+  const windowNotStored = !!windowEnd && at.notFound;
+  const selectedValue = windows.find(w => sameInstant(w.windowEnd, selected?.windowEnd))?.windowEnd ?? selected?.windowEnd ?? '';
 
   // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
@@ -115,8 +116,6 @@ export const CpmReplay: React.FC = () => {
   const raw = useRawSlice(series, winStart, winEnd, 'pv,sp,op,vp', 9_000, 200_000);
   const points = useMemo(() => raw.data?.points ?? [], [raw.data]);
   const [cursorPct, setCursorPct] = useState(100);
-  const loop = loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
-  const timeZone = loop?.timezone || 'UTC';
   const catalogue = useGateCatalogue();
 
   /**
@@ -193,20 +192,23 @@ export const CpmReplay: React.FC = () => {
             exactly what it looked like once the arbitrary default selection was
             removed. Each now carries a disabled option naming what is missing.
           */}
-            <select className="cpm-select" aria-label="Evaluated window" value={selected?.windowEnd ?? ''}
-              disabled={windows.length === 0}
+            <select className="cpm-select" aria-label="Evaluated window" value={selectedValue}
+              disabled={windows.length === 0 && !selected}
               onChange={e => setParams(p => { p.set('window', e.target.value); return p; }, { replace: true })}>
-              {windows.length === 0 && (
+              {windows.length === 0 && !selected && (
                 <option value="">
                   {!loopId ? 'Select a loop first'
-                    : history.isLoading ? 'Loading windows…'
-                      : history.isError ? 'Window list unavailable'
+                    : list.isLoading ? 'Loading windows…'
+                      : list.error ? 'Window list unavailable'
                         : `No evaluated ${windowKind} windows for this loop`}
                 </option>
               )}
+              {selected && !windows.some(w => sameInstant(w.windowEnd, selected.windowEnd)) && (
+                <option value={selected.windowEnd ?? ''}>{windowLabel(selected, timeZone)} · {diagnosisLabel(selected.diagnosis)}</option>
+              )}
               {windows.map(w => (
-                <option key={w.windowEnd ?? ''} value={w.windowEnd ?? ''}>
-                  {windowLabel(w)} · {diagnosisLabel(w.diagnosis)}
+                <option key={w.windowEnd} value={w.windowEnd}>
+                  {windowLabel({ windowKind: w.kind, windowEnd: w.windowEnd }, timeZone)} · {diagnosisLabel(w.diagnosis ?? null)}
                 </option>
               ))}
             </select>
@@ -241,18 +243,17 @@ export const CpmReplay: React.FC = () => {
 
       <section className="cpm-surface">
 
-        {windowFellBack && (
-          <p className="cpm-copy" role="status">
-            The window this link pointed at is not among the fetched results —
-            replaying the newest evaluated window instead.
-          </p>
+        {windowNotStored && (
+          <EmptyState title="That window is not stored"
+            copy={`The service holds no result for the ${windowKind} window ending ${fmtInstant(windowEnd, timeZone)}, so it cannot be replayed. Full gate results are kept for a limited time.`}
+            action={{ label: 'Replay the newest window', onClick: () => setParams(p => { p.delete('window'); return p; }, { replace: true }) }} />
         )}
         {!loopId && (
           <EmptyState level={2} title="Select a loop"
             copy="Replay walks the exact samples one evaluation window used — pick a loop above to begin." />
         )}
-        {history.isError && <QueryError title="Gate history unavailable" error={history.error} retry={() => void history.refetch()} />}
-        {loopId && !selected && !history.isLoading && !history.isError && (
+        {(list.error || at.isError) && <QueryError title="Gate history unavailable" error={at.isError ? at.error : list.error} retry={() => { if (at.isError) at.refetch(); else list.refetch(); }} />}
+        {loopId && !selected && !at.isLoading && !at.isError && !windowNotStored && !list.isLoading && (
           // CHG-098 (SME review 2 #29): what to try — the other window size, or the engine.
           <EmptyState title={`No evaluated ${windowKind} windows for this loop`}
             copy="Replay needs a stored result for a completed evaluation window, and this loop has none of this size yet. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a window is overdue."
@@ -290,7 +291,7 @@ export const CpmReplay: React.FC = () => {
           <KvRow label="Samples">{selected?.sampleCount ?? '—'}</KvRow>
           <KvRow label="Calculation">
             v{selected?.metadata.calculationVersion ?? '—'} · profile v{selected?.metadata.dynamicsProfileVersion ?? '—'}
-            {selected?.metadata.replayId ? ` · replay ${selected.metadata.replayId}` : ''}
+            {selected?.metadata.replayId ? ` · re-run ${selected.metadata.replayId}` : ''}
           </KvRow>
           {(GATE_METRICS[gateKey] ?? []).map(m => {
             // CHG-065: the verdict's own number first — the fused row carries the window's G0–G4 values (aligned short

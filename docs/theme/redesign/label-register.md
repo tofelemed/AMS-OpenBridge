@@ -66,3 +66,4 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Chart lanes | MODE, VERDICT | Mode, Result | Historical | 12 |
 | M-078 (window KPI) | In AUTO; Time in normal mode | Time in normal mode | Historical selected window | 12 |
 | Window list result | Verdict | Result | Historical | 12 |
+| Window not stored | none (new state) | That window is not stored; Open the newest window / Replay the newest window | Investigation, Evidence Replay | 13 |
