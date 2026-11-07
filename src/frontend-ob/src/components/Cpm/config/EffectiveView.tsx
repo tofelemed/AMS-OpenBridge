@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
-import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
+import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText } from './configSupport';
 import { Toggletip } from '../../../ui/Toggletip';
 import { EffectivePropertyDialog, classTone } from './EffectivePropertyDialog';
 
@@ -45,7 +45,6 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
   const gate = q ? null : (picked && gates[picked] ? picked : gateKeys[0] ?? null);
   const rows = (gate ? matching.filter(k => k.startsWith(`${gate}.`)) : matching);
   const stack = useMemo(() => layerStack(eff), [eff]);
-  const workers = workersSummary(eff);
   const runDiffers = !!runBundleHash && (eff.bundle ? eff.bundle.contentHash !== runBundleHash : !runBundleHash.startsWith('profile:') && runBundleHash !== 'legacy');
 
   return (
@@ -109,7 +108,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
       )}
 
       <details className="cpm-config-workers" id="config-workers" ref={workersBox}>
-        <summary><TonePill tone={workers.tone}>{workers.text}</TonePill> <span className="cpm-event-row__sub">APPLY acknowledgements</span></summary>
+        <summary>APPLY acknowledgements</summary>
         <table className="cpm-table" data-table="effective-workers">
           <thead><tr><th>job</th><th>jar</th><th>catalogue</th><th>applied</th></tr></thead>
           <tbody>

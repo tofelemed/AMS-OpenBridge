@@ -160,11 +160,7 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
         <ObcButton variant="normal" onClick={backToLive}>Live ›</ObcButton>
       )}
       {rangeError && <span className="trend-page__error" role="alert">{rangeError}</span>}
-      {(window || (pens.length > 0 && fresh)) && (
-        <span className="trend-core__clock" data-testid="trend-page-mode">
-          {window ? 'PINNED WINDOW' : 'LIVE'}
-        </span>
-      )}
+      {window && <span className="trend-core__clock" data-testid="trend-page-mode">PINNED WINDOW</span>}
     </>
   );
 
@@ -201,6 +197,7 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
           // CHG-080: Zoom area / Undo / Reset act on the chart, not the window — keep them when pinned
           showZoomBar={!!window}
           onSampleAge={onSampleAge}
+          sampleFresh={fresh}
           // With the selector the band says Choose a loop; without it the legend keeps its old words.
           emptyLegendText={canPick ? '' : undefined}
         />

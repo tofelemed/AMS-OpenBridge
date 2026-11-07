@@ -14,7 +14,7 @@ const LOOPS = [
   { loopId: 'SHARED', tags: { PV: 'root.h.cpm.S.pv', SP: 'root.h.cpm.S.pv' } },
 ];
 let pensSeen: Array<{ path: string; color?: string; label?: string; lineStyle?: string }> = [];
-type CoreProps = { pens: typeof pensSeen; onRemovePen?: (p: string) => void; onSampleAge?: (age: number | null, rangeMs: number) => void; emptyLegendText?: string };
+type CoreProps = { pens: typeof pensSeen; onRemovePen?: (p: string) => void; onSampleAge?: (age: number | null, rangeMs: number) => void; sampleFresh?: boolean; emptyLegendText?: string };
 let core: CoreProps = { pens: [] };
 let loopsState = { loading: false, error: null as Error | null };
 const refetch = vi.fn();
@@ -101,14 +101,15 @@ describe('TrendPage empty and permissions', () => {
     expect(screen.queryByText('LIVE')).toBeNull();
   });
 
-  it('shows LIVE only while samples arrive', () => {
+  it('hands the time bar the sample-fresh verdict and prints no LIVE of its own', () => {
     open('/trend?loop=FIC1');
-    expect(screen.queryByText('LIVE')).toBeNull(); // pens, but no samples yet
+    expect(core.sampleFresh).toBe(false); // pens, but no samples yet
     act(() => core.onSampleAge?.(5_000, 900_000));
-    expect(screen.getByText('LIVE')).toBeTruthy();
+    expect(core.sampleFresh).toBe(true);
     act(() => core.onSampleAge?.(600_000, 900_000)); // newest sample is stale for a 15 m window
-    expect(screen.queryByText('LIVE')).toBeNull();
+    expect(core.sampleFresh).toBe(false);
     act(() => core.onSampleAge?.(null, 900_000));
+    expect(core.sampleFresh).toBe(false);
     expect(screen.queryByText('LIVE')).toBeNull();
   });
 

@@ -39,8 +39,11 @@ describe('EffectiveView', () => {
     const rows = within(screen.getByRole('table', { name: 'Effective properties' })).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);                                                                            // G0's three properties only
     expect(rows[0].textContent).toMatch(/G0\.coverage_min.*0\.95.*PROFILE/);   // alphabetical within the gate
-    expect(screen.getByText(/2 of 2 applied · one jar 4ea1da78 · catalogue matches/)).toBeTruthy();
-    expect(screen.getByText('APPLY acknowledgements').closest('details')!.hasAttribute('open')).toBe(false);
+    const box = screen.getByText('APPLY acknowledgements').closest('details')!;
+    expect(box.hasAttribute('open')).toBe(false);
+    expect(box.querySelector('summary')!.textContent).toBe('APPLY acknowledgements');
+    expect(screen.queryByText(/applied · one jar|workers on one jar/)).toBeNull();
+    expect(within(box).getByRole('table')).toBeTruthy();
   });
 
   it('choosing a gate switches the table; the search crosses gates and filters the list', () => {
@@ -66,7 +69,8 @@ describe('EffectiveView', () => {
     render(<EffectiveView eff={{ ...eff, state: 'NO_ACTIVE_BUNDLE', bundle: null, note: 'no governed bundle is active for this loop: the engine runs the factory layer', sources: Object.fromEntries(Object.keys(eff.properties).map(k => [k, 'FACTORY'])), workers: eff.workers.map(w => ({ ...w, ack: undefined })) }} />);
     expect(screen.queryByText(/no governed bundle is active/)).toBeNull();   // the page header's Runs under says it
     expect(gateOptions()).toEqual(['G0', 'G4', 'G12']);
-    expect(screen.getByText(/factory layer \(nothing to acknowledge\)/)).toBeTruthy();
+    expect(screen.queryByText(/nothing to acknowledge/)).toBeNull();
+    expect(screen.getByText('APPLY acknowledgements')).toBeTruthy();
   });
 
   it('shows Property, Value and Source, with class under the name', () => {

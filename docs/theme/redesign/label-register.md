@@ -131,3 +131,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Administration tabs | User Management; Roles & Permissions; Data Sources; Plant Model; Tag Aliases; Audit Log; System Settings | Users; Roles & permissions; Data sources; Plant model; Tag aliases; Audit log; System settings | Administration | 28 |
 | Setting with no source | illustrative default values | Not connected | System settings | 28 |
 | Save on System settings | Save unavailable | Save settings (disabled, reason on screen) | System settings | 28 |
+| Loops with a readiness gap | Degraded (row pill) | "{n} degraded" count and filter | Loop Registry | CHG-149 |
+| Trend mode with pens and stale samples | LIVE | NO NEW SAMPLES | Trend | CHG-149 |

@@ -121,6 +121,17 @@ describe('LoopRegistry list', () => {
     expect(screen.getByRole('link', { name: 'A1' })).toBeTruthy();
   });
 
+  it('counts degraded loops, lists them with ?gap=degraded, and Clear returns', () => {
+    loops = [loop('GOOD'), loop('DEG', { observabilityFlags: ['NO_VP'], tags: {} }), loop('OFF', { monitoringEnabled: false })];
+    open('/cpm/registry?page=1');
+    fireEvent.click(screen.getByRole('link', { name: /^[0-9]+ degraded$/ }));
+    expect(screen.getByTestId('where').textContent).toContain('gap=degraded');
+    expect(screen.getAllByRole('link', { name: /^(GOOD|DEG|OFF)$/ }).map(a => a.textContent)).toEqual(['DEG']);
+    expect(screen.getByText(/Loops with a readiness gap/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByTestId('where').textContent).not.toContain('gap=');
+  });
+
   it('shows one pill beside the name only for an abnormal state', () => {
     loops = [
       loop('GOOD'),
@@ -131,7 +142,7 @@ describe('LoopRegistry list', () => {
     open('/cpm/registry?retired=1');
     const rowOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!;
     expect(within(rowOf('GOOD')).queryByText(/Degraded|Not monitored|Retired/)).toBeNull();
-    expect(within(rowOf('DEG')).getByText('Degraded')).toBeTruthy();
+    expect(within(rowOf('DEG')).queryByText(/Degraded/)).toBeNull();
     expect(within(rowOf('OFF')).getByText('Not monitored')).toBeTruthy();
     expect(within(rowOf('OLD')).getByText('Retired')).toBeTruthy();
   });

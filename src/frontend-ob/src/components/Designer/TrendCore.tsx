@@ -55,6 +55,8 @@ interface TrendCoreProps {
   regression?: boolean;
   /** Read-only: how old the newest sample is against the window end (null when there is none), and the live range. */
   onSampleAge?: (ageMs: number | null, rangeMs: number) => void;
+  /** The page's verdict on the newest sample; the time bar reads LIVE only with it. Absent: the bar keeps its old rule. */
+  sampleFresh?: boolean;
   /** Replaces the legend text shown with no pens; the default keeps the old words. */
   emptyLegendText?: string;
 }
@@ -75,6 +77,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   stepped,
   regression,
   onSampleAge,
+  sampleFresh,
   emptyLegendText,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
@@ -386,7 +389,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
           onStep={step}
           onTogglePlay={togglePlay}
           onNow={() => { setLive(true); setPlaying(true); setEndTs(0); box.reset(); }}
-          box={box} hasData={hasData}
+          box={box} hasData={hasData} sampleFresh={sampleFresh} hasPens={pens.length > 0}
         />
       )}
     </div>

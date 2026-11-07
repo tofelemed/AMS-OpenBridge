@@ -42,6 +42,7 @@ export const LoopRegistry: React.FC = () => {
   const scope = useCpmScope();
   const summary = useFleetSummary(scope.params);
   const inScope = useMemo(() => loops.filter(l => scope.matches(l) && loopMatchesQuery(l, search)), [loops, search, scope]);
+  const degraded = useMemo(() => loops.filter(l => scope.matches(l) && hasGap(l, 'degraded')).length, [loops, scope]);
   const retiredHidden = showRetired || gap ? 0 : inScope.filter(l => !l.isActive).length;
   const filtered = useMemo(
     () => inScope.filter(l => gap ? hasGap(l, gap) : showRetired || l.isActive),
@@ -87,7 +88,7 @@ export const LoopRegistry: React.FC = () => {
         <LoopDetail loopId={selectedId} onBack={() => set('loop', null)} />
       ) : (
         <>
-          <ReadinessStrip summary={summary.data} isError={summary.isError} error={summary.error} retry={() => void summary.refetch()} gapHref={gapHref} />
+          <ReadinessStrip summary={summary.data} isError={summary.isError} error={summary.error} retry={() => void summary.refetch()} gapHref={gapHref} degraded={degraded} />
           <section className="cpm-surface">
             <PanelHead
               title="Loop assets"

@@ -1169,3 +1169,14 @@ None.
 | Configuration id, client id, version | Technical details in the source detail |
 | Plant model onboarding strip | Behind a ? on Plant model |
 | Open Governance → | Audit log tab (`admin.audit.view`) |
+
+## CHG-149 section 4 page polish
+
+### Removed, reworded or moved
+
+| Page | Was | Now |
+|---|---|---|
+| Loop Registry | "Degraded" pill on nearly every row | Removed. Rows keep Not monitored and Retired only |
+| Loop Registry | Limits line with two counts | A third count "{n} degraded" linking to `?gap=degraded`; the list filter reads "Loops with a readiness gap (degraded)" with Clear, as the other two |
+| Gate Configuration | Pill under the table: "5 workers on one jar dabe1862 · factory layer (nothing to acknowledge)" beside "APPLY acknowledgements" | The summary reads "APPLY acknowledgements" only. The workers and their jar ids are in the disclosure's table. The Worker alignment tile still opens it |
+| Trend | "LIVE" in the page controls and in the time bar | One LIVE, in the time bar, only with fresh samples. No pens: nothing. Pens but no new samples: "NO NEW SAMPLES". PAUSED, HISTORICAL and PINNED WINDOW unchanged. Chart and dialog bars keep today's rule |

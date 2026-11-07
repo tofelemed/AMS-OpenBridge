@@ -24,7 +24,13 @@ export const TrendTimeBar: React.FC<{
   onNow: () => void;
   box: BoxZoom;
   hasData: boolean;
-}> = ({ windowStart, windowEnd, fmtClock, rangeMs, live, playing, onRange, onStep, onTogglePlay, onNow, box, hasData }) => (
+  /** The page's sample-fresh state: with it, LIVE needs fresh samples. Without it (chart, dialog) a live, playing bar reads LIVE as before. */
+  sampleFresh?: boolean;
+  hasPens?: boolean;
+}> = ({ windowStart, windowEnd, fmtClock, rangeMs, live, playing, onRange, onStep, onTogglePlay, onNow, box, hasData, sampleFresh, hasPens = true }) => {
+  const mode = !live ? 'HISTORICAL' : !playing ? 'PAUSED'
+    : sampleFresh === undefined || sampleFresh ? 'LIVE' : hasPens ? 'NO NEW SAMPLES' : null;
+  return (
   <div className="trend-core__bar" data-testid="trend-timebar">
     <span className="trend-core__clock">{fmtClock(windowStart)}</span>
     {RANGES.map(r => (
@@ -50,10 +56,9 @@ export const TrendTimeBar: React.FC<{
     >Now</button>
     <span className="trend-core__clock" data-testid="trend-end">{fmtClock(windowEnd)}</span>
     <ChartZoomBar box={box} hasData={hasData} live={live && playing} />
-    <span className="trend-core__mode" data-testid="trend-mode">
-      {live ? (playing ? 'LIVE' : 'PAUSED') : 'HISTORICAL'}
-    </span>
+    {mode && <span className="trend-core__mode" data-testid="trend-mode">{mode}</span>}
   </div>
-);
+  );
+};
 
 export default TrendTimeBar;
