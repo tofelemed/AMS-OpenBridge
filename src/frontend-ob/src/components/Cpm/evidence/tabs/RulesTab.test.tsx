@@ -24,9 +24,9 @@ const entry = {
 const asUser = (permissions: string[]) =>
   useAuthStore.setState({ user: { user_id: 'u', username: 'eng', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't' });
 
-const show = (m = manifest()) => render(
+const show = (m: ReturnType<typeof manifest> | null = manifest(), extra: { manifestLoading?: boolean; manifestError?: unknown } = {}) => render(
   <QueryClientProvider client={new QueryClient()}>
-    <MemoryRouter><RulesTab gate="G3" run={methodRun()} entry={entry} manifest={m} timeZone="UTC" /></MemoryRouter>
+    <MemoryRouter><RulesTab gate="G3" run={methodRun()} entry={entry} manifest={m ?? undefined} timeZone="UTC" {...extra} /></MemoryRouter>
   </QueryClientProvider>,
 );
 
@@ -67,5 +67,16 @@ describe('RulesTab', () => {
     asUser([]);
     show();
     expect(screen.getAllByText(/not those in force now/)).toHaveLength(1);
+  });
+
+  it('does not say no parameter was retained while the manifest is loading, and shows a read error as an error', () => {
+    asUser([]);
+    show(null, { manifestLoading: true });
+    expect(screen.queryByText(/No parameter was retained/)).toBeNull();
+    expect(screen.getByText(/Loading the parameters/)).toBeTruthy();
+    cleanup();
+    show(null, { manifestError: new Error('503 down') });
+    expect(screen.queryByText(/No parameter was retained/)).toBeNull();
+    expect(screen.getByRole('alert').textContent).toMatch(/503 down/);
   });
 });

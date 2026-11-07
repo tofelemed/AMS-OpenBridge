@@ -18,6 +18,11 @@ describe('proofRows', () => {
     expect(rows[0].value).not.toMatch(/^0/);
   });
 
+  it('shows a real 0 as 0', () => {
+    const rows = proofRows('G3', methodRun({ result: { mae: 0, gate3_status: 'PASS' } }));
+    expect(rows[0]).toEqual({ name: 'Mean absolute error', id: 'CPLM-010', value: '0', unit: 'PV units' });
+  });
+
   it('leaves out a calculation this run does not carry', () => {
     expect(proofRows('G5', methodRun({ result: { acf_regularity: 0.82, gate5_status: 'WARN' } })).map(r => r.id)).toEqual(['CPLM-031']);
   });

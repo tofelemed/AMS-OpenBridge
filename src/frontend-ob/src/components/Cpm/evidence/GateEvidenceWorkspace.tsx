@@ -285,7 +285,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
             onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }}
             onRules={() => setTab('rules')} onSignal={() => setTab('signal')} />
         )}
-        {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={manifest.data} timeZone={timeZone} />}
+        {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={rawManifest.data} manifestLoading={rawManifest.isLoading} manifestError={rawManifest.error} timeZone={timeZone} />}
         {tab === 'signal' && <SignalTab run={run.data} timeZone={timeZone} timeFmt={timeFmt} />}
         {tab === 'identity' && <IdentityTab run={run.data} manifest={manifest.data} flags={currentOption?.flags} inputs={inputContextOf(loop)} />}
       </div>

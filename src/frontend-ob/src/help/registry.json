@@ -1031,7 +1031,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1056,7 +1056,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1081,7 +1081,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1106,7 +1106,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1131,7 +1131,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1156,7 +1156,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1181,7 +1181,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1207,7 +1207,7 @@
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1232,7 +1232,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1257,7 +1257,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1282,7 +1282,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1307,7 +1307,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1332,7 +1332,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1357,7 +1357,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1382,7 +1382,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1406,7 +1406,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1433,7 +1433,7 @@
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateFusionEngine.java:239",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },
@@ -1459,7 +1459,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/components/Cpm/windows/WindowResults.tsx:19-26",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/evidence/ExplainPanel.tsx:98",
+      "src/frontend-ob/src/components/Cpm/evidence/tabs/RulesTab.tsx:57",
       "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryGateDetail.tsx:111"
     ]
   },

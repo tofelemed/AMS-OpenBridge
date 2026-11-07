@@ -13,7 +13,8 @@ import type { GateState } from '../GateResultState';
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('../useFusedRow', () => ({ useFusedRow: () => ({ row: { diagnosis: 'NO_CALL', observabilityFlags: [], gates: [], metrics: { sample_period_sec: 5 }, verdictV2: null }, isLoading: false, isError: false }) }));
+const fused = vi.hoisted(() => ({ metrics: { sample_period_sec: 5 } as Record<string, number> }));
+vi.mock('../useFusedRow', () => ({ useFusedRow: () => ({ row: { diagnosis: 'NO_CALL', observabilityFlags: [], gates: [], metrics: fused.metrics, verdictV2: null }, isLoading: false, isError: false }) }));
 vi.mock('../ExplainWhy', () => ({ ExplainWhy: () => <div data-testid="explain-why" /> }));
 vi.mock('../EvidenceArtifactRenderer', () => ({ EvidenceArtifactRenderer: () => <div data-testid="artifacts" /> }));
 afterEach(cleanup);
@@ -42,6 +43,11 @@ describe('ProofTab', () => {
   it('calls the window divided by the sample period nominal', () => {
     show();
     expect(screen.getByText(/8,640 samples nominal at 5 s/)).toBeTruthy();
+  });
+
+  it('omits the nominal clause when no sample period is served', () => {
+    fused.metrics = {};
+    try { show(); expect(screen.queryByText(/nominal/)).toBeNull(); } finally { fused.metrics = { sample_period_sec: 5 }; }
   });
 
   it('draws the run artifacts when they are ready, and says why there are none when they are not', () => {

@@ -21,9 +21,12 @@ export const RulesTab: React.FC<{
   gate: string;
   run: MethodRun | undefined;
   entry: GateCatalogueEntry | undefined;
+  /** The retained manifest, never a reconstruction's: this block says what the run ran under. */
   manifest: EvidenceManifest | undefined;
+  manifestLoading?: boolean;
+  manifestError?: unknown;
   timeZone: string;
-}> = ({ gate, run, entry, manifest, timeZone }) => {
+}> = ({ gate, run, entry, manifest, manifestLoading, manifestError, timeZone }) => {
   const [showConfig, setShowConfig] = useState(false);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
@@ -52,7 +55,11 @@ export const RulesTab: React.FC<{
 
       <section className="cpm-surface">
         <h3 className="cpm-eyebrow">Parameters used</h3>
-        {params.length === 0 ? (
+        {!manifest && manifestError != null ? (
+          <p className="cpm-field__error" role="alert">Parameters could not be read: {manifestError instanceof Error ? manifestError.message : String(manifestError)}</p>
+        ) : !manifest ? (
+          <p className="cpm-copy" role="status" aria-busy={manifestLoading}>Loading the parameters…</p>
+        ) : params.length === 0 ? (
           <p className="cpm-copy">No parameter was retained for this run.</p>
         ) : (
           <dl className="cpm-workbench__params">

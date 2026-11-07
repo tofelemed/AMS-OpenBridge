@@ -51,9 +51,7 @@ export const ExplainWhy: React.FC<{
   // Only a window the engine did not judge. NO_CALL and INSUFFICIENT_EVIDENCE are verdicts (conditionOf: no-fault), and the gates
   // of a short window read Insufficient evidence, so "no verdict" is never said.
   const cond = conditionOf(fused?.diagnosis);
-  if (cond.kind === 'insufficient' || cond.kind === 'excluded') {
-    open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))} — ${cond.kind === 'insufficient' ? 'not enough to reach a diagnosis' : 'no diagnosis was reached'}.`);
-  }
+  if (cond.kind === 'insufficient' || cond.kind === 'excluded') open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))}.`);
   if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
 
   return (

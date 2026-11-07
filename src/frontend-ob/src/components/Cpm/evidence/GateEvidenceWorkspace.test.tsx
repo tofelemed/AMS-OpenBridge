@@ -240,6 +240,16 @@ describe('GateEvidenceWorkspace', () => {
     expect(screen.getAllByText('Error against the objective')).toHaveLength(1);
   });
 
+  it('lists the parameters of the retained run under ?view=, never of a reconstruction', async () => {
+    const art = (basis: string, v: string) => ({ artifactId: basis, methodRunId: RUN, gate: 'G3', kind: 'error_band', roleOrPath: null, x: { quantity: null, unit: null }, y: { quantity: null, unit: null }, dataType: 'f64', columns: [], encoding: 'raw', calculationSamples: 0, displayPoints: 0, chunkCount: 1, totalBytes: 1, checksum: 'c', chunkChecksums: [], chunksUrl: '', readiness: 'COMPLETE', readinessReason: null, provenance: { tolerance_band: v }, retentionClass: 'A', pinned: false, createdAt: '2026-09-17T08:00:00Z', completedAt: null, basis });
+    const m = { ...noEvidence(RUN), readiness: 'COMPLETE', count: 1, artifacts: [art('RETAINED', '0.5')], reconstructions: [{ analysisRunId: 'ar-9', state: 'DONE', createdAt: '2026-09-18T08:00:00Z', source: 'iotdb', differing: 1, identical: 0, readiness: 'COMPLETE', sourceCommit: null, jarSha256: null, artifacts: [art('RECONSTRUCTED', '0.9')] }] };
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => (url.endsWith('/method-runs/evidence/batch') ? { count: 1, manifests: { [RUN]: m } } : /\/method-runs\/[^/]+\/evidence$/.test(url) ? m : respond(url)));
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3&view=ar-9&sub=rules`);
+    expect(await screen.findByText('Tolerance band')).toBeTruthy();
+    expect(screen.getByText(/^0.50?$/)).toBeTruthy();
+    expect(screen.queryByText(/^0.90?$/)).toBeNull();
+  });
+
   it('labels Signal context as not retained proof', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3&sub=signal`);
     expect(await screen.findByText('Signal context, not retained gate proof.')).toBeTruthy();

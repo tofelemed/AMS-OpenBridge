@@ -34,12 +34,12 @@ describe('ExplainWhy, the whole-window sentence', () => {
 
   it('still says it of a window with too few samples', () => {
     show('INSUFFICIENT_DATA');
-    expect(screen.getByText(/The whole window: .* — not enough to reach a diagnosis/)).toBeTruthy();
+    expect(screen.getByText(/^The whole window: not evaluated: not enough data\.$/)).toBeTruthy();
     expect(screen.queryByText(/carries a verdict/)).toBeNull();   // its gates read Insufficient evidence, which is a verdict word
   });
 
   it('still says it of an excluded window, with its real reason', () => {
     show('EXCLUDED_MODE');
-    expect(screen.getByText(/The whole window: excluded: loop not in automatic — no diagnosis was reached/)).toBeTruthy();
+    expect(screen.getByText(/^The whole window: excluded: loop not in automatic\.$/)).toBeTruthy();
   });
 });
