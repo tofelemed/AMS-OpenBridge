@@ -22,6 +22,8 @@ public interface ICpmLoopRegistryService
     /// </summary>
     Task<CpmBulkActivateResult> BulkActivateAsync(IReadOnlyList<CpmLoopActivateRequest> requests, CancellationToken ct);
     Task<bool> DeleteAsync(string loopId, CancellationToken ct);
+    /// <summary>CHG-146: retire (is_active and monitoring.enabled off) or restore one loop, keeping all its data.</summary>
+    Task<LoopRetireOutcome> SetRetiredAsync(string loopId, bool retire, CancellationToken ct);
     /// <summary>Retire a batch of loops, releasing their projected UNS assets.</summary>
     Task<CpmBulkDeleteResult> BulkDeleteAsync(IReadOnlyList<string> loopIds, CancellationToken ct);
     /// <summary>Re-publishes loop evidence (peer links, step test) onto the CPLM broadcast topic.</summary>

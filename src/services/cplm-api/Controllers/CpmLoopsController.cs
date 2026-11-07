@@ -237,6 +237,41 @@ public sealed class CpmLoopsController : ControllerBase
     }
 
     /// <summary>
+    /// CHG-146: retire a loop. Never a delete - tags, links, bindings and all history stay, and it can be restored.
+    /// A reason is required and goes into the audit event. Retiring a retired loop changes nothing and says so.
+    /// </summary>
+    [HttpPost("{loopId}/retire")]
+    [Authorize(Policy = "cpm.manage")]
+    public async Task<IActionResult> Retire(string loopId, [FromBody] CpmLoopRetireRequest request, CancellationToken ct)
+    {
+        var reason = request?.Reason?.Trim();
+        if (string.IsNullOrEmpty(reason))
+            return BadRequest(new { error = "REASON_REQUIRED", message = "A reason is required to retire a loop." });
+        return await SetRetired(loopId, true, reason, ct);
+    }
+
+    /// <summary>CHG-146: bring a retired loop back. Restoring a loop that is not retired changes nothing and says so.</summary>
+    [HttpPost("{loopId}/restore")]
+    [Authorize(Policy = "cpm.manage")]
+    public Task<IActionResult> Restore(string loopId,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CpmLoopRetireRequest? request,
+        CancellationToken ct) =>
+        SetRetired(loopId, false, request?.Reason?.Trim(), ct);
+
+    private async Task<IActionResult> SetRetired(string loopId, bool retire, string? reason, CancellationToken ct)
+    {
+        var outcome = await _registry.SetRetiredAsync(loopId, retire, ct);
+        if (outcome == LoopRetireOutcome.NotFound)
+            return NotFound(new { error = $"Loop '{loopId}' is not registered" });
+        var changed = outcome == LoopRetireOutcome.Changed;
+        if (changed)
+            _audit.Emit(retire ? "CPM_LOOP_RETIRED" : "CPM_LOOP_RESTORED", Actor(), "CpmLoop", loopId,
+                new { reason, note = "Analytics history retained" });
+        var note = changed ? null : retire ? "Loop was already retired" : "Loop is not retired";
+        return Ok(new { loopId, retired = retire, changed, note });
+    }
+
+    /// <summary>
     /// A8 — recompute this loop's gates from historical samples. Runs as a bounded
     /// BATCH job, so a verdict comes back in seconds instead of waiting for the
     /// streaming pipeline's event-time timers to cross a 12h/24h window.
