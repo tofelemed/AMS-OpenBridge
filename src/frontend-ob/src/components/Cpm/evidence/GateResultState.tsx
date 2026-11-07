@@ -103,8 +103,12 @@ export const GateResultStatePanel: React.FC<{
       <div className="cpm-gate-state" data-state={state.kind}>
         {/* Task 15: "not retained" is the title; no pill saying it again, and the policy sentence sits behind a ? */}
         {!notRetained && <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>}
-        <EmptyState title={state.title} copy={notRetained ? undefined : state.detail} action={action} />
-        {notRetained && <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>}
+        {notRetained ? (
+          <div className="cpm-gate-state__head">
+            <h3>{state.title}</h3>
+            <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>
+          </div>
+        ) : <EmptyState title={state.title} copy={state.detail} action={action} />}
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}
       </div>

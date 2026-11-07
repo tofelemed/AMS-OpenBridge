@@ -124,9 +124,9 @@ export const ResponseWorkspace: React.FC = () => {
           modelsStatus={models.isError ? 'error' : models.isSuccess ? 'ready' : 'loading'} />
       )}
       {nothingYet ? (
-        <ResponseEmpty loopId={loopId} canConfig={canConfig} censoredCount={0} />
+        <ResponseEmpty loopId={loopId} canConfig={canConfig} />
       ) : (
-      <div className="cpm-response-columns">
+      <div className={`cpm-response-columns${!eventParam && !methodRunParam && noEvents ? ' cpm-response-columns--empty' : ''}`}>
         <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}
           hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => setParams(p => { p.set('event', e.eventId); p.delete('methodRun'); return p; })}
           censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored} />
@@ -134,7 +134,7 @@ export const ResponseWorkspace: React.FC = () => {
         <div className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
           {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
           {!eventParam && !methodRunParam && (noEvents ? (
-            <ResponseEmpty loopId={loopId} canConfig={canConfig} censoredCount={censoredCount} />
+            <ResponseEmpty loopId={loopId} canConfig={canConfig} />
           ) : <EmptyState title="No event selected" copy="Choose an event in the list on the left to see its result, response chart, fit residuals, candidate models and frequency response." />)}
           {!eventParam && methodRunParam && (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)}
           {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}

@@ -9,3 +9,9 @@
 .cpm-response-states dd { margin: 0; }
 .cpm-table__group th { text-align: left; font-weight: 600; }
 .cpm-response-tile { color: inherit; text-decoration: none; }
+
+/* No event to show: the third column is empty, so the analysis panel takes the free width (wide screens only; narrower grids already stack). */
+.cpm-response-columns--empty > .cpm-response-detail { display: none; }
+@media (min-width: 1401px) {
+  .cpm-response-columns.cpm-response-columns--empty > .cpm-response-centre { grid-column: 2 / -1; }
+}

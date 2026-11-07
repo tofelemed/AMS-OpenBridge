@@ -20,7 +20,8 @@ export const CalcBand: React.FC<{
   const [details, setDetails] = useState(false);
   const verdict = conditionOf(matrix?.diagnosis);
   return (
-    <>
+    <div className="cpm-calc-band">
+      <span className="cpm-calc-band__facts">
       {matrix && <span className="cpm-band__meta">{windowSpan(matrix, timeZone)}</span>}
       {verdictFailed
         ? <TonePill tone="warn">Verdict unavailable</TonePill>
@@ -30,10 +31,11 @@ export const CalcBand: React.FC<{
           Calculation v{matrix.metadata.calculationVersion ?? '—'} {'·'} profile v{matrix.metadata.dynamicsProfileVersion ?? '—'}
         </span>
       )}
+      </span>
       <ObcButton variant="flat" disabled={!matrix} onClick={() => setDetails(true)}>Run details {'↗'}</ObcButton>
       {/* the band is sticky: the dialog goes to the body so it is not clipped or stacked under it */}
       {matrix && details && createPortal(<RunDetailsDialog open onClose={() => setDetails(false)} row={matrix} timeZone={timeZone} />, document.body)}
-    </>
+    </div>
   );
 };
 

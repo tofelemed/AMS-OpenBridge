@@ -38,10 +38,9 @@ export const EventList: React.FC<EventListProps> = ({ events, selectedId, timeZo
         {showCensored ? 'Hide' : 'Show'} {censoredCount} censored candidate{censoredCount === 1 ? '' : 's'}
       </ObcButton>
     )}
-    {events.length === 0 && (
+    {events.length === 0 && (loading || censoredCount === 0 || showCensored) && (
       <p className="cpm-copy">
         {loading ? 'Loading events…'
-          : censoredCount > 0 && !showCensored ? `No complete response event yet - the ${censoredCount} captured candidate${censoredCount === 1 ? ' was' : 's were'} censored (superseded by a later change, or a source gap). Show them to read each reason.`
           : 'No response event recorded for this loop. Events appear when a qualifying SP or input change is captured; rejected and censored ones are listed too.'}
       </p>
     )}

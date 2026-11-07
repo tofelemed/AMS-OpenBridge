@@ -68,28 +68,23 @@ export const ResponseTiles: React.FC<{
   censoredHidden?: number;
 }> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0 }) => {
   const f = responseFacts(events, hasMore, models ?? [], modelsStatus);
-  const basis = censoredHidden > 0 ? `loaded, ${censoredHidden} censored not counted` : 'loaded';
+  const basis = censoredHidden > 0 ? `${censoredHidden} censored not counted` : undefined;
   const eventsTo = events.length > 0 ? EVENTS_ID : undefined;
   return (
     <div className="cpm-kpi-row cpm-response-tiles">
       <Tile caption="Response events" value={f.events} sub={basis} to={eventsTo} />
-      <Tile caption="Accepted events" value={f.accepted} sub={basis} to={eventsTo} />
+      <Tile caption="Accepted events" value={f.accepted} to={eventsTo} />
       <Tile caption="System model" value={f.model} to={(models ?? []).length > 0 ? MODELS_ID : undefined} />
     </div>
   );
 };
 
-export const ResponseEmpty: React.FC<{ loopId: string; canConfig: boolean; censoredCount: number }> = ({ loopId, canConfig, censoredCount }) => {
+export const ResponseEmpty: React.FC<{ loopId: string; canConfig: boolean }> = ({ loopId, canConfig }) => {
   const navigate = useNavigate();
   return (
     <section className="cpm-surface cpm-response-empty">
       <PanelHead eyebrow="Response analysis" title="No qualifying response event" />
       <p className="cpm-copy">A qualifying setpoint or output step is needed before a model can be estimated.</p>
-      {censoredCount > 0 && (
-        <p className="cpm-copy" role="status">
-          {censoredCount} captured candidate{censoredCount === 1 ? ' was' : 's were'} censored. Show them in the list to read why.
-        </p>
-      )}
       <div className="cpm-response-empty__actions">
         <ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId))}>Review setpoint changes {'→'}</ObcButton>
         {canConfig && <ObcButton variant="flat" onClick={() => navigate(configHref({ loop: loopId, gate: 'G12' }))}>Check G12 settings</ObcButton>}

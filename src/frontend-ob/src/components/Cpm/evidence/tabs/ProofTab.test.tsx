@@ -42,12 +42,12 @@ describe('ProofTab', () => {
 
   it('calls the window divided by the sample period nominal', () => {
     show();
-    expect(screen.getByText(/8,640 samples nominal at 5 s/)).toBeTruthy();
+    expect(screen.getByText(/Nominal 8,640 samples at 5 s/)).toBeTruthy();
   });
 
   it('omits the nominal clause when no sample period is served', () => {
     fused.metrics = {};
-    try { show(); expect(screen.queryByText(/nominal/)).toBeNull(); } finally { fused.metrics = { sample_period_sec: 5 }; }
+    try { show(); expect(screen.queryByText(/nominal/i)).toBeNull(); } finally { fused.metrics = { sample_period_sec: 5 }; }
   });
 
   it('draws the run artifacts when they are ready, and says why there are none when they are not', () => {

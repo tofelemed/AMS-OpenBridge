@@ -6,7 +6,7 @@
 import React from 'react';
 import GateResult from './GateResult';
 import type { CalcSortKey } from '../calcSort';
-import { valueText, type MetricView } from './calcView';
+import { valueText, windowWideReason, type MetricView } from './calcView';
 
 export const CalcList: React.FC<{
   rows: MetricView[];
@@ -14,8 +14,11 @@ export const CalcList: React.FC<{
   onSelect: (id: string) => void;
   /** The sortable heading for a key. */
   head: (key: CalcSortKey, label: string, title?: string) => React.ReactNode;
-}> = ({ rows, selectedId, onSelect, head }) => (
+}> = ({ rows, selectedId, onSelect, head }) => {
+  const shared = windowWideReason(rows);
+  return (
   <>
+    {shared && <p className="cpm-calc-list__reason" role="status">{shared.charAt(0).toUpperCase() + shared.slice(1)}.</p>}
     <div className="cpm-event-head cpm-calc-list__row cpm-table-head--sticky">
       <span>{head('name', 'Calculation', 'Sorts by ID, then by name')}</span>
       <span>Value / unit</span>
@@ -39,7 +42,7 @@ export const CalcList: React.FC<{
                 {na ? (
                   <>
                     <span className="cpm-metric-na">{na.short}</span>
-                    {na.reason && <div className="cpm-event-row__sub">{na.reason}</div>}
+                    {na.reason && !(shared && na.short === 'Insufficient data') && <div className="cpm-event-row__sub">{na.reason}</div>}
                   </>
                 ) : value != null ? valueText(metric, value) : null}
               </span>
@@ -50,6 +53,7 @@ export const CalcList: React.FC<{
       })}
     </div>
   </>
-);
+  );
+};
 
 export default CalcList;

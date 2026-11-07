@@ -1,6 +1,6 @@
 /**
  * Task 20: the result of the gate that judges a metric. When the metric itself has no value the gate may still have judged
- * the window on other inputs, so the word is muted and says so: it is never a pass for a number that does not exist.
+ * the window on other inputs, so the word is muted: it is never a pass for a number that does not exist. Only Pass carries the phrase.
  */
 import React from 'react';
 import { GateBadge } from '../../../ui/GateBadge';
@@ -9,7 +9,7 @@ import type { MetricView } from './calcView';
 
 export const GateResult: React.FC<{ gate: string; status: MetricView['status'] }> = ({ gate, status }) =>
   status.partial
-    ? <TonePill tone="muted">{status.label} on other inputs</TonePill>
+    ? <TonePill tone="muted">{status.label === 'Pass' ? `${status.label} on other inputs` : status.label}</TonePill>
     : <GateBadge status={status.code} gate={gate} />;
 
 export default GateResult;

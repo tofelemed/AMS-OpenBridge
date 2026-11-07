@@ -7,3 +7,11 @@
   .cpm-event-head.cpm-calc-list__row.cpm-table-head--sticky { display: flex; flex-wrap: wrap; position: static; }
   .cpm-event-head.cpm-calc-list__row > span:nth-child(2) { display: none; }
 }
+
+/* The window's one shared reason, above the list. */
+.cpm-calc-list__reason { margin: 0 0 var(--traverse-space-2); color: var(--element-neutral-color); }
+
+/* The band's facts wrap among themselves; Run details stays inline after them on the first line. */
+.cpm-calc-band { display: flex; flex: 1 1 0; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); min-width: 0; }
+.cpm-calc-band__facts { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); min-width: 0; }
+@media (max-width: 600px) { .cpm-calc-band { flex-basis: 100%; flex-wrap: wrap; } }

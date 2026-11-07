@@ -965,3 +965,29 @@ None.
 | Tiles | Response events; Accepted events (each with "loaded", plus "n censored not counted" when the list hides them; "None loaded" past one page with no accepted event); System model. Each tile links to the list or Model history |
 | Empty panel | Response analysis; four steps (1 · Capture, 2 · Qualify, 3 · Estimate, 4 · Review) |
 | Dialog | Event states explained ↗: Accepted, Rejected, Ineligible, Censored; "Every event shows its rule and reason. No model is created without an accepted event." |
+
+## CHG-145 section 3 page polish, each fact once
+
+### Removed, reworded or moved
+
+| Page | Was | Now |
+|---|---|---|
+| Calculations | "computed on a window that failed data qualification" under the value on every one of 19 rows | Said once, in one line above the list, when every Insufficient data row gives the same reason (two or more rows). Rows show "Insufficient data" or "Not calculated". A reason that belongs to one metric stays on its row |
+| Calculations | "Not usable on other inputs", "Symptom seen on other inputs" (the long pill overflowed the panel edge) | "Not usable", "Symptom seen", muted. Only Pass keeps the phrase: "Pass on other inputs" |
+| System Response | "n censored" said four times: two tile notes, the Events card paragraph, the analysis panel | Once: the Response events tile note "n censored not counted", only when n is above 0. The Accepted events tile has no note |
+| System Response | Tile note "loaded" | Removed (the "n+" count already says a page limit) |
+| System Response | Events card: "No complete response event yet - the n captured candidates were censored (superseded by a later change, or a source gap). Show them to read each reason." | Removed. The Show n censored candidates button stays |
+| System Response | Analysis panel: "n captured candidates were censored. Show them in the list to read why." | Removed. "A qualifying setpoint or output step is needed before a model can be estimated." stays |
+| Evidence Workbench | Proof window line: "8,619 samples nominal at 5.012 s" | "Nominal 8,619 samples at 5.012 s" (omitted when no sample period is served, as before) |
+| Evidence Workbench | Run bar fact "Calc version" with the 40-character build hash | "Calculation v3.0.0 · profile v2.0.0", the words Replay and Calculations use. Omitted when the window's row is not read. The hash stays on Identity & raw as Build commit |
+| Evidence Workbench | "Evidence not retained for this run" with the ? alone on the next line | The ? beside the heading |
+| Evidence Replay | Verdict card row "Selected check" showing the check name again beside its mark | Row "Check result" showing the mark only; the name is in the dropdown above |
+| Evidence Replay | Raw historian stage line: "series · n samples" | The series path only (the identity line has the sample count) |
+
+### Moved or new
+
+| Control | Now on |
+|---|---|
+| Run details ↗ (Calculations) | Stays inline after the band's facts; the facts wrap among themselves |
+| Run details ↗ (Replay) | Stays on the identity line (the 64-character line limit no longer applies there) |
+| Count check pill (Window Inspector) | Fits its content; the selected row's pill has the same outline as the others |

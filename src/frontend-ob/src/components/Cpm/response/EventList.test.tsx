@@ -46,6 +46,7 @@ describe('EventList', () => {
     const { rerender } = render(<EventList events={[]} selectedId={undefined} censoredCount={0} showCensored={false} {...base} loading={true} />);
     expect(screen.getByText(/Loading events/)).toBeTruthy();
     rerender(<EventList events={[]} selectedId={undefined} censoredCount={4} showCensored={false} {...base} />);
-    expect(screen.getByText(/No complete response event/)).toBeTruthy();
+    expect(screen.queryByText(/No complete response event|were censored/)).toBeNull();
+    expect(screen.getByRole('button', { name: /Show 4 censored candidates/ })).toBeTruthy();
   });
 });

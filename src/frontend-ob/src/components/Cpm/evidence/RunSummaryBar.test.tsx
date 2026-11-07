@@ -43,7 +43,7 @@ describe('RunSummaryBar', () => {
     expect(text).toMatch(/Loop result.*No fault identified/);
     expect(text).toMatch(/12h pinned run/);
     expect(text).toMatch(/1,977 samples/);
-    expect(text).toMatch(/Calc version.*3535c78aa45a/);
+    expect(text).not.toMatch(/3535c78aa45a|Calc version/);
     expect(text).not.toMatch(/MODE|FIXED|Mode/);
     expect(screen.getByTitle(run.methodRunId)).toBeTruthy();
   });
@@ -82,5 +82,14 @@ describe('RunSummaryBar', () => {
     bar({ reconstructPending: true });
     const b = screen.getByRole('button', { name: /Reconstruction requested/ }) as HTMLButtonElement;
     expect(b.disabled).toBe(true);
+  });
+});
+
+describe('RunSummaryBar versions', () => {
+  it('reads the versions as Replay does and keeps the build hash off the bar', () => {
+    bar({ versions: 'Calculation v3.0.0 · profile v2.0.0' });
+    const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
+    expect(text).toContain('Calculation v3.0.0 · profile v2.0.0');
+    expect(text).not.toMatch(/3535c78aa45a|CALC VERSION|Calc version/i);
   });
 });

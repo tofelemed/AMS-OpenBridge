@@ -113,3 +113,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Response counts | Response events (n); Events | Response events; Accepted events; System model (tiles). "n+" past one page | System Response | 21 |
 | Event qualification words | Candidate censored; Ineligible; Rejected | Accepted / Rejected / Ineligible / Censored, in Event states explained | System Response | 21 |
 | Model groups | Models by state | Candidate; Validated; Baseline; Other (rejected, expired, superseded) | System Response | 21 |
+| Calculation and profile versions | Calc version (build hash) | "Calculation v{x} · profile v{y}" | Evidence Workbench run bar | CHG-145 s3 |
+| Verdict card check row | Selected check | Check result | Evidence Replay | CHG-145 s3 |
+| Samples a window would hold | {n} samples nominal at {p} s | Nominal {n} samples at {p} s | Evidence Workbench | CHG-145 s3 |

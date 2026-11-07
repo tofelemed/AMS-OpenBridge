@@ -175,6 +175,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const fusedRow = useFusedRow(run.data?.loopId, run.data);
   const diagnosis = currentOption?.diagnosis ?? fusedRow.row?.diagnosis ?? null;
   const loopResult = diagnosis ? conditionOf(diagnosis).label : null;
+  const md = fusedRow.row?.metadata;
+  const versions = md ? `Calculation v${md.calculationVersion ?? '—'} · profile v${md.dynamicsProfileVersion ?? '—'}` : null;
   const reconstructReason = !run.data ? undefined
     : !canReconstruct ? 'Reconstructing evidence needs the cpm.analysis.create permission'
     : !run.data.reconstruction.supported ? reconstructRefusal(run.data.reconstruction.reason) : undefined;
@@ -259,7 +261,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <div className="cpm-workbench">
       {run.data ? <GateRail chips={chips} selected={selection.gate} onSelect={g => { const id = chips.find(c => c.gate === g)?.methodRunId; if (id) goTo(id, g); }} /> : <div className="cpm-rail" aria-hidden />}
       <div className="cpm-workbench__main">
-      <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness} loopResult={loopResult} analysisRun={analysisRunParam}
+      <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness} loopResult={loopResult} versions={versions} analysisRun={analysisRunParam}
         reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />

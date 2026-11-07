@@ -66,7 +66,8 @@ describe('ResponseTiles', () => {
   it('names its basis and links each tile to its source', () => {
     document.body.innerHTML = '';
     render(<><ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} /><div id="response-events" tabIndex={-1} /><div id="response-models" tabIndex={-1} /></>);
-    expect(screen.getAllByText('loaded, 4 censored not counted')).toHaveLength(2);
+    expect(screen.getAllByText('4 censored not counted')).toHaveLength(1);
+    expect(screen.getByText('Accepted events').closest('a')!.textContent).not.toMatch(/censored/);
     fireEvent.click(screen.getByText('System model').closest('a')!);
     expect(document.activeElement?.id).toBe('response-models');
     fireEvent.click(screen.getByText('Response events').closest('a')!);
@@ -82,8 +83,8 @@ describe('ResponseTiles', () => {
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 
 describe('ResponseEmpty', () => {
-  const draw = (canConfig: boolean, censored = 0) => render(
-    <MemoryRouter><ResponseEmpty loopId="FIC1" canConfig={canConfig} censoredCount={censored} /><Where /></MemoryRouter>);
+  const draw = (canConfig: boolean) => render(
+    <MemoryRouter><ResponseEmpty loopId="FIC1" canConfig={canConfig} /><Where /></MemoryRouter>);
 
   it('merges the empty states: one panel, Historical and G12 settings', () => {
     draw(true);
@@ -96,10 +97,10 @@ describe('ResponseEmpty', () => {
     expect(screen.getByTestId('where').textContent).toBe('/cpm/config?loop=FIC1&view=effective&gate=G12');
   });
 
-  it('hides the G12 settings without cpm.config.read, and says censored candidates exist', () => {
-    draw(false, 2);
+  it('hides the G12 settings without cpm.config.read, and never repeats the censored count', () => {
+    draw(false);
     expect(screen.queryByText('Check G12 settings')).toBeNull();
-    expect(screen.getByText(/2 captured candidates were censored/)).toBeTruthy();
+    expect(screen.queryByText(/captured candidate/)).toBeNull();
   });
 
   it('shows the four steps and opens Event states explained', () => {

@@ -9,17 +9,16 @@ import { STAGE_TABS, gridText, type Stage } from './stageLabels';
 
 export const ReplayStages: React.FC<{
   series: string | undefined;
-  samples: number | null | undefined;
   gridS: number | null;
   gateKey: string;
   role: string;
   hasVerdict: boolean;
   diagnosis: string | null | undefined;
   phasePlane: boolean;
-}> = ({ series, samples, gridS, gateKey, role, hasVerdict, diagnosis, phasePlane }) => {
+}> = ({ series, gridS, gateKey, role, hasVerdict, diagnosis, phasePlane }) => {
   const [stage, setStage] = useState<Stage>('raw');
   const line: Record<Stage, string> = {
-    raw: `${series ?? '—'}${samples != null ? ` · ${samples.toLocaleString('en-US')} samples` : ''}${phasePlane ? ' · shown as a PV–OP phase plane' : ''}`,
+    raw: `${series ?? '—'}${phasePlane ? ' · shown as a PV–OP phase plane' : ''}`,
     normalize: `${gridText(gridS) ?? 'Grid not reported'} · traverse.cpa.loop.samples.v1`,
     features: 'Short features (G0–G4) and long diagnostics (G5–G11) cut from the normalised samples',
     gates: `${gateKey} · ${role}`,

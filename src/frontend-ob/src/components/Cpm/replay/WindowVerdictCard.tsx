@@ -43,9 +43,8 @@ export const WindowVerdictCard: React.FC<{
           {gateOptions.map(g => <option key={g.key} value={g.key}>{g.key} · {g.name}</option>)}
         </select>
       </label>
-      <KvRow label="Selected check">
+      <KvRow label="Check result">
         <span className="cpm-replay-check">
-          {gateName(gateKey)}
           <GateBadge status={cell?.status ?? 'NOT_EVALUATED'} gate={gateKey} />
           {question && <Toggletip variant="how-to" label={`${gateKey} · ${gateName(gateKey)}`}><p>{question}</p></Toggletip>}
         </span>

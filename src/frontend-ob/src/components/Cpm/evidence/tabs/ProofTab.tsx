@@ -42,7 +42,7 @@ export const ProofTab: React.FC<ProofTabProps> = ({
       {run && (
         <p className="cpm-copy">
           {formatInZone(run.support.fromMs, timeZone)} → {formatInZone(run.support.toMs, timeZone)} · {zoneLabel(timeZone, run.support.fromMs)}
-          {nominal != null && ` · ${nominal.toLocaleString('en-GB')} samples nominal at ${period} s`}
+          {nominal != null && ` · Nominal ${nominal.toLocaleString('en-GB')} samples at ${period} s`}
         </p>
       )}
       {rows.length > 0 && (

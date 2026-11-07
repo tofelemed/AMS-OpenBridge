@@ -57,3 +57,7 @@
   .cpm-rail__list { display: none; }
   .cpm-rail__picker { display: block; }
 }
+
+/* Evidence not retained: the ? sits beside the heading, with no extra gap around it. */
+.cpm-gate-state__head { display: flex; align-items: center; gap: var(--traverse-space-2); }
+.cpm-gate-state__head h3 { margin: 0; color: var(--element-active-color); font-size: 1.17em; }

@@ -188,7 +188,7 @@ export const CpmReplay: React.FC = () => {
         <div className="cpm-grid-2">
           <div className="cpm-replay-main">
             <section className="cpm-surface">
-              <ReplayStages series={series} samples={points.length > 0 ? points.length : selected.sampleCount} gridS={gridS} gateKey={gateKey} role={role}
+              <ReplayStages series={series} gridS={gridS} gateKey={gateKey} role={role}
                 hasVerdict diagnosis={selected.diagnosis} phasePlane={isShapeGate} />
               {raw.isLoading && <EmptyState title="Loading raw slice…" />}
               {raw.isError && <QueryError title="Raw slice unavailable" error={raw.error} retry={() => void raw.refetch()} />}

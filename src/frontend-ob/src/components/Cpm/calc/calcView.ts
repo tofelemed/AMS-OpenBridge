@@ -20,6 +20,15 @@ export interface MetricView {
   status: { label: string; tone: Tone; code: string; /** the metric has no value: the gate result is not this metric's result */ partial: boolean };
 }
 
+/**
+ * The one reason every Insufficient-data row shares, when there are at least two and they all give the same one: it is
+ * the window's, so the list says it once above the rows. A reason that belongs to one metric stays on its row.
+ */
+export function windowWideReason(rows: readonly Pick<MetricView, 'na'>[]): string | null {
+  const reasons = rows.filter(r => r.na?.short === 'Insufficient data' && r.na.reason).map(r => r.na!.reason);
+  return reasons.length >= 2 && reasons.every(r => r === reasons[0]) ? reasons[0] : null;
+}
+
 /** The gate has no result of its own for this window. */
 const NOT_JUDGED = new Set(['NOT_EVALUATED', 'PENDING', 'NOT_APPLICABLE', 'DISABLED']);
 
