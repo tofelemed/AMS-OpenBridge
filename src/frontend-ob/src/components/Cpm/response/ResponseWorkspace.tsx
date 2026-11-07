@@ -93,7 +93,7 @@ export const ResponseWorkspace: React.FC = () => {
   if (!loopId) {
     return (
       <div className="cpm-screen">
-        <WorkspaceHeader page="/cpm/response" title="System response" />
+        <WorkspaceHeader page="/cpm/response" title="System Response" />
         {band}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
         <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
@@ -116,7 +116,7 @@ export const ResponseWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-response-workspace">
-      <WorkspaceHeader eyebrow="Understand the cause" title="System response"
+      <WorkspaceHeader eyebrow="Understand the cause" title="System Response"
         copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`} />
       {band}
       {events.isSuccess && (

@@ -86,7 +86,7 @@ export const CpmOverview: React.FC = () => {
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm"
-        title="Operations overview"
+        title="Overview"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
 

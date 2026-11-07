@@ -107,7 +107,7 @@ export const CpmEvents: React.FC = () => {
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm/events"
-        title="Loop events"
+        title="Loop Events"
         copy="Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family — a change in its evidence score extends it rather than duplicating it."
         actions={toggle}
       />

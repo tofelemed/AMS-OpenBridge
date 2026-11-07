@@ -61,7 +61,7 @@ export const CpmPipeline: React.FC = () => {
 
   return (
     <div className="cpm-screen">
-      <WorkspaceHeader title="Pipeline health"
+      <WorkspaceHeader eyebrow="System" title="Pipeline Health"
         copy="The Flink/Kafka runtime that produces every verdict. This view is read-only; job lifecycle is owned by the supervisor." />
 
       <PipelineTiles rows={rows} statusLoaded={!!status.data} statusError={status.isError}

@@ -38,6 +38,11 @@ const ev = (i: number): ResponseEventSummary => ({
 });
 
 describe('ResponseWorkspace', () => {
+  it('titles the page as the sidebar does', () => {
+    draw(['cpm.config.read']);
+    expect(screen.getByRole('heading', { level: 1, name: 'System Response' })).toBeTruthy();
+  });
+
   it('merges the empty states into one panel and offers G12 settings only with cpm.config.read', () => {
     draw(['cpm.config.read']);
     expect(screen.getAllByText('No qualifying response event')).toHaveLength(1);

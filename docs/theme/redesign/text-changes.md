@@ -1205,3 +1205,13 @@ None.
 | Verify cryptographic chain | Governance header as Verify audit chain, opens a dialog |
 | Hash signature, Correlation | The audit event dialog (row opens it) |
 | Loop link from a loop event | Open loop ↗ in the event dialog |
+
+## CHG-152 page titles read as the sidebar
+
+| Page | Was | Now |
+|---|---|---|
+| Pipeline Health | Pipeline health (no eyebrow) | Pipeline Health, eyebrow System |
+| System Response | System response | System Response |
+| Overview | Operations overview | Overview |
+| Loop Events | Loop events | Loop Events |
+| Loop Explorer | Loop explorer | Loop Explorer |

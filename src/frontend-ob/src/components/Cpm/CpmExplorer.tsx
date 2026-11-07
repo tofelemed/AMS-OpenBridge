@@ -77,7 +77,7 @@ export const CpmExplorer: React.FC = () => {
     <div className="cpm-screen">
       <WorkspaceHeader
         page="/cpm/explorer"
-        title="Loop explorer"
+        title="Loop Explorer"
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
       {/* CHG-128: the one loop control. With no loop named the page opens on the list instead, so it is not offered twice. */}

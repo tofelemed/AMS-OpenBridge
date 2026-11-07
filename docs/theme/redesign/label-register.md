@@ -136,3 +136,4 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Audit event columns | Timestamp, Event type, User, Entity, Hash signature, Correlation | When / actor, Action, Entity | Governance | CHG-152 |
 | Governance verify action | Verify cryptographic chain | Verify audit chain | Governance | CHG-152 |
 | Audit event before and after | none | Before and after values: Not available | Audit event dialog | CHG-152 |
+| Page title | Pipeline health; System response; Operations overview; Loop events; Loop explorer | The sidebar label: Pipeline Health; System Response; Overview; Loop Events; Loop Explorer | Five pages | CHG-152 |
