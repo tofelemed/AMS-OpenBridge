@@ -160,8 +160,11 @@ describe('GateEvidenceWorkspace', () => {
     asUser([]);
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
-    for (const b of screen.getAllByRole('button', { name: /Reconstruct evidence/ })) expect((b as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getAllByText(/cpm\.analysis\.create/).length).toBeGreaterThan(0);
+    // the run bar holds the one button and the one reason; the state panel repeats neither
+    const buttons = screen.getAllByRole('button', { name: /Reconstruct evidence/ });
+    expect(buttons).toHaveLength(1);
+    expect((buttons[0] as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getAllByText(/cpm\.analysis\.create/)).toHaveLength(1);
     expect(posts()).toHaveLength(0);
   });
 

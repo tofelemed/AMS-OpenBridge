@@ -275,9 +275,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
           ) : state.kind === 'LOADING' ? (
             <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" aria-hidden />
           ) : (
-            <GateResultStatePanel state={state} busy={reconstruct.isPending}
-              onReconstruct={run.data && !reconstructReason ? askReconstruct : undefined}
-              reconstructReason={reconstructReason}
+            <GateResultStatePanel state={state}
               onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
               onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined} />
           )}

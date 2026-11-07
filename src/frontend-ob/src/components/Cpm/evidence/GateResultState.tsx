@@ -6,7 +6,6 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, type CpmTone } from '../shared';
 import { Toggletip } from '../../../ui/Toggletip';
 import { codeLabel, phrase } from '../vocabulary';
@@ -91,15 +90,13 @@ export function classifyGateResult(i: GateStateInput): GateState {
 }
 
 export const GateResultStatePanel: React.FC<{
-  state: GateState; onReconstruct?: () => void; onRetry?: () => void; onGoToLatest?: () => void; busy?: boolean;
-  /** CHG-099 (SME review 2 #18): why Reconstruct is not offered (shown beside the disabled button, and on hover). */
-  reconstructReason?: string;
+  state: GateState; onRetry?: () => void; onGoToLatest?: () => void;
 }> =
-  ({ state, onReconstruct, onRetry, onGoToLatest, busy, reconstructReason }) => {
+  // Reconstruct is not offered here (Task 15): the run bar holds it, with its reason, once.
+  ({ state, onRetry, onGoToLatest }) => {
     const notRetained = state.kind === 'NOT_RETAINED';
     const action =
-      state.action === 'RECONSTRUCT' && onReconstruct ? { label: busy ? 'Reconstruction requested…' : 'Reconstruct evidence', onClick: onReconstruct }
-      : state.action === 'RETRY' && onRetry ? { label: 'Retry', onClick: onRetry }
+      state.action === 'RETRY' && onRetry ? { label: 'Retry', onClick: onRetry }
       : state.action === 'GO_TO_LATEST' && onGoToLatest ? { label: 'Go to the latest run', onClick: onGoToLatest }
       : undefined;
     return (
@@ -110,13 +107,6 @@ export const GateResultStatePanel: React.FC<{
         {notRetained && <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>}
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}
-        {state.action === 'RECONSTRUCT' && !onReconstruct && (
-          <>
-            {/* the reason rides on a wrapping span: ObcButton takes no title */}
-            <span title={reconstructReason}><ObcButton variant="normal" disabled>Reconstruct evidence</ObcButton></span>
-            {reconstructReason && <p className="cpm-gate-state__valid">{reconstructReason}</p>}
-          </>
-        )}
       </div>
     );
   };

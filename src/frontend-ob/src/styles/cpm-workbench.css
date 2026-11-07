@@ -10,6 +10,8 @@
 .cpm-rail {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-2);
   position: sticky; top: var(--cpm-context-h, 0px); min-width: 0;
+  /* 17 gates and their tiers come to about 700 px: on a laptop height the rail scrolls inside itself, G15 included */
+  max-height: calc(100vh - var(--cpm-context-h, 0px) - var(--traverse-space-4)); overflow-y: auto;
 }
 .cpm-rail__list { display: flex; flex-direction: column; gap: var(--traverse-space-3); width: 100%; }
 .cpm-rail__tier { display: flex; flex-direction: column; gap: var(--traverse-space-1); }
@@ -45,7 +47,7 @@
 /* below 850 px the rail is the native picker, over the page */
 @media (max-width: 849px) {
   .cpm-workbench { grid-template-columns: minmax(0, 1fr); }
-  .cpm-rail { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .cpm-rail { position: static; max-height: none; overflow-y: visible; flex-direction: row; flex-wrap: wrap; align-items: center; }
   .cpm-rail__list { display: none; }
   .cpm-rail__picker { display: block; }
 }

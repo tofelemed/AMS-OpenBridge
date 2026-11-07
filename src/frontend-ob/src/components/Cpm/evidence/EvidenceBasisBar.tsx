@@ -21,14 +21,15 @@ export const EvidenceBasisBar: React.FC<{
 }> = ({ manifest, view, timeZone, onView, onOpenRun, evaluated }) => {
   if (!manifest) return null;
   const basis = basisOf(manifest, view, timeZone, evaluated);
-  // Task 15: nothing held is said once, by the state panel under the verdict; the bar speaks only of arrays that exist
-  if (basis.kind === 'NONE') return null;
   const newest = manifest.reconstructions?.[0];
+  // Task 15: "nothing held" is said once, by the state panel under the verdict, so the bar adds no pill for it. A
+  // reconstruction asked for (running, failed, empty) is a data state and keeps its line.
+  if (basis.kind === 'NONE' && !newest) return null;
   // nothing to switch to when the rebuild is all there is (REBUILT_LOST)
   const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST';
   return (
     <div className="cpm-eval-note cpm-evidence-basis" role="group" aria-label="Evidence basis">
-      <TonePill tone={basis.tone}>{basis.label}</TonePill>
+      {basis.kind !== 'NONE' && <TonePill tone={basis.tone}>{basis.label}</TonePill>}
       {basis.detail && <span>{basis.detail}</span>}
       {/* lab pass 2026-10-15: the newest reconstruction is named on every basis, not only beside retained proof */}
       {/* not repeated when the basis text already carries it (the rebuild shown by default) */}

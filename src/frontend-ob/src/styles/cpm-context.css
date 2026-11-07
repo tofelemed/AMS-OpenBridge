@@ -58,22 +58,6 @@
 .cpm-band__meta { color: var(--traverse-text-secondary); }
 .cpm-band .cpm-evidence-toolbar__window { max-width: 320px; }
 
-/* CHG-130: the gates of a window as one list, with their marks and key. */
-.cpm-gate-menu__button {
-  display: inline-flex; align-items: center; gap: var(--traverse-space-2);
-  box-sizing: border-box; min-width: 200px; min-height: var(--traverse-size-control-min-height);
-  padding: 0 var(--traverse-space-3); cursor: pointer;
-  background: var(--traverse-surface-panel); border: 1px solid var(--traverse-border-strong); border-radius: var(--traverse-radius-control);
-  color: var(--traverse-text-primary); font: inherit;
-}
-.cpm-gate-menu__button:hover { background: var(--traverse-surface-hover); }
-.cpm-gate-menu__button:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
-.cpm-gate-menu__button .ui-icon { margin-inline-start: auto; }
-.cpm-gate-menu { box-sizing: border-box; width: 560px; max-width: 100%; }
-.cpm-gate-menu .cpm-gate-strip { display: block; columns: 2; column-gap: var(--traverse-space-4); padding: 0; }
-.cpm-gate-menu .cpm-gate-strip__tier { break-inside: avoid; margin-bottom: var(--traverse-space-3); }
-.cpm-gate-menu .cpm-gate-strip__chips { flex-direction: column; }
-.cpm-gate-menu .cpm-gate-chip { display: flex; box-sizing: border-box; width: 100%; }
 .cpm-evidence-more { display: flex; flex-direction: column; gap: var(--traverse-space-3); box-sizing: border-box; width: 320px; max-width: 100%; }
 
 /* The band stays put while the page scrolls, so a tall panel has to scroll inside itself. */
@@ -83,10 +67,9 @@
 @media (max-width: 900px) {
   .cpm-band .ui-popover { position: static; }
   .cpm-band .ui-popover__panel { right: var(--traverse-space-2); left: var(--traverse-space-2); min-width: 0; max-width: none; }
-  .cpm-band__panel, .cpm-gate-menu, .cpm-evidence-more, .cpm-hist-export { width: auto; max-width: none; }
+  .cpm-band__panel, .cpm-evidence-more, .cpm-hist-export { width: auto; max-width: none; }
 }
 @media (max-width: 640px) {
-  .cpm-gate-menu .cpm-gate-strip { columns: 1; }
   .cpm-band__loop { width: 100%; }
   .cpm-band .ui-popover:first-child { flex: 1 1 100%; }
   .cpm-band .cpm-select, .cpm-band .cpm-evidence-toolbar__window { max-width: 100%; }
@@ -97,6 +80,3 @@
 .cpm-hist-stepper__text:hover { text-decoration: underline; }
 .cpm-hist-stepper__text:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
 
-/* Gate chips wrap at every width, so none runs past the panel. */
-.cpm-gate-strip__tier { min-width: 0; max-width: 100%; }
-.cpm-gate-strip__chips { flex-wrap: wrap; }

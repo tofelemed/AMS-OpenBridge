@@ -140,21 +140,6 @@
 .cpm-verdict__tiles .cpm-kpi__value { font-size: 1.1rem; }
 .cpm-verdict__state { margin: 0; }
 
-/* ── Gate strip (v2.5 workbench redesign): one row of status chips grouped by tier ── */
-.cpm-gate-strip {
-  display: flex;
-  flex-wrap: wrap;                 /* whole tier groups wrap; nothing is clipped */
-  gap: 8px 20px;
-  padding: 4px 0;
-}
-.cpm-gate-strip__tier { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
-.cpm-gate-strip__tier-label {
-  font-size: var(--cpm-text-caption);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--element-neutral-color);
-}
-.cpm-gate-strip__chips { display: flex; gap: 6px; }
 .cpm-gate-chip {
   display: inline-flex;
   align-items: center;
