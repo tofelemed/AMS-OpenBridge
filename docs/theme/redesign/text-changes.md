@@ -1180,3 +1180,28 @@ None.
 | Loop Registry | Limits line with two counts | A third count "{n} degraded" linking to `?gap=degraded`; the list filter reads "Loops with a readiness gap (degraded)" with Clear, as the other two |
 | Gate Configuration | Pill under the table: "5 workers on one jar dabe1862 · factory layer (nothing to acknowledge)" beside "APPLY acknowledgements" | The summary reads "APPLY acknowledgements" only. The workers and their jar ids are in the disclosure's table. The Worker alignment tile still opens it |
 | Trend | "LIVE" in the page controls and in the time bar | One LIVE, in the time bar, only with fresh samples. No pens: nothing. Pens but no new samples: "NO NEW SAMPLES". PAUSED, HISTORICAL and PINNED WINDOW unchanged. Chart and dialog bars keep today's rule |
+
+## Task 29: Governance (CHG-152)
+
+#### Removed, moved behind a ?, or reworded
+
+| Was | Now |
+|---|---|
+| `Change control` eyebrow | `System` |
+| `Immutable audit trail` eyebrow and `Governance events` panel heading | Removed; the page heading says it |
+| `Immutable cryptographically-chained record of all operator and system actions.` | Removed |
+| `Entries are hash-chained by audit-service. Run a verification to confirm integrity now. This page makes no standing claim.` | Behind the ? on Audit integrity: `Entries are hash-chained by audit-service. Verify audit chain asks the service to walk the chain and shows its answer.`; on screen `Not verified in this session.` |
+| `CHAIN OK` pill and `Chain verified just now.` after a click | Removed: the dialog shows audit-service's own sentence and `The chain range, entry count and algorithm are not served, so this answer cannot be checked here.` |
+| `Find by user, action or entity` | `Find event` |
+| `{n} total · showing {m}` beside the filters, and the paging statement | One foot line: `newest 200 of 4825, older entries are not fetched` (numbers from the response) or `{n} events`, then `times in {zone}` |
+| Columns Timestamp, Event type, User, Entity, Hash signature, Correlation | When / actor, Action, Entity |
+| `Version provenance` / `What is producing today's verdicts` | `Change traceability` |
+| `Engine builds observed` row | Engine build rows under Technical details |
+
+#### Controls that moved
+
+| Control | Now on |
+|---|---|
+| Verify cryptographic chain | Governance header as Verify audit chain, opens a dialog |
+| Hash signature, Correlation | The audit event dialog (row opens it) |
+| Loop link from a loop event | Open loop ↗ in the event dialog |

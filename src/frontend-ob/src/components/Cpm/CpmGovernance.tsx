@@ -7,15 +7,16 @@
  * the separation-of-duties model as the permission system actually enforces it. There is no
  * server-side approval workflow yet; the approval queue says so instead of simulating one.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  EmptyState, KvRow, PanelHead, WorkspaceHeader,
+  EmptyState, PanelHead, WorkspaceHeader,
   QueryError,
 } from './shared';
-import { ConfigApprovalQueue } from './config/ConfigApprovalQueue';
 import { AuditTrail } from './governance/AuditTrail';
-import { useCpmCalculations, useCpmCapabilities, useCpmLoops } from '../../hooks/useCpm';
-import { shortIdentity } from '../../api/cpm/capabilities';
+import { ChangeTraceability } from './governance/ChangeTraceability';
+import { AuditIntegrity, VerifyDialog } from './governance/VerifyDialog';
+import { ReasonedButton } from './ReasonedButton';
+import { useVerifyAuditChain } from '../../hooks/useAudit';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleMatrix } from './useRoleMatrix';
 import { Toggletip } from '../../ui/Toggletip';
@@ -36,48 +37,10 @@ const WATCHED_PERMISSIONS: { key: string; guards: string }[] = [
 /** What produces the verdicts, approvals and the duties. Only holders of system.manage opened this page before. */
 const GovernancePanels: React.FC = () => {
   const matrix = useRoleMatrix();
-  const calc = useCpmCalculations();
-  const caps = useCpmCapabilities();
-  const loops = useCpmLoops();
 
   return (
       <div className="cpm-grid-2">
-        <section className="cpm-surface">
-          <PanelHead eyebrow="Version provenance" title="What is producing today's verdicts"
-            help={<Toggletip variant="how-to" label="Why versions are stored">
-              <p>
-                Every stored window carries these versions in its payload (A13), so any historical
-                verdict can be attributed to the formula that produced it.
-              </p>
-            </Toggletip>} />
-          <KvRow label="Calculation engine">
-            v{calc.data?.calculationVersion ?? '—'} · {calc.data?.engine ?? '—'}
-          </KvRow>
-          <KvRow label="Dynamics profile">v{calc.data?.dynamicsProfileVersion ?? '—'}</KvRow>
-          <KvRow label="cplm-api build">
-            {caps.data ? `${caps.data.service.version} · ${shortIdentity(caps.data.service.sourceCommit)}` : '—'}
-          </KvRow>
-          <KvRow label="Engine builds observed">
-            {caps.data
-              ? caps.data.engine.observed.length === 0
-                ? 'none stored yet'
-                : caps.data.engine.observed.map(e =>
-                    `calc ${e.calculationVersion ?? '?'} · commit ${shortIdentity(e.sourceCommit)} · jar ${shortIdentity(e.jarSha256)}`,
-                  ).join(' | ')
-              : '—'}
-          </KvRow>
-          <KvRow label="Registered loops">{loops.data?.count ?? '—'}</KvRow>
-          <KvRow label="Threshold profiles in use">
-            {(() => {
-              const ids = new Set((loops.data?.loops ?? [])
-                .map(l => l.thresholdProfileId).filter((x): x is string => !!x));
-              return ids.size > 0 ? [...ids].join(', ') : 'defaults only';
-            })()}
-          </KvRow>
-
-          <PanelHead eyebrow="Approvals" title="Gate configuration awaiting approval" />
-          <ConfigApprovalQueue />
-        </section>
+        <ChangeTraceability />
 
         <section className="cpm-surface">
           {/*
@@ -158,15 +121,27 @@ const GovernancePanels: React.FC = () => {
 
 export const CpmGovernance: React.FC = () => {
   const canGovern = useAuthStore(s => s.hasPermission('system.manage'));
+  const canAudit = useAuthStore(s => s.hasPermission('admin.audit.view'));
+  const verify = useVerifyAuditChain();
+  const [verifying, setVerifying] = useState(false);
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        eyebrow="Change control"
+        eyebrow="System"
         title="Governance"
         copy="Who changed what, under which calculation versions, and which duties are separated by the permission model."
+        actions={
+          <ReasonedButton variant="normal" disabled={!canAudit || verify.isPending}
+            reason={!canAudit ? 'Needs the admin.audit.view permission' : null}
+            onClick={() => { verify.mutate(); setVerifying(true); }}>
+            Verify audit chain
+          </ReasonedButton>
+        }
       />
       <AuditTrail />
+      <AuditIntegrity verify={verify} />
       {canGovern && <GovernancePanels />}
+      {verifying && <VerifyDialog verify={verify} onClose={() => setVerifying(false)} />}
     </div>
   );
 };

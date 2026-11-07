@@ -133,3 +133,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Save on System settings | Save unavailable | Save settings (disabled, reason on screen) | System settings | 28 |
 | Loops with a readiness gap | Degraded (row pill) | "{n} degraded" count and filter | Loop Registry | CHG-149 |
 | Trend mode with pens and stale samples | LIVE | NO NEW SAMPLES | Trend | CHG-149 |
+| Audit event columns | Timestamp, Event type, User, Entity, Hash signature, Correlation | When / actor, Action, Entity | Governance | CHG-152 |
+| Governance verify action | Verify cryptographic chain | Verify audit chain | Governance | CHG-152 |
+| Audit event before and after | none | Before and after values: Not available | Audit event dialog | CHG-152 |
