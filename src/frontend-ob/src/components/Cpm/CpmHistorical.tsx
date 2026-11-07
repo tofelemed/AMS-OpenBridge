@@ -28,7 +28,7 @@ import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import EvaluatedWindows from './historical/EvaluatedWindows';
 import ChartFoot from './historical/ChartFoot';
 import ChartCaptions from './historical/ChartCaptions';
-import { WINDOW_CAP, useWindowKpis } from './historical/useWindowKpis';
+import { WINDOW_CAP, packageReason, useWindowKpis } from './historical/useWindowKpis';
 import { selectedWindowOf } from './historical/selectWindow';
 import { modeSegmentsOf, resultMarkers } from './historical/lanes';
 import { CHART_HEIGHT, buildChartOption } from './historical/chartOption';
@@ -188,7 +188,8 @@ export const CpmHistorical: React.FC = () => {
           <div className="cpm-hist-bandend">
             {loopId && <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}
             <ExportMenu loopId={loopId ?? ''} exportDisabled={full.length === 0} onExport={k => void exporter.run(k)} exportBusy={exporter.busy}
-              packageWindow={selectedFull?.windowEnd ? fmtWhen(selectedFull.windowEnd) : null} />
+              packageWindow={selectedFull?.windowEnd ? fmtWhen(selectedFull.windowEnd) : null}
+              packageUnavailable={selectedWindow && !selectedFull ? packageReason(selectedWindow.windowEnd) : null} />
           </div>
         )}>
         <TimeRangeBar from={from} to={to} presets={RANGE_PRESETS} preset={preset}

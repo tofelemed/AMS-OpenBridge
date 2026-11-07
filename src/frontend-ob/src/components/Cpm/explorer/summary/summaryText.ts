@@ -11,7 +11,7 @@ import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict';
 import { toneFor, type CpmTone } from '../../shared';
 import { bandOf, codeLabel, diagnosisLabel, exclusionLabel } from '../../vocabulary';
-import { ageText as verdictAgeText } from '../../verdictAge';
+import { ageText as verdictAgeText } from '../../ageText';
 import { optionalInputLimitation, type InputContext } from '../../optionalInputs';
 import { flagsForLoop } from '../../optionalInputs';
 
@@ -99,7 +99,7 @@ export function nextCheckOf(matrix: Pick<CpmGateMatrix, 'narrative'>, condition:
 }
 
 /** CHG-065: one age format across the CPA pages ("45 s ago" / "12 min ago" / "3 h ago" / "57 d ago"). */
-export { ageText } from '../../verdictAge';
+export { ageText } from '../../ageText';
 
 export interface SummaryAction { label: string; target: 'investigation' | 'windows' | 'historical' }
 

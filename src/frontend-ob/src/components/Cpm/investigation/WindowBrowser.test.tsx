@@ -76,6 +76,7 @@ describe('WindowBrowser', () => {
     expect(tile.disabled).toBe(true);
     expect(tile.className).toContain('cpm-window-tile--history');
     expect(tile.title).toMatch(/History only/);
+    expect(tile.textContent).toMatch(/History only: use Evaluate a window/);   // visible for keyboard and touch users
     fireEvent.click(tile);
     expect(onWindow).not.toHaveBeenCalled();
     expect((screen.getAllByRole('button', { name: /^Ends / })[1] as HTMLButtonElement).disabled).toBe(false);

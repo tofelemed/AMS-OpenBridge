@@ -52,20 +52,22 @@ export interface ExportMenuProps {
   exportBusy?: HistoryExportKind | null;
   /** The selected window's end (for the evidence package label); null = no evaluated window selected. */
   packageWindow?: string | null;
+  /** Why the selected window has no evidence package (a summary only); absent when none is selected or it has one. */
+  packageUnavailable?: string | null;
 }
 
 /** CHG-129: the four downloads behind one button. Each keeps its reason when it cannot run. */
-export const ExportMenu: React.FC<ExportMenuProps> = ({ loopId, exportDisabled, onExport, exportBusy, packageWindow }) => {
+export const ExportMenu: React.FC<ExportMenuProps> = ({ loopId, exportDisabled, onExport, exportBusy, packageWindow, packageUnavailable }) => {
   const busyText = (k: HistoryExportKind, label: string) => (exportBusy === k ? 'Preparing…' : label);
   // CHG-098 (SME review 2 #29): every disabled export says why — on hover (a wrapping span: ObcButton takes no title)
   // and in one visible line under the buttons.
   const busyWhy = exportBusy ? 'Another download is being prepared — wait for it to finish' : undefined;
   const samplesWhy = !loopId ? 'Pick a loop first' : busyWhy;
   const windowsWhy = exportDisabled ? 'No evaluated windows in this range — widen the range to export them' : busyWhy;
-  const packageWhy = !packageWindow ? 'Choose an evaluated window first' : busyWhy;
+  const packageWhy = !packageWindow ? (packageUnavailable ?? 'Choose an evaluated window first') : busyWhy;
   const exportNote = !loopId ? 'Pick a loop to export its data.'
     : exportDisabled ? 'No evaluated windows in this range: widen the range to export windows or a package.'
-      : !packageWindow ? 'Choose an evaluated window to export its evidence package.'
+      : !packageWindow ? (packageUnavailable ?? 'Choose an evaluated window to export its evidence package.')
         : null;
 
   return (

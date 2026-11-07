@@ -82,6 +82,7 @@ export const WindowBrowser: React.FC<{
                 <span className={`cpm-dot cpm-tone-${toneFor(w.diagnosis ?? null)}`} aria-hidden />
                 {windowSize({ windowStart: w.windowStart, windowEnd: w.windowEnd, windowKind })} · {diagnosisLabel(w.diagnosis ?? null)}
               </span>
+              {w.historyOnly && <span className="cpm-window-tile__sub">History only: use Evaluate a window</span>}
             </button>
             </div>
           );

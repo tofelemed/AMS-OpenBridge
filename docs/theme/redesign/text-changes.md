@@ -1274,3 +1274,10 @@ None.
 | Control | Now on |
 |---|---|
 | Open range in Historical, Open in Trend (Window Inspector) | the selected-window panel's links; removed from Record details |
+
+## CHG-154 small items follow-up
+
+| Where | Was | Now |
+|---|---|---|
+| Historical, Export menu, selected window has only a summary | Choose an evaluated window first | the reason the Evidence package button gives (newest 500 / last 14 days) |
+| Investigation, Compare windows, history-only tile | reason only in the hover title | also a visible line "History only: use Evaluate a window" |
