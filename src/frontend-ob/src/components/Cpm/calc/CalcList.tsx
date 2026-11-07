@@ -42,7 +42,7 @@ export const CalcList: React.FC<{
                 {na ? (
                   <>
                     <span className="cpm-metric-na">{na.short}</span>
-                    {na.reason && !(shared && na.short === 'Insufficient data') && <div className="cpm-event-row__sub">{na.reason}</div>}
+                    {na.reason && na.reason !== shared && <div className="cpm-event-row__sub">{na.reason}</div>}
                   </>
                 ) : value != null ? valueText(metric, value) : null}
               </span>

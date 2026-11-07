@@ -21,12 +21,16 @@ export interface MetricView {
 }
 
 /**
- * The one reason every Insufficient-data row shares, when there are at least two and they all give the same one: it is
+ * The most frequent reason among the rows with no value, whatever their short word, when at least two rows give it: it is
  * the window's, so the list says it once above the rows. A reason that belongs to one metric stays on its row.
  */
 export function windowWideReason(rows: readonly Pick<MetricView, 'na'>[]): string | null {
-  const reasons = rows.filter(r => r.na?.short === 'Insufficient data' && r.na.reason).map(r => r.na!.reason);
-  return reasons.length >= 2 && reasons.every(r => r === reasons[0]) ? reasons[0] : null;
+  const counts = new Map<string, number>();
+  for (const r of rows) if (r.na?.reason) counts.set(r.na.reason, (counts.get(r.na.reason) ?? 0) + 1);
+  let best: string | null = null;
+  let most = 1;
+  for (const [reason, n] of counts) if (n > most) { best = reason; most = n; }
+  return best;
 }
 
 /** The gate has no result of its own for this window. */

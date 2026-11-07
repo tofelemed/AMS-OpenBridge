@@ -72,7 +72,7 @@ export const GateRail: React.FC<GateRailProps> = ({ chips, selected, onSelect })
                   onClick={() => { if (c.methodRunId) onSelect(c.gate); }}
                 >
                   <span className="cpm-rail__mark" aria-hidden data-mark={c.glyph.meaning}>{c.glyph.glyph}</span>
-                  <span className="cpm-mono cpm-rail__code">{c.gate}</span>
+                  <span className="cpm-mono cpm-rail__code">{c.gate}</span>{' '}
                   <span className="cpm-rail__name">{c.name}</span>
                 </button>
               );

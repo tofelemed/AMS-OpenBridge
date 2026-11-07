@@ -32,7 +32,7 @@ export const CalcBand: React.FC<{
         </span>
       )}
       </span>
-      <ObcButton variant="flat" disabled={!matrix} onClick={() => setDetails(true)}>Run details {'↗'}</ObcButton>
+      <span className="cpm-calc-band__run"><ObcButton variant="flat" disabled={!matrix} onClick={() => setDetails(true)}>Run details {'↗'}</ObcButton></span>
       {/* the band is sticky: the dialog goes to the body so it is not clipped or stacked under it */}
       {matrix && details && createPortal(<RunDetailsDialog open onClose={() => setDetails(false)} row={matrix} timeZone={timeZone} />, document.body)}
     </div>

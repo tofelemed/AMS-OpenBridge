@@ -30,6 +30,15 @@ describe('CalcList window reason', () => {
     expect(screen.getAllByText(/failed data qualification/)).toHaveLength(1);
   });
 
+  it('takes the most frequent reason across mixed short words and keeps another on its row', () => {
+    mount([row(0, { short: 'Insufficient data', reason: WHY }), row(1, { short: 'Not calculated', reason: WHY }), row(2, { short: 'Not calculated', reason: WHY }),
+      row(3, { short: 'Not calculated', reason: 'no oscillation period found' })]);
+    expect(screen.getAllByText(/failed data qualification/)).toHaveLength(1);
+    expect(screen.getByRole('status').textContent).toBe('Computed on a window that failed data qualification.');
+    expect(screen.getByText('no oscillation period found')).toBeTruthy();
+    expect(screen.getAllByText('Not calculated')).toHaveLength(3);
+  });
+
   it('keeps a lone reason on its row', () => {
     mount([row(0, { short: 'Insufficient data', reason: WHY })]);
     expect(screen.queryByRole('status')).toBeNull();
