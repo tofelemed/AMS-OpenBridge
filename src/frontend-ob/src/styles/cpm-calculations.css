@@ -1,6 +1,6 @@
 /* Calculations (Task 20): three columns in the list beside the selected calculation. Placement only: type and row sizes come from the app's own classes. */
 .cpm-calc-list__row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); }
-.cpm-calc-list__heads { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-3); align-items: center; }
+
 @media (max-width: 600px) {
   /* a phone: one stacked card per calculation, and the sort buttons stay as one wrapping bar */
   .cpm-calc-list__row { grid-template-columns: minmax(0, 1fr); gap: var(--traverse-space-1); }

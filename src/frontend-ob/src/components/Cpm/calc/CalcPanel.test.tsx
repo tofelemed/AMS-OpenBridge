@@ -3,7 +3,7 @@
 // the proof opens the exact run, or says why it cannot.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { METRICS } from '../calcCatalogue';
 import type { MetricView } from './calcView';
@@ -19,13 +19,13 @@ afterEach(cleanup);
 
 const metric = (id: string) => METRICS.find(m => m.id === id)!;
 const view = (id: string, over: Partial<MetricView> = {}): MetricView => ({
-  metric: metric(id), value: 0.7103, na: null, status: { label: 'Symptom seen', tone: 'warn', code: 'WARN' }, ...over,
+  metric: metric(id), value: 0.7103, na: null, status: { label: 'Symptom seen', tone: 'warn', code: 'WARN', partial: false }, ...over,
 });
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 const mount = (v: MetricView, o: Partial<React.ComponentProps<typeof CalcPanel>> = {}) => render(
   <MemoryRouter>
     <CalcPanel view={v} loopId="FIC10401" runId="run-g3" pvUnit="kg/h" verdict="Excluded · loop not in automatic"
-      stamped="3.0.0" deployed="3.0.0" open onClose={() => undefined} {...o} />
+      stamped="3.0.0" deployed="3.0.0" record={[['Engine', 'Not reported'], ['Kind', 'Calculation']]} open onClose={() => undefined} {...o} />
     <Where />
   </MemoryRouter>);
 
@@ -80,6 +80,18 @@ describe('CalcPanel', () => {
   it('warns when the value was written by another calculation version', () => {
     mount(view('CPLM-010'), { stamped: '2.9.0', deployed: '3.0.0' });
     expect(screen.getByText(/written by v2\.9\.0/)).toBeTruthy();
+  });
+
+  it('holds the record facts in one closed disclosure', () => {
+    mount(view('CPLM-010'));
+    const d = screen.getByText('Record details').closest('details') as HTMLDetailsElement;
+    expect(d.open).toBe(false);
+    expect(within(d).getByText('Engine').nextSibling?.textContent).toBe('Not reported');
+  });
+
+  it('shows a gate result with no value muted and not as a pass', () => {
+    mount(view('CPLM-010', { value: null, na: { short: 'Not calculated', reason: 'x' }, status: { label: 'Pass', tone: 'muted', code: 'PASS', partial: true } }));
+    expect(screen.getByText('Pass on other inputs')).toBeTruthy();
   });
 
   it('says nothing about versions when they match', () => {

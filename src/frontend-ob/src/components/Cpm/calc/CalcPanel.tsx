@@ -7,7 +7,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { GateBadge } from '../../../ui/GateBadge';
 import { Inspector } from '../../../ui/Inspector';
 import { Toggletip } from '../../../ui/Toggletip';
 import { calcMethod } from '../calcMethods';
@@ -16,6 +15,7 @@ import ReasonedButton from '../ReasonedButton';
 import { KvRow } from '../shared';
 import { workbenchHref } from '../evidence/selection';
 import { valueText, type MetricView } from './calcView';
+import GateResult from './GateResult';
 
 export const CalcPanel: React.FC<{
   view: MetricView;
@@ -29,10 +29,12 @@ export const CalcPanel: React.FC<{
   /** Calculation version stamped on the value, and the one deployed now. */
   stamped: string | null;
   deployed: string | null;
+  /** The closed Record details at the foot of the column. */
+  record: Array<[label: string, value: string]>;
   /** Below 1280 px the panel is a drawer that shows only while open. */
   open: boolean;
   onClose: () => void;
-}> = ({ view, loopId, runId, pvUnit, verdict, stamped, deployed, open, onClose }) => {
+}> = ({ view, loopId, runId, pvUnit, verdict, stamped, deployed, record, open, onClose }) => {
   const navigate = useNavigate();
   const { metric, value, na, status } = view;
   const method = calcMethod(metric.id);
@@ -63,7 +65,7 @@ export const CalcPanel: React.FC<{
       </KvRow>
       <KvRow label="Related gate">
         {gate} {'·'} {gateName(gate)}{' '}
-        <GateBadge status={status.code} gate={gate} />
+        <GateResult gate={gate} status={status} />
       </KvRow>
       {/PV/.test(metric.unit) && <KvRow label="Signal engineering unit">{pvUnit ?? 'Not set on this loop'}</KvRow>}
       {verdict && (
@@ -84,6 +86,10 @@ export const CalcPanel: React.FC<{
       <div className="cpm-master-detail__links">
         <ObcButton variant="flat" disabled={!runId} onClick={() => go('rules')}>Inspect parameters {'↗'}</ObcButton>
       </div>
+      <details className="ui-technical">
+        <summary className="ui-technical__summary">Record details</summary>
+        {record.map(([label, text]) => <KvRow key={label} label={label}>{text}</KvRow>)}
+      </details>
     </Inspector>
   );
 };

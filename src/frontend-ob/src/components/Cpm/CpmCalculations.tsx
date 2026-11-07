@@ -6,7 +6,7 @@
  * the verdict judges: the newest fused window, or the exact window `?window=` names. A metric the engine did not calculate
  * says so and why; it is never 0. The first visible row is selected when the URL names none, and `?metric=` follows the choice.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
@@ -24,6 +24,7 @@ import CalcFilters, { type CategoryChoice } from './calc/CalcFilters';
 import CalcPanel from './calc/CalcPanel';
 import CalcList from './calc/CalcList';
 import { useCalcValues } from './calc/useCalcValues';
+import { recordRows } from './calc/recordRows';
 
 export const CpmCalculations: React.FC = () => {
   const navigate = useNavigate();
@@ -40,8 +41,12 @@ export const CpmCalculations: React.FC = () => {
   const [result, setResult] = useState('all');
   const [category, setCategory] = useState<CategoryChoice>('All');
   const [sort, setSort] = useState<CalcSort>(DEFAULT_CALC_SORT);
-  // Below 1280 px the panel is a drawer: a link that names a metric opens it.
+  // Below 1280 px the panel is a drawer: a link that names a metric opens it, once per metric named (Close stays closed).
   const [drawer, setDrawer] = useState(() => params.has('metric'));
+  const seen = useRef(metricParam);
+  useEffect(() => {
+    if (metricParam && metricParam !== seen.current) { seen.current = metricParam; setDrawer(true); }
+  }, [metricParam]);
 
   const v = useCalcValues(loopId, windowKind, windowEnd);
   const loop = v.loop;
@@ -69,19 +74,28 @@ export const CpmCalculations: React.FC = () => {
     : undefined;
   const selected = named ?? visible[0];
   const selectedId = selected?.metric.id;
-  // The URL always names the metric on screen: the first visible row when none (or a hidden one) is named.
+  // With no metric named the URL names the first visible row. A named one that a filter hides stays in the URL: the panel shows
+  // the first visible row meanwhile, and the address changes only when the user picks a row.
   useEffect(() => {
-    if (loop && selectedId && metricParam !== selectedId)
+    if (loop && selectedId && !metricParam) {
+      seen.current = selectedId;
       setParams(p => { p.set('metric', selectedId); return p; }, { replace: true });
+    }
   }, [loop, selectedId, metricParam, setParams]);
 
   const setGate = (g: string) => setParams(p => { if (g === 'all') p.delete('gate'); else p.set('gate', g); return p; }, { replace: true });
-  const pick = (id: string) => { setParams(p => { p.set('metric', id); return p; }, { replace: true }); setDrawer(true); };
+  const pick = (id: string) => { seen.current = id; setParams(p => { p.set('metric', id); return p; }, { replace: true }); setDrawer(true); };
   const clearFilters = () => { setSearch(''); setResult('all'); setCategory('All'); setGate('all'); };
-  const sortBy = (key: CalcSortKey) => setSort(s => nextCalcSort(s, key));
+  // The Calculation heading walks id, then name ascending, then name descending, so every order stays reachable.
+  const sortBy = (key: CalcSortKey) => setSort(s => {
+    if (key !== 'name') return nextCalcSort(s, key);
+    if (s.key === 'id') return s.dir === 'asc' ? { key: 'name', dir: 'asc' } : { key: 'id', dir: 'asc' };
+    return s.key === 'name' && s.dir === 'asc' ? { key: 'name', dir: 'desc' } : DEFAULT_CALC_SORT;
+  });
   const head = (key: CalcSortKey, label: string, title?: string) => (
     <SortHeader label={label} title={title} onSort={() => sortBy(key)}
-      active={sort.key === key ? sort.dir : null} orderText={calcOrderText(sort)} />
+      active={(key === 'name' ? sort.key === 'id' || sort.key === 'name' : sort.key === key) ? sort.dir : null}
+      orderText={key === 'name' ? (sort.key === 'id' ? 'by ID' : sort.dir === 'asc' ? 'by name, A to Z' : 'by name, Z to A') : calcOrderText(sort)} />
   );
   const noWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('metric'); };
 
@@ -105,6 +119,9 @@ export const CpmCalculations: React.FC = () => {
       </LoopBand>
       {v.kpiError != null && (
         <QueryError title="Window values unavailable — the values below are missing, not absent" error={v.kpiError} retry={v.retryKpis} />
+      )}
+      {loop && v.rowMissing && (
+        <p className="cpm-field__error" role="status">The values for the window above are not stored, so every value below reads Not calculated.</p>
       )}
       {v.windowError != null && <QueryError title="Window unavailable" error={v.windowError} retry={v.retryWindow} />}
 
@@ -139,7 +156,8 @@ export const CpmCalculations: React.FC = () => {
             <CalcPanel view={selected} loopId={loop.loopId} runId={v.runIdOf(selected.metric.gate)}
               pvUnit={loop.engineering?.pvUnit ?? null}
               verdict={v.matrix?.diagnosis ? conditionOf(v.matrix.diagnosis).label : null}
-              stamped={v.stamped} deployed={v.deployed} open={drawer} onClose={() => setDrawer(false)} />
+              stamped={v.stamped} deployed={v.deployed}
+              record={recordRows(selected.metric, selected.value, { row: v.row, matrix: v.matrix, catalogue: v.catalogue })} open={drawer} onClose={() => setDrawer(false)} />
           )}
         </div>
       )}

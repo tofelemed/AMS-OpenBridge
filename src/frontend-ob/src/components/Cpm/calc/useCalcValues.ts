@@ -9,7 +9,7 @@ import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { useCpmCalculations, useCpmKpis, useCpmKpisRange, useCpmLoops, useLatestGates } from '../../../hooks/useCpm';
 import type { MetricDef } from '../calcCatalogue';
-import { useWindowAt } from '../evidence/useWindowAt';
+import { sameInstant, useWindowAt } from '../evidence/useWindowAt';
 import { contextOfMatrix, contextOfRow, metricAvailability, type MetricAvailability } from '../metricAvailability';
 import { statusOf, type MetricView } from './calcView';
 
@@ -25,13 +25,16 @@ export function useCalcValues(loopId: string | undefined, kind: string, windowEn
   const at = useWindowAt(named ? loop?.loopId : undefined, kind, named ? windowEnd : null);
   const matrix: CpmGateMatrix | undefined = named ? at.row : latestGates.data;
 
-  const latestKpis = useCpmKpis(named ? undefined : loop?.loopId, kind, 1);
-  const rangeKpis = useCpmKpisRange(loop?.loopId, kind, matrix?.windowStart ?? undefined, matrix?.windowEnd ?? undefined, 10,
-    named && !!matrix?.windowStart);
-  const row: CpmKpiRow | undefined = named
-    ? rangeKpis.data?.samples.find(r => r.window_end === matrix?.windowEnd)
-    : latestKpis.data?.samples[0];
-  const kpis = named ? rangeKpis : latestKpis;
+  // The values are pinned to the window the band names: the feature row ending where the matrix ends. The read stops at that end
+  // (newest first), so the row is the first one back. A loop with no verdict yet falls back to its newest row.
+  const range = useCpmKpisRange(loop?.loopId, kind, matrix?.windowStart ?? undefined, matrix?.windowEnd ?? undefined, 10, !!matrix?.windowStart);
+  const noVerdict = !!loop && !named && !latestGates.isLoading && !matrix;
+  const newest = useCpmKpis(noVerdict ? loop?.loopId : undefined, kind, 1);
+  const row: CpmKpiRow | undefined = matrix
+    ? range.data?.samples.find(r => sameInstant(r.window_end, matrix.windowEnd))
+    : newest.data?.samples[0];
+  const kpis = matrix ? range : newest;
+  const rowMissing = !!matrix && !range.isLoading && !range.isError && !row;
 
   const catalogue = useCpmCalculations();
 
@@ -49,7 +52,7 @@ export function useCalcValues(loopId: string | undefined, kind: string, windowEn
   const notCalculatedWhy = useCallback((m: MetricDef): string => {
     if (m.source === 'gate') return matrix ? 'the fused result carries no evidence score' : 'no result yet';
     if (kpis.isError) return 'the result could not be read';
-    if (!row) return 'no window result yet';
+    if (!row) return matrix ? 'no result is stored for this window' : 'no window result yet';
     return 'engine version without this metric';
   }, [matrix, row, kpis.isError]);
 
@@ -65,7 +68,7 @@ export function useCalcValues(loopId: string | undefined, kind: string, windowEn
       na = { short: a.short, reason: a.reason ?? '' };
     }
     const cell = matrix?.gates.find(g => g.key === m.gate);
-    return { metric: m, value: na ? null : value, na, status: statusOf(cell, matrix?.diagnosis) };
+    return { metric: m, value: na ? null : value, na, status: statusOf(cell, matrix?.diagnosis, !na) };
   }, [valueOf, availabilityOf, notCalculatedWhy, matrix]);
 
   const runIdOf = useCallback((gate: string): string | undefined =>
@@ -73,7 +76,7 @@ export function useCalcValues(loopId: string | undefined, kind: string, windowEn
 
   const rowVersion = typeof row?.calculation_version === 'string' ? row.calculation_version : null;
   return {
-    loop, matrix, row, named, viewOf, runIdOf,
+    loop, matrix, row, named, viewOf, runIdOf, rowMissing, catalogue: catalogue.data,
     notStored: named && at.notFound,
     loading: !!loopId && (named ? at.isLoading : latestGates.isLoading),
     windowError: named && at.isError ? at.error : null,

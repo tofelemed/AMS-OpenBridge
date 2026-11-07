@@ -1604,7 +1604,7 @@
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-067 in the register before using this text.",
     "citations": [
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:185-189",
+      "src/frontend-ob/src/components/Cpm/calc/recordRows.ts:26-28",
       "src/services/cplm-api/Controllers/CpmEventsController.cs:184-191",
       "src/flink/src/main/java/com/ams/flink/cplm/fusion/DiagnosisBands.java:44-57",
       "src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14",
@@ -1858,7 +1858,7 @@
     "formula": "autoCount ÷ n, n = samples present. isAutoMode tokens: AUTO, AUT, A, AUTOMATIC, NORMAL, NORM, CAS, CASC, CASCADE, RSP, DDC, SUP, SUPERVISORY; manual tokens first; null, empty, UNKNOWN false.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "% integer on card, 0.00 ratio on Calculations, % to 0.1 on Windows; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-078 in the register before using this text.",
@@ -1873,7 +1873,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -1885,7 +1886,7 @@
     "formula": "1 − auto_pct.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "% to 0.1; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/kpi",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-079 in the register before using this text.",
@@ -1899,7 +1900,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -1911,7 +1913,7 @@
     "formula": "count(|SP − PV| ≤ band) ÷ n. band = goodErrorBandPctOfSpan × declared span, 0.005 default, 0.5 EU if span unusable.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Historical overlay reads the 15m tier. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "% integer on bar and card; 0.00 fraction on Calculations; % to 0.1 on Windows and Investigation; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-080 in the register before using this text.",
@@ -1927,7 +1929,8 @@
       "src/frontend-ob/src/components/Cpm/CpmHistorical.tsx:52",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -1939,7 +1942,7 @@
     "formula": "goodErrorBand(). Provenance objective_id = PROFILE_GOOD_ERROR_BAND.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: G3 evidence retained.",
     "unit": "EU; computed as EU.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/evidence",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-081 in the register before using this text.",
@@ -1953,7 +1956,8 @@
       "vw_ columns, src/services/cplm-api/Data/KpiSql.cs:37-48",
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -1965,7 +1969,7 @@
     "formula": "mean(|SP − PV|) over samples, not time-weighted.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null. Card needs a registered span.",
     "unit": "% of span on card; \"PV units\" on Calculations; raw with no unit in the queue fallback; computed as PV EU.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-082 in the register before using this text.",
@@ -1981,7 +1985,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/frontend-ob/src/components/Cpm/kpi/loopKpiView.ts:109,120",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -1993,7 +1998,7 @@
     "formula": "sqrt(mean(e²)) over samples.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "PV units; computed as PV EU.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Definition conflict. See M-083 in the register before using this text.",
@@ -2007,7 +2012,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2019,7 +2025,7 @@
     "formula": "Σ|e|·Δt, zero-order hold across gaps, last sample one median interval.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "PV·s on Calculations; EU·s on Historical; computed as PV EU × s.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-084 in the register before using this text.",
@@ -2033,7 +2039,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2045,7 +2052,7 @@
     "formula": "Σe²·Δt.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "PV²·s; computed as PV EU² × s.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Consistent. See M-085 in the register before using this text.",
@@ -2059,7 +2066,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2071,7 +2079,7 @@
     "formula": "Σ(t − windowStart)·|e|·Δt.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "chart unit from artifact; computed as PV EU × s².",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/evidence",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-086 in the register before using this text.",
@@ -2085,7 +2093,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2097,7 +2106,7 @@
     "formula": "pv_std = population σ of PV. Card: 2σ ÷ registered span × 100.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null. Needs a registered span.",
     "unit": "% of span; computed as PV EU.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-087 in the register before using this text.",
@@ -2113,7 +2122,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2125,7 +2135,7 @@
     "formula": "Shown value: short stage, share of samples with OP ≤ satLowPct or ≥ satHighPct, 5 and 95. G10 uses a second computation on limitTolerancePp.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran, else the long value.",
     "unit": "% integer; deciding to 0.1; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-088 in the register before using this text.",
@@ -2142,7 +2152,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/fusion/FusionInputs.java:65",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2154,7 +2165,7 @@
     "formula": "max episode duration at a limit.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "min, or duration; computed as s.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/kpi",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-089 in the register before using this text.",
@@ -2166,7 +2177,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2178,7 +2190,7 @@
     "formula": "Σ|ΔOP| × 24 ÷ window hours. OP normalised to 0-100 only when a range is declared.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "%/day; computed as OP units per day; pp only with a declared or 0-100 range.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-090 in the register before using this text.",
@@ -2193,7 +2205,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2205,7 +2218,7 @@
     "formula": "Sign changes of ΔOP with |ΔOP| > 1e-9 ÷ window hours. G4.reversal_deadband_pp maps to opDeadbandPct, read only by the corner score.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "/h; computed as count per h.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-091 in the register before using this text.",
@@ -2221,7 +2234,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2233,7 +2247,7 @@
     "formula": "count(|ΔSP| > 1e-6) ÷ window hours.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "/h; computed as count per h.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-092 in the register before using this text.",
@@ -2247,7 +2261,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2259,7 +2274,7 @@
     "formula": "n ÷ round(window s ÷ declared grid), falling back to the median observed period; not clamped.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Always written.",
     "unit": "% integer on card; \"ratio\" on Calculations; % on Windows; computed as ratio, can exceed 1.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/explorer",
     "status": "as-implemented",
     "registerStatus": "Definition conflict. See M-093 in the register before using this text.",
@@ -2273,7 +2288,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:81",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2285,7 +2301,7 @@
     "formula": "n after half-open filter and dedupe. Fused row: long count, else short.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Any row.",
     "unit": "count; computed as count.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-094 in the register before using this text.",
@@ -2299,7 +2315,8 @@
       "vw_ columns, src/services/cplm-api/Data/KpiSql.cs:37-48",
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2311,7 +2328,7 @@
     "formula": "count(quality ≠ GOOD) ÷ n, UNCERTAIN and UNKNOWN included.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Always written.",
     "unit": "% to 0.1; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/kpi",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-095 in the register before using this text.",
@@ -2325,7 +2342,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:82",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2337,7 +2355,7 @@
     "formula": "max Δt between samples.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Always written.",
     "unit": "min; computed as s.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/kpi",
     "status": "as-implemented",
     "registerStatus": "Consistent. See M-096 in the register before using this text.",
@@ -2350,7 +2368,8 @@
       "vw_ columns, src/services/cplm-api/Data/KpiSql.cs:37-48",
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2362,7 +2381,7 @@
     "formula": "σ(OP)/σ(PV), 0 when σPV ≤ 1e-12. G4 judges activity_ratio_norm when a span is declared.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Same row on Calculations. Loop cards poll every 5 min. Eligibility: Short stage ran: G0 not failed and n ≥ 10; else null.",
     "unit": "ratio; computed as OP units per PV unit, not dimensionless.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-097 in the register before using this text.",
@@ -2377,7 +2396,8 @@
       "src/frontend-ob/src/components/Cpm/explorer/summary/LoopKpiCards.tsx:24",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:19-21",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2389,7 +2409,7 @@
     "formula": "Median of 2 × zero-crossing spacing × Ts. validated_period_s = ACF if regular and in band, else FFT with fold. /cpm/kpi serves validated period; Calculations and Investigation serve acf_period_s.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "s or duration; computed as s.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Definition conflict. See M-098 in the register before using this text.",
@@ -2404,7 +2424,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2416,7 +2437,7 @@
     "formula": "min(1, median period ÷ 3σ(periods)), 1.0 when σ ≈ 0.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "0 to 1, 2 dp; computed as ratio.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Consistent. See M-099 in the register before using this text.",
@@ -2428,7 +2449,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2440,7 +2462,7 @@
     "formula": "VALID when ACF or FFT passes band and quality tests; flag NO_VALID_CYCLE.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "word; computed as enum.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/kpi",
     "status": "as-implemented",
     "registerStatus": "Consistent. See M-100 in the register before using this text.",
@@ -2453,7 +2475,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2465,7 +2488,7 @@
     "formula": "(A2+A3+A5)/A1 and energy equivalent on the band spectrum.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "ratio; computed as ratio.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Consistent. See M-101 in the register before using this text.",
@@ -2478,7 +2501,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2490,7 +2514,7 @@
     "formula": "Mean per-cycle score SSE_sine/(SSE_sine + SSE_tri) on the shape signal. Shape signal = PV on integrating classes.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: Valid period and enough samples per period.",
     "unit": "score; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Engine-UI conflict. See M-102 in the register before using this text.",
@@ -2503,7 +2527,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2515,7 +2540,7 @@
     "formula": "oddSum/(oddSum + evenSum).",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "score; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-103 in the register before using this text.",
@@ -2528,7 +2553,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2540,7 +2566,7 @@
     "formula": "Share of turning angle at corners; raw stored, qualified used by fusion.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "score; computed as fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/calculations",
     "status": "as-implemented",
     "registerStatus": "Label only. See M-104 in the register before using this text.",
@@ -2553,7 +2579,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2565,7 +2592,7 @@
     "formula": "Per-cycle shoelace area ÷ bounding box, normalised per cycle.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: Valid cycles.",
     "unit": "fraction; computed as ratio.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/evidence",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-105 in the register before using this text.",
@@ -2577,7 +2604,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },
@@ -2589,7 +2617,7 @@
     "formula": "freeze_index_s = longest flat run samples × Ts; freeze_fraction = run ÷ n.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Long tier; recomputed from the rolling buffer. Eligibility: n ≥ 10 in the long tier.",
     "unit": "duration; %; computed as s; fraction.",
-    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: only in CalcDrawer and Historical.",
+    "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: Run details on Calculations, the Calculations right column when it differs from the deployed version, and Historical.",
     "link": "/cpm/investigation",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-106 in the register before using this text.",
@@ -2601,7 +2629,8 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/LongDiagnosticsCalculator.java:77-80",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45",
-      "src/frontend-ob/src/components/Cpm/CalcDrawer.tsx:148-153,209-216",
+      "src/frontend-ob/src/components/Cpm/replay/RunDetailsDialog.tsx:35",
+      "src/frontend-ob/src/components/Cpm/calc/CalcPanel.tsx:43-77",
       "src/frontend-ob/src/components/Cpm/historical/SelectedWindowPanel.tsx:104-107"
     ]
   },

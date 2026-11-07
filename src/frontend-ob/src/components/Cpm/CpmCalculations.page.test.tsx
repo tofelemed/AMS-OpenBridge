@@ -8,7 +8,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { CpmGateMatrix } from '../../api/cpm/gates';
 
 const { state } = vi.hoisted(() => ({
-  state: { matrix: null as unknown, latestRow: null as unknown, pastRow: null as unknown, at: null as unknown, atArgs: [] as unknown[] },
+  state: { matrix: null as unknown, latestRow: null as unknown, rangeRow: null as unknown, at: null as unknown, atArgs: [] as unknown[], rangeArgs: [] as unknown[] },
 }));
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -20,14 +20,15 @@ vi.mock('./context/LoopBand', () => ({
     React.createElement('div', { 'data-testid': 'band' }, p.loopId, p.children),
 }));
 vi.mock('./evidence/useEvidence', () => ({ useEvidenceManifest: () => ({ data: { readiness: 'COMPLETE' } }) }));
-vi.mock('./evidence/useWindowAt', () => ({
+vi.mock('./evidence/useWindowAt', async importOriginal => ({
+  ...(await importOriginal<typeof import('./evidence/useWindowAt')>()),
   useWindowAt: (...a: unknown[]) => { state.atArgs = a; return state.at; },
 }));
 vi.mock('../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10401', timezone: 'UTC', loopType: 'FIC', engineering: { pvUnit: 'kg/h' } }] } }),
   useLatestGates: () => ({ data: state.matrix, isError: false }),
   useCpmKpis: () => ({ data: { samples: [state.latestRow] }, isError: false }),
-  useCpmKpisRange: () => ({ data: { samples: state.pastRow ? [state.pastRow] : [] }, isError: false }),
+  useCpmKpisRange: (...a: unknown[]) => { state.rangeArgs = a; return { data: { samples: state.rangeRow ? [state.rangeRow] : [] }, isError: false, isLoading: false }; },
   useCpmCalculations: () => ({ data: { calculationVersion: '3.0.0', gates: [] } }),
 }));
 
@@ -60,7 +61,7 @@ const url = () => screen.getByTestId('where').textContent ?? '';
 beforeEach(() => {
   state.matrix = matrix(NOW);
   state.latestRow = kpiRow(NOW);
-  state.pastRow = null;
+  state.rangeRow = kpiRow(NOW);
   state.at = { row: undefined, rerun: false, others: [], notFound: false, isLoading: false, isError: false, error: null, refetch: () => undefined };
 });
 afterEach(cleanup);
@@ -115,7 +116,15 @@ describe('Calculations', () => {
     expect(screen.getByText('3 shown / 19 available')).toBeTruthy();
     const gate = screen.getByLabelText('Gate') as HTMLSelectElement;
     expect([...gate.options].map(o => o.value)).toEqual(['all', 'G4']);
-    expect(url()).toContain('metric=CPLM-020');
+    // the pick CPLM-001 is hidden by the filter: the panel shows the first visible row, the address keeps the pick
+    expect(within(screen.getByRole('complementary')).getByRole('heading', { name: 'Actuator effort ratio' })).toBeTruthy();
+    expect(url()).toContain('metric=CPLM-001');
+  });
+
+  it('keeps a shared ?metric= that a gate filter hides', () => {
+    mount('?loop=FIC10401&gate=G3&metric=CPLM-050');
+    expect(url()).toContain('metric=CPLM-050');
+    expect(within(screen.getByRole('complementary')).getByRole('heading', { name: 'Mean absolute error' })).toBeTruthy();
   });
 
   it('clears the filters', () => {
@@ -135,12 +144,39 @@ describe('Calculations', () => {
 
   it('shows a past window\'s values for ?window=', () => {
     state.at = { row: matrix(PAST), rerun: false, others: [], notFound: false, isLoading: false, isError: false, error: null, refetch: () => undefined };
-    state.pastRow = kpiRow(PAST, { vw_mae: 1.2345 });
+    state.rangeRow = kpiRow(PAST, { vw_mae: 1.2345 });
     mount(`?loop=FIC10401&window=${encodeURIComponent(PAST)}&metric=CPLM-010`);
     expect(state.atArgs.slice(0, 3)).toEqual(['FIC10401', '12h', PAST]);
     const row = rowsShown().find(r => within(r).queryByText('Mean absolute error'))!;
     expect(row.textContent).toContain('1.234');
     expect(row.textContent).not.toContain('0.7103');
+  });
+
+  it('finds the past window when the instants match but the strings differ', () => {
+    state.at = { row: matrix(PAST.replace('Z', '.000Z')), rerun: false, others: [], notFound: false, isLoading: false, isError: false, error: null, refetch: () => undefined };
+    state.rangeRow = kpiRow(PAST, { vw_mae: 1.2345 });
+    mount("?loop=FIC10401&window="+encodeURIComponent(PAST)+"&metric=CPLM-010");
+    expect(rowsShown().find(r => within(r).queryByText('Mean absolute error'))!.textContent).toContain('1.234');
+    // the read stops at the window's end, so the target row is the first one back
+    expect(state.rangeArgs[3]).toBe(PAST.replace("Z", ".000Z"));
+  });
+
+  it('pins the values to the window the band names, and says when that row is not stored', () => {
+    state.rangeRow = kpiRow('2026-11-05T13:30:00Z', { vw_mae: 9.9999 });
+    mount();
+    expect(screen.getByText(/values for the window above are not stored/i)).toBeTruthy();
+    const row = rowsShown().find(r => within(r).queryByText('Mean absolute error'))!;
+    expect(row.textContent).toContain('Not calculated');
+    expect(row.textContent).not.toContain('9.99');
+  });
+
+  it('marks a gate result with no value as partial, not as a pass', () => {
+    mount();
+    const effort = rowsShown().find(r => within(r).queryByText('Actuator effort ratio'))!;
+    expect(effort.textContent).toContain('Not calculated');
+    expect(effort.textContent).toContain('on other inputs');
+    const good = rowsShown().find(r => within(r).queryByText('Sample completeness'))!;
+    expect(good.textContent).not.toContain('on other inputs');
   });
 
   it('says a named window is not stored, and lists nothing as if it were', () => {

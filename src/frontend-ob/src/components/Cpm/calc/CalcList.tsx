@@ -4,7 +4,7 @@
  * is in the right column.
  */
 import React from 'react';
-import { GateBadge } from '../../../ui/GateBadge';
+import GateResult from './GateResult';
 import type { CalcSortKey } from '../calcSort';
 import { valueText, type MetricView } from './calcView';
 
@@ -17,7 +17,7 @@ export const CalcList: React.FC<{
 }> = ({ rows, selectedId, onSelect, head }) => (
   <>
     <div className="cpm-event-head cpm-calc-list__row cpm-table-head--sticky">
-      <span className="cpm-calc-list__heads">{head('name', 'Calculation')}{head('id', 'ID')}</span>
+      <span>{head('name', 'Calculation', 'Sorts by ID, then by name')}</span>
       <span>Value / unit</span>
       {head('status', 'Gate result', 'The result of the gate that judges this calculation, on the same window. Sorts needing attention first.')}
     </div>
@@ -43,7 +43,7 @@ export const CalcList: React.FC<{
                   </>
                 ) : value != null ? valueText(metric, value) : null}
               </span>
-              <span><GateBadge status={status.code} gate={metric.gate} /></span>
+              <span><GateResult gate={metric.gate} status={status} /></span>
             </div>
           </div>
         );

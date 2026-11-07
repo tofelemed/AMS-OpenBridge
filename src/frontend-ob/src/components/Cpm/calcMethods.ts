@@ -58,7 +58,7 @@ const METHODS: Record<string, CalcMethod> = {
   },
   'CPLM-031': {
     formula: 'min(1, period ÷ (3 × std of the periods))',
-    text: 'How steady the zero-crossing periods are, from 0 to 1. A low value is a real result: not regular.',
+    text: 'How steady the zero-crossing periods are, from 0 to 1. A low value is a real result: not regular. It is 1 when the periods do not spread (std of 1e-9 or less).',
   },
   'CPLM-040': {
     formula: '(A2 + A3 + A5) ÷ A1',

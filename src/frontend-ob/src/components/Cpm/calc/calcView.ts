@@ -17,7 +17,7 @@ export interface MetricView {
   /** Why there is no number to show: the engine's reason, never a bare dash. */
   na: { short: string; reason: string } | null;
   /** code: the status the mark is drawn from; NOT_EVALUATED when the gate was not judged. */
-  status: { label: string; tone: Tone; code: string };
+  status: { label: string; tone: Tone; code: string; /** the metric has no value: the gate result is not this metric's result */ partial: boolean };
 }
 
 /** The gate has no result of its own for this window. */
@@ -39,12 +39,15 @@ export function valueText(metric: MetricDef, value: number, withUnit = true): st
 
 /**
  * The gate's own result for the metric: its mark word, and the status the mark is drawn from. A gate that was not judged
- * reads Not evaluated. The verdict belongs to the gate, so a missing value never turns the gate's result green or red.
+ * reads Not evaluated. The verdict belongs to the gate: with no value the result is marked partial and muted, never a pass for a number that does not exist.
  */
-export function statusOf(cell: Pick<CpmGateCell, 'key' | 'status'> | undefined, diagnosis?: string | null): MetricView['status'] {
+export function statusOf(
+  cell: Pick<CpmGateCell, 'key' | 'status'> | undefined, diagnosis?: string | null, hasValue = true,
+): MetricView['status'] {
   const code = cell && isGateJudged(cell, diagnosis) ? cell.status : 'NOT_EVALUATED';
   const mark = gateMark(code, cell?.key);
-  return { label: mark.word, tone: mark.tone, code };
+  const partial = !hasValue && code !== 'NOT_EVALUATED';
+  return { label: mark.word, tone: partial ? 'muted' : mark.tone, code, partial };
 }
 
 /** How many of a window's gates need review and how many were not judged; the list no longer carries tiles. */
@@ -52,11 +55,9 @@ export function gateTally(gates: readonly Pick<CpmGateCell, 'key' | 'status'>[],
   let review = 0;
   let notJudged = 0;
   for (const g of gates) {
-    if (!isGateJudged(g, diagnosis)) notJudged++;
-    else {
-      const tone = gateMark(g.status, g.key).tone;
-      if (tone === 'warn' || tone === 'bad') review++;
-    }
+    const s = statusOf(g, diagnosis);
+    if (s.code === 'NOT_EVALUATED') notJudged++;
+    else if (s.tone === 'warn' || s.tone === 'bad') review++;
   }
   return { total: gates.length, review, notJudged };
 }
