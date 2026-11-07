@@ -170,6 +170,7 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 | 2026-11-04 (lab, CHG-102 8) | A whole-database IoTDB export (`select * from root.hdpe.cpm.**`) failed: `301: There is not enough memory to execute current fragment instance` | `backup-iotdb.sh` exports one query per device, all in one export process; `--window-hours` splits a device's range if one device ever hits the same limit | `changes_tracker.md` CHG-102 |
 | 2026-11-07 (lab) | All verdicts stopped from 4 Nov 12:30. ZooKeeper expired the JobManager session after 40 s without a heartbeat, the JobManager lost leadership and never took it back while the process stayed up, and the TaskManager restarted every 5 minutes (619 times) with nothing to register with. It happened again on 6 Nov 20:19, during a test run on all 20 host cores with about 1 GB of host memory free. | Recreate only the JobManager; ZooKeeper HA restores the jobs in under 3 minutes. Keep heavy host work off the lab box: test runs capped at 4 workers. The plant Flink has no ZooKeeper HA, so this cannot happen there. | CHG-133 |
 | 2026-11-07 (lab; **open, the plant can hit this**) | All raw trends stopped on 5 Nov 08:05 with no alarm. A Kafka rebalance made `StoreOffset` throw "Local: Erroneous state" in `RawLoopIotDbConsumer`; the catch logged a warning and the consumer never took partitions again, while `ams-api` stayed healthy. Engine verdicts kept coming, so only the trends went blank, "no raw historian data". | Lab: `docker restart ams-api` resumed writing and cleared the backlog. **No code fix yet.** Until there is one, a plant check is that `select last * from <loop device>` in IoTDB is minutes old. | CHG-133 |
+| 2026-11-07 (lab, during CHG-133 to 153) | The Flink JobManager lost ZooKeeper leadership four times: 6 Nov 23:55 UTC and 7 Nov 04:46, 07:02 and 08:27 UTC. Host RAM free was 0.4 to 0.7 GB each time. Jobs went RESTARTING. | Recreating the JobManager, or waiting, restored the 8 CPA jobs (04:46 to 04:57; 07:02 to 07:10; 08:27 recovered by itself). Cause: host memory pressure on the shared lab PC paging the Docker VM out. The plant runs its own host. | CHG-153 |
 | 2026-11-07 (lab) | Two lab simulators with the same MQTT client id threw each other off 5,594 times ("session taken over"). | Give a second simulator its own `SIM_OT_CLIENT_ID` and `--exclude` the loops the first one feeds. Lab only; the plant has one gateway. | CHG-133 |
 
 ## 7. Deploying to another server: what to decide again
@@ -249,3 +250,18 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 - **State bar colours (CHG-127):** the owner's values, set once in `styles/state-colours.css` and pinned by a test. Do not move them to design-system tokens.
 - **Plant scope (CHG-128):** Site, Area and Unit are in the header only, and every page reads them from the address. Trend keeps the scope and nothing else (CHG-126). Below 1024 px a slim line names the scope.
 - **Lab rebuilds (UI-105):** do not rebuild `cplm-api` on the lab from `feat/cpa-redesign` without asking, because the branch differs from `feat/v25-next-release`. Never start a second `cplm-api` to test: the CPLM consumer groups must have one member.
+
+## CPA reference redesign (CHG-133 to CHG-153, unreleased, branch feat/cpa-redesign)
+
+Services: `ams-frontend` and `cplm-api`. No migration, no config.
+
+- **Retire a loop (CHG-146):** `POST /api/v1/cpm/loops/{loopId}/retire` (reason required, at most 500 characters) and `.../restore`, both `cpm.manage`, audited as `CPM_LOOP_RETIRED` and `CPM_LOOP_RESTORED`. It is a soft remove: history stays.
+  - **Two flags, each for a reason.** `is_active` false takes the loop out of the registry, so the engine stops reading it and the overview counts leave it out. `monitoring.enabled` false stops monitoring in the loop's own configuration.
+  - **`monitoring.enabled_before_retire`** (a JSON key, no column) keeps the loop's monitoring state from before. Restore puts it back, so a loop that was off before it was retired stays off.
+  - **Up to 60 s** pass before ingestion drops the loop, the registry refresh interval. The engine's state for it stays frozen and the loop goes STALE. An open episode is not closed and stays visible.
+  - **Bulk import and edit refuse a retired loop.** Activate answers 409 `LOOP_RETIRED`; import gives a row error. Restore first, then edit.
+  - No evidence republish and no broadcast on retire or restore.
+- **Diagnostic capability (CHG-153):** the KPI count and its drill-down list cover monitored loops only, so the number and the list agree.
+- **LIVE on Trend (CHG-149):** shown while the newest sample is within max(60 s, a tenth of the live range). A longer range tolerates a longer gap.
+- **Copy buttons (CHG-147):** they fall back to a hidden text field, because the plant runs over plain http and the clipboard API needs https.
+- **Deploy both services together.** The frontend calls the two new endpoints; an older `cplm-api` answers 404 to Retire.

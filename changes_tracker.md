@@ -5804,3 +5804,190 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Services updated:** `ams-frontend` (when released). **No migration, no config.**
 **Plant:** nothing yet. This branch is not released (RD15).
+
+## CHG-134 — CPA: Overview, clickable top finding and simple recent events (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Why.** Reference redesign Section 1, Overview. Structure and flow only; the look stays ours.
+
+**Changed.**
+- **Top finding** opens its loop. **Recent events** are a simple list.
+- **Review** on the priority queue opens Investigation, as the reference does. The focused-loop drawer repeated the verdict and the 17 gates that Investigation shows, so its file is removed.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-135 — CPA: Performance tiles, gate summary and matrix (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- **Tiles** carry the reference's sub-lines. Every KPI tile opens the loops behind it.
+- **Toggle** between the two views, a clean matrix, and a gate that opens a dialog with its summary.
+- Page scroll replaces the matrix's own max-height.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-136 — CPA: Loop Events as the reference, severity filter and EVT search (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- **Loop Events** grid and strip as the reference lays them out.
+- **Severity filter** (`?severity=high`) and **search by event number** (`EVT-n`; plain text also works). A row with no engine severity cannot be found by the severity filter.
+- **Review** on a fast-condition event opens Loop Explorer at its gate.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-137 — CPA: Loop Explorer Summary (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** One signal row and a bigger trend. KPI buttons link to the gate behind them (variability G3, at-limit G10, setpoint changes G2) and say "Related gate" for context KPIs. The band shows the window end in short form. The loop button in the matrix is named by its visible text, and the Fusion column is no longer covered by Result.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-138 — CPA: Explorer Signals, Calculations, Relationships and History tabs (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** The four tabs follow the reference's order and content. Relationships stays its own tab.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-139 — CPA: Historical, evaluated windows and the selected window (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Evaluated windows list with the selected window in a panel beside it. A window that is not found is never replaced by the newest one.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-140 — CPA: every evidence page reads the same exact window (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Investigation, Workbench, Replay, Calculations and Historical open the window named in the address. Re-run rows, the event window size and the Historical fallback were corrected after review.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-141 — CPA: Investigation, latest result, why and the proof dialogs (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- Investigation shows the verdict first, then why, then the proof dialogs.
+- A no-fault window reads as a result on every page. `conditionOf` was corrected at the source to agree with `diagnosisLabel`, so one vocabulary holds everywhere. Some Explorer words change; they are listed in `docs/theme/redesign/text-changes.md` for the control engineer.
+- Related events carries the event.
+
+**Before release:** control-engineer review of `text-changes.md`.
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-142 — CPA: Workbench gate rail, run summary and tabs (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Gate rail and run summary; Proof, Rules, Signal and Identity tabs. Parameters wait for the manifest and come from the retained proof. The help sources name the Method row and Rules & parameters instead of Explain. A basis note stays for a reconstruction, and Reconstruct appears once.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-143 — CPA: Replay stages, cursor readout and re-run (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- Replay stages and a readout at the cursor (PV, SP, OP, Mode). No playback.
+- **Re-run this window** sends the exact window as a new run and keeps the original, through the existing Evaluate request. It needs `cpm.analysis.create`. A finished re-run opens the new run in the Workbench.
+- The evidence package zip holds `manifest.json` and `evidence-package.json`.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-144 — CPA: Window Inspector (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** The selected window sits beside the list. Sample density opens in a dialog from the selected-window panel. Previous and Next became Older and Newer. A named window that is not loaded selects nothing and offers Load older, Show the newest window or Clear filter.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-145 — CPA: Calculations by category and System Response (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- **Calculations** by category with the selected metric beside the list. Values show for older stored windows, pinned to the window's own values. A metric with no value beside a passed gate reads "<word> on other inputs". A shared no-value reason is stated once above the list. Record details sit in one closed disclosure.
+- **System Response:** summary and four steps; the model tile shows the best model held. The gate rail's accessible name starts with its visible text.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-146 — CPA: retire and restore a loop, history kept (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Why.** The reference replaces Delete with Retire: a loop leaves monitoring and keeps its history.
+
+**Changed (`cplm-api`).**
+- `POST /api/v1/cpm/loops/{loopId}/retire` takes a required reason of at most 500 characters. `POST .../restore` takes none. Both need `cpm.manage`.
+- Audit events `CPM_LOOP_RETIRED` and `CPM_LOOP_RESTORED`.
+- Retire sets `is_active` false and `monitoring.enabled` false, and keeps the prior monitoring state in the JSON key `monitoring.enabled_before_retire`. Restore puts it back, so a loop that was off stays off.
+- Retired loops leave the registry summary and overview counts. No broadcast and no evidence republish: engines lose input within the 60 s registry refresh and the loop goes STALE.
+
+**Services updated:** `cplm-api` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-147 — CPA: Loop Registry and Loop Detail with edit and retire (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.**
+- **Registry:** three columns; a pill beside the name only for Not monitored and Retired; limit counts, including degraded, link to filters (`?gap=vp|peers|degraded`); a row click opens the loop.
+- **Loop Detail** is its own page with Edit, Retire and Restore. Copy works on plain http. Edit never revives or resets a loop.
+- **Activate** answers 409 `LOOP_RETIRED` for a retired loop and keeps source tags, engineering keys and `monitoring.evidence` keys the request does not send.
+- **Bulk import** refuses a retired loop with the row error `LOOP_RETIRED` (it used to set `is_active` true on conflict).
+
+**Services updated:** `ams-frontend`, `cplm-api` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-148 — CPA: Gate Configuration (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Tiles and a clean property table. The gate role policy moved here unchanged. One APPLY acknowledgements disclosure replaces the line that repeated the Worker tile. A failed draft keeps its errors in the dialog; empty workers read neutral; a catalogue read error is shown.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-149 — CPA: Trend opens from a loop selector (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** `?loop=` opens the loop's pens by role; `roles=none` is an explicit empty chart. Pen removal and shared tags work. **LIVE** shows when the newest sample is within max(60 s, a tenth of the live range). A failed loop-list read shows the read error, not "Loop not found".
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-150 — CPA: Pipeline Health (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** All jobs are listed with real verification states. A job the engine lists under another spelling keeps reading MISSING, and its running copy shows as its own row marked Not on the required list. The page title reads Pipeline Health.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-151 — CPA: Administration tabs in the reference's order (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Tabs in the reference's order with honest settings. Plant model, Data sources and Tag aliases are under Administration, which reverses CHG-123. The Audit log tab is one line with Open Governance and needs `admin.audit.view`.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-152 — CPA: Governance, event dialog, honest verification and page titles (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Changed.** Governance holds the audit trail (the old audit explorer file is removed). Find searches the loaded rows only and says so; User, Entity and Event type reach the server. A person who cannot read loops sees no Open loop link. Page titles read as the sidebar.
+
+**Services updated:** `ams-frontend` (when released). **No migration, no config.**
+**Plant:** nothing yet. This branch is not released.
+
+## CHG-153 — CPA reference redesign: release summary, acceptance and records (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**What this release is.** CHG-133 to CHG-152: 17 pages on their own addresses under six sidebar headings, following the SME reference for structure and flow. Look, sizes and filters are the base app's. Acceptance: `docs/theme/redesign/acceptance.md`. Control-engineer review: `docs/theme/redesign/text-changes.md`.
+
+**Final review fixes (`86fd3c2f`).** The exact window on back links, Replay kinds, the retired mark, permissions, and one KPI population: the Diagnostic capability count and its drill-down list now cover monitored loops only.
+
+**Also in this release.**
+- Two KPI drill-downs: every Performance KPI tile (CHG-135) and each Loop Registry limit count (CHG-147) lists its loops.
+- Event severity filter and EVT search (CHG-136).
+- Values on older stored windows in Calculations (CHG-145).
+
+**Services updated:** `ams-frontend`, `cplm-api`. Nothing else.
+
+**No database migration and no config change.** Retire uses the existing `is_active` and `monitoring.enabled`, plus the JSON key `monitoring.enabled_before_retire`.
+
+**New `cplm-api` endpoints.**
+- `POST /api/v1/cpm/loops/{loopId}/retire`, reason required, at most 500 characters. `POST /api/v1/cpm/loops/{loopId}/restore`. Both `cpm.manage`. Audit events `CPM_LOOP_RETIRED` and `CPM_LOOP_RESTORED`.
+- Changed behaviour: activate answers 409 `LOOP_RETIRED` for a retired loop; bulk import refuses a retired loop with a row error; activate keeps source tags, engineering keys and `monitoring.evidence` keys the request does not send.
+
+**Script to run for the release.** `python migration/deploy/build-release.py --release <name> --skip-jar` (`--skip-jar`: no Flink change). The manifest `migration/deploy/releases/<name>.txt` must hold two lines, `cplm-api` and `ams-frontend`; none exists yet for this release and the release name is not decided. The script builds and saves the images `ams-cpa-cplm-api` and `ams-cpa-ams-frontend` (`COMPOSE_PROJECT_NAME` default `ams-cpa`; compose carries no version tag) and writes the VM steps with `src-<commit>.tar.gz`. At the plant: integrity check, rollback image list, load the two images, `bash migration/deploy/deploy.sh --prod`, then the checks in `acceptance.md`. Same path as v2.8.0.1 (see its entry).
+
+**Before release:** control-engineer review of `text-changes.md`; the owner signs off the "Not in this release" list and the SME is told; the final browser gates on the release build.
+
+**Plant:** not deployed. This branch is not released.
