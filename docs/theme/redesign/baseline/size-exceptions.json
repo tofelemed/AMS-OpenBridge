@@ -4,6 +4,14 @@
     {
       "entry": "section heading.fontSize = 19.6px on investigation",
       "why": "the Investigation result line uses the app's page-title size so the verdict reads first; the old page had no result heading"
+    },
+    {
+      "entry": "chart.height = 734px on trend",
+      "why": "the owner asked for a loop selector; its band takes 28 px from the chart, the only change on this page"
+    },
+    {
+      "entry": "chart.height = 220px on pipeline",
+      "why": "the same 220 px chart as before; the baseline run held no checkpoint samples, so it never drew"
     }
   ]
 }

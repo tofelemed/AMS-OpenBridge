@@ -50,7 +50,7 @@
       "why": "the name holds a loop tag from the live ranking"
     },
     {
-      "pattern": "^oscillating ( )$",
+      "pattern": "^oscillating \\( \\)$",
       "why": "a count chip that shows only while such a finding exists"
     },
     {
@@ -58,7 +58,7 @@
       "why": "a ranking row name holds a live rank and loop tag"
     },
     {
-      "pattern": "^/day|^/h[a-z]|^control error (mae)",
+      "pattern": "^/day|^/h[a-z]|^control error \\(mae\\)",
       "why": "a KPI tile name holds its live value and gate status"
     },
     {
@@ -76,6 +76,10 @@
     {
       "pattern": "^when a value is not measured$",
       "why": "the reason now reads on the page, once above the list"
+    },
+    {
+      "pattern": "^(fic|lic|pic|tic|aic|b_pic)[a-z_]*$",
+      "why": "a ranking row names a live loop tag"
     }
   ]
 }

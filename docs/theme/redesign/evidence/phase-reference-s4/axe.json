@@ -1,0 +1,510 @@
+[
+ {
+  "name": "Overview",
+  "url": "/cpm",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview",
+  "url": "/cpm",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Overview, filtered",
+  "url": "/cpm?review=stale",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview, filtered",
+  "url": "/cpm?review=stale",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Overview, loop selected",
+  "url": "/cpm?review=stale&loop=FIC10302",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Overview, loop selected",
+  "url": "/cpm?review=stale&loop=FIC10302",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Performance",
+  "url": "/cpm/performance",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Performance",
+  "url": "/cpm/performance",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Performance, matrix",
+  "url": "/cpm/performance?view=matrix",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Performance, matrix",
+  "url": "/cpm/performance?view=matrix",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Loop Events",
+  "url": "/cpm/events",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Loop Events",
+  "url": "/cpm/events",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, Summary",
+  "url": "/cpm/explorer?tab=Summary&loop=B2_027PIC",
+  "theme": "day",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": ".cpm-empty > h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "Loop Explorer, Summary",
+  "url": "/cpm/explorer?tab=Summary&loop=B2_027PIC",
+  "theme": "night",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": ".cpm-empty > h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "Loop Explorer, Signals",
+  "url": "/cpm/explorer?tab=Signals&loop=B2_027PIC",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, Signals",
+  "url": "/cpm/explorer?tab=Signals&loop=B2_027PIC",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, Calculations",
+  "url": "/cpm/explorer?tab=Calculations&loop=B2_027PIC",
+  "theme": "day",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": "h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "Loop Explorer, Calculations",
+  "url": "/cpm/explorer?tab=Calculations&loop=B2_027PIC",
+  "theme": "night",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": "h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "Loop Explorer, Relationships",
+  "url": "/cpm/explorer?tab=Relationships&loop=B2_027PIC",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, Relationships",
+  "url": "/cpm/explorer?tab=Relationships&loop=B2_027PIC",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, History",
+  "url": "/cpm/explorer?tab=History&loop=B2_027PIC",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "Loop Explorer, History",
+  "url": "/cpm/explorer?tab=History&loop=B2_027PIC",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/explorer",
+  "url": "/cpm/explorer?loop=FIC00701",
+  "theme": "day",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": "#cpm-loop-trend > .cpm-empty > h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "/cpm/explorer",
+  "url": "/cpm/explorer?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/explorer, no loop chosen",
+  "url": "/cpm/explorer",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/explorer, no loop chosen",
+  "url": "/cpm/explorer",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/historical",
+  "url": "/cpm/historical?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/historical",
+  "url": "/cpm/historical?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/historical, no loop chosen",
+  "url": "/cpm/historical",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/historical, no loop chosen",
+  "url": "/cpm/historical",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/investigation",
+  "url": "/cpm/investigation?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/investigation",
+  "url": "/cpm/investigation?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/investigation, no loop chosen",
+  "url": "/cpm/investigation",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/investigation, no loop chosen",
+  "url": "/cpm/investigation",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/response",
+  "url": "/cpm/response?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/response",
+  "url": "/cpm/response?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/response, no loop chosen",
+  "url": "/cpm/response",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/response, no loop chosen",
+  "url": "/cpm/response",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/evidence",
+  "url": "/cpm/evidence?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/evidence",
+  "url": "/cpm/evidence?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/evidence, no loop chosen",
+  "url": "/cpm/evidence",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/evidence, no loop chosen",
+  "url": "/cpm/evidence",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/replay",
+  "url": "/cpm/replay?loop=FIC00701",
+  "theme": "day",
+  "violations": [
+   {
+    "id": "heading-order",
+    "impact": "moderate",
+    "count": 1,
+    "target": "h3",
+    "help": "Heading levels should only increase by one"
+   }
+  ]
+ },
+ {
+  "name": "/cpm/replay",
+  "url": "/cpm/replay?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/replay, no loop chosen",
+  "url": "/cpm/replay",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/replay, no loop chosen",
+  "url": "/cpm/replay",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/windows",
+  "url": "/cpm/windows?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/windows",
+  "url": "/cpm/windows?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/windows, no loop chosen",
+  "url": "/cpm/windows",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/windows, no loop chosen",
+  "url": "/cpm/windows",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/calculations",
+  "url": "/cpm/calculations?loop=FIC00701",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/calculations",
+  "url": "/cpm/calculations?loop=FIC00701",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/calculations, no loop chosen",
+  "url": "/cpm/calculations",
+  "fresh": true,
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/calculations, no loop chosen",
+  "url": "/cpm/calculations",
+  "fresh": true,
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/registry",
+  "url": "/cpm/registry",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/registry",
+  "url": "/cpm/registry",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/config",
+  "url": "/cpm/config",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/config",
+  "url": "/cpm/config",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/pipeline",
+  "url": "/cpm/pipeline",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/pipeline",
+  "url": "/cpm/pipeline",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/cpm/governance",
+  "url": "/cpm/governance",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/cpm/governance",
+  "url": "/cpm/governance",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/users",
+  "url": "/admin/users",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/users",
+  "url": "/admin/users",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/roles",
+  "url": "/admin/roles",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/roles",
+  "url": "/admin/roles",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/system",
+  "url": "/admin/system",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/system",
+  "url": "/admin/system",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/plant-model",
+  "url": "/admin/plant-model",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/plant-model",
+  "url": "/admin/plant-model",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/data-sources",
+  "url": "/admin/data-sources",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/data-sources",
+  "url": "/admin/data-sources",
+  "theme": "night",
+  "violations": []
+ },
+ {
+  "name": "/admin/aliases",
+  "url": "/admin/aliases",
+  "theme": "day",
+  "violations": []
+ },
+ {
+  "name": "/admin/aliases",
+  "url": "/admin/aliases",
+  "theme": "night",
+  "violations": []
+ }
+]
