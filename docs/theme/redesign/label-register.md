@@ -92,3 +92,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Window's result of the run's own artifacts | Evidence for G3; Why this result; Measured vs required | Proof | Evidence Workbench | 16 |
 | Identity, flags and raw record of a run | Identity; Flags on this window | Identity & raw | Evidence Workbench | 16 |
 | Samples a window would hold | Expected samples | "{n} samples nominal at {p} s" (the expected count is not served) | Evidence Workbench | 16 |
+| Page title | Evidence replay; Evidence Replay | Evidence Replay | Evidence Replay | 17 |
+| Gate dropdown | Gate | Evidence check | Evidence Replay | 17 |
+| Export | Export package | Evidence package | Evidence Replay | 17 |
+| Controller mode at the cursor | Mode; MODE | Mode | Evidence Replay | 17 |

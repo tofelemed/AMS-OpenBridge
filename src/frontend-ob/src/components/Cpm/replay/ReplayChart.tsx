@@ -10,12 +10,13 @@ import { escapeHtml } from '../../../utils/escapeHtml';
 import ReactECharts from 'echarts-for-react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { axisChrome, chartPalette, plainOption, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
-import { fmtDateTime } from '../shared';
 import { siteAxisTick } from '../../../cpa/siteTime';
 import { formatInZone, zoneLabel } from '../evidence/timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
+import { CursorReadout } from './CursorReadout';
+import { cursorIndex } from './cursorIndex';
 
 export interface ReplayChartInput {
   points: CpmTrendPoint[];
@@ -104,7 +105,8 @@ export const ReplayChart: React.FC<{
   timeZone: string;
   pvUnit?: string;
 }> = ({ points, phasePlane, cursorPct, onCursor, truncated, timeZone, pvUnit = '' }) => {
-  const cursorTs = points.length > 0 ? points[Math.min(points.length - 1, Math.floor((cursorPct / 100) * (points.length - 1)))].ts : null;
+  const at = cursorIndex(points.length, cursorPct);
+  const cursorTs = at >= 0 ? points[at].ts : null;
   const box = useBoxZoom({ hasY: true });
   const theme = useChartTheme();
   const option = useMemo(() => buildReplayOption({ points, cursorTs, phasePlane, palette: chartPalette(), pvUnit, timeZone, zoom: box.zoom }),
@@ -119,8 +121,8 @@ export const ReplayChart: React.FC<{
       <div className="cpm-slider-row">
         <span className="cpm-copy">Replay cursor</span>
         <input type="range" min={0} max={100} value={cursorPct} onChange={e => onCursor(Number(e.target.value))} aria-label="Replay cursor position" />
-        <span className="cpm-mono">{cursorTs != null ? fmtDateTime(cursorTs) : '—'}</span>
       </div>
+      <CursorReadout points={points} cursorPct={cursorPct} timeZone={timeZone} />
       {truncated && (
         <p className="cpm-copy" role="status">
           Showing the first {points.length.toLocaleString()} raw points of the window — the slice hit the replay budget; export includes only what is shown.

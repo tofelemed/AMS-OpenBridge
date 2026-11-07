@@ -1,26 +1,19 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U8 Evidence replay (/cpm/replay?loop=&window=&gate=).
- * CPA-prototype IA parity: loop/window/gate toolbar, the transformation
- * stepper, an evidence chart over the real raw historian slice with a replay
- * cursor, a phase-plane variant for the shape gates, the summary aside from
- * the calculations catalogue + stored gate row, the input lineage strip, and
- * the A8 recompute integration (submit → poll → refetch gates). The engineer
- * note is stored honestly: it acknowledges the loop's open event frame with
- * the note attached — there is no other server-side note store.
+ * Evidence Replay (/cpm/replay?loop=&window=&gate=&rerun=). The raw historian slice one evaluated window used, with our
+ * cursor and a PV, SP, OP, Mode readout at it (no playback), five stage tabs, and the window's stored verdict. The window
+ * is the one useWindowAt reads: the original result, or a re-run when ?rerun= names one. Seeking never changes a verdict.
+ * The re-run submits the A8 historical replay job; the engineer note is stored on the loop (LoopNotes).
  */
 import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import {
-  EmptyState, KvRow, PanelHead, TonePill, WorkspaceHeader,
-  fmtDateTime, QueryError } from './shared';
+import { EmptyState, PanelHead, TonePill, WorkspaceHeader, QueryError } from './shared';
 import { LoopBand } from './context/LoopBand';
 import { pipelineHref, registryHref } from './cpaHref';
-import { gateTone } from './gateStatus';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
 import {
@@ -29,34 +22,20 @@ import {
 } from '../../hooks/useCpm';
 import { loopSeries } from '../../utils/loopSeries';
 import { ReplayChart } from './replay/ReplayChart';
-import { TransformationStepper } from './replay/TransformationStepper';
-import { LineageStrip } from './replay/LineageStrip';
-import { diagnosisLabel, codeLabel } from './vocabulary';
-import { gateMark } from './gateStatus';
+import { ReplayStages } from './replay/ReplayStages';
+import { WindowVerdictCard } from './replay/WindowVerdictCard';
+import { diagnosisLabel } from './vocabulary';
 import { windowLabel } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
-import { readable } from './evidence/format';
 import { Toggletip } from '../../ui/Toggletip';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
-import { sameInstant, useWindowAt } from './evidence/useWindowAt';
+import { EvidenceMore, EvidenceWindowSelect } from './evidence/EvidenceToolbar';
+import { workbenchHref } from './evidence/selection';
+import { useWindowAt } from './evidence/useWindowAt';
 import { fmtInstant } from './context/LoopContextBar';
 import { WindowResultSelect } from './replay/WindowResultSelect';
 import { useRefreshOnRerun } from './replay/useRefreshOnRerun';
-
-/** Long-tier metric fields relevant per gate (real stored fields only). */
-// CHG-065: fractions (0–1) are shown × 100 as %, as on the Window Inspector and Investigation
-const GATE_METRICS: Record<string, { field: string; label: string; pct?: boolean }[]> = {
-  G0: [{ field: 'completeness', label: 'Completeness (%)', pct: true }, { field: 'sample_count', label: 'Sample count' }],
-  G1: [{ field: 'auto_pct', label: 'In AUTO (%)', pct: true }],
-  G3: [{ field: 'mae', label: 'MAE' }, { field: 'iae', label: 'IAE' }, { field: 'good_error_pct', label: 'Good-error time (%)', pct: true }],
-  G4: [{ field: 'effort_ratio', label: 'Effort ratio' }, { field: 'reversals_per_hour', label: 'Reversals/h' }, { field: 'travel_per_day', label: 'Travel/day' }],
-  G5: [{ field: 'acf_period_s', label: 'ACF period (s)' }, { field: 'acf_regularity', label: 'ACF regularity' }],
-  G6: [{ field: 'harmonic_amplitude_ratio', label: 'Harmonic amplitude ratio' }, { field: 'harmonic_energy_ratio', label: 'Harmonic energy ratio' }],
-  G7: [{ field: 'triangularity', label: 'OP triangularity' }],
-  G8: [{ field: 'horch_oddness', label: 'Horch oddness' }],
-  G9: [{ field: 'corner_score', label: 'Corner score' }],
-};
 
 /** Gates whose evidence is the PV–OP shape, shown as a phase plane. */
 const SHAPE_GATES = new Set(['G7', 'G8', 'G9', 'G10']);
@@ -69,15 +48,13 @@ function download(name: string, body: string) {
 }
 
 export const CpmReplay: React.FC = () => {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   // CHG-089: the fused window kind (?kind= as replayHref writes it; 12h default)
   const [windowKind] = useWindowKind('kind');
   const loopsQuery = useCpmLoops();
   const loops = useMemo(() => loopsQuery.data?.loops ?? [], [loopsQuery.data]);
-  // No default selection: registry order is arbitrary, so `loops[0]` is a
-  // CHOICE presented as a default — the same lie the ?loop=-names-nothing
-  // fallback was fixed for, minus the URL. It also fired this page's whole
-  // query set for a loop nobody asked for.
+  // No default selection: registry order is arbitrary, so `loops[0]` is a CHOICE presented as a default.
   const loopId = params.get('loop') ?? undefined;
   const gateKey = params.get('gate') ?? 'G15';
 
@@ -94,40 +71,28 @@ export const CpmReplay: React.FC = () => {
   const at = useWindowAt(loopId, windowKind, windowEnd, rerunId);
   const selected: CpmGateMatrix | undefined = at.row;
   const windowNotStored = !!windowEnd && at.notFound;
-  const selectedValue = windows.find(w => sameInstant(w.windowEnd, selected?.windowEnd))?.windowEnd ?? selected?.windowEnd ?? '';
+  const g15Run = selected?.methodRunIds?.G15;
 
-  // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values.
+  // The long-tier KPI row for the same fused window (12h / 24h) carries the metric values. `to` is load-bearing: the
+  // endpoint orders DESC LIMIT n inside from..to, so an open `to` drops this window once ten newer ones exist.
   const kpiRow: CpmKpiRow | undefined = useCpmKpisRange(
     loopId, windowKind,
     selected?.windowStart ?? undefined,
-    // `to` is load-bearing, not decoration: the endpoint filters
-    // window_end BETWEEN from AND to and then orders DESC LIMIT n, so leaving
-    // `to` open asked for the ten NEWEST windows since this one — which drops
-    // the selected window itself as soon as more than ten have been emitted
-    // since. Every gate metric then read "no long-tier row for this window",
-    // blaming the data for a query bug.
     selected?.windowEnd ?? undefined, 10,
-    !!selected?.windowStart, // C: don't fire with from='' then refetch with the real window
+    !!selected?.windowStart,
   ).data?.samples.find(r => r.window_end === selected?.windowEnd);
 
-  // Raw slice for the selected window (first page, ascending).
+  // Raw slice for the selected window, walked page by page (each below IoTDB's REST row limit) until the window is
+  // complete or the 200k-point budget is reached - and a cut is SAID, never implied. Mode comes with it; a blank reads Not recorded.
   const series = loopId ? loopSeries(loopId) : undefined;
   const winStart = selected?.windowStart ? new Date(selected.windowStart) : undefined;
   const winEnd = selected?.windowEnd ? new Date(selected.windowEnd) : undefined;
-  // v2.5 (2E.2): the slice is walked page by page (each below IoTDB's REST row limit) until
-  // the window is complete or the 200k-point budget is reached - and a cut is SAID, never implied.
-  const raw = useRawSlice(series, winStart, winEnd, 'pv,sp,op,vp', 9_000, 200_000);
+  const raw = useRawSlice(series, winStart, winEnd, 'pv,sp,op,vp,mode', 9_000, 200_000);
   const points = useMemo(() => raw.data?.points ?? [], [raw.data]);
   const [cursorPct, setCursorPct] = useState(100);
   const catalogue = useGateCatalogue();
 
-  /**
-   * Gate options come from the served catalogue; when that read fails, the
-   * SELECTED WINDOW already carries its own gate cells (key + name), so the
-   * picker falls back to those rather than to a hardcoded list. Real data from
-   * a second source beats inventing gate names client-side, and it keeps replay
-   * usable through a catalogue outage.
-   */
+  // Gate options come from the served catalogue; when that read fails the SELECTED WINDOW's own gate cells stand in.
   const gatesFromWindow = calc.isError && (selected?.gates.length ?? 0) > 0;
   const gateOptions = useMemo(
     () => (calc.data?.gates ?? []).map(g => ({ key: g.key, name: g.name }))
@@ -135,19 +100,19 @@ export const CpmReplay: React.FC = () => {
     [calc.data, selected]);
 
   const def = calc.data?.gates.find(g => g.key === gateKey);
-  const cell = selected?.gates.find(g => g.key === gateKey);
   // the role comes from the build's catalogue (2D.1); '—' until it is fetched, never a guessed table
   const role = gateRole(catalogue.data, gateKey);
   const isShapeGate = SHAPE_GATES.has(gateKey);
-  const gridS = typeof kpiRow?.sample_period_sec === 'number' ? kpiRow.sample_period_sec : null;
+  const gridS = typeof selected?.metrics?.sample_period_sec === 'number' ? selected.metrics.sample_period_sec
+    : typeof kpiRow?.sample_period_sec === 'number' ? kpiRow.sample_period_sec : null;
 
   // A8 recompute round trip.
   const { submit, status, reset } = useRecompute(loopId);
   useRefreshOnRerun(!!status?.finished);
   const recomputeBusy = submit.isPending || (status != null && !status.finished);
 
-  // Engineer note → acknowledge the loop's open event frame with the note.
-  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId); // C
+  // The loop's open event frame: loop notes attach to it.
+  const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId);
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
 
   const exportPackage = () => {
@@ -167,184 +132,136 @@ export const CpmReplay: React.FC = () => {
     }, null, 2));
   };
 
+  const dropWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('rerun'); };
+  const catalogueError = calc.isError && (
+    <span className="cpm-replay-catalogue-note">
+      <span className="cpm-field__error">
+        {gatesFromWindow ? 'Gate catalogue unavailable — listing the gates this window evaluated instead.' : 'Gate catalogue unavailable.'}
+      </span>
+      <ObcButton variant="flat" onClick={() => void calc.refetch()}>Retry</ObcButton>
+    </span>
+  );
+
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
-        page="/cpm/replay"
-        title="Evidence replay"
+        eyebrow="Understand the cause"
+        title="Evidence Replay"
         actions={<>
-          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
-            // One write: two in a row both start from this render's address, so the second drops the first's kind.
-            onChange={k => setParams(p => { p.set('kind', k); p.delete('window'); return p; }, { replace: true })} />
+          <ReasonedButton variant="flat" disabled={!loopId || !g15Run} reason={!g15Run ? 'Select an evaluated window first' : null}
+            onClick={() => { if (loopId && g15Run) navigate(workbenchHref(loopId, g15Run)); }}>
+            Evidence Workbench ↗
+          </ReasonedButton>
           <ReasonedButton variant="normal" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={exportPackage}>
-            Export package
+            Evidence package
           </ReasonedButton>
         </>}
       />
       <LoopBand loopId={loopId}
-        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-        onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}
+        onLoop={id => setParams(p => { p.set('loop', id); dropWindow(p); return p; }, { replace: true })}
+        onClear={() => setParams(p => { p.delete('loop'); dropWindow(p); return p; }, { replace: true })}
         end={<>
-          <TonePill tone="muted">{role}</TonePill>
-          {cell && <TonePill tone={gateTone(cell.status, cell.key)}>{gateMark(cell.status, cell.key).glyph} {codeLabel(cell.status)}</TonePill>}
-          <TransformationStepper gridS={gridS} hasVerdict={!!selected} phasePlane={isShapeGate} />
+          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
+            // One write: two in a row both start from this render's address, so the second drops the first's kind.
+            onChange={k => setParams(p => { p.set('kind', k); dropWindow(p); return p; }, { replace: true })} />
+          <EvidenceMore loopId={loopId} kind={windowKind} windowsError={list.error} onRetryWindows={list.refetch}
+            hasMore={list.hasMore} onLoadMore={list.loadMore} loadingMore={list.isLoadingMore} />
         </>}>
-          {/*
-            These two selects DEPEND on the one above: no loop means no window
-            list, and no window means the gate fallback has nothing to read. An
-            empty <select> states none of that — it just looks broken, which is
-            exactly what it looked like once the arbitrary default selection was
-            removed. Each now carries a disabled option naming what is missing.
-          */}
-            <select className="cpm-select" aria-label="Evaluated window" value={selectedValue}
-              disabled={windows.length === 0 && !selected}
-              onChange={e => setParams(p => { p.set('window', e.target.value); p.delete('rerun'); return p; }, { replace: true })}>
-              {windows.length === 0 && !selected && (
-                <option value="">
-                  {!loopId ? 'Select a loop first'
-                    : list.isLoading ? 'Loading windows…'
-                      : list.error ? 'Window list unavailable'
-                        : `No evaluated ${windowKind} windows for this loop`}
-                </option>
-              )}
-              {selected && !windows.some(w => sameInstant(w.windowEnd, selected.windowEnd)) && (
-                <option value={selected.windowEnd ?? ''}>{windowLabel(selected, timeZone)} · {diagnosisLabel(selected.diagnosis)}</option>
-              )}
-              {windows.map(w => (
-                <option key={w.windowEnd} value={w.windowEnd}>
-                  {windowLabel({ windowKind: w.kind, windowEnd: w.windowEnd }, timeZone)} · {diagnosisLabel(w.diagnosis ?? null)}
-                </option>
-              ))}
-            </select>
-            {selected && (
-              <WindowResultSelect row={selected} others={at.others}
-                onChange={id => setParams(p => { if (id) p.set('rerun', id); else p.delete('rerun'); if (!p.get('window') && selected.windowEnd) p.set('window', selected.windowEnd); return p; }, { replace: true })} />
-            )}
-            <select className="cpm-select" aria-label="Gate" value={gateKey}
-              disabled={gateOptions.length === 0}
-              onChange={e => setParams(p => { p.set('gate', e.target.value); return p; }, { replace: true })}>
-              {gateOptions.length === 0 && (
-                <option value="">
-                  {calc.isLoading ? 'Loading gates…'
-                    : !loopId ? 'Select a loop first'
-                      : 'Gate list unavailable'}
-                </option>
-              )}
-              {gateOptions.map(g => (
-                <option key={g.key} value={g.key}>{g.key} · {g.name}</option>
-              ))}
-            </select>
-          {/* R8: a failed catalogue read left this select silently EMPTY. It now
-              falls back to the window's own gate cells and offers a retry, so a
-              catalogue outage degrades the labels rather than blocking replay. */}
-          {calc.isError && (
-            <span className="cpm-replay-catalogue-note">
-              <span className="cpm-field__error">
-                {gatesFromWindow
-                  ? 'Gate catalogue unavailable — listing the gates this window evaluated instead.'
-                  : 'Gate catalogue unavailable.'}
-              </span>
-              <ObcButton variant="flat" onClick={() => void calc.refetch()}>Retry</ObcButton>
-            </span>
-          )}
+        <EvidenceWindowSelect loopId={loopId} kind={windowKind} windows={windows} windowsLoading={list.isLoading} windowsError={list.error}
+          currentMethodRunId={g15Run}
+          runWindow={selected ? `${windowLabel(selected, timeZone)} · ${diagnosisLabel(selected.diagnosis)}` : null}
+          onWindow={w => setParams(p => { p.set('window', w.windowEnd); p.delete('rerun'); return p; }, { replace: true })} />
+        {selected && (
+          <WindowResultSelect row={selected} others={at.others}
+            onChange={id => setParams(p => { if (id) p.set('rerun', id); else p.delete('rerun'); if (!p.get('window') && selected.windowEnd) p.set('window', selected.windowEnd); return p; }, { replace: true })} />
+        )}
       </LoopBand>
 
-      <section className="cpm-surface">
+      {selected && (
+        <div className="cpm-replay-identity cpm-copy">
+          <TonePill tone="muted">{selected.metadata.replayId ? `Re-run ${selected.metadata.replayId}` : 'Original run · pinned'}</TonePill>
+          <span>{selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-US')} samples` : 'Samples not reported'}</span>
+          <span>Calculation v{selected.metadata.calculationVersion ?? '—'} · profile v{selected.metadata.dynamicsProfileVersion ?? '—'}</span>
+          <ObcButton variant="flat" disabled={!g15Run}
+            onClick={() => { if (loopId && g15Run) navigate(workbenchHref(loopId, g15Run, 'G15', { sub: 'identity' })); }}>Run details ↗</ObcButton>
+        </div>
+      )}
 
-        {windowNotStored && (
+      {windowNotStored && (
+        <section className="cpm-surface">
           <EmptyState title="That window is not stored"
             copy={`The service holds no result for the ${windowKind} window ending ${fmtInstant(windowEnd, timeZone)}, so it cannot be replayed. Full gate results are kept for a limited time.`}
             action={{ label: 'Replay the newest window', onClick: () => setParams(p => { p.delete('window'); return p; }, { replace: true }) }} />
-        )}
-        {!loopId && (
+        </section>
+      )}
+      {!loopId && (
+        <section className="cpm-surface">
           <EmptyState level={2} title="Select a loop"
             copy="Replay walks the exact samples one evaluation window used — pick a loop above to begin." />
-        )}
-        {(list.error || at.isError) && <QueryError title="Gate history unavailable" error={at.isError ? at.error : list.error} retry={() => { if (at.isError) at.refetch(); else list.refetch(); }} />}
-        {loopId && !selected && !at.isLoading && !at.isError && !windowNotStored && !list.isLoading && (
-          // CHG-098 (SME review 2 #29): what to try — the other window size, or the engine.
+        </section>
+      )}
+      {(list.error || at.isError) && <QueryError title="Gate history unavailable" error={at.isError ? at.error : list.error} retry={() => { if (at.isError) at.refetch(); else list.refetch(); }} />}
+      {loopId && !selected && !at.isLoading && !at.isError && !windowNotStored && !list.isLoading && (
+        // CHG-098 (SME review 2 #29): what to try — the other window size, or the engine.
+        <section className="cpm-surface">
           <EmptyState title={`No evaluated ${windowKind} windows for this loop`}
             copy="Replay needs a stored result for a completed evaluation window, and this loop has none of this size yet. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a window is overdue."
             next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
-        )}
-        {raw.isLoading && <EmptyState title="Loading raw slice…" />}
-        {raw.isError && (
-          <QueryError title="Raw slice unavailable"
-            error={raw.error} retry={() => void raw.refetch()} />
-        )}
-        {selected && !raw.isLoading && !raw.isError && points.length === 0 && (
-          // CHG-098 (SME review 2 #29): plain cause, then the mapping; the historian series last.
-          <EmptyState title="No raw historian data for this window"
-            copy={`No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window. (Historian series: ${series})`}
-            next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined} />
-        )}
-        {points.length > 0 && (
-          <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
-            truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
-        )}
-      </section>
-
-      <div className="cpm-grid-2">
-        <section className="cpm-surface">
-          <PanelHead eyebrow="Summary" title={def ? `${gateKey} · ${def.name}` : gateKey} />
-          <KvRow label="Question">{def?.question ?? '—'}</KvRow>
-          <KvRow label="Result">
-            <TonePill tone={gateTone(cell?.status, gateKey)}>{gateMark(cell?.status, gateKey).glyph} {codeLabel(cell?.status ?? 'NOT_EVALUATED')}</TonePill>
-          </KvRow>
-          {cell?.reason && <KvRow label="Reason"><span title={cell.reason}>{codeLabel(cell.reason)}</span></KvRow>}
-          <KvRow label="Window">
-            {selected?.windowStart ? fmtDateTime(selected.windowStart) : '—'} →{' '}
-            {selected?.windowEnd ? fmtDateTime(selected.windowEnd) : '—'}
-          </KvRow>
-          <KvRow label="Samples">{selected?.sampleCount ?? '—'}</KvRow>
-          <KvRow label="Calculation">
-            v{selected?.metadata.calculationVersion ?? '—'} · profile v{selected?.metadata.dynamicsProfileVersion ?? '—'}
-            {selected?.metadata.replayId ? ` · re-run ${selected.metadata.replayId}` : ''}
-          </KvRow>
-          {(GATE_METRICS[gateKey] ?? []).map(m => {
-            // CHG-065: the verdict's own number first — the fused row carries the window's G0–G4 values (aligned short
-            // features), which the long-tier KPI row keeps only nested, so G0–G4 always read "—" before
-            const v = typeof selected?.metrics?.[m.field] === 'number' ? selected.metrics[m.field]
-              : typeof kpiRow?.[m.field] === 'number' ? kpiRow[m.field] as number : null;
-            return (
-              <KvRow key={m.field} label={m.label}>
-                {v != null
-                  ? (m.pct ? `${(v * 100).toFixed(1)} %` : Number.isInteger(v) ? v.toLocaleString() : readable(v))
-                  : "— (not in this window's result)"}
-              </KvRow>
-            );
-          })}
-
-          <LineageStrip series={series} gridS={gridS} gateKey={gateKey} role={role} diagnosis={selected?.diagnosis} />
         </section>
+      )}
 
-        <section className="cpm-surface">
-          <PanelHead eyebrow="Re-run" title="Recompute this loop from history"
-            help={<Toggletip variant="how-to" label="What a re-run does">
-              <p>
-                Submits the A8 historical replay job with this loop's current evidence flags and
-                window alignment (~90 s round trip). Gate views refresh automatically when it finishes.
-              </p>
-            </Toggletip>}
-            right={status && (
-              <TonePill tone={status.finished ? (status.succeeded ? 'good' : 'bad') : 'warn'}>
-                {status.finished ? (status.succeeded ? 'FINISHED' : `FAILED (${status.state})`) : status.state}
-              </TonePill>
-            )} />
-          <div className="cpm-filter-row">
-            <ReasonedButton variant="raised" disabled={!loopId || recomputeBusy} reason={!loopId ? 'Pick a loop first' : null}
-              onClick={() => { reset(); submit.mutate(); }}>
-              {recomputeBusy ? 'Recomputing…' : 'Re-run this window'}
-            </ReasonedButton>
-            {submit.isError && (
-              <span className="cpm-field__error">
-                Recompute failed to start: {(submit.error as Error)?.message ?? 'unknown error'}
-              </span>
-            )}
+      {selected && (
+        <div className="cpm-grid-2">
+          <div className="cpm-replay-main">
+            <section className="cpm-surface">
+              <ReplayStages series={series} samples={points.length > 0 ? points.length : selected.sampleCount} gridS={gridS} gateKey={gateKey} role={role}
+                hasVerdict diagnosis={selected.diagnosis} phasePlane={isShapeGate} />
+              {raw.isLoading && <EmptyState title="Loading raw slice…" />}
+              {raw.isError && <QueryError title="Raw slice unavailable" error={raw.error} retry={() => void raw.refetch()} />}
+              {!raw.isLoading && !raw.isError && points.length === 0 && (
+                // CHG-098 (SME review 2 #29): plain cause, then the mapping; the historian series last.
+                <EmptyState title="No raw historian data for this window"
+                  copy={`No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window. (Historian series: ${series})`}
+                  next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined} />
+              )}
+              {points.length > 0 && (
+                <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
+                  truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
+              )}
+            </section>
           </div>
-
-        </section>
-      </div>
+          <div className="cpm-replay-aside">
+            {catalogueError}
+            <WindowVerdictCard row={selected} loopId={loopId ?? ''} gateKey={gateKey} gateOptions={gateOptions} kpiRow={kpiRow}
+              question={def?.question} onGate={g => setParams(p => { p.set('gate', g); return p; }, { replace: true })} />
+            <section className="cpm-surface">
+              <PanelHead title="Re-run"
+                help={<Toggletip variant="how-to" label="What a re-run does">
+                  <p>
+                    Submits the A8 historical replay job with this loop's current evidence flags and
+                    window alignment (~90 s round trip). Gate views refresh automatically when it finishes.
+                  </p>
+                </Toggletip>}
+                right={status && (
+                  <TonePill tone={status.finished ? (status.succeeded ? 'good' : 'bad') : 'warn'}>
+                    {status.finished ? (status.succeeded ? 'FINISHED' : `FAILED (${status.state})`) : status.state}
+                  </TonePill>
+                )} />
+              <div className="cpm-filter-row">
+                <ReasonedButton variant="raised" disabled={!loopId || recomputeBusy} reason={!loopId ? 'Pick a loop first' : null}
+                  onClick={() => { reset(); submit.mutate(); }}>
+                  {recomputeBusy ? 'Recomputing…' : 'Re-run this window'}
+                </ReasonedButton>
+                {submit.isError && (
+                  <span className="cpm-field__error">
+                    Recompute failed to start: {(submit.error as Error)?.message ?? 'unknown error'}
+                  </span>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
       {/* SME #22 (CHG-058): loop notes replace "acknowledge with note" — a note never acknowledges by itself */}
       {loopId && (
         <LoopNotes loopId={loopId} openFrame={openFrame ?? null}

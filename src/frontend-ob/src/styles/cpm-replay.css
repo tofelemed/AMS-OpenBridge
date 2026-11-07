@@ -1,0 +1,11 @@
+/* Task 17: Evidence Replay. Placement only: no size is set here. */
+.cpm-replay-main, .cpm-replay-aside { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
+.cpm-replay-identity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
+.cpm-replay-stages { display: flex; flex-direction: column; gap: var(--traverse-space-2); min-width: 0; }
+.cpm-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-2) var(--traverse-space-4); }
+.cpm-readout__values { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: 0; }
+.cpm-readout__item { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.cpm-readout__item dd { margin: 0; }
+.cpm-replay-check { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); justify-content: flex-end; }
+.cpm-replay-reason { margin: 0; padding: var(--traverse-space-2); border: 1px solid var(--border-divider-color); overflow-wrap: anywhere; }
+.cpm-replay-metrics { min-width: 0; }

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { diagnosisBand, toneFor } from './shared';
 import { ageText } from './verdictAge';
 import { ageText as summaryAge } from './explorer/summary/summaryText';
-import { stageLabels } from './replay/TransformationStepper';
+import { stageLabels } from './replay/stageLabels';
 import { PRIORITY_RULE } from './overview/priorityReason';
 
 describe('display consistency (CHG-065)', () => {

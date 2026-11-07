@@ -747,3 +747,45 @@ None.
 | Window flags card | Identity & raw |
 | Signal context lanes | Signal context tab |
 | Copy run id (icon beside Run id ↗) | Still on the run bar; "Copy run ID" also on Identity & raw |
+
+## Task 17 (CHG-143): Evidence Replay, stages and cursor readout
+
+### Removed or reworded
+
+| Was | Now |
+|---|---|
+| Eyebrow "Summary" over the gate name | Removed. The card is headed Window verdict |
+| "Input lineage" / "Where this evidence came from" and the four lineage boxes | Removed. The five stage tabs carry each stage's one info line |
+| "— (not in this window's result)" for a metric the window did not store | "Not reported", inside the metric disclosure |
+| "Recompute this loop from history" heading | "Re-run" |
+| Title "Evidence replay" with the page task as eyebrow | "Evidence Replay" under "Understand the cause" |
+| "Export package" | "Evidence package" (same export, same place) |
+| Role pill, gate result pill and the "About this chart" ? in the loop band | Removed. Role is on the Gate checks tab, the result on the verdict card, the stage list is the tabs |
+| Rows Window, Samples, Calculation in the Summary card | One identity line under the band: Original run · pinned (or Re-run id), samples, versions |
+| Replay cursor time beside the slider | Removed. The readout under the chart gives the site-zone time once |
+| Question row (what the gate asks, incl. "How confident is the final verdict?" for G15) | Behind a ? beside Selected check |
+
+### Moved behind a ?
+
+| Text | Now |
+|---|---|
+| What the selected check asks | ? beside Selected check |
+| What a re-run does | ? beside Re-run (unchanged) |
+
+### New text
+
+| Text | Where |
+|---|---|
+| Tabs Raw historian, Normalize, Features, Gate checks, Fusion, with one info line | Above the chart |
+| Readout PV, SP, OP, Mode, Quality, "Sample n / N", site time. Mode and Quality read "Not recorded" when the slice stored none | Under the chart |
+| Window verdict, Evidence check, Selected check, Controller mode (In AUTO % from the window, else Not recorded), Open retained proof ↗ | Right column |
+| Evidence Workbench ↗, Run details ↗ (opens the Workbench Identity & raw tab) | Header, identity line |
+
+| Control | Now on |
+|---|---|
+| Window select (native) | `EvidenceWindowSelect` in the band, with More (load older, jump) |
+| 12h / 24h toggle | Band, far end (was header) |
+| Gate select | Window verdict card, "Evidence check" |
+| Gate catalogue retry | Top of the right column |
+| Re-run this window | Right column (decision 3 and Task 18 change what it does) |
+| Window start to end row | Removed; the band's window select names the window |
