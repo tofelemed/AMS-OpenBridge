@@ -9,7 +9,7 @@
 }
 
 /* The window's one shared reason, above the list. */
-.cpm-calc-list__reason { margin: 0 0 var(--traverse-space-2); color: var(--element-neutral-color); }
+.cpm-calc-list__reason { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-secondary); }
 
 /* The band's facts wrap among themselves; Run details stays inline after them on the first line. */
 .cpm-calc-band { display: flex; flex: 1 1 0; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); min-width: 0; }

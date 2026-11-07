@@ -122,7 +122,7 @@ export const ReplayChart: React.FC<{
         <span className="cpm-copy">Replay cursor</span>
         <input type="range" min={0} max={100} value={cursorPct} onChange={e => onCursor(Number(e.target.value))} aria-label="Replay cursor position" />
       </div>
-      <CursorReadout points={points} cursorPct={cursorPct} timeZone={timeZone} />
+      <CursorReadout points={points} cursorPct={cursorPct} timeZone={timeZone} truncated={truncated} />
       {truncated && (
         <p className="cpm-copy" role="status">
           Showing the first {points.length.toLocaleString()} raw points of the window — the slice hit the replay budget; export includes only what is shown.

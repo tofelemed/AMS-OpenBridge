@@ -61,6 +61,12 @@ describe('SelectedWindowPanel', () => {
     expect(document.body.textContent).toContain('before v2.5');
   });
 
+  it('names the cap, not the 14 days, for a recent window with only a summary (B1)', () => {
+    const recent = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    show({ packageReady: false, window: { ...win, windowEnd: recent } });
+    expect(document.body.textContent).toContain('newest 500 windows');
+  });
+
   it('says nothing was evaluated, with a way out, when the range holds no window', () => {
     const onWiden = vi.fn();
     show({ window: undefined, noWindows: true, onWiden });

@@ -11,7 +11,7 @@
 .cpm-workbench__links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
 .cpm-workbench__raw { margin: 0; overflow: auto; max-height: 60vh; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cpm-workbench__params { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: var(--cpm-text-small); }
-.cpm-workbench__params dt { color: var(--element-neutral-color); }
+.cpm-workbench__params dt { color: var(--traverse-text-secondary); }
 .cpm-workbench__params dd { margin: 0; overflow-wrap: anywhere; }
 
 .cpm-rail {
@@ -23,7 +23,7 @@
 .cpm-rail__list { display: flex; flex-direction: column; gap: var(--traverse-space-3); width: 100%; }
 .cpm-rail__tier { display: flex; flex-direction: column; gap: var(--traverse-space-1); }
 .cpm-rail__tier-label {
-  font-size: var(--cpm-text-caption); letter-spacing: 0.06em; text-transform: uppercase; color: var(--element-neutral-color);
+  font-size: var(--cpm-text-caption); letter-spacing: 0.06em; text-transform: uppercase; color: var(--traverse-text-secondary);
 }
 .cpm-rail__gate {
   display: flex; align-items: center; gap: 6px; box-sizing: border-box; width: 100%; text-align: left;
@@ -43,11 +43,11 @@
 /* the run bar: the fact row, with its links and Reconstruct after the facts */
 .cpm-run-bar { align-items: center; }
 .cpm-run-bar__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
-.cpm-run-bar__reason { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); }
+.cpm-run-bar__reason { font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); }
 
-.cpm-verdict__question { margin: 0; color: var(--element-neutral-color); }
+.cpm-verdict__question { margin: 0; color: var(--traverse-text-secondary); }
 .cpm-recon { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--traverse-space-1) var(--traverse-space-4); margin: 0; }
-.cpm-recon dt { color: var(--element-neutral-color); }
+.cpm-recon dt { color: var(--traverse-text-secondary); }
 .cpm-recon dd { margin: 0; overflow-wrap: anywhere; }
 
 /* below 850 px the rail is the native picker, over the page */

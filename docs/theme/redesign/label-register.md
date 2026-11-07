@@ -144,3 +144,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Back link of a response run in the Workbench | Back to System Response ↗ | Evidence Workbench | CHG-153 |
 | Gate not in the served row | Inspect Gn → (opened nothing) | Inspect Gn → disabled, "No Gn result in this window" | Loop Explorer, Loop KPI dialog | CHG-154 |
 | Capability list of a day stored before the flag existed | No loop is in this KPI | Not stored for that day | KPI drill-down | CHG-154 |
+| Retention failed or expired | Reconstruction failed / Reconstruction expired | Evidence Workbench run bar | CHG-154 |
+| Stalled-feed strip | last values at <time> | Investigation, signals strip | CHG-154 |
+| Re-run matched another loop's run | This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator. | Replay, Re-run dialog | CHG-154 |

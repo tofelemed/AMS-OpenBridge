@@ -45,7 +45,7 @@
   border-left: 3px solid var(--cpm-tone, var(--border-divider-color));
   border-radius: 4px;
   background: none;
-  color: var(--element-neutral-color);
+  color: var(--traverse-text-secondary);
   font: inherit;
   font-size: var(--cpm-text-caption);
   cursor: pointer;

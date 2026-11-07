@@ -5,7 +5,7 @@
 .cpm-path-field { min-width: 0; }
 .cpm-path-field__row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .cpm-path-field__input { flex: 1 1 320px; min-width: 0; }
-.cpm-path-field__status { font-size: var(--cpm-text-caption); color: var(--element-neutral-color); min-width: 0; }
+.cpm-path-field__status { font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); min-width: 0; }
 .cpm-path-field__warn { color: var(--tone-warning); font-size: var(--cpm-text-caption); }
 
 /* Review: label over value on narrow screens, side by side otherwise. */
@@ -15,11 +15,11 @@
   padding: 6px 0; border-bottom: 1px solid var(--border-divider-color);
 }
 .cpm-review-row:last-child { border-bottom: none; }
-.cpm-review-row__label { color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-review-row__label { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
 .cpm-review-row__value { min-width: 0; overflow-wrap: anywhere; }
-.cpm-review-change__from { color: var(--element-neutral-color); text-decoration: line-through; }
-.cpm-review-change__arrow { color: var(--element-neutral-color); padding: 0 6px; }
-.cpm-review-change__effect { grid-column: 2; color: var(--element-neutral-color); font-size: var(--cpm-text-small); }
+.cpm-review-change__from { color: var(--traverse-text-secondary); text-decoration: line-through; }
+.cpm-review-change__arrow { color: var(--traverse-text-secondary); padding: 0 6px; }
+.cpm-review-change__effect { grid-column: 2; color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
 .cpm-review-section { margin-top: 14px; }
 .cpm-review-help { margin-top: 14px; }
 .cpm-review-help__body { margin-top: 8px; }

@@ -46,7 +46,11 @@ export const RunSummaryBar: React.FC<RunSummaryBarProps> = ({ run, selection, re
   return (
     <div className="cpm-fact-row cpm-run-bar">
       <div className="cpm-fact-row__facts" role="list" aria-label="Run summary">
-        {held && <Fact label="Proof retained"><span className="ui-sr"> · </span><TonePill tone={readinessTone(readiness)}>{readiness}</TonePill></Fact>}
+        {/* A failed or expired reconstruction is not "proof retained · FAILED": it names the reconstruction state itself. */}
+        {held && (readiness === 'FAILED' || readiness === 'EXPIRED')
+          && <Fact><TonePill tone={readinessTone(readiness)}>{readiness === 'FAILED' ? 'Reconstruction failed' : 'Reconstruction expired'}</TonePill></Fact>}
+        {held && readiness !== 'FAILED' && readiness !== 'EXPIRED'
+          && <Fact label="Proof retained"><span className="ui-sr"> · </span><TonePill tone={readinessTone(readiness)}>{readiness}</TonePill></Fact>}
         <Fact>{run ? `${run.windowKind} pinned run` : '—'}{run && run.identity.purpose !== 'LIVE' && <TonePill tone="warn">{run.identity.purpose}</TonePill>}</Fact>
         {run?.support.sampleCount != null && <Fact>{`${run.support.sampleCount.toLocaleString('en-GB')} samples`}</Fact>}
         {versions && <Fact>{versions}</Fact>}

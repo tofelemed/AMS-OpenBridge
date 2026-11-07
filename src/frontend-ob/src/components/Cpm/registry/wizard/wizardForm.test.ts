@@ -1,7 +1,7 @@
 // CHG-098 (SME review 2 #28): registry wizard validation blocks only clear errors, says why, and an edit's
 // change list shows only what changed with its expected effect.
 import { describe, expect, it } from 'vitest';
-import { checkSignalPath, firstProblem, initialForm, rangeChecks, signalChecks } from './wizardForm';
+import { activateRequestOf, checkSignalPath, firstProblem, initialForm, rangeChecks, signalChecks } from './wizardForm';
 import { diffSettings } from './changeSummary';
 import type { CpmLoop } from '../../../../api/cpmApi';
 
@@ -68,5 +68,15 @@ describe('signalChecks + diffSettings for an edit', () => {
     expect(changes[1]).toMatchObject({ before: '0–250 kg/h', after: '0–300 kg/h' });
     expect(changes[1].effect).toMatch(/% of PV span/);
     expect(changes[2].effect).toMatch(/valve cause/);
+  });
+});
+
+describe('activateRequestOf engineering (B12)', () => {
+  const cleared = { ...initialForm(loop), pvMin: '', pvMax: '', pvUnit: '', opMin: '', opMax: '', vpApplicability: '', peerApplicability: '' };
+  it('an edit with every engineering field cleared still sends the object, so the server can clear the range', () => {
+    expect(activateRequestOf(cleared, loop, false).engineering).toEqual({});
+  });
+  it('a new loop sends only what the form declares, as before', () => {
+    expect(activateRequestOf({ ...initialForm(), loopId: 'X' }, undefined, false).engineering).toEqual({ vpApplicability: 'EXPECTED' });
   });
 });

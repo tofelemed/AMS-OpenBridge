@@ -67,4 +67,16 @@ describe('Replay window kinds', () => {
     expect(screen.queryByText('Replay holds 12 h and 24 h windows')).toBeNull();
     expect(screen.getByText(/Original run/)).toBeTruthy();
   });
+
+  it('names the original run as pinned, and a re-run by its id (B7)', () => {
+    const row = { windowEnd: '2026-11-05T08:00:00Z', windowStart: '2026-11-04T20:00:00Z', diagnosis: 'X', gates: [], metadata: {}, methodRunIds: { G15: 'r' } };
+    atRow.row = row;
+    mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z');
+    expect(screen.getByText('Original run · pinned')).toBeTruthy();
+    cleanup();
+    atRow.row = { ...row, metadata: { replayId: 'rp-7' } };
+    mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z');
+    expect(screen.getByText('Re-run rp-7')).toBeTruthy();
+    expect(screen.queryByText('Original run · pinned')).toBeNull();
+  });
 });

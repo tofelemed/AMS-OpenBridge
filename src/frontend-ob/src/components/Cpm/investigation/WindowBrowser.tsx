@@ -40,8 +40,15 @@ export const WindowBrowser: React.FC<{
   const [page, setPage] = useState(Math.floor(at / PAGE));
   useEffect(() => { setPage(Math.floor(at / PAGE)); }, [at]);
   // "Older" on the last loaded page asks for the next page of windows, then moves onto it
-  const advance = useRef(false);
-  useEffect(() => { if (advance.current) { advance.current = false; setPage(x => x + 1); } }, [windows.length]);
+  // The ref holds the list length at the ask. It clears when the read ends, whether or not the list grew, so a read that
+  // brought nothing new cannot move a later, unrelated change of the list onto another page.
+  const advance = useRef<number | null>(null);
+  useEffect(() => {
+    if (advance.current == null || isLoadingMore) return;
+    const grew = windows.length > advance.current;
+    advance.current = null;
+    if (grew) setPage(x => x + 1);
+  }, [windows.length, isLoadingMore]);
   const shown = windows.slice(page * PAGE, page * PAGE + PAGE);
   const pages = Math.max(1, Math.ceil(windows.length / PAGE));
   // the comparison table renders only with a previous window; the fallback keeps the types simple
@@ -66,9 +73,10 @@ export const WindowBrowser: React.FC<{
           return (
             <div key={w.windowEnd ?? ''} role="listitem" className="cpm-window-tiles__item">
             <button type="button"
-              className={`cpm-window-tile${current ? ' cpm-window-tile--current' : ''}`}
-              aria-current={current ? 'true' : undefined} title={windowSpan({ windowStart: w.windowStart, windowEnd: w.windowEnd, windowKind })}
-              onClick={() => { if (w.windowEnd) onWindow(w.windowEnd); }}>
+              className={`cpm-window-tile${current ? ' cpm-window-tile--current' : ''}${w.historyOnly ? ' cpm-window-tile--history' : ''}`}
+              aria-current={current ? 'true' : undefined} disabled={w.historyOnly}
+              title={w.historyOnly ? 'History only: no full stored result to open here. Use Evaluate a window.' : windowSpan({ windowStart: w.windowStart, windowEnd: w.windowEnd, windowKind })}
+              onClick={() => { if (w.windowEnd && !w.historyOnly) onWindow(w.windowEnd); }}>
               <span className="cpm-window-tile__end">Ends {fmtInstant(w.windowEnd)}{latest && <span className="cpm-window-tile__tag">Latest</span>}</span>
               <span className="cpm-window-tile__sub">
                 <span className={`cpm-dot cpm-tone-${toneFor(w.diagnosis ?? null)}`} aria-hidden />
@@ -85,7 +93,7 @@ export const WindowBrowser: React.FC<{
           <span className="cpm-copy">{page * PAGE + 1}–{Math.min(windows.length, page * PAGE + PAGE)} of {windows.length}{hasMore ? '+' : ''}</span>
           <span title={page >= pages - 1 && !hasMore ? 'Already showing the oldest stored windows' : undefined}>
             <ObcButton variant="flat" disabled={(page >= pages - 1 && !hasMore) || isLoadingMore}
-              onClick={() => { if (page >= pages - 1) { advance.current = true; loadMore(); } else setPage(x => x + 1); }}>Older ›</ObcButton></span>
+              onClick={() => { if (page >= pages - 1) { advance.current = windows.length; loadMore(); } else setPage(x => x + 1); }}>Older ›</ObcButton></span>
         </div>
       )}
       {previous ? (

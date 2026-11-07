@@ -9,9 +9,11 @@ import { cursorIndex } from './cursorIndex';
 
 const NOT_RECORDED = 'Not recorded';
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '—');
-const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : NOT_RECORDED);
+// A numeric mode (a historian that stores the mode code) is a recorded value: it shows as stored, never as Not recorded.
+const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : NOT_RECORDED);
 
-export const CursorReadout: React.FC<{ points: CpmTrendPoint[]; cursorPct: number; timeZone: string }> = ({ points, cursorPct, timeZone }) => {
+/** `truncated`: the slice hit the replay budget, so the count is of the samples loaded, not of the window. */
+export const CursorReadout: React.FC<{ points: CpmTrendPoint[]; cursorPct: number; timeZone: string; truncated?: boolean }> = ({ points, cursorPct, timeZone, truncated }) => {
   const i = cursorIndex(points.length, cursorPct);
   if (i < 0) return null;
   const p = points[i];
@@ -23,7 +25,7 @@ export const CursorReadout: React.FC<{ points: CpmTrendPoint[]; cursorPct: numbe
       <dl className="cpm-readout__values">
         {items.map(([k, v]) => <div key={k} className="cpm-readout__item"><dt className="cpm-eyebrow">{k}</dt><dd className="cpm-mono">{v}</dd></div>)}
       </dl>
-      <span className="cpm-copy">Sample {(i + 1).toLocaleString('en-US')} / {points.length.toLocaleString('en-US')}</span>
+      <span className="cpm-copy">Sample {(i + 1).toLocaleString('en-US')} / {points.length.toLocaleString('en-US')}{truncated ? ' loaded' : ''}</span>
       <span className="cpm-mono">{formatInZone(p.ts, timeZone)} {zoneLabel(timeZone, p.ts)}</span>
     </div>
   );

@@ -1,7 +1,7 @@
 // SME review #17 (CHG-053): a measured zero stays a number; a placeholder zero, an excluded window and an
 // insufficient window read as their status, with the reason.
 import { describe, expect, it } from 'vitest';
-import { contextOfMatrix, contextOfRow, metricAvailability } from './metricAvailability';
+import { contextOfMatrix, contextOfRow, hasVerdict, metricAvailability } from './metricAvailability';
 import type { CpmKpiRow } from '../../api/cpm/kpis';
 
 const matrix = (over: Partial<{ diagnosis: string; gates: Array<{ key: string; status: string }>; observabilityFlags: string[]; familyDisqualifiers: string[] }> = {}) =>
@@ -54,5 +54,12 @@ describe('no-result gate marks keep a value from reading as measured (CHG-098 re
     for (const st of ['NOT_APPLICABLE', 'DISABLED', 'PENDING'])
       expect(metricAvailability(matrix({ gates: [{ key: 'G4', status: st }] }), 'effort_ratio', 2).state).toBe('not-calculated');
     expect(metricAvailability(matrix({ gates: [{ key: 'G0', status: 'EXCLUDED_MODE' }] }), 'mae', 0.2).state).toBe('insufficient');
+  });
+});
+
+describe('hasVerdict follows conditionOf (B5)', () => {
+  it('a finding and a healthy result carry a verdict; no fault, exclusion, short data, not evaluated and pending do not', () => {
+    for (const d of ['CONFIRMED_OSCILLATION', 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY', 'NORMAL', 'HEALTHY']) expect(hasVerdict(d)).toBe(true);
+    for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE', 'INSUFFICIENT_DATA', 'EXCLUDED_OPERATING_REGION', 'NOT_EVALUATED', 'PENDING', '', null, undefined]) expect(hasVerdict(d)).toBe(false);
   });
 });

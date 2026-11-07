@@ -39,6 +39,20 @@ export interface WindowOption {
   purpose: string | null;
   /** The fused window's verdict (a fused option only); pickers show it beside the window. */
   diagnosis?: string | null;
+  /** A verdict summary read from the historian: no stored full result, so the window cannot be opened here (use Evaluate a window). */
+  historyOnly?: boolean;
+}
+
+/** Windows keyed by their instant, first one kept: a page seam (`to` is inclusive) can return the same window twice. */
+export function dedupeByInstant(options: WindowOption[]): WindowOption[] {
+  const seen = new Set<number | string>();
+  return options.filter(o => {
+    const ms = Date.parse(o.windowEnd);
+    const key = Number.isFinite(ms) ? ms : o.windowEnd;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 const age = (endIso: string, now: number) => Math.max(0, now - Date.parse(endIso));
@@ -64,6 +78,7 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
       gates: (r.gates ?? []).map(g => ({ key: g.key, status: g.status, reason: g.reason })),
       flags: { observabilityFlags: r.observabilityFlags ?? [], familyDisqualifiers: r.familyDisqualifiers ?? [], insufficientEvidenceReason: r.insufficientEvidenceReason ?? null },
       methodEligibility: r.methodEligibility ?? null, purpose: null, diagnosis: r.diagnosis,
+      historyOnly: !hasRunIds && r.source === 'historian',
     };
   });
 }
@@ -160,9 +175,9 @@ export function useEvidenceWindows(loopId: string | undefined, kind: string, tie
   });
   const q = tier === 'fused' ? fused : kpi;
   const now = Date.now();
-  const options = tier === 'fused'
+  const options = dedupeByInstant(tier === 'fused'
     ? fusedOptions(fused.data?.pages.flatMap(p => p.windows) ?? [], now, timeZone)
-    : kpiOptions(kpi.data?.pages.flatMap(p => p.samples) ?? [], kind, tier, now, timeZone);
+    : kpiOptions(kpi.data?.pages.flatMap(p => p.samples) ?? [], kind, tier, now, timeZone));
   return {
     options, isLoading: q.isLoading, error: q.error, refetch: () => { void q.refetch(); },
     hasMore: !!q.hasNextPage, loadMore: () => { void q.fetchNextPage(); }, isLoadingMore: q.isFetchingNextPage,

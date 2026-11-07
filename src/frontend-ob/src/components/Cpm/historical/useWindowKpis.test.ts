@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { CpmGateMatrix, CpmWindowSummary } from '../../../api/cpm/gates';
-import { mergeWindows } from './useWindowKpis';
+import { mergeWindows, oldestEnd, packageReason, WINDOW_CAP } from './useWindowKpis';
 
 const summary = (end: string, metrics: Record<string, number> = {}): CpmWindowSummary => ({
   source: 'historian', loopId: 'L', windowKind: '12h', windowStart: null, windowEnd: end, sampleCount: null, diagnosis: 'NO_CALL',
@@ -28,5 +28,22 @@ describe('mergeWindows', () => {
     const merged = mergeWindows([full('2026-11-05T00:00:00Z')], [summary('2026-11-05T00:00:00+00:00', {})]);
     expect(merged).toHaveLength(1);
     expect(merged[0].calculation).toBe('v7 · profile v3');
+  });
+});
+
+describe('packageReason (B1)', () => {
+  const now = Date.parse('2026-11-07T00:00:00Z');
+  it('names the cap for a window inside 14 days, and the 14 days for an older one', () => {
+    expect(packageReason('2026-11-03T00:00:00Z', now)).toContain(`newest ${WINDOW_CAP} windows`);
+    expect(packageReason('2026-11-03T00:00:00Z', now)).not.toContain('14 days');
+    expect(packageReason('2026-10-01T00:00:00Z', now)).toContain('last 14 days');
+  });
+});
+
+describe('oldestEnd (B15)', () => {
+  it('compares instants, not strings', () => {
+    // as strings '2026-11-05T01:00:00+02:00' sorts after '2026-11-05T00:30:00Z', but it is the earlier instant (23:00Z the day before)
+    expect(oldestEnd([full('2026-11-05T00:30:00Z'), full('2026-11-05T01:00:00+02:00')])).toBe('2026-11-05T01:00:00+02:00');
+    expect(oldestEnd([])).toBeNull();
   });
 });

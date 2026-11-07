@@ -1,6 +1,6 @@
 /**
  * Task 19: the selected window, in the right column beside the list (it was a separate view). Counts first, then
- * what the window is and when it was stored, then the one next step and the three related looks.
+ * what the window is and when it was stored, then the one next step and the related looks (Historical and Trend open this window's range).
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,8 @@ import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, TonePill } from '../shared';
 import { fmtInstant } from '../context/LoopContextBar';
 import { windowSize } from '../windowLabel';
+import { historicalHref, trendHref } from '../cpaHref';
+import { loopPens } from '../../Designer/trend/loopPens';
 import { SampleDensityDialog } from './SampleDensityDialog';
 import { EngineTimingDialog, FeatureFlagsDialog, RecordDetailsDialog } from './WindowDialogs';
 import { isDeclined } from './WindowResults';
@@ -39,6 +41,9 @@ export const SelectedWindow: React.FC<{
   const nominal = nominalOf(row);
   const check = received != null && nominal ? countCheck(received, nominal.value) : null;
   const close = () => setDialog(null);
+  // Historical opens on this window's range; /trend reads the loop's PV, SP, OP and VP pens itself, pinned to the window.
+  const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
+    ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const link = (label: string, to: Dialogs) => (
     <ObcButton variant="flat" onClick={() => setDialog(to)}>{label} {'↗'}</ObcButton>
   );
@@ -76,10 +81,12 @@ export const SelectedWindow: React.FC<{
           {!isLong && link('Feature flags', 'flags')}
           {link('Sample density', 'density')}
           {link('Engine & timing', 'engine')}
+          <ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Open range in Historical {'↗'}</ObcButton>
+          {trend && <ObcButton variant="flat" onClick={() => navigate(trend)}>Open in Trend {'↗'}</ObcButton>}
         </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />
-      <RecordDetailsDialog open={dialog === 'record'} onClose={close} row={row} loopId={loopId} loop={loop} tier={tier} timeZone={timeZone} />
+      <RecordDetailsDialog open={dialog === 'record'} onClose={close} row={row} tier={tier} timeZone={timeZone} />
       <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} />
       <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} />
     </>

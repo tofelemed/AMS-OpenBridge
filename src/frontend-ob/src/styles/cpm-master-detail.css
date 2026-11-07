@@ -12,7 +12,7 @@
 .cpm-master-detail__bar .cpm-filter-count { margin-inline-start: auto; }
 .cpm-master-detail__section {
   padding: var(--traverse-space-2) var(--traverse-space-3);
-  color: var(--element-neutral-color);
+  color: var(--traverse-text-secondary);
   border-bottom: 1px solid var(--border-divider-color);
 }
 .cpm-master-detail__links { display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--traverse-space-3); }

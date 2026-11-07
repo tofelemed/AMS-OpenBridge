@@ -29,6 +29,24 @@ describe('CursorReadout', () => {
       expect(screen.queryByText('AUT')).toBeNull();
     }
   });
+  it('takes the nearest sample to the cursor, so the marker and the readout agree (B7)', () => {
+    expect(cursorIndex(3, 75)).toBe(2);       // 1.5 rounds up; it used to floor to 1
+    expect(cursorIndex(3, 74)).toBe(1);
+    expect(cursorIndex(101, 50)).toBe(50);
+    render(<CursorReadout points={pts(3)} cursorPct={75} timeZone="UTC" />);
+    expect(screen.getByText('Sample 3 / 3')).toBeTruthy();
+  });
+  it('shows a numeric mode as stored, not as Not recorded (B7)', () => {
+    render(<CursorReadout points={pts(10, { mode: 2 as never })} cursorPct={50} timeZone="UTC" />);
+    expect(screen.getByText('Mode').nextSibling?.textContent).toBe('2');
+  });
+  it('labels the count as loaded on a truncated slice, and only then (B7)', () => {
+    render(<CursorReadout points={pts(10)} cursorPct={100} timeZone="UTC" truncated />);
+    expect(screen.getByText('Sample 10 / 10 loaded')).toBeTruthy();
+    cleanup();
+    render(<CursorReadout points={pts(10)} cursorPct={100} timeZone="UTC" />);
+    expect(screen.getByText('Sample 10 / 10')).toBeTruthy();
+  });
   it('reads no value as a dash, never zero', () => {
     render(<CursorReadout points={pts(10, { sp: null })} cursorPct={0} timeZone="UTC" />);
     expect(screen.getByText('SP').nextSibling?.textContent).toBe('—');

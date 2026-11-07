@@ -57,7 +57,8 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   );
 };
 
-export const SignalStripAt: React.FC<{ point: CpmTrendPoint }> = ({ point }) => {
+/** `at` names the bucket's own time when it is not the window's last one (a stalled feed); otherwise the strip reads "at window end". */
+export const SignalStripAt: React.FC<{ point: CpmTrendPoint; at?: string }> = ({ point, at }) => {
   const mode = modeLabel(point.mode);
   return (
     <div className="cpm-signal-strip" role="group" aria-label="Signals at the window end">
@@ -65,7 +66,7 @@ export const SignalStripAt: React.FC<{ point: CpmTrendPoint }> = ({ point }) => 
         <Signal key={m} caption={m.toUpperCase()} value={bucketValue(point, m)?.toFixed(2) ?? '—'} sub={m === 'op' ? '%' : undefined} />
       ))}
       <Signal caption="MODE" value={mode.label} sub={mode.tone === 'warn' || mode.tone === 'bad' ? mode.note : undefined} />
-      <p className="cpm-signal-strip__quality"><span className="cpm-signal-strip__age">at window end</span></p>
+      <p className="cpm-signal-strip__quality"><span className="cpm-signal-strip__age">{at ? `last values at ${at}` : 'at window end'}</span></p>
     </div>
   );
 };

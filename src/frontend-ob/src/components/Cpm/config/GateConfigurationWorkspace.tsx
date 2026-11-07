@@ -139,7 +139,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
         ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} openWorkersSignal={workersSignal} /></section>
         : !eff.isError && <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>)}
       {view === 'bundles' && (
-        <BundlesView activeBundleId={eff.data?.bundle?.bundleId} canDraft={perms.draft} creating={actions.create.isPending} createError={actions.create.isError ? actions.create.error : null}
+        <BundlesView activeBundleId={eff.data?.bundle?.bundleId} canDraft={perms.draft} creating={actions.create.isPending} createError={actions.create.isError ? actions.create.error : null} onDraftOpen={actions.create.reset}
           levels={{
             LOOP: { ref: loopId!, bundles: loopLevel.data?.bundles ?? [], loading: loopLevel.isLoading, error: loopLevel.isError ? loopLevel.error : null, retry: () => void loopLevel.refetch() },
             PROFILE: { ref: profileId ?? '…', bundles: profileLevel.data?.bundles ?? [], loading: profileLevel.isLoading || (!profileId && eff.isLoading), error: profileLevel.isError ? profileLevel.error : null, retry: () => void profileLevel.refetch() },

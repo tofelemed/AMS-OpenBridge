@@ -2,7 +2,7 @@
 // rows) and short / long feature rows (KPI rows with their run ids) in ONE shape, newest first, each
 // labelled with its state and age; the landing picks the newest window that carries run ids.
 import { describe, expect, it } from 'vitest';
-import { findOptionOfRun, fusedOptions, kpiOptions, neighbours, resolveLanding } from './useEvidenceWindows';
+import { dedupeByInstant, findOptionOfRun, fusedOptions, kpiOptions, neighbours, resolveLanding } from './useEvidenceWindows';
 import type { CpmWindowSummary } from '../../../api/cpm/gates';
 import type { CpmKpiRow } from '../../../api/cpm/kpis';
 
@@ -78,4 +78,15 @@ it('a historian window says how to open it, not pre-v2.5 (CHG-102 Phase 3)', () 
   expect(o.hasRunIds).toBe(false);
   expect(o.label).toContain('history only - use Evaluate a window to open');
   expect(o.label).not.toContain('pre-v2.5');
+});
+
+describe('dedupeByInstant and historyOnly (B4)', () => {
+  it('lists a window once when a page seam returns it twice, "Z" and "+00:00" alike', () => {
+    const rows = [summary({ windowEnd: '2026-09-17T08:00:00Z' }), summary({ windowEnd: '2026-09-17T08:00:00+00:00' }), summary({ windowEnd: '2026-09-17T07:45:00Z' })];
+    expect(dedupeByInstant(fusedOptions(rows, NOW, 'UTC')).map(o => o.windowEnd)).toEqual(['2026-09-17T08:00:00Z', '2026-09-17T07:45:00Z']);
+  });
+  it('marks a historian row without run ids as history only, and no other row', () => {
+    const [h, p, f] = fusedOptions([summary({ methodRunIds: {}, source: 'historian' }), summary({ methodRunIds: {}, source: 'postgres' }), summary({})], NOW, 'UTC');
+    expect([h.historyOnly, p.historyOnly, f.historyOnly]).toEqual([true, false, false]);
+  });
 });

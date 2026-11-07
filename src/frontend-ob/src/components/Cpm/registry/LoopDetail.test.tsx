@@ -152,7 +152,7 @@ describe('LoopDetail', () => {
     expect(screen.getAllByText('Loop retired').length).toBe(1);
     expect(screen.getByText('Retired')).toBeTruthy();
     expect(screen.getByText('Open episode')).toBeTruthy();
-    expect(eventsArgs.at(-1)).toEqual([{ loopId: 'FIC1', openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 30_000, true]);
+    expect(eventsArgs.at(-1)).toEqual([{ loopId: 'FIC1', openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 0, true]);   // read once, no polling interval (B14)
     fireEvent.click(screen.getByRole('button', { name: /^Evidence/ }));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/evidence?loop=FIC1');
   });

@@ -48,6 +48,18 @@ describe('RunSummaryBar', () => {
     expect(screen.getByTitle(run.methodRunId)).toBeTruthy();
   });
 
+  it('words a failed or expired proof as the reconstruction state, not as "Proof retained" (B6)', () => {
+    bar({ readiness: 'FAILED' });
+    let text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
+    expect(text).toMatch(/Reconstruction failed/);
+    expect(text).not.toMatch(/Proof retained/);
+    cleanup();
+    bar({ readiness: 'EXPIRED' });
+    text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
+    expect(text).toMatch(/Reconstruction expired/);
+    expect(text).not.toMatch(/Proof retained|FAILED|EXPIRED/);
+  });
+
   it('leaves the retention fact to the panel when nothing is held', () => {
     bar({ readiness: 'NONE' });
     expect(screen.getByRole('list', { name: 'Run summary' }).textContent).not.toMatch(/Proof retained|NONE/i);

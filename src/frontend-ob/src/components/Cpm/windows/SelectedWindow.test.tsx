@@ -100,10 +100,27 @@ describe('SelectedWindow', () => {
 
   it('opens Trend on the loop, pinned to the window', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in Trend ↗' }));
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
     expect(where).toContain('/trend?loop=FIC10401&from=2026-11-04T13:35:00.000Z');
     expect(where).toContain('from=2026-11-04T13:35:00.000Z');
+  });
+
+  it('opens Historical on the window range from the panel, and Record details no longer carries either link (B9)', () => {
+    mount(row());
+    fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
+    const dialog = screen.getByRole('dialog', { name: 'Record details' });
+    expect(within(dialog).queryByRole('button', { name: /Open range in Historical|Open in Trend/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open range in Historical ↗' }));
+    const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
+    expect(where).toContain('/historical?loop=FIC10401');
+    expect(where).toContain('window=');
+  });
+
+  it('shows each of the two links once in the panel (B9)', () => {
+    mount(row());
+    expect(screen.getAllByRole('button', { name: 'Open range in Historical ↗' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Open in Trend ↗' })).toHaveLength(1);
   });
 });

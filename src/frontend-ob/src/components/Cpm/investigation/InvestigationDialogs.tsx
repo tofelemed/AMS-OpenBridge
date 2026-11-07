@@ -16,7 +16,7 @@ import type { InputContext } from '../optionalInputs';
 import { vpAbsent } from '../optionalInputs';
 import { KvRow } from '../shared';
 import { AllGatesDialog } from './AllGatesDialog';
-import type { Comparison } from './comparisonNote';
+import { comparisonOf } from './comparisonNote';
 import { GateProofDialog } from './GateProofDialog';
 import { HypothesisPanel } from './HypothesisPanel';
 import { KeyFacts } from './KeyFactsPanel';
@@ -31,11 +31,7 @@ const CompareWindows: React.FC<{
   // The PREVIOUS window is the next older one in the same list, read at its own end; never the current window against itself.
   const prevEnd = usePreviousEnd(loopId, windowKind, matrix.windowEnd);
   const prevRow = useWindowAt(prevEnd.end ? loopId : undefined, windowKind, prevEnd.end);
-  const comparison: Comparison = prevEnd.isError ? { state: 'unavailable' }
-    : prevEnd.isLoading ? { state: 'loading' }
-      : !prevEnd.end ? { state: 'none' }
-        : prevRow.row ? { state: 'ready' }
-          : prevRow.isLoading ? { state: 'loading' } : { state: 'missing', end: prevEnd.end };
+  const comparison = comparisonOf(prevEnd, prevRow);
   return (
     <Dialog open size="wide" title={`Compare recent ${windowKind} windows`} onClose={onClose}>
       <WindowBrowser windows={list.options} hasMore={list.hasMore} isLoadingMore={list.isLoadingMore} loadMore={list.loadMore}

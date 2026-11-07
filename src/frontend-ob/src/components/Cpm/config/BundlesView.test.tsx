@@ -68,6 +68,16 @@ describe('BundlesView', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1);                             // the error once
   });
 
+  it('a failed draft does not show again when the dialog is reopened (B13)', () => {
+    const Host = () => {
+      const [err, setErr] = React.useState<unknown>(new Error('409 parent moved'));
+      return <BundlesView levels={levels} activeBundleId="l2" canDraft onOpen={() => {}} onCreate={() => {}} creating={false} createError={err} onDraftOpen={() => setErr(null)} />;
+    };
+    render(<Host />);
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare bundle draft' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('without the draft permission the button is disabled and the reason is on screen; the level lines sit behind a ?', () => {
     render(<BundlesView levels={levels} activeBundleId="l2" canDraft={false} onOpen={() => {}} onCreate={() => {}} creating={false} createError={null} />);
     expect((screen.getByRole('button', { name: 'Prepare bundle draft' }) as HTMLButtonElement).disabled).toBe(true);

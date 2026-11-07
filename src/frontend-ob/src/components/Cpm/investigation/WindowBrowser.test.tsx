@@ -2,9 +2,9 @@
 // "nothing to compare" line is derived from that list, so it cannot say "only one window" beside "1-5 of 100".
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { WindowBrowser } from './WindowBrowser';
-import { comparisonNote } from './comparisonNote';
+import { comparisonNote, comparisonOf } from './comparisonNote';
 import { row } from '../evidence/windowFixtures';
 import type { WindowOption } from '../evidence/useEvidenceWindows';
 
@@ -68,6 +68,38 @@ describe('WindowBrowser', () => {
     expect(screen.queryByText(/insufficient data|not enough data/i)).toBeNull();
   });
 
+  it('shows a history-only window as not selectable, and never opens it (B4)', () => {
+    const onWindow = vi.fn();
+    const windows = [{ ...many[0], historyOnly: true }, many[1]];
+    render(<WindowBrowser {...props({ windows, onWindow })} />);
+    const tile = screen.getAllByRole('button', { name: /^Ends / })[0] as HTMLButtonElement;
+    expect(tile.disabled).toBe(true);
+    expect(tile.className).toContain('cpm-window-tile--history');
+    expect(tile.title).toMatch(/History only/);
+    fireEvent.click(tile);
+    expect(onWindow).not.toHaveBeenCalled();
+    expect((screen.getAllByRole('button', { name: /^Ends / })[1] as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('does not move a later list change onto the next page after an Older that brought nothing (B4)', () => {
+    const loadMore = vi.fn();
+    const first5 = many.slice(0, 5);
+    const { rerender } = render(<WindowBrowser {...props({ windows: first5, loadMore })} />);
+    fireEvent.click(screen.getByText('Older ›'));                       // asks; the read ends with no new window
+    rerender(<WindowBrowser {...props({ windows: first5, loadMore, isLoadingMore: true })} />);
+    rerender(<WindowBrowser {...props({ windows: first5, loadMore, isLoadingMore: false })} />);
+    act(() => { rerender(<WindowBrowser {...props({ windows: many.slice(0, 10), loadMore, isLoadingMore: false })} />); });
+    expect(screen.getByText('1–5 of 10+')).toBeTruthy();                // the stale ask must not have jumped to 6–10
+  });
+
+  it('moves onto the new page when Older did bring windows (B4)', () => {
+    const loadMore = vi.fn();
+    const { rerender } = render(<WindowBrowser {...props({ windows: many.slice(0, 5), loadMore })} />);
+    fireEvent.click(screen.getByText('Older ›'));
+    rerender(<WindowBrowser {...props({ windows: many.slice(0, 10), loadMore })} />);
+    expect(screen.getByText('6–10 of 10+')).toBeTruthy();
+  });
+
   it('sits in the dialog with no heading of its own', () => {
     render(<WindowBrowser {...props()} />);
     expect(screen.queryByText('Window browser')).toBeNull();
@@ -81,5 +113,19 @@ describe('comparisonNote', () => {
     expect(comparisonNote({ state: 'loading' })).toBe('Loading the previous window…');
     expect(comparisonNote({ state: 'unavailable' })).toBe('The previous window could not be read.');
     expect(comparisonNote({ state: 'ready' })).toBe('');
+  });
+});
+
+describe('comparisonOf (B4)', () => {
+  const idle = { isError: false, isLoading: false };
+  it('reads a failed previous-window read as a read error, not as "no full stored result"', () => {
+    const c = comparisonOf({ end: '2026-11-04T12:00:00Z', ...idle }, { row: undefined, isError: true, isLoading: false });
+    expect(c).toEqual({ state: 'unavailable' });
+    expect(comparisonNote(c)).toBe('The previous window could not be read.');
+  });
+  it('keeps the other states', () => {
+    expect(comparisonOf({ end: '2026-11-04T12:00:00Z', ...idle }, { row: undefined, isError: false, isLoading: false })).toEqual({ state: 'missing', end: '2026-11-04T12:00:00Z' });
+    expect(comparisonOf({ end: null, ...idle }, { row: undefined, isError: false, isLoading: false })).toEqual({ state: 'none' });
+    expect(comparisonOf({ end: 'x', ...idle }, { row: {}, isError: false, isLoading: false })).toEqual({ state: 'ready' });
   });
 });

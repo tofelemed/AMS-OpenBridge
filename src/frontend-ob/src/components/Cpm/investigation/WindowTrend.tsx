@@ -13,6 +13,7 @@ import type { CpmTrendPoint } from '../../../api/cpm/kpis';
 import { useCpmTrend } from '../../../hooks/useCpm';
 import { Toggletip } from '../../../ui/Toggletip';
 import { loopSeries } from '../../../utils/loopSeries';
+import { fmtWhen } from '../blocks/whenText';
 import { registryHref, replayHref } from '../cpaHref';
 import { SignalStripAt } from '../explorer/summary/SignalStrip';
 import { bucketValue } from '../explorer/summary/useSignalValues';
@@ -22,7 +23,7 @@ import { EmptyState, KvRow, QueryError } from '../shared';
 import SignalTrend from '../trend/SignalTrend';
 
 /** The newest bucket that holds a value: a stalled feed can end the window on empty buckets. */
-const lastBucket = (points: CpmTrendPoint[]): CpmTrendPoint | undefined =>
+export const lastBucket = (points: CpmTrendPoint[]): CpmTrendPoint | undefined =>
   [...points].reverse().find(p => bucketValue(p, 'pv') != null || bucketValue(p, 'op') != null) ?? points[points.length - 1];
 
 export const WindowTrend: React.FC<{
@@ -47,10 +48,14 @@ export const WindowTrend: React.FC<{
   const health = useInstrumentHealthHistory(loopId, start, end);
   const intervals = health.data?.intervals ?? [];
   const at = lastBucket(points);
+  // A stalled feed leaves the strip on an earlier bucket: it says when, never "at window end".
+  const stalledAt = at && at !== points[points.length - 1] ? fmtWhen(at.ts) : undefined;
+  // Without a trend the link would vanish with it, so it stands alone then; with one it sits in the chart's foot.
+  const replayLink = <ObcButton variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Evidence Replay ↗</ObcButton>;
 
   return (
     <section className="cpm-surface cpm-inv-trend" aria-label="Signals over this window">
-      {at && <SignalStripAt point={at} />}
+      {at && <SignalStripAt point={at} at={stalledAt} />}
       {trend.isLoading && <EmptyState title="Loading signals…" />}
       {trend.isError && <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />}
       {!trend.isLoading && !trend.isError && points.length === 0 && (
@@ -61,8 +66,9 @@ export const WindowTrend: React.FC<{
       )}
       {points.length > 0 && (
         <SignalTrend loopId={loopId} points={points} hasVp={hasVp} height={260} resetLabel="Full window"
-          foot={<ObcButton variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Evidence Replay ↗</ObcButton>} />
+          foot={replayLink} />
       )}
+      {points.length === 0 && !trend.isLoading && replayLink}
       <KvRow label="Instrument health">
         {intervals.length > 0 || health.isLoading ? <HealthLane rows={intervals} from={start} to={end} role="PV" /> : (
           <span className="cpm-title-row">

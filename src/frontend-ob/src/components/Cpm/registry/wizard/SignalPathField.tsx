@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { ObiContentCopyGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google';
 import { CpmIconButton } from '../../shared';
+import { copyText } from '../../../../utils/copyText';
 import type { FieldCheck } from './wizardForm';
 import './wizard.css';
 
@@ -25,16 +26,9 @@ export const SignalPathField: React.FC<{
     const t = setTimeout(() => setCopy('idle'), 2000);
     return () => clearTimeout(t);
   }, [copy]);
-  const doCopy = async () => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
-      await navigator.clipboard.writeText(value.trim());
-      setCopy('copied');
-    } catch {
-      // insecure context or permission denied: the path stays selectable in the field and in the title
-      setCopy('failed');
-    }
-  };
+  // utils/copyText falls back to a hidden textarea, so the copy also works on the plant's http origin.
+  // A refusal leaves the path selectable in the field and in the title.
+  const doCopy = async () => setCopy(await copyText(value.trim()) ? 'copied' : 'failed');
   const msgId = `${id}-msg`;
   const message = check.error ?? check.warning;
   return (

@@ -5,17 +5,14 @@
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmKpiRow, CpmLoop, CpmWindowSpec } from '../../../api/cpmApi';
+import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
 import { Dialog } from '../../../ui/Dialog';
 import { GateBadge } from '../../../ui/GateBadge';
 import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
 import { gateName } from '../gateStatus';
 import { fmtInstant } from '../context/LoopContextBar';
-import { historicalHref, trendHref } from '../cpaHref';
-import { loopPens } from '../../Designer/trend/loopPens';
 import { SHORT_GATES, WindowResults } from './WindowResults';
 
 interface DialogProps { open: boolean; onClose: () => void }
@@ -46,21 +43,11 @@ export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declin
 };
 
 export const RecordDetailsDialog: React.FC<DialogProps & {
-  row: CpmKpiRow; loopId: string; loop: CpmLoop | undefined; tier: 'short' | 'long'; timeZone: string;
-}> = ({ open, onClose, row, loopId, loop, tier, timeZone }) => {
-  const navigate = useNavigate();
+  row: CpmKpiRow; tier: 'short' | 'long'; timeZone: string;
+}> = ({ open, onClose, row, tier, timeZone }) => {
   if (!open) return null;
-  const range = { from: row.window_start, to: row.window_end };
-  // /trend reads the loop's PV, SP, OP and VP pens itself, pinned to the window.
-  const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
-    ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
-  const go = (href: string) => { onClose(); navigate(href); };
   return createPortal(
-    <Dialog open onClose={onClose} title="Record details" size="wide" footer={<>
-      <ObcButton variant="flat" onClick={() => go(historicalHref(loopId, { ...range, window: row.window_end }))}>Open range in Historical {'↗'}</ObcButton>
-      {trend && <ObcButton variant="flat" onClick={() => go(trend)}>Open in Trend {'↗'}</ObcButton>}
-      <Close onClose={onClose} />
-    </>}>
+    <Dialog open onClose={onClose} title="Record details" size="wide" footer={<Close onClose={onClose} />}>
       <KvRow label="Window">{fmtInstant(row.window_start, timeZone)} {'→'} {fmtInstant(row.window_end, timeZone)}</KvRow>
       <WindowResults row={row} tier={tier} />
     </Dialog>, document.body);

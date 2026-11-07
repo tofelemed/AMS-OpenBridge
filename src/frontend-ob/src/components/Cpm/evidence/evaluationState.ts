@@ -70,7 +70,9 @@ const REFUSALS: Record<string, string> = {
   TOO_MANY_EVALUATIONS_IN_FLIGHT: 'You already have 3 evaluations running. Wait for one to finish.',
   ON_DEMAND_DISABLED: 'On-demand evaluation is turned off on this server.',
   SITE_OUT_OF_SCOPE: 'This loop is outside your plant scope.',
-  IDEMPOTENCY_KEY_REUSED: 'The request matched a run that cannot be reused. Try again.',
+  // The page sends no Idempotency-Key, so this 409 is the server's re-check: the run the request matched belongs to another
+  // loop. A second attempt matches the same run, so "try again" is not offered.
+  IDEMPOTENCY_KEY_REUSED: "This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator.",
   ANALYSIS_RUN_SUBMIT_FAILED: 'The request could not be handed to the evaluation job (Kafka). Try again.',
 };
 

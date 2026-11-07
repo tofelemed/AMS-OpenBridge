@@ -203,7 +203,9 @@ export function activateRequestOf(form: WizardState, editLoop: CpmLoop | undefin
     tags,
     thresholdProfileId: form.thresholdProfileId.trim() || null,
     enableMonitoring: form.enableMonitoring,
-    engineering: engineeringOf(derivedKept(form, editLoop)),
+    // An edit always sends the object, even empty: the server replaces the form's keys with it, so a form with every
+    // field cleared clears the stored range. A new loop with nothing declared sends none.
+    engineering: engineeringOf(derivedKept(form, editLoop)) ?? (editLoop ? {} : null),
     allowUnmodelledLocation,
     // v2.5 (2G.1): only an explicit declaration is sent; omitted keeps a stored EXPLICIT model or takes the preset
     model: modelOf(form.model),

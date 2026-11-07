@@ -154,7 +154,7 @@ describe('RerunCard and dialog', () => {
 
   it.each([
     [403, undefined, 'You are not allowed to start an evaluation.'],
-    [409, 'IDEMPOTENCY_KEY_REUSED', 'The request matched a run that cannot be reused. Try again.'],
+    [409, 'IDEMPOTENCY_KEY_REUSED', 'This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator.'],
     [429, 'TOO_MANY_EVALUATIONS_IN_FLIGHT', 'You already have 3 evaluations running. Wait for one to finish.'],
   ])('reads a %i refusal as a reason', async (status, detail, text) => {
     vi.mocked(evaluation.postEvaluation).mockRejectedValue(new ApiError(status, 'refused', detail));

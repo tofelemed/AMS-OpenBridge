@@ -32,9 +32,11 @@ export interface BundlesViewProps {
   createError: unknown;
   onOpen: (bundleId: string) => void;
   onCreate: (args: { scopeKind: ScopeKind; scopeRef: string | null; parentBundleId: string | null; note?: string }) => void;
+  /** Called when the draft dialog opens: the parent clears the last draft's failure, so it does not come back on reopen. */
+  onDraftOpen?: () => void;
 }
 
-export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId, canDraft, creating, createError, onOpen, onCreate }) => {
+export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId, canDraft, creating, createError, onOpen, onCreate, onDraftOpen }) => {
   const [drafting, setDrafting] = useState(false);
   return (
     <section className="cpm-surface">
@@ -46,7 +48,7 @@ export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId
           </Toggletip>
         )}
         right={(
-          <ReasonedButton variant="raised" disabled={!canDraft || creating} reason={!canDraft ? 'Drafting a bundle needs cpm.config.draft.' : null} onClick={() => setDrafting(true)}>
+          <ReasonedButton variant="raised" disabled={!canDraft || creating} reason={!canDraft ? 'Drafting a bundle needs cpm.config.draft.' : null} onClick={() => { onDraftOpen?.(); setDrafting(true); }}>
             Prepare bundle draft
           </ReasonedButton>
         )} />

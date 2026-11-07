@@ -18,7 +18,7 @@
 .cpm-hist-selected__actions > span obc-button { width: 100%; }
 .cpm-hist-selected__links { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--traverse-space-2); }
 
-.cpm-hist-missing { color: var(--element-neutral-color); }
+.cpm-hist-missing { color: var(--traverse-text-secondary); }
 .cpm-hist-key { display: grid; gap: var(--traverse-space-2); margin: 0; }
-.cpm-hist-key dt { color: var(--element-neutral-color); }
+.cpm-hist-key dt { color: var(--traverse-text-secondary); }
 .cpm-hist-key dd { margin: 0; }

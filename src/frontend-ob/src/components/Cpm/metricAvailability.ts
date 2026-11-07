@@ -9,6 +9,7 @@
  * and disqualifiers — plus the `period_status` / `*_qualified` fields when a raw KPI row has them.
  */
 import { gateMeaning, isNoResult } from './gateStatus';
+import { conditionOf } from './explorer/summary/summaryText';
 import { METRICS } from './calcCatalogue';
 import { disqualifierLabel, lowerFirst, phrase } from './vocabulary';
 import type { CpmGateMatrix } from '../../api/cpm/gates';
@@ -49,10 +50,13 @@ const QUALIFIED_FLAG: Record<string, string> = {
   acf_period_s: 'oscillation_qualified', acf_regularity: 'oscillation_qualified',
 };
 
-/** A window carries a verdict (and so a confidence) only when it was judged — not excluded, not short of data. */
+/**
+ * A window carries a verdict (and so a confidence to score) only when it holds a finding or a healthy result: not an
+ * exclusion, not short of data, not "no fault identified" (a judged window, but with no verdict to score).
+ */
 export function hasVerdict(diagnosis: string | null | undefined): boolean {
-  const d = (diagnosis ?? '').toUpperCase();
-  return !!d && !d.startsWith('EXCLUDED') && !d.startsWith('INSUFFICIENT') && d !== 'NOT_EVALUATED' && d !== 'NO_CALL';
+  const { kind } = conditionOf(diagnosis);
+  return kind === 'finding' || kind === 'healthy';
 }
 
 const MEASURED: MetricAvailability = { state: 'measured', short: '', reason: null };

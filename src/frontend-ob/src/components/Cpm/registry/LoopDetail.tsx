@@ -43,7 +43,8 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
   const canSeeTree = usePlantTreeAccess();
   const readiness = useCpmReadiness(loop?.loopId);
   const retired = !!loop && !loop.isActive;
-  const episodes = useCpmEvents({ loopId: loop?.loopId, openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 30_000, retired);
+  // A retired loop's open episode is read once: nothing new opens on it, so there is no interval (0 = no polling).
+  const episodes = useCpmEvents({ loopId: loop?.loopId, openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 0, retired);
   const republish = useRepublishEvidence();
   const user = useReceiptUser();
   const [editing, setEditing] = useState(false);

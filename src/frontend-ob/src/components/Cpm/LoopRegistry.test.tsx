@@ -2,7 +2,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoopRegistry } from './LoopRegistry';
 import { useAuthStore } from '../../store/authStore';
 import type { CpmLoop } from '../../api/cpmApi';
@@ -31,7 +31,9 @@ let fleet: Record<string, unknown> = okFleet;
 
 const Where = () => { const l = useLocation(); return <div data-testid="where">{l.pathname + l.search}</div>; };
 const SetSite = () => { const [, set] = useSearchParams(); return <button onClick={() => set(p => { p.set('site', 'hdpe'); return p; })}>pick site</button>; };
-const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><LoopRegistry /><Where /><SetSite /></MemoryRouter>);
+const SetScope = ({ k, v }: { k: string; v: string }) => { const [, set] = useSearchParams(); return <button onClick={() => set(p => { p.set(k, v); return p; })}>pick {k}</button>; };
+const HistoryBack = () => { const nav = useNavigate(); return <button onClick={() => nav(-1)}>history back</button>; };
+const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><LoopRegistry /><Where /><SetSite /><SetScope k="area" v="A1" /><SetScope k="unit" v="U1" /><HistoryBack /></MemoryRouter>);
 const asUser = (permissions: string[]) => useAuthStore.setState({
   user: { user_id: 'u', username: 'u', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't',
 });
@@ -150,7 +152,7 @@ describe('LoopRegistry list', () => {
   it('says how many retired loops are hidden', () => {
     loops = [loop('FIC1'), loop('OLD1', { isActive: false }), loop('OLD2', { isActive: false })];
     open('/cpm/registry');
-    expect(screen.getByText('1 loops · 2 retired hidden')).toBeTruthy();
+    expect(screen.getByText('1 loop · 2 retired hidden')).toBeTruthy();
     fireEvent.click(screen.getByRole('checkbox', { name: /Show retired/ }));
     expect(screen.getByText('3 loops')).toBeTruthy();
   });
@@ -184,5 +186,37 @@ describe('LoopRegistry list', () => {
     open('/cpm/registry');
     fireEvent.click(screen.getByRole('link', { name: 'FIC2' }).closest('tr')!.querySelectorAll('td')[1]);
     expect(screen.getByTestId('where').textContent).toContain('loop=FIC2');
+  });
+
+  it('starts at page 1 when Area or Unit changes (B10)', () => {
+    loops = Array.from({ length: 30 }, (_, i) => loop(`L${String(i).padStart(2, '0')}`));
+    for (const k of ['area', 'unit']) {
+      open('/cpm/registry?page=2');
+      expect(screen.getByText('Page 2 of 2')).toBeTruthy();
+      fireEvent.click(screen.getByText(`pick ${k}`));
+      expect(screen.getByTestId('where').textContent).not.toContain('page=');
+      cleanup();
+    }
+  });
+
+  it('keeps the page in the address on first load, with the scope already set (B10)', () => {
+    loops = Array.from({ length: 30 }, (_, i) => loop(`L${String(i).padStart(2, '0')}`));
+    open('/cpm/registry?site=hdpe&area=A1&unit=U1&page=2');
+    expect(screen.getByText('Page 2 of 2')).toBeTruthy();
+    expect(screen.getByTestId('where').textContent).toContain('page=2');
+  });
+
+  it('opens a loop once when the link itself is clicked, so Back returns to the list (B10)', () => {
+    open('/cpm/registry');
+    fireEvent.click(screen.getByRole('link', { name: 'FIC1' }));
+    expect(screen.getByTestId('where').textContent).toContain('loop=FIC1');
+    fireEvent.click(screen.getByText('history back'));
+    expect(screen.getByTestId('where').textContent).not.toContain('loop=');
+  });
+
+  it('says 1 loop, not 1 loops (B16)', () => {
+    loops = [loop('ONLY')];
+    open('/cpm/registry');
+    expect(screen.getByText('1 loop')).toBeTruthy();
   });
 });

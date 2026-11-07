@@ -90,8 +90,22 @@ describe('AddLoopWizard (edit)', () => {
     expect(screen.getByRole('button', { name: /How this loop is evaluated/ })).toBeTruthy();
   });
 
-  it('says so when the clipboard is unavailable', async () => {
+  it('copies through the http fallback when the clipboard API is missing (B11)', async () => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    const exec = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', { value: exec, configurable: true });
+    render(<AddLoopWizard existing={[loop]} editLoop={loop} onClose={() => {}} />);
+    fireEvent.click(continueBtn());
+    fireEvent.click(continueBtn());
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy SP · Setpoint * path' })); });
+    expect(exec).toHaveBeenCalledWith('copy');
+    expect(screen.getByText('Copied')).toBeTruthy();
+    Object.defineProperty(document, 'execCommand', { value: undefined, configurable: true });
+  });
+
+  it('says so when neither clipboard route works', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true });
     render(<AddLoopWizard existing={[loop]} editLoop={loop} onClose={() => {}} />);
     fireEvent.click(continueBtn());
     fireEvent.click(continueBtn());

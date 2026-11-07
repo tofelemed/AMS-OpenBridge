@@ -23,7 +23,7 @@
 
 /* The rest of a gate's evidence, behind one disclosure in the gate dialog */
 .cpm-gate-more { margin-top: var(--traverse-space-3); }
-.cpm-gate-more > summary { cursor: pointer; color: var(--element-neutral-color); }
+.cpm-gate-more > summary { cursor: pointer; color: var(--traverse-text-secondary); }
 .cpm-gate-more > summary:focus-visible {
   outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
   outline-offset: 2px;

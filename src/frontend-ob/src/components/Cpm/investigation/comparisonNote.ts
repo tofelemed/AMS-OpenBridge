@@ -12,6 +12,20 @@ export type Comparison =
   | { state: 'missing'; end: string }
   | { state: 'ready' };
 
+/** The state from the two reads: the previous end, then the previous window at that end. A failed read is a read error, never "no full stored result". */
+export function comparisonOf(
+  prevEnd: { end: string | null | undefined; isError: boolean; isLoading: boolean },
+  prevRow: { row: unknown; isError: boolean; isLoading: boolean },
+): Comparison {
+  if (prevEnd.isError) return { state: 'unavailable' };
+  if (prevEnd.isLoading) return { state: 'loading' };
+  if (!prevEnd.end) return { state: 'none' };
+  if (prevRow.row) return { state: 'ready' };
+  if (prevRow.isLoading) return { state: 'loading' };
+  if (prevRow.isError) return { state: 'unavailable' };
+  return { state: 'missing', end: prevEnd.end };
+}
+
 export function comparisonNote(c: Comparison): string {
   switch (c.state) {
     case 'loading': return 'Loading the previous window…';

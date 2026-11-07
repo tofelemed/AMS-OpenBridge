@@ -17,6 +17,15 @@ export const WINDOW_CAP = 500;
 /** Full rows live this long in Postgres; a range reaching further back needs the summaries. */
 const FULL_ROW_DAYS = 14;
 
+/** Why a window has no evidence package: it is older than the full rows, or it sits past the newest WINDOW_CAP of a long range. */
+export function packageReason(windowEnd: string, nowMs: number = Date.now()): string {
+  const ms = instantMs(windowEnd);
+  const inFullRowAge = Number.isFinite(ms) && ms >= nowMs - FULL_ROW_DAYS * 86_400_000;
+  return inFullRowAge
+    ? `Only the newest ${WINDOW_CAP} windows of a range keep every gate and metric; this one has a summary. Narrow the range to reach it`
+    : `Only windows from the last ${FULL_ROW_DAYS} days keep every gate and metric; this one has a summary`;
+}
+
 export interface HistoryWindow {
   windowStart: string | null;
   windowEnd: string;
@@ -60,6 +69,11 @@ export function mergeWindows(full: CpmGateMatrix[], summaries: CpmWindowSummary[
   return [...byEnd.values()].sort((a, b) => (instantMs(a.windowEnd) || 0) - (instantMs(b.windowEnd) || 0));
 }
 
+/** The earliest window end of the full rows, compared as instants ("Z" and "+00:00" spell one time). */
+export function oldestEnd(full: CpmGateMatrix[]): string | null {
+  return full.reduce<string | null>((o, w) => (w.windowEnd && (!o || instantMs(w.windowEnd) < instantMs(o)) ? w.windowEnd : o), null);
+}
+
 export function useWindowKpis(loopId: string | undefined, kind: string, from: Date, to: Date) {
   const fromIso = from.toISOString();
   const toIso = to.toISOString();
@@ -68,8 +82,7 @@ export function useWindowKpis(loopId: string | undefined, kind: string, from: Da
   const fullCapped = full.length >= WINDOW_CAP;
   const reachesOlder = from.getTime() < Date.now() - FULL_ROW_DAYS * 86_400_000;
   // The summaries continue where the full rows stop: past the 14 days, or past the cap.
-  const oldestFull = full.reduce<string | null>((o, w) => (w.windowEnd && (!o || w.windowEnd < o) ? w.windowEnd : o), null);
-  const summaryTo = oldestFull ?? toIso;
+  const summaryTo = oldestEnd(full) ?? toIso;
   const summaries = useQuery({
     queryKey: ['cpm', 'history-summaries', loopId ?? '', kind, fromIso, summaryTo],
     queryFn: ({ signal }) => getWindowSummaries(loopId!, kind, { from: fromIso, to: summaryTo, limit: WINDOW_CAP, includeInsufficient: false }, signal),

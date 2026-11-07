@@ -94,7 +94,7 @@ export const LoopRegistry: React.FC = () => {
               title="Loop assets"
               right={
                 <span className="cpm-reg-tools">
-                  <span className="cpm-event-row__sub">{filtered.length} loops{retiredHidden > 0 ? ` · ${retiredHidden} retired hidden` : ''}</span>
+                  <span className="cpm-event-row__sub">{filtered.length} {filtered.length === 1 ? 'loop' : 'loops'}{retiredHidden > 0 ? ` · ${retiredHidden} retired hidden` : ''}</span>
                   <label className="cpm-reg-retired">
                     <input type="checkbox" checked={showRetired} onChange={e => set('retired', e.target.checked ? '1' : null)} />
                     Show retired

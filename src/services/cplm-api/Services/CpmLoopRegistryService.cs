@@ -145,8 +145,7 @@ public sealed partial class CpmLoopRegistryService : ICpmLoopRegistryService
             var tagsJson = JsonSerializer.Serialize(
                 tags.ToDictionary(t => t.SignalRole.ToLowerInvariant(), t => t.UnsPath));
             var monitoringJson = Registry.RegistryEditMerge.MergeMonitoring(stored?.Monitoring, request.EnableMonitoring, request.StepTestApproved);
-            var engineeringJson = Registry.RegistryEditMerge.MergeEngineering(stored?.Engineering,
-                HasRange(request.Engineering) ? SerializeRange(request.Engineering!) : null);
+            var engineeringJson = Registry.RegistryEditMerge.EngineeringForEdit(request.Engineering, stored?.Engineering);
 
             // v2.5 (2G.1): the loop model dimensions - resolved in C# against the stored row so an
             // EXPLICIT declaration is never overwritten by a loop_type preset (the resolution rule

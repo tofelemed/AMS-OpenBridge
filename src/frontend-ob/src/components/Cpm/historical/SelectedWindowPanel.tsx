@@ -18,7 +18,7 @@ import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
 import { Toggletip } from '../../../ui/Toggletip';
 import { TechnicalDetails } from '../../../ui/TechnicalDetails';
 import { NotStored, pctOf } from './EvaluatedWindows';
-import type { HistoryWindow } from './useWindowKpis';
+import { packageReason, type HistoryWindow } from './useWindowKpis';
 
 /** The run to open for a window: its fused verdict (G15), else the first gate that carries one. */
 export function windowRun(win: Pick<HistoryWindow, 'methodRunIds' | 'gates'>): { methodRunId: string; gate: string } | null {
@@ -107,7 +107,7 @@ export const SelectedWindowPanel: React.FC<{
               <ObcButton variant="flat" onClick={() => onReplay(win.windowEnd)}>Replay ↗</ObcButton>
               <ObcButton variant="flat" onClick={onFit}>Fit to this window</ObcButton>
               <ReasonedButton variant="flat" disabled={!packageReady} onClick={onPackage}
-                reason="Only windows from the last 14 days keep every gate and metric; this one has a summary">
+                reason={packageReason(win.windowEnd)}>
                 Evidence package ↗
               </ReasonedButton>
             </div>

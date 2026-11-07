@@ -56,6 +56,14 @@ public static class RegistryEditMerge
         return merged.ToJsonString();
     }
 
+    /// <summary>
+    /// What the activate request does to the stored engineering range. No engineering object keeps everything (null: the SQL
+    /// COALESCE keeps the stored range). An object, even an empty one, replaces the seven form keys, so a form with every
+    /// field cleared clears the range; keys the form does not manage are kept.
+    /// </summary>
+    public static string? EngineeringForEdit(CpmEngineeringRange? requested, string? storedJson) =>
+        requested is null ? null : MergeEngineering(storedJson, CpmLoopRegistryService.SerializeRange(requested));
+
     /// <summary>The whole monitoring object: stored keys kept, evidence merged key by key, the request overwriting only what it sends.</summary>
     public static string MergeMonitoring(string? existingJson, bool enabled, bool stepTestApproved)
     {

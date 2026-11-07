@@ -1255,3 +1255,22 @@ None.
 | Control | Now on |
 |---|---|
 | Result link of each Performance matrix row | the row's arrow-key model (End reaches it), not a tab stop of its own |
+
+## CHG-154 open small items, batch B
+
+| Where | Was | Now |
+|---|---|---|
+| Historical, Evidence package disabled reason, window inside 14 days but past the newest 500 | Only windows from the last 14 days keep every gate and metric; this one has a summary | Only the newest 500 windows of a range keep every gate and metric; this one has a summary. Narrow the range to reach it (the 14-day wording stays for an older window) |
+| Historical, Apply zoom to range | Apply zoom to range › | Apply zoom to range → |
+| Loop Registry, count line, one loop | 1 loops | 1 loop |
+| Investigation, signal strip when a stalled feed ends the window on empty buckets | at window end | last values at <time> |
+| Investigation, Compare windows, previous window could not be read | The previous window (ends …) has no full stored result to compare against | The previous window could not be read. |
+| Investigation, Compare windows, history-only tile | looked and acted as selectable | disabled, dashed border, title "History only: no full stored result to open here. Use Evaluate a window." |
+| Evidence Workbench run bar, failed or expired retention | Proof retained · FAILED / Proof retained · EXPIRED | Reconstruction failed / Reconstruction expired |
+| Replay, cursor readout on a truncated slice | Sample 5 / 200,000 | Sample 5 / 200,000 loaded |
+| Replay, cursor readout, numeric mode | Not recorded | the stored value |
+| Replay, re-run refused with 409 | The request matched a run that cannot be reused. Try again. | This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator. |
+
+| Control | Now on |
+|---|---|
+| Open range in Historical, Open in Trend (Window Inspector) | the selected-window panel's links; removed from Record details |

@@ -40,7 +40,7 @@ export const ChartFoot: React.FC<{
   return (
     <div className="cpm-hist-zoom" role="status">
       <ChartZoomBar box={box} hasData={hasData}>
-        {zoomed && <ObcButton variant="raised" onClick={onApplyZoom}>Apply zoom to range ›</ObcButton>}
+        {zoomed && <ObcButton variant="raised" onClick={onApplyZoom}>Apply zoom to range →</ObcButton>}
         <span className="cpm-copy">
           {results} results · {windowKind} rolling windows{capped ? ` · newest ${cap} read` : ''}
         </span>

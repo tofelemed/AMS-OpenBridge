@@ -49,6 +49,28 @@ public sealed class RegistryEditMergeTests
     }
 
     [Fact]
+    public void An_empty_engineering_object_clears_the_form_keys_and_keeps_the_others()
+    {
+        var existing = """{"pvMin":0,"pvMax":100,"opMin":0,"opMax":100,"pvUnit":"kg/h","vpApplicability":"EXPECTED","peerApplicability":"EXPECTED","note":"keep me"}""";
+        var m = JsonNode.Parse(RegistryEditMerge.EngineeringForEdit(new CpmEngineeringRange(), existing)!)!.AsObject();
+        m.Select(kv => kv.Key).Should().Equal("note");
+        m["note"]!.GetValue<string>().Should().Be("keep me");
+    }
+
+    [Fact]
+    public void No_engineering_object_keeps_the_stored_range_and_an_object_replaces_the_form_keys()
+    {
+        var existing = """{"pvMin":0,"pvMax":100,"pvUnit":"kg/h","note":"keep me"}""";
+        RegistryEditMerge.EngineeringForEdit(null, existing).Should().BeNull();   // SQL COALESCE keeps the stored range
+        var m = JsonNode.Parse(RegistryEditMerge.EngineeringForEdit(new CpmEngineeringRange(PvMin: 5), existing)!)!;
+        m["pvMin"]!.GetValue<double>().Should().Be(5);
+        m["pvMax"].Should().BeNull();
+        m["note"]!.GetValue<string>().Should().Be("keep me");
+        // a brand-new loop with an empty object stores an empty range
+        RegistryEditMerge.EngineeringForEdit(new CpmEngineeringRange(), null).Should().Be("{}");
+    }
+
+    [Fact]
     public void Monitoring_evidence_is_merged_deeply()
     {
         var existing = """{"enabled":true,"enabled_before_retire":true,"evidence":{"stepTestApproved":true,"firstSeenAt":"2026-01-01","peerLinksConfigured":true}}""";
