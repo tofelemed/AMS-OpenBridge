@@ -1133,3 +1133,39 @@ None.
 | Run E2E verification | Run end-to-end verification, opens a setup dialog (loop control, Start verification); still needs cpm.manage |
 | A job row | Job name opens a read-only dialog |
 | Checkpoint chart | Closed disclosure on the Telemetry card |
+
+
+### Task 28: Administration
+
+#### Removed, moved behind a ?, or reworded
+
+| Was | Now |
+|---|---|
+| `System Administration` page heading and the inline tab strip with icons | WorkspaceHeader (System, Administration) and `ui/Tabs`; no tab icons |
+| Tab labels `User Management`, `Roles & Permissions`, `Data Sources`, `Plant Model`, `Tag Aliases`, `Audit Log`, `System Settings` | `Users`, `Roles & permissions`, `Data sources`, `Plant model`, `Tag aliases`, `Audit log`, `System settings`; `Alarm Feed`, `Alarm Rules` become sentence case |
+| `User Management` heading and `Manage user accounts and roles` | Removed; the count line `n users · n active · n inactive` stays |
+| Users columns `Username`, `Full name`, `Email`, `Role`, `Status`, `Created` | `User` (username over full name), `Role`, `Status`; Email and Created in the row dialog |
+| Role badges in red, amber and blue (`ROLE_STYLE`; SuperAdmin fell back to Viewer) | One neutral badge for every role |
+| `Source Configuration` heading | Removed; the tab names it |
+| `Configure OT data sources - MQTT broker connections consumed by the ingestion service` | Behind a ? beside the search |
+| One card per data source | Searchable list and the selected source's detail |
+| Plant model heading `Plant Model` and `The UNS asset tree - the source of truth every binding, trend, filter and loop location resolves against. Path segments are permanent identity; names are labels.` | Removed; the tab names it |
+| Plant model five-stage strip, always shown, and `The onboarding order - each stage feeds the next (docs/plant-model/production-onboarding-flow.md)` | The strip is behind a ? and loads on open; the sentence is `Each stage feeds the next.` |
+| `Tag Aliases` heading | Removed; its ? stays |
+| `Roles & Permissions` heading | Removed; its ? stays |
+| `Global System Settings` heading and `Not functional yet - these settings are not connected to the backend and cannot be saved. Values shown are illustrative defaults, not the running configuration.` | Removed; each value reads Not connected and the disabled Save settings says why |
+| Card titles `Data Retention`, `Infrastructure & Export`, `UI & Diagnostics` with emoji icons and descriptions | `Data retention`, `Backup and export`, `Interface and diagnostics`; no icons, no descriptions |
+| Invented values 30, 365, `/mnt/backups/ams`, nightly export on, `Industrial Dark`, `Information` and their inputs | Not connected |
+| `Save unavailable` | `Save settings`, disabled, reason on screen |
+| Audit Log tab (AuditExplorer, unreachable behind the Governance redirect) | `The audit log is on Governance.` and Open Governance → |
+
+#### Moved or new
+
+| Control | Now on |
+|---|---|
+| Edit user, Delete user | The user row dialog (opened from the name); Delete keeps its confirmation |
+| Email, Created | The user row dialog |
+| Data source Test, Edit, On/Off, Delete, connection fields, MODE map | The selected source's detail |
+| Configuration id, client id, version | Technical details in the source detail |
+| Plant model onboarding strip | Behind a ? on Plant model |
+| Open Governance → | Audit log tab (`admin.audit.view`) |

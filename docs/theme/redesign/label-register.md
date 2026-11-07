@@ -128,3 +128,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Trend loop control | Loop; Choose a loop | Choose a loop (empty), the loop id and name (chosen) | Trend | 26 |
 | Pipeline Health jobs | Observed jobs; State; Checkpoint age; OK / failed; Not exposed | Observed jobs | Pipeline Health | 27 |
 | Pipeline Health verification | Run end-to-end verification; Start verification; Analysis run | End-to-end verification | Pipeline Health | 27 |
+| Administration tabs | User Management; Roles & Permissions; Data Sources; Plant Model; Tag Aliases; Audit Log; System Settings | Users; Roles & permissions; Data sources; Plant model; Tag aliases; Audit log; System settings | Administration | 28 |
+| Setting with no source | illustrative default values | Not connected | System settings | 28 |
+| Save on System settings | Save unavailable | Save settings (disabled, reason on screen) | System settings | 28 |

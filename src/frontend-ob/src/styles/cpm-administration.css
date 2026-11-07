@@ -1,0 +1,16 @@
+/* Administration: placement only. Sizes, colours and type come from the app's own classes and tokens. */
+.cpm-admin { padding-top: 0; }
+.cpm-admin__panel { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
+.cpm-admin-audit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-3); }
+.cpm-admin-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-3); }
+.cpm-admin-bar__actions { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
+.cpm-admin-user { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cpm-admin-user:hover { text-decoration: underline; }
+.cpm-admin-user__name { display: block; font-weight: 600; }
+.cpm-admin-user__full { display: block; color: var(--element-neutral-color); }
+.cpm-admin-dialog__facts { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+.cpm-admin-dialog__actions { display: flex; gap: var(--traverse-space-2); }
+.cpm-admin-source { display: block; width: 100%; text-align: left; background: none; border: 0; padding: var(--traverse-space-2) var(--traverse-space-3); color: inherit; font: inherit; cursor: pointer; border-bottom: 1px solid var(--border-divider-color); }
+.cpm-admin-source[aria-current="true"] { background: var(--container-backdrop-color); box-shadow: inset 3px 0 0 var(--traverse-focus); }
+.cpm-admin-source__line { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); align-items: center; }
+.cpm-admin-bar--end { justify-content: flex-end; }

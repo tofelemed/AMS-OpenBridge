@@ -10,8 +10,8 @@ import {
   setDataSourceActive, testDataSource,
 } from './dataSourcesApi';
 import DataSourceWizard from './DataSourceWizard';
-import LoopIngestPanel from './LoopIngestPanel';
-import { Fact, Pill } from './adminUi';
+import DataSourceDetail from './DataSourceDetail';
+import { Pill } from './adminUi';
 import { Toggletip } from '../../ui/Toggletip';
 
 type View = { kind: 'list' } | { kind: 'create' } | { kind: 'edit'; source: DataSourceDto };
@@ -26,6 +26,8 @@ export const DataSourcesConfig: React.FC = () => {
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -80,17 +82,20 @@ export const DataSourcesConfig: React.FC = () => {
     );
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+  const needle = search.trim().toLowerCase();
+  const shown = needle
+    ? sources.filter(s => [s.name, s.sourceType, s.connectionUrl].some(v => v.toLowerCase().includes(needle)))
+    : sources;
+  const selected = sources.find(s => s.configId === selectedId) ?? shown[0];
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+  return (
+    <>
+      <div className="cpm-admin-bar">
         <div className="cpm-title-row">
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>
-            Source Configuration
-          </h2>
-          <Toggletip variant="how-to" label="About source configuration">
-            <p>Configure OT data sources — MQTT broker connections consumed by the ingestion service</p>
+          <input className="ob-input" type="search" aria-label="Search data sources" placeholder="Search data sources…"
+            value={search} onChange={e => setSearch(e.target.value)} />
+          <Toggletip variant="how-to" label="About data sources">
+            <p>OT data sources: MQTT broker connections consumed by the ingestion service.</p>
           </Toggletip>
         </div>
         {canManage && (
@@ -125,119 +130,41 @@ export const DataSourcesConfig: React.FC = () => {
         </div>
       )}
 
-      {sources.map(source => {
-        const mqtt = source.profileConfig?.mqtt;
-        const profile = profiles.find(p => p.profileType === source.profileType);
-        const lastTest = testResults[source.configId];
-        return (
-          <div key={source.configId} style={{
-            background: T.bg, border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
-            padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px',
-          }}>
-
-            {/* Card header: name + badges + actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '15px', fontWeight: 700, color: T.textPrimary }}>{source.name}</span>
-                <Pill
-                  text={source.isActive ? 'Active' : 'Off'}
-                  color={source.isActive ? T.success : T.textMuted}
-                />
-                <Pill text={source.sourceType} color={T.blue} />
-                {profile && <Pill text={profile.displayName} color={T.blue} />}
-                {mqtt?.topics?.[0] && <Pill text={mqtt.topics[0]} color={T.success} mono />}
-              </div>
-              {canManage && (
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <ObcButton
-                    variant="flat"
-                    disabled={testingId === source.configId}
-                    onClick={() => handleTest(source.configId)}
-                  >
-                    {testingId === source.configId ? 'Testing…' : 'Test'}
-                  </ObcButton>
-                  <ObcButton variant="flat" onClick={() => setView({ kind: 'edit', source })}>Edit</ObcButton>
-                  <ObcButton variant="flat" onClick={() => handleToggle(source)}>
-                    {source.isActive ? 'Off' : 'On'}
-                  </ObcButton>
-                  <ObcButton variant="flat" onClick={() => setConfirmDeleteId(source.configId)}>Delete</ObcButton>
-                </div>
-              )}
-            </div>
-
-            {/* Card body: key facts */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px 24px' }}>
-              <Fact label="Connection URL" value={source.connectionUrl} mono />
-              <Fact label="Username" value={source.username} />
-              {profile && <Fact label="Feeds" value={`${profile.module} · ${profile.destination}`} />}
-              <Fact label="QoS / Keepalive" value={`QoS ${mqtt?.qos ?? 1} · ${mqtt?.keepalive_seconds ?? 60}s`} />
-              <Fact label="Timeout" value={`${source.timeoutSeconds}s`} />
-              <Fact
-                label="Last Connection Test"
-                value={
-                  source.lastConnectionTest
-                    ? `${source.lastConnectionStatus === 'SUCCESS' ? '✓' : '✗'} ${new Date(source.lastConnectionTest).toLocaleString()}`
-                    : '—'
-                }
-                color={
-                  source.lastConnectionStatus === 'SUCCESS' ? T.success
-                  : source.lastConnectionStatus ? T.critical : undefined
-                }
-              />
-              <Fact
-                label="Last Data Received"
-                value={source.lastDataReceived ? new Date(source.lastDataReceived).toLocaleString() : '—'}
-              />
-            </div>
-
-            {/* loop_ingest — invisible in this product until 2026-09-10, which is how a
-                missing MODE map excluded the whole fleet unnoticed. Loop-samples only. */}
-            {source.profileType === 'MQTT_LOOP_SAMPLES' && (
-              <LoopIngestPanel
-                source={source}
-                canManage={canManage}
-                onSaved={saved => setSources(list => list.map(s => (s.configId === saved.configId ? saved : s)))}
-              />
-            )}
-
-            {/* Test / error detail */}
-            {lastTest && (
-              <div role="status" style={{
-                padding: '9px 14px', borderRadius: T.radiusSm, fontSize: '12.5px', fontWeight: 600,
-                background: lastTest.ok ? T.successBg : T.criticalBg,
-                border: `1px solid ${lastTest.ok ? T.success : T.critical}`,
-                color: lastTest.ok ? T.success : T.critical,
-              }}>
-                {lastTest.ok
-                  ? `✓ Connected in ${lastTest.latencyMs} ms`
-                  : `✗ ${lastTest.error ?? 'Connection failed'}`}
-              </div>
-            )}
-            {!lastTest && source.lastConnectionStatus === 'FAILED' && source.lastConnectionError && (
-              <div style={{ fontSize: '12px', color: T.critical }} title={source.lastConnectionError}>
-                Last test error: {source.lastConnectionError.length > 160
-                  ? `${source.lastConnectionError.slice(0, 160)}…`
-                  : source.lastConnectionError}
-              </div>
-            )}
-
-            {/* Delete confirmation */}
-            {confirmDeleteId === source.configId && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
-                background: T.criticalBg, border: `1px solid ${T.criticalBorder}`, borderRadius: T.radiusSm,
-              }}>
-                <span style={{ fontSize: '13px', color: T.critical, fontWeight: 600 }}>
-                  Delete "{source.name}" and its stored credentials?
+      {sources.length > 0 && (
+        <div className="cpm-master-detail">
+          <div>
+            {shown.map(s => (
+              <button key={s.configId} type="button" className="cpm-admin-source"
+                aria-current={s.configId === selected?.configId} onClick={() => setSelectedId(s.configId)}>
+                <span className="cpm-admin-source__line">
+                  <strong>{s.name}</strong>
+                  <Pill text={s.isActive ? 'Active' : 'Off'} color={s.isActive ? T.success : T.textMuted} />
                 </span>
-                <ObcButton variant="flat" onClick={() => handleDelete(source.configId)}>Delete</ObcButton>
-                <ObcButton variant="flat" onClick={() => setConfirmDeleteId(null)}>Cancel</ObcButton>
-              </div>
-            )}
+                <span className="cpm-admin-user__full">{s.sourceType}</span>
+              </button>
+            ))}
+            {shown.length === 0 && <p>No data source matches the search.</p>}
           </div>
-        );
-      })}
-    </div>
+          {selected && (
+            <DataSourceDetail
+              source={selected}
+              profile={profiles.find(p => p.profileType === selected.profileType)}
+              canManage={canManage}
+              testing={testingId === selected.configId}
+              lastTest={testResults[selected.configId]}
+              confirmingDelete={confirmDeleteId === selected.configId}
+              onTest={() => handleTest(selected.configId)}
+              onEdit={() => setView({ kind: 'edit', source: selected })}
+              onToggle={() => handleToggle(selected)}
+              onAskDelete={() => setConfirmDeleteId(selected.configId)}
+              onCancelDelete={() => setConfirmDeleteId(null)}
+              onDelete={() => handleDelete(selected.configId)}
+              onSaved={saved => setSources(list => list.map(x => (x.configId === saved.configId ? saved : x)))}
+            />
+          )}
+        </div>
+      )}
+    </>
   );
 };
 

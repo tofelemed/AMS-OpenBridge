@@ -229,7 +229,6 @@ export const AliasConfig: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div className="cpm-title-row">
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: T.textPrimary, margin: 0 }}>Tag Aliases</h2>
           <Toggletip variant="how-to" label="About tag aliases">
             <p>
               OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this

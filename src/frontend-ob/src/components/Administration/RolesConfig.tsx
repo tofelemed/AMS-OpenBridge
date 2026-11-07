@@ -168,7 +168,6 @@ export const RolesConfig: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="cpm-title-row">
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: T.textPrimary }}>Roles &amp; Permissions</h2>
           <Toggletip variant="how-to" label="About roles and permissions">
             <p>Assign permissions to roles. Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
           </Toggletip>

@@ -18,6 +18,8 @@ import {
 import { getRoles } from '../../api/rolesApi';
 import { toast } from 'react-toastify';
 import { useConfirm } from '../shared/dialogService';
+import { StatusBadge } from '../../ui/StatusBadge';
+import { UserRowDialog } from './UserRowDialog';
 import { T } from '../../styles/theme';
 
 
@@ -26,13 +28,6 @@ import { T } from '../../styles/theme';
 // CHG-081: SuperAdmin above Admin (platform administration, gate configuration, pipeline, governance)
 const ROLES = ['SuperAdmin', 'Admin', 'Engineer', 'Operator', 'Viewer'] as const;
 type Role = (typeof ROLES)[number];
-
-const ROLE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  Admin: { bg: T.criticalBg, color: T.critical, border: T.criticalBorder },
-  Engineer: { bg: T.warningBg, color: T.warning, border: T.warningBorder },
-  Operator: { bg: T.blueLight, color: T.blue, border: T.blueMuted },
-  Viewer: { bg: T.bg, color: T.textMuted, border: T.border },
-};
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -100,6 +95,7 @@ export const UserManagementConfig: React.FC = () => {
   const [form, setForm] = useState<UserForm>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [detail, setDetail] = useState<AdminUser | null>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -111,6 +107,7 @@ export const UserManagementConfig: React.FC = () => {
     setEditing(u);
     setForm({ username: u.username, email: u.email, full_name: u.full_name ?? '', password: '', role: (u.role as Role) ?? 'Viewer', is_active: u.is_active });
     setFormError(null);
+    setDetail(null);
     setModalOpen(true);
   };
 
@@ -181,6 +178,7 @@ export const UserManagementConfig: React.FC = () => {
       return;
     }
     if (await confirm({ title: 'Delete user', message: `Delete user "${u.username}"? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) {
+      setDetail(null);
       deleteMutation.mutate(u.user_id);
     }
   };
@@ -189,16 +187,10 @@ export const UserManagementConfig: React.FC = () => {
   const stats = data?.stats;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Header + actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: T.text }}>User Management</h2>
-          <p style={{ fontSize: 13, color: T.textSub, margin: '4px 0 0' }}>
-            {stats ? `${stats.total} users · ${stats.active} active · ${stats.inactive} inactive` : 'Manage user accounts and roles'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+    <>
+      <div className="cpm-admin-bar">
+        <span>{stats ? `${stats.total} users · ${stats.active} active · ${stats.inactive} inactive` : ''}</span>
+        <div className="cpm-admin-bar__actions">
           <ObcButton variant="flat" onClick={() => setBulkOpen(true)}>Bulk import</ObcButton>
           <ObcButton variant="raised" onClick={openCreate}>Add user</ObcButton>
         </div>
@@ -218,51 +210,35 @@ export const UserManagementConfig: React.FC = () => {
         </select>
       </div>
 
-      {/* Table */}
-      <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusSm, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div className="cpm-table-wrap">
+        <table className="cpm-table">
           <thead>
-            <tr style={{ background: T.bg }}>
-              {['Username', 'Full name', 'Email', 'Role', 'Status', 'Created', ''].map((h, i) => (
-                <th key={h || i} style={{ textAlign: i === 6 ? 'right' : 'left', padding: '9px 12px', color: T.textSub, fontWeight: 600, borderBottom: `1px solid ${T.border}` }}>{h || <span className="ui-sr">Actions</span>}</th>
-              ))}
-            </tr>
+            <tr><th>User</th><th>Role</th><th>Status</th></tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: T.textSub }}>Loading users…</td></tr>
+              <tr><td colSpan={3}>Loading users…</td></tr>
             ) : isError ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center' }}>
+              <tr><td colSpan={3}>
                 <div style={{ color: T.critical, fontWeight: 600 }}>Failed to load users</div>
                 <div style={{ color: T.textSub, fontSize: 12, margin: '4px 0 10px' }}>{extractApiError(error)}</div>
                 <ObcButton variant="flat" onClick={() => void refetch()}>Retry</ObcButton>
               </td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: T.textSub }}>No users found</td></tr>
+              <tr><td colSpan={3}>No users found</td></tr>
             ) : (
-              users.map((u) => {
-                const rs = ROLE_STYLE[u.role] ?? ROLE_STYLE.Viewer;
-                return (
-                  <tr key={u.user_id} style={{ borderBottom: `1px solid ${T.border}` }}>
-                    <td style={{ padding: '9px 12px', fontWeight: 600, color: T.text }}>{u.username}</td>
-                    <td style={{ padding: '9px 12px', color: T.textSub }}>{u.full_name || '—'}</td>
-                    <td style={{ padding: '9px 12px', color: T.textSub }}>{u.email}</td>
-                    <td style={{ padding: '9px 12px' }}>
-                      <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: rs.bg, color: rs.color, border: `1px solid ${rs.border}` }}>{u.role}</span>
-                    </td>
-                    <td style={{ padding: '9px 12px' }}>
-                      <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: u.is_active ? T.successBg : T.bg, color: u.is_active ? T.success : T.textMuted, border: `1px solid ${u.is_active ? T.successBorder : T.border}` }}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '9px 12px', color: T.textSub }}>{new Date(u.created_at).toLocaleDateString()}</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <ObcButton variant="flat" size="small" onClick={() => openEdit(u)}>Edit</ObcButton>
-                      <ObcButton variant="flat" size="small" onClick={() => handleDelete(u)} disabled={deleteMutation.isPending}>Delete</ObcButton>
-                    </td>
-                  </tr>
-                );
-              })
+              users.map((u) => (
+                <tr key={u.user_id}>
+                  <td>
+                    <button type="button" className="cpm-admin-user" onClick={() => setDetail(u)}>
+                      <span className="cpm-admin-user__name">{u.username}</span>
+                      {u.full_name && <span className="cpm-admin-user__full">{u.full_name}</span>}
+                    </button>
+                  </td>
+                  <td><span data-testid="role-badge"><StatusBadge tone="neutral">{u.role}</StatusBadge></span></td>
+                  <td><StatusBadge tone={u.is_active ? 'success' : 'neutral'}>{u.is_active ? 'Active' : 'Inactive'}</StatusBadge></td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -346,7 +322,8 @@ export const UserManagementConfig: React.FC = () => {
       </Modal>
 
       <BulkImportModal isOpen={bulkOpen} onClose={() => setBulkOpen(false)} onImported={invalidate} />
-    </div>
+      <UserRowDialog user={detail} deleting={deleteMutation.isPending} onEdit={openEdit} onDelete={(u) => void handleDelete(u)} onClose={() => setDetail(null)} />
+    </>
   );
 };
 

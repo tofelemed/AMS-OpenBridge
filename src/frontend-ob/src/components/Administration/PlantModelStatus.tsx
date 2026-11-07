@@ -14,7 +14,6 @@ import { apiJson } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import { listDataSources } from './dataSourcesApi';
 import { T } from '../../styles/theme';
-import { Toggletip } from '../../ui/Toggletip';
 
 const ASSET_API = (import.meta.env.VITE_ASSET_SERVICE_URL as string | undefined) || '/api/assets';
 
@@ -133,6 +132,7 @@ export const PlantModelStatus: React.FC = () => {
       background: T.card, border: `1px solid ${T.border}`, borderRadius: 8,
       padding: '10px 14px',
     }}>
+      <p style={{ flexBasis: '100%', margin: '0 0 8px' }}>Each stage feeds the next.</p>
       {stages.map((s, i) => (
         <React.Fragment key={s.n}>
           {i > 0 && (
@@ -149,15 +149,6 @@ export const PlantModelStatus: React.FC = () => {
           </div>
         </React.Fragment>
       ))}
-      <span style={{ flex: 1 }} />
-      <span style={{ alignSelf: 'center' }}>
-        <Toggletip variant="how-to" label="About this strip">
-          <p>
-            The onboarding order — each stage feeds the next
-            (docs/plant-model/production-onboarding-flow.md).
-          </p>
-        </Toggletip>
-      </span>
     </div>
   );
 };
