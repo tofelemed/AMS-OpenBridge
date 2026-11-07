@@ -18,8 +18,6 @@ const NEW_CODE = /^(ui|pages\/cpa|help|charts|theme|cpa)\//;
 // The legacy files whose OpenBridge controls were replaced in Phase 3 (PRM-004 Phase 3 step 2): T9 holds them there.
 const T9_REPLACED_FILES = new Set([
   'components/Administration/RolesConfig.tsx',
-  'components/Cpm/AttentionList.tsx',
-  'components/Cpm/CalcDrawer.tsx',
   'components/Cpm/CollapsibleSection.tsx',
   'components/Cpm/CpmEvents.tsx',
   'components/Cpm/CpmPerformance.tsx',
@@ -30,7 +28,6 @@ const T9_REPLACED_FILES = new Set([
   'components/Cpm/explorer/LoopTree.tsx',
   'components/Cpm/explorer/LoopWorkspace.tsx',
   'components/Cpm/explorer/summary/LoopSummaryCard.tsx',
-  'components/Cpm/explorer/summary/SummaryCalculations.tsx',
   'components/Cpm/explorer/summary/WindowKindToggle.tsx',
   'components/Cpm/investigation/CaseTriage.tsx',
   'components/Cpm/response/ModelReviewDialog.tsx',

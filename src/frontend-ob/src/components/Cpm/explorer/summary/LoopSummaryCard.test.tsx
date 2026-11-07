@@ -64,11 +64,11 @@ describe('LoopSummaryCard', () => {
 
   it('sends the why and the action to the Investigation, the proof to the Workbench', () => {
     renderCard();
-    fireEvent.click(screen.getByText('Why and what to do › Investigation'));
+    fireEvent.click(screen.getByText('Why and what to do → Investigation'));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/investigation?loop=FIC10405&profile=12h');
     cleanup();
     renderCard();
-    fireEvent.click(screen.getByText('Calculation proof › Workbench'));
+    fireEvent.click(screen.getByText('Calculation proof → Workbench'));
     expect(screen.getByTestId('where').textContent).toMatch(/^\/cpm\/evidence\?loop=FIC10405/);
   });
 });

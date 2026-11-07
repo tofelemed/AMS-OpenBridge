@@ -7,6 +7,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import ReasonedButton from '../../ReasonedButton';
 import { Dialog } from '../../../../ui/Dialog';
 import { gateName } from '../../gateStatus';
 import { KvRow } from '../../shared';
@@ -15,17 +16,21 @@ import type { LoopKpiCardModel } from '../../kpi/loopKpiView';
 export const LoopKpiDialog: React.FC<{
   card: LoopKpiCardModel;
   proof: { label: string; href: string };
+  /** The gates the served row carries; absent while it loads. A gate it lacks cannot be opened. */
+  gateKeys?: string[];
   onInspect: (gate: string) => void;
   onClose: () => void;
-}> = ({ card, proof, onInspect, onClose }) => {
+}> = ({ card, proof, gateKeys, onInspect, onClose }) => {
   const navigate = useNavigate();
   const measured = card.value !== '—';
+  const missing = !!gateKeys && !gateKeys.includes(card.gate);
   return createPortal(
     <Dialog open onClose={onClose} title={card.label}
       footer={(
         <>
           <ObcButton variant="flat" onClick={() => { onClose(); navigate(proof.href); }}>{proof.label}</ObcButton>
-          <ObcButton variant="raised" onClick={() => onInspect(card.gate)}>Inspect {card.gate} →</ObcButton>
+          <ReasonedButton variant="raised" disabled={missing} reason={`No ${card.gate} result in this window`}
+            onClick={() => onInspect(card.gate)}>Inspect {card.gate} →</ReasonedButton>
         </>
       )}>
       <KvRow label="Value">{measured ? card.value : 'Not measured in this window'}</KvRow>

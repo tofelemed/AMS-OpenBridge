@@ -7,7 +7,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { LoopKpiCardModel } from '../../kpi/loopKpiView';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { type: 'button', onClick: p.onClick }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
+    React.createElement('button', { type: 'button', disabled: p.disabled, onClick: p.onClick }, p.children),
 }));
 
 import { LoopKpiDialog } from './LoopKpiDialog';
@@ -19,11 +20,11 @@ const CARD: LoopKpiCardModel = {
   proof: 'calculations', metric: 'CPLM-014', group: 'control', relevant: false, gate: 'G3', judged: true, bar: null,
 };
 const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
-const open = (card = CARD, onInspect = vi.fn()) => {
+const open = (card = CARD, onInspect = vi.fn(), gateKeys?: string[]) => {
   render(
     <MemoryRouter><Routes><Route path="*" element={<>
       <LoopKpiDialog card={card} proof={{ label: 'Calculation proof ↗', href: '/cpm/calculations?loop=FIC1&metric=CPLM-014' }}
-        onInspect={onInspect} onClose={() => {}} /><Probe />
+        gateKeys={gateKeys} onInspect={onInspect} onClose={() => {}} /><Probe />
     </>} /></Routes></MemoryRouter>);
   return onInspect;
 };
@@ -59,5 +60,22 @@ describe('LoopKpiDialog', () => {
     open({ ...CARD, value: '—', sub: '', delta: null, tone: 'muted' });
     expect(screen.getByRole('dialog').textContent).toMatch(/Not measured in this window/);
     expect(screen.getByRole('dialog').textContent).not.toMatch(/\b0 %/);
+  });
+
+  it('disables Inspect Gn with the reason when the served row does not carry that gate', () => {
+    const onInspect = open(CARD, vi.fn(), ['G1', 'G4']);
+    const button = screen.getByRole('button', { name: 'Inspect G3 →' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByText('No G3 result in this window')).toBeTruthy();
+    fireEvent.click(button);
+    expect(onInspect).not.toHaveBeenCalled();
+  });
+
+  it('keeps Inspect Gn enabled when the row carries the gate, or the gates are not loaded yet', () => {
+    open(CARD, vi.fn(), ['G3']);
+    expect((screen.getByRole('button', { name: 'Inspect G3 →' }) as HTMLButtonElement).disabled).toBe(false);
+    cleanup();
+    open(CARD, vi.fn(), undefined);
+    expect((screen.getByRole('button', { name: 'Inspect G3 →' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

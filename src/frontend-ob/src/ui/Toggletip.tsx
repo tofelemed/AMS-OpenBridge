@@ -76,7 +76,7 @@ const CalculationLink: React.FC<{ metric: string; onNavigate: () => void }> = ({
       to={cpaHref('/cpm/calculations', search, { metric })}
       onClick={onNavigate}
     >
-      Full calculation ›
+      Full calculation →
     </Link>
   );
 };

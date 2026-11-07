@@ -142,3 +142,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Retired loop | Retired (the pill Loop Registry uses) | Loop band, loop list | CHG-153 |
 | No-fault window without a score | Not stored | Historical, Selected window | CHG-153 |
 | Back link of a response run in the Workbench | Back to System Response ↗ | Evidence Workbench | CHG-153 |
+| Gate not in the served row | Inspect Gn → (opened nothing) | Inspect Gn → disabled, "No Gn result in this window" | Loop Explorer, Loop KPI dialog | CHG-154 |
+| Capability list of a day stored before the flag existed | No loop is in this KPI | Not stored for that day | KPI drill-down | CHG-154 |

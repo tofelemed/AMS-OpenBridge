@@ -63,7 +63,7 @@ export function classifyGateResult(i: GateStateInput): GateState {
   if (i.tier === 'fusion' && SHORT_GATES.has(gate) && status === 'NOT_EVALUATED' && !i.cell?.reason) {
     return { kind: 'SHORT_TIER', title: 'Evaluated on the 1m–60m windows', detail: `${gate} is judged per short window; a fused row carries no verdict of its own for it.`,
       stillValid: 'The short windows of the same period hold this gate\'s runs and evidence; the fused verdict is unaffected.', action: 'NONE', tone: 'muted',
-      link: i.loopId ? { label: `Open the 15m windows of ${i.loopId} ›`, href: `/cpm/evidence?loop=${encodeURIComponent(i.loopId)}&kind=15m` } : undefined };
+      link: i.loopId ? { label: `Open the 15m windows of ${i.loopId} →`, href: `/cpm/evidence?loop=${encodeURIComponent(i.loopId)}&kind=15m` } : undefined };
   }
   if (status === 'DISABLED') return { kind: 'DISABLED', title: 'Gate disabled by configuration', detail: i.cell?.reason ?? 'The gate is switched off for this loop.', stillValid: 'The other gates were evaluated without it; fusion assessability is reduced.', action: 'NONE', tone: 'muted' };
   if (status === 'NOT_EVALUATED' || status === 'EXCLUDED' || status === 'INSUFFICIENT') {

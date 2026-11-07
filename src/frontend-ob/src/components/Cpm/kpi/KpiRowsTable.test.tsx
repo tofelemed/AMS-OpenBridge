@@ -48,6 +48,6 @@ describe('KpiRowsTable', () => {
 
   it('keeps every proof link', () => {
     show([stale('A')]);
-    expect(screen.getAllByRole('link').map(l => l.textContent)).toEqual(['Loop ›', 'Window ›', 'Trend ›']);
+    expect(screen.getAllByRole('link').map(l => l.textContent)).toEqual(['Loop ↗', 'Window ↗', 'Trend ↗']);
   });
 });

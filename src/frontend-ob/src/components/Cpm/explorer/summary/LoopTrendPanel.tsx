@@ -3,7 +3,7 @@
  *
  * The period bar (CHG-048), then the evaluated window against what is plotted (SME review #12):
  *  - the latest evaluated window is a labelled band on the trend wherever it overlaps the range;
- *  - when it lies outside the range, a line says so, with "Show evaluated period ›";
+ *  - when it lies outside the range, a line says so, with "Show evaluated period →";
  *  - when the trend IS the evaluated window (a diagnosis click lands here), "Compare with previous window" /
  *    "Compare with now" add a second trend under it of the SAME LENGTH (the window just before it, or the same span
  *    ending now), both on ONE y-scale and equal time spans, so the shapes line up (CHG-097, SME review 2 #26).
@@ -86,7 +86,7 @@ export const LoopTrendPanel: React.FC<{
       {evaluated && !inView && (
         <p className="cpm-eval-note">
           <ObcButton variant="normal" title={`${windowText} is outside this trend range — the diagnosis is about that window, not this one.`}
-            onClick={showEvaluated}>Show evaluated period ›</ObcButton>
+            onClick={showEvaluated}>Show evaluated period →</ObcButton>
         </p>
       )}
       {isEvaluatedView && (
@@ -106,7 +106,7 @@ export const LoopTrendPanel: React.FC<{
       {evaluated && inView && !isEvaluatedView && (
         <p className="cpm-eval-note">
           <ObcButton variant="flat" title="The shaded band is the evaluated window behind the diagnosis."
-            onClick={showEvaluated}>Show only that window ›</ObcButton>
+            onClick={showEvaluated}>Show only that window →</ObcButton>
         </p>
       )}
 

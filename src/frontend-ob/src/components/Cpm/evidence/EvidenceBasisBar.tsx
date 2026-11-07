@@ -37,7 +37,7 @@ export const EvidenceBasisBar: React.FC<{
         <span className="cpm-event-row__sub">{reconstructionSummary(newest, timeZone)}</span>
       )}
       {newest?.rebuiltAs && onOpenRun && (
-        <ObcButton variant="normal" onClick={() => onOpenRun(newest.rebuiltAs!)}>Open the rebuilt run ›</ObcButton>
+        <ObcButton variant="normal" onClick={() => onOpenRun(newest.rebuiltAs!)}>Open the rebuilt run →</ObcButton>
       )}
       {viewable && (basis.kind === 'RECONSTRUCTION'
         ? <ObcButton variant="normal" onClick={() => onView(null)}>Show the retained proof</ObcButton>

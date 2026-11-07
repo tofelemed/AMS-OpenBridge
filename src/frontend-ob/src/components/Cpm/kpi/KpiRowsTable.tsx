@@ -74,7 +74,7 @@ export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> =
             <td data-label="Proof">
               <span className="cpm-kpi-table__links">
                 {proofLinks(r, r.rowKey ?? kpi).map(l => (
-                  <RouterLink key={l.label} className="cpm-link" to={l.href} title={l.title}>{l.label} ›</RouterLink>
+                  <RouterLink key={l.label} className="cpm-link" to={l.href} title={l.title}>{l.label} ↗</RouterLink>
                 ))}
               </span>
             </td>

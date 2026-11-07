@@ -391,9 +391,9 @@ Link target is the place a user can reach the value's proof today.
 - **Link target:** /cpm/performance (as implemented, pending approval (Q7))
 - **Register status:** Consistent. See M-037 in the register before using this text. (as implemented, pending approval (Q7))
 
-### M-038 Loops with periodic diagnosis
+### M-038 Periodic diagnosis
 
-- **What it measures:** Assessed loops whose current diagnosis is an oscillation or final-element family at any band. (as implemented, pending approval (Q7))
+- **What it measures:** Assessed loops whose current diagnosis is an oscillation or final-element (valve) family at detected or any stronger band. (as implemented, pending approval (Q7))
 - **Formula:** Assessed ∧ family ∈ {OSCILLATION, FINAL_ELEMENT_NONLINEARITY} (src/services/cplm-api/Services/Kpi/FleetKpiPerformance.cs:20). (as implemented, pending approval (Q7))
 - **Window and eligibility:** Fused rolling window: 12h default, 24h by switch (src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14). Half-open [end − size, end) (src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124). End sits on a 15-min epoch boundary, so UTC-aligned (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315). Recomputed every 15 min (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55). UI poll 60 s (src/frontend-ob/src/components/Cpm/kpi/useFleetKpis.ts:16); API cache 15 s default (src/services/cplm-api/Controllers/CpmFleetKpiController.cs:34). Eligibility: Assessed. (as implemented, pending approval (Q7))
 - **Unit:** count; computed as count. (as implemented, pending approval (Q7))
@@ -437,7 +437,7 @@ Link target is the place a user can reach the value's proof today.
 
 - **What it measures:** A11 — bad-actor ranking. Ordered by confidence within a real diagnosis, so the loops most likely to reward an engineer's time come first. (as implemented, pending approval (Q7))
 - **Formula:** Rows from LatestProbe: newest real verdict of any age, else newest row (src/services/cplm-api/Data/FleetLatestSql.cs:34-55,98-118). "error" order = good_error_pct ASC (src/services/cplm-api/Controllers/CpmFleetController.cs:175). No freshness filter. (as implemented, pending approval (Q7))
-- **Window and eligibility:** Fused rolling window: 12h default, 24h by switch (src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14). Half-open [end − size, end) (src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124). End sits on a 15-min epoch boundary, so UTC-aligned (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315). Recomputed every 15 min (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55). UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:194,203); API cache 15 s (src/services/cplm-api/Controllers/CpmFleetController.cs:42). Eligibility: Monitored; rows with diagnosis NOT_EVALUATED are dropped client side (src/frontend-ob/src/components/Cpm/AttentionList.tsx:63-64). (as implemented, pending approval (Q7))
+- **Window and eligibility:** Fused rolling window: 12h default, 24h by switch (src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14). Half-open [end − size, end) (src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124). End sits on a 15-min epoch boundary, so UTC-aligned (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315). Recomputed every 15 min (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55). UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:194,203); API cache 15 s (src/services/cplm-api/Controllers/CpmFleetController.cs:42). Eligibility: Monitored; the queue holds current findings only, in the server priority order (src/frontend-ob/src/components/Cpm/CpmOverview.tsx:51-53,65-66). (as implemented, pending approval (Q7))
 - **Unit:** rank; score or % in band; computed as order. (as implemented, pending approval (Q7))
 - **Source and version:** Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row (src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45). Shown: no. (as implemented, pending approval (Q7))
 - **Link target:** /cpm/performance (as implemented, pending approval (Q7))
@@ -446,7 +446,7 @@ Link target is the place a user can reach the value's proof today.
 ### M-043 Driving gates
 
 - **What it measures:** Which gates on this row are warn or fail — i.e. why the verdict is what it is. (as implemented, pending approval (Q7))
-- **Formula:** drivingGates uses reviewSeverity; resultGates uses the mark meaning (src/frontend-ob/src/components/Cpm/gateStatus.ts:174-176,210-214). The attention row joins ranked rows to heatmap rows by loop id (src/frontend-ob/src/components/Cpm/AttentionList.tsx:57-61). (as implemented, pending approval (Q7))
+- **Formula:** drivingGates uses reviewSeverity; resultGates uses the mark meaning (src/frontend-ob/src/components/Cpm/gateStatus.ts:174-176,210-214). A Findings row lists its result gates the same way (src/frontend-ob/src/components/Cpm/GateMatrixChecks.tsx:60). (as implemented, pending approval (Q7))
 - **Window and eligibility:** Fused rolling window: 12h default, 24h by switch (src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14). Half-open [end − size, end) (src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124). End sits on a 15-min epoch boundary, so UTC-aligned (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315). Recomputed every 15 min (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55). UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:194,203); API cache 15 s (src/services/cplm-api/Controllers/CpmFleetController.cs:42). Eligibility: Rows in scope. (as implemented, pending approval (Q7))
 - **Unit:** gate keys; computed as list. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))
@@ -1166,7 +1166,7 @@ Link target is the place a user can reach the value's proof today.
 ### M-114 Sample density
 
 - **What it measures:** {n} buckets · full-height = 100% of the {grid} s-grid budget (engine-reported) · amber = sparse · grey = empty. (as implemented, pending approval (Q7))
-- **Formula:** Client count of raw PV points into 24 buckets ÷ expected (src/frontend-ob/src/components/Cpm/windows/WindowDetail.tsx:69-94). Page cap 5000 points (src/frontend-ob/src/components/Cpm/windows/WindowDetail.tsx:58). (as implemented, pending approval (Q7))
+- **Formula:** Client count of raw PV points into 24 buckets ÷ expected (src/frontend-ob/src/components/Cpm/windows/SampleDensityDialog.tsx:35-53). Page cap 5000 points (src/frontend-ob/src/components/Cpm/windows/SampleDensityDialog.tsx:30). (as implemented, pending approval (Q7))
 - **Window and eligibility:** Selected window; browser computed. Eligibility: Raw samples. (as implemented, pending approval (Q7))
 - **Unit:** % of grid budget; computed as ratio. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))
@@ -1188,7 +1188,7 @@ Link target is the place a user can reach the value's proof today.
 ### M-116 Calculations page tallies
 
 - **What it measures:** No definition is displayed for Calculations page tallies. (as implemented, pending approval (Q7))
-- **Formula:** Tally over gates that appear in METRICS: G0, G1, G3 to G9, G15 = 10 gates (src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:204-215; src/frontend-ob/src/components/Cpm/calcCatalogue.ts:24-47). "In the pack" comes from the served catalogue of 17 (src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:275). Explorer counts by mark meaning; detected and classified fall into the last bucket (src/frontend-ob/src/components/Cpm/explorer/summary/SummaryCalculations.tsx:45-52). (as implemented, pending approval (Q7))
+- **Formula:** Tally over gates that appear in METRICS: G0, G1, G3 to G9, G15 = 10 gates (src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:204-215; src/frontend-ob/src/components/Cpm/calcCatalogue.ts:24-47). "In the pack" comes from the served catalogue of 17 (src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:275). Explorer Calculations lists each gate with its mark and keeps no tally (src/frontend-ob/src/components/Cpm/explorer/CalculationsGateTable.tsx:19-37). (as implemented, pending approval (Q7))
 - **Window and eligibility:** Fused rolling window: 12h default, 24h by switch (src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14). Half-open [end − size, end) (src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124). End sits on a 15-min epoch boundary, so UTC-aligned (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315). Recomputed every 15 min (src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55). Eligibility: Selected loop. (as implemented, pending approval (Q7))
 - **Unit:** count; computed as count. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))

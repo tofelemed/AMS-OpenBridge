@@ -175,7 +175,9 @@ export const CpmKpiDrilldown: React.FC = () => {
         </div>
         {list.isError && <QueryError title="The loop list is unavailable" error={list.error} retry={() => void list.refetch()} />}
         {list.data && list.data.rows.length === 0 && (
-          <EmptyState title={search ? 'No loop matches the search' : 'No loop is in this KPI'}
+          <EmptyState title={search ? 'No loop matches the search'
+            // days stored before the capability flag existed carry no list: say so, not "no loop"
+            : kpi === 'capability' && day && !pickedDay?.isNow ? 'Not stored for that day' : 'No loop is in this KPI'}
             // CHG-098 (SME review 2 #29): the way out is a button, not only an instruction.
             action={search ? { label: 'Clear search', onClick: () => { setSearch(''); setPage(0); } } : undefined} />
         )}

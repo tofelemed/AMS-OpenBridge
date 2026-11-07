@@ -76,6 +76,8 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
     const present = new Set(loops.map(l => bandOf(l.diagnosis)));
     return (Object.keys(BAND_WORD) as DiagnosisBandKey[]).filter(b => present.has(b));
   }, [loops]);
+  // a scope change can remove the chosen band from the list: drop the filter, so none stays on unseen
+  React.useEffect(() => { if (result && !bands.includes(result)) setResult(''); }, [result, bands]);
   const rows = React.useMemo(() => {
     const filtered = filterRows(loops, orderedGateKeys, effective).filter(r => !result || bandOf(r.diagnosis) === result);
     return sortLoops(filtered, sort, rank);

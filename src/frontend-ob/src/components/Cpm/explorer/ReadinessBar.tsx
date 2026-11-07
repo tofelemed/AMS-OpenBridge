@@ -64,7 +64,7 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
                     else if (c.target?.kind === 'route') navigate(c.target.href);
                   }}
                 >
-                  {c.target.label} ›
+                  {c.target.label} →
                 </button>
               )}
             </li>

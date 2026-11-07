@@ -3,7 +3,7 @@
 /**
  * CPLM Phase 7 — U1 Overview.
  * CPA-prototype IA parity: KPI row, priority queue, loop-focus panel with an
- * 8-hour envelope trend, focused-loop drawer with the real evidence path,
+ * 8-hour envelope trend, the focused-loop preview with the real evidence path,
  * insight card, and event trail. The prototype's fabricated live numbers are
  * not reproduced; what cannot be measured is stated as unavailable.
  *
@@ -11,7 +11,7 @@
  * panel left this screen — its job states live on Pipeline Health, and on a
  * triage surface it cost two requests plus a 15 s poll. Every loop named here
  * is now a route: queue rows and the event trail open the loop in the
- * Explorer, the drawer opens the loop or the fleet matrix, and the fleet exits
+ * Explorer, the preview opens the loop or the fleet matrix, and the fleet exits
  * carry the operator's explicit ?loop= selection.
  *
  * CHG-134 (reference redesign, Task 6): the queue tag and the preview's button open Investigation; the bottom row is
@@ -44,7 +44,8 @@ export const CpmOverview: React.FC = () => {
   // Plant scope (A6.2): a unit operator's priority queue should show their
   // unit, not the whole plant.
   const scope = useCpmScope();
-  // CHG-089: one fused window for the whole page (12h default, 24h on request), kept in ?window= and carried by its links
+  // CHG-089: one fused window for the whole page (12h default, 24h on request),
+  // kept in ?window= and carried by its links
   const [windowKind, setWindowKind] = useWindowKind('window');
   const kpis = useFleetKpis({ ...scope.params, windowKind });
   // CHG-045 (SME #7): the queue is the priority order — current findings, criticality × severity.

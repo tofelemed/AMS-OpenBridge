@@ -92,8 +92,8 @@ export const G6Body: React.FC<{ d: DecodedArtifact; onOpenG5?: () => void; onOpe
       <KvRow label="detrend / segment / overlap / segments">{P(d, 'detrend') ?? '—'} / {P(d, 'segment_samples') ?? '—'} samples / {P(d, 'overlap_fraction') ?? '—'} / {P(d, 'segments') ?? '—'}</KvRow>
       <KvRow label="peak_indices / harmonic_indices">{P(d, 'peak_indices') ?? '—'} / {P(d, 'harmonic_indices') ?? '—'}</KvRow>
       <div className="cpm-filter-row">
-        {onOpenG5 && <ObcButton variant="normal" onClick={onOpenG5}>ACF of the same support (G5) ›</ObcButton>}
-        {onOpenG7 && <ObcButton variant="normal" onClick={onOpenG7}>Waveform fits (G7) ›</ObcButton>}
+        {onOpenG5 && <ObcButton variant="normal" onClick={onOpenG5}>ACF of the same support (G5) →</ObcButton>}
+        {onOpenG7 && <ObcButton variant="normal" onClick={onOpenG7}>Waveform fits (G7) →</ObcButton>}
       </div>
     </section>
   );

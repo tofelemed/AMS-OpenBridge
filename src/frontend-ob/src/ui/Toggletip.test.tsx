@@ -209,7 +209,7 @@ describe('Toggletip dismissal', () => {
   it('returns focus from inside the panel too', () => {
     renderTip(tip);
     fireEvent.click(button());
-    const link = screen.getByRole('link', { name: 'Full calculation ›' });
+    const link = screen.getByRole('link', { name: 'Full calculation →' });
     act(() => link.focus());
     fireEvent.keyDown(link, { key: 'Escape' });
     expect(panel()).toBeNull();
@@ -342,7 +342,7 @@ describe('Toggletip template', () => {
   it('links to Calculations with the metric, carrying the page context', () => {
     renderTip(tip, '/cpm/explorer?site=hdpe&loop=FIC-1&window=24h&junk=1');
     fireEvent.click(button());
-    const href = screen.getByRole('link', { name: 'Full calculation ›' }).getAttribute('href') ?? '';
+    const href = screen.getByRole('link', { name: 'Full calculation →' }).getAttribute('href') ?? '';
     const [path, query] = href.split('?');
     const q = new URLSearchParams(query);
     expect(path).toBe('/cpm/calculations');

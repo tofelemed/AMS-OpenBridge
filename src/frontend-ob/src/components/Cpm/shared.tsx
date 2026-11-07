@@ -363,7 +363,7 @@ export const EmptyState: React.FC<{
             {action.label}
           </ObcButton>
         )}
-        {next?.slice(0, 2).map(n => <Link key={n.to} className="cpm-link" to={n.to}>{n.label} ›</Link>)}
+        {next?.slice(0, 2).map(n => <Link key={n.to} className="cpm-link" to={n.to}>{n.label} →</Link>)}
       </div>
     )}
   </div>

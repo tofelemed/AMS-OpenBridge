@@ -126,8 +126,8 @@ describe('primaryActionOf', () => {
     expect(primaryActionOf(conditionOf('CONFIRMED_OSCILLATION')).target).toBe('investigation');
   });
   it('names the Investigation as the place for the why and the action (CHG-098, SME review 2 #21)', () => {
-    expect(primaryActionOf(conditionOf('CONFIRMED_OSCILLATION')).label).toBe('Why and what to do › Investigation');
-    expect(primaryActionOf(conditionOf('NORMAL')).label).toBe('Why and what to do › Investigation');
+    expect(primaryActionOf(conditionOf('CONFIRMED_OSCILLATION')).label).toBe('Why and what to do → Investigation');
+    expect(primaryActionOf(conditionOf('NORMAL')).label).toBe('Why and what to do → Investigation');
   });
   it('sends a no-fault window to the Investigation, not to its samples', () => {
     for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) expect(primaryActionOf(conditionOf(d)).target).toBe('investigation');

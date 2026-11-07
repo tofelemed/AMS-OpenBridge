@@ -42,6 +42,12 @@ describe('Performance headline basis (SME review 2 #10/#11)', () => {
     expect(capabilityTile(72, { loopsCappedByMissingVp: 4, loopsWithoutDisturbanceContext: 0 }).sub).toBe('Expected VP not mapped');
   });
 
+  it('uses the singular for one assessed loop', () => {
+    const one = P({ assessed: 1, goodError: { meanPct: 71, medianPct: 71, counted: 1, notMeasured: 0 } });
+    expect(headlineTiles(one)[0].sub).toBe('Mean · 1 assessed loop');
+    expect(basisLines(one, 1)[0]).toBe('1 of 1 assessed loop contributes');
+  });
+
   it('keeps the tile text short: the sentence goes in the dialog', () => {
     for (const t of headlineTiles(P())) expect(t.sub.length).toBeLessThan(40);
     expect(headlineTiles(P())[1].title).toMatch(/pvMax − pvMin/);

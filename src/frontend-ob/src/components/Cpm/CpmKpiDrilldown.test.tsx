@@ -116,4 +116,11 @@ describe('CpmKpiDrilldown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
     expect((screen.getByRole('searchbox', { name: 'Search loops' }) as HTMLInputElement).value).toBe('');
   });
+
+  it('says "Not stored for that day" for a picked day with no capability list, not an empty KPI', () => {
+    vi.mocked(useFleetKpiLoops).mockReturnValue(list(0, { rows: [] }) as never);
+    open('/cpm?review=capability&day=2026-11-05T20:00:00Z');
+    expect(screen.getByText('Not stored for that day')).toBeTruthy();
+    expect(screen.queryByText('No loop is in this KPI')).toBeNull();
+  });
 });

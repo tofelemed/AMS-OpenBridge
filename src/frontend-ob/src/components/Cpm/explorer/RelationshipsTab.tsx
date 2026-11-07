@@ -11,7 +11,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmCalculations, useLatestGates } from '../../../hooks/useCpm';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Toggletip } from '../../../ui/Toggletip';
-import { KvRow, PanelHead } from '../shared';
+import { EmptyState, KvRow, PanelHead } from '../shared';
 import { explorerHref, registryHref } from '../cpaHref';
 
 /** `windowKind`: the Explorer's fused window (CHG-089, 12h default). */
@@ -58,12 +58,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> 
         )}
       />
       {loop.links.length === 0 && (
-        <div className="cpm-empty">
-          <h3>No peer links</h3>
-          <div className="cpm-empty__next">
-            <ObcButton variant="flat" onClick={() => navigate(registryHref(loop.loopId))}>Loop Registry →</ObcButton>
-          </div>
-        </div>
+        <EmptyState title="No peer links" action={{ label: 'Loop Registry →', onClick: () => navigate(registryHref(loop.loopId)) }} />
       )}
       {loop.links.map(l => (
         <KvRow key={`${l.relType}-${l.toLoopId}`} label={l.relType}>

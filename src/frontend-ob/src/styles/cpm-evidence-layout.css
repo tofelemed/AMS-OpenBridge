@@ -145,12 +145,7 @@
   font-size: var(--cpm-text-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-active-color);
 }
 .cpm-matrix__gate abbr { text-decoration: none; }
-.cpm-matrix__gate-name {
-  display: block; max-width: 6.5em; margin: 1px auto 0; font-size: var(--cpm-text-caption); font-weight: 400; line-height: 1.15;
-  white-space: normal; color: var(--element-neutral-color);
-}
 @media (max-width: 999px) {
-  .cpm-matrix__gate-name { display: none; }
   .cpm-matrix__gate abbr { text-decoration: underline dotted; cursor: help; }
 }
 .cpm-checks .cpm-checks__head, .cpm-checks .cpm-checks__cell { text-align: left; }

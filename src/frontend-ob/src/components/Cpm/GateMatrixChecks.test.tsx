@@ -47,4 +47,11 @@ describe('GateMatrixChecks', () => {
     expect(screen.queryByText('no other check moved this result')).toBeNull();
     expect(document.querySelectorAll('[data-gate]')).toHaveLength(0);
   });
+
+  it('carries no "last verdict" tooltip on the result: the band and the dialog say it', () => {
+    const stale = { ...row('FIC-1', { G0: 'PASS', G15: 'NOT_EVALUATED' }, 'NOT_EVALUATED'),
+      lastVerdict: { windowEnd: '2026-11-01T00:00:00Z', diagnosis: 'CONFIRMED_OSCILLATION', confidence: 0.9, ageMs: 6 * 86_400_000 } };
+    const { container } = show([stale]);
+    expect(container.querySelector('[title*="last verdict" i]')).toBeNull();
+  });
 });

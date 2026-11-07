@@ -51,7 +51,7 @@ describe('classifyGateResult', () => {
     const s = classifyGateResult(base({ cell: { key: 'G3', status: 'NOT_EVALUATED', reason: null }, tier: 'fusion', gate: 'G3', loopId: 'FIC10302' }));
     expect(s.kind).toBe('SHORT_TIER');
     expect(s.title).toMatch(/1m.60m windows/);
-    expect(s.link).toEqual({ label: 'Open the 15m windows of FIC10302 ›', href: '/cpm/evidence?loop=FIC10302&kind=15m' });
+    expect(s.link).toEqual({ label: 'Open the 15m windows of FIC10302 →', href: '/cpm/evidence?loop=FIC10302&kind=15m' });
     expect(s.action).toBe('NONE');
   });
   it('a short-tier gate WITH a recorded reason on a fused row, or on its own short run, is NOT_EVALUATED as before', () => {

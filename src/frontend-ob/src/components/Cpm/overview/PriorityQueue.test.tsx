@@ -7,8 +7,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: ({ children, onClick, title }: { children?: React.ReactNode; onClick?: () => void; title?: string }) =>
-    <button type="button" title={title} onClick={() => onClick?.()}>{children}</button>,
+  ObcButton: ({ children, onClick, title, ...rest }: { children?: React.ReactNode; onClick?: () => void; title?: string; 'aria-label'?: string }) =>
+    <button type="button" title={title} aria-label={rest['aria-label']} onClick={() => onClick?.()}>{children}</button>,
 }));
 
 import { PriorityQueue } from './PriorityQueue';
@@ -48,5 +48,13 @@ describe('priority queue rows (CHG-100)', () => {
     fireEvent.click(screen.getByTitle('Review FIC1 in Investigation'));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/investigation?loop=FIC1&profile=12h');
     expect(onPreview).not.toHaveBeenCalled();
+  });
+
+  it('the loop tag reads "FIC1 →" and is named "Review FIC1" for assistive technology', () => {
+    render(<PriorityQueue loops={[loop('FIC1')]} loading={false} error={null} retry={() => {}}
+      shelvedCount={0} selectedId={null} windowKind="12h" onPreview={() => {}} onViewAll={() => {}} onShelved={() => {}} />);
+    const tag = screen.getByTitle('Review FIC1 in Investigation');
+    expect(tag.textContent).toBe('FIC1 →');
+    expect(tag.getAttribute('aria-label')).toBe('Review FIC1');
   });
 });

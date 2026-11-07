@@ -78,7 +78,7 @@ export const PriorityQueue: React.FC<{
             <TonePill tone={badge.tone}>{badge.label}</TonePill>
             <span onClick={ev => ev.stopPropagation()}>
               <ObcButton variant="flat" className="cpm-queue-row__loop"
-              title={`Review ${l.loopId} in Investigation`}
+              title={`Review ${l.loopId} in Investigation`} aria-label={`Review ${l.loopId}`}
               onClick={() => navigate(investigationHref(l.loopId, { kind: windowKind }))}>
               {l.loopId} →
             </ObcButton>

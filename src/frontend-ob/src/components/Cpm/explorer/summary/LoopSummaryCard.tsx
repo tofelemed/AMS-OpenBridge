@@ -153,11 +153,11 @@ export const LoopSummaryCard: React.FC<{
           {canPin && (
             <ObcButton variant="flat" title="Show this evaluated window on the trend, compared with now"
               onClick={() => { onLeave?.(); setParams(p => pinEvaluated(p, matrix.windowStart!, matrix.windowEnd!), { replace: true }); revealTrend(); }}>
-              Show on trend ›
+              Show on trend →
             </ObcButton>
           )}
           <ObcButton variant="normal" title={workbench.title} onClick={() => navigate(workbench.href)}>
-            Calculation proof › Workbench
+            Calculation proof → Workbench
           </ObcButton>
         </span>
       </div>

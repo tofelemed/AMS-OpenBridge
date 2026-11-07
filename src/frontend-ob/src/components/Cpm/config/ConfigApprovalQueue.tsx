@@ -34,7 +34,7 @@ export const ConfigApprovalQueue: React.FC = () => {
           <tr key={b.bundleId}>
             <td>{b.site}</td><td>{b.scopeKind}{b.scopeRef ? ` ${b.scopeRef}` : ''}</td><td className="cpm-mono">v{b.version} · {shortHash(b.contentHash, 8)}</td>
             <td><TonePill tone={bundleStateTone(b.state)}>{b.state}</TonePill></td><td>{b.changeClass}</td><td>{b.createdBy}</td><td>{fmtDateTime(b.updatedAt)}</td>
-            <td><ObcButton variant="flat" onClick={() => navigate(configHref({ site: b.site, scope: b.scopeKind, ref: b.scopeKind === 'SITE' ? undefined : b.scopeRef ?? undefined, bundle: b.bundleId }))}>Open ›</ObcButton></td>
+            <td><ObcButton variant="flat" onClick={() => navigate(configHref({ site: b.site, scope: b.scopeKind, ref: b.scopeKind === 'SITE' ? undefined : b.scopeRef ?? undefined, bundle: b.bundleId }))}>Open →</ObcButton></td>
           </tr>
         ))}
       </tbody>

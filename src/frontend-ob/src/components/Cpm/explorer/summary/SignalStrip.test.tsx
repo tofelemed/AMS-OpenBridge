@@ -50,6 +50,16 @@ describe('SignalStrip', () => {
     expect(text).not.toMatch(/from historian|closed loop · analysed/);
   });
 
+  it('says "last received …" under a live value whose feed has stalled, and nothing under a current one', () => {
+    const stalled = NOW - 3 * 86_400_000;
+    hooks.live.mockReturnValue({ pv: metric(12.345, stalled), sp: metric(12), op: metric(48.2), mode: metric('AUTO'), hasData: true, lastSourceTs: NOW });
+    const { container } = strip();
+    const subs = [...container.querySelectorAll('.cpm-signal')].map(i => i.querySelector('.cpm-signal__sub')?.textContent ?? '');
+    expect(subs[0]).toMatch(/last received 3 days ago/);
+    expect(subs[1]).not.toMatch(/last received/);
+    expect(container.textContent).not.toMatch(/last stored/);
+  });
+
   it('keeps the honest empty state when nothing was ever published or stored', () => {
     hooks.live.mockReturnValue({ hasData: false, lastSourceTs: null });
     const { container } = strip();

@@ -38,7 +38,7 @@ export function basisLines(p: FleetPerformance, counted: number, notCounted: str
     p.excluded.neverEvaluated ? `${p.excluded.neverEvaluated} never evaluated` : '',
   ].filter(Boolean);
   return [
-    `${counted} of ${p.assessed} assessed loops contribute`,
+    `${counted} of ${p.assessed} assessed ${p.assessed === 1 ? 'loop contributes' : 'loops contribute'}`,
     notCounted.length ? `Not counted: ${notCounted.join(', ')}` : '',
     out.length ? `Not assessed: ${out.join(', ')}` : '',
   ].filter(Boolean);
@@ -53,7 +53,7 @@ export function headlineTiles(p: FleetPerformance): HeadlineTile[] {
       key: 'good-error', caption: 'Good-error time',
       value: g.meanPct != null ? pct1(g.meanPct) : '—',
       // CHG-098 lab pass: with nothing assessed, say why (e.g. every result stale) instead of a bare "yet"
-      sub: g.meanPct == null ? (none ?? 'not measured') : `Mean · ${g.counted} assessed loops`,
+      sub: g.meanPct == null ? (none ?? 'not measured') : `Mean · ${g.counted} assessed ${g.counted === 1 ? 'loop' : 'loops'}`,
       title: 'Mean share of the window with |PV − SP| inside the good band, over every assessed loop in this scope'
         + (g.medianPct != null ? ` (median ${pct1(g.medianPct)})` : '') + '.',
       drill: 'assessed', counted: g.counted,

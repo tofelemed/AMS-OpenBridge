@@ -22,7 +22,7 @@ export const EffectiveConfigDrawer: React.FC<{ loopId: string; runBundleHash?: s
       <PanelHead eyebrow={at ? 'Configuration this run used' : 'Effective configuration'} title={loopId}
         right={<span className="cpm-config-inline">
           {eff && <TonePill tone={bundleStateTone(eff.state)}>{eff.bundle ? bundleLabel(eff.bundle) : 'factory layer'}</TonePill>}
-          <Link className="cpm-link" to={`/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective`}>Open in Gate Configuration ›</Link>
+          <Link className="cpm-link" to={`/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective`}>Open in Gate Configuration ↗</Link>
           {onClose && <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}
         </span>} />
       {q.isLoading && <div className="cpm-skeleton cpm-skeleton--result" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>}

@@ -40,8 +40,8 @@ const inventory = S.filter(s => s.id).map(s => ({
 // Source overlays name a component; the crawl sees rendered dialogs. This table says which rendered evidence proves each owner.
 const seen = [...overlays.map(o => `${o.cls} ${o.label} ${o.trigger?.label ?? ''} ${heading(o)}`), ...(states?.results ?? []).filter(r => r.path).map(r => `state:${r.slug}--${r.state}`)].join(' | ');
 const PROOF = [
-  [/^CommandPalette$/, /command-palette/], [/^FocusedLoopDrawer$/, /Open analysis/], [/^AddLoopWizard$/, /Add control loop|add-loop-dialog/], [/^LoopCombobox$/, /cpm-combo/],
-  [/^CalcDrawer$/, /CPLM-|state:calculations--drawer/], [/^(ModalEvidence|GateEvidencePanel)$/, /gate-cell/], [/^UserManagementConfig$/, /Add user|Edit /], [/^AssetEditorDialog$/, /Add Site|Add Area|Edit Site/],
+  [/^CommandPalette$/, /command-palette/], [/^AddLoopWizard$/, /Add control loop|add-loop-dialog/], [/^LoopCombobox$/, /cpm-combo/],
+  [/^GateEvidencePanel$/, /gate-cell/], [/^UserManagementConfig$/, /Add user|Edit /], [/^AssetEditorDialog$/, /Add Site|Add Area|Edit Site/],
   [/^(LoopWorkspace|CpmExplorer|LoopModelCard)$/, /health-drawer/], [/^signalTrendOption$/, /explorer--chart-tooltip/], [/^buildChartOption$/, /historical--chart-tooltip/], [/^BulkImportDialog$/, /bulk-import-dialog/],
 ];
 const reconciled = (src?.overlays ?? []).map(o => {

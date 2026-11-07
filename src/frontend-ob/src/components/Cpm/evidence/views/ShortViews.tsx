@@ -77,7 +77,7 @@ export const G2Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG12?
       <CpmChart title="d_sp_dt (SP rate pane)" series={[col(d, 'd_sp_dt', 'd_sp_dt', 'overlay', { unit: d.units.d_sp_dt ?? 'EU/s' })]} xKind="time" timeZone={timeZone} height={140} />
       <KvRow label="trigger_threshold">{d.meta.provenance?.trigger_threshold ?? '—'} ({d.meta.provenance?.trigger_threshold_source ?? 'source not declared'})</KvRow>
       <KvRow label="event_type">{counts(labelsOf(d, 'event_type'))} — no step metrics are computed here; a ramp is not a step</KvRow>
-      {onOpenG12 && eventCount > 0 && <ObcButton variant="normal" onClick={onOpenG12}>Open the response analysis of this support (G12) ›</ObcButton>}
+      {onOpenG12 && eventCount > 0 && <ObcButton variant="normal" onClick={onOpenG12}>Open the response analysis of this support (G12) →</ObcButton>}
     </section>
   );
 };
@@ -156,7 +156,7 @@ export const G4Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG10?
       <KvRow label="command_total_variation / measured_travel_variation">{d.meta.provenance?.command_total_variation ?? '—'} pp / {d.meta.provenance?.measured_travel_variation ?? '—'} — OP travel is not valve travel</KvRow>
       <KvRow label="sigma_u_norm / sigma_pv_norm">{d.meta.provenance?.sigma_u_norm ?? '—'} / {d.meta.provenance?.sigma_pv_norm ?? '—'} ({d.meta.provenance?.activity_basis ?? 'basis not declared'})</KvRow>
       <KvRow label="baseline_activity (warn ratio)">{d.meta.provenance?.baseline_activity ?? '—'} — high activity cannot directly confirm friction</KvRow>
-      {onOpenG10 && <ObcButton variant="normal" onClick={onOpenG10}>Actuator limits of this window (G10) ›</ObcButton>}
+      {onOpenG10 && <ObcButton variant="normal" onClick={onOpenG10}>Actuator limits of this window (G10) →</ObcButton>}
     </section>
   );
 };

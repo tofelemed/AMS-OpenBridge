@@ -53,7 +53,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string; onTab: (t
       <OperatingState loop={loop} />
 
       {/* KPI Phase 4: this loop's KPIs, judged by the engine's gates, with the change since yesterday */}
-      <LoopKpiCards loop={loop} windowKind={windowKind} />
+      <LoopKpiCards loop={loop} windowKind={windowKind} gateKeys={matrix ? cells.map(c => c.key) : undefined} />
 
       <section className="cpm-summary-section" aria-label="Gate results">
         <PanelHead title="Gate results"

@@ -447,51 +447,11 @@
 
 /* ── Matrix + evidence layout ── */
 
-/* ── Evidence inspector (docked, and the narrow-viewport modal fallback) ── */
-.cpm-inspector {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-divider-color);
-  border-radius: 8px;
-  background: var(--container-section-color);
-  max-height: min(78vh, 900px);
-  position: sticky;
-  top: 12px;
-  overflow: hidden;
-}
-.cpm-inspector__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-divider-color);
-  background: var(--container-section-color);
-  flex: 0 0 auto;
-}
-.cpm-inspector__title { min-width: 0; }
-.cpm-inspector__nav { display: flex; gap: 2px; align-items: center; flex: 0 0 auto; }
-.cpm-inspector__body { overflow: auto; padding: 12px; }
 .cpm-inspector__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-.cpm-inspector--guide { background: var(--container-backdrop-color); }
 .cpm-guide-steps { padding-left: 18px; margin: 0 0 4px; display: grid; gap: 4px; }
 .cpm-guide-note { margin-top: 8px; font-size: var(--cpm-text-small); }
 .cpm-flag-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.cpm-inspector--modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(560px, 94vw);
-  max-height: 88vh;
-  z-index: 1001;
-  background: var(--container-backdrop-color);
-}
-/* Long values (a window bound with its zone label) must wrap inside the panel
-   instead of running under its edge and reading as cropped. */
-.cpm-inspector .cpm-kv { align-items: baseline; }
-.cpm-inspector .cpm-kv__label { flex: 0 0 auto; }
-.cpm-inspector .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; }
+
 
 /* ── Pipeline window rows (U1) ── */
 .cpm-window-rows { display: grid; gap: 6px; }
@@ -1083,10 +1043,6 @@
 @media (max-width: 600px) { .cpm-window-row.cpm-hypo-row { grid-template-columns: minmax(0, 1fr); } }
 
 
-/* A definitional panel with three tabs and a key/value contract needs more than
-   the 480px the old side drawer gave it. */
-.cpm-inspector--wide { width: min(760px, 94vw); }
-
 /* The wizard / bulk-import footer lives inside `.cpm-modal`, which is a single
    `overflow: auto` box — so on a long step (or a 100-row CSV preview) Back and
    Next scrolled out of view and the dialog looked like it had no way forward. */
@@ -1142,22 +1098,6 @@
 
 /* audit F4: an older verdict named under the newest window's result, as older */
 .cpm-matrix__result { white-space: normal; }
-.cpm-matrix__stale { display: block; margin-top: 2px; }
-
-/* ── 2026-09-20 CPA fix plan, Phase 1 (docs/cpa-ui-fix-plan.md) ──
-   Inspector shells: the body is the only scroller and the footer (actions) is
-   always visible; the modal layer sits with the app dialogs (backdrop 1000 /
-   panel 1001 above, in the modal scaffolding), above the grid-item top bar. */
-.cpm-inspector__body { flex: 1 1 auto; min-height: 0; }
-.cpm-inspector__foot {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 10px 12px;
-  border-top: 1px solid var(--border-divider-color);
-  background: var(--container-section-color);
-}
 
 /* Overview priority queue: the loop id is a route, the description is the
    in-page preview; siblings, never a button inside a button. */

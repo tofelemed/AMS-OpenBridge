@@ -111,4 +111,21 @@ describe('GateMatrix', () => {
     show({ loops: many });
     expect(document.querySelectorAll('.cpm-matrix__loop-btn')).toHaveLength(15);
   });
+
+  it('drops the Result filter when a scope change removes that band from the list', () => {
+    const props: GateMatrixProps = {
+      loops: LOOPS, orderedGateKeys: KEYS, tierGroups: buildTierGroups(KEYS),
+      filter: { mode: 'all', gate: null }, onFilterChange: vi.fn(), page: 1, onPageChange: vi.fn(),
+      selectedLoopId: null, onSelectLoop: vi.fn(), onOpenLoop: vi.fn(), onOpenGate: vi.fn(),
+      view: 'checks', onViewChange: vi.fn(), sort: 'tag', onSortChange: vi.fn(), windowKind: '12h',
+    };
+    const tree = (loops: CpmHeatmapLoop[]) => <MemoryRouter><GateMatrix {...props} loops={loops} /></MemoryRouter>;
+    const { rerender } = render(tree(LOOPS));
+    const select = () => screen.getByRole('combobox', { name: 'Result' }) as HTMLSelectElement;
+    fireEvent.change(select(), { target: { value: 'CONFIRMED' } });
+    expect(select().value).toBe('CONFIRMED');
+    rerender(tree(LOOPS.filter(l => l.diagnosis !== 'CONFIRMED_OSCILLATION')));
+    expect(select().value).toBe('');
+    expect(screen.getByText('LIC-2')).toBeTruthy();
+  });
 });

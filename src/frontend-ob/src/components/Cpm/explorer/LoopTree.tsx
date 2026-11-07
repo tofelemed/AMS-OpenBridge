@@ -141,7 +141,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
 
       {groups.length > 0 && (
         <div className="cpm-tree__foot">
-          <ObcButton variant="flat" onClick={onOpenRegistry}>Loop Registry ›</ObcButton>
+          <ObcButton variant="flat" onClick={onOpenRegistry}>Loop Registry ↗</ObcButton>
         </div>
       )}
     </>

@@ -20,7 +20,7 @@ const SIGNALS_OF: Record<string, string> = {
   service: 'pv,sp,op', variability: 'pv,sp', saturation: 'op,vp', sp: 'sp,pv',
 };
 
-export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
+export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string; gateKeys?: string[] }> = ({ loop, windowKind = '12h', gateKeys }) => {
   const canPipeline = usePipelineAccess();
   const q = useLoopKpis(loop.loopId, windowKind);
   const [, setParams] = useSearchParams();
@@ -66,7 +66,7 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
           </div>
         );
       })}
-      {selected && <LoopKpiDialog card={selected} proof={proofOf(selected)} onInspect={inspect} onClose={() => setOpenKey(null)} />}
+      {selected && <LoopKpiDialog card={selected} proof={proofOf(selected)} gateKeys={gateKeys} onInspect={inspect} onClose={() => setOpenKey(null)} />}
     </section>
   );
 };

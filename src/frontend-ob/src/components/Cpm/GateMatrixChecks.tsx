@@ -13,7 +13,6 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { serviceName } from './loopName';
 import type { CpmHeatmapLoop } from '../../api/cpmApi';
-import { staleVerdictLine } from './verdictAge';
 import { TonePill, toneFor } from './shared';
 import { gateMark, gateName, resultGates } from './gateStatus';
 import { diagnosisLabel } from './vocabulary';
@@ -23,9 +22,7 @@ import { investigationHref } from './cpaHref';
 
 /** The verdict both views share: the diagnosis pill. An older verdict is named in the band and the dialog, not per row. */
 export const ResultCell: React.FC<{ row: CpmHeatmapLoop }> = ({ row }) => (
-  <span title={staleVerdictLine(row.lastVerdict) ?? undefined}>
-    <TonePill tone={toneFor(row.diagnosis)}>{diagnosisLabel(row.diagnosis)}</TonePill>
-  </span>
+  <TonePill tone={toneFor(row.diagnosis)}>{diagnosisLabel(row.diagnosis)}</TonePill>
 );
 
 export interface GateMatrixChecksProps {

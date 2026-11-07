@@ -876,9 +876,9 @@
   },
   "M-038": {
     "id": "M-038",
-    "name": "Loops with periodic diagnosis",
+    "name": "Periodic diagnosis",
     "group": "Performance headline",
-    "what": "Assessed loops whose current diagnosis is an oscillation or final-element family at any band.",
+    "what": "Assessed loops whose current diagnosis is an oscillation or final-element (valve) family at detected or any stronger band.",
     "formula": "Assessed ∧ family ∈ {OSCILLATION, FINAL_ELEMENT_NONLINEARITY}.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. UI poll 60 s; API cache 15 s default. Eligibility: Assessed.",
     "unit": "count; computed as count.",
@@ -968,7 +968,7 @@
     "group": "Performance page",
     "what": "A11 — bad-actor ranking. Ordered by confidence within a real diagnosis, so the loops most likely to reward an engineer's time come first.",
     "formula": "Rows from LatestProbe: newest real verdict of any age, else newest row. \"error\" order = good_error_pct ASC. No freshness filter.",
-    "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. UI poll 60 s; API cache 15 s. Eligibility: Monitored; rows with diagnosis NOT_EVALUATED are dropped client side.",
+    "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. UI poll 60 s; API cache 15 s. Eligibility: Monitored; the queue holds current findings only, in the server priority order.",
     "unit": "rank; score or % in band; computed as order.",
     "source": "Stamped: calculationVersion, dynamicsProfileVersion, sourceCommit, jarSha256 on every gate row. Shown: no.",
     "link": "/cpm/performance",
@@ -983,7 +983,7 @@
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:55",
       "src/frontend-ob/src/hooks/useCpm.ts:194,203",
       "src/services/cplm-api/Controllers/CpmFleetController.cs:42",
-      "src/frontend-ob/src/components/Cpm/AttentionList.tsx:63-64",
+      "src/frontend-ob/src/components/Cpm/CpmOverview.tsx:51-53,65-66",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmGateResult.java:42-45"
     ]
   },
@@ -992,7 +992,7 @@
     "name": "Driving gates",
     "group": "Performance page",
     "what": "Which gates on this row are warn or fail — i.e. why the verdict is what it is.",
-    "formula": "drivingGates uses reviewSeverity; resultGates uses the mark meaning. The attention row joins ranked rows to heatmap rows by loop id.",
+    "formula": "drivingGates uses reviewSeverity; resultGates uses the mark meaning. A Findings row lists its result gates the same way.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. UI poll 60 s; API cache 15 s. Eligibility: Rows in scope.",
     "unit": "gate keys; computed as list.",
     "source": "Not applicable: operational or registry value, no calculation version.",
@@ -1001,7 +1001,7 @@
     "registerStatus": "Definition conflict. See M-043 in the register before using this text.",
     "citations": [
       "src/frontend-ob/src/components/Cpm/gateStatus.ts:174-176,210-214",
-      "src/frontend-ob/src/components/Cpm/AttentionList.tsx:57-61",
+      "src/frontend-ob/src/components/Cpm/GateMatrixChecks.tsx:60",
       "src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315",
@@ -2773,8 +2773,8 @@
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-114 in the register before using this text.",
     "citations": [
-      "src/frontend-ob/src/components/Cpm/windows/WindowDetail.tsx:69-94",
-      "src/frontend-ob/src/components/Cpm/windows/WindowDetail.tsx:58"
+      "src/frontend-ob/src/components/Cpm/windows/SampleDensityDialog.tsx:35-53",
+      "src/frontend-ob/src/components/Cpm/windows/SampleDensityDialog.tsx:30"
     ]
   },
   "M-115": {
@@ -2798,7 +2798,7 @@
     "name": "Calculations page tallies",
     "group": "Calculations page",
     "what": "No definition is displayed for Calculations page tallies.",
-    "formula": "Tally over gates that appear in METRICS: G0, G1, G3 to G9, G15 = 10 gates. \"In the pack\" comes from the served catalogue of 17. Explorer counts by mark meaning; detected and classified fall into the last bucket.",
+    "formula": "Tally over gates that appear in METRICS: G0, G1, G3 to G9, G15 = 10 gates. \"In the pack\" comes from the served catalogue of 17. Explorer Calculations lists each gate with its mark and keeps no tally.",
     "window": "Fused rolling window: 12h default, 24h by switch. Half-open [end − size, end). End sits on a 15-min epoch boundary, so UTC-aligned. Recomputed every 15 min. Eligibility: Selected loop.",
     "unit": "count; computed as count.",
     "source": "Not applicable: operational or registry value, no calculation version.",
@@ -2809,7 +2809,7 @@
       "src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:204-215",
       "src/frontend-ob/src/components/Cpm/calcCatalogue.ts:24-47",
       "src/frontend-ob/src/components/Cpm/CpmCalculations.tsx:275",
-      "src/frontend-ob/src/components/Cpm/explorer/summary/SummaryCalculations.tsx:45-52",
+      "src/frontend-ob/src/components/Cpm/explorer/CalculationsGateTable.tsx:19-37",
       "src/frontend-ob/src/components/Cpm/useWindowKind.ts:13-14",
       "src/flink/src/main/java/com/ams/flink/cplm/engine/SignalMath.java:116-124",
       "src/flink/src/main/java/com/ams/flink/cplm/CplmLongDiagnosticsStreamJob.java:206-213,311-315",

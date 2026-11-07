@@ -47,7 +47,6 @@ import './styles/cpm-workbench.css';
 import './styles/cpm-investigation.css';
 import './styles/cpm-historical.css';
 import './styles/cpm-explorer-tabs.css';
-import './styles/cpm-explorer-tabs.css';
 import './styles/cpm-explorer.css';
 import './styles/cpm-episodes.css';
 import './styles/cpm-overview.css';

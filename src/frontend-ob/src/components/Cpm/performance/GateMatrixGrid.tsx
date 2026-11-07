@@ -4,13 +4,13 @@
  * The gate matrix: one ARIA grid, one tab stop, arrow-key navigation (cpa-ui-fix-plan Phase 2, CHG-135).
  *
  * The head carries gate codes only, under their tier headings; a code's name is its tooltip and the gate's dialog
- * says the rest. Each row ends in its result as a one-line link to Investigation. The loop cell is a native button on
- * purpose: the roving tabindex moves focus with `element.focus()`, and `obc-button` keeps its <button> in a shadow root
- * without delegatesFocus, so it can neither take that focus nor give up its own tab stop.
+ * says the rest. Each row ends in its result as a one-line link to Investigation, the last cell of the row's arrow-key
+ * model. The loop, gate and result cells are native buttons on purpose: the roving tabindex moves focus with
+ * `element.focus()`, and `obc-button` keeps its <button> in a shadow root without delegatesFocus, so it can neither
+ * take that focus nor give up its own tab stop.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { serviceName } from '../loopName';
 import type { CpmHeatmapLoop } from '../../../api/cpmApi';
 import { gateMark, gateName } from '../gateStatus';
@@ -42,7 +42,7 @@ export const GateMatrixGrid: React.FC<{
   const gridRef = React.useRef<HTMLTableElement>(null);
   const [cursor, setCursor] = React.useState({ r: 0, c: 0 });
   const movedByKey = React.useRef(false);
-  const colCount = orderedGateKeys.length + 1; // column 0 is the loop cell
+  const colCount = orderedGateKeys.length + 2; // column 0 is the loop cell, the last one the result link
 
   React.useEffect(() => { setCursor({ r: 0, c: 0 }); }, [resetKey]);
 
@@ -118,10 +118,12 @@ export const GateMatrixGrid: React.FC<{
                   );
                 })}
                 <td role="gridcell" className="cpm-matrix__result cpm-matrix__result-link">
-                  <ObcButton variant="flat" title={`Review ${row.loopId} in Investigation`}
+                  <button type="button" className="cpm-matrix__result-btn" data-r={r} data-c={colCount - 1}
+                    tabIndex={tabIndexOf(r, colCount - 1)} title={`Review ${row.loopId} in Investigation`}
+                    onFocus={() => setCursor({ r, c: colCount - 1 })}
                     onClick={() => navigate(investigationHref(row.loopId, { kind: windowKind }))}>
                     {diagnosisLabel(row.diagnosis)}
-                  </ObcButton>
+                  </button>
                 </td>
               </tr>
             );

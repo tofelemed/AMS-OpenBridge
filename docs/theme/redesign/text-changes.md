@@ -1238,3 +1238,20 @@ None.
 | Evidence Workbench, link for a response (G12) run | Back to Window Inspector ↗ (profile event) | Back to System Response ↗ |
 | Historical, Evidence score of a no-fault window that has a score | Not stored | the score |
 | Evidence Replay refusal, Window Inspector link | no window | carries the window end |
+
+## CHG-154 open small items, batch A
+
+| Where | Was | Now |
+|---|---|---|
+| Overview queue loop tag | accessible name "X →" | visible text unchanged; accessible name "Review X" |
+| Performance headline, good-error sub-line and basis line, one loop | Mean · 1 assessed loops / 1 of 1 assessed loops contribute | Mean · 1 assessed loop / 1 of 1 assessed loop contributes |
+| KPI drill-down, capability list of a picked day | No loop is in this KPI | Not stored for that day |
+| Performance matrix, Result cell | tooltip "last verdict …" | no tooltip (the band and the dialog say it) |
+| Loop KPI dialog, Inspect Gn → when the served row has no Gn | opened nothing | disabled, reason "No Gn result in this window" |
+| Loop Explorer, Loop Registry link in the tree | Loop Registry › | Loop Registry ↗ |
+| Readiness bar causes, Loop summary Show on trend, Loop trend panel (Show evaluated period, Show only that window), Evidence basis (Open the rebuilt run), Long and Short views (G5, G7, G10, G12 links), Gate result state (Open the 15m windows), Gate Configuration queue (Open), System Response (Open in Evidence Workbench), Overview/Explorer primary action (Open Window Inspector, Open Historical, Why and what to do → Investigation), Calculation proof → Workbench, the Toggletip Full calculation link, the page next-step links | › | → |
+| KPI rows table links (Loop, Window, Trend), Effective configuration drawer (Open in Gate Configuration) | › | ↗ |
+
+| Control | Now on |
+|---|---|
+| Result link of each Performance matrix row | the row's arrow-key model (End reaches it), not a tab stop of its own |

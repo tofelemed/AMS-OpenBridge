@@ -64,7 +64,7 @@ export const EventAside: React.FC<EventAsideProps> = ({ result, metrics, timeZon
           <ReasonedButton variant="raised" disabled={!methodRunId}
             reason="This event has no stored analysis run, so there is nothing to open in the workbench"
             onClick={() => { if (methodRunId) navigate(workbenchHref(loopId, methodRunId, 'G12')); }}>
-            Open in Evidence Workbench ›
+            Open in Evidence Workbench →
           </ReasonedButton>
         </span>
       </div>
