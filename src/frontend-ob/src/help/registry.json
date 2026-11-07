@@ -760,15 +760,15 @@
     "name": "Valve position expected but not mapped",
     "group": "Readiness",
     "what": "Valve position expected but not mapped.",
-    "formula": "COUNT FILTER no vp tag and VP applicability EXPECTED, over all registered loops in scope, no monitoring filter.",
-    "window": "Registry. UI poll 60 s. Eligibility: Registered, not only monitored.",
+    "formula": "COUNT FILTER no vp tag and VP applicability EXPECTED, over the monitored loops in scope.",
+    "window": "Registry. UI poll 60 s. Eligibility: Monitored loops.",
     "unit": "count; computed as count.",
     "source": "Not applicable: operational or registry value, no calculation version.",
     "link": "/cpm",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-032 in the register before using this text.",
     "citations": [
-      "src/services/cplm-api/Controllers/CpmFleetController.cs:65-81",
+      "src/services/cplm-api/Data/FleetRegistrySummarySql.cs",
       "src/frontend-ob/src/hooks/useCpm.ts:170"
     ]
   },
@@ -777,15 +777,15 @@
     "name": "Peer links expected but missing",
     "group": "Readiness",
     "what": "Peer links expected but missing.",
-    "formula": "COUNT FILTER no peer links configured and peer applicability EXPECTED.",
-    "window": "Registry. UI poll 60 s. Eligibility: Registered loops.",
+    "formula": "COUNT FILTER monitored, no peer links configured and peer applicability EXPECTED.",
+    "window": "Registry. UI poll 60 s. Eligibility: Monitored loops.",
     "unit": "count; computed as count.",
     "source": "Not applicable: operational or registry value, no calculation version.",
     "link": "/cpm",
     "status": "as-implemented",
     "registerStatus": "Undocumented. See M-033 in the register before using this text.",
     "citations": [
-      "src/services/cplm-api/Controllers/CpmFleetController.cs:73-74",
+      "src/services/cplm-api/Data/FleetRegistrySummarySql.cs",
       "src/frontend-ob/src/hooks/useCpm.ts:170"
     ]
   },
@@ -810,7 +810,7 @@
     "name": "Diagnostic capability",
     "group": "Readiness",
     "what": "{n} valve loop(s) with VP expected but not mapped — valve faults there need an approved test record to be confirmed.",
-    "formula": "valves = registered − vpNotApplicable; withVp = valves − expectedUnmapped − vpNotInstalled. fleetTotal = loops.total, unmonitored included. G14 has no approved-test path.",
+    "formula": "valves = monitored − vpNotApplicable; withVp = valves − expectedUnmapped − vpNotInstalled. fleetTotal = loops.monitored, the monitored loops its drill-down lists. G14 has no approved-test path.",
     "window": "Registry. Eligibility: Registered loops.",
     "unit": "x/y; computed as counts.",
     "source": "Not applicable: operational or registry value, no calculation version.",
@@ -819,7 +819,7 @@
     "registerStatus": "Engine-UI conflict. See M-035 in the register before using this text.",
     "citations": [
       "src/frontend-ob/src/components/Cpm/overview/capabilityCopy.ts:41-42",
-      "src/frontend-ob/src/components/Cpm/CpmPerformance.tsx:153",
+      "src/frontend-ob/src/components/Cpm/CpmPerformance.tsx",
       "src/flink/src/main/java/com/ams/flink/cplm/fusion/Confirmation.java:42-74"
     ]
   },

@@ -332,8 +332,8 @@ Link target is the place a user can reach the value's proof today.
 ### M-032 Valve position expected but not mapped
 
 - **What it measures:** Valve position expected but not mapped. (as implemented, pending approval (Q7))
-- **Formula:** COUNT FILTER no vp tag and VP applicability EXPECTED, over all registered loops in scope, no monitoring filter (src/services/cplm-api/Controllers/CpmFleetController.cs:65-81). (as implemented, pending approval (Q7))
-- **Window and eligibility:** Registry. UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:170). Eligibility: Registered, not only monitored. (as implemented, pending approval (Q7))
+- **Formula:** COUNT FILTER no vp tag and VP applicability EXPECTED, over the monitored loops in scope (src/services/cplm-api/Data/FleetRegistrySummarySql.cs). (as implemented, pending approval (Q7))
+- **Window and eligibility:** Registry. UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:170). Eligibility: Monitored loops. (as implemented, pending approval (Q7))
 - **Unit:** count; computed as count. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))
 - **Link target:** /cpm (as implemented, pending approval (Q7))
@@ -342,8 +342,8 @@ Link target is the place a user can reach the value's proof today.
 ### M-033 Peer links expected but missing
 
 - **What it measures:** Peer links expected but missing. (as implemented, pending approval (Q7))
-- **Formula:** COUNT FILTER no peer links configured and peer applicability EXPECTED (src/services/cplm-api/Controllers/CpmFleetController.cs:73-74). (as implemented, pending approval (Q7))
-- **Window and eligibility:** Registry. UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:170). Eligibility: Registered loops. (as implemented, pending approval (Q7))
+- **Formula:** COUNT FILTER monitored, no peer links configured and peer applicability EXPECTED (src/services/cplm-api/Data/FleetRegistrySummarySql.cs). (as implemented, pending approval (Q7))
+- **Window and eligibility:** Registry. UI poll 60 s (src/frontend-ob/src/hooks/useCpm.ts:170). Eligibility: Monitored loops. (as implemented, pending approval (Q7))
 - **Unit:** count; computed as count. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))
 - **Link target:** /cpm (as implemented, pending approval (Q7))
@@ -362,7 +362,7 @@ Link target is the place a user can reach the value's proof today.
 ### M-035 Diagnostic capability
 
 - **What it measures:** {n} valve loop(s) with VP expected but not mapped — valve faults there need an approved test record to be confirmed. (as implemented, pending approval (Q7))
-- **Formula:** valves = registered − vpNotApplicable; withVp = valves − expectedUnmapped − vpNotInstalled (src/frontend-ob/src/components/Cpm/overview/capabilityCopy.ts:41-42). fleetTotal = loops.total, unmonitored included (src/frontend-ob/src/components/Cpm/CpmPerformance.tsx:153). G14 has no approved-test path (src/flink/src/main/java/com/ams/flink/cplm/fusion/Confirmation.java:42-74). (as implemented, pending approval (Q7))
+- **Formula:** valves = monitored − vpNotApplicable; withVp = valves − expectedUnmapped − vpNotInstalled (src/frontend-ob/src/components/Cpm/overview/capabilityCopy.ts:41-42). fleetTotal = loops.monitored, the monitored loops its drill-down lists (src/frontend-ob/src/components/Cpm/CpmPerformance.tsx). G14 has no approved-test path (src/flink/src/main/java/com/ams/flink/cplm/fusion/Confirmation.java:42-74). (as implemented, pending approval (Q7))
 - **Window and eligibility:** Registry. Eligibility: Registered loops. (as implemented, pending approval (Q7))
 - **Unit:** x/y; computed as counts. (as implemented, pending approval (Q7))
 - **Source and version:** Not applicable: operational or registry value, no calculation version. (as implemented, pending approval (Q7))
