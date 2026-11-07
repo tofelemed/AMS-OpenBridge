@@ -18,7 +18,6 @@ import { adminHref, configHref, evidenceHref, explorerHref } from '../cpaHref';
 import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from '../ActionReceipt';
 import AddLoopWizard from '../AddLoopWizard';
 import ReasonedButton from '../ReasonedButton';
-import { GateRolePolicy } from '../config/GateRolePolicy';
 import { CodeLabel } from '../CodeLabel';
 import { flagsForLoop, inputContextOf } from '../optionalInputs';
 import { modelLabel, stateOf } from '../registryShared';
@@ -164,8 +163,6 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
           </ReasonedButton>
         </div>
       </section>
-
-      <section className="cpm-surface" aria-label="Gate role policy"><GateRolePolicy /></section>
 
       {editing && <AddLoopWizard existing={loops} editLoop={loop} onClose={() => setEditing(false)} />}
       {dialog && <RetireLoopDialog loop={loop} mode={dialog} onClose={() => setDialog(null)} onDone={done} />}

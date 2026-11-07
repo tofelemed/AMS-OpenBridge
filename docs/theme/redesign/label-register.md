@@ -122,3 +122,6 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Retire a loop | Delete; Inactive | Retire (Restore to undo); state "Loop retired" | Loop Detail | 24 |
 | Loop configuration entry | Edit loop | Edit configuration | Loop Detail | 24 |
 | VP applicability | None on this loop; Expected but not mapped | Applicable · mapped; Expected · not mapped; Not installed; Not applicable | Loop Detail | 24 |
+| Gate configuration page | Gate configuration; Set up · Gate configuration | Gate Configuration (eyebrow Set up) | Gate Configuration | 25 |
+| Effective values | Layer stack; from | Where each value comes from; Source | Gate Configuration | 25 |
+| New bundle | New draft; New version | Prepare bundle draft | Gate Configuration | 25 |

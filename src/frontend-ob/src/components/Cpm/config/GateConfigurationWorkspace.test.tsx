@@ -37,6 +37,7 @@ const effective = {
 const summaryRow = (kind: string, id: string, version: number, state: string) => ({ bundleId: id, version, contentHash: 'f9153b00aaf3ba1a', site: 'hdpe', scopeKind: kind, scopeRef: kind === 'LOOP' ? 'FIC10302' : kind === 'PROFILE' ? 'FLOW_FAST_SELF_REG' : null, parentBundleId: null, changeClass: 'POLICY', state, effectiveFrom: null, createdBy: 'alice', createdAt: 't', updatedAt: '2026-09-17T06:36:16Z', note: null, validationErrors: 0 });
 
 function respond(url: string): unknown {
+  if (url.includes('/gate-catalogue')) return { gates: [{ gate: 'G0', role: 'BLOCKING' }, { gate: 'G9', role: 'SUPPORTING' }] };
   if (url.includes('/configuration/effective/summary')) return { count: 2, loops: [
     { loopId: 'FIC10302', displayName: 'Reactor feed flow', site: 'hdpe', area: 'a', unit: 'u', loopType: 'FIC', profileId: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED', bundle: { ...effective.bundle, since: null } },
     { loopId: 'TIC10101', displayName: 'Temp', site: 'hdpe', area: 'a', unit: 'u', loopType: 'TIC', profileId: 'TEMP_SLOW_SELF_REG', state: 'NO_ACTIVE_BUNDLE', bundle: null },
@@ -68,7 +69,7 @@ function renderAt(search: string) {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[`/cpm/config${search}`]}>
-        <Routes><Route path="/cpm/config" element={<><GateConfigurationWorkspace /><LocationProbe /></>} /></Routes>
+        <Routes><Route path="/cpm/config" element={<><GateConfigurationWorkspace /><LocationProbe /></>} /><Route path="*" element={<LocationProbe />} /></Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -98,8 +99,28 @@ describe('GateConfigurationWorkspace', () => {
     renderAt('?loop=FIC10302');
     await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=effective'));
     await waitFor(() => expect(screen.getByRole('list', { name: 'Layers' })).toBeTruthy());
-    expect(screen.getByText(/ACTIVE_VERIFIED · LOOP v2/)).toBeTruthy();
+    expect(screen.getByText('LOOP v2')).toBeTruthy();                                              // the Effective layer tile
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Gate Configuration');
+    fireEvent.click(screen.getByRole('button', { name: /Open loop/ }));
+    await waitFor(() => expect(loc()).toBe('/cpm/explorer?loop=FIC10302'));
     expect(urls().some(u => u.includes('/configuration/drafts?'))).toBe(false);                    // the levels load only on the Bundles view
+  });
+
+  it('shows the gate role policy once, on the loop page and on the overview', async () => {
+    renderAt('?loop=FIC10302');
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Gate role policy' }).textContent).toMatch(/BLOCKING.*G0/));
+    expect(screen.getAllByRole('region', { name: 'Gate role policy' })).toHaveLength(1);
+    cleanup();
+    renderAt('');
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Gate role policy' }).textContent).toMatch(/SUPPORTING.*G9/));
+  });
+
+  it('the Worker alignment tile opens the acknowledgements', async () => {
+    renderAt('?loop=FIC10302');
+    await waitFor(() => expect(screen.getByText('Worker alignment')).toBeTruthy());
+    expect(document.getElementById('config-workers')!.hasAttribute('open')).toBe(false);
+    fireEvent.click(screen.getByText('Worker alignment').closest('button')!);
+    await waitFor(() => expect(document.getElementById('config-workers')!.hasAttribute('open')).toBe(true));
   });
 
   it('the Bundles view reads the three levels on demand and a version opens the editor', async () => {

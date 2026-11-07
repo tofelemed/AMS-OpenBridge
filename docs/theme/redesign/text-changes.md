@@ -1053,3 +1053,32 @@ None.
 | Add loop, Bulk import | Loop Registry list only (the header carries them there) |
 | Open loop | Loop Detail, Open loop → |
 | Retire, Restore | Loop Detail header |
+
+### Task 25 Gate Configuration
+
+#### Removed, reworded or moved
+
+| Was | Now |
+|---|---|
+| Eyebrow "Set up · Gate configuration" over the loop's name; title "Gate configuration" or the loop name | Eyebrow "Set up", title "Gate Configuration" on the overview and on a loop (the loop is in the band) |
+| Overview header sentence "What each loop runs under, the bundles in progress, and the editor for one of them." plus the catalogue line ("n properties · n worker(s) announced") | The sentence is behind the ?. The counts are in Technical details. "a worker runs ANOTHER catalogue" stays on screen as a status line |
+| Loop header sentence "What this loop runs under today, the bundles at its three levels, and the editor for one of them." | Behind the ? |
+| Fact row: runs under, profile, workers, catalogue (with the copyable bundle hash and catalogue hash) | Three tiles: Effective layer, Profile, Worker alignment. Bundle hash, catalogue hash, property count, workers announced and worker jars are in a closed Technical details |
+| Worker text "n of m applied · one jar 4ea1da78 · catalogue matches" | "n of m applied" with "one jar · catalogue matches" under it; the jar id moved to Technical details |
+| Eyebrow "How the values resolve" over "Layer stack" | "Where each value comes from" (no eyebrow). The ? sentence stays |
+| Property table columns property, value, from, class; the CFG id and unit under the name | Property, Value, Source. The class sits under the name. The id, unit, type, factory default, what it does and not-read-by-build are in a dialog that opens from the property name |
+| Bundles heading: eyebrow "Bundles", title "The three levels of this loop", "the most specific active level wins" | Title "Bundles". "The most specific active level wins" and the three level lines ("Overrides the profile for this loop only.", and the PROFILE and SITE lines) are behind the ? |
+| Per-level draft note box with New draft / New version, and the "Drafting a bundle needs cpm.config.draft." line on each level | One Prepare bundle draft button with a dialog (level, note). Disabled without cpm.config.draft with the reason beside it |
+| New text | Callout "Nothing changes for a loop until a bundle is published." and the strip Draft → Review → Publish |
+| Deployment `semantics` line under each deployment | Inside the deployment's worker-acknowledgement disclosure |
+| Gate role policy on Loop Detail | Gate Configuration (overview and loop pages, never the editor), unchanged |
+
+#### Moved or new
+
+| Control | Now on |
+|---|---|
+| New draft / New version (per level) | Prepare bundle draft dialog on Bundles; the parent is still the newest version of the chosen level |
+| Open loop ↗ | The loop band's end, Gate Configuration |
+| Effective layer and Profile tiles | Link to the loop's Bundles view |
+| Worker alignment tile | Opens the APPLY acknowledgements disclosure on Effective |
+| Gate role policy | Gate Configuration |

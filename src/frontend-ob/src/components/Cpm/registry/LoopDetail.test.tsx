@@ -16,7 +16,6 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', () => ({ ObiContentCopyGoogle: () => null }));
 vi.mock('../AddLoopWizard', () => ({ default: (p: { editLoop?: CpmLoop }) => <div>wizard {p.editLoop?.loopId}</div> }));
-vi.mock('../config/GateRolePolicy', () => ({ GateRolePolicy: () => <div>gate role policy</div> }));
 vi.mock('./RetireLoopDialog', () => ({
   RetireLoopDialog: (p: { mode: string; onDone: (r: unknown) => void }) => (
     <div role="dialog">{p.mode} dialog
@@ -183,10 +182,10 @@ describe('LoopDetail', () => {
     expect(onBack).toHaveBeenCalled();
   });
 
-  it('resolves the loop case-insensitively and renders the gate role policy', () => {
+  it('resolves the loop case-insensitively and leaves the gate role policy to Gate Configuration', () => {
     open('fic1');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('FIC1');
-    expect(screen.getByText('gate role policy')).toBeTruthy();
+    expect(screen.queryByText(/gate role policy/i)).toBeNull();
   });
 
   it('does not read the open episode of an active loop', () => {

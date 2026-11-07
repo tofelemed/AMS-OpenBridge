@@ -64,10 +64,10 @@ export const DeploymentStatus: React.FC<{
             </tbody>
           </table>
         </div>
+        <p className="cpm-event-row__sub">{d.semantics}</p>
         {d.observers && d.observers.length > 0 && <p className="cpm-event-row__sub">Observers: {d.observers.join(', ')} (read no catalogue property; not required to answer)</p>}
       </details>
       {probe && <KvRow label="probe">{probe.pinnedResults ?? 0} result(s) pinned to this hash{probe.checkedAt ? ` · checked ${fmtDateTime(probe.checkedAt)}` : ''}</KvRow>}
-      <p className="cpm-event-row__sub">{d.semantics}</p>
       {d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE' && (
         <ReasonedButton variant="flat" disabled={!canRollback || rollbackPending} reason={!canRollback ? 'Needs the cpm.config.rollback permission' : null}
           onClick={() => onRollback(d.deploymentId)}>

@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { EffectiveView } from './EffectiveView';
-import type { EffectiveConfig } from '../../../api/cpm/config';
+import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
@@ -22,6 +22,9 @@ const eff: EffectiveConfig = {
     { jobName: 'AMS - CPLM Gate Fusion Engine', jarSha256: '4ea1da78aaaa', catalogueHash: '8bbcbbbb7da0', ack: { status: 'ACK', bundleHash: 'f9153b00aaf3ba1a3b19', jarSha256: '4ea1da78aaaa', receivedAt: 't' } },
   ],
 };
+
+vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-close-google', () => ({ ObiCloseGoogle: () => null }));
+const cat = new Map<string, CatalogueEntry>([['G0.coverage_min', { property: 'G0.coverage_min', id: 'CFG-002', gate: 'G0', type: 'number', unit: 'fraction', effect: 'Share of samples a window needs', default: 0.9, validation: {}, dependencies: [], consumers: [], changeClass: 'POLICY', commissioningRequired: false, notReadByBuild: null } as unknown as CatalogueEntry]]);
 
 const gateOptions = () => [...(screen.getByRole('combobox', { name: 'Gate' }) as HTMLSelectElement).options].map(o => o.textContent);
 
@@ -64,5 +67,28 @@ describe('EffectiveView', () => {
     expect(screen.queryByText(/no governed bundle is active/)).toBeNull();   // the page header's Runs under says it
     expect(gateOptions()).toEqual(['G0', 'G4', 'G12']);
     expect(screen.getByText(/factory layer \(nothing to acknowledge\)/)).toBeTruthy();
+  });
+
+  it('shows Property, Value and Source, with class under the name', () => {
+    render(<EffectiveView eff={eff} catalogue={cat} />);
+    expect(screen.getByText('Where each value comes from')).toBeTruthy();
+    expect(screen.queryByText('Layer stack')).toBeNull();
+    const table = screen.getByRole('table', { name: 'Effective properties' });
+    expect(within(table).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Property', 'Value', 'Source']);
+    const row = within(table).getAllByRole('row')[1];
+    expect(row.textContent).toMatch(/G0\.coverage_min.*POLICY.*0\.95.*PROFILE/);   // class sits under the name
+    expect(row.textContent).not.toMatch(/CFG-002|fraction/);                          // id and unit are in the dialog
+  });
+
+  it('opens a property in a dialog', () => {
+    render(<EffectiveView eff={eff} catalogue={cat} />);
+    fireEvent.click(screen.getByRole('button', { name: /G0\.coverage_min/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('CFG-002')).toBeTruthy();
+    expect(within(dialog).getByText('fraction')).toBeTruthy();
+    expect(within(dialog).getByText(/Share of samples a window needs/)).toBeTruthy();
+    expect(within(dialog).getByText('PROFILE')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

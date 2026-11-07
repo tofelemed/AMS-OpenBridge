@@ -5,12 +5,12 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { BundlesView } from './BundlesView';
-import { LoopConfigHeader } from './LoopConfigHeader';
-import type { BundleSummary, EffectiveConfig } from '../../../api/cpm/config';
+import type { BundleSummary } from '../../../api/cpm/config';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
+vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-close-google', () => ({ ObiCloseGoogle: () => null }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
@@ -42,40 +42,22 @@ describe('BundlesView', () => {
     expect(onOpen).toHaveBeenCalledWith('l3');
   });
 
-  it('a new draft is offered per level with the parent of the newest version; without the permission the reason is stated', () => {
+  it('shows the Draft, Review, Publish strip and opens Prepare bundle draft with the parent of the chosen level', () => {
     const onCreate = vi.fn();
-    const { unmount } = render(<BundlesView levels={levels} activeBundleId="l2" canDraft onOpen={() => {}} onCreate={onCreate} creating={false} createError={null} />);
-    fireEvent.change(screen.getAllByPlaceholderText('draft note')[0], { target: { value: 'tighten G4' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'New version' })[0]);                // LOOP has versions (so has SITE)
+    render(<BundlesView levels={levels} activeBundleId="l2" canDraft onOpen={() => {}} onCreate={onCreate} creating={false} createError={null} />);
+    expect(screen.getByRole('list', { name: 'Bundle steps' }).textContent).toBe('DraftReviewPublish');
+    expect(screen.queryByPlaceholderText('draft note')).toBeNull();                 // no per-level note boxes any more
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare bundle draft' }));
+    fireEvent.change(screen.getByLabelText('Draft note'), { target: { value: 'tighten G4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }));         // LOOP is the first level
     expect(onCreate).toHaveBeenCalledWith({ scopeKind: 'LOOP', scopeRef: 'FIC10302', parentBundleId: 'l3', note: 'tighten G4' });
-    expect(screen.getAllByRole('button', { name: 'New draft' })).toHaveLength(1);              // PROFILE: no version yet
-    unmount();
-    render(<BundlesView levels={levels} activeBundleId="l2" canDraft={false} onOpen={() => {}} onCreate={onCreate} creating={false} createError={null} />);
-    expect(screen.queryByRole('button', { name: /New (draft|version)/ })).toBeNull();
-    expect(screen.getAllByText(/needs cpm\.config\.draft/).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
-});
 
-describe('LoopConfigHeader', () => {
-  const eff: EffectiveConfig = {
-    loopId: 'FIC10302', site: 'hdpe', profileId: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED',
-    bundle: { bundleId: 'l2', version: 2, contentHash: 'f9153b00aaf3ba1a', scopeKind: 'LOOP', scopeRef: 'FIC10302', changeClass: 'POLICY', effectiveFrom: '2026-09-17T06:36:16Z', catalogueHash: '8bbcbbbb' },
-    properties: {}, sources: {},
-    workers: [{ jobName: 'a', jarSha256: '4ea1da78aaaa', catalogueHash: '8bbcbbbb', ack: { status: 'ACK', bundleHash: 'f9153b00aaf3ba1a', jarSha256: '4ea1da78aaaa', receivedAt: 't' } }],
-  };
-  it('states what the loop runs under, its profile and the workers in one row', () => {
-    render(<LoopConfigHeader loopId="FIC10302" displayName="Reactor feed flow" eff={eff} loading={false} catalogueHash="8bbcbbbb7da0" />);
-    expect(screen.getByText(/FIC10302 · Reactor feed flow/)).toBeTruthy();
-    expect(screen.getByText(/ACTIVE_VERIFIED · LOOP v2/)).toBeTruthy();
-    expect(screen.getByTitle('f9153b00aaf3ba1a')).toBeTruthy();                  // the hash once, copyable
-    expect(screen.getByText('FLOW_FAST_SELF_REG')).toBeTruthy();
-    expect(screen.getByText(/1 of 1 applied · one jar 4ea1da78 · catalogue matches/)).toBeTruthy();
-  });
-  it('the factory layer, and a skeleton while the effective read is in flight', () => {
-    render(<LoopConfigHeader loopId="TIC10101" displayName="Temp" eff={{ ...eff, loopId: 'TIC10101', state: 'NO_ACTIVE_BUNDLE', bundle: null, profileId: 'TEMP_SLOW_SELF_REG' }} loading={false} catalogueHash="c" />);
-    expect(screen.getAllByText(/factory layer/).length).toBeGreaterThan(0);
-    cleanup();
-    render(<LoopConfigHeader loopId="TIC10101" displayName="Temp" eff={undefined} loading catalogueHash="c" />);
-    expect(screen.getByRole('status').getAttribute('aria-busy')).toBe('true');
+  it('without the draft permission the button is disabled and the reason is on screen; the level lines sit behind a ?', () => {
+    render(<BundlesView levels={levels} activeBundleId="l2" canDraft={false} onOpen={() => {}} onCreate={() => {}} creating={false} createError={null} />);
+    expect((screen.getByRole('button', { name: 'Prepare bundle draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/needs cpm\.config\.draft/)).toBeTruthy();
+    expect(screen.queryByText('Overrides the profile for this loop only.')).toBeNull();
   });
 });

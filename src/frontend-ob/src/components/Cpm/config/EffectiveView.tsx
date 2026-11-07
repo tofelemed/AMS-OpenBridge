@@ -11,10 +11,10 @@ import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
 import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText, workersSummary } from './configSupport';
 import { Toggletip } from '../../../ui/Toggletip';
+import { EffectivePropertyDialog, classTone } from './EffectivePropertyDialog';
 
 const GATE_ORDER = ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'G14', 'G15'];
 const gateRank = (g: string) => { const i = GATE_ORDER.indexOf(g); return i < 0 ? 99 : i; };
-const classTone = (c: string | undefined) => (c === 'DEPLOYMENT' ? 'bad' : c === 'STATE_BOUNDARY' ? 'warn' : 'muted');
 
 export interface EffectiveViewProps {
   eff: EffectiveConfig;
@@ -26,10 +26,13 @@ export interface EffectiveViewProps {
   catalogue?: Map<string, CatalogueEntry>;
   /** A drawer inside another page: no layer stack, the table only. */
   compact?: boolean;
+  /** Opens the worker acknowledgements (the Worker alignment tile leads here). */
+  workersOpen?: boolean;
 }
 
-export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash, initialGate, catalogue, compact }) => {
+export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash, initialGate, catalogue, compact, workersOpen }) => {
   const [query, setQuery] = useState('');
+  const [opened, setOpened] = useState<string | null>(null);
   const gates = useMemo(() => overridesByGate(eff), [eff]);
   const gateKeys = useMemo(() => Object.keys(gates).sort((a, b) => gateRank(a) - gateRank(b)), [gates]);
   const [picked, setPicked] = useState<string | null>(initialGate && gates[initialGate] ? initialGate : null);
@@ -54,7 +57,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
 
       {!compact && (
         <>
-          <PanelHead eyebrow="How the values resolve" title="Layer stack"
+          <PanelHead title="Where each value comes from"
             help={<Toggletip variant="how-to" label="How the layers combine"><p>A layer above sets a property, or leaves the one below.</p></Toggletip>} />
           <ol className="cpm-config-layers" aria-label="Layers">
             {stack.map(l => (
@@ -82,17 +85,19 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
 
       {rows.length === 0 ? <EmptyState title="No property matches" copy={q ? `Nothing in this loop's configuration matches "${query}".` : 'The effective block is empty for this gate.'} /> : (
         <table className="cpm-table cpm-config-table" aria-label="Effective properties">
-          <thead><tr><th>property</th><th>value</th><th>from</th><th>class</th></tr></thead>
+          <thead><tr><th>Property</th><th>Value</th><th>Source</th></tr></thead>
           <tbody>
             {rows.map(k => {
               const src = eff.sources[k] ?? '—';
               const entry = catalogue?.get(k);
               return (
                 <tr key={k} data-source={src}>
-                  <td><span className="cpm-mono">{k}</span>{entry ? <span className="cpm-config-property__meta cpm-config-table__from">{entry.id} · {entry.unit || entry.type}</span> : null}</td>
+                  <td>
+                    <button type="button" className="ui-link cpm-mono" aria-haspopup="dialog" onClick={() => setOpened(k)}>{k}</button>
+                    {entry ? <span className="cpm-config-property__meta cpm-config-table__from"><TonePill tone={classTone(entry.changeClass)}>{entry.changeClass}</TonePill></span> : null}
+                  </td>
                   <td className="cpm-mono">{valueText(eff.properties[k])}</td>
                   <td>{isLayerSource(src) ? <TonePill tone={src === 'FACTORY' ? 'muted' : 'good'}>{src}</TonePill> : <span className="cpm-muted">unset</span>}</td>
-                  <td>{entry ? <TonePill tone={classTone(entry.changeClass)}>{entry.changeClass}</TonePill> : '—'}</td>
                 </tr>
               );
             })}
@@ -100,7 +105,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
         </table>
       )}
 
-      <details className="cpm-config-workers">
+      <details className="cpm-config-workers" id="config-workers" open={workersOpen || undefined}>
         <summary><TonePill tone={workers.tone}>{workers.text}</TonePill> <span className="cpm-event-row__sub">APPLY acknowledgements</span></summary>
         <table className="cpm-table" data-table="effective-workers">
           <thead><tr><th>job</th><th>jar</th><th>catalogue</th><th>applied</th></tr></thead>
@@ -115,6 +120,9 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
         </table>
         {eff.bundle && <KvRow label="bundle">{bundleLabel(eff.bundle)} · {eff.bundle.changeClass} · effective {eff.bundle.effectiveFrom ? fmtDateTime(eff.bundle.effectiveFrom) : '—'}</KvRow>}
       </details>
+      {opened && eff.properties[opened] !== undefined && (
+        <EffectivePropertyDialog property={opened} value={eff.properties[opened]} source={eff.sources[opened] ?? '—'} entry={catalogue?.get(opened)} onClose={() => setOpened(null)} />
+      )}
     </div>
   );
 };

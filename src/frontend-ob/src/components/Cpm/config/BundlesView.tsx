@@ -4,10 +4,14 @@
  * with its versions newest first and their lifecycle state, the active one marked, and a New draft /
  * New version per level (permission cpm.config.draft). Choosing a version opens the editor. The rows are
  * summary reads (no bundle content).
+ * Task 25: a callout, the Draft - Review - Publish strip and one Prepare bundle draft dialog replace the per-level draft boxes;
+ * what each level covers is behind the ?.
  */
 import React, { useState } from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { PanelHead, QueryError, TonePill, fmtDateTime } from '../shared';
+import { Toggletip } from '../../../ui/Toggletip';
+import { ReasonedButton } from '../ReasonedButton';
+import { DraftBundleDialog } from './DraftBundleDialog';
 import type { BundleSummary, ScopeKind } from '../../../api/cpm/config';
 import { bundleStateTone, shortHash } from './configSupport';
 
@@ -31,22 +35,34 @@ export interface BundlesViewProps {
 }
 
 export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId, canDraft, creating, createError, onOpen, onCreate }) => {
-  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [drafting, setDrafting] = useState(false);
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Bundles" title="The three levels of this loop" right={<span className="cpm-copy">the most specific active level wins</span>} />
+      <PanelHead title="Bundles"
+        help={(
+          <Toggletip variant="how-to" label="The three levels">
+            <p>The most specific active level wins.</p>
+            {(['LOOP', 'PROFILE', 'SITE'] as const).map(k => <p key={k}><strong>{k}</strong> {LEVEL_COPY[k]}</p>)}
+          </Toggletip>
+        )}
+        right={(
+          <ReasonedButton variant="raised" disabled={!canDraft || creating} reason={!canDraft ? 'Drafting a bundle needs cpm.config.draft.' : null} onClick={() => setDrafting(true)}>
+            Prepare bundle draft
+          </ReasonedButton>
+        )} />
+      <p className="cpm-copy cpm-config-callout">Nothing changes for a loop until a bundle is published.</p>
+      <ol className="cpm-config-steps" aria-label="Bundle steps">
+        {['Draft', 'Review', 'Publish'].map(step => <li key={step} className="cpm-config-step">{step}</li>)}
+      </ol>
       <ol className="cpm-config-levels" aria-label="Levels">
         {(['LOOP', 'PROFILE', 'SITE'] as const).map(kind => {
           const level = levels[kind];
           const versions = [...level.bundles].sort((a, b) => b.version - a.version);
-          const newest = versions[0];
-          const note = notes[kind] ?? '';
           return (
             <li key={kind} className="cpm-config-level" data-level={kind}>
               <div className="cpm-config-level__head">
                 <span className="cpm-config-level__kind">{kind}</span>
                 <span className="cpm-mono cpm-config-level__ref">{level.ref}</span>
-                <span className="cpm-event-row__sub">{LEVEL_COPY[kind]}</span>
               </div>
               {level.error != null && <QueryError title="Versions unavailable" error={level.error} retry={level.retry} />}
               {level.loading && level.bundles.length === 0 && <p className="cpm-copy" aria-busy="true">Loading versions…</p>}
@@ -63,20 +79,12 @@ export const BundlesView: React.FC<BundlesViewProps> = ({ levels, activeBundleId
                   ))}
                 </div>
               )}
-              {canDraft ? (
-                <div className="cpm-config-inline">
-                  <input className="cpm-input" value={note} onChange={e => setNotes(n => ({ ...n, [kind]: e.target.value }))} placeholder="draft note" aria-label={`${kind} draft note`} />
-                  <ObcButton variant={versions.length ? 'flat' : 'raised'} disabled={creating}
-                    onClick={() => onCreate({ scopeKind: kind, scopeRef: kind === 'SITE' ? null : level.ref, parentBundleId: newest?.bundleId ?? null, note: note || undefined })}>
-                    {creating ? 'Creating…' : versions.length ? 'New version' : 'New draft'}
-                  </ObcButton>
-                </div>
-              ) : <p className="cpm-copy">Drafting a bundle needs cpm.config.draft.</p>}
             </li>
           );
         })}
       </ol>
       {createError != null && <p className="cpm-field__error" role="alert">{createError instanceof Error ? createError.message : String(createError)}</p>}
+      {drafting && <DraftBundleDialog levels={levels} creating={creating} onClose={() => setDrafting(false)} onCreate={req => { setDrafting(false); onCreate(req); }} />}
     </section>
   );
 };

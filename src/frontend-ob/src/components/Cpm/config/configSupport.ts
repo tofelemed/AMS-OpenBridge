@@ -163,6 +163,18 @@ export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmT
   return { text: parts.join(' · '), tone: bad ? 'bad' : 'good' };
 }
 
+/** The worker tile: how many workers applied this loop's configuration, with no build identifier (those sit in Technical details). */
+export function workerAlignment(eff: EffectiveConfig): { value: string; sub: string; tone: CpmTone } {
+  const ws = eff.workers.filter(w => w.required !== false);
+  const jars = new Set(ws.map(w => w.jarSha256)).size;
+  const n = `${ws.length} worker${ws.length === 1 ? '' : 's'}`;
+  if (!eff.bundle) return { value: n, sub: `${jars > 1 ? `${jars} different jars · ` : ''}factory layer, nothing to acknowledge`, tone: jars > 1 ? 'warn' : 'muted' };
+  const applied = ws.filter(w => w.ack?.status === 'ACK' && w.ack.bundleHash === eff.bundle!.contentHash).length;
+  const catalogueOff = ws.filter(w => w.catalogueHash !== eff.bundle!.catalogueHash).length;
+  const sub = jars > 1 ? `${jars} different jars` : catalogueOff ? `catalogue differs on ${catalogueOff}` : 'one jar · catalogue matches';
+  return { value: `${applied} of ${ws.length} applied`, sub, tone: applied < ws.length || jars > 1 || catalogueOff > 0 ? 'bad' : 'good' };
+}
+
 /** "LOOP v2 · f9153b00" - how a bundle is named everywhere on the page; null is the factory layer. */
 export const bundleLabel = (b: { scopeKind: string; version: number; contentHash: string } | null | undefined): string =>
   b ? `${b.scopeKind} v${b.version} · ${shortHash(b.contentHash, 8)}` : 'factory layer';

@@ -6,11 +6,12 @@
  * lifecycle). Route /cpm/config?site&area&unit&loop=&view=effective|bundles|editor&bundle=&gate=&tab=.
  * Every value on this screen is the server's record; the browser edits requested changes only.
  */
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useQueries } from '@tanstack/react-query';
 import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
-import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
+import { EmptyState, QueryError } from '../shared';
 import { useCpmScope } from '../plantScope';
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
@@ -18,7 +19,10 @@ import { useAuthStore } from '../../../store/authStore';
 import { listBundleSummaries } from '../../../api/cpm/config';
 import { useBundleSummaries, useConfigActions, useConfigCatalogue, useEffectiveConfig, useEffectiveSummary } from './useConfig';
 import { ConfigOverview } from './ConfigOverview';
-import { LoopConfigHeader } from './LoopConfigHeader';
+import { TechnicalDetails } from '../../../ui/TechnicalDetails';
+import { explorerHref } from '../cpaHref';
+import { GateRolePolicy } from './GateRolePolicy';
+import { CatalogueNote, ConfigPageHeader, LoopConfigHeader, buildDetails } from './LoopConfigHeader';
 import { EffectiveView } from './EffectiveView';
 import { BundlesView } from './BundlesView';
 import { EditorView, TABS, type ConfigTab } from './EditorView';
@@ -28,6 +32,8 @@ const VIEWS: ConfigView[] = ['effective', 'bundles', 'editor'];
 
 export const GateConfigurationWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [workersOpen, setWorkersOpen] = useState(false);
   const scope = useCpmScope();
   const loops = useCpmLoops();
   const loopList = useMemo(() => loops.data?.loops ?? [], [loops.data]);
@@ -82,15 +88,22 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const toolbar = (
     <LoopBand loopId={loopId}
       onLoop={id => go({ loop: id, view: 'effective', bundle: null, gate: null, tab: null })}
-      onClear={() => go({ loop: null, view: null, bundle: null, gate: null, tab: null })} />
+      onClear={() => go({ loop: null, view: null, bundle: null, gate: null, tab: null })}
+      end={loopId ? <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton> : undefined} />
   );
-  const catalogueLine = catalogue.data ? `${catalogue.data.count} properties · ${catalogue.data.workers.length} worker(s) announced${catalogue.data.workers.some(w => !w.catalogueMatches) ? ' · a worker runs ANOTHER catalogue' : ''}` : '';
+  const openWorkers = () => {
+    if (view !== 'effective') go({ view: 'effective' });
+    setWorkersOpen(true);
+    window.setTimeout(() => document.getElementById('config-workers')?.scrollIntoView?.({ block: 'nearest' }), 0);
+  };
+  const rolePolicy = <section className="cpm-surface" aria-label="Gate role policy"><GateRolePolicy /></section>;
 
   if (view === 'overview' || (view === 'editor' && !loopId)) {
     return (
       <div className="cpm-screen cpm-config-workspace">
-        <WorkspaceHeader page="/cpm/config" title="Gate configuration" copy={`What each loop runs under, the bundles in progress, and the editor for one of them. ${catalogueLine}`} />
+        <ConfigPageHeader copy="What each loop runs under, the bundles in progress, and the editor for one of them." />
         {toolbar}
+        <CatalogueNote catalogue={catalogue.data} />
         {catalogue.isError && <QueryError error={catalogue.error} retry={() => void catalogue.refetch()} />}
         {view === 'editor' && bundleId ? (
           <EditorView bundleId={bundleId} gate={gate} tab={tab} perms={perms} loopId={undefined} siteLoopCount={undefined}
@@ -100,6 +113,8 @@ export const GateConfigurationWorkspace: React.FC = () => {
             bundles={inProgress} bundlesLoading={progress.some(q => q.isLoading)} bundlesError={progress.find(q => q.isError)?.error ?? null}
             onRetry={() => { void summary.refetch(); progress.forEach(q => void q.refetch()); }} />
         )}
+        {view !== 'editor' && <TechnicalDetails items={buildDetails(catalogue.data)} />}
+        {view !== 'editor' && rolePolicy}
       </div>
     );
   }
@@ -113,15 +128,14 @@ export const GateConfigurationWorkspace: React.FC = () => {
 
   return (
     <div className="cpm-screen cpm-config-workspace">
-      <LoopConfigHeader loopId={loopId!} displayName={loop?.displayName} eff={eff.data} loading={eff.isLoading} catalogueHash={catalogue.data?.catalogueHash} />
-      {toolbar}
+      <LoopConfigHeader loopId={loopId!} eff={eff.data} loading={eff.isLoading} catalogue={catalogue.data} onOpenWorkers={openWorkers} band={toolbar} />
       {eff.isError && <QueryError title="Effective configuration unavailable" error={eff.error} retry={() => void eff.refetch()} />}
       <div className="cpm-tabs">
         <Tabs idBase="config-view" label="Views" options={tabs} value={view} onChange={id => { if (id !== view) go({ view: id }); }} />
       </div>
       <div {...tabPanelProps('config-view', view)}>
       {view === 'effective' && (eff.data
-        ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} /></section>
+        ? <section className="cpm-surface"><EffectiveView eff={eff.data} catalogue={catalogueMap} workersOpen={workersOpen} /></section>
         : !eff.isError && <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>)}
       {view === 'bundles' && (
         <BundlesView activeBundleId={eff.data?.bundle?.bundleId} canDraft={perms.draft} creating={actions.create.isPending} createError={actions.create.isError ? actions.create.error : null}
@@ -137,6 +151,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
         <EditorView bundleId={bundleId} gate={gate} tab={tab} perms={perms} loopId={loopId} siteLoopCount={loopList.filter(l => l.site === site).length}
           onGate={g => go({ gate: g })} onTab={t => go({ tab: t === 'properties' ? null : t })} onBack={() => go({ view: 'bundles', bundle: null, gate: null, tab: null })} />
       )}
+      {view !== 'editor' && rolePolicy}
       </div>
     </div>
   );
