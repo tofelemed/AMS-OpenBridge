@@ -5991,3 +5991,22 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Before release:** control-engineer review of `text-changes.md`; the owner signs off the "Not in this release" list and the SME is told; the final browser gates on the release build.
 
 **Plant:** not deployed. This branch is not released.
+
+## CHG-154 — CPA reference redesign: the open small items (2026-11-07, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner asked to fix the small items left open after CHG-153.
+
+**Changed.**
+- **Link style:** every link or action that used `›` now reads `→` (next step) or `↗` (related page). Stepping arrows (Older, Live, wizard Continue) and `‹` back links stay.
+- **Performance matrix:** the result link joins the grid's keyboard model, so Tab no longer stops on every row; it has the same focus ring as the loop link. The "last verdict" tooltip is gone (band and dialog hold it). A result filter resets when its band leaves the scope.
+- **Explorer:** Inspect Gn → is disabled with "No Gn result in this window" when the window holds no result for that gate. Missing test for the stalled-live note added.
+- **Counts:** "1 loop", "1 assessed loop" read in the singular. A stored day with no capability flag reads "Not stored for that day".
+- **Evidence pages:** a no-verdict check uses `conditionOf` everywhere; a PENDING diagnosis is not a verdict. Workbench basis reads "Reconstruction failed" or "Reconstruction expired". Replay's cursor takes the nearest sample, shows a numeric mode, and labels a truncated slice's count as loaded. A 409 for another loop's run says trying again will not help.
+- **Windows:** the window browser de-duplicates by instant, history-only tiles are not selectable and say why, and a read error reads as an error. Window Inspector's Open range in Historical and Open in Trend sit in the selected-window panel, once each.
+- **Historical:** the Evidence package and Export reasons name the real cause (500-row cap, summary only).
+- **Loop Registry and Configuration:** Edit can now clear the engineering range (an empty engineering object clears the seven form keys; no object keeps everything). The wizard's path Copy works over plain http. A failed draft's error clears when the dialog reopens. Loop Detail reads a retired loop's open episode once, with no polling.
+- **Records and tools:** help entries repoint to the code that shows each value; theme tools no longer name deleted components; dead CSS removed; one duplicate CSS import removed.
+
+**Services updated:** `ams-frontend`, `cplm-api` (the engineering clear in activate). **No migration, no config.**
+
+**Plant:** not deployed. This branch is not released.
