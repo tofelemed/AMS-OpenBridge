@@ -796,3 +796,34 @@ None.
 |---|---|
 | Readout row Quality (never requested, always Not recorded) | Removed |
 | Controller mode: In AUTO x % | Time in AUTO: x % (it is the window's share, not a mode) |
+
+## Task 18 (CHG-143): Evidence Replay, re-run, evidence package, run details
+
+### Removed or reworded
+
+| Was | Now |
+|---|---|
+| Re-run `?`: "Submits the A8 historical replay job with this loop's current evidence flags and window alignment (~90 s round trip)…" | Removed. The card says "Check the configuration before creating a new run." and "Original evidence stays unchanged." |
+| Button "Recomputing…" / "Recompute failed to start: …" | "Running…" in the dialog; a refusal reads "Not started" with the Evaluate wording |
+| Re-run pill FINISHED / FAILED (state) | The run's state (QUEUED, RUNNING, FINISHED, FAILED) with the Evaluate status line in the dialog |
+| Note link "evaluated window ↗" opened the loop's newest window | Opens that note's own window in the Workbench (`workbenchHref(loop, run, 'G15')`) |
+| Evidence package: a loose JSON with the raw slice | One zip: manifest.json and evidence-package.json (the Historical page's package) |
+| Run details ↗: Workbench Identity tab | Run details dialog |
+
+### New text
+
+| Where | Text |
+|---|---|
+| Re-run dialog | "It uses the window's governed bundle and today's engine build, so the result can differ from the original." |
+| Re-run dialog | "Current configuration" disabled: "Not available in this release." |
+| Re-run dialog, a run already made | "A run was already made for this window, so it was opened instead of a new one. Evidence is held 3 days." |
+| Re-run button, disabled | "Needs the cpm.analysis.create permission"; "Only 4h, 12h and 24h windows can be re-run" |
+| Run details | "Complete retention shows the proof was kept, not that it was sufficient." |
+| manifest.json note | "This package records what was retained for the window. Retained evidence is not proof that it was sufficient." |
+
+| Control | Now on |
+|---|---|
+| Re-run this window | Right column card; opens the Re-run dialog (Create run) |
+| Compare with the original ↗ | Re-run dialog footer, when finished; sets `?rerun=` on this page |
+| Evidence package | Header; opens the Evidence package dialog (Download package) |
+| Run details ↗ | Identity line; opens the Run details dialog |

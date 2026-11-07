@@ -9,3 +9,4 @@
 .cpm-replay-check { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); justify-content: flex-end; }
 .cpm-replay-reason { margin: 0; padding: var(--traverse-space-2); border: 1px solid var(--border-divider-color); overflow-wrap: anywhere; }
 .cpm-replay-metrics { min-width: 0; }
+.cpm-rerun-config { display: flex; flex-direction: column; gap: var(--traverse-space-2); margin: var(--traverse-space-3) 0 0; padding: 0; border: 0; min-width: 0; }

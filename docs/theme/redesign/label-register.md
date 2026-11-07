@@ -97,3 +97,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Export | Export package | Evidence package | Evidence Replay | 17 |
 | Controller mode at the cursor | Mode; MODE | Mode | Evidence Replay | 17 |
 | Window's AUTO share (G1 auto_pct) | Controller mode; In AUTO (%) | Time in AUTO | Evidence Replay verdict card | 17 |
+| Re-run dialog confirm | Create run | Create run | Evidence Replay | 18 |
+| Re-run comparison | Compare with the original ↗ | Compare with the original ↗ | Evidence Replay | 18 |
+| Package download | Download package | Download package | Evidence Replay | 18 |
+| Run details | Run details ↗ | Run details | Evidence Replay | 18 |
