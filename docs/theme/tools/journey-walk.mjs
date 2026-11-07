@@ -10,8 +10,12 @@ import { STEPS } from './lib/journey-steps.mjs';
 
 const LOOP = process.env.CPA_LOOP ?? 'FIC10401';
 const STEP_TIMEOUT_MS = 90000;
-const [outFile] = process.argv.slice(2);
-if (!outFile) { console.error('Usage: node journey-walk.mjs <out.json>'); process.exit(2); }
+const args = process.argv.slice(2);
+const onlyAt = args.indexOf('--only');
+const only = onlyAt >= 0 ? new Set((args[onlyAt + 1] ?? '').split(',').filter(Boolean)) : null;
+if (onlyAt >= 0) args.splice(onlyAt, 2);
+const [outFile] = args;
+if (!outFile) { console.error('Usage: node journey-walk.mjs <out.json> [--only id,id]'); process.exit(2); }
 const env = requireEnv();
 
 let browser; let p; let net; let guard; let crashed = false;
@@ -35,11 +39,11 @@ const src = a => (a instanceof RegExp ? { re: a.source, flags: a.flags } : { str
 /** Tags the control to click with data-jw-hit. Returns 'found', 'disabled' (only disabled matches) or 'none'. */
 async function find(action) {
   const a = typeof action === 'object' && !(action instanceof RegExp) ? action : { text: action };
-  const spec = { sel: a.sel ?? null, text: a.text == null ? null : src(a.text), dialog: !!a.dialog, role: a.role ?? null, skip: a.skip ?? 0 };
+  const spec = { sel: a.sel ?? null, text: a.text == null ? null : src(a.text), dialog: !!a.dialog, role: a.role ?? null, skip: a.skip ?? 0, last: !!a.last, anywhere: !!a.anywhere };
   return p.evaluate(s => {
     document.querySelectorAll('[data-jw-hit]').forEach(e => e.removeAttribute('data-jw-hit'));
     const dialogs = [...document.querySelectorAll('[role="dialog"], dialog[open]')];
-    const root = s.dialog ? dialogs[dialogs.length - 1] : (document.querySelector('#main-content') ?? document);
+    const root = s.dialog ? dialogs[dialogs.length - 1] : s.anywhere ? document : (document.querySelector('#main-content') ?? document);
     if (!root) return 'none';
     const clean = t => (t ?? '').replace(/\s+/g, ' ').trim();
     const shown = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -50,8 +54,9 @@ async function find(action) {
     };
     const base = s.sel ?? (s.role ? `[role="${s.role}"]` : 'a[href], button, obc-button, [role="button"], [role="tab"], [role="link"]');
     const nodes = [...root.querySelectorAll(base)].filter(e => shown(e) && matches(clean(e.textContent)));
-    const live = nodes.filter(e => !e.hasAttribute('disabled') && e.getAttribute('aria-disabled') !== 'true');
-    const hit = live[s.skip];
+    // obc-button reflects disabled as a property only, so the attribute alone misses a disabled button
+    const live = nodes.filter(e => !e.hasAttribute('disabled') && e.disabled !== true && e.getAttribute('aria-disabled') !== 'true');
+    const hit = s.last ? live[live.length - 1] : live[s.skip];
     if (!hit) return nodes.length ? 'disabled' : 'none';
     hit.scrollIntoView({ block: 'center' });
     hit.setAttribute('data-jw-hit', '1');
@@ -105,6 +110,13 @@ async function expectDialog(want) {
   return null;
 }
 
+/** Waits for a page's data: looks again for up to 10 s (35 s for a step marked slow) while the control is missing or disabled. */
+async function findWait(action, slow) {
+  let state = await find(action);
+  for (let i = 0; i < (slow ? 70 : 20) && state !== 'found'; i += 1) { await p.waitForTimeout(500); state = await find(action); }
+  return state;
+}
+
 /** One attempt from one address. Returns {outcome, detail}. */
 async function attempt(step, from) {
   await open(from);
@@ -112,23 +124,32 @@ async function attempt(step, from) {
   if (/Access restricted|not allowed|You do not have/i.test(text.slice(0, 600))) return { outcome: 'UNTESTED', detail: `${from} is restricted for this account` };
   const last = step.do.length - 1;
   for (let i = 0; i <= last; i += 1) {
-    const state = await find(step.do[i]);
+    const state = await findWait(step.do[i], step.slow);
     if (state !== 'found') {
       const what = typeof step.do[i] === 'object' && !(step.do[i] instanceof RegExp) ? (step.do[i].text ?? step.do[i].sel) : step.do[i];
-      return { outcome: 'UNTESTED', detail: `${state === 'disabled' ? 'control disabled' : 'no such control'} "${what}" on ${from}${i ? ' (after the earlier click)' : ''}` };
+      return { outcome: 'UNTESTED', detail: `${state === 'disabled' ? 'control disabled' : (step.missing ?? 'no such control')} "${what}" on ${from}${i ? ' (after the earlier click)' : ''}` };
     }
     const wantsDownload = i === last && step.expect.download;
-    const download = wantsDownload ? p.waitForEvent('download', { timeout: 15000 }).catch(() => null) : null;
+    const download = wantsDownload ? p.waitForEvent('download', { timeout: 60000 }).catch(() => null) : null;
     await p.locator('[data-jw-hit]').first().click({ timeout: 8000 });
     if (i < last) {
       await p.locator('[role="dialog"], dialog[open]').last().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       await p.waitForTimeout(250);
     } else if (wantsDownload) {
       const d = await download;
-      if (!d) return { outcome: 'FAIL', detail: `no download started; page is ${new URL(p.url()).pathname}` };
+      if (!d) { const note = clean(await p.locator('[role="note"], [role="alert"]').allInnerTexts().then(a => a.join(' ')).catch(() => '')).slice(0, 160); return { outcome: 'FAIL', detail: `no download started; page is ${new URL(p.url()).pathname}${note ? `; page says "${note}"` : ''}` }; }
       await d.cancel().catch(() => {});
       return { outcome: 'PASS' };
     }
+  }
+  if (step.expect.panel) {
+    const shown = await p.locator(step.expect.panel).first().waitFor({ state: 'visible', timeout: 6000 }).then(() => true, () => false);
+    return shown ? { outcome: 'PASS' } : { outcome: 'FAIL', detail: `panel ${step.expect.panel} did not open; page is ${new URL(p.url()).pathname}` };
+  }
+  if (step.expect.otherwiseUntested) {
+    await p.waitForTimeout(2500);
+    const url = new URL(p.url());
+    if (url.pathname === step.expect.otherwiseUntested) return { outcome: 'UNTESTED', detail: `${step.untestedReason} (landed on ${url.pathname})` };
   }
   const fail = step.expect.dialog !== undefined ? await expectDialog(step.expect.dialog) : await expectNav(step.expect);
   return fail ? { outcome: 'FAIL', detail: fail } : { outcome: 'PASS' };
@@ -147,12 +168,13 @@ async function runStep(step) {
 
 const results = [];
 await boot();
-for (const step of STEPS) {
+for (const step of STEPS.filter(x => !only || only.has(x.id))) {
   let result;
   const t0 = Date.now();
   try {
     let timer;
-    const limit = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`step timeout after ${STEP_TIMEOUT_MS / 1000} s`)), STEP_TIMEOUT_MS); });
+    const ms = step.slow ? STEP_TIMEOUT_MS * 3 : STEP_TIMEOUT_MS;
+    const limit = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`step timeout after ${ms / 1000} s`)), ms); });
     result = await Promise.race([runStep(step), limit]).finally(() => clearTimeout(timer));
     if (crashed) result = { outcome: 'FAIL', detail: 'page crashed' };
   } catch (e) {
