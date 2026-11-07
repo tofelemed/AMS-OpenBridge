@@ -24,8 +24,8 @@ const Fact: React.FC<{ label: string; value: string; help?: React.ReactNode }> =
 
 export const InvestigationHero: React.FC<{
   matrix: CpmGateMatrix;
-  /** The episode open at this window's end. */
-  episode: Pick<CpmEventFrame, 'opened_at'> | null;
+  /** The episode open at this window's end; null when none was, undefined when the episodes are unread. */
+  episode: Pick<CpmEventFrame, 'opened_at'> | null | undefined;
   latest: boolean;
   windowKind: string;
   timeZone?: string;

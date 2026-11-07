@@ -61,7 +61,8 @@ export function metricAvailability(ctx: MetricContext, field: string, value: unk
   const d = (ctx.diagnosis ?? '').toUpperCase();
   if (d.startsWith('EXCLUDED'))
     return { state: 'not-applicable', short: 'N/A', reason: 'loop not in automatic — the window was excluded' };
-  if (d.startsWith('INSUFFICIENT') || ctx.declined)
+  // CHG-092: INSUFFICIENT_EVIDENCE is a verdict (no fault reached the threshold), not a window short of samples; its values stand
+  if ((d.startsWith('INSUFFICIENT') && d !== 'INSUFFICIENT_EVIDENCE') || ctx.declined)
     return { state: 'insufficient', short: 'Insufficient data', reason: ctx.declined ?? 'too few qualified samples in the window' };
   const gate = GATE_OF[field];
   const g0 = gateMeaning(ctx.status('G0'), 'G0');

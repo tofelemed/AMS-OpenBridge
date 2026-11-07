@@ -615,3 +615,46 @@ For the control engineer: the status words all come from `gateMark`. The one new
 | Window span, Selected family, G14 confirmation, Reason, Disqualifiers, engine trace | Technical details & engine trace, closed; the trace opens with it |
 | New: Calculation proof ↗, {gate} proof ↗, All 17 gate results →, Start with evidence ↓, Related events ↗, Mode context | Investigation |
 | Chosen card and open gate | In the address, `?tier=` and `?gate=`; `?gate=` from Performance and Calculations now opens that gate |
+
+## Task 14 fix round 1 (CHG-141): one vocabulary for a window's result
+
+For the control engineer. `conditionOf` (`explorer/summary/summaryText.ts`) now takes its words from `diagnosisLabel` and agrees with CHG-092: NO_CALL and INSUFFICIENT_EVIDENCE are verdicts, the engine's only no-fault results. They have their own kind, `no-fault`: not "not evaluated", and not "healthy", because no fault identified is a diagnostic statement, not a performance one, so it stays grey. These words change on every page that reads `conditionOf`: Loop Explorer band, Summary card, gate dialog and trend band; Overview queue and top finding.
+
+Two choices need your ruling. Each is built as stated and is a small change either way:
+1. **The three facts on a no-fault window:** Good-error time, Time in normal mode, Data coverage. No evidence score, because `hasVerdict` forbids one there. No Persisting.
+2. **Cause on a no-fault window:** "None identified", even when NO_CALL keeps a mechanism that fell short. That mechanism stays in Hypothesis comparison.
+
+### Words on every page
+
+| Diagnosis | Was | Now |
+|---|---|---|
+| NO_CALL | Not evaluated yet | No fault identified |
+| INSUFFICIENT_EVIDENCE | Not evaluated: not enough data | No fault identified |
+| EXCLUDED_* other than EXCLUDED_MODE | Excluded: loop not in automatic | Its real reason, for example "Excluded: outside operating region". EXCLUDED_MODE keeps "Excluded: loop not in automatic" |
+| INSUFFICIENT_DATA, NOT_EVALUATED, findings | Unchanged | Unchanged |
+
+| Was | Now | Where |
+|---|---|---|
+| Next check fallback on NO_CALL: "Wait for the next evaluation window, or check the loop's readiness if none arrives." On INSUFFICIENT_EVIDENCE: "Check that the loop's signals are arriving: the Window Inspector shows the samples each window received." | "No fault reached the evidence threshold; review the signals if the loop still performs poorly." | Explorer Summary, Investigation result card. Only when the engine wrote no recommendation |
+| Next check fallback on a non-mode exclusion: "Nothing to assess while the loop is out of automatic; Historical shows when it ran in AUT or CASCADE." | "Nothing to assess on an excluded window; Historical shows what the loop was doing." EXCLUDED_MODE keeps its sentence | Explorer Summary, Investigation result card |
+| Summary action on INSUFFICIENT_EVIDENCE: "Open Window Inspector ›" | "Why and what to do › Investigation" | Explorer Summary |
+| Any measure on an INSUFFICIENT_EVIDENCE window: "Insufficient data" (too few qualified samples in the window) | The stored value, through the usual checks. INSUFFICIENT_DATA keeps "Insufficient data" | Every page reading `metricAvailability` |
+
+### On Investigation
+
+| Was | Now | Where |
+|---|---|---|
+| No-fault window: "See the samples each window received", "Check the signal mapping", "Review when the data stopped"; or "Check what the loop is still missing", "Check that the analysis engine is running" | "Compare PV, SP and OP over the same window" (Signals ↗), "Review earlier windows" (Compare windows ↗) | Next checks |
+| No-fault window: Time in normal mode, Time at an OP limit, Data coverage | Good-error time, Time in normal mode, Data coverage | Result card |
+| No-fault window: "{mechanism} · not confirmed" or "Not qualified" | Cause: "None identified" | Result card |
+| No-fault window: "Limits on this conclusion" | "What is still unconfirmed", with the reason first | Beside the gates |
+| "{which} window excluded (loop not in automatic)", "{which} window had insufficient data" | "{which} window {result in lower case}", for example "Current window excluded: outside operating region". Only for an exclusion or not enough data, no longer for a no-fault window | Compare windows dialog |
+| No-fault loops counted under "Not evaluable" | Their own case, "No fault identified · {n}" | Case, under More |
+| "Latest evaluated window" | "Latest window": it may be one that was not evaluated | Result card |
+| "No open episode" while the episodes were unread or the request failed | "—". "No open episode" only when the list was read | Result card |
+
+| Control | Now on |
+|---|---|
+| A no-fault window opens its card on | Diagnostic evidence (was Eligibility) |
+| Related events ↗ | Carries the episode open at this window's end, `?event=`; with none, the loop only |
+| Window select, picking the newest window | Drops `?window=`, so the page follows the newest again |

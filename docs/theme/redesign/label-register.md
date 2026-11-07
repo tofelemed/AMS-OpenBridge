@@ -79,3 +79,8 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Save button | Save note | Save review (Replay keeps Save note until its task) | Investigation | 14 |
 | Trend zoom reset | Reset | Full window | Investigation | 14 |
 | Values in a gate's proof | Measured vs required | Calculated values | Investigation | 14 |
+| Judged window with no fault (NO_CALL, INSUFFICIENT_EVIDENCE), in `conditionOf` | Not evaluated yet; Not evaluated: not enough data; No fault identified | No fault identified | All pages | 14 fix |
+| Exclusion other than mode, in `conditionOf` | Excluded: loop not in automatic | Excluded: {real reason} | All pages | 14 fix |
+| Cause on a no-fault window | {mechanism} · not confirmed; Not qualified | None identified | Investigation | 14 fix |
+| Case for a no-fault loop | Not evaluable | No fault identified | Investigation | 14 fix |
+| Window heading on the result card | Latest evaluated window | Latest window | Investigation | 14 fix |

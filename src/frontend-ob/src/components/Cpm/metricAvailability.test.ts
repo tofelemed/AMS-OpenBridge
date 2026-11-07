@@ -33,6 +33,9 @@ describe('metricAvailability', () => {
 
   it('puts every metric of an excluded or insufficient window out of play', () => {
     expect(metricAvailability(matrix({ diagnosis: 'EXCLUDED_MODE' }), 'good_error_pct', 1)).toMatchObject({ state: 'not-applicable', short: 'N/A' });
+    expect(metricAvailability(matrix({ diagnosis: 'NO_CALL' }), 'effort_ratio', 3).state).toBe('measured');
+    // CHG-092: INSUFFICIENT_EVIDENCE is a verdict about the evidence, not a window short of samples
+    expect(metricAvailability(matrix({ diagnosis: 'INSUFFICIENT_EVIDENCE' }), 'effort_ratio', 3).state).toBe('measured');
     expect(metricAvailability(matrix({ diagnosis: 'INSUFFICIENT_DATA' }), 'effort_ratio', 3)).toMatchObject({ state: 'insufficient' });
     expect(metricAvailability(matrix({ gates: [{ key: 'G0', status: 'FAIL' }] }), 'mae', 0.2)).toMatchObject({ state: 'insufficient', reason: 'the window failed data qualification' });
   });

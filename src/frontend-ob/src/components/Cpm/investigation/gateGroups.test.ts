@@ -87,6 +87,12 @@ describe('chosenTier', () => {
     expect(chosenTier(finding, null, null)).toBe('Diagnostic evidence');
     expect(chosenTier(excluded, null, null)).toBe('Eligibility');
     expect(chosenTier(row(END, { diagnosis: 'INSUFFICIENT_DATA' }), null, null)).toBe('Eligibility');
+    expect(chosenTier(row(END, { diagnosis: 'NOT_EVALUATED' }), null, null)).toBe('Eligibility');
+  });
+
+  it('opens a no-fault window on the evidence that was weighed', () => {
+    for (const diagnosis of ['NO_CALL', 'INSUFFICIENT_EVIDENCE'])
+      expect(chosenTier(row(END, { diagnosis }), null, null)).toBe('Diagnostic evidence');
   });
 
   it('follows a gate named in the link', () => {
@@ -121,6 +127,12 @@ describe('conclusionLimits', () => {
     expect(box.title).toBe('Limits on this conclusion');
     expect(box.lines[0]).toBe('Too few samples');
     expect(box.lines).toHaveLength(2);
+  });
+
+  it('treats a no-fault window as judged, and keeps the reason on screen', () => {
+    const box = conclusionLimits(row(END, { diagnosis: 'NO_CALL' }), { basis: null, limits: ['Instrument health not configured'], machineReason: 'INSUFFICIENT_SAMPLES' });
+    expect(box.title).toBe('What is still unconfirmed');
+    expect(box.lines).toEqual(['Too few samples', 'Instrument health not configured']);
   });
 
   it('leaves out an engine trace string: it belongs under Technical details', () => {

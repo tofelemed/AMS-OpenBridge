@@ -4,9 +4,11 @@
  * It used to be derived by string-matching free-text diagnoses ("includes FINAL_ELEMENT",
  * "includes TUNING"…). The engine now serves the fusion v2 leading hypothesis on every ranked
  * loop; the case is that served enum. Only rows written before v2.5 (no leading hypothesis)
- * fall back to the diagnosis label family, whose suffix IS the family since v2.5.
+ * fall back to the diagnosis label family, whose suffix IS the family since v2.5. A no-fault loop
+ * was judged, so it is its own case: whatever fell short of the threshold is not a mechanism.
  */
 import type { CpmRankedLoop } from '../../../api/cpmApi';
+import { conditionOf, isJudged } from '../explorer/summary/summaryText';
 
 export const CASE_LABEL: Record<string, string> = {
   STICTION: 'Valve / final element',
@@ -16,15 +18,18 @@ export const CASE_LABEL: Record<string, string> = {
   ACTUATOR_LIMIT: 'Actuator at limit',
   SENSOR: 'Sensor / measurement',
   NOT_EVALUABLE: 'Not evaluable',
+  NO_FAULT: 'No fault identified',
   HEALTHY: 'Healthy',
   OTHER: 'Other',
 };
 
 /** Case id for a ranked loop: the served leading hypothesis, else the diagnosis label family. */
 export function caseIdFor(row: Pick<CpmRankedLoop, 'diagnosis' | 'leadingHypothesis'>): string {
+  const { kind } = conditionOf(row.diagnosis);
+  if (!isJudged(kind)) return 'NOT_EVALUABLE';
+  if (kind === 'no-fault') return 'NO_FAULT';
+  if (kind === 'healthy') return 'HEALTHY';
   const d = (row.diagnosis ?? '').toUpperCase();
-  if (d.startsWith('EXCLUDED') || d.startsWith('INSUFFICIENT') || d === 'NO_CALL' || d === 'NOT_EVALUATED') return 'NOT_EVALUABLE';
-  if (d === 'NORMAL' || d === 'NONE') return 'HEALTHY';
   const lh = row.leadingHypothesis;
   if (lh && lh !== 'NONE' && CASE_LABEL[lh]) return lh;
   // Pre-v2.5 rows: the label family is the trailing token(s) after the band prefix.

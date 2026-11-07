@@ -62,12 +62,22 @@ describe('nextChecks', () => {
     expect(links(row(END, { diagnosis: 'NOT_EVALUATED' }))).toEqual(['Loop Explorer ↗', 'Pipeline Health ↗']);
   });
 
+  it('offers a no-fault window the signals and earlier windows: the engine judged it', () => {
+    expect(links(row(END, { diagnosis: 'NO_CALL' }))).toEqual(['Signals ↗', 'Compare windows ↗']);
+  });
+
+  it('never tells an insufficient-evidence window its data stopped: that is a verdict, not a gap', () => {
+    const checks = nextChecks(row(END, { diagnosis: 'INSUFFICIENT_EVIDENCE' }), opts);
+    expect(checks.map(c => c.link)).toEqual(['Signals ↗', 'Compare windows ↗']);
+    expect(checks.map(c => c.label).join(' ')).not.toMatch(/data stopped|signal mapping|samples|still missing|engine is running/);
+  });
+
   it('offers a healthy window the signals and earlier windows', () => {
     expect(links(row(END, { diagnosis: 'NORMAL' }))).toEqual(['Signals ↗', 'Compare windows ↗']);
   });
 
   it('uses ↗, never the old › ', () => {
-    for (const d of ['CONFIRMED_OSCILLATION', 'EXCLUDED_MODE', 'INSUFFICIENT_DATA', 'NOT_EVALUATED', 'NORMAL'])
+    for (const d of ['CONFIRMED_OSCILLATION', 'EXCLUDED_MODE', 'INSUFFICIENT_DATA', 'INSUFFICIENT_EVIDENCE', 'NO_CALL', 'NOT_EVALUATED', 'NORMAL'])
       for (const link of links(row(END, { diagnosis: d }))) expect(link).toMatch(/ ↗$/);
   });
 });

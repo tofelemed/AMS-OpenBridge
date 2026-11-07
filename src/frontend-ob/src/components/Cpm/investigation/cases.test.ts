@@ -17,9 +17,16 @@ describe('caseIdFor', () => {
 
   it('keeps not-evaluable and healthy apart from any mechanism, whatever the hypothesis says', () => {
     expect(caseIdFor({ diagnosis: 'EXCLUDED_DATA_QUALITY', leadingHypothesis: 'STICTION' })).toBe('NOT_EVALUABLE');
-    expect(caseIdFor({ diagnosis: 'INSUFFICIENT_EVIDENCE', leadingHypothesis: null })).toBe('NOT_EVALUABLE');
+    expect(caseIdFor({ diagnosis: 'INSUFFICIENT_DATA', leadingHypothesis: null })).toBe('NOT_EVALUABLE');
     expect(caseIdFor({ diagnosis: 'NOT_EVALUATED', leadingHypothesis: null })).toBe('NOT_EVALUABLE');
     expect(caseIdFor({ diagnosis: 'NORMAL', leadingHypothesis: 'NONE' })).toBe('HEALTHY');
+  });
+
+  it('counts a no-fault loop as judged, never as not evaluable, whatever fell short', () => {
+    for (const diagnosis of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) {
+      expect(caseIdFor({ diagnosis, leadingHypothesis: 'STICTION' })).toBe('NO_FAULT');
+      expect(caseLabelFor({ diagnosis, leadingHypothesis: null })).toBe('No fault identified');
+    }
   });
 
   it('counts chips most frequent first and labels them', () => {

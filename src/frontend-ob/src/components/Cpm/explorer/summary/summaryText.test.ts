@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import {
-  ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
+  ageText, conditionOf, evidenceOf, isJudged, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, staleAfterMs,
 } from './summaryText';
+import { diagnosisLabel } from '../../vocabulary';
 
 const v2 = (over: Partial<CpmGateMatrix['verdictV2']> = {}) => ({
   verdictV2: {
@@ -26,6 +27,25 @@ describe('conditionOf', () => {
   });
   it('treats NORMAL as healthy', () => {
     expect(conditionOf('NORMAL')).toMatchObject({ kind: 'healthy', tone: 'good' });
+  });
+  it('reads a judged window with no fault as a result, in grey: never not evaluated, never healthy (CHG-092)', () => {
+    for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE'])
+      expect(conditionOf(d)).toEqual({ kind: 'no-fault', label: 'No fault identified', tone: 'muted' });
+  });
+  it('keeps not enough data apart from no fault', () => {
+    expect(conditionOf('INSUFFICIENT_DATA')).toEqual({ kind: 'insufficient', label: 'Not evaluated: not enough data', tone: 'muted' });
+  });
+  it('names the real exclusion, not always "not in automatic"', () => {
+    expect(conditionOf('EXCLUDED_OPERATING_REGION')).toEqual({ kind: 'excluded', label: 'Excluded: outside operating region', tone: 'muted' });
+    expect(conditionOf('EXCLUDED_NEW_REASON').label).toBe('Excluded: new reason');
+  });
+  it('uses the one vocabulary for every diagnosis', () => {
+    for (const d of [null, '', 'NOT_EVALUATED', 'PENDING', 'NO_CALL', 'INSUFFICIENT_EVIDENCE', 'INSUFFICIENT_DATA', 'EXCLUDED_MODE', 'EXCLUDED_DATA_QUALITY', 'NORMAL', 'CONFIRMED_OSCILLATION', 'DETECTED_EXCESSIVE_EFFORT'])
+      expect(conditionOf(d).label).toBe(diagnosisLabel(d));
+  });
+  it('says which kinds were judged', () => {
+    expect((['finding', 'no-fault', 'healthy'] as const).every(isJudged)).toBe(true);
+    expect((['excluded', 'insufficient', 'not-evaluated'] as const).some(isJudged)).toBe(false);
   });
 });
 
@@ -78,6 +98,17 @@ describe('nextCheckOf', () => {
     expect(nextCheckOf(narrative(null), conditionOf('EXCLUDED_MODE'))).toMatch(/automatic/);
     expect(nextCheckOf(narrative(null), conditionOf('NORMAL'))).toBe('No action needed.');
   });
+  it('never sends a no-fault window to its data or its readiness', () => {
+    for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) {
+      const text = nextCheckOf(narrative(null), conditionOf(d));
+      expect(text).toMatch(/No fault reached the evidence threshold/);
+      expect(text).not.toMatch(/arriving|Wait for the next|readiness/);
+    }
+  });
+  it('says "out of automatic" only of a mode exclusion', () => {
+    expect(nextCheckOf(narrative(null), conditionOf('EXCLUDED_OPERATING_REGION'))).not.toMatch(/automatic/i);
+    expect(nextCheckOf(narrative(null), conditionOf('EXCLUDED_OPERATING_REGION'))).toMatch(/Historical/);
+  });
 });
 
 describe('ageText', () => {
@@ -97,6 +128,9 @@ describe('primaryActionOf', () => {
   it('names the Investigation as the place for the why and the action (CHG-098, SME review 2 #21)', () => {
     expect(primaryActionOf(conditionOf('CONFIRMED_OSCILLATION')).label).toBe('Why and what to do › Investigation');
     expect(primaryActionOf(conditionOf('NORMAL')).label).toBe('Why and what to do › Investigation');
+  });
+  it('sends a no-fault window to the Investigation, not to its samples', () => {
+    for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) expect(primaryActionOf(conditionOf(d)).target).toBe('investigation');
   });
 });
 

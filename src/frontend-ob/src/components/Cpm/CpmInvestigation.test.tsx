@@ -30,13 +30,15 @@ const state = vi.hoisted(() => ({
   at: {} as { row?: unknown; notFound?: boolean; isLoading?: boolean; isError?: boolean },
   points: [] as Array<Record<string, unknown>>,
   windowAtCalls: [] as Array<{ loop: unknown; end: unknown }>,
+  episodes: [] as Array<{ id: number; opened_at: string; closed_at: string | null; ack_state: string }>,
+  eventsRead: true,
 }));
 
 vi.mock('../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10401', tags: {}, timezone: 'UTC' }] } }),
   useFleetRankings: () => ({ data: { loops: [] } }),
   useLatestGates: () => ({ ...state.latest, refetch: () => {} }),
-  useCpmEvents: () => ({ data: { events: [] } }),
+  useCpmEvents: (q: { openOnly?: boolean }) => (state.eventsRead ? { data: { events: q.openOnly ? state.episodes.filter(e => !e.closed_at) : state.episodes } } : {}),
   useCpmTrend: () => ({ data: { points: state.points }, isLoading: false, isError: false }),
 }));
 vi.mock('./evidence/useEvidenceWindows', () => ({
@@ -80,6 +82,8 @@ beforeEach(() => {
   state.at = { row: undefined, notFound: false, isLoading: false, isError: false };
   state.points = [{ ts: 1, pv: 10, sp: 10, op: 30, mode: 'AUTO' }];
   state.windowAtCalls = [];
+  state.episodes = [];
+  state.eventsRead = true;
 });
 afterEach(cleanup);
 
@@ -188,17 +192,71 @@ describe('CpmInvestigation', () => {
     expect(screen.getByRole('dialog', { name: 'Hypothesis comparison' })).toBeTruthy();
   });
 
-  it('links Related events to the loop', () => {
+  it('links Related events to the loop alone when no episode was open', () => {
     page('/cpm/investigation?loop=FIC10401');
     fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
     expect(screen.getByTestId('where').textContent).toContain('/cpm/events');
     expect(query().get('loop')).toBe('FIC10401');
+    expect(query().get('event')).toBeNull();
+  });
+
+  it('carries the episode open at this window into Related events', () => {
+    state.episodes = [{ id: 77, opened_at: '2026-11-05T00:00:00Z', closed_at: null, ack_state: 'UNACKNOWLEDGED' }];
+    page('/cpm/investigation?loop=FIC10401');
+    fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
+    expect(screen.getByTestId('where').textContent).toContain('/cpm/events');
+    expect([query().get('loop'), query().get('event'), query().get('filter')]).toEqual(['FIC10401', '77', 'all']);
+  });
+
+  it('carries a closed episode too, when it was open at this older window', () => {
+    state.at = { row: matrix(OLD_END) };
+    state.episodes = [{ id: 12, opened_at: '2026-11-05T09:00:00Z', closed_at: '2026-11-05T10:05:00Z', ack_state: 'ACKNOWLEDGED' }];
+    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
+    expect(query().get('event')).toBe('12');
+  });
+
+  it('does not claim No open episode while the episodes are unread', () => {
+    state.eventsRead = false;
+    page('/cpm/investigation?loop=FIC10401');
+    expect(screen.queryByText('No open episode')).toBeNull();
+  });
+
+  it('reads a no-fault window as a result on the whole page', () => {
+    state.latest = { data: matrix(END, { diagnosis: 'INSUFFICIENT_EVIDENCE', metrics: { good_error_pct: 0.91, auto_pct: 1, completeness: 1 } }), isError: false, isLoading: false };
+    const { container } = page('/cpm/investigation?loop=FIC10401');
+    expect(screen.getByRole('heading', { level: 2, name: 'No fault identified' })).toBeTruthy();
+    expect(screen.getByText('91 %')).toBeTruthy();
+    expect(screen.getByText('None identified')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Diagnostic evidence/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Signals ↗' })).toBeTruthy();
+    expect(container.textContent).not.toMatch(/data stopped|signal mapping|too few qualified samples/i);
+  });
+
+  it('follows the newest window again when it is picked', () => {
+    state.at = { row: matrix(OLD_END) };
+    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Evaluated window' }), { target: { value: END } });
+    expect(query().get('window')).toBeNull();
+  });
+
+  it('explains a manual exclusion in Mode context, with Historical on the same window', () => {
+    state.latest = { data: matrix(END, { diagnosis: 'EXCLUDED_MODE' }), isError: false, isLoading: false };
+    page('/cpm/investigation?loop=FIC10401');
+    fireEvent.click(screen.getByRole('button', { name: 'Mode context ↗' }));
+    const dialog = screen.getByRole('dialog', { name: 'Mode context' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Historical ↗' }));
+    expect(screen.getByTestId('where').textContent).toContain('/cpm/historical');
+    expect(query().get('window')).toBe(END);
   });
 
   it('opens every measure in a dialog', () => {
     page('/cpm/investigation?loop=FIC10401');
     fireEvent.click(screen.getByRole('button', { name: 'View all measures →' }));
-    expect(screen.getByRole('dialog', { name: 'Numeric evidence · FIC10401' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Numeric evidence · FIC10401' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Calculation proof →' }));
+    expect(screen.getByTestId('where').textContent).toContain('/cpm/calculations');
+    expect([query().get('loop'), query().get('window'), query().get('kind')]).toEqual(['FIC10401', END, '12h']);
   });
 
   it('keeps the health note honest, with the standard behind a ?', () => {

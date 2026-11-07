@@ -39,6 +39,15 @@ describe('InvestigationHero', () => {
     expect(screen.getByText(/^Last verdict /).textContent).toMatch(/Oscillation confirmed.*2 days ago/);
   });
 
+  it('names an older verdict as older on an excluded window too', () => {
+    hero(row(END, {
+      diagnosis: 'EXCLUDED_MODE',
+      lastVerdict: { windowKind: '12h', windowStart: null, windowEnd: null, diagnosis: 'CONFIRMED_OSCILLATION', severity: 'HIGH', confidence: 1, ageMs: 48 * 3600_000, insufficientEvidenceReason: null, methodRunIds: {}, computedAt: END },
+    }));
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Excluded: loop not in automatic');
+    expect(screen.getByText(/^Last verdict /).textContent).toMatch(/Oscillation confirmed.*2 days ago/);
+  });
+
   it('has no eyebrow saying Final conclusion and no no-verdict pill', () => {
     const { container } = hero(row(END, { diagnosis: 'INSUFFICIENT_DATA' }));
     expect(container.textContent).not.toMatch(/final conclusion/i);

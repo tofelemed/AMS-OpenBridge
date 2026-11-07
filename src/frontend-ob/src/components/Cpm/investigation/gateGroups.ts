@@ -5,7 +5,7 @@
  */
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { ConclusionBasis } from '../conclusionBasis';
-import { conditionOf } from '../explorer/summary/summaryText';
+import { conditionOf, isJudged } from '../explorer/summary/summaryText';
 import { evidenceScoreCap } from '../evidenceScore';
 import { QUIET, TIER_GROUPS, gateMark, isNoResult, type GateMeaning } from '../gateStatus';
 import { codeLabel } from '../vocabulary';
@@ -67,26 +67,32 @@ export function tierOf(gate: string | null | undefined): string | null {
 /** The chosen card, else the card of a gate named in the link, else where this kind of window is explained. */
 export function chosenTier(matrix: Pick<CpmGateMatrix, 'diagnosis'>, tier: string | null, gate: string | null): string {
   if (tier && TIER_GROUPS.some(t => t.label === tier)) return tier;
-  const { kind } = conditionOf(matrix.diagnosis);
-  return tierOf(gate) ?? (kind === 'finding' || kind === 'healthy' ? 'Diagnostic evidence' : 'Eligibility');
+  return tierOf(gate) ?? (isJudged(conditionOf(matrix.diagnosis).kind) ? 'Diagnostic evidence' : 'Eligibility');
 }
 
 export interface ConclusionLimits { title: string; lines: string[] }
 
+/** A window with no finding keeps its reason on screen in the limits box; a finding's reason sits under Technical details. */
+export function reasonInLimits(diagnosis: string | null | undefined): boolean {
+  const { kind } = conditionOf(diagnosis);
+  return kind !== 'finding' && kind !== 'healthy';
+}
+
 /**
- * What the conclusion does not cover. A window that was not judged keeps its reason here, in words, because that reason
- * is why there is no result; an engine trace string stays under Technical details. A capped score keeps its cap on
- * screen: the general meaning of the score is behind its ?, the cap is about this window.
+ * What the conclusion does not cover. A window with no finding keeps its reason here, in words, because that reason
+ * explains the result; an engine trace string stays under Technical details. A capped score keeps its cap on screen: the
+ * general meaning of the score is behind its ?, the cap is about this window. A no-fault window was judged, so what it
+ * was judged without is still unconfirmed.
  */
 export function conclusionLimits(
   matrix: Pick<CpmGateMatrix, 'diagnosis' | 'confidence' | 'narrative'>,
   ctx: { basis: ConclusionBasis | null; limits: string[]; machineReason: string | null },
 ): ConclusionLimits {
-  const { kind } = conditionOf(matrix.diagnosis);
-  if (kind === 'finding' || kind === 'healthy') {
+  if (!reasonInLimits(matrix.diagnosis)) {
     const cap = evidenceScoreCap(matrix.narrative?.statusReason, matrix.confidence);
     return { title: 'What is still unconfirmed', lines: [...(ctx.basis?.notChecked ?? []), ...ctx.limits, ...(cap ? [`Evidence score ${cap}`] : [])] };
   }
   const reason = ctx.machineReason && !ctx.machineReason.includes('=') ? [codeLabel(ctx.machineReason)] : [];
-  return { title: 'Limits on this conclusion', lines: [...reason, ...ctx.limits] };
+  const title = isJudged(conditionOf(matrix.diagnosis).kind) ? 'What is still unconfirmed' : 'Limits on this conclusion';
+  return { title, lines: [...reason, ...ctx.limits] };
 }

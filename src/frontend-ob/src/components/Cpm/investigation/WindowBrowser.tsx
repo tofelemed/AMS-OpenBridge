@@ -7,7 +7,8 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmGateMatrix } from '../../../api/cpmApi';
 import { toneFor } from '../shared';
 import { KEY_FACTS, fmtFact } from './keyFacts';
-import { diagnosisLabel } from '../vocabulary';
+import { conditionOf } from '../explorer/summary/summaryText';
+import { diagnosisLabel, lowerFirst } from '../vocabulary';
 import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { MetricValue } from '../MetricValue';
 import { fmtInstant } from '../context/LoopContextBar';
@@ -51,9 +52,8 @@ export const WindowBrowser: React.FC<{
   // CHG-065: like every other surface, an evidence score only on a window that has a verdict
   const pct = (v: number | null | undefined, m?: CpmGateMatrix) => (v != null && (!m || hasVerdict(m.diagnosis)) ? String(evidenceScore(v)) : '—');
   const side = (m: CpmGateMatrix | undefined, which: string) => {
-    const d = (m?.diagnosis ?? '').toUpperCase();
-    return d.startsWith('EXCLUDED') ? `${which} window excluded (loop not in automatic)`
-      : d.startsWith('INSUFFICIENT') ? `${which} window had insufficient data` : null;
+    const { kind, label } = conditionOf(m?.diagnosis);
+    return kind === 'excluded' || kind === 'insufficient' ? `${which} window ${lowerFirst(label)}` : null;
   };
   const notComparable = [side(previous, 'Previous'), side(matrix, 'Current')].filter(Boolean).join(' · ');
   return (

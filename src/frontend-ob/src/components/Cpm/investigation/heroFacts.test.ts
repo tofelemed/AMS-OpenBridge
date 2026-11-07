@@ -32,10 +32,24 @@ describe('heroFacts', () => {
     expect(labels).toEqual(['Time in normal mode', 'Time at an OP limit', 'Data coverage']);
   });
 
+  it('shows how a no-fault window did, with no evidence score: it has no verdict to score', () => {
+    for (const diagnosis of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) {
+      expect(heroFacts(row(END, { diagnosis, confidence: 0.2, metrics: { good_error_pct: 0.91, auto_pct: 1, completeness: 1 } }), null)).toEqual([
+        { value: '91 %', label: 'Good-error time' },
+        { value: '100 %', label: 'Time in normal mode' },
+        { value: '100 %', label: 'Data coverage' },
+      ]);
+    }
+  });
+
   it('shows No open episode, never 0', () => {
     const facts = heroFacts(finding, null);
     expect(facts[1]).toEqual({ value: 'No open episode', label: 'Persisting' });
     expect(facts.map(f => f.value)).not.toContain('0');
+  });
+
+  it('shows a dash, not No open episode, when the episodes could not be read', () => {
+    expect(heroFacts(finding, undefined)[1]).toEqual({ value: '—', label: 'Persisting' });
   });
 
   it('never turns a missing value into 0', () => {
@@ -97,6 +111,12 @@ describe('causeOf', () => {
     expect(causeOf(excluded)).toEqual({ text: 'Not qualified', unconfirmed: false });
   });
 
+  it('names no mechanism on a no-fault window: one that fell short stays in Hypothesis comparison', () => {
+    const fellShort = verdict({ leadingHypothesis: 'STICTION', confirmation: { state: 'NOT_CONFIRMED' } });
+    for (const diagnosis of ['NO_CALL', 'INSUFFICIENT_EVIDENCE'])
+      expect(causeOf(row(END, { diagnosis, verdictV2: fellShort }))).toEqual({ text: 'None identified', unconfirmed: false });
+  });
+
   it('marks a leading mechanism as not confirmed until G14 confirms it', () => {
     const lead = (state: string) => row(END, { diagnosis: 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY', verdictV2: verdict({ leadingHypothesis: 'STICTION', confirmation: { state } }) });
     expect(causeOf(lead('NOT_CONFIRMED')).unconfirmed).toBe(true);
@@ -118,11 +138,15 @@ describe('heroNextCheck', () => {
   it('falls back to the state\'s next check elsewhere', () => {
     expect(heroNextCheck(excluded)).toMatch(/Historical shows when it ran/);
   });
+
+  it('never says a no-fault window is short of data', () => {
+    expect(heroNextCheck(row(END, { diagnosis: 'INSUFFICIENT_EVIDENCE' }))).toMatch(/No fault reached the evidence threshold/);
+  });
 });
 
 describe('windowHeading', () => {
   it('names the latest window and an earlier one apart', () => {
-    expect(windowHeading(finding, { latest: true, windowKind: '12h', timeZone: 'UTC' })).toMatch(/^Latest evaluated window · 12 h · ends /);
+    expect(windowHeading(finding, { latest: true, windowKind: '12h', timeZone: 'UTC' })).toMatch(/^Latest window · 12 h · ends /);
     expect(windowHeading(finding, { latest: false, windowKind: '12h', timeZone: 'UTC' })).toMatch(/^Earlier window · 12 h · ends /);
   });
 

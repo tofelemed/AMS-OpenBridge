@@ -54,6 +54,20 @@ describe('WindowBrowser', () => {
     expect(onWindow).toHaveBeenCalledWith(many[1].windowEnd);
   });
 
+  it('says why a window is not comparable in the page\'s own words, and only when it is not', () => {
+    const excluded = row(many[0].windowEnd, { diagnosis: 'EXCLUDED_OPERATING_REGION' });
+    const noFault = row(many[1].windowEnd, { diagnosis: 'INSUFFICIENT_EVIDENCE' });
+    const short = row(many[1].windowEnd, { diagnosis: 'INSUFFICIENT_DATA' });
+    render(<WindowBrowser {...props({ matrix: excluded, previous: noFault })} />);
+    expect(screen.getByText('Current window excluded: outside operating region')).toBeTruthy();
+    cleanup();
+    render(<WindowBrowser {...props({ matrix: excluded, previous: short })} />);
+    expect(screen.getByText(/Previous window not evaluated: not enough data/)).toBeTruthy();
+    cleanup();
+    render(<WindowBrowser {...props({ matrix: noFault, previous: noFault })} />);
+    expect(screen.queryByText(/insufficient data|not enough data/i)).toBeNull();
+  });
+
   it('sits in the dialog with no heading of its own', () => {
     render(<WindowBrowser {...props()} />);
     expect(screen.queryByText('Window browser')).toBeNull();

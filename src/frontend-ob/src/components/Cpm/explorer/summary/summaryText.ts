@@ -10,28 +10,35 @@
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../../../api/cpm/verdict';
 import { toneFor, type CpmTone } from '../../shared';
-import { codeLabel, diagnosisLabel } from '../../vocabulary';
+import { bandOf, codeLabel, diagnosisLabel, exclusionLabel } from '../../vocabulary';
 import { ageText as verdictAgeText } from '../../verdictAge';
 import { optionalInputLimitation, type InputContext } from '../../optionalInputs';
 import { flagsForLoop } from '../../optionalInputs';
 
 
-export type ConditionKind = 'finding' | 'healthy' | 'excluded' | 'insufficient' | 'not-evaluated';
+export type ConditionKind = 'finding' | 'no-fault' | 'healthy' | 'excluded' | 'insufficient' | 'not-evaluated';
 
 export interface Condition { kind: ConditionKind; label: string; tone: CpmTone }
 
-/** `CONFIRMED_OSCILLATION` → "Oscillation confirmed"; the not-judged states say why. */
+/** The engine weighed the window: a finding, no fault, or healthy. The other kinds say why it did not. */
+export const isJudged = (kind: ConditionKind): boolean => kind === 'finding' || kind === 'no-fault' || kind === 'healthy';
+
+/**
+ * What a window's result is. The words are `diagnosisLabel`'s, so one vocabulary serves every page, and an exclusion names
+ * its real reason. CHG-092: NO_CALL and INSUFFICIENT_EVIDENCE are verdicts, the engine's only no-fault results: judged, and
+ * no fault reached the evidence threshold. That is `no-fault`, not `insufficient` (INSUFFICIENT_DATA: too few samples) and
+ * not `healthy`: it is a diagnostic statement, not a performance one, so it stays grey, never green (SME 2 #12).
+ */
 export function conditionOf(diagnosis: string | null | undefined): Condition {
-  const d = (diagnosis ?? '').toUpperCase();
-  if (!d || d === 'NOT_EVALUATED' || d === 'NO_CALL')
-    return { kind: 'not-evaluated', label: 'Not evaluated yet', tone: 'muted' };
-  if (d.startsWith('INSUFFICIENT'))
-    return { kind: 'insufficient', label: 'Not evaluated: not enough data', tone: 'muted' };
-  if (d.startsWith('EXCLUDED'))
-    return { kind: 'excluded', label: 'Excluded: loop not in automatic', tone: 'muted' };
-  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY')
-    return { kind: 'healthy', label: 'No problem found', tone: 'good' };
-  return { kind: 'finding', label: diagnosisLabel(d), tone: toneFor(d) };
+  const label = diagnosisLabel(diagnosis);
+  const d = (diagnosis ?? '').trim().toUpperCase();
+  const band = bandOf(d);
+  if (band === 'NOT_EVALUATED') return { kind: 'not-evaluated', label, tone: 'muted' };
+  if (band === 'NO_FAULT') return { kind: 'no-fault', label, tone: 'muted' };
+  if (d.startsWith('INSUFFICIENT')) return { kind: 'insufficient', label, tone: 'muted' };
+  if (band === 'EXCLUDED') return { kind: 'excluded', label, tone: 'muted' };
+  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { kind: 'healthy', label, tone: 'good' };
+  return { kind: 'finding', label, tone: toneFor(d) };
 }
 
 /** Observability flags as limitations, each with what it costs the diagnosis. */
@@ -81,8 +88,11 @@ export function nextCheckOf(matrix: Pick<CpmGateMatrix, 'narrative'>, condition:
   if (rec) return rec;
   switch (condition.kind) {
     case 'insufficient': return 'Check that the loop’s signals are arriving: the Window Inspector shows the samples each window received.';
-    case 'excluded': return 'Nothing to assess while the loop is out of automatic; Historical shows when it ran in AUT or CASCADE.';
+    case 'excluded': return condition.label === exclusionLabel('EXCLUDED_MODE')
+      ? 'Nothing to assess while the loop is out of automatic; Historical shows when it ran in AUT or CASCADE.'
+      : 'Nothing to assess on an excluded window; Historical shows what the loop was doing.';
     case 'not-evaluated': return 'Wait for the next evaluation window, or check the loop’s readiness if none arrives.';
+    case 'no-fault': return 'No fault reached the evidence threshold; review the signals if the loop still performs poorly.';
     case 'healthy': return 'No action needed.';
     default: return 'Open the investigation to review the evidence behind this result.';
   }

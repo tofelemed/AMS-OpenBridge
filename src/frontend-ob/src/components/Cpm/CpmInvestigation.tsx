@@ -112,12 +112,13 @@ export const CpmInvestigation: React.FC = () => {
   const openEvents = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!loopId);
   const recentEvents = useCpmEvents({ loopId, openOnly: false, limit: 20, sort: 'recent' }, 60_000, !!loopId);
   const openFrame = openEvents.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
-  const episode = episodeAt([...(openEvents.data?.events ?? []), ...(recentEvents.data?.events ?? [])], matrix?.windowEnd);
+  const episode = openEvents.data && recentEvents.data ? episodeAt([...openEvents.data.events, ...recentEvents.data.events], matrix?.windowEnd) : undefined;
 
   const gate = params.get('gate');
   const tier = matrix ? chosenTier(matrix, params.get('tier'), gate) : '';
   const openGate = (g: string) => patch(p => { p.delete('tier'); p.set('gate', g); });
-  const openWindow = (end: string) => patch(p => { p.set('window', end); p.delete('mode'); });
+  // The newest window is no end at all: the page then follows the newest, as Live did.
+  const openWindow = (end: string) => patch(p => { if (sameInstant(end, list.options[0]?.windowEnd)) p.delete('window'); else p.set('window', end); p.delete('mode'); });
 
   return (
     <div className="cpm-screen">
@@ -207,7 +208,7 @@ export const CpmInvestigation: React.FC = () => {
           links={(
             <>
               {matrix && <ObcButton variant="flat" onClick={() => setDialog({ kind: 'hypotheses' })}>Hypothesis comparison ↗</ObcButton>}
-              <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loopId, filter: 'all' }))}>Related events ↗</ObcButton>
+              <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loopId, event: episode?.id, filter: 'all' }))}>Related events ↗</ObcButton>
             </>
           )} />
       )}
