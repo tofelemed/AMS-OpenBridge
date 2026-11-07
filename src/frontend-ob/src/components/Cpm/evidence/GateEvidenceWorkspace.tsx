@@ -42,7 +42,8 @@ import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf, zoneLabel } from './timezone';
 import { buildTierGroups } from '../gateStatus';
 import { conditionOf } from '../explorer/summary/summaryText';
-import { investigationHref, replayHref } from '../cpaHref';
+import { ReasonedButton } from '../ReasonedButton';
+import { backLink, replayLink } from './runLinks';
 import { useAuthStore } from '../../../store/authStore';
 import { inputContextOf, vpAbsent } from '../optionalInputs';
 import { effectiveInputFlags } from '../inputLimits';
@@ -251,10 +252,14 @@ export const GateEvidenceWorkspace: React.FC = () => {
     );
   }
 
+  const runRef = { loopId: selection.loopId, gate: selection.gate, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd };
+  const back = backLink(runRef);
+  const replay = replayLink(runRef);
+
   return (
     <div className="cpm-screen cpm-evidence-workspace">
       <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Workbench"
-        actions={<ObcButton variant="flat" onClick={() => navigate(investigationHref(selection.loopId, { kind: tier === 'fused' ? kind : null, window: currentOption?.windowEnd, gate: selection.gate }))}>Back to Investigation ↗</ObcButton>} />
+        actions={<ObcButton variant="flat" onClick={() => navigate(back.href)}>{back.label}</ObcButton>} />
       {band}
       {/* Here, not in the More panel: a run must survive a click elsewhere, which closes the panel */}
       {evaluateOpen && evaluate}
@@ -293,7 +298,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
       </div>
       {run.data && (
         <div className="cpm-workbench__foot">
-          <ObcButton variant="flat" onClick={() => navigate(replayHref(selection.loopId, { gate: selection.gate, window: new Date(run.data!.support.toMs).toISOString(), kind: run.data!.windowKind }))}>Evidence Replay ↗</ObcButton>
+          <ReasonedButton variant="flat" disabled={replay.href == null} reason={replay.href == null ? replay.reason : null}
+            onClick={() => { if (replay.href) navigate(replay.href); }}>Evidence Replay ↗</ReasonedButton>
         </div>
       )}
       </div>

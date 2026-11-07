@@ -2,6 +2,7 @@
  * CHG-082 / KPI Phase 3: the words of the proof — why a loop is in a KPI, read from the drill-down row the server built
  * with the same classification as the tile. Pure (unit-tested). Rules and references: kpi_calculation_logic/KPI-LOGIC.md.
  */
+import { sameInstant } from '../evidence/useWindowAt';
 import type { FleetKpiKey, FleetKpiRow } from '../../../api/cpm/fleetKpis';
 import { ageText } from '../verdictAge';
 import { diagnosisLabel } from '../vocabulary';
@@ -107,7 +108,7 @@ export function contextText(row: FleetKpiRow, kpi: FleetKpiKey): string {
   }
   // the last REAL judgement before this window, as context — not an exclusion, not the same window again
   const lv = row.lastVerdict;
-  if (lv && row.state !== 'Assessed' && !lv.diagnosis.startsWith('EXCLUDED') && lv.windowEnd !== row.windowEnd)
+  if (lv && row.state !== 'Assessed' && !lv.diagnosis.startsWith('EXCLUDED') && !sameInstant(lv.windowEnd, row.windowEnd))
     parts.push(`last verdict ${diagnosisLabel(lv.diagnosis)}${lv.windowEnd ? `, ${ageText(Date.now() - Date.parse(lv.windowEnd))}` : ''}`);
   return parts.join(' · ');
 }

@@ -6,6 +6,7 @@
  * retired), Open loop, Evidence, Effective rules and Re-project. A retired loop keeps its history links; its
  * open episode is left as it is and marked (UI-131).
  */
+import { usePlantTreeAccess } from '../access';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -39,7 +40,7 @@ export const LoopDetail: React.FC<{ loopId: string; onBack: () => void }> = ({ l
   const loop = stored && asked !== null ? { ...stored, isActive: asked } : stored;
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
-  const canSeeTree = useAuthStore(s => s.hasPermission('asset.view'));
+  const canSeeTree = usePlantTreeAccess();
   const readiness = useCpmReadiness(loop?.loopId);
   const retired = !!loop && !loop.isActive;
   const episodes = useCpmEvents({ loopId: loop?.loopId, openOnly: true, includeShelved: true, limit: 1, sort: 'recent' }, 30_000, retired);

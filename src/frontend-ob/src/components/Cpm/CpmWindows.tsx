@@ -7,6 +7,7 @@
  * counts are on the row, and the window opens in Replay or the Workbench from "Inspect this window".
  * Compare across window sizes sits under the list.
  */
+import { sameInstant } from './evidence/useWindowAt';
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -60,7 +61,7 @@ export const CpmWindows: React.FC = () => {
   const named = params.get('window');
   const view = resolveWindowView(shown, named);
   // A named window that is not selected is either hidden by the filter or not loaded yet: say which, select nothing.
-  const missing = named && !view && rows.length > 0 ? (rows.some(r => r.window_end === named) ? 'filtered' : 'unloaded') : null;
+  const missing = named && !view && rows.length > 0 ? (rows.some(r => sameInstant(r.window_end, named)) ? 'filtered' : 'unloaded') : null;
   const passes = (r: typeof rows[number]) => filter === 'all' || countFilterOf(r, tier) === filter;
   const selectWindow = (windowEnd: string) => {
     setParams(p => { p.set('window', windowEnd); return p; }, { replace: true });
@@ -81,7 +82,7 @@ export const CpmWindows: React.FC = () => {
     if (!view || !kpis.hasNextPage) return;
     const next = await kpis.fetchNextPage();
     const all = (next.data?.pages.flatMap(p => p.samples) ?? []).filter(passes);
-    const at = all.findIndex(r => r.window_end === view.selected.window_end);
+    const at = all.findIndex(r => sameInstant(r.window_end, view.selected.window_end));
     goTo(all[at + 1]?.window_end);
   };
   const clearWindow = () => setParams(p => { p.delete('window'); return p; }, { replace: true });

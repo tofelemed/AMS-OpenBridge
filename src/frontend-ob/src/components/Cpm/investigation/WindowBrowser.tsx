@@ -62,7 +62,7 @@ export const WindowBrowser: React.FC<{
       <div className="cpm-window-tiles" role="list" aria-label={`Evaluated ${windowKind} windows`}>
         {shown.map(w => {
           const current = sameInstant(matrix.windowEnd, w.windowEnd);
-          const latest = w.windowEnd === windows[0]?.windowEnd;
+          const latest = sameInstant(w.windowEnd, windows[0]?.windowEnd);
           return (
             <div key={w.windowEnd ?? ''} role="listitem" className="cpm-window-tiles__item">
             <button type="button"

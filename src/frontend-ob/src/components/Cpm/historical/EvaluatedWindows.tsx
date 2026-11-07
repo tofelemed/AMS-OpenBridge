@@ -5,6 +5,7 @@
  * `?window=` (the window END) as clicking its mark in the Result lane, so the list, the chart and the panel stay one
  * selection. A value the window never stored reads "Not stored", never 0.
  */
+import { instantMs, sameInstant } from '../evidence/useWindowAt';
 import React, { useEffect, useMemo, useState } from 'react';
 import { DataTable, type Column } from '../../../ui/DataTable';
 import { Pagination } from '../../../ui/forms/Pagination';
@@ -30,10 +31,10 @@ export const EvaluatedWindows: React.FC<{
   onRetry?: () => void;
   pageSize?: number;
 }> = ({ windows, selectedEnd, onSelect, loading, error, onRetry, pageSize = PAGE_SIZE }) => {
-  const rows = useMemo(() => [...windows].sort((a, b) => b.windowEnd.localeCompare(a.windowEnd)), [windows]);
+  const rows = useMemo(() => [...windows].sort((a, b) => (instantMs(b.windowEnd) || 0) - (instantMs(a.windowEnd) || 0)), [windows]);
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageOf = (end: string | null) => {
-    const at = end ? rows.findIndex(r => r.windowEnd === end) : -1;
+    const at = end ? rows.findIndex(r => sameInstant(r.windowEnd, end)) : -1;
     return at < 0 ? 1 : Math.floor(at / pageSize) + 1;
   };
   const [page, setPage] = useState(() => pageOf(selectedEnd));

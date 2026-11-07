@@ -163,15 +163,20 @@ describe('LoopDetail', () => {
     expect(screen.getByTestId('where').textContent).toBe('/cpm/explorer?loop=FIC1');
   });
 
-  it('shows the effective rules link to cpm.config.read only, and the plant tree link to asset.view', () => {
+  // CHG-153: Plant tree opens /admin/plant-model: the /admin/* guard (any administration permission) and the tab's asset.view
+  it('shows the effective rules link to cpm.config.read only, and the plant tree link to asset.view with an administration right', () => {
     open();
     expect(screen.queryByRole('button', { name: /Effective rules/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Plant tree/ })).toBeNull();      // asset.view alone lands on a restricted page
+    cleanup();
+    asUser(['cpm.manage', 'asset.view', 'admin.users.edit']);
+    open();
     expect(screen.getByRole('button', { name: /Plant tree/ })).toBeTruthy();
     cleanup();
-    asUser(['cpm.manage', 'cpm.config.read']);
+    asUser(['cpm.manage', 'cpm.config.read', 'admin.users.edit']);
     open();
     expect(screen.getByRole('button', { name: /Effective rules/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Plant tree/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Plant tree/ })).toBeNull();      // the Administration tab itself needs asset.view
   });
 
   it('shows a clear state for an unknown loop, with the way back to the list', () => {

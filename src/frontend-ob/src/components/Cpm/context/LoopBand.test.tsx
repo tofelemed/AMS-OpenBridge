@@ -6,9 +6,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LoopBand } from './LoopBand';
 
-const LOOPS = [
+const LOOPS: Array<Record<string, unknown>> = [
   { loopId: 'FIC00701', displayName: 'Flow controller FIC00701 (FCS0102)', site: 'hdpe', area: 'section_200', unit: 'u1', loopType: 'FIC' },
   { loopId: 'TIC10101', displayName: 'Reactor temperature', site: 'hdpe', area: 'section_100', unit: 'u2', loopType: 'TIC' },
+  { loopId: 'OLD00001', displayName: 'Old loop', site: 'hdpe', area: 'section_200', unit: 'u2', loopType: 'FIC', isActive: false },
 ];
 vi.mock('../../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: { loops: LOOPS }, isLoading: false, isError: false, error: null, refetch: () => {} }) }));
 
@@ -39,7 +40,7 @@ describe('LoopBand', () => {
   it('lists only the loops in the header scope', () => {
     band('/cpm/loop?site=hdpe&area=section_100', { loopId: 'TIC10101' });
     fireEvent.click(screen.getByRole('button', { name: /^Loop: TIC10101/ }));
-    expect(screen.getByText('1 of 2 loop(s)')).toBeTruthy();
+    expect(screen.getByText('1 of 3 loop(s)')).toBeTruthy();
   });
 
   it('says so, readably, when the loop is outside the scope', () => {
@@ -68,5 +69,19 @@ describe('LoopBand', () => {
     const { container } = band('/cpm/loop', { children: <span>tab control</span>, end: <span>end control</span> });
     expect(screen.getByText('tab control')).toBeTruthy();
     expect(container.querySelector('.cpm-band__end')?.textContent).toBe('end control');
+  });
+
+  // CHG-153: a bookmark to a retired loop must not read as a running one
+  it('marks a retired loop Retired beside the control, and in the tree', () => {
+    band('/cpm/loop', { loopId: 'OLD00001' });
+    expect(screen.getAllByText('Retired')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: /^Loop: OLD00001/ }));
+    expect(screen.getAllByText('Retired')).toHaveLength(2);
+  });
+
+  it('marks nothing on a loop that runs', () => {
+    band('/cpm/loop');
+    fireEvent.click(control());
+    expect(screen.queryAllByText('Retired')).toHaveLength(1);   // only the retired loop in the tree
   });
 });

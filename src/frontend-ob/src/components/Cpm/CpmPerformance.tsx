@@ -10,6 +10,7 @@
  *
  * Every figure is real; where a metric has no model yet the tile says so.
  */
+import { usePipelineAccess } from './access';
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Toggletip } from '../../ui/Toggletip';
@@ -97,6 +98,7 @@ export const CpmPerformance: React.FC = () => {
   // A loop id is a route (cpa-ui-fix-plan Phase 2): the matrix loop cell and the
   // attention list open the loop hub; selection stays with the gate cells.
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   // The hub opens on the same fused window the matrix was showing (`?window=` is read by both).
   const openLoop = React.useCallback((loopId: string) => {
     navigate(explorerHref(loopId, { tab: 'Summary', kind: windowKind }));
@@ -207,10 +209,12 @@ export const CpmPerformance: React.FC = () => {
           {stale && windowAgeMs != null && newestWindow != null && (
             <p className="cpm-freshness cpm-freshness--stale" role="status">
               Stale · Newest fused window emitted {fmtAge(windowAgeMs)} ago ({fmtDateTime(new Date(newestWindow).toISOString())})
-              <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
-                onClick={() => navigate(pipelineHref())}>
-                Pipeline Health ↗
-              </ObcButton>
+              {canPipeline && (
+                <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
+                  onClick={() => navigate(pipelineHref())}>
+                  Pipeline Health ↗
+                </ObcButton>
+              )}
             </p>
           )}
         </div>

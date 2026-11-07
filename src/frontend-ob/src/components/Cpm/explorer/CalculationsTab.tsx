@@ -8,6 +8,7 @@
  * Gate words come from `GateBadge`, the same as the Summary tiles. The tab used to colour and word the same gate
  * from `codeLabel`, so a seen symptom read "Warning" here and "Symptom seen" there.
  */
+import { pipelineStep, usePipelineAccess } from '../access';
 import React, { Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -30,6 +31,7 @@ const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404
 /** `pageWindowKind`: the Explorer's fused window (CHG-089, 12h default); used when the engine serves it. */
 export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string }> = ({ loop, pageWindowKind = '12h' }) => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   const resolutions = useCpmResolutions();
   const firesOn = resolutions.data?.fusion.firesOn ?? ['12h', '24h'];
   const active = firesOn.includes(pageWindowKind) ? pageWindowKind : firesOn[0] ?? '12h';
@@ -50,7 +52,7 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
         // CHG-098 (SME review 2 #29): the next step when the verdict is overdue.
         <EmptyState level={2} title="No fused verdict yet"
           copy={`Fusion fires on ${firesOn.join(' / ')} windows; results appear once one has been evaluated. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue.`}
-          next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
+          next={pipelineStep(canPipeline, pipelineHref())} />
       )}
 
       {matrix && (

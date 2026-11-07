@@ -9,6 +9,7 @@
  * A named window opens that window or says it cannot, never the newest (CHG-140). The title is that window's own result.
  * A note on the loop is available with or without a verdict, and never changes the engine's result.
  */
+import { pipelineStep, usePipelineAccess } from './access';
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -58,6 +59,7 @@ const scrollToEvidence = () => document.getElementById('cpm-inv-evidence')?.scro
 
 export const CpmInvestigation: React.FC = () => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   const [params, setParams] = useSearchParams();
   const patch = (edit: (p: URLSearchParams) => void) => setParams(p => { edit(p); return p; }, { replace: true });
   const [dialog, setDialog] = useState<InvestigationDialog>(null);
@@ -178,7 +180,7 @@ export const CpmInvestigation: React.FC = () => {
             copy="Verdicts appear once the loop completes an evaluation window, or after a recompute. The loop's summary shows what it is still missing; Pipeline Health shows whether the analysis engine is running."
             next={[
               { label: 'Open the loop', to: explorerHref(loopId, { tab: 'Summary', kind: windowKind }) },
-              { label: 'Pipeline Health', to: pipelineHref() },
+              ...pipelineStep(canPipeline, pipelineHref()),
             ]} />
         </section>
       )}

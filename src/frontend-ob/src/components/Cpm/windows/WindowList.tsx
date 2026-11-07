@@ -3,6 +3,7 @@
  * section head), its samples over nominal with the ratio, and its count check. A declined window stays in the count check.
  * The bar above holds the sample-count filter, "n matching / m loaded" and Newer / Older.
  */
+import { sameInstant } from '../evidence/useWindowAt';
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmKpiRow } from '../../../api/cpmApi';
@@ -65,7 +66,7 @@ export const WindowList: React.FC<{
         const nominal = nominalOf(r);
         const received = typeof r.sample_count === 'number' ? r.sample_count : null;
         const check = received != null && nominal ? countCheck(received, nominal.value) : null;
-        const selected = r.window_end != null && r.window_end === selectedEnd;
+        const selected = sameInstant(r.window_end, selectedEnd);
         const pick = () => { if (r.window_end) onSelect(r.window_end); };
         return (
           <React.Fragment key={r.window_end ?? r.created_at}>

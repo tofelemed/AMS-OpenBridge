@@ -4,6 +4,7 @@
  * gate that judges it (Inspect Gn →) and where the number is proven, so every KPI keeps its drill-down. "Not measured in this
  * window" is said once, for the whole row of cards, not on each card.
  */
+import { pipelineStep, usePipelineAccess } from '../../access';
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CpmLoop } from '../../../../api/cpmApi';
@@ -20,6 +21,7 @@ const SIGNALS_OF: Record<string, string> = {
 };
 
 export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
+  const canPipeline = usePipelineAccess();
   const q = useLoopKpis(loop.loopId, windowKind);
   const [, setParams] = useSearchParams();
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({
       {/* CHG-098 (SME review 2 #29): what to try while there is no window. */}
       {k && !k.current && <EmptyState title="No evaluated window yet"
         copy="The KPIs appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
-        next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />}
+        next={pipelineStep(canPipeline, pipelineHref())} />}
       {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined */}
       {LOOP_KPI_GROUPS.map(gr => {
         const inGroup = cards.filter(c => c.group === gr.id);

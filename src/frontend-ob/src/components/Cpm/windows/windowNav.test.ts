@@ -10,6 +10,11 @@ const row = (end: string): CpmKpiRow =>
 const rows = [row('2026-09-13T12:00:00Z'), row('2026-09-13T11:45:00Z'), row('2026-09-13T11:30:00Z')];
 
 describe('resolveWindowView', () => {
+  it('reads the same instant in +00:00 and Z as one window (CHG-153)', () => {
+    const v = resolveWindowView(rows, '2026-09-13T11:45:00+00:00');
+    expect(v?.index).toBe(1);
+  });
+
   it('selects the newest row by default', () => {
     const v = resolveWindowView(rows, null);
     expect(v?.selected.window_end).toBe('2026-09-13T12:00:00Z');

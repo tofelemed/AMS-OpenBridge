@@ -74,4 +74,14 @@ describe('SelectedWindowPanel', () => {
     expect(screen.queryByText('No window selected')).toBeNull();
     expect(document.body.textContent).not.toContain('newest evaluated window');
   });
+
+  // CHG-153: a no-fault window is a result; only an excluded, short or unevaluated window has no verdict
+  it('does not say a no-fault window has no verdict', () => {
+    show({ window: { ...win, diagnosis: 'NO_CALL', confidence: null } });
+    expect(screen.queryByText('No verdict in this window')).toBeNull();
+    expect(screen.getByText('Not stored')).toBeTruthy();
+    cleanup();
+    show({ window: { ...win, diagnosis: 'INSUFFICIENT_DATA', confidence: null } });
+    expect(screen.getByText('No verdict in this window')).toBeTruthy();
+  });
 });

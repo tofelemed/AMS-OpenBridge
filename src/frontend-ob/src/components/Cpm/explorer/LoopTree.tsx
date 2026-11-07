@@ -20,7 +20,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import { TextInput } from '../../../ui/forms/TextInput';
 import type { CpmLoop } from '../../../api/cpmApi';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { EmptyState, QueryError } from '../shared';
+import { EmptyState, QueryError, TonePill } from '../shared';
 import { loopMatchesQuery } from '../plantScope';
 
 /**
@@ -131,6 +131,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
                 >
                   <strong>{l.loopId}</strong>
                   <span className="cpm-event-row__sub">{serviceName(l)}</span>
+                  {l.isActive === false && <TonePill tone="muted">Retired</TonePill>}
                 </button>
               ))}
             </div>

@@ -4,6 +4,7 @@
  * among the rows (not loaded yet, or hidden by the filter) selects nothing: the URL never names one window while the
  * panel shows another.
  */
+import { sameInstant } from '../evidence/useWindowAt';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { historicalHref, replayHref } from '../cpaHref';
 import { workbenchHref } from '../evidence/selection';
@@ -21,7 +22,7 @@ export interface WindowView {
 
 export function resolveWindowView(rows: CpmKpiRow[], selectedEnd: string | null): WindowView | null {
   if (rows.length === 0) return null;
-  const index = selectedEnd ? rows.findIndex(r => r.window_end === selectedEnd) : 0;
+  const index = selectedEnd ? rows.findIndex(r => sameInstant(r.window_end, selectedEnd)) : 0;
   if (index < 0) return null;
   return {
     selected: rows[index],

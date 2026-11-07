@@ -6,6 +6,7 @@
  * (good_error_pct, auto_pct, mae, saturation_pct), so an older window shows its values too. Both read as one
  * `HistoryWindow`, oldest first; a window that exists as a full row is never listed twice.
  */
+import { instantMs } from '../evidence/useWindowAt';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getWindowSummaries, type CpmGateMatrix, type CpmWindowSummary } from '../../../api/cpm/gates';
@@ -51,10 +52,12 @@ export const fromSummary = (s: CpmWindowSummary): HistoryWindow => ({
 
 /** Oldest first, full rows winning over a summary of the same window. */
 export function mergeWindows(full: CpmGateMatrix[], summaries: CpmWindowSummary[]): HistoryWindow[] {
-  const byEnd = new Map<string, HistoryWindow>();
-  for (const s of summaries) byEnd.set(s.windowEnd, fromSummary(s));
-  for (const m of full) { const w = fromFullRow(m); if (w) byEnd.set(w.windowEnd, w); }
-  return [...byEnd.values()].sort((a, b) => a.windowEnd.localeCompare(b.windowEnd));
+  // keyed by the instant: "Z" and "+00:00" spell one window
+  const key = (end: string) => { const ms = instantMs(end); return Number.isFinite(ms) ? ms : end; };
+  const byEnd = new Map<number | string, HistoryWindow>();
+  for (const s of summaries) byEnd.set(key(s.windowEnd), fromSummary(s));
+  for (const m of full) { const w = fromFullRow(m); if (w) byEnd.set(key(w.windowEnd), w); }
+  return [...byEnd.values()].sort((a, b) => (instantMs(a.windowEnd) || 0) - (instantMs(b.windowEnd) || 0));
 }
 
 export function useWindowKpis(loopId: string | undefined, kind: string, from: Date, to: Date) {

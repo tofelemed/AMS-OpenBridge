@@ -6,6 +6,7 @@
  * already loaded window; the rolling refetch keeps the zoom (it lives in the
  * option) and the bar says the viewport is held while zoomed.
  */
+import { pipelineStep, usePipelineAccess } from '../access';
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -26,6 +27,7 @@ export const LoopFocus: React.FC<{
   windowKind?: string;
 }> = ({ loopId, displayName, windowKind }) => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   // The historian device for a loop follows the Phase 3 convention.
   const series = loopSeries(loopId);
   // Rolling, not anchored-at-mount: this panel sits on an overview screen that is
@@ -80,7 +82,7 @@ export const LoopFocus: React.FC<{
           copy={`No PV / SP / OP samples were stored for this loop in the last 8 h. Check its signal mapping in the Loop Registry; if every loop is empty, check Pipeline Health. (Historian series: ${series})`}
           next={[
             { label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) },
-            { label: 'Pipeline Health', to: pipelineHref() },
+            ...pipelineStep(canPipeline, pipelineHref()),
           ]} />
       )}
       {points.length > 0 && <SignalTrend loopId={loopId} points={points} height={260} live />}

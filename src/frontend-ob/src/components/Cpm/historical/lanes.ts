@@ -7,6 +7,7 @@
  * most one 15 minute step), so neighbours never overlap and a silence stays a silence. The selected window keeps
  * its whole span, which the chart shades on the signal lane.
  */
+import { sameInstant } from '../evidence/useWindowAt';
 import { classifyMode, diagnosisBand } from '../shared';
 import { bandOf, diagnosisLabel } from '../vocabulary';
 import type { Segment } from './chartOption';
@@ -47,7 +48,7 @@ export function resultMarkers(
       label, detail: detail !== label ? detail : undefined, windowEnd: r.windowEnd,
     });
   });
-  const pick = selectedEnd ? dated.find(d => d.r.windowEnd === selectedEnd)?.r : undefined;
+  const pick = selectedEnd ? dated.find(d => sameInstant(d.r.windowEnd, selectedEnd))?.r : undefined;
   const startMs = pick?.windowStart ? Date.parse(pick.windowStart) : NaN;
   const endMs = pick?.windowEnd ? Date.parse(pick.windowEnd) : NaN;
   return { markers, selected: Number.isFinite(startMs) && Number.isFinite(endMs) ? { startMs, endMs } : null };

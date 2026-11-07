@@ -165,6 +165,18 @@ describe('Window Inspector', () => {
     expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
   });
 
+  // CHG-153: the same instant written "+00:00" (fleet and summary rows) and "Z" (KPI rows) is one window.
+  it('finds a window named with +00:00 among rows written with Z, selected and filtered alike', () => {
+    const named = encodeURIComponent('2026-11-04T13:35:00+00:00');
+    mount(`?loop=FIC10401&profile=15m&window=${named}`);
+    expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
+    cleanup();
+    mount(`?loop=FIC10401&profile=15m&window=${named}`);
+    fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
+    expect(screen.getByText('This window is hidden by the Sample count filter.')).toBeTruthy();
+    expect(screen.queryByText('This window is not in the loaded list.')).toBeNull();
+  });
+
   it('shows No window matches this filter, with Clear filter and Load older', () => {
     kpis.hasNext = true;
     kpis.rows = [row(NEWEST), row(MID)];

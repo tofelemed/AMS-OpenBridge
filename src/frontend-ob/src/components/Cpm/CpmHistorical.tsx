@@ -8,6 +8,7 @@
  * linked crosshair and a zoom slider. Under it, the evaluated windows on the left and the selected window on the right;
  * the list and the Result lane both write the same `?window=` (the window END).
  */
+import { sameInstant } from './evidence/useWindowAt';
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
@@ -107,7 +108,7 @@ export const CpmHistorical: React.FC = () => {
   const selectedWindowEnd = params.get('window');
   // CHG-140: a window named in the address is that window or is not found, never the newest in its place
   const { window: selectedWindow, notFound: windowFellBack } = selectedWindowOf(windows, selectedWindowEnd);
-  const selectedFull = full.find(w => w.windowEnd === selectedWindow?.windowEnd);
+  const selectedFull = full.find(w => sameInstant(w.windowEnd, selectedWindow?.windowEnd));
 
   // ── Lane segments, from real instants.
   const modeSegments = useMemo(() => modeSegmentsOf(modeTrack.data?.points ?? [], to.getTime()), [modeTrack.data, to]);

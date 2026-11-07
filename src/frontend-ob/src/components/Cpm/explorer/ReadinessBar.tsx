@@ -6,6 +6,8 @@
  * limitations" disclosure (it is a limitation of the diagnosis), so the trend follows the summary directly;
  * a blocking bar stays above the tabs, where it explains why there is no verdict.
  */
+import { usePipelineAccess } from '../access';
+import { pipelineHref } from '../cpaHref';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TonePill } from '../shared';
@@ -23,6 +25,7 @@ export function readinessLine(summary: ReadinessSummary): string {
 
 export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: ExplorerTab) => void }> = ({ summary, onTab }) => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   const [open, setOpen] = React.useState(false);
   return (
     <div className={`cpm-causes${summary.blocking > 0 ? ' cpm-causes--blocking' : ' cpm-causes--limits'}`}>
@@ -52,7 +55,7 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
                 <strong>{c.label}</strong>
                 {c.message && <span className="cpm-event-row__sub">{c.message}</span>}
               </span>
-              {c.target && (
+              {c.target && !(c.target.kind === 'route' && c.target.href === pipelineHref() && !canPipeline) && (
                 <button
                   type="button"
                   className="cpm-causes__action"

@@ -1215,3 +1215,18 @@ None.
 | Overview | Operations overview | Overview |
 | Loop Events | Loop events | Loop Events |
 | Loop Explorer | Loop explorer | Loop Explorer |
+
+## CHG-153 final review fixes
+
+| Where | Was | Now |
+|---|---|---|
+| Evidence Workbench, link for a 15m, 5m, 1m or 4h run | Back to Investigation ↗ (opened a 12h window) | Back to Window Inspector ↗ (opens that kind and end) |
+| Evidence Workbench, Evidence Replay for a 15m, 5m, 1m or 4h run | Evidence Replay ↗ (opened a 12h window) | Evidence Replay ↗ disabled, reason: Replay holds 12 h and 24 h windows |
+| Evidence Replay, address names a kind other than 12h or 24h | showed the 12h window | Title: Replay holds 12 h and 24 h windows. Copy: Replay cannot open a {kind} window. Open it in the Window Inspector, or replay a 12 h or 24 h window. Actions: Replay 12 h windows; Window Inspector |
+| Loop band, loop picker | no mark for a retired loop | Retired pill beside the loop and beside it in the list |
+| Historical, Selected window, Evidence score of a no-fault window | No verdict in this window | Not stored |
+
+| Control | Now on |
+|---|---|
+| Pipeline Health links (Investigation, Replay, Performance, Explorer Summary, Calculations, Loop KPIs, Readiness causes, Overview loop focus, Next checks, Case triage) | shown only with system.manage |
+| Plant tree ↗ (Loop Registry detail) | shown only with asset.view and an administration permission |

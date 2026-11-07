@@ -14,6 +14,7 @@ import { serviceName } from '../loopName';
 import { useCpmScope } from '../plantScope';
 import { useStickyOffset } from './LoopContextBar';
 import { registryHref } from '../cpaHref';
+import { TonePill } from '../shared';
 
 export const LoopBand: React.FC<{
   loopId: string | null | undefined;
@@ -70,6 +71,7 @@ export const LoopBand: React.FC<{
             </div>
           )}
         </Popover>
+        {loop && loop.isActive === false && <TonePill tone="muted">Retired</TonePill>}
         {children}
         {end && <div className="cpm-band__end">{end}</div>}
       </div>

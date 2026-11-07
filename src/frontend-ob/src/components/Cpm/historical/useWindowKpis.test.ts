@@ -23,4 +23,10 @@ describe('mergeWindows', () => {
     expect(merged[1].calculation).toBe('v7 · profile v3');
     expect(merged[0].metrics?.good_error_pct).toBe(0.9);         // an older window keeps its value
   });
+
+  it('counts +00:00 and Z spellings of one instant as one window (CHG-153)', () => {
+    const merged = mergeWindows([full('2026-11-05T00:00:00Z')], [summary('2026-11-05T00:00:00+00:00', {})]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].calculation).toBe('v7 · profile v3');
+  });
 });

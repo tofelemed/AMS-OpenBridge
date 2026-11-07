@@ -6,6 +6,7 @@
  * a dialog from "Loop model & setup →". A KPI card or a gate tile (`?gate=`, replace) opens its dialog; the gate's evidence is
  * fetched lazily, only then. The result, its window and Review evidence → are in the band above the tabs.
  */
+import { pipelineStep, usePipelineAccess } from '../access';
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -29,6 +30,7 @@ const isNoVerdictYet = (e: unknown) => e instanceof ApiError && e.status === 404
 
 /** `windowKind` is `?window=` as the Explorer reads it; the strip and the workspace verdict pill share its query key. */
 export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string; onTab: (t: ExplorerTab) => void }> = ({ loop, windowKind, onTab }) => {
+  const canPipeline = usePipelineAccess();
   const [params, setParams] = useSearchParams();
   const gates = useLatestGates(loop.loopId, windowKind);
   const matrix = gates.data;
@@ -62,7 +64,7 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string; onTab: (t
           // CHG-098 (SME review 2 #29): what to try while there is no verdict.
           <EmptyState title="No fused verdict yet"
             copy="Gate outcomes appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
-            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
+            next={pipelineStep(canPipeline, pipelineHref())} />
         )}
         {cells.length > 0 && (
           <SummaryGateStrip cells={cells} inputFlags={flags} selected={selectedGate} onSelect={selectGate} />

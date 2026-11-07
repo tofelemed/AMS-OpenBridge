@@ -53,7 +53,7 @@ function excludedChecks(matrix: CpmGateMatrix, historical: CheckAction): NextChe
   ];
 }
 
-export function nextChecks(matrix: CpmGateMatrix, opts: { loopId: string; windowKind: string }): NextCheck[] {
+export function nextChecks(matrix: CpmGateMatrix, opts: { loopId: string; windowKind: string; /** The user may open Pipeline Health. */ canPipeline?: boolean }): NextCheck[] {
   const { loopId, windowKind } = opts;
   const historical: CheckAction = {
     kind: 'link',
@@ -76,7 +76,7 @@ export function nextChecks(matrix: CpmGateMatrix, opts: { loopId: string; window
     ];
     case 'not-evaluated': return [
       { label: 'Check what the loop is still missing', link: 'Loop Explorer ↗', action: { kind: 'link', to: explorerHref(loopId, { tab: 'Summary', kind: windowKind }) } },
-      { label: 'Check that the analysis engine is running', link: 'Pipeline Health ↗', action: { kind: 'link', to: pipelineHref() } },
+      ...(opts.canPipeline ? [{ label: 'Check that the analysis engine is running', link: 'Pipeline Health ↗', action: { kind: 'link' as const, to: pipelineHref() } }] : []),
     ];
     default: return [
       SIGNALS,

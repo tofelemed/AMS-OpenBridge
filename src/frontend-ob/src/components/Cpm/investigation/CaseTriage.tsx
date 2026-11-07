@@ -2,6 +2,7 @@
  * The Investigation page's analysis case, under More in the loop band (CHG-141). Cases come from the fleet's served verdicts
  * (`cases.ts`). A case narrows the loop control's list. The window choice and 12h / 24h moved out of here: the page holds them.
  */
+import { pipelineStep, usePipelineAccess } from '../access';
 import React from 'react';
 import type { useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../shared';
@@ -37,13 +38,16 @@ export const CaseAnnouncement: React.FC<{ caseFilter: string | null; windowKind:
 );
 
 /** No verdict to triage in this scope: says why, and offers the way out. */
-export const NoEvaluatedLoops: React.FC<{ scope: ReturnType<typeof useCpmScope> }> = ({ scope }) => (
+export const NoEvaluatedLoops: React.FC<{ scope: ReturnType<typeof useCpmScope> }> = ({ scope }) => {
+  const canPipeline = usePipelineAccess();
+  return (
   <section className="cpm-surface">
     <EmptyState level={2} title="No evaluated loops yet"
       copy={scope.active
         ? 'No loop in the selected plant scope has a fused verdict yet — the scope may be too narrow, or its loops have not completed a 12 h / 24 h window.'
         : 'No loop has completed a 12 h / 24 h evaluation window yet. Pipeline Health shows whether the analysis jobs are running.'}
       action={scope.active ? { label: 'Clear the plant scope', onClick: () => scope.set({ site: '' }) } : undefined}
-      next={scope.active ? undefined : [{ label: 'Pipeline Health', to: '/cpm/pipeline' }]} />
+      next={scope.active ? undefined : pipelineStep(canPipeline, '/cpm/pipeline')} />
   </section>
-);
+  );
+};

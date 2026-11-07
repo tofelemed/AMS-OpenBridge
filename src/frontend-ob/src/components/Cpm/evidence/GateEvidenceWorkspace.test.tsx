@@ -80,7 +80,7 @@ function renderAt(search: string) {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[`/cpm/evidence${search}`]}>
-        <Routes><Route path="/cpm/evidence" element={<><GateEvidenceWorkspace /><LocationProbe /></>} /></Routes>
+        <Routes><Route path="/cpm/evidence" element={<><GateEvidenceWorkspace /><LocationProbe /></>} /><Route path="*" element={<LocationProbe />} /></Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -187,6 +187,26 @@ describe('GateEvidenceWorkspace', () => {
       await vi.advanceTimersByTimeAsync(10_500);
       expect(manifestGets()).toBeGreaterThan(afterAccept + 1); // and keeps firing while nothing arrived
     } finally { vi.useRealTimers(); }
+  });
+
+  // CHG-153 final review: the links out of the Workbench name the run's own window and kind.
+  it('a 5m run goes back to the Window Inspector on its own window, and offers no Replay', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    const back = screen.getByRole('button', { name: /^Back to / });
+    expect(back.textContent).toBe('Back to Window Inspector ↗');
+    fireEvent.click(back);
+    const where = decodeURIComponent(screen.getByTestId('loc').textContent ?? '');
+    expect(where).toContain('/cpm/windows');
+    expect(where).toContain('profile=5m');
+    expect(where).toContain(`window=${new Date(1789586700000).toISOString()}`);
+  });
+
+  it('a 5m run shows Evidence Replay disabled with its reason', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    expect((screen.getByRole('button', { name: /Evidence Replay/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Replay holds 12 h and 24 h windows')).toBeTruthy();
   });
 
   it('parses and re-encodes the selection so the URL is the source of truth', () => {

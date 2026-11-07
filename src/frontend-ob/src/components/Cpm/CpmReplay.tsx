@@ -7,6 +7,7 @@
  * Re-run sends the exact window as a new run (RerunCard); Evidence package and Run details are dialogs. The engineer note
  * is stored on the loop (LoopNotes).
  */
+import { pipelineStep, usePipelineAccess } from './access';
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import WindowKindToggle from './explorer/summary/WindowKindToggle';
@@ -14,7 +15,8 @@ import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, WorkspaceHeader, QueryError } from './shared';
 import { LoopBand } from './context/LoopBand';
-import { pipelineHref, registryHref } from './cpaHref';
+import { pipelineHref, registryHref, windowsHref } from './cpaHref';
+import { REPLAY_UNAVAILABLE } from './evidence/runLinks';
 import type { CpmGateMatrix, CpmKpiRow } from '../../api/cpmApi';
 import { gateRole } from '../../api/cpm/catalogue';
 import {
@@ -32,7 +34,7 @@ import { ReasonedButton } from './ReasonedButton';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
 import { EvidenceMore, EvidenceWindowSelect } from './evidence/EvidenceToolbar';
 import { workbenchHref } from './evidence/selection';
-import { useWindowAt } from './evidence/useWindowAt';
+import { sameInstant, useWindowAt } from './evidence/useWindowAt';
 import { fmtInstant } from './context/LoopContextBar';
 import { WindowResultSelect } from './replay/WindowResultSelect';
 import { RerunCard } from './replay/RerunCard';
@@ -44,6 +46,7 @@ const SHAPE_GATES = new Set(['G7', 'G8', 'G9', 'G10']);
 
 export const CpmReplay: React.FC = () => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   const [params, setParams] = useSearchParams();
   // CHG-089: the fused window kind (?kind= as replayHref writes it; 12h default)
   const [windowKind] = useWindowKind('kind');
@@ -75,7 +78,7 @@ export const CpmReplay: React.FC = () => {
     selected?.windowStart ?? undefined,
     selected?.windowEnd ?? undefined, 10,
     !!selected?.windowStart,
-  ).data?.samples.find(r => r.window_end === selected?.windowEnd);
+  ).data?.samples.find(r => sameInstant(r.window_end, selected?.windowEnd));
 
   // Raw slice for the selected window, walked page by page (each below IoTDB's REST row limit) until the window is
   // complete or the 200k-point budget is reached - and a cut is SAID, never implied. Mode comes with it; a blank reads Not recorded.
@@ -116,6 +119,22 @@ export const CpmReplay: React.FC = () => {
       <ObcButton variant="flat" onClick={() => void calc.refetch()}>Retry</ObcButton>
     </span>
   );
+
+  // A link may name a kind Replay does not hold (15m, 4h): say so, never show the 12h window in its place.
+  const askedKind = params.get('kind');
+  if (askedKind && !(WINDOW_KINDS as readonly string[]).includes(askedKind)) {
+    return (
+      <div className="cpm-screen">
+        <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Replay" />
+        <section className="cpm-surface">
+          <EmptyState title={REPLAY_UNAVAILABLE}
+            copy={`Replay cannot open a ${askedKind} window. Open it in the Window Inspector, or replay a 12 h or 24 h window.`}
+            action={{ label: 'Replay 12 h windows', onClick: () => setParams(p => { p.set('kind', '12h'); dropWindow(p); return p; }, { replace: true }) }}
+            next={loopId ? [{ label: 'Window Inspector', to: windowsHref(loopId, { profile: askedKind }) }] : undefined} />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="cpm-screen">
@@ -180,7 +199,7 @@ export const CpmReplay: React.FC = () => {
         <section className="cpm-surface">
           <EmptyState title={`No evaluated ${windowKind} windows for this loop`}
             copy="Replay needs a stored result for a completed evaluation window, and this loop has none of this size yet. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a window is overdue."
-            next={[{ label: 'Pipeline Health', to: pipelineHref() }]} />
+            next={pipelineStep(canPipeline, pipelineHref())} />
         </section>
       )}
 

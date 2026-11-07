@@ -6,6 +6,7 @@
  * its ?. Samples and the calculation version sit behind Technical details. A KPI the window never stored reads
  * "Not stored", never 0; a window without a run says why it cannot be reviewed.
  */
+import { conditionOf, isJudged } from '../explorer/summary/summaryText';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -114,7 +115,7 @@ export const SelectedWindowPanel: React.FC<{
           </div>
 
           <KvRow label="Evidence score">
-            {score != null ? score : <span className="cpm-hist-missing">{hasVerdict(win.diagnosis) ? 'Not stored' : 'No verdict in this window'}</span>}
+            {score != null ? score : <span className="cpm-hist-missing">{isJudged(conditionOf(win.diagnosis).kind) ? 'Not stored' : 'No verdict in this window'}</span>}
             <Toggletip variant="how-to" label="About score"><p>{EVIDENCE_SCORE_HELP}</p></Toggletip>
           </KvRow>
 

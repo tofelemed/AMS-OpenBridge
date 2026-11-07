@@ -2,6 +2,7 @@
  * CHG-141: what to look at next on this window. Links only: a tick could not be saved. `nextChecks.ts` chooses them by
  * what the window is; this runs them.
  */
+import { usePipelineAccess } from '../access';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -19,6 +20,7 @@ export const NextChecks: React.FC<{
   onDialog: (dialog: InvestigationDialog) => void;
 }> = ({ matrix, loopId, windowKind, onSignals, onGate, onDialog }) => {
   const navigate = useNavigate();
+  const canPipeline = usePipelineAccess();
   const run = (action: CheckAction) => {
     switch (action.kind) {
       case 'link': navigate(action.to); break;
@@ -31,7 +33,7 @@ export const NextChecks: React.FC<{
     <section className="cpm-surface" aria-label="Next checks">
       <PanelHead title="Next checks" />
       <ul className="cpm-inv-checks">
-        {nextChecks(matrix, { loopId, windowKind }).map(c => (
+        {nextChecks(matrix, { loopId, windowKind, canPipeline }).map(c => (
           <li key={c.label}>
             <span>{c.label}</span>
             <ObcButton variant="flat" onClick={() => run(c.action)}>{c.link}</ObcButton>

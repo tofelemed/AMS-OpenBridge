@@ -7,7 +7,7 @@ import { nextChecks } from './nextChecks';
 const END = '2026-11-05T10:15:00Z';
 const START = '2026-11-04T22:15:00Z';
 const cell = (key: string, status: string): CpmGateCell => ({ key, name: key, tier: 'short', status, reason: null });
-const opts = { loopId: 'FIC10401', windowKind: '12h' };
+const opts = { loopId: 'FIC10401', windowKind: '12h', canPipeline: true };
 const links = (m: ReturnType<typeof row>) => nextChecks(m, opts).map(c => c.link);
 
 describe('nextChecks', () => {

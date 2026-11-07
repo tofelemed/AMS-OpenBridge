@@ -137,3 +137,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Governance verify action | Verify cryptographic chain | Verify audit chain | Governance | CHG-152 |
 | Audit event before and after | none | Before and after values: Not available | Audit event dialog | CHG-152 |
 | Page title | Pipeline health; System response; Operations overview; Loop events; Loop explorer | The sidebar label: Pipeline Health; System Response; Overview; Loop Events; Loop Explorer | Five pages | CHG-152 |
+| Back link of a short or long run in the Workbench | Back to Window Inspector ↗ | Evidence Workbench | CHG-153 |
+| Replay refusal | Replay holds 12 h and 24 h windows | Evidence Workbench, Evidence Replay | CHG-153 |
+| Retired loop | Retired (the pill Loop Registry uses) | Loop band, loop list | CHG-153 |
+| No-fault window without a score | Not stored | Historical, Selected window | CHG-153 |
