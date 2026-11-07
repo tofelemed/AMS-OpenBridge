@@ -212,7 +212,7 @@ describe('GateEvidenceWorkspace', () => {
     const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
     await waitFor(() => expect(within(rail).getByRole('button', { name: /^G15 / }).getAttribute('aria-current')).toBe('true'));
     expect(screen.queryByRole('button', { name: /^Gate: G15/ })).toBeNull();   // the dropdown is gone
-    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Pass: Data quality/ }));
+    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Data quality: Pass/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('methodRun=g0-run&gate=G0'));
   });
 
@@ -220,7 +220,7 @@ describe('GateEvidenceWorkspace', () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15&sub=rules`);
     const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
     expect(screen.getByRole('tab', { name: 'Rules & parameters' }).getAttribute('aria-selected')).toBe('true');
-    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Pass: Data quality/ }));
+    fireEvent.click(within(rail).getByRole('button', { name: /^G0 Data quality: Pass/ }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('gate=G0'));
     expect(screen.getByTestId('loc').textContent).toContain('sub=rules');
     expect(screen.getByRole('tab', { name: 'Rules & parameters' }).getAttribute('aria-selected')).toBe('true');

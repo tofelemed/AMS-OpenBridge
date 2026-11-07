@@ -64,7 +64,7 @@ export const GateRail: React.FC<GateRailProps> = ({ chips, selected, onSelect })
                   className={`cpm-rail__gate cpm-matrix__cell--${c.glyph.tone}${isSelected ? ' cpm-rail__gate--selected' : ''}`}
                   data-gate={c.gate}
                   aria-current={isSelected ? 'true' : undefined}
-                  aria-label={`${c.gate} ${c.glyph.word}: ${c.name}, ${c.glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
+                  aria-label={`${c.gate} ${c.name}: ${c.glyph.word}, ${c.glyph.label}${c.reason ? `, ${phrase(c.reason)}` : ''}`}
                   title={c.methodRunId ? `${c.name} — ${c.glyph.word}${c.reason ? ` · ${phrase(c.reason)}` : ''}` : `${c.name} — no run on this tier for ${c.gate}`}
                   disabled={!c.methodRunId}
                   tabIndex={c.gate === cursor ? 0 : -1}
