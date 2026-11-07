@@ -23,3 +23,7 @@ export const eventTone = (t: string): 'good' | 'warn' | 'bad' | 'muted' => {
 
 /** The one entity type whose id is a loop in the registry. */
 export const LOOP_ENTITY = 'CpmLoop';
+
+/** A single loop's id. Bulk events carry `bulk:N`, a count, which names no loop. */
+export const isSingleLoop = (entityType: string, entityId: string): boolean =>
+  entityType === LOOP_ENTITY && !entityId.startsWith('bulk:');

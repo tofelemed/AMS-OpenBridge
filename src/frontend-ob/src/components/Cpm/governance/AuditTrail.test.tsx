@@ -120,6 +120,19 @@ describe('the one audit trail', () => {
     expect(lastQuery()).toEqual(asked.mock.calls[before - 1][0]);
   });
 
+  it('a bulk row does not look up the registry', () => {
+    answer = events([row({ entityId: 'bulk:5', eventType: 'CPM_LOOPS_BULK_RETIRED' })]);
+    render(<AuditTrail />);
+    fireEvent.click(screen.getAllByRole('button', { name: /2026|04/ })[0]);
+    expect(screen.queryByText(/not in the loop registry/)).toBeNull();
+  });
+
+  it('shows no foot line with zero rows', () => {
+    answer = events([]);
+    render(<AuditTrail />);
+    expect(screen.queryByText(/times in/)).toBeNull();
+  });
+
   it('says which empty it is', () => {
     answer = events([]);
     render(<AuditTrail />);

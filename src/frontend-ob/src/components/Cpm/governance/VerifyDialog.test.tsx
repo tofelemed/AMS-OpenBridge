@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { VerifyDialog } from './VerifyDialog';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -20,6 +20,14 @@ describe('verify dialog', () => {
     expect(screen.getByText('Hash chain verified.')).toBeTruthy();
     expect(screen.queryByText(/CHAIN OK/)).toBeNull();
     expect(screen.getByText(/range, entry count and algorithm are not served/i)).toBeTruthy();
+  });
+
+  it('shows when the answer was produced, and Run again re-runs it', () => {
+    const again = vi.fn();
+    render(<VerifyDialog verify={state({ isSuccess: true, data: 'ok' })} ranAt={new Date('2026-11-07T10:00:00Z')} onRunAgain={again} onClose={() => {}} />);
+    expect(screen.getByText(/Run at/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Run again'));
+    expect(again).toHaveBeenCalled();
   });
 
   it('shows a failure with its meaning', () => {

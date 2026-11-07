@@ -22,7 +22,7 @@ import { usePagedSlice } from '../../shared/ListPager';
 import { activeZone } from '../../../cpa/activeZone';
 import { EmptyState, QueryError, TonePill, fmtDateTime } from '../shared';
 import { AuditEventDialog } from './AuditEventDialog';
-import { LOOP_ENTITY, auditLabel, entityLabel, eventTone } from './auditLabels';
+import { auditLabel, entityLabel, eventTone, isSingleLoop } from './auditLabels';
 
 export { auditLabel };
 
@@ -152,7 +152,7 @@ export const AuditTrail: React.FC = () => {
           </table>
         </div>
       )}
-      {audit.data && (
+      {audit.data && audit.data.events.length > 0 && (
         <div className="cpm-pager">
           {pageCount > 1 && (
             <span title={safePage === 0 ? 'Already on the first page' : undefined}>
@@ -174,9 +174,9 @@ export const AuditTrail: React.FC = () => {
           )}
         </div>
       )}
-      {opened && (opened.entityType === LOOP_ENTITY
+      {opened && (isSingleLoop(opened.entityType, opened.entityId)
         ? <OpenedEvent event={opened} onClose={() => setOpened(null)} />
-        : <AuditEventDialog event={opened} loopIds={[]} onClose={() => setOpened(null)} />)}
+        : <AuditEventDialog event={opened} loopIds={undefined} onClose={() => setOpened(null)} />)}
     </section>
   );
 };

@@ -46,6 +46,34 @@ describe('audit event dialog', () => {
     expect(screen.queryByText(/not in the loop registry/)).toBeNull();
   });
 
+  it('a bulk event is not one loop: no registry claim, no link', () => {
+    render(<AuditEventDialog event={event({ entityId: 'bulk:5', eventType: 'CPM_LOOPS_BULK_RETIRED' })} loopIds={['FIC00701']} onClose={() => {}} />);
+    expect(screen.queryByText(/not in the loop registry/)).toBeNull();
+    expect(screen.queryByText('Open loop ↗')).toBeNull();
+  });
+
+  it('a retired loop is in the registry and still links', () => {
+    render(<AuditEventDialog event={event({ entityId: 'OLD1', eventType: 'CPM_LOOP_DELETED' })} loopIds={['OLD1']} onClose={() => {}} />);
+    fireEvent.click(screen.getByText('Open loop ↗'));
+    expect(go).toHaveBeenCalledWith('/cpm/registry?loop=OLD1');
+  });
+
+  it('says Not recorded for an empty actor and Not available for no correlation', () => {
+    render(<AuditEventDialog event={event({ userId: '', correlationId: null })} loopIds={[]} onClose={() => {}} />);
+    expect(screen.getByText('Actor').nextElementSibling?.textContent).toBe('Not recorded');
+    expect(screen.getByText('Correlation').nextElementSibling?.textContent).toBe('Not available');
+  });
+
+  it('copies the hash and the correlation id', async () => {
+    const write = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: write } });
+    render(<AuditEventDialog event={event()} loopIds={[]} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Hash' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Correlation' }));
+    expect(write).toHaveBeenCalledWith('abcdef0123456789ffff');
+    expect(write).toHaveBeenCalledWith('c-71af');
+  });
+
   it('does not claim the loop is missing while the registry has not loaded', () => {
     render(<AuditEventDialog event={event()} loopIds={undefined} onClose={() => {}} />);
     expect(screen.queryByText(/not in the loop registry/)).toBeNull();

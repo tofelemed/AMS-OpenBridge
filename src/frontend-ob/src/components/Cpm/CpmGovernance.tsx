@@ -124,6 +124,10 @@ export const CpmGovernance: React.FC = () => {
   const canAudit = useAuthStore(s => s.hasPermission('admin.audit.view'));
   const verify = useVerifyAuditChain();
   const [verifying, setVerifying] = useState(false);
+  const [ranAt, setRanAt] = useState<Date | null>(null);
+  const run = () => verify.mutate(undefined, { onSettled: () => setRanAt(new Date()) });
+  // Once an answer exists the button shows it. Only Run again in the dialog asks the service again.
+  const hasAnswer = verify.isSuccess || verify.isError;
   return (
     <div className="cpm-screen">
       <WorkspaceHeader
@@ -133,7 +137,7 @@ export const CpmGovernance: React.FC = () => {
         actions={
           <ReasonedButton variant="normal" disabled={!canAudit || verify.isPending}
             reason={!canAudit ? 'Needs the admin.audit.view permission' : null}
-            onClick={() => { verify.mutate(); setVerifying(true); }}>
+            onClick={() => { if (!hasAnswer) run(); setVerifying(true); }}>
             Verify audit chain
           </ReasonedButton>
         }
@@ -141,7 +145,7 @@ export const CpmGovernance: React.FC = () => {
       <AuditTrail />
       <AuditIntegrity verify={verify} />
       {canGovern && <GovernancePanels />}
-      {verifying && <VerifyDialog verify={verify} onClose={() => setVerifying(false)} />}
+      {verifying && <VerifyDialog verify={verify} ranAt={ranAt} onRunAgain={run} onClose={() => setVerifying(false)} />}
     </div>
   );
 };

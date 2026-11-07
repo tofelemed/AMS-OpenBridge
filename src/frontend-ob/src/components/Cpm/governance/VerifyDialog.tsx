@@ -7,17 +7,23 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { useVerifyAuditChain } from '../../../hooks/useAudit';
 import { Dialog } from '../../../ui/Dialog';
 import { Toggletip } from '../../../ui/Toggletip';
-import { PanelHead, TonePill } from '../shared';
+import { PanelHead, TonePill, fmtDateTime } from '../shared';
 
 export type VerifyState = ReturnType<typeof useVerifyAuditChain>;
 
 export const NOT_SERVED_NOTE = 'The chain range, entry count and algorithm are not served, so this answer cannot be checked here.';
 
-export const VerifyDialog: React.FC<{ verify: VerifyState; onClose: () => void }> = ({ verify, onClose }) => (
+export const VerifyDialog: React.FC<{
+  verify: VerifyState; ranAt?: Date | null; onRunAgain?: () => void; onClose: () => void;
+}> = ({ verify, ranAt, onRunAgain, onClose }) => (
   <Dialog open title="Verify audit chain" onClose={onClose}
-    footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
+    footer={<>
+      {onRunAgain && <ObcButton variant="flat" disabled={verify.isPending} onClick={onRunAgain}>Run again</ObcButton>}
+      <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>
+    </>}>
     <div role="status">
       {verify.isPending && <p>Walking the full chain…</p>}
+      {ranAt && !verify.isPending && <p className="cpm-event-row__sub">Run at {fmtDateTime(ranAt.toISOString())}</p>}
       {verify.isSuccess && <><p>audit-service answered:</p><p className="cpm-mono">{String(verify.data)}</p></>}
       {verify.isError && (
         <>
