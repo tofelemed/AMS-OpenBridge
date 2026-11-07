@@ -67,4 +67,14 @@ public sealed class RegistryEditMergeTests
         var m = JsonNode.Parse(RegistryEditMerge.MergeMonitoring(null, true, true))!;
         m["evidence"]!["stepTestApproved"]!.GetValue<bool>().Should().BeTrue();
     }
+
+    [Fact]
+    public void Bulk_import_leaves_retired_loops_alone_and_applies_the_others()
+    {
+        var rows = new[] { "FIC1", "FIC2", "FIC3" };
+        var (apply, refused) = RegistryEditMerge.SplitRetired(rows, id => id, new HashSet<string>(StringComparer.Ordinal) { "FIC2" });
+        apply.Should().Equal("FIC1", "FIC3");
+        refused.Should().Equal("FIC2");
+        RegistryEditMerge.BulkRetiredMessage.Should().Be("Loop is retired. Restore it first.");
+    }
 }

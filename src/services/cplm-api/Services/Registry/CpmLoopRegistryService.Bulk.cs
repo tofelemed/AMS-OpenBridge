@@ -89,6 +89,13 @@ public sealed partial class CpmLoopRegistryService
             byHistorianNode.TryAdd(IotDbWriteClient.SafeNode(id), id);
         }
 
+        // A retired loop is left alone: the upsert below would set is_active back to TRUE and rewrite its monitoring and tags.
+        var retiredIds = (await conn.QueryAsync<string>("SELECT loop_id FROM cpm.loop_registry WHERE is_active = FALSE"))
+            .ToHashSet(StringComparer.Ordinal);
+        var (notRetired, retiredRows) = RegistryEditMerge.SplitRetired(accepted, r => r.LoopId, retiredIds);
+        foreach (var id in retiredRows) Reject(id, "LOOP_RETIRED", RegistryEditMerge.BulkRetiredMessage);
+        accepted = notRetired;
+
         var batch = new List<CpmLoopActivateRequest>(accepted.Count);
         foreach (var request in accepted)
         {

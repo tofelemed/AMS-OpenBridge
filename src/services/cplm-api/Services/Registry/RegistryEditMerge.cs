@@ -20,6 +20,20 @@ public static class RegistryEditMerge
                 $"Loop '{loopId}' is retired. Restore the loop first; an edit would silently bring it back.");
     }
 
+    public const string BulkRetiredMessage = "Loop is retired. Restore it first.";
+
+    /// <summary>Bulk import: rows of a retired loop are not applied (they would revive it and rewrite its monitoring and tags).</summary>
+    public static (List<T> Apply, List<string> Refused) SplitRetired<T>(IEnumerable<T> rows, Func<T, string> idOf, ISet<string> retiredIds)
+    {
+        var apply = new List<T>();
+        var refused = new List<string>();
+        foreach (var r in rows)
+        {
+            if (retiredIds.Contains(idOf(r))) refused.Add(idOf(r)); else apply.Add(r);
+        }
+        return (apply, refused);
+    }
+
     /// <summary>A request entry without a source keeps the stored source of the same role and path.</summary>
     public static IReadOnlyList<CpmTagMapEntry> MergeTagSources(IEnumerable<CpmTagMapEntry> existing, IReadOnlyList<CpmTagMapEntry> incoming)
     {
