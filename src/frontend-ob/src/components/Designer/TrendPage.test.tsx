@@ -2,7 +2,7 @@
 /** Task 26: Trend opens from a loop selector. /trend needs only historian.view; the selector needs analytics.view. */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { TrendPage } from './TrendPage';
 
@@ -11,15 +11,19 @@ const LOOPS = [
   { loopId: 'FIC1', tags: { PV: 'root.h.cpm.FIC1.pv', SP: 'root.h.cpm.FIC1.sp', OP: 'root.h.cpm.FIC1.op', VP: 'root.h.cpm.FIC1.vp' } },
   { loopId: 'TIC2', tags: { PV: 'root.h.cpm.TIC2.pv' } },
   { loopId: 'EMPTY', tags: {} },
+  { loopId: 'SHARED', tags: { PV: 'root.h.cpm.S.pv', SP: 'root.h.cpm.S.pv' } },
 ];
-let pensSeen: Array<{ path: string; color?: string; label?: string }> = [];
+let pensSeen: Array<{ path: string; color?: string; label?: string; lineStyle?: string }> = [];
+type CoreProps = { pens: typeof pensSeen; onRemovePen?: (p: string) => void; onSampleAge?: (age: number | null, rangeMs: number) => void; emptyLegendText?: string };
+let core: CoreProps = { pens: [] };
+let loopsState = { loading: false };
 vi.mock('../../store/authStore', () => ({
   useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: p => held.includes(p) }),
 }));
-vi.mock('../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: { loops: LOOPS }, isLoading: false, isError: false }) }));
+vi.mock('../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: loopsState.loading ? undefined : { loops: LOOPS }, isLoading: loopsState.loading, isError: false }) }));
 vi.mock('./TrendCore', () => ({
   RANGES: [{ label: '15m', ms: 900000 }, { label: '8h', ms: 28800000 }],
-  default: (p: { pens: typeof pensSeen }) => { pensSeen = p.pens; return <div data-testid="core" />; },
+  default: (p: CoreProps) => { pensSeen = p.pens; core = p; return <div data-testid="core" data-empty={p.emptyLegendText} />; },
 }));
 vi.mock('../Cpm/context/LoopBand', () => ({
   LoopBand: (p: { loopId?: string | null; onLoop: (id: string) => void; children?: React.ReactNode; end?: React.ReactNode }) => (
@@ -33,7 +37,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 const Where = () => { const l = useLocation(); return <span data-testid="where">{l.pathname + l.search}</span>; };
 const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><TrendPage /><Where /></MemoryRouter>);
 
-beforeEach(() => { held.length = 0; held.push('historian.view', 'analytics.view'); pensSeen = []; });
+beforeEach(() => { held.length = 0; held.push('historian.view', 'analytics.view'); pensSeen = []; loopsState = { loading: false }; });
 afterEach(cleanup);
 
 describe('TrendPage with a loop', () => {
@@ -91,14 +95,72 @@ describe('TrendPage with a loop', () => {
 describe('TrendPage empty and permissions', () => {
   it('shows Choose a loop on an empty chart, and no pen count or LIVE', () => {
     open('/trend');
-    expect(screen.getAllByText('Choose a loop').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('Choose a loop')).toHaveLength(1); // the band's; the chart does not repeat it
     expect(screen.queryByText(/pens?$/)).toBeNull();
     expect(screen.queryByText('LIVE')).toBeNull();
   });
 
-  it('shows LIVE only with pens on a live chart', () => {
+  it('shows LIVE only while samples arrive', () => {
     open('/trend?loop=FIC1');
+    expect(screen.queryByText('LIVE')).toBeNull(); // pens, but no samples yet
+    act(() => core.onSampleAge?.(5_000, 900_000));
     expect(screen.getByText('LIVE')).toBeTruthy();
+    act(() => core.onSampleAge?.(600_000, 900_000)); // newest sample is stale for a 15 m window
+    expect(screen.queryByText('LIVE')).toBeNull();
+    act(() => core.onSampleAge?.(null, 900_000));
+    expect(screen.queryByText('LIVE')).toBeNull();
+  });
+
+  it('keeps a loop-driven chart loop-driven when a pen is removed', () => {
+    open('/trend?loop=FIC1');
+    act(() => core.onRemovePen?.('root.h.cpm.FIC1.pv'));
+    expect(screen.getByTestId('where').textContent).toContain('roles=SP%2COP%2CVP');
+    expect(screen.getByTestId('where').textContent).not.toContain('tags=');
+    expect(pensSeen.map(p => p.label)).toEqual(['SP', 'OP', 'VP']);
+    expect(pensSeen[0]).toMatchObject({ color: 'var(--signal-sp)', lineStyle: 'dashed' });
+  });
+
+  it('removing the last pen leaves the chart empty, not full again', () => {
+    open('/trend?loop=TIC2');
+    act(() => core.onRemovePen?.('root.h.cpm.TIC2.pv'));
+    expect(screen.getByTestId('where').textContent).toContain('roles=none');
+    expect(pensSeen).toEqual([]);
+    cleanup();
+    open('/trend?loop=TIC2&tags=a.b');
+    act(() => core.onRemovePen?.('a.b'));
+    expect(pensSeen).toEqual([]);
+  });
+
+  it('draws the SP pen when SP and PV share a tag and only SP is asked for', () => {
+    open('/trend?loop=SHARED&roles=SP');
+    expect(pensSeen.map(p => p.label)).toEqual(['SP']);
+  });
+
+  it('says Loop not found for an unknown loop, and nothing new while loading', () => {
+    open('/trend?loop=NOPE');
+    expect(screen.getByRole('status').textContent).toBe('Loop not found');
+    cleanup();
+    loopsState = { loading: true };
+    open('/trend?loop=FIC1');
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByTestId('trend-page')).toBeTruthy();
+  });
+
+  it('leaves the empty legend to the band with the selector, and to the old text without it', () => {
+    open('/trend');
+    expect(screen.getByTestId('core').getAttribute('data-empty')).toBe('');
+    cleanup();
+    held.splice(0, held.length, 'historian.view');
+    open('/trend?loop=FIC1');
+    expect(screen.getByTestId('core').getAttribute('data-empty')).toBeNull(); // default: No tags selected
+    expect(screen.queryByText('Choose a loop')).toBeNull();
+    expect(screen.queryByText('Loop not found')).toBeNull();
+  });
+
+  it('opens the loop by its registry id, whatever case the link used', () => {
+    open('/trend?loop=fic1');
+    fireEvent.click(screen.getByRole('button', { name: 'Open loop ↗' }));
+    expect(screen.getByTestId('where').textContent).toContain('/cpm/explorer?loop=FIC1');
   });
 
   it('hides the selector without analytics.view and works as today', () => {

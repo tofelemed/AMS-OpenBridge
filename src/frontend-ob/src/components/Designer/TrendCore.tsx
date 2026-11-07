@@ -53,6 +53,10 @@ interface TrendCoreProps {
   stepped?: boolean;
   // Phase 8 (E1.12) — overlay a per-trace linear regression line.
   regression?: boolean;
+  /** Read-only: how old the newest sample is against the window end (null when there is none), and the live range. */
+  onSampleAge?: (ageMs: number | null, rangeMs: number) => void;
+  /** Replaces the legend text shown with no pens; the default keeps the old words. */
+  emptyLegendText?: string;
 }
 
 // Test marker: lets automated checks confirm which build of this module the page actually loaded.
@@ -70,6 +74,8 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   scale,
   stepped,
   regression,
+  onSampleAge,
+  emptyLegendText,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
@@ -247,6 +253,18 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     return hist.concat(liveTail);
   });
 
+  // Report the newest sample's age to a page that shows LIVE; only when it changes by a second or more.
+  const newestTs = penData.reduce((m, d) => (d.length ? Math.max(m, d[d.length - 1].ts) : m), 0);
+  const sampleAge = newestTs ? Math.max(0, windowEnd - newestTs) : null;
+  const reportedAge = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!onSampleAge) return;
+    const key = sampleAge == null ? null : Math.round(sampleAge / 1000);
+    if (reportedAge.current === key) return;
+    reportedAge.current = key;
+    onSampleAge(sampleAge, rangeMs);
+  });
+
   // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned pen.
   const penColor = (i: number) => {
     const c = pens[i]?.color;
@@ -296,7 +314,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
 
   return (
     <div className={`trend-core ${className}`} data-testid="trend-core">
-      <TrendLegend pens={pens} hiddenPens={hiddenPens} penColor={penColor} valueAt={valueAt}
+      <TrendLegend emptyText={emptyLegendText} pens={pens} hiddenPens={hiddenPens} penColor={penColor} valueAt={valueAt}
         onToggle={toggleHidden} onRemovePen={onRemovePen} />
 
       <div

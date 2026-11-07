@@ -15,7 +15,9 @@ export const TrendLegend: React.FC<{
   valueAt: (i: number) => number | undefined;
   onToggle: (path: string) => void;
   onRemovePen?: (path: string) => void;
-}> = ({ pens, hiddenPens, penColor, valueAt, onToggle, onRemovePen }) => (
+  /** Shown with no pens. */
+  emptyText?: string;
+}> = ({ pens, hiddenPens, penColor, valueAt, onToggle, onRemovePen, emptyText = 'No tags selected' }) => (
   <div className="trend-core__legend" data-testid="trend-legend">
     {pens.map((pen, i) => {
       const v = valueAt(i);
@@ -42,6 +44,7 @@ export const TrendLegend: React.FC<{
         </div>
       );
     })}
+    {pens.length === 0 && emptyText && <div className="trend-core__pen-empty">{emptyText}</div>}
   </div>
 );
 
