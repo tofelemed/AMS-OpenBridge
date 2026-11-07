@@ -80,5 +80,8 @@ for (const [name, props] of Object.entries(seen)) {
     }
   }
 }
-console.log(diffs.length ? diffs.join('\n') : '0 differences from the baseline');
-process.exit(diffs.length ? 1 : 0);
+// A size kept on purpose is listed, with its reason, in size-exceptions.json.
+const kept = new Set(JSON.parse(readFileSync(path.resolve(here, '../redesign/baseline/size-exceptions.json'), 'utf8')).exceptions.map(e => e.entry));
+const open = diffs.filter(d => !kept.has(d));
+console.log(open.length ? open.join('\n') : '0 differences from the baseline');
+process.exit(open.length ? 1 : 0);

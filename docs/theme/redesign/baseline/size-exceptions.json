@@ -1,0 +1,9 @@
+{
+  "note": "Sizes the old build never showed in this place, each kept on purpose. Every value is already on the app's size scale.",
+  "exceptions": [
+    {
+      "entry": "section heading.fontSize = 19.6px on investigation",
+      "why": "the Investigation result line uses the app's page-title size so the verdict reads first; the old page had no result heading"
+    }
+  ]
+}

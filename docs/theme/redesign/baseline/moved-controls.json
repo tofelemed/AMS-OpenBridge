@@ -24,6 +24,58 @@
     {
       "pattern": "^sort by opened$",
       "why": "the Opened sort header went as a second copy of the order dropdown"
+    },
+    {
+      "pattern": ": open g?r? ?evidence in evidence replay$|: open g evidence in evidence replay$",
+      "why": "gate table rows open the gate dialog through Inspect"
+    },
+    {
+      "pattern": "^gr? [a-z /()-]+: ",
+      "why": "a gate tile name holds its live status"
+    },
+    {
+      "pattern": "^gr operating region: ",
+      "why": "a gate tile name holds its live status"
+    },
+    {
+      "pattern": "^pv variability .+|^up \\+ pp data coverage|^ends oct|^current ·|^previous ·|^δ$|^gate: g ",
+      "why": "the label holds live data or a window, and the block shows only when a previous window exists"
+    },
+    {
+      "pattern": "^how this is classified$",
+      "why": "moved with Loop context into the Loop model & setup dialog"
+    },
+    {
+      "pattern": "^open (fic|lic|pic|tic|aic|b_pic)[a-z_ ]*( in the loop explorer)?$",
+      "why": "the name holds a loop tag from the live ranking"
+    },
+    {
+      "pattern": "^oscillating ( )$",
+      "why": "a count chip that shows only while such a finding exists"
+    },
+    {
+      "pattern": "^#(fic|lic|pic|tic|aic|b_pic)",
+      "why": "a ranking row name holds a live rank and loop tag"
+    },
+    {
+      "pattern": "^/day|^/h[a-z]|^control error (mae)",
+      "why": "a KPI tile name holds its live value and gate status"
+    },
+    {
+      "pattern": "^ends nov|^ends oct",
+      "why": "a window option holds its date and result"
+    },
+    {
+      "pattern": "^id sorted ascending$|^sort by calculation / parameter$|^sort by gate$",
+      "why": "Calculations has one Calculation heading that cycles id and name; the Gate dropdown replaces sorting by gate"
+    },
+    {
+      "pattern": "^search [a-z_]+ calculations$",
+      "why": "the search field is named Find calculation; the loop is in the band"
+    },
+    {
+      "pattern": "^when a value is not measured$",
+      "why": "the reason now reads on the page, once above the list"
     }
   ]
 }
