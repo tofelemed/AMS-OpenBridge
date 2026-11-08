@@ -35,12 +35,8 @@ describe('per-loop KPI cards (KPI Phase 4)', () => {
     expect(noSpan.error).toMatchObject({ value: '—', sub: 'no PV span registered' });
   });
 
-  it('the change compares with the window 24 h earlier, in the direction that is better for that KPI', () => {
-    const c = byKey(K());
-    expect(c.service.delta).toMatchObject({ direction: 'up', good: true, text: '+8 pp' });   // SME 2 #13      // 90 → 98 %
-    expect(c.error.delta).toMatchObject({ direction: 'down', good: true });                     // 3 → 2 % of span
-    expect(c.travel.delta).toMatchObject({ direction: 'flat', good: null });
-    expect(c.sp.delta).toBeNull();                                                              // not stored 24 h earlier
+  it('carries no change since the window 24 h earlier (CHG-155)', () => {
+    for (const card of Object.values(byKey(K()))) expect(card).not.toHaveProperty('delta');
   });
 });
 

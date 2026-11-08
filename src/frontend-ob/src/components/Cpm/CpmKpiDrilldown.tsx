@@ -5,13 +5,14 @@
  * CHG-132: the number in the band, its trend, then the loops behind it: exactly the loops the KPI counted (server `total` =
  * its count), each with its measured value, verdict, window and links to the evidence. The calculation sits behind the
  * number's ?. The URL is the whole selection (shareable); the KPI, reason and range dropdowns rewrite it.
+ * CHG-155 (owner review): the number and its share read on one baseline; no change since 24 h ago, no "matches" pill.
  */
 import React, { useMemo, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiChevronLeftGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-left-google';
 import { KPI_TREND_RANGES, type FleetKpiKey } from '../../api/cpm/fleetKpis';
-import { EmptyState, PanelHead, QueryError, TonePill, fmtDateTime } from './shared';
+import { EmptyState, PanelHead, QueryError, fmtDateTime } from './shared';
 import { Toggletip } from '../../ui/Toggletip';
 import { ListPager } from '../shared/ListPager';
 import { useCpmScope } from './plantScope';
@@ -21,8 +22,7 @@ import { KpiTrendChart } from './kpi/KpiTrendChart';
 import { kpiSeries, plantDayLabel, pointLabel, seriesRange } from './kpi/kpiTrend';
 import { KPI_GROUPS, pct, reasonLabel } from './kpi/fleetKpiView';
 import { KPI_WHY } from './kpi/kpiProof';
-import { KPI_META, kpiDelta, kpiIconTone } from './kpi/kpiMeta';
-import { KpiChange } from './kpi/KpiCard';
+import { KPI_META, kpiIconTone } from './kpi/kpiMeta';
 import { KpiCalculation } from './kpi/KpiCalculation';
 import { KpiRowsTable } from './kpi/KpiRowsTable';
 import { useStickyOffset } from './context/LoopContextBar';
@@ -71,7 +71,6 @@ export const CpmKpiDrilldown: React.FC = () => {
   const isBarState = kpi.startsWith('bar-');
   const measureKey = (list.data?.rows[0]?.rowKey ?? kpi) as FleetKpiKey;
   const meta = KPI_META[measureKey];
-  const delta = k && figure && !isBarState ? kpiDelta(figure, k) : null;
   const options = useMemo(() => [
     ...KPI_GROUPS.flatMap(g => g.keys).map(key => ({ key, label: k?.kpis.find(f => f.key === key)?.label ?? key })),
     ...DRILL_ONLY,
@@ -109,12 +108,12 @@ export const CpmKpiDrilldown: React.FC = () => {
             <span className="cpm-kpi-figure">
               {meta && <span className={`cpm-kpi-figure__icon cpm-kpicard__icon cpm-kpicard__icon--${kpiIconTone({ key: measureKey, count: figure.count })}`} aria-hidden><meta.Icon /></span>}
               <span className="cpm-kpicard__value">{figure.count}</span>
-              <span className="cpm-kpicard__of">/ {figure.denominator} {figure.denominatorLabel}</span>
-              <strong className="cpm-kpi-figure__share">{pct(figure.count, figure.denominator)} %</strong>
-              {delta && delta.direction !== 'flat' && <KpiChange delta={delta} />}
+              <span className="cpm-kpi-figure__of">
+                of {figure.denominator} {figure.denominatorLabel} · <strong>{pct(figure.count, figure.denominator)} %</strong>
+              </span>
+              {k && <KpiCalculation figure={figure} meta={meta} why={KPI_WHY[measureKey]} kpis={k} />}
             </span>
           )}
-          {k && <KpiCalculation figure={figure} meta={meta} why={KPI_WHY[measureKey]} kpis={k} delta={delta} />}
           <div className="cpm-band__end">
             <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={k2 => { setPage(0); setWindowKind(k2); }} />
           </div>
@@ -151,12 +150,7 @@ export const CpmKpiDrilldown: React.FC = () => {
 
       <section className="cpm-surface" aria-label="Loops behind this KPI">
         <div className="cpm-kpi-loops__head">
-          <div className="cpm-title-row">
-            <h2 className="cpm-panel-title">{loopsTitle}</h2>
-            {total != null && !reason && (day
-              ? pickedDay && total === pickedDay.count && <TonePill tone="good">matches that day</TonePill>
-              : figure && total === figure.count && <TonePill tone="good">matches the KPI</TonePill>)}
-          </div>
+          <h2 className="cpm-panel-title">{loopsTitle}</h2>
           <div className="cpm-kpi-loops__tools">
             {showReasons && (
               <select className="cpm-select" aria-label="Narrow by reason" value={reason ?? ''}

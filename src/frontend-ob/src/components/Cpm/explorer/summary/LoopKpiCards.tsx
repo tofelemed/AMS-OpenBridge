@@ -59,7 +59,7 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string; gateKe
             <h3 className="cpm-kpigroup__title">{gr.title}</h3>
             <div className="cpm-kpicards cpm-kpicards--loop">
               {inGroup.map(c => (
-                <KpiCard key={c.key} Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone} delta={c.delta}
+                <KpiCard key={c.key} Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone}
                   relevant={c.relevant} bar={c.bar} title={c.title} onOpen={() => setOpenKey(c.key)} />
               ))}
             </div>

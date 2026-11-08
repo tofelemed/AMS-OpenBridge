@@ -17,7 +17,6 @@ import { ObiPlusMinus } from '@oicl/openbridge-webcomponents-react/icons/icon-pl
 import { ObiDatabase } from '@oicl/openbridge-webcomponents-react/icons/icon-database';
 import type { LoopKpiMetric, LoopKpis, LoopKpiWindow } from '../../../api/cpm/loopKpis';
 import type { CpmTone } from '../shared';
-import type { KpiDelta } from './kpiMeta';
 
 export interface LoopKpiCardModel {
   key: string;
@@ -26,7 +25,6 @@ export interface LoopKpiCardModel {
   value: string;
   sub: string;
   tone: CpmTone;
-  delta: KpiDelta | null;
   title: string;
   proof: 'calculations' | 'trend' | 'windows';
   /** CHG-092 (SME 2 #9): the calculation that proves this card (CPLM id), opened directly. */
@@ -78,24 +76,6 @@ function shown(key: string, w: LoopKpiWindow | null, span: number | null): numbe
   }
 }
 
-/** Change of the shown value since the window that existed 24 h earlier, green / red by what is better for that KPI. */
-function delta(key: string, k: LoopKpis, span: number | null, unit: string, higherIsBetter: boolean | null): KpiDelta | null {
-  const now = shown(key, k.current, span);
-  const then = shown(key, k.previous, span);
-  if (now == null || then == null) return null;
-  const d = now - then;
-  const step = unit === '%' ? 1 : 0.1;
-  const direction = Math.abs(d) < step / 2 ? 'flat' : d > 0 ? 'up' : 'down';
-  return {
-    points: d, direction,
-    good: direction === 'flat' || higherIsBetter == null ? null : (direction === 'up') === higherIsBetter,
-    // SME review 2 #13: a % value changes by percentage points (pp); other values in their own unit
-    text: `${direction === 'flat' ? '±' : d > 0 ? '+' : '−'}${fmt(Math.abs(d), unit === '%' ? 0 : 1)}${unit === '%' ? ' pp' : unit ? ` ${unit}` : ''}`,
-    title: `Change since the window 24 h earlier: ${fmt(then)}${unit === '%' ? ' %' : ` ${unit}`} → ${fmt(now)}${unit === '%' ? ' %' : ` ${unit}`}`
-      + (unit === '%' ? ` (${fmt(Math.abs(d), 1)} percentage points ${direction === 'flat' ? 'change' : direction})` : ''),
-  };
-}
-
 export type LoopKpiGroup = 'control' | 'actuator' | 'evidence';
 export const LOOP_KPI_GROUPS: Array<{ id: LoopKpiGroup; title: string }> = [
   { id: 'control', title: 'Control performance' },
@@ -127,7 +107,7 @@ export function loopKpiCards(k: LoopKpis): LoopKpiCardModel[] {
   const finding = /^(DETECTED|CLASSIFIED|SUSPECTED|CONFIRMED)_(.+)$/.exec((w?.diagnosis ?? '').toUpperCase());
   const relevantKeys = new Set(finding ? RELEVANT_TO[finding[2]] ?? [] : []);
   const passTone = (s?: string | null): CpmTone => (s === 'PASS' ? (finding ? 'muted' : 'good') : gateTone(s));
-  const card = (c: Omit<LoopKpiCardModel, 'delta' | 'value' | 'group' | 'relevant' | 'gate' | 'judged' | 'bar'> & { unit: string; higherIsBetter: boolean | null; digits?: number },
+  const card = (c: Omit<LoopKpiCardModel, 'value' | 'group' | 'relevant' | 'gate' | 'judged' | 'bar'> & { unit: string; digits?: number },
     tone?: CpmTone): LoopKpiCardModel => {
     const v = shown(c.key, w, pvSpan);
     return {
@@ -135,42 +115,41 @@ export function loopKpiCards(k: LoopKpis): LoopKpiCardModel[] {
       tone: v == null ? 'muted' : tone ?? c.tone, title: c.title, proof: c.proof, metric: METRIC_OF[c.key],
       group: GROUP_OF[c.key] ?? 'control', gate: GATE_OF[c.key], judged: !CONTEXT_ONLY.has(c.key), bar: c.key === 'coverage' && v != null && v <= 100 ? v : null, relevant: relevantKeys.has(c.key) || (c.key === 'saturation' && (raw('saturation_pct') ?? 0) > SATURATION_MAX),
       value: v == null ? '—' : `${fmt(v, c.digits ?? 1)}${c.unit === '%' ? ' %' : c.unit ? ` ${c.unit}` : ''}`,
-      delta: delta(c.key, k, pvSpan, c.unit, c.higherIsBetter),
     };
   };
   const auto = raw('auto_pct');
   const sat = raw('saturation_pct');
   const comp = raw('completeness');
   return [
-    card({ key: 'service', label: 'Time in normal mode', Icon: ObiAuto, unit: '%', higherIsBetter: true, digits: 0, tone: 'muted', proof: 'trend',
+    card({ key: 'service', label: 'Time in normal mode', Icon: ObiAuto, unit: '%', digits: 0, tone: 'muted', proof: 'trend',
       sub: join('AUTO / CASCADE', gateText('G1', g.G1)),
       title: 'Service factor: time in AUTO or CASCADE ÷ window time (G1, CPLM-003). Rule: at least 95 % of the window; more than 5 % out of design mode counts as out of mode.' },
       auto == null ? undefined : auto >= NORMAL_MODE_MIN ? 'good' : 'warn'),
-    card({ key: 'good-error', label: 'Good-error time', Icon: ObiLimitsInside, unit: '%', higherIsBetter: true, digits: 0, tone: passTone(g.G3),
+    card({ key: 'good-error', label: 'Good-error time', Icon: ObiLimitsInside, unit: '%', digits: 0, tone: passTone(g.G3),
       proof: 'calculations', sub: join('|PV − SP| inside the good band', gateText('G3', g.G3)),
       title: 'Time with |PV − SP| inside the good-error band ÷ window time (CPLM-014), judged by G3.' }),
-    card({ key: 'error', label: 'Control error (MAE)', Icon: ObiLimitsAttention, unit: '%', higherIsBetter: false, tone: passTone(g.G3),
+    card({ key: 'error', label: 'Control error (MAE)', Icon: ObiLimitsAttention, unit: '%', tone: passTone(g.G3),
       proof: 'calculations',
       sub: join('of PV span', raw('mae') != null && `${fmt(raw('mae')!, 2)}${unit ? ` ${unit}` : ''}`, gateText('G3', g.G3)),
       title: 'Mean |PV − SP| over the window (CPLM-010) as % of the registered PV span (pvMax − pvMin), judged by G3.' }),
-    card({ key: 'variability', label: 'PV variability (2σ)', Icon: ObiTrend, unit: '%', higherIsBetter: false, tone: 'muted', proof: 'trend',
+    card({ key: 'variability', label: 'PV variability (2σ)', Icon: ObiTrend, unit: '%', tone: 'muted', proof: 'trend',
       sub: `of PV span${raw('pv_std') != null ? ` · σ ${fmt(raw('pv_std')!, 2)}${unit ? ` ${unit}` : ''}` : ''}`,
       title: '2 × standard deviation of PV over the window as % of the PV span. Context, not pass / fail: level loops absorb swings by design.' }),
-    card({ key: 'saturation', label: 'Time at an OP limit', Icon: ObiLimitsOutsideOver, unit: '%', higherIsBetter: false, digits: 0, tone: 'muted',
+    card({ key: 'saturation', label: 'Time at an OP limit', Icon: ObiLimitsOutsideOver, unit: '%', digits: 0, tone: 'muted',
       proof: 'trend', sub: `limits: ${w?.limitSource === 'FALLBACK_0_100' ? '0–100 % fallback' : w?.limitSource ? 'registered OP range' : 'not reported'}`,
       title: 'Time with OP fully open or closed ÷ window time. More than 10 % = no control authority (Bayer / PlantTriage).' },
       // within the limit is context (neutral), not a green verdict; over it needs a look
       sat == null ? undefined : sat > SATURATION_MAX ? 'warn' : 'muted'),
-    card({ key: 'travel', label: 'OP travel', Icon: ObiBoltGoogle, unit: '%/day', higherIsBetter: false, digits: 0, tone: passTone(g.G4),
+    card({ key: 'travel', label: 'OP travel', Icon: ObiBoltGoogle, unit: '%/day', digits: 0, tone: passTone(g.G4),
       proof: 'calculations', sub: join('total OP movement per day', gateText('G4', g.G4)),
       title: 'Sum of |ΔOP| scaled to one day (CPLM-021): valve wear, judged by G4.' }),
-    card({ key: 'reversals', label: 'OP reversals', Icon: ObiSyncGoogle, unit: '/h', higherIsBetter: false, tone: passTone(g.G4),
+    card({ key: 'reversals', label: 'OP reversals', Icon: ObiSyncGoogle, unit: '/h', tone: passTone(g.G4),
       proof: 'calculations', sub: join('direction changes per hour', gateText('G4', g.G4)),
       title: 'OP direction changes per hour (CPLM-022): valve wear, judged by G4.' }),
-    card({ key: 'sp', label: 'Setpoint changes', Icon: ObiPlusMinus, unit: '/h', higherIsBetter: null, tone: 'muted', proof: 'trend',
+    card({ key: 'sp', label: 'Setpoint changes', Icon: ObiPlusMinus, unit: '/h', tone: 'muted', proof: 'trend',
       sub: 'operator / cascade setpoint activity',
       title: 'Setpoint changes per hour in the window. Context: frequent changes point at an operator compensating or a cascade master.' }),
-    card({ key: 'coverage', label: 'Data coverage', Icon: ObiDatabase, unit: '%', higherIsBetter: true, digits: 0, tone: 'muted', proof: 'windows',
+    card({ key: 'coverage', label: 'Data coverage', Icon: ObiDatabase, unit: '%', digits: 0, tone: 'muted', proof: 'windows',
       sub: join(raw('sample_count') != null && raw('expected_sample_count') != null && `${Math.round(raw('sample_count')!)} of ${Math.round(raw('expected_sample_count')!)} samples`, gateText('G0', g.G0)),
       title: 'Samples received ÷ samples expected on the declared grid (CPLM-001). Below 95 % the window cannot be judged (G0).' },
       // data present is not good control: neutral when complete, amber when the window cannot be fully judged

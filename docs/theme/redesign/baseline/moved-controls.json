@@ -96,6 +96,10 @@
     {
       "pattern": "^about source configuration$",
       "why": "the tab is named Data sources and its help moved to the detail"
+    },
+    {
+      "pattern": "^(never evaluated|not assessable|oscillating|stale|performing acceptably|suspected valve problem|excessive actuator effort|saturated / at limit|in manual mode|needs review|with a finding) \\( \\)$",
+      "why": "the Loop state breakdown legend links, removed with the bar on the owner's instruction (CHG-155); every state still opens from its KPI card"
     }
   ]
 }

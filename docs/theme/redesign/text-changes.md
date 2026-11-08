@@ -1281,3 +1281,17 @@ None.
 |---|---|---|
 | Historical, Export menu, selected window has only a summary | Choose an evaluated window first | the reason the Evidence package button gives (newest 500 / last 14 days) |
 | Investigation, Compare windows, history-only tile | reason only in the hover title | also a visible line "History only: use Evaluate a window" |
+
+## CHG-155 owner review: Overview and KPI drill-down
+
+Removed on the owner's instruction (8 Nov): the change since 24 h ago on every KPI card, in the drill-down band, in the number's `?` ("Since 24 h ago") and in the loop KPI dialog ("Change"); the Loop state breakdown bar with its legend links (Stale ( ), Never evaluated ( ), Not assessable ( ), Oscillating ( ) and the rest) and its `?` "How the states are decided"; the `?` "Last updated" beside the monitored count; the "matches the KPI" and "matches that day" pills; the loop description and section in the drill-down's loop column.
+
+| Where | Was | Now |
+|---|---|---|
+| Overview, count above the cards | 241 loop(s) monitored (a panel heading, with a `?`) | 241 loops monitored (a small note, no `?`) |
+| KPI drill-down band | 165 / 241 monitored loops 68 % | 165 of 241 monitored loops · 68 % |
+| KPI drill-down, measure heading when every row shares the limit | Age of the newest result | Age of the newest result · above 60 min |
+| KPI drill-down, measured value in a row with a shared limit | 86 days — above 60 min | 86 days |
+| KPI drill-down, Window column | 13/08/2026, 19:30:00 UTC | 13 Aug · 19:30 |
+| KPI drill-down, Verdict column on Stale and Never evaluated | Stale / No result yet in every row | Gone; the KPI's name says it |
+| KPI drill-down, Also check column when no row has anything | — in every row | Gone |

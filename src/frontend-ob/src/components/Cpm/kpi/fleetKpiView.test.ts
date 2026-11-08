@@ -1,8 +1,8 @@
-// CHG-082 / KPI Phase 2: the Overview arranges the server's figures — every loop in one bar segment, every tile with a named
-// denominator, colour only where it means something.
+// CHG-082 / KPI Phase 2: the Overview arranges the server's figures — every tile with a named denominator, colour only where
+// it means something. CHG-155: the state bar is gone, and with it the segment helper.
 import { describe, expect, it } from 'vitest';
 import type { FleetKpiFigure, FleetKpis } from '../../../api/cpm/fleetKpis';
-import { KPI_GROUPS, basisText, denominatorText, kpiTone, pct, reasonLabel, reasonsText, stateSegments } from './fleetKpiView';
+import { KPI_GROUPS, basisText, denominatorText, kpiTone, pct, reasonLabel, reasonsText } from './fleetKpiView';
 
 const fig = (key: FleetKpiFigure['key'], count: number, denominator = 100): FleetKpiFigure =>
   ({ key, label: key, count, denominator, denominatorLabel: 'assessed loops', rule: 'r' });
@@ -18,18 +18,6 @@ const K: FleetKpis = {
 };
 
 describe('fleet KPI view (CHG-082)', () => {
-  it('the bar puts every monitored loop in exactly one segment', () => {
-    const segs = stateSegments(K);
-    expect(segs.reduce((n, s) => n + s.count, 0)).toBe(K.monitored);
-    expect(segs.map(s => s.drill)).toEqual(['acceptable', 'finding', 'symptom', 'no-fault-limited', 'not-assessable', 'stale', 'never-evaluated']);
-    const fromServer = stateSegments({ ...K, segments: [
-      { key: 'bar-stale', label: 'Stale', count: 3, denominator: 3, denominatorLabel: 'monitored loops', rule: 'r' },
-      { key: 'bar-manual', label: 'Manual', count: 0, denominator: 3, denominatorLabel: 'monitored loops', rule: 'r' },
-    ] });
-    expect(fromServer).toEqual([{ key: 'bar-stale', label: 'Stale', count: 3, drill: 'bar-stale' }]);
-    expect(stateSegments({ ...K, states: { ...K.states, stale: 0 } }).some(s => s.key === 'stale')).toBe(false);
-  });
-
   it('tiles: green for performing, amber for conditions and a stopped pipeline, muted at zero', () => {
     expect(kpiTone(fig('acceptable', 5))).toBe('good');
     expect(kpiTone(fig('oscillating', 3))).toBe('warn');

@@ -98,6 +98,8 @@
    apart by pattern and label, never by colour alone. */
 .cpm-op { display: flex; flex-direction: column; gap: 12px; }
 .cpm-op__muted { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+/* CHG-155: the monitored count is a note, smaller than the card labels */
+.cpm-op__count { margin: 0; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
 
 /* ── Overview priority queue (SME review #7, CHG-045) ──
    One row = head (priority badge · loop route · condition) over the preview (description, the
@@ -187,19 +189,12 @@
   --automation-device-tertiary-color: var(--traverse-text-secondary);
 }
 .cpm-kpicard__icon > * { width: 18px; height: 18px; }
-.cpm-kpicard__delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--cpm-text-small); font-weight: 600; white-space: nowrap; }
-.cpm-kpicard__delta--good { color: var(--tone-success); --element-active-color: var(--tone-success); }
-.cpm-kpicard__delta--bad  { color: var(--tone-danger); --element-active-color: var(--tone-danger); }
-.cpm-kpicard__delta--flat { color: var(--traverse-text-secondary); }
-.cpm-kpicard__arrow { display: inline-flex; width: 16px; height: 16px; }
-.cpm-kpicard__arrow > * { width: 16px; height: 16px; }
 .cpm-kpicard__value { font-size: 1.6rem; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .cpm-kpicard--large .cpm-kpicard__value { font-size: 2rem; }
-.cpm-kpicard__of { font-size: 1rem; font-weight: 400; color: var(--traverse-text-secondary); }
 .cpm-kpicard__text { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .cpm-kpicard__label { font-size: var(--cpm-text-small); color: var(--element-active-color); }
 .cpm-kpicard__sub { font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); }
-/* CHG-119: the Overview card: label and icon on top, the number, its share and change, then the link */
+/* CHG-119: the Overview card: label and icon on top, then the number; the share and rule on hover */
 .cpm-kpicard--headed { position: relative; min-height: 0; padding: 12px 14px; border-radius: 12px; gap: 0; }
 .cpm-kpicard__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 40px; }
 .cpm-kpicard--headed .cpm-kpicard__label { font-weight: 600; }
@@ -222,10 +217,6 @@
 .cpm-kpicards--5 > :nth-child(5n) .cpm-kpicard__tip { right: 0; left: auto; }
 .cpm-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.cpm-op__statebox {
-  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px;
-  border: 1px solid var(--border-divider-color);
-}
 .cpm-op__basis { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); margin: 0; }
 
 /* the measured value against its threshold (drill-down) */
@@ -239,18 +230,20 @@
   display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: var(--cpm-text-small); overflow-wrap: anywhere;
   background: var(--border-divider-color);
 }
-/* CHG-132: the number in the band and the tools on the title's row. */
-.cpm-kpi-figure { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); min-width: 0; }
+/* CHG-132: the number in the band and the tools on the title's row. CHG-155: the number and its text share one baseline;
+   the icon and the ? sit centred on it. */
+.cpm-kpi-figure { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-1) var(--traverse-space-2); min-width: 0; }
 .cpm-kpi-figure .cpm-kpicard__value { font-size: var(--traverse-type-page-title); line-height: 1; }
-.cpm-kpi-figure__icon { flex: none; border: 0; }
-.cpm-kpi-figure__share { font-size: var(--traverse-type-body); font-variant-numeric: tabular-nums; }
+.cpm-kpi-figure__icon { flex: none; align-self: center; border: 0; }
+.cpm-kpi-figure__of { color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); font-variant-numeric: tabular-nums; }
+.cpm-kpi-figure__of strong { color: var(--traverse-text-primary); font-weight: 600; }
+.cpm-kpi-figure > .ui-toggletip { align-self: center; }
 .cpm-kpi-range { width: auto; }
 .cpm-kpi-trend .cpm-panel-head { align-items: center; margin-bottom: 0; }
 .cpm-kpi-loops__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-4); margin-bottom: var(--traverse-space-2); }
 .cpm-kpi-loops__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-inline-start: auto; }
 .cpm-kpi-loops__tools .cpm-select { width: auto; max-width: 100%; }
 .cpm-kpi-loops__tools .cpm-input { width: 260px; max-width: 100%; }
-.cpm-kpi-table__name { color: var(--traverse-text-secondary); }
 .cpm-kpi-table__when { white-space: nowrap; }
 .cpm-kpi-table__measured { display: block; }
 .cpm-kpi-table__context { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }

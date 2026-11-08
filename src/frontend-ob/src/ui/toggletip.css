@@ -20,6 +20,7 @@
   padding: 0;
   border: 0;
   background: transparent;
+  font-family: inherit;
   cursor: pointer;
 }
 .ui-toggletip__button:hover,
@@ -38,20 +39,27 @@
   height: 100%;
 }
 
-/* The owner's ?: a small quiet circle on the page colour, so it never competes with the data (CHG-126). */
+/* The owner's ?: a small quiet circle on the page colour, so it never competes with the data (CHG-126). CHG-155: smaller
+   (14 px), and a regular-weight character in the muted text colour, not the bold icon glyph. */
 .ui-toggletip__glyph--help {
-  --element-active-color: var(--traverse-text-secondary);
+  display: grid;
+  place-items: center;
   box-sizing: border-box;
-  width: calc(var(--traverse-space-4) + var(--traverse-space-1) / 2);
-  height: calc(var(--traverse-space-4) + var(--traverse-space-1) / 2);
-  padding: calc(var(--traverse-space-1) / 4);
+  width: calc(var(--traverse-space-3) + var(--traverse-space-1) / 2);
+  height: calc(var(--traverse-space-3) + var(--traverse-space-1) / 2);
   border: 1px solid var(--traverse-border-subtle);
   border-radius: 50%;
   background: var(--traverse-surface-page);
+  color: var(--traverse-text-muted);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  text-transform: none;
 }
 .ui-toggletip__button:hover .ui-toggletip__glyph--help,
 .ui-toggletip__button[aria-expanded='true'] .ui-toggletip__glyph--help {
-  --element-active-color: var(--traverse-action-primary);
+  color: var(--traverse-action-primary);
   border-color: var(--traverse-action-primary);
 }
 

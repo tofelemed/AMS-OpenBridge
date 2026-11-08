@@ -40,7 +40,7 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Symptom | Seen | Symptom seen | Every gate surface | Reference |
 | Strong symptom | Strong | Strong symptom | Every gate surface | Reference |
 | No verdict | Insufficient | Insufficient evidence | Every gate surface | Reference |
-| State breakdown | Every monitored loop, one state each | Loop state breakdown | Overview | Reference |
+| State breakdown | Every monitored loop, one state each | Loop state breakdown (removed with the bar, CHG-155) | Overview | Reference |
 | Recent loop events | Recent context; Event trail | Recent events | Overview | Reference |
 | Median error | Median error (% of span) | Median error | Performance tiles | Reference |
 | Periodic diagnosis | Loops with periodic diagnosis | Periodic diagnosis | Performance tiles | Reference |
@@ -147,3 +147,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Retention failed or expired | Reconstruction failed / Reconstruction expired | Evidence Workbench run bar | CHG-154 |
 | Stalled-feed strip | last values at <time> | Investigation, signals strip | CHG-154 |
 | Re-run matched another loop's run | This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator. | Replay, Re-run dialog | CHG-154 |
+| Monitored count | 241 loop(s) monitored | 241 loops monitored | Overview | CHG-155 |
+| KPI share in the band | / 241 monitored loops 68 % | of 241 monitored loops · 68 % | KPI drill-down | CHG-155 |

@@ -14,8 +14,7 @@ const Icon = () => <i data-testid="icon" />;
 const card = (extra: Partial<React.ComponentProps<typeof KpiCard>> = {}) => render(
   <MemoryRouter>
     <KpiCard headed Icon={Icon} value={165} label="Stale" sub="68 % of monitored" tone="warn"
-      to="/cpm/kpis/stale" title="Rule."
-      delta={{ direction: 'up', text: '+4 pp', good: false, title: 'was 64 %', points: 4 }} {...extra} />
+      to="/cpm/kpis/stale" title="Rule." {...extra} />
   </MemoryRouter>,
 );
 
@@ -30,34 +29,25 @@ describe('headed KPI card', () => {
     expect(text).not.toContain('View loops');
   });
 
-  it('is one link to the drill-down, with the share, change and rule on hover', () => {
+  it('is one link to the drill-down, with the share and rule on hover', () => {
     card();
     const link = screen.getByRole('link');
     expect(link.getAttribute('href')).toBe('/cpm/kpis/stale');
     const tip = screen.getByRole('tooltip', { hidden: true });
     expect(link.getAttribute('aria-describedby')).toBe(tip.id);
     expect(tip.textContent).toContain('68 % of monitored');
-    expect(tip.textContent).toContain('was 64 %');
     expect(tip.textContent).toContain('Rule.');
   });
 
-  it('shows the change on the card only when it moved', () => {
-    const { container } = card({ delta: { direction: 'flat', text: '±0 pp', good: null, title: 'no change', points: 0 } });
-    expect(container.querySelector('.cpm-kpicard__figure .cpm-kpicard__delta')).toBeNull();
-    cleanup();
-    const moved = card();
-    expect(moved.container.querySelector('.cpm-kpicard__figure .cpm-kpicard__delta')).not.toBeNull();
+  it('shows no change since 24 h ago, on the card or on hover (CHG-155)', () => {
+    const { container } = card();
+    expect(container.querySelector('.cpm-kpicard__delta')).toBeNull();
+    expect(container.textContent).not.toMatch(/\bpp\b/);
   });
 
   it('colours the icon by what it means', () => {
     const { container } = card({ iconTone: 'warn' });
     expect(container.querySelector('.cpm-kpicard__icon--warn')).not.toBeNull();
-  });
-
-  it('keeps the change colour and its spoken direction', () => {
-    const { container } = card();
-    expect(container.querySelector('.cpm-kpicard__delta--bad')).not.toBeNull();
-    expect(container.textContent).toContain('up +4 pp');
   });
 
   it('keeps the tone edge', () => {
@@ -71,10 +61,6 @@ describe('headed KPI card', () => {
     expect(container.textContent).not.toContain('View loops');
   });
 
-  it('keeps the share on hover when there is no change to report', () => {
-    card({ delta: null });
-    expect(screen.getByRole('tooltip', { hidden: true }).textContent).toContain('68 % of monitored');
-  });
 });
 
 describe('Explorer source line', () => {

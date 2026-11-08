@@ -6013,3 +6013,18 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Lab :3000, 2026-11-07 17:11 local:** `ams-frontend` and `cplm-api` rebuilt from `2f5ff876` (images `redesign-2f5ff876`, tagged `latest`); previous images tagged `pre-reference` for rollback. Proven on the running server: both containers on the new image ids, cplm-api healthy, gateway health 200, the new wording in the served bundle, one member in `traverse-cpa-cplm-results`. Browser gates not re-run on :3000: the lab disk watch stops Docker every 10 min while C: is under 20 GB.
 **Lab :3000 browser gates, 2026-11-07 after the disk reclaim:** redirects 25 of 25, accessibility 74 scans with 0 critical or serious, geometry 14 with 0 failing, control edge 54 views with 0 off the screen, links 50 clicked with 0 problems, sizes 0 differences. Every baseline control has a place; Overview's "Not assessable" chip shows only when such loops exist.
+
+## CHG-155 — CPA owner page review 1: Overview and KPI drill-down (2026-11-08, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner started a page-by-page review on the lab build, beginning with Overview and its KPI drill-down.
+
+**Changed.**
+- **Overview:** the monitored count is a small note above the cards ("241 loops monitored", smaller than the card labels) with no `?`. The Loop state breakdown bar and its legend are gone; every state still opens from its KPI card.
+- **All KPIs:** no change since 24 h ago (the "+67 pp" figure) on the Overview cards, in their hover tips, in the drill-down band, in the number's `?`, on the loop KPI cards or in the loop KPI dialog. The calculation that produced it is removed.
+- **Help `?`, everywhere:** smaller (a 14 px ring, was 18 px) and no longer bold: it is a regular-weight `?` in the muted text colour instead of the OpenBridge help glyph, which reads bold at any size. The 40 px click area and the focus ring are unchanged.
+- **KPI drill-down band:** "165 of 241 monitored loops · 68 %" on one baseline with the number; the icon and `?` sit centred beside it.
+- **KPI drill-down table:** the loop column shows the tag only. A limit every row shares joins the column heading ("Age of the newest result · above 60 min") and the row shows the value alone. The Verdict column goes on Stale and Never evaluated, where the KPI's name says it. "Also check" goes when no row on the page has anything. Window times are short ("13 Aug · 19:30"). The "matches the KPI" and "matches that day" pills are gone.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.

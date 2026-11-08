@@ -12,7 +12,6 @@
  */
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
 import { ObiInfo } from '@oicl/openbridge-webcomponents-react/icons/icon-info';
 import { cpaHref } from '../components/Cpm/cpaHref';
 import { helpFor, type HelpEntry } from '../help/registry';
@@ -243,7 +242,10 @@ const Tip: React.FC<TipProps> = ({ name, heading, variant, children }) => {
         aria-controls={panelId}
         onClick={onButtonClick}
       >
-        <span className={`ui-toggletip__glyph${variant === 'how-to' ? ' ui-toggletip__glyph--help' : ''}`}>{variant === 'how-to' ? <ObiHelp /> : <ObiInfo />}</span>
+        {/* CHG-155: the ? is a regular-weight character; the OpenBridge help glyph reads bold at any size */}
+        {variant === 'how-to'
+          ? <span className="ui-toggletip__glyph ui-toggletip__glyph--help" aria-hidden="true">?</span>
+          : <span className="ui-toggletip__glyph"><ObiInfo /></span>}
       </button>
       {open && (
         <div

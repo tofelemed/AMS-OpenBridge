@@ -109,6 +109,14 @@ describe('Toggletip ? variant', () => {
     renderTip(<Toggletip label="How the score works"><p>Text</p></Toggletip>);
     expect(button('How the score works')).toBeTruthy();
   });
+
+  it('draws the ? as a small regular-weight character, hidden from screen readers (CHG-155)', () => {
+    renderTip(howTo);
+    const glyph = button('How to read this view').querySelector('.ui-toggletip__glyph--help')!;
+    expect(glyph.textContent).toBe('?');
+    expect(glyph.getAttribute('aria-hidden')).toBe('true');
+    expect(css).toMatch(/\.ui-toggletip__glyph--help \{[^}]*font-weight: 400/);
+  });
 });
 
 describe('Toggletip hover', () => {

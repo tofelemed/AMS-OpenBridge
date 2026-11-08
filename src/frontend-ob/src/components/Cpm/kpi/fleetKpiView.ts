@@ -36,23 +36,6 @@ export function kpiTone(f: FleetKpiFigure, outOfModeTarget = 0.10): CpmTone {
 /** "of 160 assessed loops" — the denominator is always named, so a % can be checked. */
 export const denominatorText = (f: FleetKpiFigure): string => `of ${f.denominator} ${f.denominatorLabel}`;
 
-export interface KpiSegment { key: string; label: string; count: number; drill: FleetKpiKey }
-
-/** The state bar: every monitored loop in exactly one segment (sums to `monitored`). */
-export function stateSegments(k: FleetKpis): KpiSegment[] {
-  if (k.segments) return k.segments.filter(s => s.count > 0).map(s => ({ key: s.key, label: s.label, count: s.count, drill: s.key }));
-  // An older cplm-api: the coarser states it can answer
-  return [
-    { key: 'acceptable', label: 'Performing acceptably', count: k.assessed.acceptable, drill: 'acceptable' as const },
-    { key: 'finding', label: 'With a finding', count: k.assessed.finding, drill: 'finding' as const },
-    { key: 'symptom', label: 'Symptom only (weak evidence)', count: k.assessed.symptomOnly, drill: 'symptom' as const },
-    { key: 'outOfMode', label: 'No fault, but out of mode or at limit', count: k.assessed.noFaultLimited, drill: 'no-fault-limited' as const },
-    { key: 'notAssessable', label: 'Not assessable', count: k.states.notAssessable, drill: 'not-assessable' as const },
-    { key: 'stale', label: 'Stale', count: k.states.stale, drill: 'stale' as const },
-    { key: 'never', label: 'Never evaluated', count: k.states.neverEvaluated, drill: 'never-evaluated' as const },
-  ].filter(s => s.count > 0);
-}
-
 const REASON: Record<string, string> = {
   INCOMPLETE_DATA: 'incomplete data',
   BAD_QUALITY: 'bad quality',

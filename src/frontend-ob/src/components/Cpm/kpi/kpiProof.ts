@@ -12,20 +12,39 @@ import { reasonLabel } from './fleetKpiView';
 const NO_FAULT = new Set(['NO_CALL', 'INSUFFICIENT_EVIDENCE']);
 const percent = (v: number) => `${Math.round(v * 1000) / 10} %`;
 
-/** "62 % — below 95 %": the value that put this loop here, against its threshold. */
-export function decidingValue(row: FleetKpiRow): string {
+/** "62 %": the value that put this loop here, on its own; null when it was not measured. */
+export function decidingNumber(row: FleetKpiRow): string | null {
   const d = row.deciding;
-  if (!d.measured || d.value == null) return d.label === 'State' ? stateText(row) : 'not measured';
-  const value = d.unit === 'fraction' ? percent(d.value) : d.unit === 'seconds' ? ageText(d.value * 1000).replace(/ ago$/, '')
+  if (!d.measured || d.value == null) return null;
+  return d.unit === 'fraction' ? percent(d.value) : d.unit === 'seconds' ? ageText(d.value * 1000).replace(/ ago$/, '')
     : `${Math.round(d.value)}`;
-  const threshold = d.threshold == null ? '' : d.unit === 'fraction' ? percent(d.threshold)
-    : d.unit === 'seconds' ? `${Math.round(d.threshold / 60)} min` : `${Math.round(d.threshold)}`;
+}
+
+/** "below 95 %": where the value sits against its threshold; '' when there is no value or no threshold. */
+export function decidingLimit(row: FleetKpiRow): string {
+  const d = row.deciding;
+  if (!d.measured || d.value == null || d.threshold == null) return '';
+  const threshold = d.unit === 'fraction' ? percent(d.threshold) : d.unit === 'seconds' ? `${Math.round(d.threshold / 60)} min` : `${Math.round(d.threshold)}`;
   const cmp: Record<string, string> = { '>=': 'at or above', '>': 'above', '<': 'below', '<=': 'at or below' };
   // the comparator states the rule the value meets (e.g. AUTO >= 95 %); a value that fails it reads as the opposite
-  const meets = d.comparator === '>=' ? d.value >= (d.threshold ?? 0) : d.comparator === '>' ? d.value > (d.threshold ?? 0)
-    : d.comparator === '<' ? d.value < (d.threshold ?? 0) : d.value <= (d.threshold ?? 0);
+  const meets = d.comparator === '>=' ? d.value >= d.threshold : d.comparator === '>' ? d.value > d.threshold
+    : d.comparator === '<' ? d.value < d.threshold : d.value <= d.threshold;
   const word = meets ? cmp[d.comparator] : ({ '>=': 'below', '>': 'at or below', '<': 'at or above', '<=': 'above' } as Record<string, string>)[d.comparator];
-  return threshold ? `${value} — ${word} ${threshold}` : value;
+  return `${word} ${threshold}`;
+}
+
+/** "62 % — below 95 %": the value that put this loop here, against its threshold. */
+export function decidingValue(row: FleetKpiRow): string {
+  const value = decidingNumber(row);
+  if (value == null) return row.deciding.label === 'State' ? stateText(row) : 'not measured';
+  const limit = decidingLimit(row);
+  return limit ? `${value} — ${limit}` : value;
+}
+
+/** CHG-155: the limit when every row sits on the same side of the same threshold, so the column heading says it once. */
+export function commonLimit(rows: FleetKpiRow[]): string | null {
+  const limit = rows[0] ? decidingLimit(rows[0]) : '';
+  return limit && rows.every(r => decidingLimit(r) === limit) ? limit : null;
 }
 
 /** "Time in AUTO / CASCADE 62 % — below 95 %": the same, with the name of the measure. */

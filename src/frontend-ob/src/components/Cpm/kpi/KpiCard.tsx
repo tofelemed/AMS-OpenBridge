@@ -1,30 +1,16 @@
 /**
- * CHG-085 (KPI redesign): one compact KPI card — icon top-left, change since 24 h ago top-right, the number, its label and
- * its share of a named denominator. With `to`, the whole card is a link to the KPI's drill-down (navigation is a link, not a
- * button); the rule is the hover title. Colour only where it means something (ISA-101): the change is green when it moved
- * the right way and red when it moved the wrong way; the card's left accent follows the KPI's tone.
+ * CHG-085 (KPI redesign): one compact KPI card — icon top-left, the number, its label and its share of a named denominator.
+ * With `to`, the whole card is a link to the KPI's drill-down (navigation is a link, not a button); the rule is the hover
+ * title. Colour only where it means something (ISA-101): the card's left accent follows the KPI's tone.
  *
  * CHG-119: `headed` is the Overview layout the owner chose: label and icon on top, then the number. CHG-127: the card carries no
- * explanation; its share, the change and the rule appear on hover or keyboard focus, and the change stays on the card only when
- * it moved. The whole card opens the list. The drill-down and the loop KPIs keep the compact layout.
+ * explanation; its share and the rule appear on hover or keyboard focus. The whole card opens the list. The drill-down and the
+ * loop KPIs keep the compact layout. CHG-155: no card shows a change since 24 h ago (owner review).
  */
 import React, { useId } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { ObiTrendUp } from '@oicl/openbridge-webcomponents-react/icons/icon-trend-up';
-import { ObiTrendDown } from '@oicl/openbridge-webcomponents-react/icons/icon-trend-down';
 import type { CpmTone } from '../shared';
-import type { KpiDelta, KpiIconTone } from './kpiMeta';
-
-/** The change since 24 h ago; the full sentence is its hover title. */
-export const KpiChange: React.FC<{ delta: KpiDelta }> = ({ delta }) => (
-  <span className={`cpm-kpicard__delta cpm-kpicard__delta--${delta.good == null ? 'flat' : delta.good ? 'good' : 'bad'}`}
-    title={delta.title}>
-    {delta.direction === 'up' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendUp /></span>}
-    {delta.direction === 'down' && <span className="cpm-kpicard__arrow" aria-hidden><ObiTrendDown /></span>}
-    <span className="cpm-visually-hidden">{delta.direction === 'up' ? 'up' : delta.direction === 'down' ? 'down' : 'unchanged'} </span>
-    {delta.text}
-  </span>
-);
+import type { KpiIconTone } from './kpiMeta';
 
 export const KpiCard: React.FC<{
   Icon: React.ComponentType;
@@ -32,7 +18,6 @@ export const KpiCard: React.FC<{
   label: string;
   sub?: React.ReactNode;
   tone?: CpmTone;
-  delta?: KpiDelta | null;
   title?: string;
   to?: string;
   size?: 'regular' | 'large';
@@ -45,9 +30,9 @@ export const KpiCard: React.FC<{
   onOpen?: () => void;
   /** A share of a named whole, 0 to 100, drawn as a bar under the label. Never pass a ratio above 100: that is not "full". */
   bar?: number | null;
-}> = ({ Icon, value, label, sub, tone = 'muted', delta, title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar }) => {
+}> = ({ Icon, value, label, sub, tone = 'muted', title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar }) => {
   const tipId = useId();
-  const change = delta && <KpiChange delta={delta} />;
+
   const body = headed ? (
     <>
       <span className="cpm-kpicard__head">
@@ -55,18 +40,16 @@ export const KpiCard: React.FC<{
         <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>
       </span>
       <span className="cpm-kpicard__figure">
-        <span className="cpm-kpicard__value">{value}</span>{' '}
-        {delta && delta.direction !== 'flat' && change}
+        <span className="cpm-kpicard__value">{value}</span>
       </span>
       <span className="cpm-kpicard__tip" id={tipId} role="tooltip">
-        <strong>{sub}</strong>{delta && <span>{delta.title}</span>}{title && <span>{title}</span>}
+        <strong>{sub}</strong>{title && <span>{title}</span>}
       </span>
     </>
   ) : (
     <>
       <span className="cpm-kpicard__top">
         <span className="cpm-kpicard__icon" aria-hidden><Icon /></span>
-        {change}
       </span>
       <span className="cpm-kpicard__value">{value}</span>
       <span className="cpm-kpicard__label">{label}</span>

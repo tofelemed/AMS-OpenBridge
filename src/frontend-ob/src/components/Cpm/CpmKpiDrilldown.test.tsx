@@ -44,15 +44,22 @@ afterEach(cleanup);
 describe('CpmKpiDrilldown', () => {
   it('shows the number, the trend and the loops, and keeps the calculation behind the ?', () => {
     open('/cpm?review=stale');
-    expect(within(screen.getByRole('region', { name: 'KPI and its controls' })).getByText('165')).toBeTruthy();
-    expect(screen.getByText('/ 241 monitored loops')).toBeTruthy();
+    const band = within(screen.getByRole('region', { name: 'KPI and its controls' }));
+    expect(band.getByText('165')).toBeTruthy();
+    expect(band.getByText(/^of 241 monitored loops ·/).textContent).toBe('of 241 monitored loops · 68 %');
     expect(screen.getByRole('heading', { name: '165 loops' })).toBeTruthy();
-    expect(screen.getByText('matches the KPI')).toBeTruthy();
     for (const term of ['Formula', 'Threshold', 'Basis', 'Why this KPI', 'Computed']) expect(screen.queryByText(term)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'How this number is calculated' }));
-    for (const term of ['Rule', 'Formula', 'Threshold', 'Basis', 'Computed', 'Since 24 h ago']) expect(screen.getByText(term)).toBeTruthy();
+    for (const term of ['Rule', 'Formula', 'Threshold', 'Basis', 'Computed']) expect(screen.getByText(term)).toBeTruthy();
     expect(screen.getByText('No result for > 60 min')).toBeTruthy();
+  });
+
+  it('shows no change since 24 h ago and no "matches" pill (CHG-155)', () => {
+    const { container } = open('/cpm?review=stale');
+    expect(container.textContent).not.toMatch(/\bpp\b/);
+    expect(screen.queryByText('Since 24 h ago')).toBeNull();
+    expect(screen.queryByText(/^matches/)).toBeNull();
   });
 
   it('names one loop in the singular', () => {
