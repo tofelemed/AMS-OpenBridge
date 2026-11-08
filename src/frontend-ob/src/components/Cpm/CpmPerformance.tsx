@@ -27,6 +27,7 @@ import GateMatrix, { type MatrixScope } from './GateMatrix';
 import PerformanceKpis from './performance/PerformanceKpis';
 import HowToReadDialog from './performance/HowToReadDialog';
 import SelectedLoopBand from './performance/SelectedLoopBand';
+import { MatrixViewToggle } from './performance/MatrixToolbar';
 import PerformanceGateDialog from './performance/PerformanceGateDialog';
 import { loopSortOf, type LoopSort } from './performance/loopSort';
 import { useLoopRank } from './performance/useLoopRank';
@@ -174,6 +175,8 @@ export const CpmPerformance: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/performance"
         title="Performance"
+        // CHG-156 (owner review): no ? on the title; How to read explains the page
+        copy=""
         // CHG-089: the shared switch (only a served kind reaches onChange, so an empty first emit never reaches ?window=)
         // Why only these sizes: this screen shows FUSED verdicts, which fusion produces on these windows alone. The finer
         // 1m…60m results live in the Window Inspector, and the ? says so. The reason for a disabled button rides on a
@@ -204,8 +207,12 @@ export const CpmPerformance: React.FC = () => {
 
       <section className="cpm-surface">
         {/* A verdict's age is explained by the engine, not by this screen (A5): the line shows only when the data is stale. */}
+        {/* CHG-156: the view toggle sits here, top right, beside How to read */}
         <PanelHead title="Gate summary"
-          right={<ObcButton variant="flat" onClick={() => setShowGuide(true)}>How to read</ObcButton>} />
+          right={<>
+            {heatmapLoops.length > 0 && <MatrixViewToggle view={matrixView} onViewChange={setMatrixView} />}
+            <ObcButton variant="flat" onClick={() => setShowGuide(true)}>How to read</ObcButton>
+          </>} />
         <div className="cpm-perf-bar">
           {stale && windowAgeMs != null && newestWindow != null && (
             <p className="cpm-freshness cpm-freshness--stale" role="status">
@@ -263,7 +270,6 @@ export const CpmPerformance: React.FC = () => {
               windowKind={windowKind}
               inputFlagsOf={inputFlagsOf}
               view={matrixView}
-              onViewChange={setMatrixView}
               sort={sort}
               onSortChange={setSort}
               rank={rank}

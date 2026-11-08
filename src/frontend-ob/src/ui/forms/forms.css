@@ -158,6 +158,9 @@
   color: var(--traverse-action-primary);
   font-weight: 700;
 }
+/* CHG-156 (owner review): the pager's buttons are 32 px, smaller than the 40 px controls around them */
+.ui-pagination .ui-control { height: var(--traverse-space-8); padding: 0 var(--traverse-space-2); }
+.ui-pagination .ui-control--icon { width: var(--traverse-space-8); min-width: var(--traverse-space-8); padding: 0; }
 .ui-pagination__gap { color: var(--traverse-text-muted); }
 .ui-pagination__status {
   margin: 0 var(--traverse-space-2);

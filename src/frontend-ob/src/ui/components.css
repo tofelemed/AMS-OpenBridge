@@ -217,10 +217,13 @@
 }
 .ui-dialog__foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--traverse-space-2);
   padding: 0 var(--traverse-size-panel-padding) var(--traverse-size-panel-padding);
 }
+/* CHG-156: a label stays on one line; a long row of actions wraps instead of making each button two lines tall */
+.ui-dialog__foot > * { white-space: nowrap; }
 
 /* As wide as its label. Stretched by a column parent, the empty host still took clicks, with no button there. */
 .ui-button {

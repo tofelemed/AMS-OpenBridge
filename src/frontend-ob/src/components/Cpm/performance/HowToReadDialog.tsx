@@ -16,18 +16,27 @@ export const HowToReadDialog: React.FC<{
   summary?: CpmFleetSummary;
 }> = ({ open, onClose, summary }) => (
   <Dialog open={open} onClose={onClose} title="How to read" size="wide">
-    <GateLegend />
-    <ol className="cpm-copy cpm-guide-steps">
-      <li>Pick a gate tile to see which loops it is holding back.</li>
-      {/* CHG-098 (SME review 2 #24): the readable view is the default; the full matrix is the advanced one */}
-      <li>Each loop lists only the checks behind its result, by name. Click one to open its evidence; switch to the full G0–G15 matrix to see every gate.</li>
-      <li>The result column is the fused verdict those gates produced.</li>
-    </ol>
-    {summary && (
-      <p className="cpm-copy cpm-guide-note">
-        {summary.capability.loopsWithoutDisturbanceContext} loops have no peer links, so stiction cannot be distinguished from an upstream disturbance.
-      </p>
-    )}
+    {/* CHG-156 (owner review): two titled parts, the key in aligned columns, the note set apart */}
+    <div className="cpm-howto">
+      <section className="cpm-howto__part" aria-labelledby="cpm-howto-key">
+        <h3 id="cpm-howto-key" className="cpm-howto__title">Gate symbols</h3>
+        <GateLegend />
+      </section>
+      <section className="cpm-howto__part" aria-labelledby="cpm-howto-use">
+        <h3 id="cpm-howto-use" className="cpm-howto__title">Using this page</h3>
+        <ol className="cpm-howto__steps">
+          <li>Pick a gate tile to see which loops it is holding back.</li>
+          {/* CHG-098 (SME review 2 #24): the readable view is the default; the full matrix is the advanced one */}
+          <li>Each loop lists only the checks behind its result, by name. Click one to open its evidence; switch to the full G0–G15 matrix to see every gate.</li>
+          <li>The result column is the fused verdict those gates produced.</li>
+        </ol>
+      </section>
+      {summary && (
+        <p className="cpm-howto__note">
+          {summary.capability.loopsWithoutDisturbanceContext} loops have no peer links, so stiction cannot be distinguished from an upstream disturbance.
+        </p>
+      )}
+    </div>
   </Dialog>
 );
 

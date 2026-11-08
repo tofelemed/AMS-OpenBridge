@@ -149,3 +149,5 @@ One row per concept whose label a redesigned page chooses (DEC-002 RD10). The ch
 | Re-run matched another loop's run | This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator. | Replay, Re-run dialog | CHG-154 |
 | Monitored count | 241 loop(s) monitored | 241 loops monitored | Overview | CHG-155 |
 | KPI share in the band | / 241 monitored loops 68 % | of 241 monitored loops · 68 % | KPI drill-down | CHG-155 |
+| Gate stepping in the gate dialog | Previous gate Gn / Next gate Gn | Prev / Next | Performance, Loop Explorer gate dialogs | CHG-156 |
+| How to read parts | (none) | Gate symbols / Using this page | Performance, How to read | CHG-156 |

@@ -1295,3 +1295,18 @@ Removed on the owner's instruction (8 Nov): the change since 24 h ago on every K
 | KPI drill-down, Window column | 13/08/2026, 19:30:00 UTC | 13 Aug · 19:30 |
 | KPI drill-down, Verdict column on Stale and Never evaluated | Stale / No result yet in every row | Gone; the KPI's name says it |
 | KPI drill-down, Also check column when no row has anything | — in every row | Gone |
+
+## CHG-156 owner review: Performance
+
+Removed on the owner's instruction (8 Nov): the `?` on the Performance title; the symbol row above the gate matrix with its Full key button (How to read holds the key); the count line "Showing 1–15 of 165"; in the gate dialog's More about this gate, the "Calculation v3.0.0 · profile v2.0.0" line, the "Contract" label and the Source and Emitted rows.
+
+| Where | Was | Now |
+|---|---|---|
+| Performance, list toolbar | Needs attention, Any result, Any condition, search, sort | search, Needs attention, Any result, Any condition, sort |
+| Performance, Findings / Gate matrix toggle | at the end of the toolbar | top right of the Gate summary panel, beside How to read |
+| Performance, list larger than the matrix serves | Showing 1–15 of 165 · matrix serves the first 500 of 620 loops in scope | The matrix serves the first 500 of 620 loops in scope. |
+| How to read | a key and three steps with no headings | two parts, "Gate symbols" (the key in two aligned columns) and "Using this page"; the peer-link note set apart |
+| Gate dialog, foot | Previous gate G0 / Next gate G2 | Prev / Next (the gate is named on hover) |
+| Gate dialog, foot (Performance) | Review PIC10201 → | Review → (the loop is in the title) |
+| Gate dialog and selected-loop band, result whose last verdict is the same | Oscillation confirmed evidence score 100 last verdict Oscillation confirmed · evidence score 100 · 43 days ago | Oscillation confirmed evidence score 100 (the band adds · 43 days ago; the dialog's Assessment row has the date) |
+| Pager, every page | 40 px buttons | 32 px buttons |

@@ -281,3 +281,12 @@ describe('Pagination page jumps', () => {
     expect(screen.getByRole('button', { name: 'Page 2' }).getAttribute('aria-current')).toBe('page');
   });
 });
+
+describe('Pagination size (CHG-156)', () => {
+  it('draws its buttons 32 px square, smaller than the 40 px controls, from tokens', async () => {
+    const fs = await import('node:fs');
+    const css = fs.readFileSync(`${process.cwd()}/src/ui/forms/forms.css`, 'utf8');
+    expect(css).toMatch(/\.ui-pagination \.ui-control \{[^}]*height: var\(--traverse-space-8\)/);
+    expect(css).toMatch(/\.ui-pagination \.ui-control--icon \{[^}]*width: var\(--traverse-space-8\)/);
+  });
+});

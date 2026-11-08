@@ -1,6 +1,7 @@
 /**
- * The Performance list's one toolbar row: Needs attention, Any result, Any condition, search, sort, and the
- * Findings / Gate matrix toggle at the end. It holds no state of its own; GateMatrix owns the rows these steer.
+ * The Performance list's one toolbar row: the loop search first, then Needs attention, Any result, Any condition and the
+ * sort (CHG-156). It holds no state of its own; GateMatrix owns the rows these steer. The Findings / Gate matrix toggle
+ * sits in the panel head beside How to read (`MatrixViewToggle`).
  */
 import React from 'react';
 import { FilterChip } from '../../../ui/forms/FilterChip';
@@ -15,9 +16,12 @@ const VIEWS: ReadonlyArray<{ value: MatrixView; label: string }> = [
   { value: 'matrix', label: 'Gate matrix' },
 ];
 
+/** Findings / Gate matrix, in the panel head beside How to read (CHG-156). */
+export const MatrixViewToggle: React.FC<{ view: MatrixView; onViewChange: (v: MatrixView) => void }> = ({ view, onViewChange }) => (
+  <SegmentedControl label="Performance list view" options={VIEWS} value={view} onChange={onViewChange} ignoreReselect />
+);
+
 export const MatrixToolbar: React.FC<{
-  view: MatrixView;
-  onViewChange: (v: MatrixView) => void;
   mode: RowFilter;
   counts: Record<RowFilter, number>;
   onModeChange: (m: RowFilter) => void;
@@ -33,12 +37,14 @@ export const MatrixToolbar: React.FC<{
   onQueryChange: (q: string) => void;
   sort: LoopSort;
   onSortChange: (s: LoopSort) => void;
-  count: string;
 }> = ({
-  view, onViewChange, mode, counts, onModeChange, bands, band, onBandChange, conditionFilter,
-  gate, onClearGate, query, onQueryChange, sort, onSortChange, count,
+  mode, counts, onModeChange, bands, band, onBandChange, conditionFilter,
+  gate, onClearGate, query, onQueryChange, sort, onSortChange,
 }) => (
   <div className="cpm-matrix-toolbar">
+    <div className="cpm-matrix-toolbar__search">
+      <TextInput label="Filter" placeholder="loop id or description" clearable value={query} onChange={onQueryChange} />
+    </div>
     <select className="cpm-select" aria-label="Row filter" value={mode} onChange={e => onModeChange(e.target.value as RowFilter)}>
       {ROW_FILTERS.map(f => <option key={f.value} value={f.value}>{`${f.label} ${counts[f.value]}`}</option>)}
     </select>
@@ -48,14 +54,9 @@ export const MatrixToolbar: React.FC<{
     </select>
     {conditionFilter}
     {gate && <FilterChip label={`Failing ${gate}`} selected onToggle={onClearGate} />}
-    <div className="cpm-matrix-toolbar__search">
-      <TextInput label="Filter" placeholder="loop id or description" clearable value={query} onChange={onQueryChange} />
-    </div>
     <select className="cpm-select" aria-label="Sort" value={sort} onChange={e => onSortChange(e.target.value as LoopSort)}>
       {LOOP_SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
     </select>
-    <span className="cpm-matrix-toolbar__count" aria-live="polite">{count}</span>
-    <SegmentedControl label="Performance list view" options={VIEWS} value={view} onChange={onViewChange} ignoreReselect />
   </div>
 );
 

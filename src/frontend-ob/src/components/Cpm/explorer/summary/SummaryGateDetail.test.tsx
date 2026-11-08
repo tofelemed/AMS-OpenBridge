@@ -62,7 +62,7 @@ describe('SummaryGateDetail', () => {
 
   it('walks to the next gate and keeps the rest of the evidence one disclosure away', () => {
     const p = show();
-    fireEvent.click(screen.getByRole('button', { name: 'Next gate G4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(p.onSelectGate).toHaveBeenCalledWith('G4');
     expect(screen.getByText('More about this gate')).toBeTruthy();
   });

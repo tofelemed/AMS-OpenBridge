@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
 import { GateBadge } from '../../../ui/GateBadge';
 import { TIER_GROUPS, gateName } from '../gateStatus';
@@ -41,5 +42,13 @@ export const GateDialog: React.FC<{
     document.body,
   );
 };
+
+/** CHG-156: Prev / Next through the gates in tier order, short labels; the gate each opens is named on hover. */
+export const GateSteps: React.FC<{ prev: string | null; next: string | null; onSelect: (gate: string) => void }> = ({ prev, next, onSelect }) => (
+  <>
+    {prev && <span title={`Previous gate ${prev}`}><ObcButton variant="flat" onClick={() => onSelect(prev)}>Prev</ObcButton></span>}
+    {next && <span title={`Next gate ${next}`}><ObcButton variant="flat" onClick={() => onSelect(next)}>Next</ObcButton></span>}
+  </>
+);
 
 export default GateDialog;

@@ -12,7 +12,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { useGateCatalogue } from '../../../../hooks/useCpm';
-import GateDialog from '../../blocks/GateDialog';
+import GateDialog, { GateSteps } from '../../blocks/GateDialog';
 import { EvidenceBody } from '../../GateEvidencePanel';
 import { ReasonedButton } from '../../ReasonedButton';
 import { TonePill, fmtDateTime } from '../../shared';
@@ -66,8 +66,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
       rows={rows}
       actions={(
         <>
-          {prev && <ObcButton variant="flat" onClick={() => onSelectGate(prev)}>Previous gate {prev}</ObcButton>}
-          {next && <ObcButton variant="flat" onClick={() => onSelectGate(next)}>Next gate {next}</ObcButton>}
+          <GateSteps prev={prev} next={next} onSelect={onSelectGate} />
           <ObcButton variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind, window: matrix.windowEnd }))}>
             Window Inspector ↗
           </ObcButton>

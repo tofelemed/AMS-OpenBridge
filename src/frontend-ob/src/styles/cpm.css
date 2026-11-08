@@ -448,8 +448,6 @@
 /* ── Matrix + evidence layout ── */
 
 .cpm-inspector__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-.cpm-guide-steps { padding-left: 18px; margin: 0 0 4px; display: grid; gap: 4px; }
-.cpm-guide-note { margin-top: 8px; font-size: var(--cpm-text-small); }
 .cpm-flag-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 

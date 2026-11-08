@@ -49,24 +49,14 @@ export const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKin
         <p className="cpm-copy" role="status">{gates.error instanceof Error ? gates.error.message : 'The service is unavailable.'}</p>
       )}
       {noWindowYet && <p className="cpm-copy" role="status">This loop has not completed a {windowKind} evaluation window.</p>}
-      {(matrix?.metadata.calculationVersion || matrix?.metadata.dynamicsProfileVersion) && (
-        <p className="cpm-copy">
-          {[matrix.metadata.calculationVersion && `Calculation v${matrix.metadata.calculationVersion}`,
-            matrix.metadata.dynamicsProfileVersion && `profile v${matrix.metadata.dynamicsProfileVersion}`].filter(Boolean).join(' · ')}
-        </p>
-      )}
-
-      <PanelHead eyebrow="Contract" title="Window & attribution" />
+      {/* CHG-156 (owner review): no calculation or profile version, contract label, source or emitted time here */}
+      <PanelHead title="Window & attribution" />
       {/* Split across two rows: one line carrying both bounds plus a zone label
           overflowed the panel and read as a cropped value. */}
       <KvRow label="Window from">{matrix?.windowStart ? fmtDateTime(matrix.windowStart) : '—'}</KvRow>
       <KvRow label="Window to">{matrix?.windowEnd ? fmtDateTime(matrix.windowEnd) : '—'}</KvRow>
       <KvRow label="Gate role">{role}</KvRow>
       <KvRow label="Samples">{matrix?.sampleCount ?? '—'}</KvRow>
-      <KvRow label="Source">{matrix?.metadata.calculationSource ?? 'flink'}</KvRow>
-      <KvRow label="Emitted">
-        {matrix?.metadata.computedAt ? fmtDateTime(matrix.metadata.computedAt) : '—'}
-      </KvRow>
 
       <PanelHead eyebrow="Purpose" title="What this gate asks" />
       <p className="cpm-copy">{def?.question ?? 'Definition unavailable.'}</p>

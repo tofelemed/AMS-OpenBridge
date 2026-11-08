@@ -34,14 +34,19 @@ export const GateLegend: React.FC<{ className?: string; compact?: boolean }> = (
       </div>
     );
   }
+  // CHG-156: the full key is a list of terms (the group) and their marks, laid out as two aligned columns
   return (
-    <div className={`cpm-gate-legend${className ? ` ${className}` : ''}`} role="note" aria-label="Gate symbols">
-      {GROUPS.map(group => (
-        <span key={group} className="cpm-gate-legend__group">
-          <span className="cpm-gate-legend__group-label">{group}</span>
-          {GATE_LEGEND.filter(l => l.group === group).map(l => <Item key={l.meaning} entry={l} />)}
-        </span>
-      ))}
+    <div role="note" aria-label="Gate symbols">
+      <dl className={`cpm-gate-legend cpm-gate-legend--key${className ? ` ${className}` : ''}`}>
+        {GROUPS.map(group => (
+          <div key={group} className="cpm-gate-legend__row">
+            <dt className="cpm-gate-legend__group-label">{group}</dt>
+            <dd className="cpm-gate-legend__marks">
+              {GATE_LEGEND.filter(l => l.group === group).map(l => <Item key={l.meaning} entry={l} />)}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 };

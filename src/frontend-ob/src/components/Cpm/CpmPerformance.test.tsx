@@ -77,6 +77,20 @@ describe('Performance list', () => {
     expect(screen.queryByText(/current/i)).toBeNull();
   });
 
+  it('has no ? on the page title (CHG-156)', () => {
+    page('/cpm/performance?rows=all');
+    expect(screen.getByRole('heading', { level: 1, name: 'Performance' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Performance' })).toBeNull();
+  });
+
+  it('puts the Findings / Gate matrix toggle beside How to read, at the top right of the panel (CHG-156)', () => {
+    page('/cpm/performance?rows=all');
+    const right = screen.getByRole('button', { name: 'How to read' }).closest('.cpm-panel-head__right')!;
+    const toggle = within(right as HTMLElement).getByRole('group', { name: 'Performance list view' });
+    fireEvent.click(within(toggle).getByRole('button', { name: 'Gate matrix' }));
+    expect(screen.getByRole('grid', { name: 'Gates by loop' })).toBeTruthy();
+  });
+
   it('no longer carries the old ranking list or its words', () => {
     page('/cpm/performance?rows=all');
     for (const gone of ['Opportunity ranking', 'Loops needing attention', 'driven by', 'Selected row · latest fused result', 'Final diagnosis'])

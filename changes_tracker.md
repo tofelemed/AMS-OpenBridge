@@ -6028,3 +6028,19 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
 
 **Plant:** not deployed. This branch is not released.
+
+## CHG-156 — CPA owner page review 2: Performance (2026-11-08, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's page-by-page review, second page: Performance.
+
+**Changed.**
+- **Header:** no `?` on the Performance title.
+- **Gate summary panel:** the Findings / Gate matrix toggle sits top right, beside How to read. The symbol row above the matrix and its Full key are gone (How to read holds the key). No "Showing 1–15 of 165" line; when the matrix serves fewer loops than the scope holds, one line says so.
+- **Toolbar:** the loop search comes first, then Needs attention, Any result, Any condition and the sort.
+- **How to read:** two titled parts, "Gate symbols" (the key as two aligned columns, also in every Gate status key dialog) and "Using this page"; the peer-link note set apart under a divider.
+- **Gate dialog (Performance and Loop Explorer):** Prev / Next instead of "Previous gate G0" / "Next gate G2", the gate named on hover; Review → instead of "Review <loop> →"; a dialog's action labels stay on one line and the row wraps, so no button is two lines tall (every dialog). A last verdict that is the result already shown is not repeated (also in the selected-loop band, which keeps its age). More about this gate no longer shows the calculation and profile versions, the "Contract" label, Source or Emitted.
+- **Pager, every page:** 32 px buttons instead of 40 px.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.

@@ -14,6 +14,13 @@ export interface VerdictReference {
   ageMs: number | null;
 }
 
+/**
+ * CHG-156: true when the last verdict is the result already on screen (same diagnosis and score), so a page names it
+ * once instead of beside itself as "last verdict".
+ */
+export const isSameVerdict = (current: { diagnosis: string | null; confidence: number | null }, ref: VerdictReference | null | undefined): boolean =>
+  !!ref?.diagnosis && ref.diagnosis === current.diagnosis && (ref.confidence ?? null) === (current.confidence ?? null);
+
 /** "last verdict SUSPECTED FINAL ELEMENT NONLINEARITY 89% · 15 d ago", or null without a reference. */
 export function staleVerdictLine(ref: VerdictReference | null | undefined): string | null {
   if (!ref || !ref.diagnosis) return null;

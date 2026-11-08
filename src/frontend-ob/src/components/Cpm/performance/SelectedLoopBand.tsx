@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { TonePill, toneFor } from '../shared';
 import { investigationHref } from '../cpaHref';
-import { staleVerdictLine } from '../verdictAge';
+import { ageText, isSameVerdict, staleVerdictLine } from '../verdictAge';
 import { diagnosisLabel } from '../vocabulary';
 import { evidenceScoreText } from '../evidenceScore';
 import { hasVerdict } from '../metricAvailability';
@@ -19,8 +19,11 @@ export const SelectedLoopBand: React.FC<{
   onOpenLoop: (loopId: string) => void;
 }> = ({ row, windowKind, onOpenLoop }) => {
   const navigate = useNavigate();
-  const older = staleVerdictLine(row.lastVerdict);
-  const score = hasVerdict(row.diagnosis) ? evidenceScoreText(row.confidence) : '';
+  // CHG-156: the same verdict is said once, with its age beside the score
+  const same = isSameVerdict(row, row.lastVerdict);
+  const older = same ? null : staleVerdictLine(row.lastVerdict);
+  const score = [hasVerdict(row.diagnosis) ? evidenceScoreText(row.confidence) : '', same ? ageText(row.lastVerdict!.ageMs) : '']
+    .filter(Boolean).join(' · ');
   return (
     <div className="cpm-selected-band" role="region" aria-label="Selected loop">
       <strong>{row.loopId}</strong>

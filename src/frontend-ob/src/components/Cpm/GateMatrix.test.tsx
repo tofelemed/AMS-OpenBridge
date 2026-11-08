@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// Task 8: one list, two views. A toggle switches them; the matrix head carries codes only; a result is one link.
+// Task 8: one list, two views; the matrix head carries codes only; a result is one link. CHG-156: the view toggle sits in
+// the panel head, the count line and the symbol row are gone, and the search leads the toolbar.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -23,25 +24,37 @@ const LOOPS = [
 ];
 
 const Where = () => { const l = useLocation(); return <output data-testid="where">{l.pathname + l.search}</output>; };
+const base = (): GateMatrixProps => ({
+  loops: LOOPS, orderedGateKeys: KEYS, tierGroups: buildTierGroups(KEYS),
+  filter: { mode: 'all', gate: null }, onFilterChange: vi.fn(), page: 1, onPageChange: vi.fn(),
+  selectedLoopId: null, onSelectLoop: vi.fn(), onOpenLoop: vi.fn(), onOpenGate: vi.fn(),
+  view: 'checks', sort: 'tag', onSortChange: vi.fn(), windowKind: '12h',
+});
 const show = (over: Partial<GateMatrixProps> = {}) => {
-  const props: GateMatrixProps = {
-    loops: LOOPS, orderedGateKeys: KEYS, tierGroups: buildTierGroups(KEYS),
-    filter: { mode: 'all', gate: null }, onFilterChange: vi.fn(), page: 1, onPageChange: vi.fn(),
-    selectedLoopId: null, onSelectLoop: vi.fn(), onOpenLoop: vi.fn(), onOpenGate: vi.fn(),
-    view: 'checks', onViewChange: vi.fn(), sort: 'tag', onSortChange: vi.fn(), windowKind: '12h', ...over,
-  };
+  const props: GateMatrixProps = { ...base(), ...over };
   render(<MemoryRouter initialEntries={['/cpm/performance']}><GateMatrix {...props} /><Where /></MemoryRouter>);
   return props;
 };
 
 describe('GateMatrix', () => {
-  it('switches between Findings and Gate matrix with one toggle', () => {
-    const props = show();
-    const toggle = screen.getByRole('group', { name: 'Performance list view' });
-    expect(within(toggle).getByRole('button', { name: 'Findings' }).getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(within(toggle).getByRole('button', { name: 'Gate matrix' }));
-    expect(props.onViewChange).toHaveBeenCalledWith('matrix');
-    expect(screen.queryByRole('combobox', { name: 'Matrix view' })).toBeNull();
+  it('holds no view toggle, count line or symbol row of its own: the panel head and How to read have them (CHG-156)', () => {
+    const { container } = render(<MemoryRouter><GateMatrix {...base()} view="matrix" /></MemoryRouter>);
+    expect(screen.queryByRole('group', { name: 'Performance list view' })).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Full key' })).toBeNull();
+    expect(container.querySelector('.cpm-gate-legend')).toBeNull();
+  });
+
+  it('puts the loop search first, then the filters and the sort (CHG-156)', () => {
+    show();
+    const order = Array.from(document.querySelectorAll('.cpm-matrix-toolbar input, .cpm-matrix-toolbar select'))
+      .map(e => e.getAttribute('aria-label') ?? (e as HTMLInputElement).placeholder);
+    expect(order).toEqual(['loop id or description', 'Row filter', 'Result', 'Sort']);
+  });
+
+  it('names the shortfall when the matrix serves fewer loops than the scope holds', () => {
+    show({ fleetTotal: 10 });
+    expect(screen.getByText('The matrix serves the first 3 of 10 loops in scope.')).toBeTruthy();
   });
 
   it('shows only G codes in the matrix head, tier headings above them, and no name', () => {
@@ -113,12 +126,7 @@ describe('GateMatrix', () => {
   });
 
   it('drops the Result filter when a scope change removes that band from the list', () => {
-    const props: GateMatrixProps = {
-      loops: LOOPS, orderedGateKeys: KEYS, tierGroups: buildTierGroups(KEYS),
-      filter: { mode: 'all', gate: null }, onFilterChange: vi.fn(), page: 1, onPageChange: vi.fn(),
-      selectedLoopId: null, onSelectLoop: vi.fn(), onOpenLoop: vi.fn(), onOpenGate: vi.fn(),
-      view: 'checks', onViewChange: vi.fn(), sort: 'tag', onSortChange: vi.fn(), windowKind: '12h',
-    };
+    const props = base();
     const tree = (loops: CpmHeatmapLoop[]) => <MemoryRouter><GateMatrix {...props} loops={loops} /></MemoryRouter>;
     const { rerender } = render(tree(LOOPS));
     const select = () => screen.getByRole('combobox', { name: 'Result' }) as HTMLSelectElement;

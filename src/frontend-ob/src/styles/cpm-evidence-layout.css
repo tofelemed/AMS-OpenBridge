@@ -146,6 +146,26 @@
 .cpm-gate-legend__group-label {
   font-size: var(--cpm-text-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-active-color);
 }
+/* CHG-156: the full key (How to read, Gate status key) as two aligned columns: the group, then its marks. */
+.cpm-gate-legend--key {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--traverse-space-3) var(--traverse-space-5);
+  margin: 0; font-size: var(--traverse-type-body); color: var(--traverse-text-primary);
+}
+.cpm-gate-legend__row { display: contents; }
+.cpm-gate-legend--key .cpm-gate-legend__group-label { padding-top: 2px; color: var(--traverse-text-secondary); }
+.cpm-gate-legend__marks { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-5); margin: 0; }
+/* CHG-156: How to read, in two titled parts with the note set apart. */
+.cpm-howto { display: flex; flex-direction: column; gap: var(--traverse-space-6); }
+.cpm-howto__part { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
+.cpm-howto__title { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-key); font-weight: 600; }
+.cpm-howto__steps {
+  display: grid; gap: var(--traverse-space-2); margin: 0; padding-inline-start: var(--traverse-space-6);
+  color: var(--traverse-text-primary); font-size: var(--traverse-type-body); line-height: 1.5;
+}
+.cpm-howto__note {
+  margin: 0; padding-top: var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle);
+  color: var(--traverse-text-secondary); font-size: var(--traverse-type-body); line-height: 1.5;
+}
 .cpm-matrix__gate abbr { text-decoration: none; }
 @media (max-width: 999px) {
   .cpm-matrix__gate abbr { text-decoration: underline dotted; cursor: help; }

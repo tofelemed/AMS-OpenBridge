@@ -6,6 +6,7 @@
  * (`?view=matrix`), so a link opens the view it was copied from.
  *
  * This component owns what both views share: the toolbar's filters, the sort, the 15-row page and the empty states.
+ * CHG-156: the view toggle sits in the page's panel head; the symbol key lives in How to read only.
  * It no longer defaults to every loop: "Needs attention" is the first row set, because at fleet scale most rows have
  * no verdict yet. "Not evaluated" stays one choice away, since "why has my loop not been judged?" is a real question.
  * A gate cell opens the gate's dialog; the page owns that dialog and the selected-loop band (`band`, above the table).
@@ -17,7 +18,6 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { EmptyState } from './shared';
 import { filterCounts, filterRows, type MatrixView, type RowFilter } from './gateStatus';
 import { GateMatrixChecks } from './GateMatrixChecks';
-import { GateLegend } from './GateLegend';
 import { GateMatrixGrid } from './performance/GateMatrixGrid';
 import { MatrixToolbar } from './performance/MatrixToolbar';
 import { sortLoops, type LoopSort } from './performance/loopSort';
@@ -47,7 +47,6 @@ export interface GateMatrixProps {
   /** CHG-066: the loop's effective input flags; a pass judged without one of its inputs reads "Pass on available data". */
   inputFlagsOf?: (loopId: string) => string[];
   view?: MatrixView;
-  onViewChange: (view: MatrixView) => void;
   sort: LoopSort;
   onSortChange: (sort: LoopSort) => void;
   /** The server's ranking, for the control error and priority sorts. */
@@ -60,7 +59,7 @@ export interface GateMatrixProps {
 
 export const GateMatrix: React.FC<GateMatrixProps> = ({
   loops, orderedGateKeys, tierGroups, filter, onFilterChange, page, onPageChange, selectedLoopId, onSelectLoop,
-  onOpenLoop, onOpenGate, windowKind, fleetTotal, inputFlagsOf, view = 'checks', onViewChange, sort, onSortChange, rank,
+  onOpenLoop, onOpenGate, windowKind, fleetTotal, inputFlagsOf, view = 'checks', sort, onSortChange, rank,
   toolbarStart, band,
 }) => {
   // The text box and the result filter are deliberately NOT in the URL: the box churns one history entry per keystroke
@@ -91,21 +90,23 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
 
   const start = (safePage - 1) * PAGE_SIZE;
   const visible = rows.slice(start, start + PAGE_SIZE);
-  const showing = rows.length === 0 ? '0' : `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)}`;
-  const count = `Showing ${showing} of ${rows.length}${fleetTotal != null && fleetTotal > loops.length
-    ? ` · matrix serves the first ${loops.length} of ${fleetTotal} loops in scope` : ''}`;
+  // CHG-156: no "Showing 1–15 of n" line (the row filter and the pager carry it); a short matrix still says so
+  const shortfall = fleetTotal != null && fleetTotal > loops.length
+    ? `The matrix serves the first ${loops.length} of ${fleetTotal} loops in scope.` : null;
 
   const back = () => onPageChange(1);   // a new row set invalidates the page number
   const showAll = () => { setQDraft(''); setResult(''); onFilterChange({ mode: 'all', gate: null }); };
 
   return (
     <>
-      <MatrixToolbar view={view} onViewChange={onViewChange} mode={filter.mode} counts={counts}
+      <MatrixToolbar mode={filter.mode} counts={counts}
         onModeChange={mode => { onFilterChange({ mode }); }}
         bands={bands} band={result} onBandChange={b => { setResult(b); back(); }}
         conditionFilter={toolbarStart} gate={filter.gate} onClearGate={() => onFilterChange({ gate: null })}
         query={qDraft} onQueryChange={v => { setQDraft(v); back(); }}
-        sort={sort} onSortChange={onSortChange} count={count} />
+        sort={sort} onSortChange={onSortChange} />
+      <span className="cpm-sr-only" aria-live="polite">{`${rows.length} ${rows.length === 1 ? 'loop' : 'loops'}`}</span>
+      {shortfall && <p className="cpm-op__basis">{shortfall}</p>}
 
       {band}
 
@@ -129,13 +130,10 @@ export const GateMatrix: React.FC<GateMatrixProps> = ({
             <GateMatrixChecks rows={visible} orderedGateKeys={orderedGateKeys} selectedLoopId={selectedLoopId} windowKind={windowKind}
               onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
           ) : (
-            <>
-              <GateLegend compact />
-              <GateMatrixGrid rows={visible} start={start} total={rows.length} orderedGateKeys={orderedGateKeys} tierGroups={tierGroups}
-                selectedLoopId={selectedLoopId} windowKind={windowKind}
-                resetKey={`${safePage}|${filter.mode}|${filter.gate}|${q}|${result}|${sort}`}
-                onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
-            </>
+            <GateMatrixGrid rows={visible} start={start} total={rows.length} orderedGateKeys={orderedGateKeys} tierGroups={tierGroups}
+              selectedLoopId={selectedLoopId} windowKind={windowKind}
+              resetKey={`${safePage}|${filter.mode}|${filter.gate}|${q}|${result}|${sort}`}
+              onSelectLoop={onSelectLoop} onOpenLoop={onOpenLoop} onOpenGate={onOpenGate} inputFlagsOf={inputFlagsOf} />
           )}
 
           {pageCount > 1 && (

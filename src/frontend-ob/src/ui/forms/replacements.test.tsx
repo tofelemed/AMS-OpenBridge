@@ -90,18 +90,17 @@ describe('Gate matrix toolbar', () => {
     <MemoryRouter>
       <GateMatrix loops={loops} orderedGateKeys={[]} tierGroups={[]} filter={{ mode: 'all', gate: null }} onFilterChange={noop}
         page={1} onPageChange={noop} selectedLoopId={null} onSelectLoop={noop} onOpenLoop={noop} onOpenGate={noop}
-        windowKind="12h" onViewChange={noop} sort="tag" onSortChange={noop} {...over} />
+        windowKind="12h" sort="tag" onSortChange={noop} {...over} />
     </MemoryRouter>,
   );
 
-  it('writes a new row filter or view', () => {
+  // CHG-156: the view toggle moved to the page's panel head (CpmPerformance.test covers it there)
+  it('writes a new row filter', () => {
     const onFilterChange = vi.fn();
-    const onViewChange = vi.fn();
-    mount({ onFilterChange, onViewChange });
+    mount({ onFilterChange });
     fireEvent.change(screen.getByRole('combobox', { name: 'Row filter' }), { target: { value: 'evaluated' } });
     expect(onFilterChange.mock.calls).toEqual([[{ mode: 'evaluated' }]]);
-    fireEvent.click(screen.getByRole('button', { name: 'Gate matrix' }));
-    expect(onViewChange.mock.calls).toEqual([['matrix']]);
+    expect(screen.queryByRole('button', { name: 'Gate matrix' })).toBeNull();
   });
 
   it('shows the failing-gate filter as a pressed chip that clears the gate', () => {
