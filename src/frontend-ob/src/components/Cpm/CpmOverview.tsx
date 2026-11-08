@@ -88,6 +88,8 @@ export const CpmOverview: React.FC = () => {
       <WorkspaceHeader
         page="/cpm"
         title="Overview"
+        // CHG-157 (owner review): no ? on the title
+        copy=""
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
 

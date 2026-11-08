@@ -28,6 +28,15 @@
   outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
   outline-offset: 2px;
 }
+/* CHG-157 (owner review): each part inside starts with room above it; the ways on are flat links set apart under a line */
+.cpm-gate-more .cpm-panel-head { margin: var(--traverse-space-5) 0 var(--traverse-space-2); }
+.cpm-gate-more > summary + .cpm-panel-head { margin-top: var(--traverse-space-3); }
+.cpm-gate-more .cpm-flag-row { gap: var(--traverse-space-2); }
+.cpm-gate-more__actions {
+  display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin-top: var(--traverse-space-5);
+  padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle);
+}
+.cpm-gate-more__actions obc-button { white-space: nowrap; }
 
 /* The result link is a native button so the matrix's roving tabindex can reach it; it reads as the flat link it was */
 .cpm-matrix__result-btn {

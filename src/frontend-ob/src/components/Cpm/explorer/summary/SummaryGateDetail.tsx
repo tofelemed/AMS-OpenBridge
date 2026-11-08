@@ -81,7 +81,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
     >
       <details className="cpm-gate-more">
         <summary>More about this gate</summary>
-        <EvidenceBody loopId={loop.loopId} gateKey={gate} windowKind={windowKind} />
+        <EvidenceBody loopId={loop.loopId} gateKey={gate} windowKind={windowKind} withWorkbench={false} />
       </details>
     </GateDialog>
   );

@@ -1310,3 +1310,12 @@ Removed on the owner's instruction (8 Nov): the `?` on the Performance title; th
 | Gate dialog, foot (Performance) | Review PIC10201 → | Review → (the loop is in the title) |
 | Gate dialog and selected-loop band, result whose last verdict is the same | Oscillation confirmed evidence score 100 last verdict Oscillation confirmed · evidence score 100 · 43 days ago | Oscillation confirmed evidence score 100 (the band adds · 43 days ago; the dialog's Assessment row has the date) |
 | Pager, every page | 40 px buttons | 32 px buttons |
+
+## CHG-157 owner review: Overview title, More about this gate
+
+Removed on the owner's instruction (8 Nov): the `?` on the Overview title; in the Loop Explorer gate dialog, the second workbench button under More about this gate (its foot keeps Evidence Workbench →).
+
+| Where | Was | Now |
+|---|---|---|
+| Gate dialog, More about this gate | Open in workbench → / Open in Evidence Replay → / Open full loop ↗ (raised and outlined buttons) | Workbench → / Replay → / Loop ↗ (flat links under a line) |
+| Gate dialog, More about this gate | parts touching each other | space above each part |

@@ -6044,3 +6044,15 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
 
 **Plant:** not deployed. This branch is not released.
+
+## CHG-157 — CPA owner page review 3: Overview title and More about this gate (2026-11-08, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's answers to the questions left after CHG-156.
+
+**Changed.**
+- **Overview:** no `?` on the title.
+- **More about this gate (Performance and Loop Explorer gate dialogs):** the three ways on are flat links with short names (Workbench →, Replay →, Loop ↗) set apart under a line; each part has space above it. The Loop Explorer dialog no longer offers the Workbench twice (its foot keeps Evidence Workbench →).
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.

@@ -10,8 +10,8 @@ import { PerformanceGateDialog } from './PerformanceGateDialog';
 import { gateMark } from '../gateStatus';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: ({ children, onClick, disabled }: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
-    <button onClick={onClick} disabled={disabled}>{children}</button>,
+  ObcButton: ({ children, onClick, disabled, variant }: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: string }) =>
+    <button onClick={onClick} disabled={disabled} data-variant={variant}>{children}</button>,
 }));
 vi.mock('../../../hooks/useCpm', () => ({
   useLatestGates: () => ({
@@ -98,6 +98,14 @@ describe('PerformanceGateDialog', () => {
     const d = screen.getByRole('dialog');
     expect(within(d).queryByText(/last verdict/)).toBeNull();
     expect(within(d).getAllByText(/evidence score/)).toHaveLength(1);
+  });
+
+  it('offers the evidence under More about this gate as short flat links (CHG-157)', () => {
+    show();
+    const more = screen.getByRole('dialog').querySelector('details')!;
+    const links = ['Workbench →', 'Replay →', 'Loop ↗'].map(name => within(more as HTMLElement).getByRole('button', { name }));
+    for (const l of links) expect(l.getAttribute('data-variant')).toBe('flat');
+    expect(more.querySelector('.cpm-gate-more__actions')).toBeTruthy();
   });
 
   it('shows no build or contract details under More about this gate', () => {

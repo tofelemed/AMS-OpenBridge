@@ -22,9 +22,11 @@ import { KvRow, PanelHead, TonePill, fmtDateTime } from './shared';
 import { CodeLabel } from './CodeLabel';
 import { flagsForLoop, inputContextOf, vpAbsent } from './optionalInputs';
 
-export const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKind: string }> = ({
-  loopId, gateKey, windowKind,
-}) => {
+export const EvidenceBody: React.FC<{
+  loopId: string; gateKey: string; windowKind: string;
+  /** False where the dialog's own foot already opens the Workbench (CHG-157), so it is offered once. */
+  withWorkbench?: boolean;
+}> = ({ loopId, gateKey, windowKind, withWorkbench = true }) => {
   const navigate = useNavigate();
   const gates = useLatestGates(loopId, windowKind);
   // CHG-077: the loop's declared inputs, so a loop without a valve position shows no NO_VP gap
@@ -109,26 +111,28 @@ export const EvidenceBody: React.FC<{ loopId: string; gateKey: string; windowKin
                 : !runId
                   ? { disabled: true, title: 'This result was stored before analysis runs were kept (before v2.5); use Replay or the Window Inspector instead' }
                   : { disabled: false, title: `Open method run ${runId}` };
-        const replayPrimary = workbench.disabled && !gates.isLoading && !fetchFailed && !noWindowYet;
         const replay = replayHref(loopId, { gate: gateKey, window: matrix?.windowEnd, kind: windowKind });
+        // CHG-157 (owner review): the ways on are the app's flat links with short names, like the dialog's foot
         return (
-          <div className="cpm-inspector__actions">
-            <span title={workbench.title}>
-              {/* CHG-098 (SME review 2 #29): why the workbench is unavailable shows on screen, not only on hover */}
-              <ReasonedButton variant={replayPrimary ? 'normal' : 'raised'} disabled={workbench.disabled}
-                reason={workbench.disabled && !gates.isLoading ? workbench.title : null}
-                onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
-                Open in workbench →
-              </ReasonedButton>
-            </span>
-            <ObcButton variant={replayPrimary ? 'raised' : 'normal'}
+          <div className="cpm-gate-more__actions">
+            {withWorkbench && (
+              <span title={workbench.title}>
+                {/* CHG-098 (SME review 2 #29): why the workbench is unavailable shows on screen, not only on hover */}
+                <ReasonedButton variant="flat" disabled={workbench.disabled}
+                  reason={workbench.disabled && !gates.isLoading ? workbench.title : null}
+                  onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gateKey)); }}>
+                  Workbench →
+                </ReasonedButton>
+              </span>
+            )}
+            <ObcButton variant="flat"
               title={matrix?.windowEnd ? `Replay the ${windowKind} window ending ${fmtDateTime(matrix.windowEnd)}` : `Replay this loop's newest ${windowKind} window`}
               onClick={() => navigate(replay)}>
-              Open in Evidence Replay →
+              Replay →
             </ObcButton>
-            <ObcButton variant="normal" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
+            <ObcButton variant="flat" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
               onClick={() => navigate(explorerHref(loopId, { tab: 'Calculations' }))}>
-              Open full loop ↗
+              Loop ↗
             </ObcButton>
           </div>
         );

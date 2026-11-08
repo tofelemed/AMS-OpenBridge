@@ -14,7 +14,9 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 vi.mock('../../../../hooks/useCpm', () => ({
   useGateCatalogue: () => ({ isLoading: false, data: { gates: [{ gate: 'G3', definition: 'Is the loop holding its setpoint?' }] } }),
 }));
-vi.mock('../../GateEvidencePanel', () => ({ EvidenceBody: () => <p>evidence body</p> }));
+vi.mock('../../GateEvidencePanel', () => ({
+  EvidenceBody: (p: { withWorkbench?: boolean }) => <p data-workbench={String(p.withWorkbench ?? true)}>evidence body</p>,
+}));
 
 import { SummaryGateDetail } from './SummaryGateDetail';
 
@@ -58,6 +60,12 @@ describe('SummaryGateDetail', () => {
     show('G4');
     expect((screen.getByRole('button', { name: 'Evidence Workbench →' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('dialog').textContent).toMatch(/before v2\.5/);
+  });
+
+  it('offers the Workbench once: at the foot, not again under More about this gate (CHG-157)', () => {
+    show();
+    expect(screen.getByText('evidence body').getAttribute('data-workbench')).toBe('false');
+    expect(screen.getAllByRole('button', { name: /workbench/i })).toHaveLength(1);
   });
 
   it('walks to the next gate and keeps the rest of the evidence one disclosure away', () => {
