@@ -90,12 +90,10 @@ export const CompareAcrossKinds: React.FC<{
           </Toggletip>
         }
         right={
-          <label className="cpm-field">
-            <span className="cpm-field__label">Metric</span>
-            <select className="cpm-select" value={field} onChange={e => setField(e.target.value)}>
-              {METRIC_OPTIONS.map(m => <option key={m.field} value={m.field}>{m.label}</option>)}
-            </select>
-          </label>
+          // CHG-164: in the head row, named by its options
+          <select className="cpm-select" aria-label="Metric" value={field} onChange={e => setField(e.target.value)}>
+            {METRIC_OPTIONS.map(m => <option key={m.field} value={m.field}>{m.label}</option>)}
+          </select>
         } />
       <div style={{ overflowX: 'auto' }}>
         <table className="cpm-signal-table">

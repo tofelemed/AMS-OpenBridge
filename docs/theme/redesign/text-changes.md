@@ -1410,3 +1410,17 @@ The pattern of Historical, Investigation and the Workbench, applied while the ow
 | Raw historian stage | root.site1.cpm.FIC10401 | Raw historian samples of the window |
 | No raw data | … or pick another window. (Historian series: root.site1.cpm.FIC10401) | … or pick another window. |
 | Right column | Window verdict ● Oscillation confirmed; EVIDENCE CHECK ▾; …; Open retained proof ↗; a Re-run card: Check the configuration before creating a new run. Original evidence stays unchanged. Re-run this window | Evidence check ▾; …; Re-run this window ? (About re-runs: A new run of the exact window. Check the configuration first; the original evidence stays unchanged.) at its foot; the result is in the window dropdown, the proof link is the band's Workbench ↗ |
+
+## CHG-164 owner review: Window Inspector
+
+The pattern of Historical, Investigation and the Workbench, applied while the owner was away (reviewed with CHG-163).
+
+| Where | Was | Now |
+|---|---|---|
+| Title | Window Inspector `?` | Window Inspector |
+| Header | CPLM Short Feature Engine · RUNNING · ckpt 129s ago · Pipeline Health ↗ | moved to the band's end (Pipeline Health ↗ outlined) |
+| List bar | SAMPLE COUNT [All] · 24 matching / 24 loaded · Newer · Older | [All windows] (named by its options); no count line; ‹ › in the band step the selected window |
+| Load older windows | under the list, left | under the list, centred |
+| Selected window | Received 146 · Nominal 180 · Ratio 81% · Difference −34 samples | Samples 146 of 180 · 81% −34 samples |
+| Selected window links | View record details ↗ · Feature flags ↗ · Sample density ↗ · Engine & timing ↗ · Open range in Historical ↗ · Open in Trend ↗ | Record details · Feature flags · Sample density · Engine & timing (dialogs, no ↗) · then Historical ↗ · Trend ↗ |
+| Compare across sizes | METRIC label over the dropdown | the dropdown in the head row, named by its options |

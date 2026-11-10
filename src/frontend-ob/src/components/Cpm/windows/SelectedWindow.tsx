@@ -1,6 +1,7 @@
 /**
  * Task 19: the selected window, in the right column beside the list (it was a separate view). Counts first, then
  * what the window is and when it was stored, then the one next step and the related looks (Historical and Trend open this window's range).
+ * CHG-164 (owner review): the samples read as one row; the dialogs are short buttons without ↗, apart from the two pages.
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -45,7 +46,7 @@ export const SelectedWindow: React.FC<{
   const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
     ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const link = (label: string, to: Dialogs) => (
-    <ObcButton variant="flat" onClick={() => setDialog(to)}>{label} {'↗'}</ObcButton>
+    <ObcButton variant="flat" onClick={() => setDialog(to)}>{label}</ObcButton>
   );
   return (
     <>
@@ -56,13 +57,11 @@ export const SelectedWindow: React.FC<{
           </ObcButton>
         }>
         <KvRow label="Window">{fmtInstant(row.window_start, timeZone)} {'→'} {fmtInstant(row.window_end, timeZone)}</KvRow>
-        <KvRow label="Received"><span className="cpm-mono">{fmtCount(received)}</span></KvRow>
-        <KvRow label="Nominal">
-          <span className="cpm-mono">{nominal ? fmtCount(nominal.value) : 'Not reported'}</span>
+        <KvRow label="Samples">
+          <span className="cpm-mono">{`${fmtCount(received)} of ${nominal ? fmtCount(nominal.value) : 'not reported'}${check ? ` · ${(check.ratio * 100).toFixed(0)}%` : ''}`}</span>
           {nominal?.derived && <span className="cpm-event-row__sub"> derived</span>}
+          {check && <TonePill tone={check.tone}>{check.label}</TonePill>}
         </KvRow>
-        {check && <KvRow label="Ratio"><span className="cpm-mono">{`${(check.ratio * 100).toFixed(0)}%`}</span></KvRow>}
-        {check && <KvRow label="Difference"><TonePill tone={check.tone}>{check.label}</TonePill></KvRow>}
         {declined && (
           <KvRow label="Message">
             <TonePill tone="bad">Declined</TonePill>
@@ -77,12 +76,14 @@ export const SelectedWindow: React.FC<{
         <KvRow label="Tag"><TonePill tone="muted">{isLong ? 'Long diagnostics' : 'Short features'}</TonePill></KvRow>
         <KvRow label="Stored">{fmtInstant(row.created_at, timeZone)}</KvRow>
         <div className="cpm-master-detail__links">
-          {link('View record details', 'record')}
+          {link('Record details', 'record')}
           {!isLong && link('Feature flags', 'flags')}
           {link('Sample density', 'density')}
           {link('Engine & timing', 'engine')}
-          <ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Open range in Historical {'↗'}</ObcButton>
-          {trend && <ObcButton variant="flat" onClick={() => navigate(trend)}>Open in Trend {'↗'}</ObcButton>}
+        </div>
+        <div className="cpm-master-detail__links">
+          <ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Historical {'↗'}</ObcButton>
+          {trend && <ObcButton variant="flat" onClick={() => navigate(trend)}>Trend {'↗'}</ObcButton>}
         </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />

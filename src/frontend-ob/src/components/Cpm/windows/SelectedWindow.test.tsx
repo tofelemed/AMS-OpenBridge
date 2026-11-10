@@ -36,12 +36,11 @@ const mount = (r: CpmKpiRow, kind = '15m', isLong = false) => render(
   </MemoryRouter>);
 
 describe('SelectedWindow', () => {
-  it('shows received, nominal, ratio and difference, and calls created_at Stored', () => {
+  // CHG-164 (owner review): received, nominal, ratio and difference read as one Samples row
+  it('shows the samples in one row, and calls created_at Stored', () => {
     mount(row());
-    expect(screen.getByText('Received').nextSibling?.textContent).toBe('181');
-    expect(screen.getByText('Nominal').nextSibling?.textContent).toBe('180');
-    expect(screen.getByText('Ratio').nextSibling?.textContent).toBe('101%');
-    expect(screen.getByText('Difference').nextSibling?.textContent).toBe('+1 sample');
+    expect(screen.getByText('Samples').nextSibling?.textContent).toBe('181 of 180 · 101%+1 sample');
+    expect(screen.queryByText('Received')).toBeNull();
     expect(screen.getByText('Stored')).toBeTruthy();
     expect(screen.queryByText(/emitted/i)).toBeNull();
     expect(screen.queryByText(/% full/)).toBeNull();
@@ -50,7 +49,7 @@ describe('SelectedWindow', () => {
 
   it('marks a derived nominal', () => {
     mount(row({ expected_sample_count: undefined, sample_count: 90, completeness: 0.5 }));
-    expect(screen.getByText('Nominal').nextSibling?.textContent).toContain('derived');
+    expect(screen.getByText('Samples').nextSibling?.textContent).toContain('derived');
   });
 
   it('sends a 15m window to its own run in the Workbench', () => {
@@ -67,7 +66,7 @@ describe('SelectedWindow', () => {
 
   it('names the six flags in a dialog, and reads Not evaluated for G2r on a declined window', () => {
     mount(row({ sufficient_data: false, gate2r_status: 'PASS', gate0_status: 'FAIL' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Feature flags ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Feature flags' }));
     const dialog = screen.getByRole('dialog', { name: 'Feature flags' });
     for (const g of ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4']) expect(within(dialog).getByText(g)).toBeTruthy();
     const g2r = within(dialog).getByText('G2r').closest('[data-flag]') as HTMLElement;
@@ -77,30 +76,30 @@ describe('SelectedWindow', () => {
 
   it('opens record details and engine & timing in dialogs', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
     expect(screen.getByRole('dialog', { name: 'Record details' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Engine & timing ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Engine & timing' }));
     expect(screen.getByRole('dialog', { name: 'Engine & timing' })).toBeTruthy();
   });
 
   it('is a long diagnostic: tagged so, with no feature flags', () => {
     mount(row({ long_metrics_qualified: true }), '12h', true);
     expect(screen.getByText('Long diagnostics')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Feature flags ↗' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Feature flags' })).toBeNull();
   });
 
   it('reads raw data only when Sample density opens, never on selecting a window', () => {
     mount(row());
     expect(useRawWindow).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Sample density ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sample density' }));
     expect(screen.getByRole('dialog', { name: 'Sample density' })).toBeTruthy();
     expect(useRawWindow).toHaveBeenCalled();
   });
 
   it('opens Trend on the loop, pinned to the window', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'Open in Trend ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trend ↗' }));
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
     expect(where).toContain('/trend?loop=FIC10401&from=2026-11-04T13:35:00.000Z');
     expect(where).toContain('from=2026-11-04T13:35:00.000Z');
@@ -108,11 +107,11 @@ describe('SelectedWindow', () => {
 
   it('opens Historical on the window range from the panel, and Record details no longer carries either link (B9)', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'View record details ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
     const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).queryByRole('button', { name: /Open range in Historical|Open in Trend/ })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: /Historical ↗|Trend ↗/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Open range in Historical ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Historical ↗' }));
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
     expect(where).toContain('/historical?loop=FIC10401');
     expect(where).toContain('window=');
@@ -120,7 +119,7 @@ describe('SelectedWindow', () => {
 
   it('shows each of the two links once in the panel (B9)', () => {
     mount(row());
-    expect(screen.getAllByRole('button', { name: 'Open range in Historical ↗' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Open in Trend ↗' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Historical ↗' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Trend ↗' })).toHaveLength(1);
   });
 });

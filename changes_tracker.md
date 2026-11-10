@@ -6193,3 +6193,13 @@ built); D5 (whether backups carry the archive); the release build itself.
 - The right column is one Evidence check panel: no verdict pill (the window dropdown says it), no Open retained proof ↗ (the band's Workbench ↗), Re-run at its foot with what it does behind a ?.
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+## CHG-164 — CPA owner review: Window Inspector (2026-11-11, branch feat/cpa-redesign, unreleased)
+
+**Why.** The second of the two pages the owner asked to be built in the approved pattern without a sample, for review with CHG-163.
+
+**Changed.** No `?` on the title; the band a card (loop, window size, ‹ › … engine state, Pipeline Health ↗); no "n matching / m loaded" line; the Sample count filter named by its options; Load older windows centred; the selected window's samples in one row; its dialogs as short buttons apart from the two pages (Historical ↗, Trend ↗); the Metric dropdown in the compare panel's head row; 32 px controls.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+**Tests.** 2035/2037 in the full run; the two EventDetail shelve tests time out under full-suite load and pass alone (36/36): a timing flake in a page CHG-160..164 did not change.

@@ -1,11 +1,11 @@
 /**
  * Task 19: the windows of one profile, newest first. A row is the window's time of day (the date is said once, in a
  * section head), its samples over nominal with the ratio, and its count check. A declined window stays in the count check.
- * The bar above holds the sample-count filter, "n matching / m loaded" and Newer / Older.
+ * The bar above holds the sample-count filter. CHG-164 (owner review): no "n matching / m loaded" line; Newer / Older became the
+ * band's ‹ ›; the filter is named by its options ("All windows"), as the band's controls are.
  */
 import { sameInstant } from '../evidence/useWindowAt';
 import React from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { TonePill } from '../shared';
 import { dayOf, rangeOf } from '../windowLabel';
@@ -15,7 +15,7 @@ import { countCheck, fmtCount, nominalOf } from './windowMath';
 export type CountFilter = 'all' | 'matches' | 'over' | 'under' | 'declined';
 
 const FILTERS: { value: CountFilter; label: string }[] = [
-  { value: 'all', label: 'All' }, { value: 'matches', label: 'Matches' }, { value: 'over', label: 'Over nominal' },
+  { value: 'all', label: 'All windows' }, { value: 'matches', label: 'Matches' }, { value: 'over', label: 'Over nominal' },
   { value: 'under', label: 'Under nominal' }, { value: 'declined', label: 'Declined' },
 ];
 
@@ -30,19 +30,11 @@ export function countFilterOf(row: CpmKpiRow, tier: 'short' | 'long'): Exclude<C
 
 export const WindowListBar: React.FC<{
   filter: CountFilter; onFilter: (f: CountFilter) => void;
-  matching: number; loaded: number;
-  hasNewer: boolean; hasOlder: boolean; onNewer: () => void; onOlder: () => void;
-}> = ({ filter, onFilter, matching, loaded, hasNewer, hasOlder, onNewer, onOlder }) => (
+}> = ({ filter, onFilter }) => (
   <div className="cpm-toolbar cpm-master-detail__bar">
-    <label className="cpm-field">
-      <span className="cpm-field__label">Sample count</span>
-      <select className="cpm-select" value={filter} onChange={e => onFilter(e.target.value as CountFilter)}>
-        {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-      </select>
-    </label>
-    <span className="cpm-filter-count">{matching} matching / {loaded} loaded</span>
-    <ObcButton variant="flat" disabled={!hasNewer} onClick={onNewer}>Newer</ObcButton>
-    <ObcButton variant="flat" disabled={!hasOlder} onClick={onOlder}>Older</ObcButton>
+    <select className="cpm-select" aria-label="Sample count" value={filter} onChange={e => onFilter(e.target.value as CountFilter)}>
+      {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+    </select>
   </div>
 );
 

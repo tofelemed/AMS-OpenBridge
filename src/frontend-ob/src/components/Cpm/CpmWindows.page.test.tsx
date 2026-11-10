@@ -21,7 +21,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
 vi.mock('./context/LoopBand', () => ({
-  LoopBand: (p: { children?: React.ReactNode }) => React.createElement('div', null, p.children),
+  LoopBand: (p: { children?: React.ReactNode; end?: React.ReactNode }) => React.createElement('div', null, p.children, p.end),
 }));
 vi.mock('../../store/authStore', () => ({
   useAuthStore: (f: (s: { hasPermission: (k: string) => boolean }) => boolean) => f({ hasPermission: k => k === 'system.manage' && perms.manage }),
@@ -73,12 +73,12 @@ afterEach(() => { cleanup(); rawSpy.mockReset(); nextSpy.mockReset(); vi.unstubA
 describe('Window Inspector', () => {
   it('selects the newest row by default', () => {
     mount();
-    expect(panel().getByText('Received').nextSibling?.textContent).toBe('181');
+    expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^181 of /);   // CHG-164: one Samples row
   });
 
   it('keeps an exact ?window=', () => {
     mount(`?loop=FIC10401&profile=15m&window=${encodeURIComponent(OLD)}`);
-    expect(panel().getByText('Received').nextSibling?.textContent).toBe('4');
+    expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^4 of /);   // CHG-164: one Samples row
   });
 
   it('lists the window, samples over nominal and the count check; declined stays in the count check', () => {
@@ -109,22 +109,25 @@ describe('Window Inspector', () => {
     mount();
     fireEvent.click(screen.getByText('13:20 → 13:35'));
     expect(url()).toContain(`window=${MID}`);
-    expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
+    expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^180 of /);   // CHG-164: one Samples row
     expect(rawSpy).not.toHaveBeenCalled();
   });
 
-  it('counts matching over loaded and filters by count check', () => {
-    mount();
-    expect(screen.getByText('3 matching / 3 loaded')).toBeTruthy();
+  // CHG-164 (owner review): no "n matching / m loaded" line; the filter is named by its options, 32 px controls
+  it('filters by count check with no count line', () => {
+    const { container } = mount();
+    expect(container.textContent).not.toMatch(/matching|loaded/);
+    expect(container.querySelector('.cpm-screen')?.classList.contains('cpm-compact')).toBe(true);
     fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
-    expect(screen.getByText('1 matching / 3 loaded')).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
   });
 
-  it('walks the windows with Newer and Older', () => {
+  // CHG-164: ‹ › in the band, as on the Workbench and Replay
+  it('walks the windows with ‹ and › in the band', () => {
     mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Older' }));
+    fireEvent.click(screen.getByRole('button', { name: '›' }));
     expect(url()).toContain(`window=${MID}`);
-    fireEvent.click(screen.getByRole('button', { name: 'Newer' }));
+    fireEvent.click(screen.getByRole('button', { name: '‹' }));
     expect(url()).toContain(`window=${NEWEST}`);
   });
 
@@ -162,14 +165,14 @@ describe('Window Inspector', () => {
     fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
     expect(screen.getByText('This window is hidden by the Sample count filter.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
-    expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
+    expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^180 of /);   // CHG-164: one Samples row
   });
 
   // CHG-153: the same instant written "+00:00" (fleet and summary rows) and "Z" (KPI rows) is one window.
   it('finds a window named with +00:00 among rows written with Z, selected and filtered alike', () => {
     const named = encodeURIComponent('2026-11-04T13:35:00+00:00');
     mount(`?loop=FIC10401&profile=15m&window=${named}`);
-    expect(panel().getByText('Received').nextSibling?.textContent).toBe('180');
+    expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^180 of /);   // CHG-164: one Samples row
     cleanup();
     mount(`?loop=FIC10401&profile=15m&window=${named}`);
     fireEvent.change(screen.getByLabelText('Sample count'), { target: { value: 'declined' } });
@@ -202,7 +205,7 @@ describe('Window Inspector', () => {
     kpis.rows = [row(NEWEST)];
     nextSpy.mockResolvedValue({ data: { pages: [{ samples: [row(NEWEST), row(MID)] }] } });
     mount();
-    const older = screen.getByRole('button', { name: 'Older' }) as HTMLButtonElement;
+    const older = screen.getByRole('button', { name: '›' }) as HTMLButtonElement;
     expect(older.disabled).toBe(false);
     fireEvent.click(older);
     await vi.waitFor(() => expect(url()).toContain(`window=${MID}`));

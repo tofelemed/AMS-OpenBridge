@@ -5,7 +5,9 @@
  * newest first, with the selected one beside the list in the right column (Task 19; it was a separate view).
  * The newest loaded window is selected when none is named; a named window that is not loaded selects nothing and says so. A row click reads nothing more: the
  * counts are on the row, and the window opens in Replay or the Workbench from "Inspect this window".
- * Compare across window sizes sits under the list.
+ * Compare across window sizes sits under the list. CHG-164 (owner review, the pattern of Historical, Investigation and the
+ * Workbench): no ? on the title; the band a card (loop, window size, ‹ › … the engine and Pipeline Health); no count line; Load
+ * older windows centred under the list; 32 px controls.
  */
 import { sameInstant } from './evidence/useWindowAt';
 import React, { useMemo, useState } from 'react';
@@ -88,26 +90,31 @@ export const CpmWindows: React.FC = () => {
   const clearWindow = () => setParams(p => { p.delete('window'); return p; }, { replace: true });
 
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        page="/cpm/windows"
-        title="Window Inspector"
-        actions={<>
+    // CHG-164: buttons and fields are 32 px, as on the other evidence pages (cpm-compact)
+    <div className="cpm-screen cpm-compact">
+      <WorkspaceHeader page="/cpm/windows" title="Window Inspector" copy="" />
+      <LoopBand card loopId={loopId}
+        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
+        end={<>
           {anyCplm && (
             <TonePill tone={anyCplm.state === 'RUNNING' ? 'good' : 'bad'}>
               {anyCplm.name.replace('AMS - ', '')} {'·'} {anyCplm.state}
               {anyCplm.checkpoint?.lastCompletedAgeSec != null ? ` · ckpt ${anyCplm.checkpoint.lastCompletedAgeSec}s ago` : ''}
             </TonePill>
           )}
-          {canManage && <ObcButton variant="flat" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
-        </>}
-      />
-      <LoopBand loopId={loopId}
-        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}>
+          {canManage && <ObcButton variant="normal" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
+        </>}>
         <select className="cpm-select" aria-label="Window profile" value={profile} onChange={e => setProfile(e.target.value)}>
           <optgroup label="Short features (G0–G4)">{optionsOf(shortSpecs)}</optgroup>
           <optgroup label="Long diagnostics (G5–G11)">{optionsOf(longSpecs)}</optgroup>
         </select>
+        {rows.length > 0 && (
+          // CHG-164: Newer / Older step the selected window, as ‹ › do on the Workbench and Replay
+          <span className="cpm-step-pair">
+            <span title="Newer window"><ObcButton variant="flat" disabled={!view?.newer} onClick={() => goTo(view?.newer?.window_end)}>‹</ObcButton></span>
+            <span title="Older window"><ObcButton variant="flat" disabled={!(view?.older || (view && kpis.hasNextPage))} onClick={() => void older()}>›</ObcButton></span>
+          </span>
+        )}
       </LoopBand>
 
       {!loopId && (
@@ -127,9 +134,7 @@ export const CpmWindows: React.FC = () => {
                 next={canManage ? [{ label: 'Pipeline Health', to: pipelineHref() }] : undefined} />
             )}
             {rows.length > 0 && (<>
-              <WindowListBar filter={filter} onFilter={setFilter} matching={shown.length} loaded={rows.length}
-                hasNewer={!!view?.newer} hasOlder={!!view?.older || (!!view && !!kpis.hasNextPage)}
-                onNewer={() => goTo(view?.newer?.window_end)} onOlder={() => void older()} />
+              <WindowListBar filter={filter} onFilter={setFilter} />
               {missing && (
                 <EmptyState title={missing === 'filtered' ? 'This window is hidden by the Sample count filter.' : 'This window is not in the loaded list.'}
                   copy={missing === 'filtered' ? undefined : 'Load older windows to reach it.'}
@@ -141,7 +146,7 @@ export const CpmWindows: React.FC = () => {
               <WindowList rows={shown} selectedEnd={view?.selected.window_end ?? null} tier={tier}
                 timeZone={timeZone} onSelect={selectWindow} />
               {kpis.hasNextPage && (
-                <div className="cpm-filter-row">
+                <div className="cpm-windows-more">
                   <ObcButton variant="normal" disabled={kpis.isFetchingNextPage} onClick={() => void kpis.fetchNextPage()}>
                     {kpis.isFetchingNextPage ? 'Loading…' : 'Load older windows'}
                   </ObcButton>

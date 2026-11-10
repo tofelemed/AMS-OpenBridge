@@ -20,3 +20,6 @@
 /* Window list: a pill fits its content and keeps the same outline on the selected row. */
 .cpm-master-detail__list .cpm-event-row > .cpm-pill { justify-self: start; }
 .cpm-master-detail__list .cpm-event-row--selected .cpm-pill { border-color: var(--border-divider-color); }
+
+/* CHG-164 (owner review): Load older windows sits centred under the list, as the pagers do. */
+.cpm-windows-more { display: flex; justify-content: center; margin-top: var(--traverse-space-3); }
