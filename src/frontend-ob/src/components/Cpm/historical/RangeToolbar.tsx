@@ -2,7 +2,8 @@
 
 /**
  * Historical: what to draw, above the chart, and the one Export menu. CHG-129: the plant scope lives in the header; the loop,
- * the range and Export live in the band, so the chart starts directly under this row.
+ * the range and Export live in the band, so the chart starts directly under this row. CHG-159 (owner's design): this is
+ * the chart's one head row: signals, Normalise and the overlay on the left; the zoom tools and Open in Trend on the right.
  *
  * Colour here is functional, not decoration: the signal chips carry the SAME
  * --ams-pen-* token as the line each one draws, so the toggle and the pen are
@@ -42,6 +43,9 @@ export interface RangeToolbarProps {
   /** v2.5 (2E.2, R14): explicit Normalise toggle - one "fraction of own span" axis instead of EU + pp axes. */
   normalize: boolean;
   onToggleNormalize: () => void;
+
+  /** CHG-159: the chart's zoom tools, at the right end before Open in Trend. */
+  tools?: React.ReactNode;
 }
 
 export interface ExportMenuProps {
@@ -121,7 +125,7 @@ export function vpChipNote(loop: CpmLoop | undefined): { text: string; meaning: 
 }
 
 export const RangeToolbar: React.FC<RangeToolbarProps> = ({
-  loop, signals, onToggleSignal, overlays, overlayKey, onOverlay, trendHref, onOpenTrend, normalize, onToggleNormalize,
+  loop, signals, onToggleSignal, overlays, overlayKey, onOverlay, trendHref, onOpenTrend, normalize, onToggleNormalize, tools,
 }) => (
   <div className="cpm-hist-toolbar">
     <div className="cpm-hist-view">
@@ -150,6 +154,7 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
             </button>
           );
         })}
+        <span className="cpm-hist-sep" aria-hidden="true" />
         {/* v2.5 (2E.2, R14): PV/SP live on the EU axis and OP/VP on a percentage-point axis; Normalise
             is an explicit choice that names its conversion, never a silent shared axis. */}
         <button
@@ -175,6 +180,8 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
       </label>
 
       <div className="cpm-hist-row__end">
+        {tools}
+        {tools && trendHref && <span className="cpm-hist-sep" aria-hidden="true" />}
         {trendHref && (
           <ObcButton variant="flat" onClick={() => onOpenTrend(trendHref)}>
             Open in Trend ↗

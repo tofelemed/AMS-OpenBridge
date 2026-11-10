@@ -151,7 +151,7 @@
 .ui-pagination {
   display: inline-flex;
   align-items: center;
-  gap: var(--traverse-space-2);
+  gap: var(--traverse-space-1);   /* CHG-159: a smaller pager */
   max-width: 100%;
 }
 .ui-pagination__page[aria-current='page'] {

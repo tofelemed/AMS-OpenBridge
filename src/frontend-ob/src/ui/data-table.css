@@ -10,6 +10,8 @@
 .ui-table__scroll { position: relative; max-height: 70vh; overflow: auto; }
 .ui-table__scroll:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
 .ui-table__footer { display: flex; justify-content: flex-end; }
+/* CHG-159 (owner review): a table's pager sits in the middle, as the gate matrix pager does. */
+.ui-table__footer:has(> .ui-pagination) { justify-content: center; }
 
 .ui-table table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .ui-table th {

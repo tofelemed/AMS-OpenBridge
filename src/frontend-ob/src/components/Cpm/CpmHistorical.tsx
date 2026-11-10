@@ -27,6 +27,7 @@ import RangeToolbar, { ExportMenu, SIGNAL_KEYS } from './historical/RangeToolbar
 import SelectedWindowPanel from './historical/SelectedWindowPanel';
 import EvaluatedWindows from './historical/EvaluatedWindows';
 import ChartFoot from './historical/ChartFoot';
+import ChartZoomBar from '../charts/ChartZoomBar';
 import ChartCaptions from './historical/ChartCaptions';
 import { WINDOW_CAP, packageReason, useWindowKpis } from './historical/useWindowKpis';
 import { selectedWindowOf } from './historical/selectWindow';
@@ -178,15 +179,17 @@ export const CpmHistorical: React.FC = () => {
   const windowsError = history.error ?? summaries.error;
 
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader page="/cpm/historical" title="Historical"
+    // CHG-159 (owner review): no ? on the title; the page's buttons and fields are 32 px (cpm-compact)
+    <div className="cpm-screen cpm-compact">
+      <WorkspaceHeader page="/cpm/historical" title="Historical" copy=""
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />} />
-      <LoopBand loopId={loopId}
+      {/* CHG-159 (owner's design): the band is a card, as on Loop Explorer */}
+      <LoopBand card loopId={loopId}
         onLoop={id => write(p => { p.set('loop', id); p.delete('window'); })}
         onClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
         end={(
           <div className="cpm-hist-bandend">
-            {loopId && <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}
+            {loopId && <ObcButton variant="normal" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}
             <ExportMenu loopId={loopId ?? ''} exportDisabled={full.length === 0} onExport={k => void exporter.run(k)} exportBusy={exporter.busy}
               packageWindow={selectedFull?.windowEnd ? fmtWhen(selectedFull.windowEnd) : null}
               packageUnavailable={selectedWindow && !selectedFull ? packageReason(selectedWindow.windowEnd) : null} />
@@ -207,7 +210,7 @@ export const CpmHistorical: React.FC = () => {
           }} />
       </LoopBand>
 
-      <section className="cpm-surface">
+      <section className="cpm-surface cpm-hist-chart">
         <RangeToolbar
           loop={loop}
           signals={signals}
@@ -223,6 +226,11 @@ export const CpmHistorical: React.FC = () => {
           onOpenTrend={href => navigate(href)}
           normalize={normalize}
           onToggleNormalize={() => write(p => { if (normalize) p.delete('normalize'); else p.set('normalize', '1'); })}
+          tools={hasAnyLane && (
+            <ChartZoomBar box={box} hasData>
+              {xZoom && <ObcButton variant="raised" onClick={applyZoom}>Apply zoom to range →</ObcButton>}
+            </ChartZoomBar>
+          )}
         />
         {exporter.error && <p className="cpm-field__error" role="alert">{exporter.error}</p>}
 
@@ -242,18 +250,17 @@ export const CpmHistorical: React.FC = () => {
         )}
 
         {hasAnyLane && (
-          <>
-            <ReactECharts option={option} style={{ height: CHART_HEIGHT }} notMerge
-              onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom, click: onChartClick }} />
-            <ChartFoot box={box} hasData={hasAnyLane} zoomed={!!xZoom} onApplyZoom={applyZoom}
-              results={windows.length} windowKind={windowKind} capped={truncated} cap={WINDOW_CAP} />
-          </>
+          <ReactECharts option={option} style={{ height: CHART_HEIGHT }} notMerge
+            onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom, click: onChartClick }} />
         )}
 
-        <ChartCaptions series={series} signals={signals} hasAnyLane={hasAnyLane} hasPlottableSignal={hasPlottableSignal} overlay={overlay}
+        <ChartCaptions loopId={loop?.loopId ?? loopId} signals={signals} hasAnyLane={hasAnyLane} hasPlottableSignal={hasPlottableSignal} overlay={overlay}
           kpi={{ isError: kpis.isError, isLoading: kpis.isLoading, error: kpis.error, refetch: () => void kpis.refetch(), empty: kpiRows.length === 0, truncatedFrom: kpiTruncatedFrom, cap: KPI_ROW_CAP }}
           mode={{ isError: modeTrack.isError, empty: modeSegments.length === 0 }}
           history={{ isError: !!windowsError, error: windowsError, refetch: () => { void history.refetch(); void summaries.refetch(); } }} />
+
+        {/* CHG-159: the panel's foot strip */}
+        {hasAnyLane && <ChartFoot results={windows.length} windowKind={windowKind} capped={truncated} cap={WINDOW_CAP} />}
       </section>
 
       <div className="cpm-hist-lower">

@@ -6088,3 +6088,31 @@ built); D5 (whether backups carry the archive); the release build itself.
 | No loop chosen | left Loops list | loop control in the band at the top |
 | Signals tab | UNS path; quality and binding in the foot | what the signal is; two links in the foot |
 | Calculations tab | page window only | Window dropdown (fused + short) and Full catalogue → |
+
+## CHG-159 — CPA owner page review 5: Historical (2026-11-10, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's review of Historical, laid out as the owner's design image for the page.
+
+**Changed.**
+- **Title:** no `?`.
+- **Band:** a card, as on Loop Explorer: the loop, a divider, the range, step ‹ ›, Now; Loop Explorer ↗ (now outlined) and Export at the end.
+- **Chart panel:** one head row, edge to edge: PV, SP, OP, VP, a divider, Normalise and the KPI overlay on the left; Zoom area, Undo, Reset (and Apply zoom to range → while zoomed), a divider and Open in Trend ↗ on the right. The grey boxes round the toolbar and under the chart went. Under the chart, the captions, then a foot strip with the results count and Result key.
+- **Sizes (Historical only, asked by the owner):** buttons and fields are 32 px, as the pager, with 12 px side padding (16 elsewhere); table rows 40 px; the selected window's KPI tiles have less padding. Text sizes are unchanged. Other pages keep 40 px.
+- **Selected window:** Review this window → fills the panel (the button box stretched but the painted button did not); Replay ↗, Fit to this window and Evidence package ↗ in one row, first and last on the panel's edges.
+- **Pager (every table pager):** in the middle of the table's foot, as the gate matrix pager; 4 px between its buttons.
+- **Loop list:** flat by tag, already so since CHG-158 (the lab ran the 7 Nov build).
+- **Loop named by its tag:** the empty-signal line on Historical and the empty PV / SP lane line on the Evidence pages no longer print the historian path.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.
+
+| Where | Was | Now |
+|---|---|---|
+| Historical title | Historical `?` | Historical |
+| Band | strip | card, Loop Explorer ↗ outlined |
+| Chart | toolbar box; zoom box under the chart | one head row with the zoom tools; foot strip |
+| Buttons and fields on Historical | 40 px | 32 px |
+| Review this window → | content width | full width |
+| Pager | right of the foot | middle of the foot |
+| Empty signal line | root.site1.cpm.FIC10401 | FIC10401 |

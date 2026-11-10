@@ -6,7 +6,8 @@ import { fmtWhen } from '../blocks/whenText';
 import type { HistoryWindow } from './useWindowKpis';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; fullWidth?: boolean }) =>
+    React.createElement('button', { onClick: p.onClick, disabled: p.disabled, 'data-full': p.fullWidth ? 'yes' : undefined }, p.children),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', () => ({ ObiContentCopyGoogle: () => null }));
 import SelectedWindowPanel from './SelectedWindowPanel';
@@ -22,6 +23,12 @@ const base = { loopId: 'FIC10302', window: win, fellBack: false, noWindows: fals
 const show = (over = {}) => render(<MemoryRouter><SelectedWindowPanel {...base} {...over} /></MemoryRouter>);
 
 describe('SelectedWindowPanel', () => {
+  // CHG-159 (owner review): the host stretched but the painted button did not
+  it('draws Review this window → across the panel', () => {
+    show();
+    expect(screen.getByRole('button', { name: 'Review this window →' }).dataset.full).toBe('yes');
+  });
+
   it('shows four KPIs, Review this window → and Fit to this window on the right', () => {
     const onFit = vi.fn();
     show({ onFit });

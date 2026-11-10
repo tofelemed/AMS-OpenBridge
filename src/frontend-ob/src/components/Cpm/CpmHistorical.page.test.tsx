@@ -14,9 +14,9 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 vi.mock('echarts-for-react', () => ({
   default: (p: { onEvents?: typeof state.chartEvents }) => { state.chartEvents = p.onEvents; return <div data-testid="chart" />; },
 }));
-vi.mock('./context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode }) => <div>{p.children}</div> }));
+vi.mock('./context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode; card?: boolean }) => <div data-testid="band" data-card={p.card ? 'yes' : 'no'}>{p.children}</div> }));
 vi.mock('./trend/TimeRangeBar', () => ({ default: () => null }));
-vi.mock('./historical/RangeToolbar', () => ({ default: () => null, ExportMenu: () => null, SIGNAL_KEYS: ['pv', 'sp', 'op', 'vp'] }));
+vi.mock('./historical/RangeToolbar', () => ({ default: (p: { tools?: React.ReactNode }) => <div data-testid="chart-head">{p.tools}</div>, ExportMenu: () => null, SIGNAL_KEYS: ['pv', 'sp', 'op', 'vp'] }));
 vi.mock('./historical/SelectedWindowPanel', () => ({ default: (p: { window?: { windowEnd: string } }) => <div data-testid="panel">{p.window?.windowEnd ?? 'none'}</div> }));
 vi.mock('./historical/useHistoryExports', () => ({ useHistoryExports: () => ({ run: vi.fn(), busy: null, error: null }) }));
 vi.mock('./health/useInstrumentHealth', () => ({ useInstrumentHealthHistory: () => ({ data: undefined }) }));
@@ -60,5 +60,31 @@ describe('Historical selects a window from the list and from the lane (B3)', () 
     render(<MemoryRouter initialEntries={[URL_]}><CpmHistorical /><Where /></MemoryRouter>);
     act(() => state.chartEvents!.click!({ seriesName: 'PV', dataIndex: 0 }));
     expect(screen.getByTestId('where').textContent).not.toContain('window=');
+  });
+});
+
+// CHG-159 (owner review of Historical, 10 Nov)
+describe('Historical title and size', () => {
+  it('has no ? on the page title', () => {
+    render(<MemoryRouter initialEntries={[URL_]}><CpmHistorical /></MemoryRouter>);
+    expect(screen.getByRole('heading', { level: 1, name: 'Historical' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Historical' })).toBeNull();
+  });
+
+  it('carries the compact size class, so its buttons and fields are 32 px like the pager', () => {
+    const { container } = render(<MemoryRouter initialEntries={[URL_]}><CpmHistorical /></MemoryRouter>);
+    expect(container.querySelector('.cpm-screen')?.classList.contains('cpm-compact')).toBe(true);
+  });
+
+  it('draws the loop band as a card, as on Loop Explorer', () => {
+    render(<MemoryRouter initialEntries={[URL_]}><CpmHistorical /></MemoryRouter>);
+    expect(screen.getByTestId('band').dataset.card).toBe('yes');
+  });
+
+  it('puts Zoom area, Undo and Reset in the chart head row, once', () => {
+    render(<MemoryRouter initialEntries={[URL_]}><CpmHistorical /></MemoryRouter>);
+    const head = screen.getByTestId('chart-head');
+    for (const name of ['Zoom area', 'Undo', 'Reset']) expect(within(head).getByRole('button', { name })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Zoom area' })).toHaveLength(1);
   });
 });

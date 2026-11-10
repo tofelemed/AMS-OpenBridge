@@ -97,7 +97,7 @@ export const SelectedWindowPanel: React.FC<{
 
           <div className="cpm-hist-selected__actions">
             <span title={run && loopId ? `Open the ${run.gate} run ${run.methodRunId} of this window in the Evidence Workbench` : undefined}>
-              <ReasonedButton variant="raised" disabled={!run || !loopId}
+              <ReasonedButton variant="raised" fullWidth disabled={!run || !loopId}
                 reason="Stored before analysis runs were kept (before v2.5), so there is no run to open — use Replay"
                 onClick={() => { if (run && loopId) navigate(workbenchHref(loopId, run.methodRunId, run.gate)); }}>
                 Review this window →

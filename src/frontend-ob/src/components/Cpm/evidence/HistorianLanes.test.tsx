@@ -61,4 +61,13 @@ describe('HistorianLanes', () => {
     expect(screen.getByText(/Fetching the historian slice/)).toBeTruthy();
     trendState.isLoading = false;
   });
+
+  // CHG-159 (owner review): the loop is named by its tag, never by its historian path
+  it('names the loop, not its historian path, when the window has no PV / SP samples', () => {
+    trendState.data = { series: 's', envelope: false, points: [] };
+    modeState.data = { series: 's', envelope: false, points: [] };
+    const { container } = render(<HistorianLanes loopId="FIC10405" fromMs={T0} toMs={T0 + 3_600_000} timeZone="UTC" timeFmt={() => 't'} healthLane={null} />);
+    expect(screen.getByText('PV / SP lane: no historian samples for FIC10405 in this window.')).toBeTruthy();
+    expect(container.textContent).not.toContain('root.');
+  });
 });

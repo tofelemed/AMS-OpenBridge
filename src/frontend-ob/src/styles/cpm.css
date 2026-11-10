@@ -891,15 +891,17 @@
    only saturated colour in here is on the signal chips, where it carries the
    pen identity of the line each chip draws. On a diagnostic screen, colour that
    means nothing competes with colour that does. */
+/* CHG-159 (owner's design): the chart panel's head row, edge to edge, over a divider; no box of its own. */
 .cpm-hist-toolbar {
   display: flex;
   flex-direction: column;
-  background: var(--container-section-color);
-  border: 1px solid var(--border-outline-color, var(--border-divider-color));
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 16px;
+  margin: 0 calc(-1 * var(--traverse-space-4)) var(--traverse-space-3);
+  border-bottom: 1px solid var(--traverse-border-subtle);
 }
+.cpm-hist-toolbar .cpm-hist-view { padding: var(--traverse-space-2) var(--traverse-space-4); }
+.cpm-hist-row__end { align-items: center; }
+.cpm-hist-row__end .chart-zoombar { gap: var(--traverse-space-1); }
+.cpm-hist-sep { align-self: stretch; width: 1px; margin: var(--traverse-space-1) var(--traverse-space-1); background: var(--traverse-border-subtle); }
 
 .cpm-hist-view { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); padding: var(--traverse-space-2) var(--traverse-space-3); }
 .cpm-hist-view .cpm-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -990,16 +992,18 @@
 .cpm-panel-head__right { min-width: 0; flex: 0 1 auto; display: flex; align-items: center; gap: 8px; }
 
 .cpm-hist-captions { display: grid; gap: 4px; margin-top: 10px; }
-.cpm-hist-zoom {
+/* CHG-159 (owner's design): the chart panel's foot strip, edge to edge under a divider. */
+.cpm-hist-foot {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--traverse-space-3);
   flex-wrap: wrap;
-  margin-top: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border-divider-color);
-  border-radius: 8px;
-  background: var(--container-section-color);
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0;
+  padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+  background: var(--traverse-surface-page);
 }
 
 .cpm-window-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; }

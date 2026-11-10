@@ -1,14 +1,12 @@
 'use client';
 
 /**
- * CHG-139: under the chart: zoom, Undo, Reset (and Apply once zoomed), how many results the range holds, and the
- * Result key. The key is what the colours of the Mode and Result lanes mean; it opens as a dialog so the lanes stay
- * free of legends.
+ * CHG-139: under the chart: how many results the range holds, and the Result key. The key is what the colours of the
+ * Mode and Result lanes mean; it opens as a dialog so the lanes stay free of legends. CHG-159 (owner's design): the zoom
+ * buttons moved up into the chart's head row, so this is the panel's foot strip.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import ChartZoomBar from '../../charts/ChartZoomBar';
-import type { BoxZoom } from '../../charts/useBoxZoom';
 import { Dialog } from '../../../ui/Dialog';
 import { TonePill, type CpmTone } from '../shared';
 import { BAND_WORD } from '../vocabulary';
@@ -26,26 +24,19 @@ const MODE_KEY: Array<{ tone: CpmTone; words: string }> = [
 ];
 
 export const ChartFoot: React.FC<{
-  box: BoxZoom;
-  hasData: boolean;
-  zoomed: boolean;
-  onApplyZoom: () => void;
   results: number;
   windowKind: string;
   /** More windows exist than were read. */
   capped: boolean;
   cap: number;
-}> = ({ box, hasData, zoomed, onApplyZoom, results, windowKind, capped, cap }) => {
+}> = ({ results, windowKind, capped, cap }) => {
   const [keyOpen, setKeyOpen] = useState(false);
   return (
-    <div className="cpm-hist-zoom" role="status">
-      <ChartZoomBar box={box} hasData={hasData}>
-        {zoomed && <ObcButton variant="raised" onClick={onApplyZoom}>Apply zoom to range →</ObcButton>}
-        <span className="cpm-copy">
-          {results} results · {windowKind} rolling windows{capped ? ` · newest ${cap} read` : ''}
-        </span>
-        <ObcButton variant="flat" onClick={() => setKeyOpen(true)}>Result key</ObcButton>
-      </ChartZoomBar>
+    <div className="cpm-hist-foot" role="status">
+      <span className="cpm-copy">
+        {results} results · {windowKind} rolling windows{capped ? ` · newest ${cap} read` : ''}
+      </span>
+      <ObcButton variant="flat" onClick={() => setKeyOpen(true)}>Result key</ObcButton>
       <Dialog open={keyOpen} title="Result key" onClose={() => setKeyOpen(false)}
         footer={<ObcButton variant="normal" onClick={() => setKeyOpen(false)}>Close</ObcButton>}>
         <dl className="cpm-hist-key">

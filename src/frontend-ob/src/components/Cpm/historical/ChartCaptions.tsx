@@ -2,14 +2,15 @@
 
 /**
  * Historical: the lines under the chart that say why a lane is empty or a feed failed. Failures and data states stay on
- * screen; the "historian series at …" line is gone (CHG-139). A lane with no data is empty, never zero.
+ * screen; the "historian series at …" line is gone (CHG-139). A lane with no data is empty, never zero. CHG-159 (owner
+ * review): the loop is named by its tag, never by its historian path.
  */
 import React from 'react';
 import { QueryError } from '../shared';
 import { fmtWhen } from '../blocks/whenText';
 
 export interface ChartCaptionsProps {
-  series: string | undefined;
+  loopId: string | undefined;
   signals: string[];
   hasAnyLane: boolean;
   hasPlottableSignal: boolean;
@@ -19,12 +20,11 @@ export interface ChartCaptionsProps {
   history: { isError: boolean; error: unknown; refetch: () => void };
 }
 
-export const ChartCaptions: React.FC<ChartCaptionsProps> = ({ series, signals, hasAnyLane, hasPlottableSignal, overlay, kpi, mode, history }) => (
+export const ChartCaptions: React.FC<ChartCaptionsProps> = ({ loopId, signals, hasAnyLane, hasPlottableSignal, overlay, kpi, mode, history }) => (
   <div className="cpm-hist-captions">
     {!hasPlottableSignal && hasAnyLane && (
       <p className="cpm-hist-note">
-        No values stored at {series} for{' '}
-        {signals.map(x => x.toUpperCase()).join(', ')} in this range — the signal lane
+        No {signals.map(x => x.toUpperCase()).join(', ')} values stored for {loopId} in this range — the signal lane
         is empty, but the other lanes below it are not.
       </p>
     )}

@@ -1343,3 +1343,14 @@ Removed on the owner's instruction (10 Nov): the `?` on the Loop Explorer title;
 | Calculations tab | "12h window ending …"; no window choice; Inspect → on every gate; foot: Short windows ↗ and Full catalogue → | head "Latest fused 12h window · ended …" / Gate outcomes (short: "Latest 5m short window · ended …" / Per-window features) with the Window dropdown (Fused verdict 12h / 24h; Short features 1m … 60m) and Full catalogue → at its right; compact gate rows, the gate name opens it; a short window's checks as small labels; foot: Short windows ↗ |
 | Calculations, no fused verdict | … Switch 12 h / 24 h at the top of the page, or check Pipeline Health … | … Choose another window, or check Pipeline Health … |
 | Signals tab, value | Value and Unit columns (35.10 · %) | one Value column (35.10 %) |
+
+## CHG-159 owner review: Historical
+
+Removed on the owner's instruction (10 Nov): the `?` on the Historical title, and the historian path (root.site1.cpm.…) from the empty-signal line on Historical and the empty PV / SP lane line on the Evidence pages; the loop's tag names it.
+
+| Where | Was | Now |
+|---|---|---|
+| Historical title | Historical `?` | Historical |
+| Historical, empty signal lane | No values stored at root.site1.cpm.FIC10401 for PV, SP, OP in this range — the signal lane is empty, but the other lanes below it are not. | No PV, SP, OP values stored for FIC10401 in this range — the signal lane is empty, but the other lanes below it are not. |
+| Evidence pages, empty PV / SP lane | PV / SP lane: no historian samples for this window at root.site1.cpm.FIC10401. | PV / SP lane: no historian samples for FIC10401 in this window. |
+| Historical, chart | Zoom area, Undo, Reset in the box under the chart, with the results count and Result key | Zoom area, Undo, Reset in the head row before Open in Trend ↗; the foot holds the results count and Result key |

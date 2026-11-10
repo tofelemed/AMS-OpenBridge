@@ -75,7 +75,7 @@ export const HistorianLanes: React.FC<{
     <div className="cpm-context-lanes">
       {eu.length > 0
         ? <CpmChart title={`PV / SP — ${SOURCE_TAG}`} series={eu} xKind="time" timeZone={timeZone} height={200} />
-        : <p className="cpm-copy" data-lane="PV/SP">PV / SP lane: no historian samples for this window at {series}.</p>}
+        : <p className="cpm-copy" data-lane="PV/SP">PV / SP lane: no historian samples for {loopId} in this window.</p>}
       {pp.length > 0
         ? <CpmChart title={`OP / VP — ${SOURCE_TAG}`} series={pp} xKind="time" timeZone={timeZone} height={160} />
         : <p className="cpm-copy" data-lane="OP/VP">OP / VP lane: no historian samples for this window.</p>}

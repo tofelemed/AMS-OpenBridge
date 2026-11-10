@@ -1,6 +1,16 @@
 /* CHG-139 Historical: the evaluated windows (left) and the selected window (right) under the chart. Placement only. */
 .cpm-hist-bandend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
 
+/* CHG-159 (owner's design): in the band card a divider sets the range apart from the loop; the chart panel's head row
+   and foot strip run to its edges, so the panel has no padding above and below. */
+.cpm-band--card .cpm-band__row > .cpm-range-bar { padding-inline-start: var(--traverse-space-3); border-inline-start: 1px solid var(--traverse-border-subtle); }
+.cpm-hist-chart { padding-block: 0; }
+/* On a phone the rows wrap, so the dividers would hang at line ends. */
+@media (max-width: 640px) {
+  .cpm-band--card .cpm-band__row > .cpm-range-bar { padding-inline-start: 0; border-inline-start: 0; }
+  .cpm-hist-sep { display: none; }
+}
+
 .cpm-hist-lower {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -16,9 +26,35 @@
 .cpm-hist-selected__actions > span,
 .cpm-hist-selected__actions > span .cpm-reasoned { display: flex; flex-direction: column; align-items: stretch; width: 100%; }
 .cpm-hist-selected__actions > span obc-button { width: 100%; }
-.cpm-hist-selected__links { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--traverse-space-2); }
+/* CHG-159: the three links in one row under Review this window →, first and last text on the panel's edges. */
+.cpm-hist-selected__links {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2);
+  margin-inline: calc(-1 * var(--traverse-space-3));
+}
+.cpm-hist-kpis .cpm-kpi { padding: var(--traverse-space-2) var(--traverse-space-3); }
 
 .cpm-hist-missing { color: var(--traverse-text-secondary); }
 .cpm-hist-key { display: grid; gap: var(--traverse-space-2); margin: 0; }
 .cpm-hist-key dt { color: var(--traverse-text-secondary); }
 .cpm-hist-key dd { margin: 0; }
+
+/*
+ * CHG-159 (owner review of Historical, 10 Nov): a compact size class on the page, as OpenBridge's size classes sit on
+ * an ancestor. Buttons and fields are 32 px, as the pager is, and table rows take the compact 40 px; text sizes do not
+ * change. Only Historical carries it. (Traverse tokens are defined only in traverse-tokens.css, so the sizes are set
+ * here rule by rule.)
+ */
+.cpm-compact .ui-control { height: var(--traverse-space-8); }
+.cpm-compact .ui-control--icon { width: var(--traverse-space-8); }
+.cpm-compact .cpm-band__loop { min-height: var(--traverse-space-8); }
+.cpm-compact .ui-segmented__option { height: calc(var(--traverse-space-8) - 2px); }
+.cpm-compact .ui-table td { height: var(--traverse-size-row-compact); }
+.cpm-compact obc-button::part(wrapper) { min-height: var(--traverse-space-8); }
+.cpm-compact obc-button {
+  /* Each side is twice this plus the 8 px label spacing: 2 px pads 12, against 16 elsewhere */
+  --ui-components-button-padding-horizontal: calc(var(--traverse-space-1) / 2);
+}
+/* The page's own selects (range, KPI overlay) are 32 px too. */
+.cpm-compact .cpm-select { height: var(--traverse-space-8); padding-block: 0; }
+/* The bridge pins the painted box at 38 px (+ a 1 px border = 40); the compact page paints 32. */
+.cpm-compact obc-button::part(visible-wrapper) { min-height: calc(var(--traverse-space-8) - 2px); }
