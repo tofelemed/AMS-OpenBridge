@@ -156,7 +156,6 @@ export const CpmReplay: React.FC = () => {
       />
       <LoopBand loopId={loopId}
         onLoop={id => setParams(p => { p.set('loop', id); dropWindow(p); return p; }, { replace: true })}
-        onClear={() => setParams(p => { p.delete('loop'); dropWindow(p); return p; }, { replace: true })}
         end={<>
           <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
             // One write: two in a row both start from this render's address, so the second drops the first's kind.

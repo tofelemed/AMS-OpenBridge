@@ -46,7 +46,7 @@
  */
 .cpm-compact .ui-control { height: var(--traverse-space-8); }
 .cpm-compact .ui-control--icon { width: var(--traverse-space-8); }
-.cpm-compact .cpm-band__loop { min-height: var(--traverse-space-8); }
+.cpm-compact .cpm-loop-combo { min-height: var(--traverse-space-8); }
 .cpm-compact .ui-segmented__option { height: calc(var(--traverse-space-8) - 2px); }
 .cpm-compact .ui-table td { height: var(--traverse-size-row-compact); }
 .cpm-compact obc-button::part(wrapper) { min-height: var(--traverse-space-8); }

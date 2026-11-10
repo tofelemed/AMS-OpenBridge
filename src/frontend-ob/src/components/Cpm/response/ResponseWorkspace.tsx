@@ -84,8 +84,7 @@ export const ResponseWorkspace: React.FC = () => {
 
   const band = (
     <LoopBand loopId={loopId}
-      onLoop={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}
-      onClear={() => setParams(p => { p.delete('loop'); p.delete('event'); p.delete('methodRun'); return p; })}>
+      onLoop={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}>
       {loopId && <ObcButton variant="flat" title={`Open ${loopId} in the Loop Explorer`} onClick={() => navigate(explorerHref(loopId))}>Open loop {'↗'}</ObcButton>}
     </LoopBand>
   );

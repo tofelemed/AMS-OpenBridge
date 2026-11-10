@@ -83,8 +83,7 @@ export const CpmExplorer: React.FC = () => {
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
       {/* CHG-128 / CHG-158: the one loop control, in the same place whether a loop is chosen or not. */}
-      <LoopBand card loopId={requestedId ? (loop?.loopId ?? requestedId) : null} onLoop={selectLoop}
-        onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
+      <LoopBand card loopId={requestedId ? (loop?.loopId ?? requestedId) : null} onLoop={selectLoop}>
         {loop && tab === 'Summary' && (
           <LoopSummaryRow loop={loop} windowKind={windowKind}
             onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })} />

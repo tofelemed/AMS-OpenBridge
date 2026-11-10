@@ -113,8 +113,7 @@ export const CpmCalculations: React.FC = () => {
         </>}
       />
       <LoopBand loopId={loop?.loopId ?? loopId}
-        onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}
-        onClear={() => setParams(p => { p.delete('loop'); noWindow(p); return p; }, { replace: true })}>
+        onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}>
         {loop && <CalcBand matrix={v.matrix} timeZone={timeZone} verdictFailed={v.verdictFailed} />}
       </LoopBand>
       {v.kpiError != null && (

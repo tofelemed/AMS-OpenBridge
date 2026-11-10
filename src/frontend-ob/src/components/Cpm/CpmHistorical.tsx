@@ -186,7 +186,6 @@ export const CpmHistorical: React.FC = () => {
       {/* CHG-159 (owner's design): the band is a card, as on Loop Explorer */}
       <LoopBand card loopId={loopId}
         onLoop={id => write(p => { p.set('loop', id); p.delete('window'); })}
-        onClear={() => write(p => { p.delete('loop'); p.delete('window'); })}
         end={(
           <div className="cpm-hist-bandend">
             {loopId && <ObcButton variant="normal" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}

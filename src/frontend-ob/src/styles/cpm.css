@@ -541,45 +541,6 @@
 .cpm-rail { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .cpm-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
-/* ── Loop tree: collapsible site/area/unit groups with counts ── */
-.cpm-tree { display: flex; flex-direction: column; gap: 2px; max-height: 62vh; overflow: auto; }
-.cpm-tree__count { margin: 0; font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); }
-.cpm-tree__foot { border-top: 1px solid var(--border-divider-color); padding-top: 6px; }
-.cpm-tree__group { display: flex; flex-direction: column; }
-.cpm-tree__group-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 5px 4px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--traverse-text-secondary);
-  font: inherit;
-  font-size: var(--cpm-text-caption);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: left;
-}
-.cpm-tree__group-head:hover { background: var(--container-background-color); }
-.cpm-tree__group-head:focus-visible,
-.cpm-tree-item:focus-visible {
-  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
-  outline-offset: -2px;
-}
-.cpm-tree__caret { width: 10px; flex: 0 0 auto; }
-.cpm-tree__group-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.cpm-tree__group-count {
-  flex: 0 0 auto;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--border-divider-color);
-  font-size: var(--cpm-text-caption);
-  letter-spacing: 0;
-}
-
 /* ── Loop breadcrumb ── */
 /* ── Consolidated readiness causes ── */
 .cpm-causes {
@@ -741,27 +702,6 @@
 }
 
 .cpm-source-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-
-.cpm-tree-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: 4px;
-  background: none;
-  color: var(--element-active-color);
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-}
-.cpm-tree-item:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
-.cpm-tree-item--active {
-  border-left-color: var(--instrument-enhanced-primary-color);
-  background: var(--container-hover-color, rgba(128,128,128,0.08));
-}
 
 /* ── Lineage strip (U2 relationships, U9 dependencies) ── */
 .cpm-lineage { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }

@@ -131,7 +131,6 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
     p.set('loop', id); p.delete('tags'); p.delete('roles');
     return p;
   });
-  const clearLoop = () => setParams(p => { p.delete('loop'); p.delete('tags'); p.delete('roles'); return p; });
 
   // LIVE only while samples arrive: the newest one is recent against the live range (10 % of it, at least a minute).
   const [fresh, setFresh] = useState(false);
@@ -174,7 +173,6 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
         <LoopBand
           loopId={loopId}
           onLoop={chooseLoop}
-          onClear={clearLoop}
           end={loopId ? <ObcButton variant="flat" onClick={() => navigate(explorerHref(loop?.loopId ?? loopId))}>Open loop {'↗'}</ObcButton> : undefined}
         >
           {controls}

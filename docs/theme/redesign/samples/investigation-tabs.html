@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Investigation in five steps (CHG-160 sample)</title>
+<style>
+  /* Traverse tokens. A sample only: nothing here is in the product. Values are illustrative (FIC10401 on lab :3000 and the owner's screenshots). */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --info:#1764C0; --pv:#2E9E45; --op:#E8A317; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1220px; padding: 20px 24px 28px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 24px; font-weight: 600; } h2 { margin: 0; font-size: 22px; font-weight: 600; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+  .seg { display: inline-flex; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; white-space: nowrap; }
+  .seg span { height: 32px; padding: 0 14px; display: inline-flex; align-items: center; border-inline-start: 1px solid var(--border); }
+  .seg span:first-child { border: 0; background: var(--selected); color: var(--action); font-weight: 600; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 16px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; }
+  .field small { color: var(--text2); font-size: 13px; }
+  .vr { align-self: stretch; width: 1px; background: var(--border); } .grow { flex: 1; }
+  .btn { height: 32px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); font-weight: 600; }
+  .btn--raised { background: var(--raised); color: var(--text); font-weight: 500; }
+  .tabs { display: flex; align-items: flex-end; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .tab { display: inline-flex; align-items: center; gap: 8px; padding: 14px 14px 10px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; }
+  .tab b { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--raised); color: var(--text2); font-size: 11px; }
+  .tab i { font-style: normal; font-size: 12px; padding: 0 6px; border-radius: 8px; background: var(--raised); }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .tab[aria-selected="true"] b { background: var(--action); color: var(--on); }
+  .pane { display: none; padding: 16px; } .pane.on { display: block; }
+  .foot { display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; color: var(--text2); }
+  .sub { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--border); min-height: 44px; }
+  .row h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .body { padding: 12px 16px; }
+  .copy { color: var(--text2); margin: 4px 0 0; }
+  .facts { display: flex; gap: 24px; margin-top: 8px; } .facts dt { font-size: 12px; color: var(--text2); } .facts dd { margin: 0; }
+  .result { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+  .tiles { display: flex; gap: 8px; } .tile { width: 168px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .tile span { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); } .tile strong { font-size: 20px; font-weight: 600; }
+  ul.limits { margin: 6px 0 0; padding-inline-start: 18px; }
+  .stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stage { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; } .stage strong { display: block; font-weight: 600; } .stage span { font-size: 13px; color: var(--text2); }
+  .stage--on { border: 2px solid var(--action); background: var(--selected); }
+  .two { display: grid; grid-template-columns: 1fr 380px; gap: 12px; align-items: start; }
+  .read { display: flex; gap: 18px; white-space: nowrap; align-items: baseline; } .read span { font-size: 12px; color: var(--text2); margin-inline-end: 4px; } .read strong { font-size: 16px; font-weight: 600; }
+  .gate { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .pill { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--raised); color: var(--text2); white-space: nowrap; } .pill--ok { background: var(--ok-bg); color: var(--ok); } .pill--warn { background: var(--warn-bg); color: var(--warn); }
+  .wins { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .win { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; } .win--on { border: 2px solid var(--action); background: var(--selected); }
+  .win strong { display: block; font-weight: 600; } .win span { font-size: 13px; color: var(--text2); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; background: var(--bad); } .dot--na { background: var(--strong); }
+  .tag { float: right; font-size: 11px; letter-spacing: .06em; padding: 0 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--text2); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 4px; margin: 10px 0 14px; color: var(--text2); }
+  table { width: 100%; border-collapse: collapse; } th, td { padding: 0 12px; height: 40px; border-bottom: 1px solid var(--border); text-align: start; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); font-weight: 600; } td.n, th.n { text-align: end; font-variant-numeric: tabular-nums; }
+  .mech { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .m { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; } .m strong { font-weight: 600; } .m p { margin: 4px 0 0; font-size: 13px; color: var(--text2); }
+  .bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; } .bar div { flex: 1; height: 6px; border-radius: 3px; background: var(--raised); overflow: hidden; } .bar div i { display: block; height: 100%; background: var(--op); } .bar span { font-variant-numeric: tabular-nums; width: 28px; text-align: end; }
+  .check { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  textarea { width: 100%; height: 72px; border: 1px solid var(--strong); border-radius: 6px; font: inherit; padding: 6px 10px; color: var(--muted); resize: none; }
+  label { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .note { margin: 0 0 12px; padding: 8px 12px; border-inline-start: 3px solid var(--action); background: var(--selected); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><span class="eyebrow">Understand the cause</span><h1>Investigation</h1></div>
+    <div class="seg"><span>12h</span><span>24h</span></div>
+  </div>
+
+  <div class="card band">
+    <span class="field" style="min-width:300px">&#x1F50D;&#xFE0E; <span><strong>FIC10401</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+    <span class="vr"></span>
+    <span class="field" style="min-width:360px">12 h · ends 6 Nov 22:45 UTC · Oscillation confirmed<span class="grow"></span>&#9662;</span>
+    <span class="grow"></span>
+    <span class="btn">More &#9662;</span>
+  </div>
+
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <span class="tab" role="tab" aria-selected="true" data-t="1"><b>1</b>Result</span>
+      <span class="tab" role="tab" aria-selected="false" data-t="2"><b>2</b>Evidence <i>17</i></span>
+      <span class="tab" role="tab" aria-selected="false" data-t="3"><b>3</b>Windows <i>100</i></span>
+      <span class="tab" role="tab" aria-selected="false" data-t="4"><b>4</b>Hypotheses <i>6</i></span>
+      <span class="tab" role="tab" aria-selected="false" data-t="5"><b>5</b>Review</span>
+    </div>
+
+    <!-- 1 Result: what the engine concluded, and how sure -->
+    <div class="pane on" data-p="1">
+      <div class="result">
+        <div>
+          <h2>Oscillation confirmed</h2>
+          <dl class="facts"><div><dt>Cause ⓘ</dt><dd>Controller tuning · not confirmed</dd></div><div><dt>Engine severity</dt><dd>Medium</dd></div></dl>
+        </div>
+        <div class="tiles">
+          <div class="tile"><span>Evidence score ⓘ</span><strong>100</strong></div>
+          <div class="tile"><span>Time in normal mode</span><strong>100 %</strong></div>
+          <div class="tile"><span>Data coverage</span><strong>97 %</strong></div>
+        </div>
+      </div>
+      <p style="margin:16px 0 0;font-weight:600">Limits on this conclusion</p>
+      <ul class="limits">
+        <li>Valve position expected but not mapped: map its tag so a valve (stiction) cause can be confirmed</li>
+        <li>Instrument health not configured: transmitter faults are not checked</li>
+      </ul>
+    </div>
+
+    <!-- 2 Evidence: is the result backed by the data? -->
+    <div class="pane" data-p="2">
+      <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Gates by stage</h3><span class="grow"></span><span class="btn">All 17 gates →</span></div>
+      <div class="stages">
+        <div class="stage stage--on"><strong>Eligibility</strong><span>G0 usable · G1 / G2 pass</span></div>
+        <div class="stage"><strong>Performance</strong><span>G3 fail · G4 pass</span></div>
+        <div class="stage"><strong>Diagnostic evidence</strong><span>G5 oscillation · G6 regular</span></div>
+        <div class="stage"><strong>Confirmation</strong><span>G12 pass · G14 not applicable</span></div>
+        <div class="stage"><strong>Fusion</strong><span>G15 · Oscillation confirmed</span></div>
+      </div>
+      <div class="two">
+        <div class="sub">
+          <div class="row">
+            <div class="read"><div><span>PV</span><strong>76.16</strong></div><div><span>SP</span><strong>77.78</strong></div><div><span>OP</span><strong>32.63</strong>&nbsp;%</div><div><span>Mode</span><strong>AUT</strong></div><div><span>at 6 Nov 22:44</span></div></div>
+            <span class="grow"></span><span class="seg"><span>Fit to data</span><span>Engineering range</span></span>
+          </div>
+          <svg class="chart" width="100%" height="220" viewBox="0 0 700 220" preserveAspectRatio="none" style="display:block;padding:6px 8px"></svg>
+          <div class="foot"><span class="btn" style="padding:0 8px 0 0">Zoom area</span><span class="btn" style="padding:0 8px">Undo</span><span class="btn" style="padding:0 8px">Full window</span><span class="vr"></span><span>Instrument health: not checked</span><span class="grow"></span><span class="btn">Evidence Replay ↗</span></div>
+        </div>
+        <div class="sub">
+          <div class="row"><h3>Eligibility</h3><span class="grow"></span><span class="btn">Calculation proof ↗</span></div>
+          <div class="body" style="padding-top:2px">
+            <div class="gate"><span><strong>G0</strong> · Data quality</span><span class="pill pill--ok">✓ Pass</span></div>
+            <div class="gate"><span><strong>G1</strong> · Mode / service</span><span class="pill pill--ok">✓ Pass</span></div>
+            <div class="gate"><span><strong>G2</strong> · Setpoint activity</span><span class="pill pill--ok">✓ Pass</span></div>
+            <div class="gate" style="border:0"><span><strong>G2r</strong> · Operating region</span><span class="pill pill--ok">✓ Pass</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Windows: is it new, or has it persisted? -->
+    <div class="pane" data-p="3">
+      <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Recent 12h windows</h3></div>
+      <div class="wins">
+        <div class="win"><span class="tag">LATEST</span><strong>Ends 7 Nov 11:45</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
+        <div class="win"><strong>Ends 7 Nov 11:30</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
+        <div class="win win--on"><strong>Ends 6 Nov 22:45</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
+        <div class="win"><strong>Ends 6 Nov 22:30</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
+        <div class="win"><strong>Ends 6 Nov 22:15</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
+      </div>
+      <div class="pager"><span class="btn" style="color:var(--muted)">‹ Newer</span><span>1–5 of 100</span><span class="btn">Older ›</span></div>
+      <div class="sub">
+        <table>
+          <thead><tr><th>Measure</th><th class="n">Previous · ends 6 Nov 22:30</th><th class="n">Current · ends 6 Nov 22:45</th><th class="n">Δ</th></tr></thead>
+          <tbody>
+            <tr><td>Evidence score</td><td class="n">100</td><td class="n">100</td><td class="n">0 pt</td></tr>
+            <tr><td>Stiction score</td><td class="n">Not scored</td><td class="n">Not scored</td><td class="n">—</td></tr>
+            <tr><td>Effort ratio</td><td class="n">2.14</td><td class="n">2.14</td><td class="n">0.00</td></tr>
+            <tr><td>OP triangularity</td><td class="n">0.50</td><td class="n">0.50</td><td class="n">0.00</td></tr>
+            <tr><td>Oscillation period</td><td class="n">1.1 min</td><td class="n">1.1 min</td><td class="n">0 s</td></tr>
+            <tr><td>Freeze index</td><td class="n">0 s</td><td class="n">0 s</td><td class="n">0 s</td></tr>
+            <tr><td style="border:0">Good-error time</td><td class="n" style="border:0">22.7 %</td><td class="n" style="border:0">22.6 %</td><td class="n" style="border:0">−0.1 %</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4 Hypotheses: which mechanism explains it? -->
+    <div class="pane" data-p="4">
+      <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Mechanisms and the evidence for each</h3><span class="grow"></span><span class="pill">revision 1</span></div>
+      <div class="mech">
+        <div class="m"><strong>Controller tuning</strong> <span class="pill pill--warn">Qualified · Leading</span><div class="bar"><div><i style="width:100%"></i></div><span>100</span></div><p>for: Sustained oscillation</p></div>
+        <div class="m"><strong>Valve stiction / nonlinearity</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Phase-portrait geometry · Actuator stress · Sustained oscillation</p></div>
+        <div class="m"><strong>External disturbance</strong> <span class="pill">Not assessed</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Sustained oscillation</p></div>
+        <div class="m"><strong>Excessive actuator effort</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Actuator stress</p></div>
+        <div class="m"><strong>Actuator at a limit</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Output at a limit</p></div>
+        <div class="m"><strong>Sensor / measurement</strong> <span class="pill">Not assessed</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: PV freeze</p></div>
+      </div>
+      <div class="two" style="grid-template-columns:1fr 380px;margin-top:12px">
+        <div class="sub">
+          <div class="row"><h3>Observations</h3></div>
+          <table>
+            <thead><tr><th>Observation</th><th>Present</th><th class="n">Score</th><th>Method</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>Sustained oscillation</td><td>yes</td><td class="n">100</td><td>ACF oscillation · FFT spectral</td><td>Main evidence</td></tr>
+              <tr><td>Phase-portrait geometry</td><td>yes</td><td class="n">97</td><td>Phase-portrait geometry</td><td>Display only</td></tr>
+              <tr><td>Actuator stress</td><td>yes</td><td class="n">27</td><td>Actuator effort · saturation</td><td>Supporting</td></tr>
+              <tr><td>Cross-correlation asymmetry</td><td>—</td><td class="n">14</td><td>Cross-correlation asymmetry</td><td>Supporting</td></tr>
+              <tr><td style="border:0">Output at a limit</td><td style="border:0">—</td><td class="n" style="border:0">0</td><td style="border:0">Saturation</td><td style="border:0">Supporting</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sub">
+          <div class="row"><h3>G14 confirmation</h3><span class="grow"></span><span class="pill">Not applicable</span></div>
+          <div class="body"><strong>Final element non-following</strong><p class="copy">The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.</p></div>
+        </div>
+      </div>
+      <p class="copy" style="margin-top:10px">Scores rank the mechanisms; they are not probabilities.</p>
+    </div>
+
+    <!-- 5 Review: what to check, and record the decision -->
+    <div class="pane" data-p="5">
+      <div class="two" style="grid-template-columns:1fr 1fr">
+        <div class="sub">
+          <div class="row"><h3>Next checks</h3><span class="grow"></span><span class="btn">Related events ↗</span></div>
+          <div class="body">
+            <p style="margin:0 0 6px;font-weight:600">Retune the controller: the oscillation follows the controller, not the valve.</p>
+            <div class="check"><span>Compare PV, SP and OP over this window</span><span class="btn">Historical ↗</span></div>
+            <div class="check"><span>Inspect the checks contributing to this diagnosis</span><span class="btn">G5 / G6 →</span></div>
+            <div class="check" style="border:0"><span>See the samples each window received</span><span class="btn">Window Inspector ↗</span></div>
+          </div>
+        </div>
+        <div class="sub">
+          <div class="row"><h3>Record your review ⓘ</h3></div>
+          <div class="body">
+            <textarea>Observation, action taken, follow-up owner… (no episode needed)</textarea>
+            <div style="display:flex;gap:12px;align-items:center;margin-top:8px"><span style="font-size:12px;color:var(--text2)">OUTCOME</span><span class="field" style="min-width:180px">Inconclusive<span class="grow"></span>&#9662;</span><span class="grow"></span><span class="btn btn--raised">Save review</span></div>
+            <label><input type="checkbox" checked> Attach to this window — its evidence is kept</label>
+            <label><input type="checkbox"> Also acknowledge the open episode EVT-1970</label>
+            <p class="copy" style="margin-top:10px">No notes on this loop yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot"><span class="grow"></span><span class="btn btn--out" id="next">Next: Evidence →</span></div>
+  </section>
+</div>
+<script>
+  // A drawn trend for the sample only.
+  document.querySelectorAll('svg.chart').forEach(s => { const W = 700; let pv = '', op = '';
+    for (let i = 0; i <= 140; i++) { const x = i * W / 140; const a = Math.sin(i * 1.9) * 0.6 + Math.sin(i * 0.7) * 0.4;
+      pv += `${x},${100 - a * 45 + (i % 3) * 3} `; op += `${x},${105 + a * 70 - (i % 2) * 6} `; }
+    s.innerHTML = `<line x1="0" x2="${W}" y1="38" y2="38" stroke="#4B5D73" stroke-dasharray="5 4"/><polyline points="${op}" fill="none" stroke="#E8A317" stroke-width="1.4"/><polyline points="${pv}" fill="none" stroke="#2E9E45" stroke-width="1.4"/>`; });
+  const names = { 1: 'Result', 2: 'Evidence', 3: 'Windows', 4: 'Hypotheses', 5: 'Review' };
+  const show = t => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x.dataset.t === String(t))));
+    document.querySelectorAll('.pane').forEach(x => x.classList.toggle('on', x.dataset.p === String(t)));
+    const n = document.getElementById('next'); n.parentElement.style.display = t < 5 ? '' : 'none'; n.textContent = `Next: ${names[t + 1] ?? ''} →`; n.dataset.t = t + 1;
+  };
+  document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => show(Number(x.dataset.t))));
+  document.getElementById('next').addEventListener('click', e => show(Number(e.target.dataset.t)));
+  window.showTab = show;
+</script>
+</body>
+</html>

@@ -198,7 +198,6 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const band = (
     <LoopBand loopId={loopId}
       onLoop={id => setParams(p => { p.set('loop', id); for (const k of LOOP_KEYS) p.delete(k); return p; }, { replace: true })}
-      onClear={() => setParams(p => { p.delete('loop'); for (const k of LOOP_KEYS) p.delete(k); return p; }, { replace: true })}
       end={
         <EvidenceMore loopId={loopId} kind={kind} kinds={kinds} windowsError={windows.error} onRetryWindows={windows.refetch}
           hasMore={windows.hasMore} onLoadMore={windows.loadMore} loadingMore={windows.isLoadingMore}

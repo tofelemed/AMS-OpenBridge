@@ -135,7 +135,6 @@ export const CpmInvestigation: React.FC = () => {
         )} />
       <LoopBand loopId={loopId} only={caseFilter && filteredLoops.length ? filteredLoops : undefined}
         onLoop={id => patch(p => { p.set('loop', id); for (const k of LOOP_KEYS) p.delete(k); })}
-        onClear={() => patch(p => { p.delete('loop'); for (const k of LOOP_KEYS) p.delete(k); })}
         end={(
           <EvidenceMore loopId={loopId} kind={windowKind} windowsError={list.error} onRetryWindows={list.refetch}
             hasMore={list.hasMore} onLoadMore={list.loadMore} loadingMore={list.isLoadingMore}>

@@ -7,8 +7,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 vi.mock('../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC1', tags: {}, links: [] }] }, isLoading: false, isError: false, error: null, refetch: () => {} }) }));
 const scope = vi.hoisted(() => ({ active: false, hit: true }));
-vi.mock('./plantScope', () => ({ useCpmScope: () => ({ active: scope.active, matches: () => scope.hit, params: {} }) }));
-vi.mock('./explorer/LoopTree', () => ({ default: () => null }));
+vi.mock('./plantScope', () => ({ useCpmScope: () => ({ active: scope.active, matches: () => scope.hit, params: {} }), loopMatchesQuery: () => true }));
 vi.mock('./explorer/summary/WindowKindToggle', () => ({
   default: (p: { onChange: (k: string) => void }) => <button type="button" onClick={() => p.onChange('24h')}>to 24h</button>,
 }));
@@ -42,7 +41,7 @@ describe('CpmExplorer', () => {
     expect(screen.queryByRole('complementary', { name: 'Loops' })).toBeNull();
     const band = screen.getByRole('region', { name: 'Loop and its controls' });
     expect(band.querySelector('.cpm-band--card') ?? (band.classList.contains('cpm-band--card') ? band : null)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Choose a loop' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Loop' }).getAttribute('placeholder')).toBe('Search loops');
     expect(screen.getByText('Choose a loop above to open its summary, signals, calculations and history.')).toBeTruthy();
   });
 

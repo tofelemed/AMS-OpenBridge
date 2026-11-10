@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
-/** CHG-128: one loop control on every loop page. It follows the header scope, and a loop outside the scope stays selected and says so. */
+/**
+ * CHG-128: one loop control on every loop page. It follows the header scope, and a loop outside the scope stays selected
+ * and says so. CHG-160 (owner review): the control is a search field. Typing lists the loops that match, the arrow lists
+ * every loop, and there is one list: no Find loop box in a popover, no Loop Registry link, no Clear loop.
+ */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LoopBand } from './LoopBand';
 
@@ -20,27 +24,78 @@ const band = (url: string, props: Partial<React.ComponentProps<typeof LoopBand>>
     <LoopBand loopId="FIC00701" onLoop={() => {}} {...props} />
   </MemoryRouter>,
 );
-const control = () => screen.getByRole('button', { name: /^Loop: FIC00701/ });
+const field = () => screen.getByRole('combobox');
+const showAll = () => fireEvent.click(screen.getByRole('button', { name: 'Show all loops' }));
+const options = () => within(screen.getByRole('listbox')).queryAllByRole('option');
+const tags = () => options().map(o => o.querySelector('strong')?.textContent);
 
 describe('LoopBand', () => {
   it('names the loop once, without repeating its tag', () => {
-    band('/cpm/loop');
-    expect(control().textContent).toContain('FIC00701 Flow controller (FCS0102)');
+    const { container } = band('/cpm/loop');
+    expect(container.querySelector('.cpm-loop-combo__value')?.textContent).toBe('FIC00701 Flow controller (FCS0102)');
+    expect(field().getAttribute('aria-label')).toBe('Loop FIC00701 Flow controller (FCS0102)');
   });
 
-  it('opens the Find loop box and the tree, and reports the chosen loop', () => {
+  it('is a search field: typing lists the loops that match, and choosing one reports it', () => {
     const onLoop = vi.fn();
     band('/cpm/loop', { onLoop });
-    fireEvent.click(control());
-    expect(screen.getByLabelText('Find loop')).toBeTruthy();
-    fireEvent.click(screen.getByText('TIC10101'));
+    fireEvent.change(field(), { target: { value: 'reactor' } });
+    expect(tags()).toEqual(['TIC10101']);
+    fireEvent.mouseDown(options()[0]);
     expect(onLoop).toHaveBeenCalledWith('TIC10101');
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('lists every loop from the arrow, even after a search', () => {
+    band('/cpm/loop');
+    fireEvent.change(field(), { target: { value: 'reactor' } });
+    showAll();
+    expect(tags()).toEqual(['FIC00701', 'OLD00001', 'TIC10101']);
+    expect((field() as HTMLInputElement).value).toBe('');
+  });
+
+  it('opens the list when the field is clicked, and closes it from the arrow', () => {
+    band('/cpm/loop');
+    fireEvent.click(field());
+    expect(field().getAttribute('aria-expanded')).toBe('true');
+    showAll();
+    expect(field().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('has one list and nothing else in it: no Find loop box, no Loop Registry, no Clear loop', () => {
+    band('/cpm/loop');
+    showAll();
+    expect(screen.queryByLabelText('Find loop')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Loop Registry|Clear loop/ })).toBeNull();
+    expect(screen.getAllByRole('listbox')).toHaveLength(1);
+  });
+
+  it('works from the keyboard: arrows move, Enter chooses, Escape closes', () => {
+    const onLoop = vi.fn();
+    band('/cpm/loop', { onLoop });
+    fireEvent.keyDown(field(), { key: 'ArrowDown' });
+    expect(field().getAttribute('aria-expanded')).toBe('true');
+    // it opens on the chosen loop, so one step down is the next tag
+    expect(field().getAttribute('aria-activedescendant')).toBe(options()[0].id);
+    fireEvent.keyDown(field(), { key: 'ArrowDown' });
+    fireEvent.keyDown(field(), { key: 'Enter' });
+    expect(onLoop).toHaveBeenCalledWith('OLD00001');
+    fireEvent.keyDown(field(), { key: 'ArrowDown' });
+    fireEvent.keyDown(field(), { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('says when nothing matches', () => {
+    band('/cpm/loop');
+    fireEvent.change(field(), { target: { value: 'zzz' } });
+    expect(options()).toHaveLength(0);
+    expect(screen.getByText('No loop matches the search.')).toBeTruthy();
   });
 
   it('lists only the loops in the header scope', () => {
     band('/cpm/loop?site=hdpe&area=section_100', { loopId: 'TIC10101' });
-    fireEvent.click(screen.getByRole('button', { name: /^Loop: TIC10101/ }));
-    expect(screen.getByText('1 of 3 loop(s)')).toBeTruthy();
+    showAll();
+    expect(tags()).toEqual(['TIC10101']);
   });
 
   it('says so, readably, when the loop is outside the scope', () => {
@@ -53,16 +108,10 @@ describe('LoopBand', () => {
     expect(screen.getByRole('status').textContent).toMatch(/NOPE is not in the loop registry/);
   });
 
-  it('offers Clear loop only when the page can clear it', () => {
-    const onClear = vi.fn();
-    band('/cpm/loop', { onClear });
-    fireEvent.click(control());
-    fireEvent.click(screen.getByRole('button', { name: 'Clear loop' }));
-    expect(onClear).toHaveBeenCalled();
-    cleanup();
-    band('/cpm/loop');
-    fireEvent.click(control());
-    expect(screen.queryByRole('button', { name: 'Clear loop' })).toBeNull();
+  it('asks for a loop when none is chosen', () => {
+    band('/cpm/loop', { loopId: null });
+    expect(field().getAttribute('aria-label')).toBe('Loop');
+    expect(field().getAttribute('placeholder')).toBe('Search loops');
   });
 
   it('holds what the tab needs, and pushes the end to the far side', () => {
@@ -72,19 +121,17 @@ describe('LoopBand', () => {
   });
 
   // CHG-153: a bookmark to a retired loop must not read as a running one
-  it('marks a retired loop Retired beside the control, and in the tree', () => {
+  it('marks a retired loop Retired beside the control, and in the list', () => {
     band('/cpm/loop', { loopId: 'OLD00001' });
     expect(screen.getAllByText('Retired')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: /^Loop: OLD00001/ }));
+    showAll();
     expect(screen.getAllByText('Retired')).toHaveLength(2);
   });
 
-  // CHG-158: the header sets the plant scope, so the list is the loops themselves, by tag, with no site / area / unit groups
-  it('lists the loops flat, by tag, without the plant groups', () => {
-    const { container } = band('/cpm/loop');
-    fireEvent.click(control());
-    expect(container.ownerDocument.querySelector('.cpm-tree__group-head')).toBeNull();
-    expect([...container.ownerDocument.querySelectorAll('.cpm-tree-item strong')].map(s => s.textContent)).toEqual(['FIC00701', 'OLD00001', 'TIC10101']);
+  it('marks nothing on a loop that runs', () => {
+    band('/cpm/loop');
+    showAll();
+    expect(screen.queryAllByText('Retired')).toHaveLength(1);   // only the retired loop in the list
   });
 
   it('draws the band as a card when the page asks for it', () => {
@@ -92,11 +139,5 @@ describe('LoopBand', () => {
     expect(container.querySelector('.cpm-band--card')).toBeTruthy();
     cleanup();
     expect(band('/cpm/loop').container.querySelector('.cpm-band--card')).toBeNull();
-  });
-
-  it('marks nothing on a loop that runs', () => {
-    band('/cpm/loop');
-    fireEvent.click(control());
-    expect(screen.queryAllByText('Retired')).toHaveLength(1);   // only the retired loop in the tree
   });
 });

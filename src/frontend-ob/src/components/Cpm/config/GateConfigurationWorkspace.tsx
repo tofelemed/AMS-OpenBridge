@@ -88,7 +88,6 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const toolbar = (
     <LoopBand loopId={loopId}
       onLoop={id => go({ loop: id, view: 'effective', bundle: null, gate: null, tab: null })}
-      onClear={() => go({ loop: null, view: null, bundle: null, gate: null, tab: null })}
       end={loopId ? <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton> : undefined} />
   );
   const openWorkers = () => {

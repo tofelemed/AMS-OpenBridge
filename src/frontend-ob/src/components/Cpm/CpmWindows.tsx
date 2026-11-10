@@ -103,8 +103,7 @@ export const CpmWindows: React.FC = () => {
         </>}
       />
       <LoopBand loopId={loopId}
-        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
-        onClear={() => setParams(p => { p.delete('loop'); p.delete('window'); return p; }, { replace: true })}>
+        onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}>
         <select className="cpm-select" aria-label="Window profile" value={profile} onChange={e => setProfile(e.target.value)}>
           <optgroup label="Short features (G0–G4)">{optionsOf(shortSpecs)}</optgroup>
           <optgroup label="Long diagnostics (G5–G11)">{optionsOf(longSpecs)}</optgroup>
