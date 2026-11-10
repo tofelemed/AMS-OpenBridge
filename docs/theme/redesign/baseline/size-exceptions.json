@@ -12,6 +12,18 @@
     {
       "entry": "chart.height = 220px on pipeline",
       "why": "the same 220 px chart as before; the baseline run held no checkpoint samples, so it never drew"
+    },
+    {
+      "entry": "table cell.fontSize = 12px on explorer-calculations",
+      "why": "CHG-158: the owner asked for the Calculations tab as in the image of the earlier build: uppercase tier headings (12 px, 12 px above) and compact gate rows (4 px)"
+    },
+    {
+      "entry": "table cell.paddingTop = 12px on explorer-calculations",
+      "why": "CHG-158: the owner asked for the Calculations tab as in the image of the earlier build: uppercase tier headings (12 px, 12 px above) and compact gate rows (4 px)"
+    },
+    {
+      "entry": "table cell.paddingTop = 4px on explorer-calculations",
+      "why": "CHG-158: the owner asked for the Calculations tab as in the image of the earlier build: uppercase tier headings (12 px, 12 px above) and compact gate rows (4 px)"
     }
   ]
 }
