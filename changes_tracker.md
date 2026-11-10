@@ -6107,6 +6107,8 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Plant:** not deployed. This branch is not released.
 
+**Lab (10 Nov, at the owner's request):** `ams-frontend` on :3000 rebuilt from f3bd9702, so it carries CHG-155..159 (it ran 2f5ff876 from 7 Nov). Image `docker-ams-frontend:redesign-f3bd9702`, tagged latest, built from the worktree with `docker build -f infra/docker/frontend/Dockerfile --build-arg VITE_LOOP_ROOT_PREFIX=root.hdpev2.cpm src/frontend-ob`, then `docker compose -p docker up -d --no-deps --no-build --force-recreate ams-frontend` in AMS-open/infra/docker. Rollback: `docker tag docker-ams-frontend:pre-chg159 docker-ams-frontend:latest` and the same compose command. cplm-api unchanged (CHG-155..159 are frontend only).
+
 | Where | Was | Now |
 |---|---|---|
 | Historical title | Historical `?` | Historical |
