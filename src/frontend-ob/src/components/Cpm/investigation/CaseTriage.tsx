@@ -1,6 +1,7 @@
 /**
- * The Investigation page's analysis case, under More in the loop band (CHG-141). Cases come from the fleet's served verdicts
- * (`cases.ts`). A case narrows the loop control's list. The window choice and 12h / 24h moved out of here: the page holds them.
+ * The Investigation page's analysis case, in the loop band (CHG-141; CHG-160 took it out of More). Cases come from the fleet's
+ * served verdicts (`cases.ts`). A case narrows the loop control's list. Its options name it ("All cases"), as the other band
+ * controls are named by theirs, so it has no visible label.
  */
 import { pipelineStep, usePipelineAccess } from '../access';
 import React from 'react';
@@ -16,17 +17,14 @@ export const CaseSelect: React.FC<{
   caseFilter: string | null;
   setParams: SetParams;
 }> = ({ cases, caseFilter, setParams }) => (
-  <label className="cpm-field cpm-field--compact">
-    <span className="cpm-field__label">Case</span>
-    <select className="cpm-select" aria-label="Analysis case" value={caseFilter ?? ''}
+  <select className="cpm-select" aria-label="Analysis case" value={caseFilter ?? ''}
       onChange={e => setParams(p => {
         if (e.target.value) { p.set('case', e.target.value); p.delete('loop'); } else p.delete('case');
         return p;
       }, { replace: true })}>
-      <option value="">All cases</option>
-      {cases.map(([c, n]) => <option key={c} value={c}>{`${CASE_LABEL[c] ?? c} · ${n}`}</option>)}
-    </select>
-  </label>
+    <option value="">All cases</option>
+    {cases.map(([c, n]) => <option key={c} value={c}>{`${CASE_LABEL[c] ?? c} · ${n}`}</option>)}
+  </select>
 );
 
 /** One announcement of the resolved selection, outside More so it is heard while More is closed. */

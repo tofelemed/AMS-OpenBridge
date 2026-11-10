@@ -1,18 +1,22 @@
 /**
- * CHG-141: the result card: this window's result, its cause and severity, three facts, and the next check. An older
- * verdict is named as older under the title, with its age, and never takes the title. `id="cpm-conclusion"` is what the
- * strip that keeps the result in view watches.
+ * CHG-141: the result card: this window's result, its cause and severity, and three facts. An older verdict is named as
+ * older under the title, with its age, and never takes the title. CHG-160 (owner review): the Result tab. The band names
+ * the window, so the card says only when it is an earlier one; what the result rests on and the limits on it sit under the
+ * facts; the next check leads the Review tab.
  */
 import React from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { Toggletip } from '../../../ui/Toggletip';
+import type { ConclusionBasis } from '../conclusionBasis';
+import { isRerun } from '../evidence/useWindowAt';
 import { EvidenceScoreNote } from '../EvidenceScoreNote';
+import { TonePill } from '../shared';
 import { staleVerdictLine } from '../verdictAge';
 import { codeLabel } from '../vocabulary';
 import { windowSpan } from '../windowLabel';
-import { causeOf, heroFacts, heroNextCheck, heroTitle, windowHeading } from './heroFacts';
+import type { ConclusionLimits } from './gateGroups';
+import { causeOf, heroFacts, heroTitle } from './heroFacts';
 
 const Fact: React.FC<{ label: string; value: string; help?: React.ReactNode }> = ({ label, value, help }) => (
   <div className="cpm-kpi cpm-kpi--muted">
@@ -29,17 +33,23 @@ export const InvestigationHero: React.FC<{
   latest: boolean;
   windowKind: string;
   timeZone?: string;
-  onStart: () => void;
-}> = ({ matrix, episode, latest, windowKind, timeZone, onStart }) => {
+  /** What the result rests on (CHG-064, SME #24), said once. */
+  basis: ConclusionBasis | null;
+  limits: ConclusionLimits;
+}> = ({ matrix, episode, latest, windowKind, timeZone, basis, limits }) => {
   const cause = causeOf(matrix);
   const older = staleVerdictLine(matrix.lastVerdict);
   return (
-    <section className="cpm-surface cpm-inv-hero" id="cpm-conclusion" aria-label="Result of this window">
+    <section className="cpm-inv-hero" id="cpm-conclusion" aria-label="Result of this window">
       <div className="cpm-inv-hero__top">
         <div className="cpm-inv-hero__result">
-          <span className="cpm-eyebrow" title={windowSpan({ ...matrix, windowKind }, timeZone)}>{windowHeading(matrix, { latest, windowKind, timeZone })}</span>
-          <h2 className="cpm-title">{heroTitle(matrix)}</h2>
+          <div className="cpm-title-row">
+            <h2 className="cpm-title">{heroTitle(matrix)}</h2>
+            {!latest && <span title={windowSpan({ ...matrix, windowKind }, timeZone)}><TonePill tone="muted">Earlier window</TonePill></span>}
+            {isRerun(matrix) && <TonePill tone="muted">Re-run, no original stored</TonePill>}
+          </div>
           {older && <p className="cpm-copy" title={matrix.lastVerdict?.windowEnd ?? undefined}>{older.replace(/^l/, 'L')}</p>}
+          {basis && <p className="cpm-copy"><strong>{basis.lead}</strong> {basis.from}.</p>}
           <dl className="cpm-inv-hero__class">
             <div>
               <dt className="cpm-kv__label cpm-title-row">
@@ -63,10 +73,12 @@ export const InvestigationHero: React.FC<{
           ))}
         </div>
       </div>
-      <div className="cpm-inv-hero__next" role="group" aria-label="Next check">
-        <p className="cpm-inv-hero__check"><span className="cpm-eyebrow">Next check</span><strong>{heroNextCheck(matrix)}</strong></p>
-        <ObcButton variant="flat" onClick={onStart}>Start with evidence ↓</ObcButton>
-      </div>
+      {limits.lines.length > 0 && (
+        <div className="cpm-inv-limits">
+          <h3 className="cpm-panel-title">{limits.title}</h3>
+          <ul className="cpm-cause-list">{limits.lines.map(line => <li key={line}>{line}</li>)}</ul>
+        </div>
+      )}
     </section>
   );
 };

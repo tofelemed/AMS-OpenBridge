@@ -5,7 +5,7 @@
  * by its date only, so five sliding windows read "Aug 10 · Excluded" alike.
  */
 import type { CpmWindowSpec } from '../../api/cpmApi';
-import { fmtInstant, fmtPeriod } from './context/LoopContextBar';
+import { fmtInstant, fmtInstantBare, fmtPeriod } from './context/LoopContextBar';
 import { fmtDuration } from './shared';
 
 export interface WindowLike {
@@ -30,7 +30,16 @@ export function windowSize(w: WindowLike): string {
 /** "ends 6 Oct 14:00 GST". */
 export const windowEnds = (w: WindowLike, timeZone?: string): string => `ends ${fmtInstant(w.windowEnd ?? null, timeZone)}`;
 
-/** "24 h · ends 6 Oct 14:00 GST" — the name of a window in a list or a picker. */
+/**
+ * "6 Nov 22:45" — a window in a picker. CHG-160 (owner review): the 12h / 24h switch names its length and the page names
+ * the zone, so the option holds the end alone.
+ */
+export const windowPick = (w: WindowLike, timeZone?: string): string => fmtInstantBare(w.windowEnd ?? null, timeZone);
+
+/** "Not evaluated: not enough data" → "Not evaluated": a picker names the state, and the page says why. */
+export const shortState = (label: string): string => label.split(':')[0].trim();
+
+/** "24 h · ends 6 Oct 14:00 GST" — the name of a window in a list. */
 export function windowLabel(w: WindowLike, timeZone?: string): string {
   const size = windowSize(w);
   return `${size ? `${size} · ` : ''}${windowEnds(w, timeZone)}`;

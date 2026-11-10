@@ -1354,3 +1354,30 @@ Removed on the owner's instruction (10 Nov): the `?` on the Historical title, an
 | Historical, empty signal lane | No values stored at root.site1.cpm.FIC10401 for PV, SP, OP in this range — the signal lane is empty, but the other lanes below it are not. | No PV, SP, OP values stored for FIC10401 in this range — the signal lane is empty, but the other lanes below it are not. |
 | Evidence pages, empty PV / SP lane | PV / SP lane: no historian samples for this window at root.site1.cpm.FIC10401. | PV / SP lane: no historian samples for FIC10401 in this window. |
 | Historical, chart | Zoom area, Undo, Reset in the box under the chart, with the results count and Result key | Zoom area, Undo, Reset in the head row before Open in Trend ↗; the foot holds the results count and Result key |
+
+
+## CHG-160 owner review: Investigation
+
+Changed on the owner's instruction (10–11 Nov): the loop control is a search field on every loop page; Investigation is five step tabs; More, Technical details & engine trace, the Numeric evidence panel and three dialogs are gone; the window options are the end and the state alone; repeated words removed.
+
+| Where | Was | Now |
+|---|---|---|
+| Loop control (every loop page) | Choose a loop button, then a Find loop box, "243 of 243 loop(s)", the list, Loop Registry ↗, Clear loop | Search field "Search loops"; typing lists the matches, the arrow lists every loop; one list |
+| Investigation title | Investigation `?` | Investigation |
+| Window options (Investigation, Replay, Evidence Workbench) | 12 h · ends 18 Aug 06:45 UTC · Not evaluated: not enough data · 85 days ago · no run identity (pre-v2.5) | 18 Aug 06:45 · Not evaluated (a pre-v2.5 window is left out; a history-only one ends "· history only") |
+| Investigation sections | one long page | tabs Result, Evidence, Windows, Hypotheses, Review; each ends with Next: … → |
+| Result | Latest window · 12 h · ends 7 Nov 11:45 UTC (eyebrow); NEXT CHECK row; Start with evidence ↓ | an Earlier window pill only when it is one; the next check leads Review; no button |
+| Evidence | Why this result · All 17 gate results → | Gates by stage · All 17 gates → |
+| Windows | Compare windows button, dialog "Compare recent 12h windows"; tiles "Ends 6 Nov 23:15 UTC · 12 h · Not evaluated: not enough data" | Windows tab "Recent 12h windows"; tiles "Ends 6 Nov 23:15 · Not evaluated"; the table shows even with no previous window |
+| Numeric evidence | panel and "Numeric evidence · FIC10401" dialog | removed: the Windows table's Current column holds the same measures |
+| Hypotheses | Hypothesis comparison ↗ and its dialog; Observed / Possible cause / Not assessed / Not seen list above the cards | Hypotheses tab; the list is gone; a qualified cause's card says "A tuning review or an approved step test would confirm it." |
+| Hypotheses note | Scores are uncalibrated evidence scores, not probabilities: they rank the mechanisms, they do not measure certainty. | Scores rank the mechanisms; they are not probabilities. |
+| Observations head | Observations / What was seen, and by which method | Observations |
+| Gate proof dialog | FIC10401 · G5; Loop result; Assessment; Evidence Replay ↗, Evidence Workbench → | G5 · Oscillation (ACF); no loop result or window rows; Replay ↗, Workbench ↗ |
+| All gates dialog | All gate results · FIC10401 | All 17 gates |
+| N/A gate mark (everywhere) | n/a N/A | ∅ N/A |
+| More (Investigation) | More ▾: Case, Load older windows, Retry | Case in the band, no label ("All cases"); older windows by Older › on Windows; Retry beside the window dropdown when the list fails |
+| Record your review | 0 note(s); Attach to this evaluated window (12 h · ends 6 Nov 22:45 UTC) — its evidence is kept; Hypothesis comparison ↗, Related events ↗ beside the notes | the count only when there are notes; Attach to this window — its evidence is kept (the window on hover); Related events ↗ in the Next checks head |
+| Result strip | Result · … · Back to conclusion ↑ (sticky) | removed: the window dropdown names the result on every tab |
+| Evidence, empty trend | … in the Loop Registry. (Historian series: root.site1.cpm.FIC10401) | … in the Loop Registry. |
+| Technical details & engine trace | disclosure at the foot of the page | removed |

@@ -3,7 +3,8 @@
  * from the SERVED fusion v2 verdict: mechanisms with their evidence for and against, the
  * fault-scoped G14 confirmation, and the observations with the method that produced each.
  * Nothing here scores, ranks or caps anything; the engine did. A pre-v2.5 row is shown as
- * stored family scores under a LEGACY pill and is never re-interpreted.
+ * stored family scores under a LEGACY pill and is never re-interpreted. CHG-160 (owner review): the Hypotheses tab, as
+ * the owner's design: the mechanisms as cards, then the observations beside the G14 confirmation.
  */
 import React from 'react';
 import type { CpmVerdictV2 } from '../../../api/cpm/verdict';
@@ -13,6 +14,7 @@ import type { CpmTone } from '../shared';
 import { confirmationLabel, confirmationProse } from './confirmationCopy';
 import { codeLabel, methodLabel, phrase } from '../vocabulary';
 import { evidenceScore } from '../evidenceScore';
+import { howToConfirm } from '../causeAnalysis';
 
 /** Family / detector scores for the LEGACY fallback (rows written before v2.5). */
 const LEGACY_ROWS: { field: string; label: string }[] = [
@@ -88,77 +90,84 @@ export const HypothesisPanel: React.FC<{
         right={<TonePill tone="muted">revision {verdict.resultRevision}</TonePill>} />
       {ids.length === 0 && (
         <EmptyState title="No hypotheses on this window"
-          copy="No mechanism had evidence to rank on this window — the observations above show what was (and was not) seen." />
+          copy="No mechanism had evidence to rank on this window — the observations show what was (and was not) seen." />
       )}
-      {ids.map(id => {
-        const h = verdict.hypotheses[id];
-        const leading = verdict.leadingHypothesis === id;
-        return (
-          <div key={id} className="cpm-window-row cpm-hypo-row" data-testid={`hypothesis-${id}`}>
-            <strong>
-              {HYPOTHESIS_LABEL[id] ?? codeLabel(id)}{' '}
-              {/* CHG-092 (SME 2 #7): "evidence against" only when measured; otherwise the evidence was not seen */}
-              <TonePill tone={stateTone(h.state)}>{(h.state ?? '').toUpperCase() === 'DISQUALIFIED'
-                ? (h.disqualifiers.length + h.contradictions.length > 0 ? 'Evidence against' : 'Not seen')
-                : (h.state ?? '').toUpperCase() === 'NO_EVIDENCE' ? 'Not seen'
-                : (h.state ?? '').toUpperCase() === 'NOT_ASSESSED' ? 'Not assessed' : codeLabel(h.state)}</TonePill>
-              {leading && <> <TonePill tone="warn">Leading</TonePill></>}
-            </strong>
-            <ScoreBar value={h.score} />
-            <span className="cpm-event-row__sub">
-              {h.evidenceGroups.length > 0
-                ? `for: ${h.evidenceGroups.map(g => OBSERVATION_LABEL[g] ?? codeLabel(g)).join(' · ')}`
-                : 'no supporting observation'}
-              {h.contradictions.length > 0 && ` · against: ${h.contradictions.map(codeLabel).join(', ')}`}
-              {h.disqualifiers.length > 0 && ` · evidence against: ${h.disqualifiers.map(c => phrase(c)).join(', ')}`}
-            </span>
-          </div>
-        );
-      })}
-      <p className="cpm-copy">
-        Scores are uncalibrated evidence scores, not probabilities: they rank the mechanisms, they do not measure certainty.
-      </p>
+      <div className="cpm-hypo-grid">
+        {ids.map(id => {
+          const h = verdict.hypotheses[id];
+          const leading = verdict.leadingHypothesis === id;
+          const state = (h.state ?? '').toUpperCase();
+          // CHG-160 (owner review): what would confirm a possible cause sits on its card, not in a list above the cards
+          const confirm = state === 'QUALIFIED' && h.score > 0 ? howToConfirm(id, verdict, vpAbsentOnLoop) : null;
+          return (
+            <div key={id} className="cpm-hypo-card" data-testid={`hypothesis-${id}`}>
+              <strong>
+                {HYPOTHESIS_LABEL[id] ?? codeLabel(id)}{' '}
+                {/* CHG-092 (SME 2 #7): "evidence against" only when measured; otherwise the evidence was not seen */}
+                <TonePill tone={stateTone(h.state)}>{state === 'DISQUALIFIED'
+                  ? (h.disqualifiers.length + h.contradictions.length > 0 ? 'Evidence against' : 'Not seen')
+                  : state === 'NO_EVIDENCE' ? 'Not seen'
+                  : state === 'NOT_ASSESSED' ? 'Not assessed' : codeLabel(h.state)}</TonePill>
+                {leading && <> <TonePill tone="warn">Leading</TonePill></>}
+              </strong>
+              <ScoreBar value={h.score} />
+              <span className="cpm-event-row__sub">
+                {h.evidenceGroups.length > 0
+                  ? `for: ${h.evidenceGroups.map(g => OBSERVATION_LABEL[g] ?? codeLabel(g)).join(' · ')}`
+                  : 'no supporting observation'}
+                {h.contradictions.length > 0 && ` · against: ${h.contradictions.map(codeLabel).join(', ')}`}
+                {h.disqualifiers.length > 0 && ` · evidence against: ${h.disqualifiers.map(c => phrase(c)).join(', ')}`}
+              </span>
+              {confirm && <span className="cpm-event-row__sub">{confirm}</span>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="cpm-copy">Scores rank the mechanisms; they are not probabilities.</p>
 
-      <PanelHead eyebrow="G14 confirmation" title={codeLabel(conf.claimType)}
-        right={<TonePill tone={confirmationTone(conf.state)}>{confirmationLabel(conf)}</TonePill>} />
-      <p className="cpm-copy" data-testid="confirmation-prose">{confirmationProse(conf, false, vpAbsentOnLoop)}</p>
-      {conf.positiveEvidenceIds.length > 0 && (
-        <KvRow label="Positive evidence">{conf.positiveEvidenceIds.map(codeLabel).join(', ')}</KvRow>
-      )}
-      {conf.contradictions.length > 0 && (
-        <KvRow label="Contradictions">{conf.contradictions.map(codeLabel).join(', ')}</KvRow>
-      )}
-      {conf.scope && <KvRow label="Scope">{conf.scope}</KvRow>}
-
-      {observations.length > 0 && (
-        <>
-          <PanelHead eyebrow="Observations" title="What was seen, and by which method" />
-          <div className="cpm-matrix-scroll">
-            <table className="cpm-matrix">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Observation</th>
-                  <th>Present</th>
-                  <th>Score</th>
-                  <th style={{ textAlign: 'left' }}>Method</th>
-                  <th>Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {observations.map(([id, o]) => (
-                  <tr key={id} data-testid={`observation-${id}`}>
-                    <td style={{ textAlign: 'left' }}>{OBSERVATION_LABEL[id] ?? codeLabel(id)}</td>
-                    <td>{o.present ? 'yes' : '—'}</td>
-                    <td className="cpm-mono">{evidenceScore(o.score) ?? '—'}</td>
-                    <td style={{ textAlign: 'left' }}><span title={o.methodId}>{methodLabel(o.methodId)}</span></td>
-                    <td>{codeLabel(o.role)}</td>
+      <div className="cpm-hypo-lower">
+        {observations.length > 0 && (
+          <section className="cpm-hypo-sub" aria-label="Observations">
+            <PanelHead title="Observations" />
+            <div className="cpm-matrix-scroll">
+              <table className="cpm-matrix">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Observation</th>
+                    <th>Present</th>
+                    <th>Score</th>
+                    <th style={{ textAlign: 'left' }}>Method</th>
+                    <th>Role</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+                </thead>
+                <tbody>
+                  {observations.map(([id, o]) => (
+                    <tr key={id} data-testid={`observation-${id}`}>
+                      <td style={{ textAlign: 'left' }}>{OBSERVATION_LABEL[id] ?? codeLabel(id)}</td>
+                      <td>{o.present ? 'yes' : '—'}</td>
+                      <td className="cpm-mono">{evidenceScore(o.score) ?? '—'}</td>
+                      <td style={{ textAlign: 'left' }}><span title={o.methodId}>{methodLabel(o.methodId)}</span></td>
+                      <td>{codeLabel(o.role)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+        <section className="cpm-hypo-sub" aria-label="G14 confirmation">
+          <PanelHead title="G14 confirmation" right={<TonePill tone={confirmationTone(conf.state)}>{confirmationLabel(conf)}</TonePill>} />
+          <strong>{codeLabel(conf.claimType)}</strong>
+          <p className="cpm-copy" data-testid="confirmation-prose">{confirmationProse(conf, false, vpAbsentOnLoop)}</p>
+          {conf.positiveEvidenceIds.length > 0 && (
+            <KvRow label="Positive evidence">{conf.positiveEvidenceIds.map(codeLabel).join(', ')}</KvRow>
+          )}
+          {conf.contradictions.length > 0 && (
+            <KvRow label="Contradictions">{conf.contradictions.map(codeLabel).join(', ')}</KvRow>
+          )}
+          {conf.scope && <KvRow label="Scope">{conf.scope}</KvRow>}
+        </section>
+      </div>
     </>
   );
 };

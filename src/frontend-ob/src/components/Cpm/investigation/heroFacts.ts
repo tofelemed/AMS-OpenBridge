@@ -7,11 +7,9 @@
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { conditionOf, leadingCauseOf, nextCheckOf } from '../explorer/summary/summaryText';
-import { isRerun } from '../evidence/useWindowAt';
 import { evidenceScore } from '../evidenceScore';
 import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { persistingText } from '../overview/priorityReason';
-import { windowLabel } from '../windowLabel';
 
 export interface HeroFact { value: string; label: string }
 
@@ -76,10 +74,4 @@ export function heroNextCheck(matrix: Pick<CpmGateMatrix, 'diagnosis' | 'narrati
   const condition = conditionOf(matrix.diagnosis);
   if (condition.kind === 'finding' && !matrix.narrative?.recommendation?.trim()) return 'Compare PV, SP and OP over this window.';
   return nextCheckOf(matrix, condition);
-}
-
-/** "Latest window · 12 h · ends 5 Nov 10:15 UTC": it may be one that was not evaluated. */
-export function windowHeading(matrix: CpmGateMatrix, opts: { latest: boolean; windowKind: string; timeZone?: string }): string {
-  const name = windowLabel({ windowKind: opts.windowKind, windowEnd: matrix.windowEnd }, opts.timeZone);
-  return `${opts.latest ? 'Latest window' : 'Earlier window'} · ${name}${isRerun(matrix) ? ' · re-run (no original stored)' : ''}`;
 }

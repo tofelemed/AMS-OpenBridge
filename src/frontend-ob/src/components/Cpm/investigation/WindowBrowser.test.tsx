@@ -101,10 +101,26 @@ describe('WindowBrowser', () => {
     expect(screen.getByText('6–10 of 10+')).toBeTruthy();
   });
 
-  it('sits in the dialog with no heading of its own', () => {
+  // CHG-160 (owner review): the tab names the length, and the table headers the zone, so a tile is its end and its state
+  it('names each window by its end and its state alone', () => {
     render(<WindowBrowser {...props()} />);
+    const tile = screen.getAllByRole('button', { name: /^Ends / })[0];
+    expect(tile.textContent).toBe('Ends 4 Nov 16:15LatestNo fault identified');   // site time
+  });
+
+  // CHG-160 (owner review): the browser is the Windows tab, so it names what it lists
+  it('heads the Windows tab with the recent windows of its kind', () => {
+    render(<WindowBrowser {...props()} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent 12h windows' })).toBeTruthy();
     expect(screen.queryByText('Window browser')).toBeNull();
-    expect(screen.queryByRole('heading')).toBeNull();
+  });
+
+  // CHG-160: the Numeric evidence panel is gone, so the current window's measures show even with nothing to compare
+  it('shows the current window\'s measures with no previous window, and says why there is none', () => {
+    render(<WindowBrowser {...props({ matrix: row(many[0].windowEnd, { metrics: { good_error_pct: 0.13 } }), comparison: { state: 'none' } })} />);
+    const good = screen.getByText('Good-error time').closest('tr')!;
+    expect([...good.querySelectorAll('td')].map(td => td.textContent)).toEqual(['Good-error time', '—', '13.0 %', '—']);
+    expect(screen.getByText(/^No earlier evaluated window is stored/)).toBeTruthy();
   });
 });
 

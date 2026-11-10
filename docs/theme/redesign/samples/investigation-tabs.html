@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Proposal: Investigation in five steps (CHG-160 sample)</title>
+<title>Proposal: Investigation in five steps, round 2 (CHG-160 sample)</title>
 <style>
   /* Traverse tokens. A sample only: nothing here is in the product. Values are illustrative (FIC10401 on lab :3000 and the owner's screenshots). */
   [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --info:#1764C0; --pv:#2E9E45; --op:#E8A317; }
@@ -63,6 +63,15 @@
   .check { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
   textarea { width: 100%; height: 72px; border: 1px solid var(--strong); border-radius: 6px; font: inherit; padding: 6px 10px; color: var(--muted); resize: none; }
   label { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .list { position: absolute; top: 40px; left: 0; z-index: 5; width: 330px; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 18px rgba(21,34,56,.12); }
+  .list div { padding: 6px 10px; border-radius: 6px; white-space: nowrap; } .list .sel { background: var(--selected); border-inline-start: 3px solid var(--action); }
+  .scrim { display: none; position: fixed; inset: 0; background: rgba(243,246,250,.6); z-index: 10; } .scrim.on { display: grid; place-items: center; }
+  .dlg { width: 460px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(21,34,56,.18); }
+  .dlg--wide { width: 720px; }
+  .dlg header { display: flex; align-items: center; padding: 16px 20px 8px; } .dlg header h3 { margin: 0; font-size: 18px; font-weight: 600; } .dlg header span { margin-inline-start: auto; font-size: 18px; color: var(--text2); }
+  .dlg .db { padding: 0 20px 12px; } .dlg footer { display: flex; justify-content: flex-end; gap: 4px; padding: 8px 12px 12px; }
+  .kv { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); } .kv span:first-child { color: var(--text2); }
+  .gates { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; } .gates h4 { grid-column: 1 / -1; margin: 10px 0 2px; font-size: 13px; font-weight: 600; color: var(--text2); }
   .note { margin: 0 0 12px; padding: 8px 12px; border-inline-start: 3px solid var(--action); background: var(--selected); }
 </style>
 </head>
@@ -75,19 +84,23 @@
 
   <div class="card band">
     <span class="field" style="min-width:300px">&#x1F50D;&#xFE0E; <span><strong>FIC10401</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+    <span class="field" style="min-width:150px">All cases<span class="grow"></span>&#9662;</span>
     <span class="vr"></span>
-    <span class="field" style="min-width:360px">12 h · ends 6 Nov 22:45 UTC · Oscillation confirmed<span class="grow"></span>&#9662;</span>
-    <span class="grow"></span>
-    <span class="btn">More &#9662;</span>
+    <span style="position:relative"><span class="field" style="min-width:330px">6 Nov 22:45 · Oscillation confirmed<span class="grow"></span>&#9662;</span>
+      <div class="list" id="winlist" hidden>
+        <div>7 Nov 11:45 · Not evaluated</div><div>7 Nov 11:30 · Not evaluated</div><div>6 Nov 23:15 · Not evaluated</div><div>6 Nov 23:00 · Not evaluated</div>
+        <div class="sel">6 Nov 22:45 · Oscillation confirmed</div><div>6 Nov 22:30 · Oscillation confirmed</div><div>6 Nov 22:15 · Oscillation confirmed</div>
+        <div>6 Nov 20:30 · Not evaluated</div><div>6 Nov 19:45 · Oscillation detected</div><div>6 Nov 16:30 · Excluded</div>
+      </div></span>
   </div>
 
   <section class="card">
     <div class="tabs" role="tablist">
-      <span class="tab" role="tab" aria-selected="true" data-t="1"><b>1</b>Result</span>
-      <span class="tab" role="tab" aria-selected="false" data-t="2"><b>2</b>Evidence <i>17</i></span>
-      <span class="tab" role="tab" aria-selected="false" data-t="3"><b>3</b>Windows <i>100</i></span>
-      <span class="tab" role="tab" aria-selected="false" data-t="4"><b>4</b>Hypotheses <i>6</i></span>
-      <span class="tab" role="tab" aria-selected="false" data-t="5"><b>5</b>Review</span>
+      <span class="tab" role="tab" aria-selected="true" data-t="1">Result</span>
+      <span class="tab" role="tab" aria-selected="false" data-t="2">Evidence</span>
+      <span class="tab" role="tab" aria-selected="false" data-t="3">Windows</span>
+      <span class="tab" role="tab" aria-selected="false" data-t="4">Hypotheses</span>
+      <span class="tab" role="tab" aria-selected="false" data-t="5">Review</span>
     </div>
 
     <!-- 1 Result: what the engine concluded, and how sure -->
@@ -114,11 +127,11 @@
     <div class="pane" data-p="2">
       <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Gates by stage</h3><span class="grow"></span><span class="btn">All 17 gates →</span></div>
       <div class="stages">
-        <div class="stage stage--on"><strong>Eligibility</strong><span>G0 usable · G1 / G2 pass</span></div>
-        <div class="stage"><strong>Performance</strong><span>G3 fail · G4 pass</span></div>
-        <div class="stage"><strong>Diagnostic evidence</strong><span>G5 oscillation · G6 regular</span></div>
-        <div class="stage"><strong>Confirmation</strong><span>G12 pass · G14 not applicable</span></div>
-        <div class="stage"><strong>Fusion</strong><span>G15 · Oscillation confirmed</span></div>
+        <div class="stage"><strong>Eligibility</strong><span>G0 attention · G1 / G2 pass</span></div>
+        <div class="stage"><strong>Performance</strong><span>G3 pass · G4 strong symptom</span></div>
+        <div class="stage stage--on"><strong>Diagnostic evidence</strong><span>G5 / G6 symptom seen</span></div>
+        <div class="stage"><strong>Confirmation</strong><span>G12 / G13 not evaluated · G14 N/A</span></div>
+        <div class="stage"><strong>Fusion</strong><span>G15 · Confirmed</span></div>
       </div>
       <div class="two">
         <div class="sub">
@@ -130,12 +143,15 @@
           <div class="foot"><span class="btn" style="padding:0 8px 0 0">Zoom area</span><span class="btn" style="padding:0 8px">Undo</span><span class="btn" style="padding:0 8px">Full window</span><span class="vr"></span><span>Instrument health: not checked</span><span class="grow"></span><span class="btn">Evidence Replay ↗</span></div>
         </div>
         <div class="sub">
-          <div class="row"><h3>Eligibility</h3><span class="grow"></span><span class="btn">Calculation proof ↗</span></div>
+          <div class="row"><h3>Diagnostic evidence</h3><span class="grow"></span><span class="btn">Calculation proof ↗</span></div>
           <div class="body" style="padding-top:2px">
-            <div class="gate"><span><strong>G0</strong> · Data quality</span><span class="pill pill--ok">✓ Pass</span></div>
-            <div class="gate"><span><strong>G1</strong> · Mode / service</span><span class="pill pill--ok">✓ Pass</span></div>
-            <div class="gate"><span><strong>G2</strong> · Setpoint activity</span><span class="pill pill--ok">✓ Pass</span></div>
-            <div class="gate" style="border:0"><span><strong>G2r</strong> · Operating region</span><span class="pill pill--ok">✓ Pass</span></div>
+            <div class="gate"><span><strong>G5</strong> · Oscillation (ACF)</span><span class="pill pill--warn">Symptom seen</span></div>
+            <div class="gate"><span><strong>G6</strong> · Spectral (FFT)</span><span class="pill pill--warn">Symptom seen</span></div>
+            <div class="gate"><span><strong>G7</strong> · Stiction shape</span><span class="pill">Not seen</span></div>
+            <div class="gate"><span><strong>G8</strong> · Horch oddness</span><span class="pill">Not seen</span></div>
+            <div class="gate"><span><strong>G9</strong> · Phase geometry</span><span class="pill">Not seen</span></div>
+            <div class="gate"><span><strong>G10</strong> · Valve / saturation</span><span class="pill">Not seen</span></div>
+            <div class="gate" style="border:0"><span><strong>G11</strong> · Sensor health</span><span class="pill">Not seen</span></div>
           </div>
         </div>
       </div>
@@ -145,24 +161,25 @@
     <div class="pane" data-p="3">
       <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Recent 12h windows</h3></div>
       <div class="wins">
-        <div class="win"><span class="tag">LATEST</span><strong>Ends 7 Nov 11:45</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
-        <div class="win"><strong>Ends 7 Nov 11:30</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
+        <div class="win"><strong>Ends 6 Nov 23:15</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
+        <div class="win"><strong>Ends 6 Nov 23:00</strong><span><span class="dot dot--na"></span>Not evaluated</span></div>
         <div class="win win--on"><strong>Ends 6 Nov 22:45</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
         <div class="win"><strong>Ends 6 Nov 22:30</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
         <div class="win"><strong>Ends 6 Nov 22:15</strong><span><span class="dot"></span>Oscillation confirmed</span></div>
       </div>
-      <div class="pager"><span class="btn" style="color:var(--muted)">‹ Newer</span><span>1–5 of 100</span><span class="btn">Older ›</span></div>
+      <div class="pager"><span class="btn">‹ Newer</span><span>41–45 of 199+</span><span class="btn">Older ›</span></div>
       <div class="sub">
         <table>
           <thead><tr><th>Measure</th><th class="n">Previous · ends 6 Nov 22:30</th><th class="n">Current · ends 6 Nov 22:45</th><th class="n">Δ</th></tr></thead>
           <tbody>
+            <tr><td>Diagnosis</td><td class="n">Oscillation confirmed</td><td class="n">Oscillation confirmed</td><td class="n">unchanged</td></tr>
             <tr><td>Evidence score</td><td class="n">100</td><td class="n">100</td><td class="n">0 pt</td></tr>
             <tr><td>Stiction score</td><td class="n">Not scored</td><td class="n">Not scored</td><td class="n">—</td></tr>
-            <tr><td>Effort ratio</td><td class="n">2.14</td><td class="n">2.14</td><td class="n">0.00</td></tr>
-            <tr><td>OP triangularity</td><td class="n">0.50</td><td class="n">0.50</td><td class="n">0.00</td></tr>
-            <tr><td>Oscillation period</td><td class="n">1.1 min</td><td class="n">1.1 min</td><td class="n">0 s</td></tr>
-            <tr><td>Freeze index</td><td class="n">0 s</td><td class="n">0 s</td><td class="n">0 s</td></tr>
-            <tr><td style="border:0">Good-error time</td><td class="n" style="border:0">22.7 %</td><td class="n" style="border:0">22.6 %</td><td class="n" style="border:0">−0.1 %</td></tr>
+            <tr><td>Effort ratio</td><td class="n">2.41</td><td class="n">2.41</td><td class="n">0.00</td></tr>
+            <tr><td>OP triangularity</td><td class="n">0.40</td><td class="n">0.40</td><td class="n">0.00</td></tr>
+            <tr><td>Oscillation period</td><td class="n">4.7 min</td><td class="n">4.7 min</td><td class="n">0 s</td></tr>
+            <tr><td>Freeze index</td><td class="n">5 s</td><td class="n">5 s</td><td class="n">0 s</td></tr>
+            <tr><td style="border:0">Good-error time</td><td class="n" style="border:0">100.0 %</td><td class="n" style="border:0">100.0 %</td><td class="n" style="border:0">0.0 %</td></tr>
           </tbody>
         </table>
       </div>
@@ -172,10 +189,10 @@
     <div class="pane" data-p="4">
       <div class="row" style="padding:0 0 8px;border:0;min-height:0"><h3>Mechanisms and the evidence for each</h3><span class="grow"></span><span class="pill">revision 1</span></div>
       <div class="mech">
-        <div class="m"><strong>Controller tuning</strong> <span class="pill pill--warn">Qualified · Leading</span><div class="bar"><div><i style="width:100%"></i></div><span>100</span></div><p>for: Sustained oscillation</p></div>
+        <div class="m"><strong>Controller tuning</strong> <span class="pill pill--warn">Qualified · Leading</span><div class="bar"><div><i style="width:100%"></i></div><span>100</span></div><p>for: Sustained oscillation</p><p>To confirm: a tuning review or an approved step test</p></div>
         <div class="m"><strong>Valve stiction / nonlinearity</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Phase-portrait geometry · Actuator stress · Sustained oscillation</p></div>
         <div class="m"><strong>External disturbance</strong> <span class="pill">Not assessed</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Sustained oscillation</p></div>
-        <div class="m"><strong>Excessive actuator effort</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Actuator stress</p></div>
+        <div class="m"><strong>Excessive actuator effort</strong> <span class="pill pill--warn">Qualified</span><div class="bar"><div><i style="width:30%"></i></div><span>30</span></div><p>for: Actuator stress</p><p>To confirm: a review of the controller gain</p></div>
         <div class="m"><strong>Actuator at a limit</strong> <span class="pill">Not seen</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: Output at a limit</p></div>
         <div class="m"><strong>Sensor / measurement</strong> <span class="pill">Not assessed</span><div class="bar"><div><i style="width:0"></i></div><span>0</span></div><p>for: PV freeze</p></div>
       </div>
@@ -194,7 +211,7 @@
           </table>
         </div>
         <div class="sub">
-          <div class="row"><h3>G14 confirmation</h3><span class="grow"></span><span class="pill">Not applicable</span></div>
+          <div class="row"><h3>G14 confirmation</h3><span class="grow"></span><span class="pill">N/A</span></div>
           <div class="body"><strong>Final element non-following</strong><p class="copy">The verdict is a symptom family (oscillation or effort): a final-element confirmation does not apply.</p></div>
         </div>
       </div>
@@ -229,6 +246,38 @@
     <div class="foot"><span class="grow"></span><span class="btn btn--out" id="next">Next: Evidence →</span></div>
   </section>
 </div>
+<div class="scrim" id="d-proof"><div class="dlg">
+  <header><h3>G5 · Oscillation (ACF)</h3><span>✕</span></header>
+  <div class="db">
+    <span class="eyebrow">Diagnostic evidence</span>
+    <div class="kv"><span>Check status</span><span class="pill pill--warn">Symptom seen</span></div>
+    <div class="kv"><span>Reason</span><span>Limited by the 5 s acquisition grid.</span></div>
+    <span class="eyebrow" style="margin-top:12px">Calculated values</span>
+    <div class="kv"><span>Oscillation period (ACF)</span><span>280.5 s</span></div>
+    <div class="kv" style="border:0"><span>Oscillation regularity</span><span>1.00</span></div>
+  </div>
+  <footer><span class="btn">Replay ↗</span><span class="btn">Workbench ↗</span></footer>
+</div></div>
+<div class="scrim" id="d-all"><div class="dlg dlg--wide">
+  <header><h3>All 17 gates</h3><span>✕</span></header>
+  <div class="db gates">
+    <h4>Eligibility</h4>
+    <div class="kv"><span><strong>G0</strong> · Data quality</span><span class="pill pill--warn">! Attention</span></div><div class="kv"><span><strong>G1</strong> · Mode / service</span><span class="pill pill--ok">✓ Pass</span></div>
+    <div class="kv"><span><strong>G2</strong> · Setpoint activity</span><span class="pill pill--ok">✓ Pass</span></div><div class="kv"><span><strong>G2r</strong> · Operating region</span><span class="pill pill--ok">✓ Pass</span></div>
+    <h4>Performance</h4>
+    <div class="kv"><span><strong>G3</strong> · Base performance</span><span class="pill pill--ok">✓ Pass</span></div><div class="kv"><span><strong>G4</strong> · Actuator effort</span><span class="pill pill--warn">Strong symptom</span></div>
+    <h4>Diagnostic evidence</h4>
+    <div class="kv"><span><strong>G5</strong> · Oscillation (ACF)</span><span class="pill pill--warn">Symptom seen</span></div><div class="kv"><span><strong>G6</strong> · Spectral (FFT)</span><span class="pill pill--warn">Symptom seen</span></div>
+    <div class="kv"><span><strong>G7</strong> · Stiction shape</span><span class="pill">Not seen</span></div><div class="kv"><span><strong>G8</strong> · Horch oddness</span><span class="pill">Not seen</span></div>
+    <div class="kv"><span><strong>G9</strong> · Phase geometry</span><span class="pill">Not seen</span></div><div class="kv"><span><strong>G10</strong> · Valve / saturation</span><span class="pill">Not seen on available data</span></div>
+    <div class="kv"><span><strong>G11</strong> · Sensor health</span><span class="pill">Not seen on available data</span></div><div></div>
+    <h4>Confirmation</h4>
+    <div class="kv"><span><strong>G12</strong> · Step-test evidence</span><span class="pill">Not evaluated</span></div><div class="kv"><span><strong>G13</strong> · Disturbance context</span><span class="pill">Not evaluated</span></div>
+    <div class="kv"><span><strong>G14</strong> · VP confirmation</span><span class="pill">N/A</span></div><div></div>
+    <h4>Fusion</h4>
+    <div class="kv" style="border:0"><span><strong>G15</strong> · Diagnosis band</span><span class="pill pill--warn">▲ Confirmed</span></div>
+  </div>
+</div></div>
 <script>
   // A drawn trend for the sample only.
   document.querySelectorAll('svg.chart').forEach(s => { const W = 700; let pv = '', op = '';
@@ -244,6 +293,9 @@
   document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => show(Number(x.dataset.t))));
   document.getElementById('next').addEventListener('click', e => show(Number(e.target.dataset.t)));
   window.showTab = show;
+  window.showList = on => { document.getElementById('winlist').hidden = !on; };
+  window.showDialog = id => { document.querySelectorAll('.scrim').forEach(x => x.classList.toggle('on', x.id === `d-${id}`)); };
+  document.querySelectorAll('.scrim').forEach(x => x.addEventListener('click', e => { if (e.target === x || e.target.tagName === 'SPAN' && e.target.textContent === '✕') window.showDialog(null); }));
 </script>
 </body>
 </html>

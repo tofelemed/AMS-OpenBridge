@@ -1,6 +1,6 @@
 /**
  * CHG-141: all 17 gate results of this window under their tiers. A gate opens its Calculation proof. `GateTierRow` keeps a
- * gate the tiers do not know under Other, so nothing the service sends is dropped.
+ * gate the tiers do not know under Other, so nothing the service sends is dropped. CHG-160: titled by the gates, not the loop.
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -11,13 +11,12 @@ import GateTierRow from '../blocks/GateTierRow';
 import { gateName } from '../gateStatus';
 
 export const AllGatesDialog: React.FC<{
-  loopId: string;
   matrix: CpmGateMatrix;
   flags?: readonly string[] | null;
   onGate: (gate: string) => void;
   onClose: () => void;
-}> = ({ loopId, matrix, flags, onGate, onClose }) => createPortal(
-  <Dialog open size="wide" title={`All gate results · ${loopId}`} onClose={onClose}>
+}> = ({ matrix, flags, onGate, onClose }) => createPortal(
+  <Dialog open size="wide" title={`All ${matrix.gates.length} gates`} onClose={onClose}>
     <div className="cpm-inv-allgates">
       <GateTierRow gates={matrix.gates.map(c => c.key)} tile={gate => (
         <button type="button" className="cpm-inv-gate__head" onClick={() => onGate(gate)}>

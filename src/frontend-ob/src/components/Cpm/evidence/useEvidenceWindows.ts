@@ -12,11 +12,8 @@ import type { CpmKpiRow } from '../../../api/cpm/kpis';
 import { type CpmTone } from '../shared';
 import { gateMark, reviewSeverity } from '../gateStatus';
 import { GATE_ORDER } from './gateFacts';
-import { codeLabel, diagnosisLabel, phrase } from '../vocabulary';
-import { windowLabel } from '../windowLabel';
-import { hasVerdict } from '../metricAvailability';
-import { evidenceScoreText } from '../evidenceScore';
-import { ageText } from '../verdictAge';
+import { codeLabel, diagnosisLabel } from '../vocabulary';
+import { shortState, windowPick } from '../windowLabel';
 
 export type WindowTier = 'fused' | 'short' | 'long';
 
@@ -56,24 +53,22 @@ export function dedupeByInstant(options: WindowOption[]): WindowOption[] {
 }
 
 const age = (endIso: string, now: number) => Math.max(0, now - Date.parse(endIso));
-// CHG-065: the shared age format (verdictAge)
-const NO_IDS = ' · no run identity (pre-v2.5)';
-// CHG-102 Phase 3: older than Postgres, a verdict summary read from IoTDB: no run ids, so the window opens through Evaluate
-const HISTORIAN_NO_IDS = ' · history only - use Evaluate a window to open';
+// CHG-102 Phase 3: older than Postgres, a verdict summary read from IoTDB: no run ids, so the window opens through Evaluate.
+// CHG-160 (owner review): the option says only that; its title and the Windows tab say how to open it.
+const HISTORY_ONLY = ' · history only';
 
 export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: string): WindowOption[] {
   return rows.map(r => {
     const ids = r.methodRunIds ?? {};
     const hasRunIds = Object.keys(ids).length > 0;
     const insufficient = !r.diagnosis || r.diagnosis === 'INSUFFICIENT_DATA';
-    const state = insufficient
-      ? `${diagnosisLabel('INSUFFICIENT_DATA')}${r.insufficientEvidenceReason ? ` (${phrase(r.insufficientEvidenceReason)})` : ''}`
-      : `${diagnosisLabel(r.diagnosis)}${r.confidence != null && hasVerdict(r.diagnosis) ? ` · ${evidenceScoreText(r.confidence)}` : ''}`;
+    // CHG-160 (owner review): the end and the state, nothing more; the result says why and how sure
+    const state = shortState(diagnosisLabel(insufficient ? 'INSUFFICIENT_DATA' : r.diagnosis));
     const ms = age(r.windowEnd, now);
     const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
     return {
       windowEnd: r.windowEnd, windowStart: r.windowStart, kind: r.windowKind, tier: 'fused',
-      label: `${windowLabel({ windowKind: r.windowKind, windowEnd: r.windowEnd }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : r.source === 'historian' ? HISTORIAN_NO_IDS : NO_IDS}`,
+      label: `${windowPick({ windowEnd: r.windowEnd }, timeZone)} · ${state}${!hasRunIds && r.source === 'historian' ? HISTORY_ONLY : ''}`,
       tone, ageMs: ms, sampleCount: r.sampleCount, methodRunIds: ids, hasRunIds,
       gates: (r.gates ?? []).map(g => ({ key: g.key, status: g.status, reason: g.reason })),
       flags: { observabilityFlags: r.observabilityFlags ?? [], familyDisqualifiers: r.familyDisqualifiers ?? [], insufficientEvidenceReason: r.insufficientEvidenceReason ?? null },
@@ -96,21 +91,20 @@ export function kpiOptions(rows: CpmKpiRow[], kind: string, tier: 'short' | 'lon
       .map(g => ({ key: g, status: (r[`gate${g.replace(/^G/, '').toLowerCase()}_status`] as string | null | undefined) ?? null, reason: (r[`gate${g.replace(/^G/, '').toLowerCase()}_reason`] as string | null | undefined) ?? null }))
       .filter(g => g.status != null);
     const evalState = typeof r.evaluation_state === 'string' ? r.evaluation_state : null;
-    const evalReason = typeof r.evaluation_reason === 'string' ? r.evaluation_reason : null;
     let state: string;
     let tone: CpmTone;
     if (evalState && evalState !== 'EVALUATED') {
-      state = `${codeLabel(evalState)}${evalReason ? ` (${phrase(evalReason)})` : ''}`;
+      state = codeLabel(evalState);
       tone = 'muted';
     } else {
       const notPass = gates.filter(g => reviewSeverity(g.status) != null);
-      state = notPass.length ? notPass.map(g => `${g.key} ${gateMark(g.status, g.key).word.toLowerCase()}${g.reason ? ` (${phrase(g.reason)})` : ''}`).join(', ') : gates.length ? 'all gates pass' : 'no gate statuses';
+      state = notPass.length ? notPass.map(g => `${g.key} ${gateMark(g.status, g.key).word.toLowerCase()}`).join(', ') : gates.length ? 'all gates pass' : 'no gate statuses';
       tone = notPass.some(g => reviewSeverity(g.status) === 'bad') ? 'bad' : notPass.length ? 'warn' : gates.length ? 'good' : 'muted';
     }
     const ms = age(r.window_end as string, now);
     return {
       windowEnd: r.window_end as string, windowStart: (r.window_start as string | null) ?? null, kind, tier,
-      label: `${windowLabel({ windowKind: kind, windowEnd: r.window_end as string }, timeZone)} · ${state} · ${ageText(ms)}${hasRunIds ? '' : NO_IDS}`,
+      label: `${windowPick({ windowEnd: r.window_end as string }, timeZone)} · ${state}`,
       tone, ageMs: ms, sampleCount: typeof r.sample_count === 'number' ? r.sample_count : null, methodRunIds: ids, hasRunIds,
       gates, flags: undefined, methodEligibility: null, purpose: typeof r.purpose === 'string' ? r.purpose : null,
     };

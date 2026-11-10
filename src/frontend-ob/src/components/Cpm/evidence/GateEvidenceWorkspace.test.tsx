@@ -224,7 +224,7 @@ describe('GateEvidenceWorkspace', () => {
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
     const sel = await screen.findByLabelText('Evaluated window') as HTMLSelectElement;
     await waitFor(() => expect(sel.value).toBe('2026-09-17T08:00:00Z'));
-    expect(sel.options[sel.selectedIndex].textContent).toMatch(/Not evaluated: not enough data \(too few samples\)/);
+    expect(sel.options[sel.selectedIndex].textContent).toBe('17 Sept 12:00 · Not evaluated');   // CHG-160: the end (site time) and the state alone
   });
 
   it('the gate rail opens another gate of the same window', async () => {

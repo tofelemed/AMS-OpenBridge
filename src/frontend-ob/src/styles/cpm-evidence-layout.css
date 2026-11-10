@@ -1,36 +1,5 @@
 /* ── Evidence pages: conclusion first, details collapsible, no scroll inside scroll (SME #13, CHG-050) ── */
 
-/* Conclusion strip: a zero-height sticky host right under the loop band; the strip hangs inside it,
-   so showing / hiding it never shifts the page. Spans the screen padding like the band. */
-.cpm-conclusion-strip {
-  position: sticky;
-  top: calc(var(--cpm-context-h, 0px) - var(--cpa-page-pad));
-  z-index: 5;
-  height: 0;
-  margin: 0 calc(-1 * var(--cpa-screen-pad) - var(--cpa-page-pad));
-}
-.cpm-conclusion-strip__inner {
-  display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 12px;
-  padding: 6px calc(var(--cpa-screen-pad) + var(--cpa-page-pad));
-  background: var(--container-backdrop-color);
-  border-bottom: 1px solid var(--border-outline-color);
-  visibility: hidden; opacity: 0; transition: opacity 120ms ease;
-}
-.cpm-conclusion-strip__inner--shown { visibility: visible; opacity: 1; }
-.cpm-conclusion-strip__inner > * { flex: none; }
-.cpm-conclusion-strip__inner > .cpm-conclusion-strip__detail {
-  flex: 1 1 0; min-width: 0; color: var(--traverse-text-secondary); font-size: var(--cpm-text-small);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* A phone keeps the verdict and the way back; the detail is the first thing to go. */
-@media (max-width: 600px) {
-  .cpm-conclusion-strip__detail { display: none; }
-  .cpm-conclusion-strip__inner .cpm-eyebrow { display: none; }
-  .cpm-conclusion-strip__inner obc-button { margin-left: auto; }
-  /* the verdict pill gives way (ellipsis) so "Back to conclusion" always fits */
-  .cpm-conclusion-strip__inner > .cpm-pill { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
-
 /* Collapsible evidence sections: an accordion on a CPM surface; the one-line summary sits under the
    header while the section is closed. */
 .cpm-collapsible { padding-top: 4px; padding-bottom: 4px; min-width: 0; }
@@ -96,7 +65,7 @@
 }
 .cpm-window-tile__sub { display: inline-flex; align-items: center; gap: 6px; font-size: var(--cpm-text-small); color: var(--traverse-text-secondary); }
 .cpm-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--cpm-tone, var(--traverse-text-secondary)); }
-.cpm-window-tiles__pager { margin-top: 8px; align-items: center; }
+.cpm-window-tiles__pager { margin-top: 8px; align-items: center; justify-content: center; }   /* CHG-160: pagers sit centred */
 
 /* "Why this result" (SME #19, CHG-055): result · measured vs required · evidence · what remains open. */
 .cpm-why { display: flex; flex-direction: column; gap: 6px; }

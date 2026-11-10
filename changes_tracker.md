@@ -6118,3 +6118,34 @@ built); D5 (whether backups carry the archive); the release build itself.
 | Review this window → | content width | full width |
 | Pager | right of the foot | middle of the foot |
 | Empty signal line | root.site1.cpm.FIC10401 | FIC10401 |
+
+
+## CHG-160 — CPA owner page review 6: Investigation (2026-11-10/11, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's review of Investigation: a search field for the loop, the page as steps an engineer follows, nothing repeated, every button where the earlier pages put it. Approved on the samples `docs/theme/redesign/samples/investigation-tabs.html` and `investigation-steps.html` (owner: "perfect - go ahead").
+
+**Changed.**
+- **Loop control (every loop page, shared `LoopBand`):** a search field (`LoopCombobox`): typing lists the loops that match, a click on the field or the arrow lists every loop in the header scope; one list with one scroll bar. The Find loop box, the Loop Registry link and Clear loop are gone (`LoopTree` deleted; `onClear` dropped from the ten pages that passed it, Trend included).
+- **Investigation as five step tabs** in the engineer's order, in `?tab=`: Result (verdict, what it rests on, cause, severity, three facts, limits), Evidence (gates by stage, the trend unchanged, the gates of one stage), Windows (recent windows, previous against current), Hypotheses (mechanism cards with how a qualified cause is confirmed, observations beside G14), Review (next checks led by the result's next check, Related events, the review form). Each ends with Next: … →. A gate or card named in a link opens Evidence. Changing the loop or the 12h / 24h switch keeps the step.
+- **Removed:** the title `?`, More (Case is in the band without a label; Older › on Windows loads older windows; Retry sits beside the window dropdown), Technical details & engine trace, the Numeric evidence panel and dialog (the Windows table holds those measures), the Compare windows and Hypothesis comparison dialogs (now tabs), the sticky result strip, Start with evidence ↓.
+- **Dialogs:** the gate proof is titled by the gate ("G5 · Oscillation (ACF)"), without the loop's result and window rows, with Replay ↗ and Workbench ↗ as short links on one line (shared `GateDialog` gains `loopInView`; Loop Explorer and Performance unchanged). All gates is titled "All 17 gates". Mode context unchanged.
+- **Window options (shared dropdown: Investigation, Replay, Evidence Workbench):** the end and the state alone ("18 Aug 06:45 · Not evaluated"); a window that cannot be opened (pre-v2.5, no run) is left out, a history-only one stays disabled ("· history only"); the open window is matched by its end too, so it is no longer listed twice. Note P2-13 (zone always named): the option drops the zone at the owner's request; the Windows table headers still name it.
+- **N/A gate mark (everywhere, `gateStatus`):** glyph ∅ instead of "n/a", which read "n/a N/A" beside the word.
+- **Sizes:** Investigation carries `.cpm-compact` (32 px buttons and fields), as Historical.
+- **Loop notes (shared with Replay):** the count shows only when there are notes; the attach box no longer repeats the window (on hover).
+- **Evidence, empty trend:** no historian path; the tag names the loop.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.
+
+**Lab:** :3000 not rebuilt for CHG-160 (still redesign-f3bd9702, CHG-159). To rebuild: in the worktree `docker build -t docker-ams-frontend:redesign-<sha> -t docker-ams-frontend:latest -f infra/docker/frontend/Dockerfile --build-arg VITE_LOOP_ROOT_PREFIX=root.hdpev2.cpm src/frontend-ob`, then in AMS-open/infra/docker `docker compose -p docker up -d --no-deps --no-build --force-recreate ams-frontend`; tag the running image `pre-chg160` first for rollback.
+
+| Where | Was | Now |
+|---|---|---|
+| Loop control | button → popover with Find loop, list, Loop Registry ↗, Clear loop | search field with one list |
+| Investigation | one long page, More, Technical details | five step tabs, Case in the band |
+| Window option | 12 h · ends … UTC · state: reason · age · pre-v2.5 | end · state |
+| Gate proof | FIC10401 · G5, loop result, window, Evidence Replay ↗ / Evidence Workbench → | G5 · Oscillation (ACF), Replay ↗ / Workbench ↗ |
+| N/A mark | n/a N/A | ∅ N/A |
+| Buttons and fields on Investigation | 40 px | 32 px |

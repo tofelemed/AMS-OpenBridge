@@ -1,5 +1,3 @@
-import type { CpmGateMatrix } from '../../../api/cpm/gates';
-import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { fmtDuration } from '../shared';
 
 /** Key facts — real stored metric fields with honest units (shared by the tiles and the delta table). */
@@ -26,23 +24,4 @@ export function fmtFact(f: { unit: string }, value: number | null | undefined): 
   }
   if (f.unit === '%') return `${value.toFixed(1)} %`;
   return value.toFixed(2);
-}
-
-export type NumericHeadline =
-  | { kind: 'value'; value: string; label: string }
-  | { kind: 'state'; short: string; reason: string }
-  | { kind: 'none' };
-
-/**
- * CHG-141: the one value Numeric evidence leads with. Good-error time is on the result card, so it is never repeated
- * here; when every measure has one answer that answer stands in, and a dialog holds all of them.
- */
-export function numericHeadline(matrix: CpmGateMatrix, metrics: Record<string, number | undefined>): NumericHeadline {
-  const context = contextOfMatrix(matrix);
-  const facts = KEY_FACTS.map(f => ({ f, a: metricAvailability(context, f.field, metrics[f.field]) }));
-  const lead = facts.find(x => x.a.state === 'measured' && x.f.field !== 'good_error_pct');
-  if (lead) return { kind: 'value', value: fmtFact(lead.f, (metrics[lead.f.field] ?? 0) * (lead.f.scale ?? 1)), label: lead.f.label };
-  const { state, short, reason } = facts[0].a;
-  if (state === 'measured' || !facts.every(x => x.a.state === state && x.a.reason === reason)) return { kind: 'none' };
-  return { kind: 'state', short, reason: reason ? `${reason[0].toUpperCase()}${reason.slice(1)}` : '' };
 }

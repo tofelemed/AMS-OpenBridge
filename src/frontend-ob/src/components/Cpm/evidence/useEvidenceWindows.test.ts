@@ -16,17 +16,18 @@ const summary = (over: Partial<CpmWindowSummary>): CpmWindowSummary => ({
 });
 
 describe('fusedOptions', () => {
-  it('labels an insufficient window with its reason and age, a verdict with its confidence, and flags rows without run ids', () => {
+  // CHG-160 (owner review): an option is the window's end and its state, nothing more; the 12h / 24h switch names the length
+  it('labels a window by its end and its state alone, and flags rows without run ids', () => {
     const rows = [
       summary({}),
       summary({ windowEnd: '2026-09-02T20:45:00Z', diagnosis: 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY', confidence: 0.89, insufficientEvidenceReason: null, methodRunIds: {}, gates: [] }),
     ];
     const o = fusedOptions(rows, NOW, 'UTC');
-    expect(o[0].label).toBe('24 h · ends 17 Sept 08:00 UTC · Not evaluated: not enough data (too few samples) · 20 min ago');
+    expect(o[0].label).toBe('17 Sept 08:00 · Not evaluated');
     expect(o[0].tone).toBe('muted');
     expect(o[0].hasRunIds).toBe(true);
     expect(o[0].gates[0]).toEqual({ key: 'G5', status: 'WARN', reason: 'BANDWIDTH' });
-    expect(o[1].label).toMatch(/^24 h · ends 2 Sept 20:45 UTC · Valve nonlinearity \(stiction\) suspected · evidence score 89 · 14 days ago · no run identity \(pre-v2\.5\)$/);
+    expect(o[1].label).toBe('2 Sept 20:45 · Valve nonlinearity (stiction) suspected');
     expect(o[1].hasRunIds).toBe(false);
     expect(o[1].tone).toBe('bad');
   });
@@ -41,17 +42,17 @@ describe('kpiOptions', () => {
       { window_start: null, window_end: '2026-09-17T07:45:00Z', sample_count: 0, created_at: 'x', sufficient_data: false, gate0_status: 'FAIL', gate0_reason: 'QUALITY_UNKNOWN', evaluation_state: 'EVALUATED', evaluation_reason: null, method_run_ids: '{}', bundle_hash: null, purpose: 'LIVE' },
     ];
     const o = kpiOptions(rows, '15m', 'short', NOW, 'UTC');
-    expect(o[0].label).toBe('15 min · ends 17 Sept 08:15 UTC · G3 attention · 5 min ago');
+    expect(o[0].label).toBe('17 Sept 08:15 · G3 attention');
     expect(o[0].methodRunIds).toEqual({ G0: 'a', G3: 'b' });
     expect(o[0].gates.find(g => g.key === 'G3')).toEqual({ key: 'G3', status: 'WARN', reason: null });
     expect(o[0].tone).toBe('warn');
-    expect(o[1].label).toBe('15 min · ends 17 Sept 07:45 UTC · G0 not usable (source quality unknown) · 35 min ago · no run identity (pre-v2.5)');
+    expect(o[1].label).toBe('17 Sept 07:45 · G0 not usable');
     expect(o[1].hasRunIds).toBe(false);
   });
 
   it('states a WAITING / WARMUP window by its evaluation state', () => {
     const rows: CpmKpiRow[] = [{ window_start: null, window_end: '2026-09-17T08:15:00Z', sample_count: 10, created_at: 'x', evaluation_state: 'WAITING', evaluation_reason: 'WARMUP', method_run_ids: '{"G0":"a"}', bundle_hash: 'b', purpose: 'LIVE' }];
-    expect(kpiOptions(rows, '1m', 'short', NOW, 'UTC')[0].label).toBe('1 min · ends 17 Sept 08:15 UTC · Waiting (warmup) · 5 min ago');
+    expect(kpiOptions(rows, '1m', 'short', NOW, 'UTC')[0].label).toBe('17 Sept 08:15 · Waiting');
   });
 });
 
@@ -73,10 +74,11 @@ describe('navigation over options', () => {
   });
 });
 
-it('a historian window says how to open it, not pre-v2.5 (CHG-102 Phase 3)', () => {
+it('a historian window says it is history only, not pre-v2.5 (CHG-102 Phase 3, CHG-160)', () => {
   const [o] = fusedOptions([summary({ methodRunIds: {}, source: 'historian' })], NOW, 'UTC');
   expect(o.hasRunIds).toBe(false);
-  expect(o.label).toContain('history only - use Evaluate a window to open');
+  expect(o.historyOnly).toBe(true);
+  expect(o.label).toBe('17 Sept 08:00 · Not evaluated · history only');
   expect(o.label).not.toContain('pre-v2.5');
 });
 

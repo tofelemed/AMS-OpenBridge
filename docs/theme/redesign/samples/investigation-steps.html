@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Investigation (CHG-160 sample)</title>
+<style>
+  /* Traverse tokens. A sample only: nothing here is in the product. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --on:#FFFFFF; --warn:#8A5700; --warn-bg:#FFF3D6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1220px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; position: relative; }
+  .step { padding: 14px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 26px; color: var(--action); font-size: 18px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 10px; font-weight: 600; quotes: none; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); } .step li { margin: 2px 0; }
+  .step .go { margin-top: auto; padding-top: 10px; color: var(--action); font-weight: 600; }
+  .lower { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 42%; font-weight: 600; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Investigation: the engineer's path</h1>
+  <p class="lead">One question per step, left to right. The loop and window chosen in the band apply to every step; each step ends with Next.</p>
+
+  <div class="card band"><b>Every step</b><span class="chip">Loop search ▾</span><span class="chip">All cases ▾</span><span class="chip">Window ▾</span><span style="color:var(--text2)">· 12h / 24h top right</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Result</h2><q>What did the engine conclude, and how sure is it?</q>
+      <ul><li>Verdict, cause, engine severity</li><li>Evidence score, time in normal mode, data coverage</li><li>Limits on this conclusion</li></ul>
+      <span class="go">Next: Evidence →</span></div>
+    <div class="card step"><h2>Evidence</h2><q>Is the result backed by the data?</q>
+      <ul><li>Gates by stage, then the gates of one stage</li><li>PV / SP / OP / Mode trend over the window</li><li>Gate proof and All 17 gates (dialogs)</li><li>Evidence Replay ↗ · Calculation proof ↗</li></ul>
+      <span class="go">Next: Windows →</span></div>
+    <div class="card step"><h2>Windows</h2><q>Is it new, or has it persisted?</q>
+      <ul><li>Recent windows, ‹ Newer · Older ›</li><li>Previous against current: diagnosis and every measure</li><li>Picking a window opens it in every step</li></ul>
+      <span class="go">Next: Hypotheses →</span></div>
+    <div class="card step"><h2>Hypotheses</h2><q>Which mechanism explains it?</q>
+      <ul><li>Mechanisms with evidence score and state</li><li>How to confirm a qualified cause</li><li>G14 confirmation</li><li>Observations and the method behind each</li></ul>
+      <span class="go">Next: Review →</span></div>
+    <div class="card step"><h2>Review</h2><q>What do I check next, and what did I decide?</q>
+      <ul><li>Next checks: Historical ↗, Window Inspector ↗, …</li><li>Related events ↗</li><li>Record the review: note, outcome, attach to the window, acknowledge the episode</li></ul>
+      <span class="go">Save review</span></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>Dialogs that stay</h3>
+      <table>
+        <tr><td>Gate proof</td><td>From a gate (Evidence, Next checks). Title "G5 · Oscillation (ACF)"; status, reason, calculated values; Replay ↗ · Workbench ↗</td></tr>
+        <tr><td>All 17 gates</td><td>From Evidence. Every gate by stage; a gate opens its proof</td></tr>
+        <tr><td>Mode context</td><td>Excluded windows only, from Next checks. Unchanged</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>Gone from the page</h3>
+      <table>
+        <tr><td>Compare windows dialog</td><td>Is the Windows step</td></tr>
+        <tr><td>Hypothesis comparison dialog</td><td>Is the Hypotheses step</td></tr>
+        <tr><td>Numeric evidence + its dialog</td><td>Its values are the Current column on Windows</td></tr>
+        <tr><td>More button</td><td>Case in the band; older windows by Older › on Windows</td></tr>
+        <tr><td>Technical details &amp; engine trace</td><td>Removed, as you asked</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

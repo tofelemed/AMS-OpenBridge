@@ -2,7 +2,7 @@
 // CHG-141: the result card. The title is this window's result; an older verdict is named as older, with its age.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { row } from '../evidence/windowFixtures';
 import { InvestigationHero } from './InvestigationHero';
@@ -13,9 +13,11 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 afterEach(cleanup);
 
 const END = '2026-11-05T10:15:00Z';
-const hero = (matrix: ReturnType<typeof row>, over: { latest?: boolean; onStart?: () => void } = {}) => render(
+type Over = Partial<Pick<React.ComponentProps<typeof InvestigationHero>, 'latest' | 'basis' | 'limits'>>;
+const hero = (matrix: ReturnType<typeof row>, over: Over = {}) => render(
   <MemoryRouter>
-    <InvestigationHero matrix={matrix} episode={null} latest={over.latest ?? true} windowKind="12h" timeZone="UTC" onStart={over.onStart ?? (() => {})} />
+    <InvestigationHero matrix={matrix} episode={null} latest={over.latest ?? true} windowKind="12h" timeZone="UTC"
+      basis={over.basis ?? null} limits={over.limits ?? { title: 'Limits on this conclusion', lines: [] }} />
   </MemoryRouter>);
 
 describe('InvestigationHero', () => {
@@ -62,18 +64,33 @@ describe('InvestigationHero', () => {
     expect(screen.getByText(/not confirmed/)).toBeTruthy();
   });
 
-  it('puts the next check in the bar and starts the evidence from it', () => {
-    const onStart = vi.fn();
-    hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION', narrative: { selectedFamily: null, statusReason: null, recommendation: 'Retune the controller.' } }), { onStart });
-    const bar = screen.getByRole('group', { name: 'Next check' });
-    expect(within(bar).getByText('Retune the controller.')).toBeTruthy();
-    fireEvent.click(within(bar).getByRole('button', { name: 'Start with evidence ↓' }));
-    expect(onStart).toHaveBeenCalledTimes(1);
+  // CHG-160 (owner review): the Result tab; the next check leads the Review tab, and the band names the window
+  it('leaves the next check to the Review tab, and names no window', () => {
+    const { container } = hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION', narrative: { selectedFamily: null, statusReason: null, recommendation: 'Retune the controller.' } }));
+    expect(screen.queryByText('Retune the controller.')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Start with evidence/ })).toBeNull();
+    expect(container.textContent).not.toMatch(/Latest window|ends 5 Nov/);
   });
 
-  it('says when the window is an earlier one', () => {
+  it('says when the window is an earlier one, in a word', () => {
     hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION' }), { latest: false });
-    expect(screen.getByText(/^Earlier window · 12 h · ends /)).toBeTruthy();
+    expect(screen.getByText('Earlier window')).toBeTruthy();
+  });
+
+  it('says what the result rests on, once, and the limits on it', () => {
+    hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION' }), {
+      basis: { lead: 'Confirmed from', from: 'sustained oscillation (G5)', notChecked: ['Something missing'] },
+      limits: { title: 'Limits on this conclusion', lines: ['Instrument health not configured'] },
+    });
+    expect(screen.getByText('sustained oscillation (G5).', { exact: false })).toBeTruthy();
+    expect(screen.queryByText('Something missing')).toBeNull();
+    const box = screen.getByRole('heading', { level: 3, name: 'Limits on this conclusion' }).parentElement!;
+    expect(within(box).getByText('Instrument health not configured')).toBeTruthy();
+  });
+
+  it('shows no limits box when there is nothing to say', () => {
+    hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION' }), { limits: { title: 'What is still unconfirmed', lines: [] } });
+    expect(screen.queryByText('What is still unconfirmed')).toBeNull();
   });
 
   it('keeps the score explanation behind a ?', () => {

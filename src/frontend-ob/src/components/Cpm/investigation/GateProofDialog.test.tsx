@@ -29,43 +29,46 @@ describe('GateProofDialog', () => {
   it('opens Calculation proof as a dialog with values and two buttons', () => {
     const m = matrix();
     open(m);
-    const dialog = screen.getByRole('dialog', { name: 'FIC10401 · G5' });
+    const dialog = screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' });
     expect(within(dialog).getByText('Symptom seen')).toBeTruthy();
-    expect(within(dialog).getByText(windowSpan({ ...m, windowKind: '12h' }, 'UTC'))).toBeTruthy();
+    // CHG-160 (owner review): the band names the loop and the window, the Result tab the loop's result
+    expect(within(dialog).queryByText(windowSpan({ ...m, windowKind: '12h' }, 'UTC'))).toBeNull();
+    expect(within(dialog).queryByText('Loop result')).toBeNull();
+    expect(within(dialog).queryByText(/FIC10401/)).toBeNull();
     expect(within(dialog).getByText('Oscillation regularity')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Evidence Workbench →' })).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Evidence Replay ↗' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Workbench ↗' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Replay ↗' })).toBeTruthy();
   });
 
-  it('shows the loop result beside the gate, because the two can differ', () => {
+  it('is named by the gate and its check', () => {
     open(matrix());
-    expect(within(screen.getByRole('dialog')).getByText('Oscillation confirmed')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' })).toBeTruthy();
   });
 
   it('opens this gate\'s own run in the Workbench', () => {
     open(matrix());
-    fireEvent.click(screen.getByRole('button', { name: 'Evidence Workbench →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Workbench ↗' }));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/evidence?loop=FIC10401&methodRun=run-g5&gate=G5&mode=FIXED');
   });
 
   it('takes the run from the row when the cell has none', () => {
     open(matrix({ gates: [cell({ methodRunId: null })], methodRunIds: { G5: 'row-run' } }));
-    fireEvent.click(screen.getByRole('button', { name: 'Evidence Workbench →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Workbench ↗' }));
     expect(screen.getByTestId('where').textContent).toContain('methodRun=row-run');
   });
 
   it('opens Replay on the same loop, window, kind and gate', () => {
     open(matrix());
-    fireEvent.click(screen.getByRole('button', { name: 'Evidence Replay ↗' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replay ↗' }));
     const q = new URLSearchParams(screen.getByTestId('where').textContent!.split('?')[1]);
     expect([q.get('loop'), q.get('gate'), q.get('window'), q.get('kind')]).toEqual(['FIC10401', 'G5', END, '12h']);
   });
 
   it('disables Workbench with its reason when a row has no run id', () => {
     open(matrix({ gates: [cell({ methodRunId: null })], methodRunIds: {} }));
-    expect((screen.getByRole('button', { name: 'Evidence Workbench →' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Workbench ↗' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Stored before analysis runs were kept (before v2.5), so there is no run to open')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Evidence Replay ↗' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Replay ↗' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('says so when a gate reports a state rather than a value', () => {

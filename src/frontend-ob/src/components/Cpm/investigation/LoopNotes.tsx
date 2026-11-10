@@ -73,7 +73,7 @@ export const LoopNotes: React.FC<{
     <section className="cpm-surface cpm-loop-notes" data-testid="loop-notes">
       <PanelHead eyebrow={title ? undefined : 'Record it'} title={title ?? 'Loop notes'}
         help={<Toggletip variant="how-to" label="About loop notes"><p>A note stays on the loop and never changes the engine’s result. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.</p></Toggletip>}
-        right={<span className="cpm-copy">{notes.data ? `${notes.data.count} note(s)` : ''}</span>} />
+        right={<span className="cpm-copy">{notes.data?.count ? `${notes.data.count} note(s)` : ''}</span>} />
       <div className={links ? 'cpm-inv-review' : undefined}>
         <div>
           <textarea className="cpm-textarea" rows={3} value={text} maxLength={MAX_NOTE_LENGTH + 1}
@@ -87,9 +87,10 @@ export const LoopNotes: React.FC<{
               </select>
             </label>
             {window?.methodRunId && (
-              <label className="cpm-check">
+              // CHG-160 (owner review): the band names the window; the box names it on hover only
+              <label className="cpm-check" title={window.label}>
                 <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
-                Attach to this evaluated window ({window.label}) — its evidence is kept
+                Attach to this window — its evidence is kept
               </label>
             )}
             {openFrame && (

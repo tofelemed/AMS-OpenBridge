@@ -16,23 +16,30 @@ const matrix = row('2026-11-05T10:15:00Z', { gates });
 
 describe('AllGatesDialog', () => {
   it('lists every gate under its tier with its mark', () => {
-    render(<AllGatesDialog loopId="FIC10401" matrix={matrix} onGate={() => {}} onClose={() => {}} />);
-    const dialog = screen.getByRole('dialog', { name: 'All gate results · FIC10401' });
+    render(<AllGatesDialog matrix={matrix} onGate={() => {}} onClose={() => {}} />);
+    const dialog = screen.getByRole('dialog', { name: 'All 17 gates' });   // CHG-160: not the loop
     expect(within(dialog).getAllByRole('button', { name: /^G\d/ })).toHaveLength(17);
     expect(within(within(dialog).getByRole('group', { name: 'Diagnostic evidence' })).getByText('Strong symptom')).toBeTruthy();
     expect(within(dialog).getByRole('group', { name: 'Fusion' })).toBeTruthy();
   });
 
+  // CHG-160: the N/A mark printed its glyph and its word, "n/a N/A"
+  it('says N/A once on a gate that does not apply', () => {
+    render(<AllGatesDialog matrix={row('2026-11-05T10:15:00Z', { gates: gates.map(g => (g.key === 'G14' ? { ...g, status: 'NOT_APPLICABLE' } : g)) })} onGate={() => {}} onClose={() => {}} />);
+    const g14 = within(screen.getByRole('dialog')).getByRole('button', { name: /^G14/ });
+    expect([...g14.querySelectorAll('[aria-hidden="true"]')].map(e => e.textContent).join(' ')).toBe('∅ N/A');
+  });
+
   it('opens the proof of the gate that was clicked', () => {
     const onGate = vi.fn();
-    render(<AllGatesDialog loopId="FIC10401" matrix={matrix} onGate={onGate} onClose={() => {}} />);
+    render(<AllGatesDialog matrix={matrix} onGate={onGate} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /^G7 · Stiction shape/ }));
     expect(onGate).toHaveBeenCalledWith('G7');
   });
 
   it('keeps a gate the catalogue does not know, under Other', () => {
     const extra = row('2026-11-05T10:15:00Z', { gates: [...gates, { key: 'G16', name: 'New', tier: 'short', status: 'PASS', reason: null }] });
-    render(<AllGatesDialog loopId="FIC10401" matrix={extra} onGate={() => {}} onClose={() => {}} />);
+    render(<AllGatesDialog matrix={extra} onGate={() => {}} onClose={() => {}} />);
     expect(within(screen.getByRole('group', { name: 'Other' })).getByRole('button', { name: /^G16/ })).toBeTruthy();
   });
 });

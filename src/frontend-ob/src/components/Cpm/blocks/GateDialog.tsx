@@ -20,22 +20,26 @@ export const GateDialog: React.FC<{
   status: string | null | undefined;
   /** The window's input flags: a pass judged without one of them says so. */
   flags?: readonly string[] | null;
-  loopResult: React.ReactNode;
-  assessment: React.ReactNode;
+  /** Left out where the page already shows the loop's result (CHG-160). */
+  loopResult?: React.ReactNode;
+  /** Left out where the page already names the window (CHG-160). */
+  assessment?: React.ReactNode;
+  /** CHG-160 (owner review): the page is about this one loop, so the title is the gate and its check, not the loop. */
+  loopInView?: boolean;
   rows?: Array<{ label: string; value: React.ReactNode }>;
   actions: React.ReactNode;
   /** More under the rows, such as a disclosure of the rest of the evidence. */
   children?: React.ReactNode;
-}> = ({ open, onClose, loop, gate, status, flags, loopResult, assessment, rows, actions, children }) => {
+}> = ({ open, onClose, loop, gate, status, flags, loopResult, assessment, loopInView, rows, actions, children }) => {
   if (!open) return null;
   const tier = TIER_GROUPS.find(t => t.keys.includes(gate))?.label;
   return createPortal(
-    <Dialog open onClose={onClose} title={`${loop} · ${gate}`} footer={actions}>
+    <Dialog open onClose={onClose} title={loopInView ? `${gate} · ${gateName(gate)}` : `${loop} · ${gate}`} footer={actions}>
       {tier && <span className="cpm-eyebrow">{tier}</span>}
-      <p className="cpm-gate-dialog__name">{gateName(gate)}</p>
+      {!loopInView && <p className="cpm-gate-dialog__name">{gateName(gate)}</p>}
       <KvRow label="Check status"><GateBadge status={status} gate={gate} inputFlags={flags} /></KvRow>
-      <KvRow label="Loop result">{loopResult}</KvRow>
-      <KvRow label="Assessment">{assessment}</KvRow>
+      {loopResult != null && <KvRow label="Loop result">{loopResult}</KvRow>}
+      {assessment != null && <KvRow label="Assessment">{assessment}</KvRow>}
       {rows?.map(row => <KvRow key={row.label} label={row.label}>{row.value}</KvRow>)}
       {children}
     </Dialog>,

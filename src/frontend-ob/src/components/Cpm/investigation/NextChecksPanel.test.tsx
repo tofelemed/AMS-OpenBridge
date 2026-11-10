@@ -21,6 +21,14 @@ const checks = (diagnosis: string, handlers: Partial<React.ComponentProps<typeof
 };
 
 describe('NextChecks', () => {
+  // CHG-160 (owner review): the result's next check moved here from the result card, and Related events sits in the head
+  it('leads with the result\'s next check, and holds what the page puts in its head', () => {
+    render(<MemoryRouter><NextChecks matrix={row(END, { diagnosis: 'CONFIRMED_OSCILLATION' })} loopId="FIC10401" windowKind="12h"
+      lead="Retune the controller." right={<button type="button">Related events ↗</button>} onSignals={() => {}} onGate={() => {}} onDialog={() => {}} /></MemoryRouter>);
+    expect(screen.getByText('Retune the controller.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Related events ↗' })).toBeTruthy();
+  });
+
   it('shows links and no tick boxes', () => {
     checks('CONFIRMED_OSCILLATION');
     expect(screen.queryByRole('checkbox')).toBeNull();

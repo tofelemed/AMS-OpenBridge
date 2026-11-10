@@ -32,8 +32,8 @@ describe('gateMark', () => {
   it('names the no-verdict states and the confirmation outcomes', () => {
     expect(gateMark('NOT_EVALUATED', 'G9')).toMatchObject({ glyph: '—', word: 'Not evaluated' });
     // CHG-098 (SME review 2 #24): "—" is "not evaluated" only — N/A and pending have their own marks (was "—" for all three)
-    expect(gateMark('NOT_APPLICABLE', 'G14')).toMatchObject({ glyph: 'n/a', word: 'N/A', meaning: 'not-applicable' });
-    expect(gateMark('DISABLED', 'G12')).toMatchObject({ glyph: 'n/a', word: 'Disabled', meaning: 'not-applicable' });
+    expect(gateMark('NOT_APPLICABLE', 'G14')).toMatchObject({ glyph: '∅', word: 'N/A', meaning: 'not-applicable' });
+    expect(gateMark('DISABLED', 'G12')).toMatchObject({ glyph: '∅', word: 'Disabled', meaning: 'not-applicable' });
     expect(gateMark('PENDING', 'G13')).toMatchObject({ glyph: '…', word: 'Pending', meaning: 'pending' });
     expect(gateMark('SUSPECTED', 'G15')).toMatchObject({ glyph: '△', tone: 'warn' });
     // CHG-098: "ruled out" no longer borrows the pass tick (was ✓)

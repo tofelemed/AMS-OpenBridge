@@ -59,9 +59,9 @@ export const WindowTrend: React.FC<{
       {trend.isLoading && <EmptyState title="Loading signals…" />}
       {trend.isError && <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />}
       {!trend.isLoading && !trend.isError && points.length === 0 && (
-        // CHG-098 (SME review 2 #29): plain wording, the series as detail, a route to the mapping.
+        // CHG-098 (SME review 2 #29): plain wording and a route to the mapping. CHG-160: no historian path; the tag names the loop.
         <EmptyState title="No historian data for this window"
-          copy={`No PV / SP / OP samples were stored for this loop over this window. Check its signal mapping in the Loop Registry. (Historian series: ${series})`}
+          copy="No PV / SP / OP samples were stored for this loop over this window. Check its signal mapping in the Loop Registry."
           next={[{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }]} />
       )}
       {points.length > 0 && (

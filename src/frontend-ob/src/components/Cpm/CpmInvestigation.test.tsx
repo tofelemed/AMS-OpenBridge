@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 // CHG-141: the page. The context stays in the address, a named window opens or says it cannot, and the old section words are gone.
+// CHG-160 (owner review): five tabs in the engineer's order, Result → Evidence → Windows → Hypotheses → Review.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -87,18 +88,48 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+const tab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
+const selected = () => screen.getAllByRole('tab').find(t => t.getAttribute('aria-selected') === 'true')?.textContent;
+
 describe('CpmInvestigation', () => {
-  it('lays the page out as the reference does, with the old section words gone', () => {
+  // CHG-160 (owner review): the engineer's path, one step per tab, Result first
+  it('walks the investigation in five tabs, Result first, with the old section words gone', () => {
     const { container } = page('/cpm/investigation?loop=FIC10401');
-    for (const heading of ['Oscillation confirmed', 'Why this result', 'Next checks', 'Numeric evidence', 'Record your review'])
-      expect(screen.getByRole('heading', { level: 2, name: heading })).toBeTruthy();
-    expect(screen.getByText('Technical details & engine trace')).toBeTruthy();
-    for (const gone of [/final conclusion/i, /key facts/i, /window browser/i, /record it/i, /no verdict/i, /fused cleanly/i, /reasoning chain/i])
+    expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Result', 'Evidence', 'Windows', 'Hypotheses', 'Review']);
+    expect(selected()).toBe('Result');
+    expect(screen.getByRole('heading', { level: 2, name: 'Oscillation confirmed' })).toBeTruthy();
+    for (const gone of [/technical details/i, /engine trace/i, /numeric evidence/i, /start with evidence/i, /final conclusion/i, /key facts/i,
+      /window browser/i, /record it/i, /no verdict/i, /fused cleanly/i, /reasoning chain/i])
       expect(container.textContent).not.toMatch(gone);
   });
 
-  it('keeps the trend as built and adds its links', () => {
+  it('goes to the next step from the foot of each tab, and keeps the step in the address', () => {
     page('/cpm/investigation?loop=FIC10401');
+    for (const next of ['Evidence', 'Windows', 'Hypotheses', 'Review']) {
+      fireEvent.click(screen.getByRole('button', { name: `Next: ${next} →` }));
+      expect(query().get('tab')).toBe(next);
+      expect(selected()).toBe(next);
+    }
+    expect(screen.queryByRole('button', { name: /^Next:/ })).toBeNull();
+  });
+
+  it('has no ? on the title, no Compare windows or More, and 32 px controls', () => {
+    const { container } = page('/cpm/investigation?loop=FIC10401');
+    expect(screen.getByRole('heading', { level: 1, name: 'Investigation' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Investigation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Compare windows' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^More/ })).toBeNull();
+    expect(container.querySelector('.cpm-screen')?.classList.contains('cpm-compact')).toBe(true);
+  });
+
+  it('puts the case filter in the band, named by its options as the other band controls are', () => {
+    page('/cpm/investigation?loop=FIC10401');
+    expect(screen.getByRole('combobox', { name: 'Analysis case' })).toBeTruthy();
+    expect(screen.queryByText('Case')).toBeNull();
+  });
+
+  it('keeps the trend as built and adds its links', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Evidence');
     const trend = screen.getByTestId('trend');
     expect(trend.getAttribute('data-height')).toBe('260');
     expect(trend.getAttribute('data-reset')).toBe('Full window');
@@ -110,7 +141,7 @@ describe('CpmInvestigation', () => {
 
   it('shows the values at the window end, from the same trend', () => {
     state.points = [{ ts: 1, pv: 1, sp: 1, op: 1, mode: 'AUTO' }, { ts: 2, pv: 7.5, sp: 8, op: 41, mode: 'MAN' }];
-    const { container } = page('/cpm/investigation?loop=FIC10401');
+    const { container } = page('/cpm/investigation?loop=FIC10401&tab=Evidence');
     expect([...container.querySelectorAll('.cpm-signal__value')].map(v => v.textContent)).toEqual(['7.50', '8.00', '41.00', 'MAN']);
   });
 
@@ -119,14 +150,14 @@ describe('CpmInvestigation', () => {
     page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
     expect(screen.getByRole('heading', { name: 'That window is not stored' })).toBeTruthy();
     expect(screen.queryByText('Oscillation confirmed')).toBeNull();
-    expect(screen.queryByText('Why this result')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
   });
 
-  it('opens a named window at its exact end and calls it earlier', () => {
+  it('opens a named window at its exact end and says it is an earlier one', () => {
     state.at = { row: matrix(OLD_END) };
     page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
     expect(state.windowAtCalls).toContainEqual({ loop: 'FIC10401', end: OLD_END });
-    expect(screen.getByText(/^Earlier window · 12 h · ends /)).toBeTruthy();
+    expect(screen.getByText('Earlier window')).toBeTruthy();
   });
 
   it('chooses a window from the band instead of Live and Historical', () => {
@@ -137,63 +168,86 @@ describe('CpmInvestigation', () => {
     expect(query().get('mode')).toBeNull();
   });
 
-  it('switches 12h and 24h from the header, leaving the named window behind', () => {
+  it('switches 12h and 24h from the header, leaving the named window behind and keeping the step', () => {
     state.at = { row: matrix(OLD_END) };
-    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
+    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}&tab=Windows`);
     fireEvent.click(screen.getByRole('button', { name: '24h' }));
     expect(query().get('profile')).toBe('24h');
     expect(query().get('window')).toBeNull();
+    expect(query().get('tab')).toBe('Windows');
   });
 
-  it('opens on the card of a gate named in the link, with that gate open', () => {
+  it('opens the Evidence tab on the card of a gate named in the link, with that gate open', () => {
     page('/cpm/investigation?loop=FIC10401&gate=G10');
+    expect(selected()).toBe('Evidence');
     expect(screen.getByRole('button', { name: /^Diagnostic evidence/ }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: /^G10 · Valve/ }).getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('keeps the chosen card and gate in the address, and drops them with the loop', () => {
-    page('/cpm/investigation?loop=FIC10401');
+  it('keeps the chosen card and gate in the address, and drops them with the loop, keeping the step', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Evidence');
     fireEvent.click(screen.getByRole('button', { name: /^Fusion/ }));
     expect(query().get('tier')).toBe('Fusion');
     fireEvent.click(screen.getByRole('button', { name: /^G15 · Diagnosis band/ }));
     expect(query().get('gate')).toBe('G15');
     fireEvent.click(screen.getByRole('button', { name: 'change loop' }));
-    expect(query().get('loop')).toBe('FIC20202');
-    expect(query().get('tier')).toBeNull();
-    expect(query().get('gate')).toBeNull();
+    expect([query().get('loop'), query().get('tier'), query().get('gate'), query().get('tab')]).toEqual(['FIC20202', null, null, 'Evidence']);
   });
 
-  it('opens Calculation proof as a dialog', () => {
-    page('/cpm/investigation?loop=FIC10401&gate=G5');
+  it('opens Calculation proof as a dialog named by the gate', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Evidence&gate=G5');
     fireEvent.click(within(screen.getByRole('region', { name: 'Gates of this group' })).getByRole('button', { name: 'Calculation proof ↗' }));
-    expect(within(screen.getByRole('dialog', { name: 'FIC10401 · G5' })).getByRole('button', { name: 'Evidence Workbench →' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' });
+    expect(within(dialog).getByRole('button', { name: 'Workbench ↗' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Replay ↗' })).toBeTruthy();
   });
 
-  it('goes from all 17 gates to one gate\'s proof', () => {
-    page('/cpm/investigation?loop=FIC10401');
-    fireEvent.click(screen.getByRole('button', { name: 'All 17 gate results →' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'All gate results · FIC10401' })).getByRole('button', { name: /^G5 ·/ }));
-    expect(screen.queryByRole('dialog', { name: 'All gate results · FIC10401' })).toBeNull();
-    expect(screen.getByRole('dialog', { name: 'FIC10401 · G5' })).toBeTruthy();
+  it('goes from all the gates to one gate\'s proof', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Evidence');
+    fireEvent.click(screen.getByRole('button', { name: 'All 5 gates →' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'All 5 gates' })).getByRole('button', { name: /^G5 ·/ }));
+    expect(screen.queryByRole('dialog', { name: 'All 5 gates' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' })).toBeTruthy();
   });
 
-  it('compares windows in a dialog and opens the one picked', () => {
+  it('compares windows on the Windows tab and opens the one picked there', () => {
     page('/cpm/investigation?loop=FIC10401');
-    fireEvent.click(screen.getByRole('button', { name: 'Compare windows' }));
-    const dialog = screen.getByRole('dialog', { name: 'Compare recent 12h windows' });
-    fireEvent.click(within(dialog).getAllByRole('button', { name: /^Ends / })[1]);
+    tab('Windows');
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent 12h windows' })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: /^Ends / })[1]);
     expect(query().get('window')).toBe(OLD_END);
+    expect(query().get('tab')).toBe('Windows');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens Hypothesis comparison from Record your review', () => {
-    page('/cpm/investigation?loop=FIC10401');
-    fireEvent.click(screen.getByRole('button', { name: 'Hypothesis comparison ↗' }));
-    expect(screen.getByRole('dialog', { name: 'Hypothesis comparison' })).toBeTruthy();
+  it('shows the window\'s measures on the Windows tab, in place of Numeric evidence', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Windows');
+    const good = screen.getByText('Good-error time').closest('tr')!;
+    expect(good.querySelectorAll('td')[2].textContent).toBe('13.0 %');
+    expect(screen.queryByRole('button', { name: /View all measures/ })).toBeNull();
+  });
+
+  it('shows the hypotheses on their own tab', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Hypotheses');
+    expect(screen.getByRole('heading', { level: 2, name: 'Family and detector scores' })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('leads the Review tab with the result\'s next check', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
+    expect(screen.getByText('Compare PV, SP and OP over this window.')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Record your review' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Hypothesis comparison ↗' })).toBeNull();
+  });
+
+  it('runs the checks that stay on the page as tabs: Signals opens Evidence', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
+    fireEvent.click(screen.getByRole('button', { name: 'Signals ↗' }));
+    expect(selected()).toBe('Evidence');
   });
 
   it('links Related events to the loop alone when no episode was open', () => {
-    page('/cpm/investigation?loop=FIC10401');
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
     fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
     expect(screen.getByTestId('where').textContent).toContain('/cpm/events');
     expect(query().get('loop')).toBe('FIC10401');
@@ -202,7 +256,7 @@ describe('CpmInvestigation', () => {
 
   it('carries the episode open at this window into Related events', () => {
     state.episodes = [{ id: 77, opened_at: '2026-11-05T00:00:00Z', closed_at: null, ack_state: 'UNACKNOWLEDGED' }];
-    page('/cpm/investigation?loop=FIC10401');
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
     fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
     expect(screen.getByTestId('where').textContent).toContain('/cpm/events');
     expect([query().get('loop'), query().get('event'), query().get('filter')]).toEqual(['FIC10401', '77', 'all']);
@@ -211,7 +265,7 @@ describe('CpmInvestigation', () => {
   it('carries a closed episode too, when it was open at this older window', () => {
     state.at = { row: matrix(OLD_END) };
     state.episodes = [{ id: 12, opened_at: '2026-11-05T09:00:00Z', closed_at: '2026-11-05T10:05:00Z', ack_state: 'ACKNOWLEDGED' }];
-    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}`);
+    page(`/cpm/investigation?loop=FIC10401&window=${OLD_END}&tab=Review`);
     fireEvent.click(screen.getByRole('button', { name: 'Related events ↗' }));
     expect(query().get('event')).toBe('12');
   });
@@ -222,13 +276,15 @@ describe('CpmInvestigation', () => {
     expect(screen.queryByText('No open episode')).toBeNull();
   });
 
-  it('reads a no-fault window as a result on the whole page', () => {
+  it('reads a no-fault window as a result on every tab', () => {
     state.latest = { data: matrix(END, { diagnosis: 'INSUFFICIENT_EVIDENCE', metrics: { good_error_pct: 0.91, auto_pct: 1, completeness: 1 } }), isError: false, isLoading: false };
     const { container } = page('/cpm/investigation?loop=FIC10401');
     expect(screen.getByRole('heading', { level: 2, name: 'No fault identified' })).toBeTruthy();
     expect(screen.getByText('91 %')).toBeTruthy();
     expect(screen.getByText('None identified')).toBeTruthy();
+    tab('Evidence');
     expect(screen.getByRole('button', { name: /^Diagnostic evidence/ }).getAttribute('aria-pressed')).toBe('true');
+    tab('Review');
     expect(screen.getByRole('button', { name: 'Signals ↗' })).toBeTruthy();
     expect(container.textContent).not.toMatch(/data stopped|signal mapping|too few qualified samples/i);
   });
@@ -242,7 +298,7 @@ describe('CpmInvestigation', () => {
 
   it('explains a manual exclusion in Mode context, with Historical on the same window', () => {
     state.latest = { data: matrix(END, { diagnosis: 'EXCLUDED_MODE' }), isError: false, isLoading: false };
-    page('/cpm/investigation?loop=FIC10401');
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
     fireEvent.click(screen.getByRole('button', { name: 'Mode context ↗' }));
     const dialog = screen.getByRole('dialog', { name: 'Mode context' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Historical ↗' }));
@@ -250,32 +306,9 @@ describe('CpmInvestigation', () => {
     expect(query().get('window')).toBe(END);
   });
 
-  it('opens every measure in a dialog', () => {
-    page('/cpm/investigation?loop=FIC10401');
-    fireEvent.click(screen.getByRole('button', { name: 'View all measures →' }));
-    const dialog = screen.getByRole('dialog', { name: 'Numeric evidence · FIC10401' });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Calculation proof →' }));
-    expect(screen.getByTestId('where').textContent).toContain('/cpm/calculations');
-    expect([query().get('loop'), query().get('window'), query().get('kind')]).toEqual(['FIC10401', END, '12h']);
-  });
-
   it('keeps the health note honest, with the standard behind a ?', () => {
-    page('/cpm/investigation?loop=FIC10401');
+    page('/cpm/investigation?loop=FIC10401&tab=Evidence');
     expect(screen.getByText('No health data for this window — not checked')).toBeTruthy();
     expect(screen.queryByText(/NE107/)).toBeNull();
-  });
-
-  it('puts the case filter under More', () => {
-    page('/cpm/investigation?loop=FIC10401');
-    expect(screen.queryByRole('combobox', { name: 'Analysis case' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /More/ }));
-    expect(screen.getByRole('combobox', { name: 'Analysis case' })).toBeTruthy();
-  });
-
-  it('offers no comparison until a window is open, and says why', () => {
-    state.latest = { data: undefined, isError: false, isLoading: true };
-    page('/cpm/investigation?loop=FIC10401');
-    expect((screen.getByRole('button', { name: 'Compare windows' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('No evaluated window is open')).toBeTruthy();
   });
 });

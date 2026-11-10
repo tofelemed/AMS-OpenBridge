@@ -28,7 +28,7 @@ import { ReplayChart } from './replay/ReplayChart';
 import { ReplayStages } from './replay/ReplayStages';
 import { WindowVerdictCard } from './replay/WindowVerdictCard';
 import { diagnosisLabel } from './vocabulary';
-import { windowLabel } from './windowLabel';
+import { shortState, windowLabel, windowPick } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
@@ -164,8 +164,8 @@ export const CpmReplay: React.FC = () => {
             hasMore={list.hasMore} onLoadMore={list.loadMore} loadingMore={list.isLoadingMore} />
         </>}>
         <EvidenceWindowSelect loopId={loopId} kind={windowKind} windows={windows} windowsLoading={list.isLoading} windowsError={list.error}
-          currentMethodRunId={g15Run}
-          runWindow={selected ? `${windowLabel(selected, timeZone)} · ${diagnosisLabel(selected.diagnosis)}` : null}
+          currentMethodRunId={g15Run} currentEnd={selected?.windowEnd}
+          runWindow={selected ? `${windowPick(selected, timeZone)} · ${shortState(diagnosisLabel(selected.diagnosis))}` : null}
           onWindow={w => setParams(p => { p.set('window', w.windowEnd); p.delete('rerun'); return p; }, { replace: true })} />
         {selected && (
           <WindowResultSelect row={selected} others={at.others}

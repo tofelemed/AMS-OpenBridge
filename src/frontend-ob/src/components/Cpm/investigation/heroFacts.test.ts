@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import { row } from '../evidence/windowFixtures';
-import { causeOf, episodeAt, heroFacts, heroNextCheck, heroTitle, windowHeading } from './heroFacts';
+import { causeOf, episodeAt, heroFacts, heroNextCheck, heroTitle } from './heroFacts';
 
 const END = '2026-11-05T10:15:00Z';
 const hoursBefore = (h: number) => new Date(Date.parse(END) - h * 3600_000).toISOString();
@@ -141,17 +141,5 @@ describe('heroNextCheck', () => {
 
   it('never says a no-fault window is short of data', () => {
     expect(heroNextCheck(row(END, { diagnosis: 'INSUFFICIENT_EVIDENCE' }))).toMatch(/No fault reached the evidence threshold/);
-  });
-});
-
-describe('windowHeading', () => {
-  it('names the latest window and an earlier one apart', () => {
-    expect(windowHeading(finding, { latest: true, windowKind: '12h', timeZone: 'UTC' })).toMatch(/^Latest window · 12 h · ends /);
-    expect(windowHeading(finding, { latest: false, windowKind: '12h', timeZone: 'UTC' })).toMatch(/^Earlier window · 12 h · ends /);
-  });
-
-  it('says when only a re-run holds the window', () => {
-    const rerun = row(END, { replayId: 'abc' });
-    expect(windowHeading(rerun, { latest: false, windowKind: '12h', timeZone: 'UTC' })).toMatch(/ · re-run \(no original stored\)$/);
   });
 });

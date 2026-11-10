@@ -83,7 +83,8 @@ const MARK: Record<GateMeaning, Omit<GateGlyph, 'meaning'>> = {
   'ruled-out': { glyph: '◇', tone: 'good', word: 'Ruled out', label: 'fault ruled out by measured evidence' },
   // CHG-098 (SME review 2 #24): "—" is "not evaluated" only; not applicable and pending have their own marks
   none: { glyph: '—', tone: 'muted', word: 'Not evaluated', label: 'not evaluated' },
-  'not-applicable': { glyph: 'n/a', tone: 'muted', word: 'N/A', label: 'not applicable' },
+  // CHG-160: its own glyph; 'n/a' beside the word read "n/a N/A"
+  'not-applicable': { glyph: '∅', tone: 'muted', word: 'N/A', label: 'not applicable' },
   pending: { glyph: '…', tone: 'muted', word: 'Pending', label: 'pending' },
 };
 

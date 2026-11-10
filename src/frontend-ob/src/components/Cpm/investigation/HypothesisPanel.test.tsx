@@ -42,6 +42,13 @@ describe('HypothesisPanel', () => {
     expect(screen.getByTestId('hypothesis-OSCILLATION_TUNING').textContent).not.toContain('Leading');
   });
 
+  // CHG-160 (owner review): the cause list above the cards is gone; what would confirm a possible cause sits on its card
+  it('says on a qualified mechanism what would confirm it, and nothing on one not seen', () => {
+    render(<HypothesisPanel verdict={v2} metrics={{}} />);
+    expect(screen.getByTestId('hypothesis-STICTION').textContent).toContain('Valve-position (VP) tracking would confirm it (G14).');
+    expect(screen.getByTestId('hypothesis-EXCESSIVE_EFFORT').textContent).not.toContain('would confirm it');
+  });
+
   it('shows the method behind each observation and its role', () => {
     render(<HypothesisPanel verdict={v2} metrics={{}} />);
     const lag = screen.getByTestId('observation-LAG_ASYMMETRY');
@@ -54,7 +61,7 @@ describe('HypothesisPanel', () => {
     expect(screen.getByTestId('confirmation-prose').textContent).toContain('cannot confirm a final-element fault');
     expect(container.textContent).toContain('Not confirmed');
     expect(container.textContent).not.toContain('0.89');
-    expect(container.textContent).toContain('not probabilities');
+    expect(container.textContent).toContain('Scores rank the mechanisms; they are not probabilities.');
   });
 
   it('renders a pre-v2.5 row as LEGACY family scores without inventing hypotheses', () => {

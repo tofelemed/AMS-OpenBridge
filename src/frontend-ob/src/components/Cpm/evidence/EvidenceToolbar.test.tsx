@@ -34,6 +34,14 @@ const more = (over: Partial<React.ComponentProps<typeof EvidenceMore>> = {}) => 
 };
 
 describe('EvidenceWindowSelect', () => {
+  // CHG-160: the open window had no run of its own (pre-v2.5), so it was listed twice: once as the placeholder, once in the list
+  it('selects the open window by its end when no run matches, and lists it once', () => {
+    render(<EvidenceWindowSelect {...base({ currentMethodRunId: undefined, currentEnd: '2026-09-17T08:00:00Z' })} />);
+    const sel = screen.getByLabelText('Evaluated window') as HTMLSelectElement;
+    expect(sel.value).toBe('2026-09-17T08:00:00Z');
+    expect(sel.querySelectorAll('option')).toHaveLength(2);
+  });
+
   it('lists the windows newest-first with the current one selected, and reports a chosen window', () => {
     const onWindow = vi.fn();
     render(<EvidenceWindowSelect {...base({ onWindow })} />);
@@ -45,10 +53,15 @@ describe('EvidenceWindowSelect', () => {
     expect(onWindow).toHaveBeenCalledWith(expect.objectContaining({ windowEnd: '2026-09-17T08:00:00Z' }));
   });
 
-  it('disables a window without run identity and explains the empty / loading / error states', () => {
-    const { rerender } = render(<EvidenceWindowSelect {...base({ windows: [win({ hasRunIds: false, label: 'ends x · no run identity (pre-v2.5)' })], currentMethodRunId: undefined })} />);
-    const opt = screen.getByLabelText('Evaluated window').querySelector('option[value="2026-09-17T08:00:00Z"]') as HTMLOptionElement;
-    expect(opt.disabled).toBe(true);
+  // CHG-160 (owner review): a window that cannot be opened is left out; a history-only one stays, disabled, because it says how to open it
+  it('leaves out a window that cannot be opened, keeps a history-only one disabled, and explains the empty / loading / error states', () => {
+    const { rerender } = render(<EvidenceWindowSelect {...base({ windows: [
+      win({ hasRunIds: false, windowEnd: '2026-09-17T08:00:00Z', label: 'pre-v2.5' }),
+      win({ hasRunIds: false, historyOnly: true, windowEnd: '2026-09-17T07:45:00Z', label: 'history' }),
+    ], currentMethodRunId: undefined })} />);
+    const select = screen.getByLabelText('Evaluated window');
+    expect(select.querySelector('option[value="2026-09-17T08:00:00Z"]')).toBeNull();
+    expect((select.querySelector('option[value="2026-09-17T07:45:00Z"]') as HTMLOptionElement).disabled).toBe(true);
     rerender(<EvidenceWindowSelect {...base({ windows: [], windowsLoading: true })} />);
     expect(screen.getByLabelText('Evaluated window').textContent).toMatch(/Loading/);
     rerender(<EvidenceWindowSelect {...base({ windows: [], windowsError: new Error('boom') })} />);

@@ -1,6 +1,7 @@
 /**
  * CHG-141: what to look at next on this window. Links only: a tick could not be saved. `nextChecks.ts` chooses them by
- * what the window is; this runs them.
+ * what the window is; this runs them. CHG-160 (owner review): on the Review tab, led by the result's own next check, with
+ * whatever the page puts in the head (Related events).
  */
 import { usePipelineAccess } from '../access';
 import React from 'react';
@@ -18,7 +19,11 @@ export const NextChecks: React.FC<{
   onSignals: () => void;
   onGate: (gate: string) => void;
   onDialog: (dialog: InvestigationDialog) => void;
-}> = ({ matrix, loopId, windowKind, onSignals, onGate, onDialog }) => {
+  /** The result's next check, said first. */
+  lead?: string;
+  /** At the end of the head. */
+  right?: React.ReactNode;
+}> = ({ matrix, loopId, windowKind, onSignals, onGate, onDialog, lead, right }) => {
   const navigate = useNavigate();
   const canPipeline = usePipelineAccess();
   const run = (action: CheckAction) => {
@@ -31,7 +36,8 @@ export const NextChecks: React.FC<{
   };
   return (
     <section className="cpm-surface" aria-label="Next checks">
-      <PanelHead title="Next checks" />
+      <PanelHead title="Next checks" right={right} />
+      {lead && <p className="cpm-inv-checks__lead"><strong>{lead}</strong></p>}
       <ul className="cpm-inv-checks">
         {nextChecks(matrix, { loopId, windowKind, canPipeline }).map(c => (
           <li key={c.label}>

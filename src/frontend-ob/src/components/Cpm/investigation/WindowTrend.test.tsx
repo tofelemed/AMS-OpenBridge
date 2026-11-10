@@ -44,6 +44,14 @@ describe('WindowTrend', () => {
     expect(screen.getAllByRole('button', { name: 'Evidence Replay ↗' })).toHaveLength(1);
   });
 
+  // CHG-160: a loop is named by its tag, never by its historian path (the owner's rule from CHG-159)
+  it('says no samples were stored without printing the historian path', () => {
+    hooks.trend.mockReturnValue({ data: { points: [] }, isLoading: false, isError: false });
+    const { container } = show();
+    expect(screen.getByText('No historian data for this window')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/root\.|Historian series/);
+  });
+
   it('shows Evidence Replay once, in the chart foot, when there are points', () => {
     show();
     expect(screen.getAllByRole('button', { name: 'Evidence Replay ↗' })).toHaveLength(1);

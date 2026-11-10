@@ -104,6 +104,10 @@
     {
       "pattern": "^[▾▸]? ?[a-z0-9_]+ / [a-z0-9_ ./-]+ [0-9]+$",
       "why": "CHG-158: the loop list is flat; the header scope sets the site, area and unit, so the list no longer has group heads"
+    },
+    {
+      "pattern": "^loop: .* change loop$",
+      "why": "CHG-160 (owner review): the loop control is a search field, named 'Loop <tag> <name>', on every loop page"
     }
   ]
 }

@@ -38,6 +38,13 @@ const HOW_TO_CONFIRM: Record<string, string> = {
   SENSOR: 'a transmitter health source (NE107) would confirm it',
 };
 
+/** CHG-160: what would confirm a possible cause, as one sentence for its card; null when nothing would. */
+export function howToConfirm(id: string, v: CpmVerdictV2, vpAbsentOnLoop: boolean): string | null {
+  if (id === 'STICTION' && v.confirmation?.state === 'CONFIRMED') return 'Confirmed by measured valve position.';
+  const text = HOW_TO_CONFIRM[id === 'STICTION' && vpAbsentOnLoop ? 'STICTION_NO_VP' : id];
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}.` : null;
+}
+
 /** Why a cause could not be assessed, from the window's own flags. */
 const NOT_ASSESSED_BECAUSE: Record<string, string[]> = {
   EXTERNAL_DISTURBANCE: ['NO_UPSTREAM_LINKS', 'NO_PEER_LINKS'],

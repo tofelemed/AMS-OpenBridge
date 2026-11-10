@@ -69,7 +69,8 @@ describe('LoopNotes', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Record your review' })).toBeTruthy();
     expect(screen.queryByText('Record it')).toBeNull();
     expect(screen.getByText('Related events ↗')).toBeTruthy();
-    expect(screen.getByLabelText(/Attach to this evaluated window/)).toBeTruthy();
+    // CHG-160 (owner review): the band names the window, so the box does not name it again
+    expect(screen.getByLabelText('Attach to this window — its evidence is kept')).toBeTruthy();
     expect(screen.getByLabelText(/Also acknowledge the open episode EVT-77/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Loop note'), { target: { value: 'reviewed' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save review' }));

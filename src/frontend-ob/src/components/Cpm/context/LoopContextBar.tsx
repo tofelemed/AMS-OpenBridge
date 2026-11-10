@@ -60,6 +60,12 @@ export function fmtInstant(v: string | number | null | undefined, timeZone?: str
   return `${fmtShortParts(ms, tz)} ${zoneName(ms, tz)}`.trim();
 }
 
+/** "6 Nov 22:45": the instant without its zone, for a picker whose page names the zone elsewhere (CHG-160). */
+export function fmtInstantBare(v: string | number | null | undefined, timeZone?: string): string {
+  const ms = toMs(v);
+  return ms == null ? '—' : fmtShortParts(ms, validZone(timeZone));
+}
+
 /**
  * `24h fused window · 4 Oct 16:15 → 5 Oct 16:15 UTC`. The zone is always named
  * (the P2-13 rule), once, after the end. `timeZone` defaults to the site zone the

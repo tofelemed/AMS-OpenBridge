@@ -101,7 +101,7 @@ describe('GateBadge: one symbol per meaning, everywhere', () => {
     ['CONFIRMED', 'G15', '▲', 'Confirmed'],
     ['CONTRADICTED', 'G15', '◇', 'Ruled out'],
     ['NOT_EVALUATED', 'G3', '—', 'Not evaluated'],
-    ['NOT_APPLICABLE', 'G3', 'n/a', 'N/A'],
+    ['NOT_APPLICABLE', 'G3', '∅', 'N/A'],
     ['PENDING', 'G3', '…', 'Pending'],
   ])('%s on %s shows %s %s', (status, gate, glyph, word) => {
     const m = mark(status, gate);

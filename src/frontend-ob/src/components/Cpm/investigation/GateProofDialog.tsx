@@ -1,7 +1,8 @@
 /**
  * CHG-141: Calculation proof. One gate of this window in the shared gate dialog, with the values behind it, and the two
- * ways on: its immutable run in the Workbench, or the same loop, window and gate in Replay. The loop's result stays
- * beside the gate's, because the two can differ. A row with no run says why the Workbench cannot open.
+ * ways on: its immutable run in the Workbench, or the same loop, window and gate in Replay. A row with no run says why the
+ * Workbench cannot open. CHG-160 (owner review): named by the gate; the band names the loop and window, the Result tab
+ * the loop's result, and both ways on are short links on one line.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,13 +12,9 @@ import GateDialog from '../blocks/GateDialog';
 import { replayHref } from '../cpaHref';
 import { workbenchHref } from '../evidence/selection';
 import { reasonSentence } from '../evidence/verdictCopy';
-import { evidenceScoreText } from '../evidenceScore';
-import { hasVerdict } from '../metricAvailability';
 import { ReasonedButton } from '../ReasonedButton';
-import { KvRow, TonePill, toneFor } from '../shared';
-import { windowSpan } from '../windowLabel';
+import { KvRow } from '../shared';
 import { gateValues, sentence } from './gateProof';
-import { heroTitle } from './heroFacts';
 
 export const GateProofDialog: React.FC<{
   loopId: string;
@@ -25,37 +22,24 @@ export const GateProofDialog: React.FC<{
   matrix: CpmGateMatrix;
   windowKind: string;
   flags?: readonly string[] | null;
-  timeZone?: string;
   onClose: () => void;
-}> = ({ loopId, gate, matrix, windowKind, flags, timeZone, onClose }) => {
+}> = ({ loopId, gate, matrix, windowKind, flags, onClose }) => {
   const navigate = useNavigate();
   const cell = matrix.gates.find(g => g.key === gate);
   const runId = cell?.methodRunId ?? matrix.methodRunIds?.[gate] ?? null;
   const reason = reasonSentence(cell?.reason ?? null, { gate, eligibilityDetail: matrix.methodEligibility?.[gate]?.detail });
-  const score = hasVerdict(matrix.diagnosis) ? evidenceScoreText(matrix.confidence) : '';
   const values = gateValues(gate, matrix);
 
   return (
     <GateDialog
-      open onClose={onClose} loop={loopId} gate={gate} status={cell?.status} flags={flags}
-      loopResult={(
-        <>
-          <TonePill tone={toneFor(matrix.diagnosis)}>{heroTitle(matrix)}</TonePill>
-          {score && <span className="cpm-event-row__sub"> {score}</span>}
-        </>
-      )}
-      assessment={windowSpan({ ...matrix, windowKind }, timeZone)}
+      open onClose={onClose} loop={loopId} gate={gate} status={cell?.status} flags={flags} loopInView
       rows={reason ? [{ label: 'Reason', value: sentence(reason) }] : undefined}
       actions={(
         <>
-          <ObcButton variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>
-            Evidence Replay ↗
-          </ObcButton>
-          <ReasonedButton variant="raised" disabled={!runId}
+          <ObcButton variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Replay ↗</ObcButton>
+          <ReasonedButton variant="flat" disabled={!runId}
             reason="Stored before analysis runs were kept (before v2.5), so there is no run to open"
-            onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gate)); }}>
-            Evidence Workbench →
-          </ReasonedButton>
+            onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gate)); }}>Workbench ↗</ReasonedButton>
         </>
       )}
     >

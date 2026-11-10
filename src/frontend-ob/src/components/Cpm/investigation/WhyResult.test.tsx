@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// CHG-141: Why this result. Five cards; the chosen card fills the panel with its gates, each opening to its reason; the limits stay beside them.
+// CHG-141: Why this result. Five cards; the chosen card fills the panel with its gates, each opening to its reason. CHG-160: the Evidence tab; the
+// basis and the limits moved to the Result tab.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -22,7 +23,7 @@ const why = (over: Props = {}) => {
   const fn = { onTier: vi.fn(), onGate: vi.fn(), onProof: vi.fn(), onAllGates: vi.fn() };
   render(
     <MemoryRouter>
-      <WhyResult matrix={matrix} tier="Eligibility" gate={null} basis={null} limits={{ title: 'Limits on this conclusion', lines: ['Instrument health not configured'] }} {...fn} {...over}>
+      <WhyResult matrix={matrix} tier="Eligibility" gate={null} {...fn} {...over}>
         <p>the trend</p>
       </WhyResult>
     </MemoryRouter>);
@@ -80,27 +81,16 @@ describe('WhyResult', () => {
     expect(fn.onProof).toHaveBeenCalledWith('G0');
   });
 
-  it('opens all 17 gates', () => {
+  it('opens all the gates, counted', () => {
     const fn = why();
-    fireEvent.click(screen.getByRole('button', { name: 'All 17 gate results →' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Gates by stage' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'All 4 gates →' }));
     expect(fn.onAllGates).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the limits on screen under the gates', () => {
+  it('leaves the limits to the Result tab', () => {
     why();
-    const box = screen.getByRole('heading', { level: 3, name: 'Limits on this conclusion' }).parentElement!;
-    expect(within(box).getByText('Instrument health not configured')).toBeTruthy();
-  });
-
-  it('shows no limits box when there is nothing to say', () => {
-    why({ limits: { title: 'What is still unconfirmed', lines: [] } });
-    expect(screen.queryByText('What is still unconfirmed')).toBeNull();
-  });
-
-  it('says what the result rests on, once', () => {
-    why({ basis: { lead: 'Confirmed from', from: 'sustained oscillation (G5)', notChecked: ['Something missing'] } });
-    expect(screen.getByText('sustained oscillation (G5).', { exact: false })).toBeTruthy();
-    expect(screen.queryByText('Something missing')).toBeNull();
+    expect(screen.queryByText('Limits on this conclusion')).toBeNull();
   });
 
   it('holds the left column it is given', () => {

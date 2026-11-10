@@ -1,6 +1,6 @@
 /**
- * The Evidence controls in the loop band (CHG-130). The evaluated window is one dropdown, newest first with its state and age;
- * the window kind (fused verdicts, short features, long diagnostics), older windows and a date to jump to sit under More, with
+ * The Evidence controls in the loop band (CHG-130). The evaluated window is one dropdown, newest first, each option its end and
+ * its state (CHG-160: no length, zone or age; a window that cannot be opened is left out). The window kind (fused verdicts, short features, long diagnostics), older windows and a date to jump to sit under More, with
  * whatever else the page adds there. Native selects, as on every other page.
  */
 import React, { useId, useState } from 'react';
@@ -9,6 +9,7 @@ import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons
 import { fromSiteInput } from '../../../cpa/siteTime';
 import { Popover } from '../../../ui/Popover';
 import type { WindowOption, WindowTier } from './useEvidenceWindows';
+import { sameInstant } from './useWindowAt';
 
 export interface WindowKindOption { kind: string; tier: WindowTier; label: string }
 
@@ -19,6 +20,8 @@ export interface EvidenceWindowProps {
   windowsLoading: boolean;
   windowsError: unknown;
   currentMethodRunId: string | undefined;
+  /** The open window's end: it selects the window when no run matches (a row written before v2.5), so it is not listed twice. */
+  currentEnd?: string | null;
   /** The open run's window, for a run the list does not hold (an evaluated window, or one older than the loaded page). */
   runWindow?: string | null;
   onWindow: (w: WindowOption) => void;
@@ -43,18 +46,22 @@ export interface EvidenceMoreProps {
 const TIER_LABEL: Record<WindowTier, string> = { fused: 'Fused verdicts', short: 'Short features (G0–G4)', long: 'Long diagnostics (G5–G11)' };
 
 export const EvidenceWindowSelect: React.FC<EvidenceWindowProps> = (p) => {
-  const current = p.windows.find(w => Object.values(w.methodRunIds).includes(p.currentMethodRunId ?? ''));
+  // A window with no run and no stored history cannot be opened, so it is not offered (CHG-160)
+  const offered = p.windows.filter(w => w.hasRunIds || w.historyOnly);
+  const current = offered.find(w => Object.values(w.methodRunIds).includes(p.currentMethodRunId ?? ''))
+    ?? (p.currentEnd ? offered.find(w => sameInstant(w.windowEnd, p.currentEnd)) : undefined);
   const placeholder = !p.loopId ? 'Pick a loop first'
     : p.windowsLoading ? 'Loading the evaluated windows…'
     : p.windowsError ? 'The windows could not be listed - retry'
-    : p.windows.length === 0 ? `No ${p.kind} windows for this loop yet`
+    : offered.length === 0 ? `No ${p.kind} windows for this loop yet`
     : null;
   return (
     <select className="cpm-select cpm-evidence-toolbar__window" aria-label="Evaluated window" value={current?.windowEnd ?? ''}
       disabled={!!placeholder && !p.runWindow}
-      onChange={e => { const w = p.windows.find(x => x.windowEnd === e.target.value); if (w) p.onWindow(w); }}>
+      onChange={e => { const w = offered.find(x => x.windowEnd === e.target.value); if (w) p.onWindow(w); }}>
       {!current && <option value="">{p.runWindow ?? placeholder ?? 'Choose a window…'}</option>}
-      {p.windows.map(w => <option key={w.windowEnd} value={w.windowEnd} disabled={!w.hasRunIds}>{w.label}</option>)}
+      {offered.map(w => <option key={w.windowEnd} value={w.windowEnd} disabled={!w.hasRunIds}
+        title={w.historyOnly ? 'History only: use Evaluate a window to open it' : undefined}>{w.label}</option>)}
     </select>
   );
 };
