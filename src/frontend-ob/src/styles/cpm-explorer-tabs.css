@@ -47,3 +47,4 @@
 .cpm-explorer-gates td:last-child { text-align: right; }
 
 .cpm-episode-links { display: flex; justify-content: flex-end; }
+.cpm-explorer-gates + .cpm-gate-tier { margin-top: var(--traverse-space-4); }
