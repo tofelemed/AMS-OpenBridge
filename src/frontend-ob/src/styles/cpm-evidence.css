@@ -34,6 +34,8 @@
 .cpm-skeleton--evidence { min-height: 200px; }   /* CHG-162: labelled, and no taller than a chart's head start */
 @keyframes cpm-skeleton-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.8; } }
 @media (prefers-reduced-motion: reduce) { .cpm-skeleton { animation: none; } }
+/* CHG-162: a labelled box says what it waits for; it does not pulse or dim, so its words keep their contrast */
+.cpm-skeleton:has(> .cpm-skeleton__label) { opacity: 1; animation: none; }
 
 /* ── Event list (System Response; buttons styled as rows; selection uses the active-state tokens) ── */
 .cpm-response-events__list {

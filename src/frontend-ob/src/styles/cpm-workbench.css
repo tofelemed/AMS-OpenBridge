@@ -26,8 +26,8 @@
 /* the band's window kind and Go to date keep to their content */
 .cpm-band .cpm-kind-select { width: auto; }
 .cpm-step-pair { display: inline-flex; align-items: center; }
-/* the window's end and state fit in 260 px; on a compact page the band then holds its controls on one line at 1440 */
-.cpm-compact .cpm-band .cpm-evidence-toolbar__window { max-width: 260px; }
+/* the window's end and state fit in 250 px; on a compact page the band then holds its controls on one line at 1440 */
+.cpm-compact .cpm-band .cpm-evidence-toolbar__window { max-width: 250px; }
 .cpm-date-jump { display: flex; align-items: center; gap: var(--traverse-space-2); }
 /* Task 16: the four tabs. Each panel is a column of surfaces; the links sit in a row under them. */
 .cpm-workbench__tab { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }

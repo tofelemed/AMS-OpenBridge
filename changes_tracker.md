@@ -6159,7 +6159,7 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Changed (every page, `ui/shell`).**
 - The list scrolls on a short screen, rail or not; Collapse / Expand sits under it, outside the scroll, with a divider, so it is always on screen.
 - A rail tip is placed beside its entry with fixed positioning, so the scrolling list cannot clip it.
-- Sizes (asked by the owner): rows 32 px (40), icons 16 px (20), labels 13 px (14, between the body and metadata sizes), tighter gaps; the expanded menu is 200 px wide (220), which gives the page 20 px.
+- Sizes (asked by the owner): rows 32 px (40), icons 16 px (20), labels 13 px (14, between the body and metadata sizes), tighter gaps. The expanded width stays the design guide's 220 px: a trial at 200 px failed the shell geometry gate (220 at 1280 px and wider), so it was put back.
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
 
@@ -6168,7 +6168,7 @@ built); D5 (whether backups carry the archive); the release build itself.
 | Collapse / Expand on a 1366 × 768 laptop | at 1050 px of 650, unreachable | pinned at the foot, always on screen |
 | Collapsed rail | did not scroll | scrolls; tips beside the entry |
 | Row / icon / label | 40 px / 20 px / 14 px | 32 px / 16 px / 13 px |
-| Expanded width | 220 px | 200 px |
+| Expanded width | 220 px | 220 px (unchanged; the design guide's width) |
 
 ## CHG-162 — CPA owner review: Evidence Workbench (2026-11-11, branch feat/cpa-redesign, unreleased)
 
@@ -6177,7 +6177,7 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Changed.**
 - **Band (a card):** loop, Window kind dropdown, window, ‹ ›, Newest, Go to date … Investigation ↗ (outlined; it was "Back to …" in the header). More is gone from the Workbench: Older › past the loaded list loads older windows, Evaluate a window moved to the gate head. 32 px controls (`cpm-compact`).
 - **One panel:** the gate head (tier, gate, mark … run id to copy, Reconstruct evidence ↗, Evaluate a window) replaces the run bar and the verdict card's heading; the loop's result (in the window dropdown) and the versions (now on Identity & raw) left it; the Run id ↗ link went (Identity & raw is a tab). The foot strip says the window and its samples once, with Evidence Replay ↗.
-- **Proof:** no window line, no links repeating the tabs; "not retained" is one line; the loading box is labelled and 200 px; the decision's evidence is two lines and Hypotheses ↗ (Investigation, `?tab=Hypotheses`); the probability note once.
+- **Proof:** no window line, no links repeating the tabs; "not retained" is one line; the loading box is labelled and 200 px, and it does not dim, so its words keep their contrast (a11y gate); the decision's evidence is two lines and Hypotheses ↗ (Investigation, `?tab=Hypotheses`); the probability note once.
 - **Fix:** opening a gate whose own run loads slowly (G5) emptied the gate list, showed a blank box and "no verdict recorded"; the list now keeps the window's gates and runs while the run loads.
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.

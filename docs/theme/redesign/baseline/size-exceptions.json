@@ -26,12 +26,16 @@
       "why": "CHG-158: the owner asked for the Calculations tab as in the image of the earlier build: uppercase tier headings (12 px, 12 px above) and compact gate rows (4 px)"
     },
     {
-      "entry": "button.height = 32px on historical, investigation",
-      "why": "CHG-159 / CHG-160: the owner asked for smaller buttons and fields on Historical, then Investigation in the same pattern; those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
+      "entry": "button.height = 32px on historical, investigation, workbench, replay, windows",
+      "why": "CHG-159..164: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector); those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
     },
     {
-      "entry": "select.height = 32px on historical, investigation",
-      "why": "CHG-159 / CHG-160: the owner asked for smaller buttons and fields on Historical, then Investigation in the same pattern; those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
+      "entry": "select.height = 32px on historical, investigation, workbench, replay, windows",
+      "why": "CHG-159..164: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector); those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
+    },
+    {
+      "entry": "section heading.fontSize = 14px on workbench",
+      "why": "CHG-162: the owner's approved Workbench sample: Evidence not retained is a one-line note, its heading at body size"
     }
   ]
 }

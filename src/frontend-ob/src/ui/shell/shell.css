@@ -123,10 +123,9 @@
 
 /*
  * CHG-161 (owner review): a smaller menu, and one that never strands the user. Rows are 32 px, icons 16 px, labels
- * 13 px (between the body and metadata sizes), and the expanded menu is 200 px wide. The list scrolls on a short
- * screen, rail or not; Collapse / Expand sits under it, outside the scroll, so it is always on screen.
+ * 13 px (between the body and metadata sizes); the expanded width stays the guide's 220 px (the geometry gate). The list
+ * scrolls on a short screen, rail or not; Collapse / Expand sits under it, outside the scroll, so it is always on screen.
  */
-.shell:not(.shell--rail):not(.shell--drawer) { grid-template-columns: calc(var(--traverse-size-sidebar-expanded) - var(--traverse-space-5)) minmax(0, 1fr); }
 .shell-nav {
   display: flex;
   flex: 1;
