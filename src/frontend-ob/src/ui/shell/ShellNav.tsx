@@ -1,7 +1,10 @@
 /**
  * The sidebar: suite modules in order, absent ones hidden, then CPA's 17 pages under their six
  * headings. A heading with nothing the role may open is not shown. The rail keeps the icons and
- * drops the headings. The selected rule is written in shell.css (guide p.28).
+ * drops the headings. The selected rule is written in shell.css (guide p.28). CHG-161 (owner
+ * review): the list scrolls on a short screen, rail or not, and Collapse / Expand sits under it,
+ * outside the scroll, so the menu can always be opened again; a rail tip is placed beside its entry
+ * with fixed positioning, so the scrolling list cannot clip it.
  */
 import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -49,6 +52,12 @@ const ICONS: Record<DestinationId, React.ComponentType> = {
 };
 
 /** Keeps the list's order, so each heading sits above its own entries. */
+/** The rail's tip is fixed beside its entry: the list scrolls, and a scroller would clip a tip inside it. */
+const placeTip = (e: React.SyntheticEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty('--nav-tip-top', `${r.top + r.height / 2}px`);
+};
+
 const byGroup = (items: Destination[]): Array<[string, Destination[]]> => {
   const groups = new Map<string, Destination[]>();
   for (const d of items) groups.set(d.group, [...(groups.get(d.group) ?? []), d]);
@@ -75,6 +84,7 @@ export const ShellNav: React.FC<{
       onKeyDown={e => { if (e.key === 'Escape') navRef.current?.classList.add('shell-nav--tips-off'); }}
       onPointerMove={() => navRef.current?.classList.remove('shell-nav--tips-off')}
     >
+      <div className="shell-nav__scroll">
       {modules.map(m => (
         <div key={m.id} className="shell-nav__module">
           <div className="shell-nav__module-name">{m.label}</div>
@@ -85,7 +95,7 @@ export const ShellNav: React.FC<{
                 {entries.map(d => {
                   const Icon = ICONS[d.id];
                   return (
-                    <li key={d.id} className="shell-nav__entry">
+                    <li key={d.id} className="shell-nav__entry" onMouseEnter={placeTip} onFocus={placeTip}>
                       <Link
                         to={cpaHref(d.path, location.search)}
                         className="shell-nav__item"
@@ -108,6 +118,7 @@ export const ShellNav: React.FC<{
           ))}
         </div>
       ))}
+      </div>
       {onToggle && (
         <button type="button" className="shell-nav__toggle" onClick={onToggle} aria-label={rail ? 'Expand navigation' : 'Collapse navigation'}>
           <span className="ui-icon">{rail ? <ObiChevronRightGoogle /> : <ObiChevronLeftGoogle />}</span>

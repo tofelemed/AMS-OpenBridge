@@ -6149,3 +6149,23 @@ built); D5 (whether backups carry the archive); the release build itself.
 | Gate proof | FIC10401 · G5, loop result, window, Evidence Replay ↗ / Evidence Workbench → | G5 · Oscillation (ACF), Replay ↗ / Workbench ↗ |
 | N/A mark | n/a N/A | ∅ N/A |
 | Buttons and fields on Investigation | 40 px | 32 px |
+
+## CHG-161 — CPA owner review: the sidebar (2026-11-11, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner: reduce the sidebar's labels and icons; on a small screen the collapsed sidebar got stuck with no way to open it.
+
+**Cause of the stuck menu.** The collapsed rail did not scroll (`overflow: visible`, so its tips could stand out to the right), and Collapse / Expand was the last item of the list. On a 1366 × 768 laptop (650 px of page) the button sat at 1050 px: unreachable, as were the last entries.
+
+**Changed (every page, `ui/shell`).**
+- The list scrolls on a short screen, rail or not; Collapse / Expand sits under it, outside the scroll, with a divider, so it is always on screen.
+- A rail tip is placed beside its entry with fixed positioning, so the scrolling list cannot clip it.
+- Sizes (asked by the owner): rows 32 px (40), icons 16 px (20), labels 13 px (14, between the body and metadata sizes), tighter gaps; the expanded menu is 200 px wide (220), which gives the page 20 px.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+| Where | Was | Now |
+|---|---|---|
+| Collapse / Expand on a 1366 × 768 laptop | at 1050 px of 650, unreachable | pinned at the foot, always on screen |
+| Collapsed rail | did not scroll | scrolls; tips beside the entry |
+| Row / icon / label | 40 px / 20 px / 14 px | 32 px / 16 px / 13 px |
+| Expanded width | 220 px | 200 px |

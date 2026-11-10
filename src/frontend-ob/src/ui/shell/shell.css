@@ -121,25 +121,32 @@
 }
 .shell__main > .page-content { padding: var(--cpa-page-pad); }
 
+/*
+ * CHG-161 (owner review): a smaller menu, and one that never strands the user. Rows are 32 px, icons 16 px, labels
+ * 13 px (between the body and metadata sizes), and the expanded menu is 200 px wide. The list scrolls on a short
+ * screen, rail or not; Collapse / Expand sits under it, outside the scroll, so it is always on screen.
+ */
+.shell:not(.shell--rail):not(.shell--drawer) { grid-template-columns: calc(var(--traverse-size-sidebar-expanded) - var(--traverse-space-5)) minmax(0, 1fr); }
 .shell-nav {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: var(--traverse-space-2);
-  overflow-y: auto;
+  padding: var(--traverse-space-2) var(--traverse-space-2) 0;
+  font-size: calc((var(--traverse-type-body) + var(--traverse-type-metadata)) / 2);
 }
-.shell-nav--rail { overflow: visible; }
+.shell-nav__scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--traverse-space-2); }
+.shell-nav .ui-icon { width: var(--traverse-space-4); height: var(--traverse-space-4); }
 .shell-nav__module { flex: 1; }
 .shell-nav__module-name {
-  padding: var(--traverse-space-2) var(--traverse-space-3);
+  padding: var(--traverse-space-1) var(--traverse-space-3);
   color: var(--traverse-text-secondary);
   font-size: var(--traverse-type-metadata);
   font-weight: 600;
   text-transform: uppercase;
 }
 .shell-nav--rail .shell-nav__module-name { padding-inline: 0; text-align: center; }
-.shell-nav__group + .shell-nav__group { margin-top: var(--traverse-space-2); }
+.shell-nav__group + .shell-nav__group { margin-top: var(--traverse-space-1); }
 .shell-nav__group-name {
   margin: 0;
   padding: var(--traverse-space-2) var(--traverse-space-3) var(--traverse-space-1);
@@ -147,13 +154,13 @@
   font-size: var(--traverse-type-metadata);
   font-weight: 400;
 }
-.shell-nav__list { display: grid; gap: var(--traverse-space-1); margin: 0; padding: 0; list-style: none; }
+.shell-nav__list { display: grid; gap: calc(var(--traverse-space-1) / 2); margin: 0; padding: 0; list-style: none; }
 .shell-nav__entry { position: relative; }
 .shell-nav__item {
   display: flex;
   align-items: center;
-  gap: var(--traverse-space-3);
-  height: var(--traverse-size-control-min-height);
+  gap: var(--traverse-space-2);
+  height: var(--traverse-space-8);
   padding: 0 var(--traverse-space-3);
   border-radius: var(--traverse-radius-control);
   color: var(--traverse-text-secondary);
@@ -172,9 +179,9 @@
 .shell-nav--rail .shell-nav__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 .shell-nav__tip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + var(--traverse-space-2));
+  position: fixed;
+  top: var(--nav-tip-top, 50%);
+  left: calc(var(--traverse-size-sidebar-rail) + var(--traverse-space-2));
   z-index: 50;
   display: none;
   width: 240px;
@@ -197,10 +204,12 @@
   display: flex;
   align-items: center;
   flex: none;
-  gap: var(--traverse-space-3);
-  height: var(--traverse-size-control-min-height);
-  padding: 0 var(--traverse-space-3);
+  gap: var(--traverse-space-2);
+  height: var(--traverse-space-8);
+  margin: 0 calc(-1 * var(--traverse-space-2));
+  padding: 0 calc(var(--traverse-space-3) + var(--traverse-space-2));
   border: 0;
+  border-top: 1px solid var(--traverse-border-subtle);
   border-radius: var(--traverse-radius-control);
   background: transparent;
   color: var(--traverse-text-secondary);
@@ -210,6 +219,7 @@
 .shell-nav__toggle:hover { background: var(--traverse-surface-hover); }
 .shell-nav__toggle:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: -2px; }
 .shell-nav--rail .shell-nav__toggle { justify-content: center; padding: 0; }
+.shell-nav--rail .shell-nav__toggle .shell-nav__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 .shell-form { display: grid; gap: var(--traverse-space-3); }
 .shell-range { display: grid; gap: var(--traverse-space-3); width: max-content; max-width: 100%; }

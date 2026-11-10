@@ -2,7 +2,7 @@
 // The sidebar: six headings, 17 entries, and nothing a role may not open.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ShellNav } from './ShellNav';
 
@@ -73,6 +73,25 @@ describe('ShellNav', () => {
     held = EVERYTHING;
     nav('/cpm/explorer?loop=A&site=hdpe&window=24h&from=a&to=b&range=custom');
     expect(screen.getByRole('link', { name: 'Trend' }).getAttribute('href')).toBe('/trend?site=hdpe&loop=A');
+  });
+
+  // CHG-161 (owner review): on a short screen the collapsed rail did not scroll, so Expand fell off the bottom and the menu stuck
+  it('keeps Collapse and Expand outside the scrolling list, so they stay on screen', () => {
+    held = EVERYTHING;
+    const { rerender } = render(<MemoryRouter><ShellNav rail={false} onToggle={() => {}} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Collapse navigation' }).closest('.shell-nav__scroll')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Overview' }).closest('.shell-nav__scroll')).toBeTruthy();
+    rerender(<MemoryRouter><ShellNav rail onToggle={() => {}} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Expand navigation' }).closest('.shell-nav__scroll')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Governance' }).closest('.shell-nav__scroll')).toBeTruthy();
+  });
+
+  it('places a rail tip beside its entry, so the list can scroll without clipping it', () => {
+    held = EVERYTHING;
+    nav('/cpm', true);
+    const entry = screen.getByRole('link', { name: 'Overview' }).closest('li')!;
+    fireEvent.mouseEnter(entry);
+    expect(entry.style.getPropertyValue('--nav-tip-top')).toBe('0px');
   });
 
   it('opens Loop Registry on its list, not on the selected loop', () => {
