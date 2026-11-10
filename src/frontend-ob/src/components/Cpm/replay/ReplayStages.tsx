@@ -1,6 +1,7 @@
 /**
  * Task 17: the five stages the evidence passed through, as tabs with one info line each (they replace the lineage strip).
- * A stage names where the evidence is read from; it never claims a stage ran when the window has no verdict.
+ * A stage names where the evidence is read from; it never claims a stage ran when the window has no verdict. CHG-163: the
+ * raw stage no longer prints the historian path; the tag names the loop.
  */
 import React, { useState } from 'react';
 import { Tabs, tabPanelProps } from '../../../ui/Tabs';
@@ -8,17 +9,16 @@ import { diagnosisLabel } from '../vocabulary';
 import { STAGE_TABS, gridText, type Stage } from './stageLabels';
 
 export const ReplayStages: React.FC<{
-  series: string | undefined;
   gridS: number | null;
   gateKey: string;
   role: string;
   hasVerdict: boolean;
   diagnosis: string | null | undefined;
   phasePlane: boolean;
-}> = ({ series, gridS, gateKey, role, hasVerdict, diagnosis, phasePlane }) => {
+}> = ({ gridS, gateKey, role, hasVerdict, diagnosis, phasePlane }) => {
   const [stage, setStage] = useState<Stage>('raw');
   const line: Record<Stage, string> = {
-    raw: `${series ?? '—'}${phasePlane ? ' · shown as a PV–OP phase plane' : ''}`,
+    raw: `Raw historian samples of the window${phasePlane ? ' · shown as a PV–OP phase plane' : ''}`,
     normalize: `${gridText(gridS) ?? 'Grid not reported'} · traverse.cpa.loop.samples.v1`,
     features: 'Short features (G0–G4) and long diagnostics (G5–G11) cut from the normalised samples',
     gates: `${gateKey} · ${role}`,

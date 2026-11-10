@@ -5,7 +5,9 @@
  * cursor and a PV, SP, OP, Mode readout at it (no playback), five stage tabs, and the window's stored verdict. The window
  * is the one useWindowAt reads: the original result, or a re-run when ?rerun= names one. Seeking never changes a verdict.
  * Re-run sends the exact window as a new run (RerunCard); Evidence package and Run details are dialogs. The engineer note
- * is stored on the loop (LoopNotes).
+ * is stored on the loop (LoopNotes). CHG-163 (owner review, the pattern of Historical, Investigation and the Workbench):
+ * 12h / 24h in the header; the band a card (loop, window, result, ‹ › … Workbench ↗, Evidence package), no More; the chart
+ * panel's foot strip says the window, its samples and the run once; the evidence check panel holds Re-run; 32 px controls.
  */
 import { pipelineStep, usePipelineAccess } from './access';
 import React, { useMemo, useState } from 'react';
@@ -14,6 +16,7 @@ import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, WorkspaceHeader, QueryError } from './shared';
+import { windowSpan } from './windowLabel';
 import { LoopBand } from './context/LoopBand';
 import { pipelineHref, registryHref, windowsHref } from './cpaHref';
 import { REPLAY_UNAVAILABLE } from './evidence/runLinks';
@@ -32,7 +35,7 @@ import { shortState, windowLabel, windowPick } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
 import { ReasonedButton } from './ReasonedButton';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
-import { EvidenceMore, EvidenceWindowSelect } from './evidence/EvidenceToolbar';
+import { EvidenceWindowSelect } from './evidence/EvidenceToolbar';
 import { workbenchHref } from './evidence/selection';
 import { sameInstant, useWindowAt } from './evidence/useWindowAt';
 import { fmtInstant } from './context/LoopContextBar';
@@ -115,6 +118,10 @@ export const CpmReplay: React.FC = () => {
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
 
   const dropWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('rerun'); };
+  const openEnd = (end: string) => setParams(p => { p.set('window', end); p.delete('rerun'); return p; }, { replace: true });
+  // the open window's place in the loaded list, for ‹ ›
+  const index = selected ? windows.findIndex(w => sameInstant(w.windowEnd, selected.windowEnd)) : -1;
+  const gateRun = selected?.methodRunIds?.[gateKey] ?? null;
   const catalogueError = calc.isError && (
     <span className="cpm-replay-catalogue-note">
       <span className="cpm-field__error">
@@ -140,47 +147,46 @@ export const CpmReplay: React.FC = () => {
   }
 
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        eyebrow="Understand the cause"
-        title="Evidence Replay"
-        actions={<>
-          <ReasonedButton variant="flat" disabled={!loopId || !g15Run} reason={!g15Run ? 'Select an evaluated window first' : null}
-            onClick={() => { if (loopId && g15Run) navigate(workbenchHref(loopId, g15Run)); }}>
-            Evidence Workbench ↗
-          </ReasonedButton>
-          <ReasonedButton variant="normal" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={() => setDialog('package')}>
-            Evidence package
-          </ReasonedButton>
-        </>}
-      />
-      <LoopBand loopId={loopId}
+    // CHG-163: buttons and fields are 32 px, as on Historical, Investigation and the Workbench (cpm-compact)
+    <div className="cpm-screen cpm-compact">
+      <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Replay"
+        actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
+          // One write: two in a row both start from this render's address, so the second drops the first's kind.
+          onChange={k => setParams(p => { p.set('kind', k); dropWindow(p); return p; }, { replace: true })} />} />
+      <LoopBand card loopId={loopId}
         onLoop={id => setParams(p => { p.set('loop', id); dropWindow(p); return p; }, { replace: true })}
         end={<>
-          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS}
-            // One write: two in a row both start from this render's address, so the second drops the first's kind.
-            onChange={k => setParams(p => { p.set('kind', k); dropWindow(p); return p; }, { replace: true })} />
-          <EvidenceMore loopId={loopId} kind={windowKind} windowsError={list.error} onRetryWindows={list.refetch}
-            hasMore={list.hasMore} onLoadMore={list.loadMore} loadingMore={list.isLoadingMore} />
+          {/* the chosen check's own run, else the decision's (it was Open retained proof in the verdict card) */}
+          <ReasonedButton variant="normal" disabled={!loopId || !(gateRun ?? g15Run)} reason={!(gateRun ?? g15Run) ? 'Select an evaluated window first' : null}
+            onClick={() => { const id = gateRun ?? g15Run; if (loopId && id) navigate(workbenchHref(loopId, id, gateRun ? gateKey : 'G15')); }}>
+            Workbench ↗
+          </ReasonedButton>
+          <ReasonedButton variant="flat" disabled={!selected} reason={!selected ? 'Select an evaluated window first' : null} onClick={() => setDialog('package')}>
+            Evidence package
+          </ReasonedButton>
         </>}>
         <EvidenceWindowSelect loopId={loopId} kind={windowKind} windows={windows} windowsLoading={list.isLoading} windowsError={list.error}
           currentMethodRunId={g15Run} currentEnd={selected?.windowEnd}
           runWindow={selected ? `${windowPick(selected, timeZone)} · ${shortState(diagnosisLabel(selected.diagnosis))}` : null}
-          onWindow={w => setParams(p => { p.set('window', w.windowEnd); p.delete('rerun'); return p; }, { replace: true })} />
+          onWindow={w => openEnd(w.windowEnd)} />
         {selected && (
           <WindowResultSelect row={selected} others={at.others}
             onChange={id => setParams(p => { if (id) p.set('rerun', id); else p.delete('rerun'); if (!p.get('window') && selected.windowEnd) p.set('window', selected.windowEnd); return p; }, { replace: true })} />
         )}
+        {list.error ? <ObcButton variant="flat" onClick={list.refetch}>Retry</ObcButton> : null}
+        {selected && (
+          // CHG-163: the steps replace More's Load older windows: past the loaded list, › asks for older windows
+          <span className="cpm-step-pair">
+            <span title={index <= 0 ? 'Already the newest window' : 'Newer window'}>
+              <ObcButton variant="flat" disabled={index <= 0} onClick={() => { if (index > 0) openEnd(windows[index - 1].windowEnd); }}>‹</ObcButton>
+            </span>
+            <span title="Older window">
+              <ObcButton variant="flat" disabled={index < 0 || (index >= windows.length - 1 && !list.hasMore)}
+                onClick={() => { if (index >= 0 && index < windows.length - 1) openEnd(windows[index + 1].windowEnd); else if (list.hasMore) list.loadMore(); }}>›</ObcButton>
+            </span>
+          </span>
+        )}
       </LoopBand>
-
-      {selected && (
-        <div className="cpm-replay-identity cpm-copy">
-          <TonePill tone="muted">{selected.metadata.replayId ? `Re-run ${selected.metadata.replayId}` : 'Original run · pinned'}</TonePill>
-          <span>{selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-US')} samples` : 'Samples not reported'}</span>
-          <span>Calculation v{selected.metadata.calculationVersion ?? '—'} · profile v{selected.metadata.dynamicsProfileVersion ?? '—'}</span>
-          <ObcButton variant="flat" onClick={() => setDialog('details')}>Run details ↗</ObcButton>
-        </div>
-      )}
 
       {windowNotStored && (
         <section className="cpm-surface">
@@ -209,29 +215,37 @@ export const CpmReplay: React.FC = () => {
         <div className="cpm-grid-2">
           <div className="cpm-replay-main">
             <section className="cpm-surface">
-              <ReplayStages series={series} gridS={gridS} gateKey={gateKey} role={role}
+              <ReplayStages gridS={gridS} gateKey={gateKey} role={role}
                 hasVerdict diagnosis={selected.diagnosis} phasePlane={isShapeGate} />
               {raw.isLoading && <EmptyState title="Loading raw slice…" />}
               {raw.isError && <QueryError title="Raw slice unavailable" error={raw.error} retry={() => void raw.refetch()} />}
               {!raw.isLoading && !raw.isError && points.length === 0 && (
                 // CHG-098 (SME review 2 #29): plain cause, then the mapping; the historian series last.
+                // CHG-163: no historian path; the tag names the loop
                 <EmptyState title="No raw historian data for this window"
-                  copy={`No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window. (Historian series: ${series})`}
+                  copy="No raw samples were stored for this loop between the window's start and end. Check its signal mapping in the Loop Registry, or pick another window."
                   next={loopId ? [{ label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) }] : undefined} />
               )}
               {points.length > 0 && (
                 <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
                   truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
               )}
+              {/* CHG-163: the window, its samples and the run, said once; the versions are in Run details */}
+              <div className="cpm-replay-foot">
+                <span className="cpm-copy">
+                  {`${windowSpan(selected, timeZone)} · ${selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-GB')} samples` : 'samples not reported'}`}
+                </span>
+                <TonePill tone="muted">{selected.metadata.replayId ? `Re-run ${selected.metadata.replayId}` : 'Original run · pinned'}</TonePill>
+                <ObcButton variant="flat" onClick={() => setDialog('details')}>Run details</ObcButton>
+              </div>
             </section>
           </div>
           <div className="cpm-replay-aside">
             {catalogueError}
-            <WindowVerdictCard row={selected} loopId={loopId ?? ''} gateKey={gateKey} gateOptions={gateOptions} kpiRow={kpiRow}
-              question={def?.question} onGate={g => setParams(p => { p.set('gate', g); return p; }, { replace: true })} />
-            {loopId && (
-              <RerunCard loopId={loopId} row={selected} timeZone={timeZone} />
-            )}
+            <WindowVerdictCard row={selected} gateKey={gateKey} gateOptions={gateOptions} kpiRow={kpiRow}
+              question={def?.question} onGate={g => setParams(p => { p.set('gate', g); return p; }, { replace: true })}>
+              {loopId && <RerunCard loopId={loopId} row={selected} timeZone={timeZone} />}
+            </WindowVerdictCard>
           </div>
         </div>
       )}

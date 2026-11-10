@@ -1,43 +1,38 @@
 /**
- * Task 17: the stored result of the open window, and the evidence check being read. Reads only: choosing a check or seeking the
- * cursor never changes the saved verdict. The check's question sits behind a ?, its metric values behind a disclosure.
+ * Task 17: the evidence check being read in the open window. Reads only: choosing a check or seeking the cursor never changes
+ * the saved verdict. The check's question sits behind a ?, its metric values behind a disclosure. CHG-163 (owner review): the
+ * window's result is in the window dropdown, so the panel is the evidence check; the band's Workbench ↗ opens the check's run,
+ * so the panel has no proof link of its own; Re-run sits at its foot (what the page puts under it).
  */
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { CpmKpiRow } from '../../../api/cpmApi';
 import { Toggletip } from '../../../ui/Toggletip';
 import { GateBadge } from '../../../ui/GateBadge';
-import { KvRow, PanelHead, TonePill } from '../shared';
+import { KvRow, PanelHead } from '../shared';
 import { codeLabel } from '../vocabulary';
 import { gateName } from '../gateStatus';
-import { conditionOf } from '../explorer/summary/summaryText';
-import { workbenchHref } from '../evidence/selection';
 import { GATE_METRICS, formatMetric, metricValue } from './gateMetrics';
 
 export const WindowVerdictCard: React.FC<{
   row: CpmGateMatrix;
-  loopId: string;
   gateKey: string;
   gateOptions: { key: string; name: string }[];
   kpiRow: CpmKpiRow | undefined;
   /** What the selected check asks, from the gate catalogue. */
   question?: string | null;
   onGate: (gate: string) => void;
-}> = ({ row, loopId, gateKey, gateOptions, kpiRow, question, onGate }) => {
-  const navigate = useNavigate();
-  const condition = conditionOf(row.diagnosis);
+  /** At the panel's foot (Re-run). */
+  children?: React.ReactNode;
+}> = ({ row, gateKey, gateOptions, kpiRow, question, onGate, children }) => {
   const cell = row.gates.find(g => g.key === gateKey);
   const reason = row.insufficientEvidenceReason ?? row.familyDisqualifiers[0] ?? row.narrative?.statusReason ?? null;
-  const proofRun = row.methodRunIds?.[gateKey] ?? null;
   const autoPct = metricValue(row, kpiRow, 'auto_pct');
   return (
-    <section className="cpm-surface" aria-label="Window verdict">
-      <PanelHead title="Window verdict" right={<TonePill tone={condition.tone}>{condition.label}</TonePill>} />
+    <section className="cpm-surface cpm-replay-check-panel">
+      <PanelHead title="Evidence check" />
       {reason && <p className="cpm-copy cpm-replay-reason">{codeLabel(reason)}</p>}
       <label className="cpm-field cpm-field--compact">
-        <span className="cpm-field__label">Evidence check</span>
         <select className="cpm-select" aria-label="Evidence check" value={gateKey} disabled={gateOptions.length === 0} onChange={e => onGate(e.target.value)}>
           {gateOptions.length === 0 && <option value="">Gate list unavailable</option>}
           {gateOptions.map(g => <option key={g.key} value={g.key}>{g.key} · {g.name}</option>)}
@@ -57,8 +52,7 @@ export const WindowVerdictCard: React.FC<{
           {GATE_METRICS[gateKey].map(m => <KvRow key={m.field} label={m.label}>{formatMetric(metricValue(row, kpiRow, m.field), m.pct)}</KvRow>)}
         </details>
       )}
-      <ObcButton variant="flat" disabled={!proofRun}
-        onClick={() => { if (proofRun) navigate(workbenchHref(loopId, proofRun, gateKey)); }}>Open retained proof ↗</ObcButton>
+      {children && <div className="cpm-replay-check-panel__foot">{children}</div>}
     </section>
   );
 };

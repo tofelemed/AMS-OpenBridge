@@ -1397,3 +1397,16 @@ Changed on the approved sample `samples/workbench-proposal.html` (11 Nov).
 | What remains open (G15) | … · Evidence scores rank the explanations; they are not probabilities. | the note once, on the evidence-score row |
 | Proof links | See rules & parameters → · View signal context → | removed: the tabs above |
 | Versions | in the run bar | Identity & raw: Calculation |
+
+## CHG-163 owner review: Evidence Replay
+
+The pattern of Historical, Investigation and the Workbench, applied while the owner was away ("follow the same thing for next 2 pages and build them, I will review it after").
+
+| Where | Was | Now |
+|---|---|---|
+| Header | Evidence Workbench ↗ · Evidence package | 12h / 24h (moved from the band) |
+| Band | loop · window · result … 12h / 24h · More ▾ (Load older windows, Retry) | a card: loop · window · result · ‹ › … Workbench ↗ (outlined, opens the chosen check's run) · Evidence package; › past the loaded list loads older windows; Retry beside the window when the list fails |
+| Run facts | Original run · pinned · 8,221 samples · Calculation v3.0.0 · profile v2.0.0 · Run details ↗ (above the chart) | the chart panel's foot strip: 12 h window · 6 Nov 10:45 → 6 Nov 22:45 UTC · 8,221 samples · Original run · pinned · Run details (versions in Run details) |
+| Raw historian stage | root.site1.cpm.FIC10401 | Raw historian samples of the window |
+| No raw data | … or pick another window. (Historian series: root.site1.cpm.FIC10401) | … or pick another window. |
+| Right column | Window verdict ● Oscillation confirmed; EVIDENCE CHECK ▾; …; Open retained proof ↗; a Re-run card: Check the configuration before creating a new run. Original evidence stays unchanged. Re-run this window | Evidence check ▾; …; Re-run this window ? (About re-runs: A new run of the exact window. Check the configuration first; the original evidence stays unchanged.) at its foot; the result is in the window dropdown, the proof link is the band's Workbench ↗ |

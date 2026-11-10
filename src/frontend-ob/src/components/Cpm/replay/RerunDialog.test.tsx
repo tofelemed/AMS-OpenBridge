@@ -50,10 +50,11 @@ describe('RerunCard and dialog', () => {
   });
   afterEach(cleanup);
 
-  it('says what a re-run does on the card', () => {
+  // CHG-163 (owner review): what a re-run does sits behind a ? beside the button
+  it('says what a re-run does behind a ?', () => {
     renderCard();
-    expect(screen.getByText('Check the configuration before creating a new run.')).toBeTruthy();
-    expect(screen.getByText('Original evidence stays unchanged.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About re-runs' })).toBeTruthy();
+    expect(screen.queryByText(/the original evidence stays unchanged/)).toBeNull();
   });
 
   it('submits the exact window as a new run and keeps the original', async () => {

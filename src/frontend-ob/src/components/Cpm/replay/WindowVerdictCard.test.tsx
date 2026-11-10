@@ -21,9 +21,11 @@ const base = { row: open, gateKey: 'G3', gateOptions: [{ key: 'G3', name: 'Contr
 const view = (p: Partial<React.ComponentProps<typeof WindowVerdictCard>> = {}) => render(<MemoryRouter><WindowVerdictCard {...base} {...p} /></MemoryRouter>);
 
 describe('WindowVerdictCard', () => {
-  it('names a no-fault window as a result, never as not judged', () => {
+  // CHG-163 (owner review): the window dropdown names the window's result, so the panel is the evidence check
+  it("is the evidence check, and leaves the window's result to the window dropdown", () => {
     view();
-    expect(screen.getByText('No fault identified')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Evidence check' })).toBeTruthy();
+    expect(screen.queryByText('No fault identified')).toBeNull();
     expect(screen.queryByText(/not judged/i)).toBeNull();
   });
   it('offers the evidence check dropdown and writes the chosen gate', () => {
@@ -42,12 +44,11 @@ describe('WindowVerdictCard', () => {
     expect(screen.getByText('IAE').nextSibling?.textContent).toBe('Not reported');
     expect(screen.queryByText(/not in this window/i)).toBeNull();
   });
-  it('opens the retained proof only when the check has a run, and never edits the row', () => {
+  // CHG-163: the band's Workbench ↗ opens the chosen check's run, so the panel has no proof link of its own; Re-run sits in it
+  it('has no proof link of its own, holds what the page puts under it, and never edits the row', () => {
     const frozen = Object.freeze({ ...open });
-    view({ row: frozen });
-    expect(screen.getByText('Open retained proof ↗')).toBeTruthy();
-    cleanup();
-    view({ row: { ...open, methodRunIds: {} } });
-    expect((screen.getByText('Open retained proof ↗') as HTMLButtonElement).disabled).toBe(true);
+    view({ row: frozen, children: <button type="button">Re-run this window</button> });
+    expect(screen.queryByText('Open retained proof ↗')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Re-run this window' })).toBeTruthy();
   });
 });

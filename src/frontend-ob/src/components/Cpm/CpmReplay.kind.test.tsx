@@ -3,8 +3,8 @@
 // shows a 12h one in its place. The same-instant read of the KPI row ("Z" against "+00:00") is covered here too.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 const noQuery = { data: undefined, isLoading: false, isError: false, error: null, refetch: vi.fn() };
 const { atRow, loopsAsked } = vi.hoisted(() => ({ atRow: { row: undefined as unknown }, loopsAsked: [] as Array<{ hook: string; loop: unknown }> }));
@@ -13,7 +13,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('./context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode }) => React.createElement('div', null, p.children) }));
+vi.mock('./context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode; end?: React.ReactNode }) => React.createElement('div', null, p.children, p.end) }));
 vi.mock('./investigation/LoopNotes', () => ({ LoopNotes: () => null }));
 vi.mock('./evidence/EvidenceToolbar', () => ({ EvidenceMore: () => null, EvidenceWindowSelect: () => null }));
 vi.mock('./replay/ReplayChart', () => ({ ReplayChart: () => null }));
@@ -41,7 +41,8 @@ vi.mock('../../hooks/useCpm', () => ({
 
 import { CpmReplay } from './CpmReplay';
 
-const mount = (search: string) => render(<MemoryRouter initialEntries={[`/cpm/replay${search}`]}><CpmReplay /></MemoryRouter>);
+const Where: React.FC = () => { const l = useLocation(); return <output data-testid="where">{l.pathname}{l.search}</output>; };
+const mount = (search: string) => render(<MemoryRouter initialEntries={[`/cpm/replay${search}`]}><CpmReplay /><Where /></MemoryRouter>);
 afterEach(() => { cleanup(); atRow.row = undefined; loopsAsked.length = 0; });
 
 describe('Replay window kinds', () => {
@@ -78,5 +79,17 @@ describe('Replay window kinds', () => {
     mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z');
     expect(screen.getByText('Re-run rp-7')).toBeTruthy();
     expect(screen.queryByText('Original run · pinned')).toBeNull();
+  });
+
+  // CHG-163 (owner review): the pattern of Historical, Investigation and the Workbench
+  it('puts the page links at the band end, 12h / 24h in the header, the window and its samples in a foot strip, and no versions', () => {
+    atRow.row = { windowEnd: '2026-11-05T08:00:00Z', windowStart: '2026-11-04T20:00:00Z', diagnosis: 'X', gates: [], sampleCount: 8221,
+      metadata: { calculationVersion: '3.0.0', dynamicsProfileVersion: '2.0.0' }, methodRunIds: { G15: 'r15', G3: 'r3' } };
+    const { container } = mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z&gate=G3');
+    expect(container.querySelector('.cpm-screen')?.classList.contains('cpm-compact')).toBe(true);
+    expect(screen.getByText(/^12 h window · .* · 8,221 samples$/)).toBeTruthy();
+    expect(container.textContent).not.toMatch(/Calculation v/);
+    fireEvent.click(screen.getByRole('button', { name: 'Workbench ↗' }));
+    expect(screen.getByTestId('where').textContent).toContain('methodRun=r3');   // the chosen check's run
   });
 });

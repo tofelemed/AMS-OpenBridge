@@ -1,6 +1,5 @@
 /* Task 17: Evidence Replay. Placement only: no size is set here. */
 .cpm-replay-main, .cpm-replay-aside { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
-.cpm-replay-identity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
 .cpm-replay-stages { display: flex; flex-direction: column; gap: var(--traverse-space-2); min-width: 0; }
 .cpm-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-2) var(--traverse-space-4); }
 .cpm-readout__values { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: 0; }
@@ -10,5 +9,15 @@
 .cpm-replay-reason { margin: 0; padding: var(--traverse-space-2); border: 1px solid var(--border-divider-color); overflow-wrap: anywhere; }
 .cpm-replay-metrics { min-width: 0; }
 .cpm-rerun-config { display: flex; flex-direction: column; gap: var(--traverse-space-2); margin: var(--traverse-space-3) 0 0; padding: 0; border: 0; min-width: 0; }
-/* The identity line and Run details share one line while there is room. */
-.cpm-replay-identity.cpm-copy { max-width: none; }
+/* CHG-163 (owner review): the chart panel's foot strip (the window, its samples, the run, Run details), edge to edge,
+   and Re-run at the foot of the evidence check panel. */
+.cpm-replay-main > .cpm-surface { padding-bottom: 0; }
+.cpm-replay-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3);
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0; padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-replay-foot .cpm-copy { flex: 1 1 auto; max-width: none; }
+.cpm-replay-check-panel__foot { margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); }
+.cpm-rerun-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }

@@ -6181,3 +6181,15 @@ built); D5 (whether backups carry the archive); the release build itself.
 - **Fix:** opening a gate whose own run loads slowly (G5) emptied the gate list, showed a blank box and "no verdict recorded"; the list now keeps the window's gates and runs while the run loads.
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+## CHG-163 — CPA owner review: Evidence Replay (2026-11-11, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner: after the Workbench, "follow the same thing for next 2 pages and build them, I will review it after". Built without a sample, in the approved pattern; the owner reviews it with CHG-164.
+
+**Changed.**
+- 12h / 24h in the header; the band a card: loop, window, result, ‹ › (› past the loaded list loads older windows; More is gone) … Workbench ↗ (outlined, the chosen check's run, else G15's) and Evidence package. 32 px controls.
+- The run facts row became the chart panel's foot strip (window span, samples, original run / re-run, Run details); the versions are in Run details.
+- No historian path on the Raw historian stage or in its empty state.
+- The right column is one Evidence check panel: no verdict pill (the window dropdown says it), no Open retained proof ↗ (the band's Workbench ↗), Re-run at its foot with what it does behind a ?.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
