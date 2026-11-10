@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** Signals: signal, value, unit and Show in trend, the UNS path as a second line, and a foot with quality and links. */
+/** Signals (CHG-158, the owner's design): signal and what it means, value, unit and Show in trend; a foot with the two links only. */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -31,16 +31,20 @@ import { SignalsTab } from './SignalsTab';
 afterEach(() => { cleanup(); nav.mockReset(); });
 
 const LOOP = {
-  loopId: 'FIC00701', tags: { PV: 'root.a.pv', SP: 'root.a.sp', OP: 'root.a.op', MODE: 'root.a.mode', UTILITY: 'root.a.util' },
+  loopId: 'FIC00701', loopType: 'FIC', tags: { PV: 'root.a.pv', SP: 'root.a.sp', OP: 'root.a.op', MODE: 'root.a.mode', UTILITY: 'root.a.util' },
 } as unknown as CpmLoop;
 const tab = () => render(<MemoryRouter><SignalsTab loop={LOOP} /></MemoryRouter>);
 
 describe('SignalsTab', () => {
-  it('shows signal, value, unit and Show in trend, with the UNS path as a second line', () => {
+  it('shows signal, value, unit and Show in trend, with what the signal means as a second line', () => {
     tab();
     const pv = screen.getByRole('row', { name: /PV/ });
     expect(within(pv).getByText('12.35')).toBeTruthy();
-    expect(within(pv).getByText('root.a.pv')).toBeTruthy();
+    expect(within(pv).getByText('The flow currently measured on this loop.')).toBeTruthy();
+    expect(within(pv).queryByText('root.a.pv')).toBeNull();
+    expect(within(screen.getByRole('row', { name: /SP/ })).getByText('The flow the controller is trying to reach.')).toBeTruthy();
+    expect(within(screen.getByRole('row', { name: /OP/ })).getByText('How far the controller is driving the valve open.')).toBeTruthy();
+    expect(within(screen.getByRole('row', { name: /MODE/ })).getByText('Whether the loop runs automatically, manually or in cascade.')).toBeTruthy();
     expect(within(pv).getByRole('button', { name: 'Show in trend ↗' })).toBeTruthy();
     expect(within(screen.getByRole('row', { name: /OP/ })).getByText('%')).toBeTruthy();
     // a role the engine has no live value for is a dash, never 0
@@ -56,9 +60,10 @@ describe('SignalsTab', () => {
     expect(href).not.toContain('PV');
   });
 
-  it('ends with the signal quality, Signal bindings → and Open signals in Trend ↗', () => {
+  it('ends with Signal bindings → and Open signals in Trend ↗ only: the quality is on Summary, the binding in the readiness', () => {
     tab();
-    expect(screen.getByText('Good')).toBeTruthy();
+    expect(screen.queryByText('Good')).toBeNull();
+    expect(screen.queryByText(/Asset-model binding|RESOLVED/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Signal bindings →' }));
     expect(String(nav.mock.calls[0][0])).toContain('/cpm/registry');
     expect(screen.getByRole('button', { name: 'Open signals in Trend ↗' })).toBeTruthy();

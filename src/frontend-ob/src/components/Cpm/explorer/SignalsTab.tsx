@@ -1,35 +1,23 @@
 'use client';
 
 /**
- * Explorer › Signals. One table: the signal, its value and unit, and Show in trend ↗; the UNS path is the second
- * line of the signal. The values come from the same hook as the Summary row, so both show the same number. The
- * foot carries the signal quality, the binding state, Signal bindings → and Open signals in Trend ↗.
+ * Explorer › Signals. One table: the signal and what it means, its value and unit, and Show in trend ↗. The values come
+ * from the same hook as the Summary row, so both show the same number. The foot carries Signal bindings → and Open
+ * signals in Trend ↗.
  *
- * The binding state is a LOOP-level check (`binding_provenance`), so it is stated once, for the loop, not on each
- * role. Binding provenance and the "no VP mapping" note are causes in the workspace banner.
+ * CHG-158 (owner review, the owner's design): the second line says what the signal is for this loop; the UNS path moved
+ * to the hover of that line (Signal bindings → shows and changes it). The signal quality is on Summary, and whether the
+ * bindings resolve is a readiness cause in Open details, so the foot no longer repeats them.
  */
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmReadiness } from '../../../hooks/useCpm';
-import { EmptyState, QueryError, TonePill } from '../shared';
-import { FacetPill } from '../FacetPill';
+import { EmptyState } from '../shared';
 import { registryHref, trendHref } from '../cpaHref';
 import { PEN_ROLES, loopPens } from '../../Designer/trend/loopPens';
 import { useSignalValues } from './summary/useSignalValues';
-
-const SIGNAL_MEANINGS: Record<string, string> = {
-  PV: 'Process variable',
-  SP: 'Setpoint',
-  OP: 'Controller output',
-  MODE: 'Controller mode',
-  VP: 'Valve position feedback',
-  QUALITY: 'Source quality',
-  UPSTREAM: 'Upstream context signal',
-  STATUS: 'Status signal',
-  UTILITY: 'Utility signal',
-};
+import { signalDescription, signalName } from './signalMeaning';
 
 /**
  * Required roles first, then optional — the order the registry contract lists
@@ -40,8 +28,6 @@ const SIGNAL_ORDER = ['PV', 'SP', 'OP', 'MODE', 'VP', 'STATUS', 'QUALITY', 'UPST
 
 export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const navigate = useNavigate();
-  const readiness = useCpmReadiness(loop.loopId);
-  const provenance = readiness.data?.checks.find(c => c.id === 'binding_provenance');
   const values = useSignalValues(loop);
 
   const roles = useMemo(() => {
@@ -62,20 +48,13 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
   return (
     <div>
-      {/* Readiness is what tells this tab whether a binding actually resolves.
-          If the check itself failed, say so — silence here reads as "all clear". */}
-      {readiness.isError && (
-        <QueryError title="Binding provenance check unavailable"
-          error={readiness.error} retry={() => void readiness.refetch()} />
-      )}
-
       {roles.length === 0 && (
         <EmptyState title="No signal mappings" copy="The loop registry maps no PV / SP / OP tags for this loop, so no signal can be read or evaluated."
           next={[{ label: 'Map its tags in the Loop Registry', to: registryHref(loop.loopId) }]} />
       )}
 
       {roles.length > 0 && (
-        <table className="cpm-signal-table">
+        <table className="cpm-signal-table cpm-signal-table--signals">
           <thead>
             <tr>
               <th scope="col">Signal</th>
@@ -92,11 +71,10 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
               return (
                 <tr key={role}>
                   <th scope="row">
-                    <span>{role}</span>{' '}
-                    <span className="cpm-event-row__sub">{SIGNAL_MEANINGS[role] ?? role}</span>
-                    <span className="cpm-signal-path cpm-mono">{path}</span>
+                    <span className="cpm-signal-table__name"><strong>{role}</strong> {signalName(role)}</span>
+                    <span className="cpm-signal-table__about" title={path}>{signalDescription(role, loop)}</span>
                   </th>
-                  <td className="cpm-mono">{v.value}</td>
+                  <td className="cpm-signal-table__value">{v.value}</td>
                   <td>{v.unit}</td>
                   <td>
                     {rowHref && (
@@ -111,14 +89,6 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
       )}
 
       <div className="cpm-explorer-foot">
-        <FacetPill facet="signal" tone={values.quality.tone}>{values.quality.text}</FacetPill>
-        <span className="cpm-signal-provenance">
-          <span className="cpm-copy">Asset-model binding</span>
-          <TonePill tone={provenance?.ok === true ? 'good' : provenance?.ok === false ? 'warn' : 'muted'}>
-            {provenance?.ok === true ? 'RESOLVED'
-              : provenance?.ok === false ? 'PATH FALLBACK' : 'UNCHECKED'}
-          </TonePill>
-        </span>
         <span className="cpm-explorer-foot__links">
           <ObcButton variant="flat" onClick={() => navigate(registryHref(loop.loopId))}>Signal bindings →</ObcButton>
           {href && (

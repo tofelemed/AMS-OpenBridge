@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-/** Calculations: the gate table in Summary's words, Inspect → into the gate dialog, the long metrics, and the links. */
+/** Calculations: one Window dropdown (fused and short) with Full catalogue → beside it, the gate table in Summary's words,
+ *  Inspect → into the gate dialog, the long metrics; a short window shows its G0–G4 checks and metrics (CHG-158). */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { CpmLoop } from '../../../api/cpmApi';
 
 const nav = vi.hoisted(() => vi.fn());
@@ -12,7 +13,15 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { type: 'button', onClick: p.onClick }, p.children),
 }));
 vi.mock('../../../hooks/useCpm', () => ({
-  useCpmResolutions: () => ({ data: { fusion: { firesOn: ['12h', '24h'] }, windows: [] } }),
+  useCpmResolutions: () => ({ data: { fusion: { firesOn: ['12h', '24h'] }, windows: [
+    { kind: '1m', tier: 'short', assigner: 'tumbling', sizeMs: 60_000, slideMs: null },
+    { kind: '5m', tier: 'short', assigner: 'sliding', sizeMs: 300_000, slideMs: 60_000 },
+    { kind: '12h', tier: 'long', assigner: 'sliding', sizeMs: 43_200_000, slideMs: 3_600_000 },
+  ] } }),
+  useCpmKpis: () => ({ isLoading: false, isError: false, data: { samples: [{
+    window_start: '2026-11-05T10:10:00Z', window_end: '2026-11-05T10:15:00Z', sufficient_data: true,
+    gate0_status: 'PASS', gate1_status: 'PASS', gate2_status: 'PASS', gate2r_status: 'PASS', gate3_status: 'WARN', gate4_status: 'PASS', mae: 1.234,
+  }] } }),
   useLatestGates: () => ({
     isLoading: false, isError: false,
     data: {
@@ -37,7 +46,13 @@ import { CalculationsTab } from './CalculationsTab';
 afterEach(() => { cleanup(); nav.mockReset(); });
 
 const LOOP = { loopId: 'L1', tags: {}, links: [] } as unknown as CpmLoop;
-const tab = (kind = '12h') => render(<MemoryRouter><CalculationsTab loop={LOOP} pageWindowKind={kind} /></MemoryRouter>);
+const Where: React.FC = () => { const l = useLocation(); return <span data-testid="where">{l.search}</span>; };
+const tab = (kind = '12h', url = '/cpm/explorer?loop=L1&tab=Calculations') => render(
+  <MemoryRouter initialEntries={[url]}>
+    <Routes><Route path="*" element={<><CalculationsTab loop={LOOP} pageWindowKind={kind} /><Where /></>} /></Routes>
+  </MemoryRouter>,
+);
+const windowSelect = () => screen.getByRole('combobox', { name: 'Window' }) as HTMLSelectElement;
 
 describe('CalculationsTab', () => {
   it('uses the gate words of the Summary tiles, never the status code', () => {
@@ -66,13 +81,49 @@ describe('CalculationsTab', () => {
     expect(screen.getByText('Triangularity')).toBeTruthy();
   });
 
-  it('links to Short windows and the Full catalogue, and has no short-window select', () => {
+  it('offers every window in one dropdown: the fused ones, then the short ones', () => {
     tab();
+    expect(windowSelect().value).toBe('12h');
+    expect([...windowSelect().querySelectorAll('optgroup')].map(g => g.label)).toEqual(['Fused verdict (fires on 12h / 24h)', 'Short features (G0–G4)']);
+    const options = [...windowSelect().querySelectorAll('option')].map(o => o.textContent ?? '');
+    expect(options.slice(0, 2)).toEqual(['12h — fused G0–G15', '24h — fused G0–G15']);
+    expect(options[2]).toMatch(/^1m — .*tumbling$/);
+    expect(options[3]).toMatch(/^5m — .* slide$/);
+    expect(options).toHaveLength(4);
+  });
+
+  it('moves the page window when a fused window is chosen, so the 12h / 24h switch agrees', () => {
+    tab('12h', '/cpm/explorer?loop=L1&tab=Calculations&calcWindow=5m');
+    fireEvent.change(windowSelect(), { target: { value: '24h' } });
+    const q = new URLSearchParams(screen.getByTestId('where').textContent ?? '');
+    expect(q.get('window')).toBe('24h');
+    expect(q.get('calcWindow')).toBeNull();
+  });
+
+  it('shows a short window with its G0–G4 checks and metrics, without Inspect', () => {
+    tab();
+    fireEvent.change(windowSelect(), { target: { value: '5m' } });
+    expect(new URLSearchParams(screen.getByTestId('where').textContent ?? '').get('calcWindow')).toBe('5m');
+    expect(windowSelect().value).toBe('5m');
+    expect(screen.getByRole('row', { name: /G3/ }).textContent).toMatch(/Attention/);
+    expect(screen.getByRole('row', { name: /G2r/ })).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /G7/ })).toBeNull();
+    expect(screen.queryAllByRole('button', { name: 'Inspect →' })).toHaveLength(0);
+    expect(screen.getByText('MAE')).toBeTruthy();
+  });
+
+  it('puts Full catalogue → beside the dropdown, on the chosen window', () => {
+    const { container } = tab('24h');
+    const button = within(container.querySelector('.cpm-calc-toolbar') as HTMLElement).getByRole('button', { name: 'Full catalogue →' });
+    fireEvent.click(button);
+    expect(String(nav.mock.calls[0][0])).toBe('/cpm/calculations?loop=L1&kind=24h');
+    expect(screen.getAllByRole('button', { name: 'Full catalogue →' })).toHaveLength(1);
+  });
+
+  it('keeps Short windows ↗ in the foot, on the chosen short window', () => {
+    tab('12h', '/cpm/explorer?loop=L1&tab=Calculations&calcWindow=5m');
     fireEvent.click(screen.getByRole('button', { name: 'Short windows ↗' }));
-    expect(String(nav.mock.calls[0][0])).toContain('/cpm/windows');
-    fireEvent.click(screen.getByRole('button', { name: 'Full catalogue →' }));
-    expect(String(nav.mock.calls[1][0])).toContain('/cpm/calculations');
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(String(nav.mock.calls[0][0])).toBe('/cpm/windows?loop=L1&profile=5m');
   });
 
   it('drops the headings that repeated the tab, and says the window once', () => {

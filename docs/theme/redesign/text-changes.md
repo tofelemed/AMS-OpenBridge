@@ -1337,3 +1337,8 @@ Removed on the owner's instruction (10 Nov): the `?` on the Loop Explorer title;
 | Loop summary dialog, last verdict | The newest window has no verdict. Last verdict: X, window ending … (3 days ago). | Last verdict: X · window ending … |
 | Not producing verdicts | n to fix · n blocking (text) | n blocking, n to fix (marked counts); each cause's kind as a marked word; opens closed |
 | Basis and limitations | its summary line under the closed box | its summary line inside the box, under the label |
+| Loop Explorer, no loop chosen | the Loops list on the left; "Pick a loop in the list to open its summary, signals, calculations and history." | the loop control in the band at the top ("Choose a loop"); "Choose a loop above to open its summary, signals, calculations and history." |
+| Loop not in the registry | … Pick a loop from the list, or check the Loop Registry. | … Choose another loop above, or check the Loop Registry. |
+| Signals tab | second line: the UNS path; foot: signal quality, "Asset-model binding RESOLVED" | second line: what the signal is ("The flow currently measured on this loop."), the path on its hover; foot: Signal bindings → and Open signals in Trend ↗ only |
+| Calculations tab | "12h window ending …"; no window choice; foot: Short windows ↗ and Full catalogue → | Window dropdown (Fused verdict 12h / 24h; Short features 1m … 60m) with Full catalogue → beside it; "window ending …"; foot: Short windows ↗ |
+| Calculations, no fused verdict | … Switch 12 h / 24 h at the top of the page, or check Pipeline Health … | … Choose another window, or check Pipeline Health … |

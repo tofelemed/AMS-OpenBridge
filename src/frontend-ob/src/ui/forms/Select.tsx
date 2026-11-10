@@ -12,12 +12,14 @@ export interface SelectProps<T extends string> extends FieldStateProps {
   /** Names the select without showing the label, for a select that has no visible one. */
   hideLabel?: boolean;
   options: ReadonlyArray<SelectOption<T>>;
+  /** Option groups, drawn after `options` (CHG-158: the fused and the short windows). */
+  groups?: ReadonlyArray<{ label: string; options: ReadonlyArray<SelectOption<T>> }>;
   value: T;
   onChange: (value: T) => void;
 }
 
 export function Select<T extends string>({
-  label, hideLabel, options, value, onChange, helper, error, disabled, reason,
+  label, hideLabel, options, groups, value, onChange, helper, error, disabled, reason,
 }: SelectProps<T>): React.ReactElement {
   const id = useId();
   return (
@@ -34,6 +36,11 @@ export function Select<T extends string>({
         onChange={e => onChange(e.target.value as T)}
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {groups?.map(g => (
+          <optgroup key={g.label} label={g.label}>
+            {g.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </optgroup>
+        ))}
       </select>
       <FieldMessages id={id} helper={helper} error={error} disabled={disabled} reason={reason} />
     </div>

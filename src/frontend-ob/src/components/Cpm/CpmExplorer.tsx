@@ -9,10 +9,9 @@
  * `?site=&area=&unit=` and travels with you to every other CPM screen; this page
  * only reads it.
  *
- * One way to pick a loop at a time: with no loop in the URL the page opens on
- * the list. Once the URL names a loop — a pick from the list, a deep link,
- * Back/Forward — the list is not drawn, so the workspace gets the width, and
- * the loop band's control opens the same list. Clearing the loop brings it back.
+ * One way to pick a loop: the loop band's control at the top, with or without a loop in the URL (CHG-158, owner
+ * review: no left list before a loop is chosen, so the control never moves). With no loop the page under it says to
+ * choose one; once the URL names a loop — a pick, a deep link, Back/Forward — the workspace fills the width.
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -20,7 +19,6 @@ import { EmptyState, QueryError, WorkspaceHeader } from './shared';
 import { LoopBand } from './context/LoopBand';
 import { useCpmScope } from './plantScope';
 import LoopSummaryRow from './explorer/summary/LoopSummaryRow';
-import LoopTree from './explorer/LoopTree';
 import LoopWorkspace, { TABS } from './explorer/LoopWorkspace';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import { useCpmLoops } from '../../hooks/useCpm';
@@ -42,14 +40,16 @@ export const CpmExplorer: React.FC = () => {
   // the two keeps the window. CHG-089: 12h by default, chosen at the top of the page; a gate picked on the other window
   // does not carry over.
   const windowKind = windowKindOf(params.get('window'));
+  // CHG-158: the switch also ends a short window chosen on the Calculations tab, so the tab follows the switch
   const setWindowKind = (k: string) =>
-    setParams(p => { p.set('window', k); p.delete('gate'); return p; }, { replace: true });
+    setParams(p => { p.set('window', k); p.delete('gate'); p.delete('calcWindow'); return p; }, { replace: true });
 
   const scope = useCpmScope();
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = useMemo(() => data?.loops ?? [], [data]);
-  const inScope = useMemo(() => loops.filter(l => scope.matches(l)), [loops, scope]);
+  // "No loops in this scope" only when the header scope really holds none
+  const noneInScope = scope.active && !isLoading && !isError && !loops.some(l => scope.matches(l));
 
   // Case-insensitive, like every loop lookup in cplm-api (`lower(loop_id) =
   // lower($1)`) — a deep link whose case differs from the registry's should
@@ -82,35 +82,16 @@ export const CpmExplorer: React.FC = () => {
         copy=""
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
-      {/* CHG-128: the one loop control. With no loop named the page opens on the list instead, so it is not offered twice. */}
-      {requestedId && (
-        <LoopBand card loopId={loop?.loopId ?? requestedId} onLoop={selectLoop}
-          onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
-          {loop && tab === 'Summary' && (
-            <LoopSummaryRow loop={loop} windowKind={windowKind}
-              onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })} />
-          )}
-        </LoopBand>
-      )}
-
-      <div className={`cpm-explorer-layout${requestedId ? ' cpm-explorer-layout--rail-closed' : ''}`}>
-        {!requestedId && (
-          <aside aria-label="Loops" className="cpm-surface cpm-rail">
-            <div className="cpm-rail__head"><span className="cpm-eyebrow">Loops</span></div>
-            <LoopTree
-              loops={inScope}
-              selectedLoopId={undefined}
-              onSelect={selectLoop}
-              isLoading={isLoading}
-              isError={isError}
-              error={error}
-              retry={() => void refetch()}
-              onOpenRegistry={openRegistry}
-              totalLoops={loops.length}
-            />
-          </aside>
+      {/* CHG-128 / CHG-158: the one loop control, in the same place whether a loop is chosen or not. */}
+      <LoopBand card loopId={requestedId ? (loop?.loopId ?? requestedId) : null} onLoop={selectLoop}
+        onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
+        {loop && tab === 'Summary' && (
+          <LoopSummaryRow loop={loop} windowKind={windowKind}
+            onTab={t => setParams(p => { p.set('tab', t); return p; }, { replace: true })} />
         )}
+      </LoopBand>
 
+      <div className="cpm-explorer-layout cpm-explorer-layout--rail-closed">
         {loop ? (
           <LoopWorkspace
             loop={loop}
@@ -127,7 +108,7 @@ export const CpmExplorer: React.FC = () => {
             <EmptyState
               level={2}
               title={`Loop "${requestedId}" is not in the registry`}
-              copy="This link points at a loop that has been renamed, removed, or never onboarded. Pick a loop from the list, or check the Loop Registry."
+              copy="This link points at a loop that has been renamed, removed, or never onboarded. Choose another loop above, or check the Loop Registry."
               action={{ label: 'Open Loop Registry', onClick: openRegistry }}
             />
           </section>
@@ -135,11 +116,11 @@ export const CpmExplorer: React.FC = () => {
           <section className="cpm-surface">
             <EmptyState
               level={2}
-              title={scope.active ? 'No loops in this scope' : 'Select a loop'}
+              title={noneInScope ? 'No loops in this scope' : 'Select a loop'}
               // CHG-098 (SME review 2 #29): say where to pick a loop.
-              copy={scope.active
+              copy={noneInScope
                 ? 'Widen the plant scope in the header to see loops.'
-                : 'Pick a loop in the list to open its summary, signals, calculations and history.'}
+                : 'Choose a loop above to open its summary, signals, calculations and history.'}
             />
           </section>
         )}

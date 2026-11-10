@@ -88,6 +88,15 @@ describe('Select', () => {
     expect(select.disabled).toBe(true);
     expect(described(select)).toBe('Pick one. | Read only');
   });
+
+  // CHG-158: the Calculations window dropdown groups the fused and the short windows
+  it('draws option groups after any plain options', () => {
+    render(<Select label="Window" options={[]} value="5m" onChange={() => {}}
+      groups={[{ label: 'Fused', options: [{ value: '12h', label: '12h' }] }, { label: 'Short', options: [{ value: '5m', label: '5m' }] }]} />);
+    const select = screen.getByRole('combobox', { name: 'Window' }) as HTMLSelectElement;
+    expect([...select.querySelectorAll('optgroup')].map(g => [g.label, g.querySelectorAll('option').length])).toEqual([['Fused', 1], ['Short', 1]]);
+    expect(select.value).toBe('5m');
+  });
 });
 
 describe('Checkbox', () => {

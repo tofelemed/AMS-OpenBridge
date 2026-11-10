@@ -653,7 +653,6 @@
 .cpm-tabpanel__next { margin-top: 24px; }
 
 /* ── Signals table ── */
-.cpm-signal-provenance { display: inline-flex; align-items: center; gap: 8px; }
 .cpm-signal-table { width: 100%; border-collapse: collapse; font-size: var(--cpm-text-small); }
 .cpm-signal-table th, .cpm-signal-table td {
   text-align: left;

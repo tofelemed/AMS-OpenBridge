@@ -6067,7 +6067,10 @@ built); D5 (whether backups carry the archive); the release build itself.
 - **Band:** a card on the page background (Loop Explorer only). The result and its age on one line, one fact line under it, Review evidence → and Open details outlined at the end. The window end is said once: its age when old (time on hover), else its time. "Latest 12h" went; the page switch says the window.
 - **Summary tab:** Loop model & setup → at the end of the tab row. PV, SP, OP and Mode as one joined group, the unit beside the value and the source under each value again (live, last received …, from historian, last stored …), as before the redesign. The trend toolbar is a strip with Historical ↗ and the new Trend ↗ (this loop and period on /trend) after Live, and the evaluated-window buttons at its end. The gate key is no longer printed under the tiles; Gate key in the panel head opens it.
 - **Loop summary dialog:** titled Loop summary. It no longer repeats the loop name, type, criticality, location or instrument health (the band names the loop; Loop model & setup holds type and criticality). Condition and age on one line, the last verdict and its window once, Next check with its buttons, then Not producing verdicts (closed, counts in its head, each cause's kind as a marked word) and Basis and limitations (closed, its summary inside the box).
-- **Shared pieces:** the accordion takes an optional one-line hint; the time-range bar takes controls right after Now / Live.
+- **No loop chosen:** the left Loops list went; the loop control sits in the band at the top, as after a loop is chosen, and the page under it says to choose one. "No loops in this scope" shows only when the header scope holds no loop (it showed whenever a scope was set).
+- **Signals tab (the owner's design):** each signal's second line says what it is for this loop (the UNS path on its hover); the foot keeps Signal bindings → and Open signals in Trend ↗ only (the quality is on Summary, the binding check in the readiness).
+- **Calculations tab:** one Window dropdown for every served window — fused 12h / 24h (choosing one moves the page's 12h / 24h switch) and the short windows 1m … 60m (`?calcWindow=`, showing the newest window's G0–G4 / G2r checks and metrics) — with Full catalogue → beside it, on the chosen window.
+- **Shared pieces:** the accordion takes an optional one-line hint; the time-range bar takes controls right after Now / Live; the select takes option groups.
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
 
@@ -6081,3 +6084,6 @@ built); D5 (whether backups carry the archive); the release build itself.
 | Trend toolbar | — | Trend ↗ |
 | Gate results | key under the tiles + Full key | Gate key |
 | Loop summary dialog | name, location, type, criticality, instrument health at the top | none of them |
+| No loop chosen | left Loops list | loop control in the band at the top |
+| Signals tab | UNS path; quality and binding in the foot | what the signal is; two links in the foot |
+| Calculations tab | page window only | Window dropdown (fused + short) and Full catalogue → |
