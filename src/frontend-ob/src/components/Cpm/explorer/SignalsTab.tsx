@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Explorer › Signals. One table: the signal and what it means, its value and unit, and Show in trend ↗. The values come
+ * Explorer › Signals. One table: the signal and what it means, its value (with its unit, CHG-158), and Show in trend ↗. The values come
  * from the same hook as the Summary row, so both show the same number. The foot carries Signal bindings → and Open
  * signals in Trend ↗.
  *
@@ -59,7 +59,6 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
             <tr>
               <th scope="col">Signal</th>
               <th scope="col">Value</th>
-              <th scope="col">Unit</th>
               <th scope="col"><span className="ui-sr">Trend</span></th>
             </tr>
           </thead>
@@ -74,8 +73,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                     <span className="cpm-signal-table__name"><strong>{role}</strong> {signalName(role)}</span>
                     <span className="cpm-signal-table__about" title={path}>{signalDescription(role, loop)}</span>
                   </th>
-                  <td className="cpm-signal-table__value">{v.value}</td>
-                  <td>{v.unit}</td>
+                  <td className="cpm-signal-table__value">{v.unit ? `${v.value} ${v.unit}` : v.value}</td>
                   <td>
                     {rowHref && (
                       <ObcButton variant="flat" onClick={() => navigate(rowHref)}>Show in trend ↗</ObcButton>

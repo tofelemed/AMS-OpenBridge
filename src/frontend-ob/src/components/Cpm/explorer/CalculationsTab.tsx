@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Explorer › Calculations. One Window dropdown for every window the engine serves, with Full catalogue → beside it
- * (CHG-158, owner review). A fused window (12h / 24h) is the page's own: choosing one here moves the 12h / 24h switch at
- * the top, so the two never disagree; it shows the gates with Inspect → (the shared gate dialog) and the long metrics.
- * A short window (`?calcWindow=`) shows its newest stored window's G0–G4 checks and metrics (ShortWindowCalculations).
+ * Explorer › Calculations, laid out as the owner's image (CHG-158): the head names the window and what is shown, with
+ * one Window dropdown for every window the engine serves and Full catalogue → at its right. A fused window (12h / 24h) is
+ * the page's own: choosing one here moves the 12h / 24h switch at the top, so the two never disagree; it shows every
+ * gate by tier (its name opens the shared gate dialog) and the long metrics. A short window (`?calcWindow=`) shows its
+ * newest stored window's G0–G4 checks as small labels and its metrics (ShortWindowCalculations).
  *
  * Gate words come from `GateBadge`, the same as the Summary tiles. The tab used to colour and word the same gate
  * from `codeLabel`, so a seen symptom read "Warning" here and "Symptom seen" there.
@@ -16,7 +17,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmLoop } from '../../../api/cpmApi';
 import { ApiError } from '../../../api/apiFetch';
 import { useCpmResolutions, useLatestGates } from '../../../hooks/useCpm';
-import { EmptyState, QueryError, fmtWindowShape, windowSpecsOf } from '../shared';
+import { EmptyState, PanelHead, QueryError, fmtWindowShape, windowSpecsOf } from '../shared';
 import { Select } from '../../../ui/forms/Select';
 import { calculationsHref, pipelineHref, windowsHref } from '../cpaHref';
 import { effectiveInputFlags } from '../inputLimits';
@@ -53,24 +54,25 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
   const [selected, setSelected] = React.useState<string | null>(null);
   const flags = effectiveInputFlags(matrix?.observabilityFlags, inputContextOf(loop));
 
+  const tools = (
+    <div className="cpm-calc-tools">
+      <Select label="Window" value={chosen} onChange={choose} options={[]}
+        groups={[
+          { label: `Fused verdict (fires on ${firesOn.join(' / ')})`, options: firesOn.map(k => ({ value: k, label: `${k} — fused G0–G15` })) },
+          ...(shortSpecs.length > 0 ? [{
+            label: 'Short features (G0–G4)',
+            options: shortSpecs.map(w => { const shape = fmtWindowShape(w); return { value: w.kind, label: shape ? `${w.kind} — ${shape}` : w.kind }; }),
+          }] : []),
+        ]} />
+      <ObcButton variant="raised" onClick={() => navigate(calculationsHref(loop.loopId, { kind: chosen }))}>Full catalogue →</ObcButton>
+    </div>
+  );
+
   return (
     <div>
-      <div className="cpm-calc-toolbar">
-        <Select label="Window" value={chosen} onChange={choose} options={[]}
-          groups={[
-            { label: `Fused verdict (fires on ${firesOn.join(' / ')})`, options: firesOn.map(k => ({ value: k, label: `${k} — fused G0–G15` })) },
-            ...(shortSpecs.length > 0 ? [{
-              label: 'Short features (G0–G4)',
-              options: shortSpecs.map(w => { const shape = fmtWindowShape(w); return { value: w.kind, label: shape ? `${w.kind} — ${shape}` : w.kind }; }),
-            }] : []),
-          ]} />
-        <span className="cpm-calc-toolbar__end">
-          <ObcButton variant="normal" onClick={() => navigate(calculationsHref(loop.loopId, { kind: chosen }))}>Full catalogue →</ObcButton>
-        </span>
-      </div>
-
-      {short ? <ShortWindowCalculations loop={loop} kind={short} /> : (
+      {short ? <ShortWindowCalculations loop={loop} kind={short} tools={tools} /> : (
         <>
+          <PanelHead eyebrow={`Latest fused ${fused} window${matrix ? ` · ended ${fmtWhen(matrix.windowEnd)}` : ''}`} title="Gate outcomes" right={tools} />
           {gates.isLoading && <EmptyState level={2} title="Loading…" />}
           {gates.isError && !isNoVerdictYet(gates.error) && (
             <QueryError title="Gate results unavailable"
@@ -84,8 +86,6 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
           )}
           {matrix && (
             <>
-              {/* the dropdown names the window; this line says when it ended */}
-              <p className="cpm-copy">window ending {fmtWhen(matrix.windowEnd)}</p>
               <CalculationsGateTable cells={cells} flags={flags} onInspect={setSelected} />
               <CalculationsMetrics matrix={matrix} />
             </>

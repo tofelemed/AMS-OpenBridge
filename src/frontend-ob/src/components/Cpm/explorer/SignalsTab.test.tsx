@@ -46,7 +46,10 @@ describe('SignalsTab', () => {
     expect(within(screen.getByRole('row', { name: /OP/ })).getByText('How far the controller is driving the valve open.')).toBeTruthy();
     expect(within(screen.getByRole('row', { name: /MODE/ })).getByText('Whether the loop runs automatically, manually or in cascade.')).toBeTruthy();
     expect(within(pv).getByRole('button', { name: 'Show in trend ↗' })).toBeTruthy();
-    expect(within(screen.getByRole('row', { name: /OP/ })).getByText('%')).toBeTruthy();
+    // CHG-158 (owner review): no Unit column; a unit is written with its value
+    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Signal', 'Value', 'Trend']);
+    expect(screen.getByRole('row', { name: /OP/ }).querySelector('.cpm-signal-table__value')?.textContent).toBe('48.20 %');
+    expect(screen.getByRole('row', { name: /PV/ }).querySelector('.cpm-signal-table__value')?.textContent).toBe('12.35');
     // a role the engine has no live value for is a dash, never 0
     expect(within(screen.getByRole('row', { name: /UTILITY/ })).getByText('—')).toBeTruthy();
   });

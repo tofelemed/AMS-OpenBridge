@@ -62,12 +62,14 @@ describe('CalculationsTab', () => {
     expect(g7.textContent).toMatch(/Symptom seen/);
     expect(g7.textContent).not.toMatch(/Warning|SEEN/);
     expect(screen.getByRole('row', { name: /G0/ }).textContent).toMatch(/Pass/);
-    expect(screen.getAllByRole('button', { name: 'Inspect →' })).toHaveLength(3);
+    // CHG-158 (owner's image): compact rows, the gate's name opens it; no Inspect column
+    expect(screen.queryAllByRole('button', { name: 'Inspect →' })).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'G7 · Stiction shape' })).toBeTruthy();
   });
 
-  it('opens a gate from Inspect → in the gate dialog, keeping the loop and the window', async () => {
+  it('opens a gate from its name in the gate dialog, keeping the loop and the window', async () => {
     tab('24h');
-    fireEvent.click(within(screen.getByRole('row', { name: /G3/ })).getByRole('button', { name: 'Inspect →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'G3 · Base performance' }));
     expect((await screen.findByRole('dialog')).textContent).toContain('L1 G3 24h');
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -100,21 +102,23 @@ describe('CalculationsTab', () => {
     expect(q.get('calcWindow')).toBeNull();
   });
 
-  it('shows a short window with its G0–G4 checks and metrics, without Inspect', () => {
-    tab();
+  it('shows a short window as its G0–G4 checks in small labels, then its metrics', () => {
+    const { container } = tab();
     fireEvent.change(windowSelect(), { target: { value: '5m' } });
     expect(new URLSearchParams(screen.getByTestId('where').textContent ?? '').get('calcWindow')).toBe('5m');
     expect(windowSelect().value).toBe('5m');
-    expect(screen.getByRole('row', { name: /G3/ }).textContent).toMatch(/Attention/);
-    expect(screen.getByRole('row', { name: /G2r/ })).toBeTruthy();
-    expect(screen.queryByRole('row', { name: /G7/ })).toBeNull();
-    expect(screen.queryAllByRole('button', { name: 'Inspect →' })).toHaveLength(0);
+    expect(screen.getByText('Latest 5m short window', { exact: false })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Per-window features' })).toBeTruthy();
+    const labels = [...container.querySelectorAll('.cpm-short-gates .cpm-short-gate')];
+    expect(labels.map(l => l.querySelector('strong')?.textContent)).toEqual(['G0', 'G1', 'G2', 'G2r', 'G3', 'G4']);
+    expect(labels[4].textContent).toMatch(/Attention/);
+    expect(screen.queryByRole('table')).toBeNull();
     expect(screen.getByText('MAE')).toBeTruthy();
   });
 
   it('puts Full catalogue → beside the dropdown, on the chosen window', () => {
     const { container } = tab('24h');
-    const button = within(container.querySelector('.cpm-calc-toolbar') as HTMLElement).getByRole('button', { name: 'Full catalogue →' });
+    const button = within(container.querySelector('.cpm-panel-head') as HTMLElement).getByRole('button', { name: 'Full catalogue →' });
     fireEvent.click(button);
     expect(String(nav.mock.calls[0][0])).toBe('/cpm/calculations?loop=L1&kind=24h');
     expect(screen.getAllByRole('button', { name: 'Full catalogue →' })).toHaveLength(1);
@@ -126,9 +130,11 @@ describe('CalculationsTab', () => {
     expect(String(nav.mock.calls[0][0])).toBe('/cpm/windows?loop=L1&profile=5m');
   });
 
-  it('drops the headings that repeated the tab, and says the window once', () => {
+  // CHG-158 (owner's image): the head names the window and what is shown; the window end is said once, in the eyebrow
+  it('heads the fused view with its window and Gate outcomes, saying the end once', () => {
     tab();
-    for (const gone of ['Latest fused window', 'Gate outcomes', 'Short features (G0–G4)']) expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Gate outcomes' })).toBeTruthy();
+    expect(screen.getByText(/^Latest fused 12h window · ended 5 Nov/)).toBeTruthy();
     expect(screen.getAllByText(/5 Nov/)).toHaveLength(1);
   });
 });

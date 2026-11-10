@@ -9,10 +9,17 @@
 .cpm-signal-table__value { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cpm-signal-table--signals td:last-child { text-align: right; }
 
-/* CHG-158: the Calculations Window dropdown, Full catalogue → at the end of the same row */
-.cpm-calc-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--traverse-space-3); margin-bottom: var(--traverse-space-3); }
-.cpm-calc-toolbar .ui-field { min-width: 16rem; }
-.cpm-calc-toolbar__end { margin-inline-start: auto; }
+/* CHG-158 (the owner's image): the Calculations head carries the Window dropdown and Full catalogue →; the gates are compact
+   rows with the status at the end; a short window's checks are small labels in one row */
+.cpm-calc-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--traverse-space-2); }
+.cpm-calc-tools .ui-field { min-width: 16rem; }
+.cpm-explorer-gates th, .cpm-explorer-gates td { padding-block: var(--traverse-space-1); vertical-align: middle; }
+.cpm-explorer-gates th[scope="row"] { font-weight: 400; }
+.cpm-explorer-gates__name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.cpm-explorer-gates__name:hover { color: var(--traverse-action-primary); text-decoration: underline; }
+.cpm-explorer-gates__name:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+.cpm-short-gates { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: 0 0 var(--traverse-space-3); padding: 0; list-style: none; }
+.cpm-short-gate { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
 
 .cpm-explorer-foot {
   display: flex;
@@ -29,10 +36,14 @@
 }
 
 .cpm-explorer-gates th[scope="colgroup"] {
+  padding-top: var(--traverse-space-3);
   text-align: left;
   color: var(--traverse-text-secondary);
-  font-weight: 400;
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.cpm-explorer-gates td:nth-child(3) { text-align: right; }
+.cpm-explorer-gates td:last-child { text-align: right; }
 
 .cpm-episode-links { display: flex; justify-content: flex-end; }
