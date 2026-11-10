@@ -3,7 +3,7 @@
    verdict under it, the next check with its buttons, then "Not producing verdicts" and "Basis and limitations", both closed. */
 .cpm-loop-summary { display: flex; flex-direction: column; gap: var(--traverse-space-4); margin: 0; }
 .cpm-loop-summary__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
-.cpm-loop-summary__condition { margin: 0; font-size: var(--traverse-type-section); }
+.cpm-loop-summary__condition { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-section-title); }
 .cpm-loop-summary__muted { color: var(--traverse-text-secondary); }
 .cpm-loop-summary__note { margin: 0; color: var(--traverse-text-secondary); }
 

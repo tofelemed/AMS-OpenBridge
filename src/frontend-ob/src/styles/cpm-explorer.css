@@ -22,7 +22,7 @@
   border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-panel);
 }
 .cpm-signal__caption { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); letter-spacing: 0.05em; }
-.cpm-signal__value { font-size: var(--traverse-type-section); font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
+.cpm-signal__value { font-size: var(--traverse-type-section-title); font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
 .cpm-signal__sub { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
 .cpm-signal-strip__quality { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); margin: 0 0 0 auto; }
 .cpm-signal-strip__age { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
