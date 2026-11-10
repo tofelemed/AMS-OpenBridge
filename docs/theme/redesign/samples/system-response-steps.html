@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through System Response (CHG-165 sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 40%; font-weight: 600; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>System Response: the engineer's path</h1>
+  <p class="lead">Today one screen holds three columns: the event list, the event's analysis and the loop's model history, with the result, steps and quantities said twice. Proposed: one band to choose the loop and the event, and six tabs, one question each.</p>
+
+  <div class="card band"><b>Every tab</b><span class="chip">Loop search ▾</span><span class="chip">Event ▾ (accepted, newest first; censored on request)</span><span class="chip">‹ ›</span><span style="color:var(--text2)">… Workbench ↗ · Open loop ↗</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Events</h2><q>Which steps did the loop see, and which qualified?</q>
+      <ul><li>Events, accepted, model state: the three counts once</li><li>The events as a table: time, type, path, state, finding, model</li><li>Censored rows on request</li></ul></div>
+    <div class="card step"><h2>Response</h2><q>What model came out of this step?</q>
+      <ul><li>The result: model, K, θ ±, τ, validation</li><li>The response chart, full width: PV, fit, band, input</li><li>The reported quantities only</li></ul></div>
+    <div class="card step"><h2>Fit quality</h2><q>Can the model be trusted?</q>
+      <ul><li>Residuals and their autocorrelation, side by side</li><li>Candidate models, ranked, with why each was kept or rejected</li><li>The delay objective (flat = delay not identifiable)</li></ul></div>
+    <div class="card step"><h2>Frequency</h2><q>How much margin does the loop have?</q>
+      <ul><li>Magnitude and phase, side by side</li><li>Gain and phase margins, crossover</li><li>One line when not claimed, and why</li></ul></div>
+    <div class="card step"><h2>Steps &amp; data</h2><q>How did the kernel decide?</q>
+      <ul><li>Steps A–H as cards, outputs on demand</li><li>The event's window, method, run, bundle</li><li>All 52 quantities, reported first</li></ul></div>
+    <div class="card step"><h2>Models</h2><q>How has the loop's model changed, and is it reviewed?</q>
+      <ul><li>Gain, dead time, time constant: three trends side by side</li><li>The models table, Export CSV</li><li>Review (cpm.model.review)</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td>The three-column layout</td><td>Each tab uses the full width; the response chart doubles in width</td></tr>
+        <tr><td>K, θ, τ said twice</td><td>Once, in the Response result; the full list on Steps &amp; data</td></tr>
+        <tr><td>Four "nothing to draw" panels</td><td>One note per tab when the arrays were not kept, with the way to reconstruct them</td></tr>
+        <tr><td>16 key results, most "not applicable"</td><td>The reported ones on Response; all 52 on Steps &amp; data, reported first</td></tr>
+        <tr><td>Header ? and the site-zone sentence</td><td>Removed; the zone is named on the times</td></tr>
+        <tr><td>The tiles above the columns</td><td>On Events only</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>Every chart and table</td><td>Response, residuals, autocorrelation, candidates, delay curve, Bode, model history, quantities</td></tr>
+        <tr><td>Explicit selection</td><td>An event is chosen, never "latest"; the address carries ?event= and ?tab=</td></tr>
+        <tr><td>Censored candidates</td><td>Counted, listed on request</td></tr>
+        <tr><td>Model review</td><td>Same dialog, same permission, same revision check</td></tr>
+        <tr><td>Open in Evidence Workbench</td><td>The band's Workbench ↗ (the event's G12 run)</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

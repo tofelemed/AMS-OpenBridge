@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: System Response in six tabs (CHG-165 sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173, FIC10509, event 2026-10-07 05:43:24.
+     The curves are illustrative: the lab kept no arrays for this event. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --info:#1764C0; --info-bg:#E9F1FC; --s1:#006B83; --s2:#6C45C0; --s3:#245EB8; --s5:#53657B; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 16px; font-size: 24px; font-weight: 600; } h2 { margin: 0; font-size: 20px; font-weight: 600; } h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; }
+  .field small { color: var(--text2); font-size: 13px; }
+  .vr { align-self: stretch; width: 1px; background: var(--border); } .grow { flex: 1; }
+  .btn { height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 6px; color: var(--action); font-weight: 600; white-space: nowrap; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); }
+  .tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 12px 14px 9px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .pane { display: none; padding: 16px; gap: 14px; } .pane.on { display: grid; }
+  .foot { display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; color: var(--text2); }
+  .sub { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); min-width: 0; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+  .body { padding: 10px 14px; }
+  .pill { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--raised); color: var(--text2); white-space: nowrap; }
+  .pill--warn { background: var(--warn-bg); color: var(--warn); } .pill--ok { background: var(--ok-bg); color: var(--ok); } .pill--info { background: var(--info-bg); color: var(--info); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; } .tile span { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); } .tile strong { font-size: 22px; font-weight: 600; } .tile small { color: var(--text2); }
+  table { width: 100%; border-collapse: collapse; } th, td { padding: 0 12px; height: 40px; border-bottom: 1px solid var(--border); text-align: start; white-space: nowrap; }
+  td.wrap { white-space: normal; line-height: 1.3; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); font-weight: 600; } td.n { text-align: end; font-variant-numeric: tabular-nums; }
+  tr.sel td { background: var(--selected); } tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--action); } tr.muted td { color: var(--muted); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .result { display: flex; align-items: center; gap: 24px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; border-inline-start: 4px solid var(--warn); }
+  .param span { display: block; font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; } .param strong { font-size: 18px; font-weight: 600; }
+  .note { padding: 8px 12px; border-inline-start: 3px solid var(--info); background: var(--info-bg); }
+  .kv { display: grid; grid-template-columns: 200px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); } .kv span:first-child { color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .step { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; border-inline-start: 3px solid var(--ok); }
+  .step--warn { border-inline-start-color: var(--warn); } .step--muted { border-inline-start-color: var(--strong); }
+  .step strong { display: block; } .step small { color: var(--text2); }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text2); padding: 0 14px 8px; } .legend i { display: inline-block; width: 14px; height: 3px; margin-inline-end: 4px; vertical-align: middle; }
+  svg text { font: 11px "Noto Sans", sans-serif; fill: #4B5D73; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Understand the cause</span>
+  <h1>System Response</h1>
+
+  <!-- band: loop | event (accepted, newest first; censored on request) ‹ › … Workbench ↗, Open loop ↗ -->
+  <div class="card band ann" data-n="1">
+    <span class="field" style="min-width:290px">&#x1F50D;&#xFE0E; <span><strong>FIC10509</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+    <span class="vr"></span>
+    <span class="field" style="min-width:360px">7 Oct 05:43 · Input test · OP → PV · Candidate<span class="grow"></span>&#9662;</span>
+    <span class="btn" style="border:1px solid var(--strong);width:32px;justify-content:center;color:var(--text)">‹</span><span class="btn" style="border:1px solid var(--strong);width:32px;justify-content:center;color:var(--text)">›</span>
+    <span class="grow"></span>
+    <span class="btn btn--out">Workbench ↗</span><span class="btn">Open loop ↗</span>
+  </div>
+
+  <section class="card">
+    <div class="tabs ann" data-n="2" role="tablist">
+      <span class="tab" role="tab" data-t="events">Events</span>
+      <span class="tab" role="tab" data-t="response">Response</span>
+      <span class="tab" role="tab" data-t="fit">Fit quality</span>
+      <span class="tab" role="tab" data-t="freq">Frequency</span>
+      <span class="tab" role="tab" data-t="steps">Steps &amp; data</span>
+      <span class="tab" role="tab" data-t="models">Models</span>
+    </div>
+
+    <!-- 1 Events: the loop's events, and the three counts once -->
+    <div class="pane" data-p="events">
+      <div class="tiles ann" data-n="3">
+        <div class="tile"><span>Response events</span><strong>36</strong> <small>· 35 censored</small></div>
+        <div class="tile"><span>Accepted events</span><strong>1</strong></div>
+        <div class="tile"><span>System model</span><strong>Candidate</strong> <small>· FOPDT, OP → PV</small></div>
+      </div>
+      <div class="sub">
+        <div class="row"><h3>Events</h3><span class="grow"></span><span class="field">All events<span class="grow"></span>&#9662;</span></div>
+        <table>
+          <thead><tr><th>Time</th><th>Type</th><th>Path</th><th>State</th><th>Finding</th><th>Model</th></tr></thead>
+          <tbody>
+            <tr class="sel"><td>7 Oct 05:43:24</td><td>Input test</td><td>OP → PV</td><td><span class="pill pill--warn">Candidate</span></td><td>Response characterised</td><td>FOPDT · K 0.21 · τ 0.50 s</td></tr>
+            <tr class="muted"><td>6 Oct 22:10:05</td><td>Setpoint step</td><td>SP → PV</td><td><span class="pill">Censored</span></td><td>Superseded by a newer step</td><td>—</td></tr>
+            <tr class="muted"><td>6 Oct 21:52:40</td><td>Output step</td><td>OP → PV</td><td><span class="pill">Censored</span></td><td>Source gap in the window</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="legend" style="padding:0">"Accepted only" hides the censored rows; choosing an event opens it on the Response tab.</div>
+    </div>
+
+    <!-- 2 Response: the answer and the picture -->
+    <div class="pane" data-p="response">
+      <div class="result ann" data-n="4">
+        <div><span class="eyebrow">Result</span><h2>FOPDT model · candidate</h2><small style="color:var(--text2)">Validation waiting: no independent event yet</small></div>
+        <div class="param"><span>Process gain K</span><strong>0.21</strong> <small>PV / input</small></div>
+        <div class="param"><span>Dead time θ</span><strong>0.00 s</strong> <small>± 2.50</small></div>
+        <div class="param"><span>Time constant τ</span><strong>0.50 s</strong></div>
+        <span class="grow"></span><span class="pill pill--warn">Candidate</span>
+      </div>
+      <div class="note ann" data-n="5">Arrays not kept for this run; the result and every value stand. Reconstruct them in the Workbench ↗</div>
+      <div class="sub">
+        <div class="row"><h3>Response</h3><span class="grow"></span><span class="btn">Zoom area</span><span class="btn">Undo</span><span class="btn">Reset</span></div>
+        <svg id="resp" width="100%" height="260" viewBox="0 0 1160 260" preserveAspectRatio="none"></svg>
+        <div class="legend"><span><i style="background:#2E9E45"></i>PV (accepted)</span><span><i style="background:#006B83"></i>Model fit</span><span><i style="background:#DDF3F6;height:8px"></i>Prediction band (95 %)</span><span><i style="background:#E8A317"></i>Applied input (OP)</span><span>illustrative curves</span></div>
+      </div>
+      <div class="sub">
+        <div class="row"><h3>Reported quantities</h3><span class="grow"></span><span style="color:var(--text2)">12 of 52 reported</span></div>
+        <div class="body three">
+          <div class="kv"><span>IAE</span><span>9.60 PV·s</span></div><div class="kv"><span>ISE</span><span>0.67 PV²·s</span></div><div class="kv"><span>ITAE</span><span>1,143.47 PV·s²</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Fit quality: is the model to be trusted? -->
+    <div class="pane" data-p="fit">
+      <div class="note">This event kept no residual or candidate arrays; the panels show where they go, with example values.</div>
+      <div class="two ann" data-n="6">
+        <div class="sub"><div class="row"><h3>Residuals over time</h3><span class="grow"></span><span class="pill pill--ok">No bias</span></div><svg id="res" width="100%" height="180" viewBox="0 0 560 180" preserveAspectRatio="none"></svg></div>
+        <div class="sub"><div class="row"><h3>Residual autocorrelation</h3><span class="grow"></span><span class="pill pill--ok">White</span></div><svg id="acf" width="100%" height="180" viewBox="0 0 560 180" preserveAspectRatio="none"></svg></div>
+      </div>
+      <div class="two">
+        <div class="sub"><div class="row"><h3>Candidate models</h3></div>
+          <table><thead><tr><th>Rank</th><th>Model</th><th class="n">K</th><th class="n">θ</th><th class="n">τ</th><th class="n">Fit</th><th>Kept</th></tr></thead>
+            <tbody><tr class="sel"><td>1</td><td>FOPDT</td><td class="n">0.21</td><td class="n">0.00 ± 2.50</td><td class="n">0.50</td><td class="n">0.93</td><td>Best</td></tr>
+              <tr><td>2</td><td>SOPDT</td><td class="n">0.21</td><td class="n">0.00</td><td class="n">0.31 / 0.22</td><td class="n">0.93</td><td class="wrap">τ₂ not identifiable</td></tr>
+              <tr><td>3</td><td>Integrating</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">0.41</td><td class="wrap">Rejected: not integrating</td></tr></tbody></table></div>
+        <div class="sub"><div class="row"><h3>Delay objective of the best model</h3><span class="grow"></span><span class="pill pill--warn">Flat: delay not identifiable</span></div><svg id="delay" width="100%" height="170" viewBox="0 0 560 170" preserveAspectRatio="none"></svg></div>
+      </div>
+    </div>
+
+    <!-- 4 Frequency -->
+    <div class="pane" data-p="freq">
+      <div class="note ann" data-n="7">Frequency response needs a validated model with a known controller form and a crossing in band. This model is a candidate, so no margins are claimed. (Example below from a validated loop.)</div>
+      <div class="two">
+        <div class="sub"><div class="row"><h3>Magnitude |L(jω)|</h3></div><svg id="mag" width="100%" height="200" viewBox="0 0 560 200" preserveAspectRatio="none"></svg></div>
+        <div class="sub"><div class="row"><h3>Phase ∠L(jω)</h3></div><svg id="ph" width="100%" height="200" viewBox="0 0 560 200" preserveAspectRatio="none"></svg></div>
+      </div>
+      <div class="sub"><div class="body three"><div class="kv"><span>Gain margin</span><span>— not claimed</span></div><div class="kv"><span>Phase margin</span><span>— not claimed</span></div><div class="kv"><span>Crossover ω</span><span>— not claimed</span></div></div></div>
+    </div>
+
+    <!-- 5 Steps & data: the audit -->
+    <div class="pane" data-p="steps">
+      <div class="steps ann" data-n="8">
+        <div class="step"><strong>A Eligibility</strong><small>Evaluated · 5 outputs</small></div>
+        <div class="step"><strong>B Event capture</strong><small>Evaluated · 4 outputs</small></div>
+        <div class="step"><strong>C Observed metrics</strong><small>Evaluated · 1 output</small></div>
+        <div class="step"><strong>D Estimation</strong><small>Estimated · 4 outputs</small></div>
+        <div class="step step--warn"><strong>E Validation</strong><small>Waiting · no independent event yet</small></div>
+        <div class="step"><strong>F Controller / frequency</strong><small>Evaluated</small></div>
+        <div class="step"><strong>G Model comparison</strong><small>Evaluated · 1 output</small></div>
+        <div class="step step--muted"><strong>H Advisory</strong><small>Not evaluated · model not validated</small></div>
+      </div>
+      <div class="two">
+        <div class="sub"><div class="row"><h3>Event</h3></div><div class="body">
+          <div class="kv"><span>Window</span><span>7 Oct 05:43:24 → 05:47:25 UTC · 4.0 min</span></div>
+          <div class="kv"><span>Eligibility · finding</span><span>Eligible · response characterised</span></div>
+          <div class="kv"><span>Method</span><span>G12.SYSTEM_RESPONSE 1.0.0</span></div>
+          <div class="kv"><span>Run · bundle · purpose</span><span>6a1e89ce ⧉ · g12:b29d ⧉ · LIVE, rev 1</span></div></div></div>
+        <div class="sub"><div class="row"><h3>All quantities</h3><span class="grow"></span><span class="field">Reported (12)<span class="grow"></span>&#9662;</span></div>
+          <table><thead><tr><th>Quantity</th><th class="n">Value</th><th>Method</th></tr></thead>
+            <tbody><tr><td>Process gain K</td><td class="n">0.21</td><td>MODEL_FOPDT</td></tr><tr><td>Dead time θ</td><td class="n">0.00 s ± 2.50</td><td>OE_LM_DELAY_PROFILE</td></tr><tr><td>Time constant τ</td><td class="n">0.50 s</td><td>MODEL_FOPDT</td></tr><tr><td>IAE</td><td class="n">9.60</td><td>HELD_INTERVAL_INTEGRALS_V1</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 6 Models: the loop's model over time, and the review -->
+    <div class="pane" data-p="models">
+      <div class="three ann" data-n="9">
+        <div class="sub"><div class="row"><h3>Process gain</h3></div><svg class="mh" data-v="0.21" width="100%" height="150" viewBox="0 0 360 150" preserveAspectRatio="none"></svg></div>
+        <div class="sub"><div class="row"><h3>Dead time (s)</h3></div><svg class="mh" data-v="0" data-e="2.5" width="100%" height="150" viewBox="0 0 360 150" preserveAspectRatio="none"></svg></div>
+        <div class="sub"><div class="row"><h3>Time constant (s)</h3></div><svg class="mh" data-v="0.5" width="100%" height="150" viewBox="0 0 360 150" preserveAspectRatio="none"></svg></div>
+      </div>
+      <div class="sub">
+        <div class="row"><h3>Models</h3><span class="grow"></span><span class="btn">Export CSV</span></div>
+        <table><thead><tr><th>Created</th><th>Family</th><th>Path</th><th>Estimator</th><th>State</th><th class="n">Rev</th><th>Review</th></tr></thead>
+          <tbody><tr><td>7 Oct 09:51:31</td><td>FOPDT</td><td>OP → PV</td><td>OE_LM_DELAY_PROFILE</td><td><span class="pill pill--warn">Candidate</span></td><td class="n">1</td><td><span class="btn" style="height:auto;padding:0">Review</span></td></tr></tbody></table>
+      </div>
+    </div>
+
+    <div class="foot"><span>7 Oct 05:43:24 → 05:47:25 UTC · Input test · OP → PV · run 6a1e89ce</span><span class="grow"></span><span class="btn btn--out" id="next">Next: Response →</span></div>
+  </section>
+</div>
+<script>
+  const el = id => document.getElementById(id);
+  const poly = (pts, c, w = 1.6, extra = '') => `<polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="${w}" ${extra}/>`;
+  // response: PV with noise, FOPDT fit, band, input step
+  (() => { const W = 1160, s = el('resp'); let pv = [], fit = [], up = [], lo = [];
+    for (let i = 0; i <= 200; i++) { const x = 40 + i * (W - 60) / 200, t = i / 200; const y = t < 0.2 ? 0 : 1 - Math.exp(-(t - 0.2) / 0.08);
+      fit.push([x, 170 - y * 120]); up.push([x, 170 - y * 120 - 10]); lo.push([x, 170 - y * 120 + 10]); pv.push([x, 170 - y * 120 + Math.sin(i * 1.7) * 4]); }
+    s.innerHTML = `<polygon points="${[...up, ...lo.reverse()].map(p => p.join(',')).join(' ')}" fill="#DDF3F6"/>` + poly(pv, '#2E9E45', 1.2) + poly(fit, '#006B83', 2)
+      + `<polyline points="40,235 ${40 + 0.2 * (W - 60)},235 ${40 + 0.2 * (W - 60)},205 ${W - 20},205" fill="none" stroke="#E8A317" stroke-width="2"/>`
+      + `<line x1="40" x2="${W - 20}" y1="190" y2="190" stroke="#D3DCE8"/><text x="44" y="186">PV</text><text x="44" y="250">OP</text>`; })();
+  (() => { const s = el('res'); let r = []; for (let i = 0; i <= 100; i++) r.push([20 + i * 5.3, 90 + Math.sin(i * 2.3) * 18 + Math.cos(i * 0.9) * 8]);
+    s.innerHTML = `<line x1="20" x2="550" y1="90" y2="90" stroke="#75879C" stroke-dasharray="4 3"/>` + poly(r, '#006B83', 1.2); })();
+  (() => { const s = el('acf'); let h = ''; for (let i = 0; i < 30; i++) { const v = i === 0 ? 1 : Math.sin(i * 2.1) * 0.12; const y = 100 - v * 80; h += `<rect x="${24 + i * 17.5}" y="${Math.min(y, 100)}" width="10" height="${Math.abs(100 - y)}" fill="#006B83"/>`; }
+    s.innerHTML = `<rect x="20" y="88" width="530" height="24" fill="#E9F1FC"/><line x1="20" x2="550" y1="100" y2="100" stroke="#75879C"/>` + h; })();
+  (() => { const s = el('delay'); let d = []; for (let i = 0; i <= 60; i++) d.push([20 + i * 8.8, 80 + Math.sin(i * 0.4) * 3]);
+    s.innerHTML = poly(d, '#6C45C0', 2) + `<text x="24" y="160">delay 0 s → 10 s</text><text x="24" y="20">fit objective</text>`; })();
+  (() => { const m = el('mag'), p = el('ph'); let a = [], b = []; for (let i = 0; i <= 80; i++) { const x = 20 + i * 6.6; a.push([x, 40 + i * 1.6 + (i > 40 ? (i - 40) * 0.8 : 0)]); b.push([x, 30 + i * 1.7]); }
+    m.innerHTML = `<line x1="20" x2="550" y1="110" y2="110" stroke="#75879C" stroke-dasharray="4 3"/><text x="24" y="106">0 dB</text>` + poly(a, '#006B83', 2);
+    p.innerHTML = `<line x1="20" x2="550" y1="150" y2="150" stroke="#75879C" stroke-dasharray="4 3"/><text x="24" y="146">−180°</text>` + poly(b, '#245EB8', 2); })();
+  document.querySelectorAll('svg.mh').forEach(s => { const v = Number(s.dataset.v), e = Number(s.dataset.e ?? 0); const y = 110 - v * 120 - (e ? 30 : 0);
+    s.innerHTML = `<line x1="20" x2="350" y1="125" y2="125" stroke="#D3DCE8"/><text x="22" y="142">Oct 5</text><text x="300" y="142">Oct 8</text>`
+      + (e ? `<line x1="250" x2="250" y1="${y - 40}" y2="${y + 40}" stroke="#4B5D73"/><line x1="244" x2="256" y1="${y - 40}" y2="${y - 40}" stroke="#4B5D73"/><line x1="244" x2="256" y1="${y + 40}" y2="${y + 40}" stroke="#4B5D73"/>` : '')
+      + `<circle cx="250" cy="${y}" r="5" fill="#6C45C0"/><text x="262" y="${y + 4}">${v}</text>`; });
+  const order = ['events', 'response', 'fit', 'freq', 'steps', 'models'], names = { events: 'Events', response: 'Response', fit: 'Fit quality', freq: 'Frequency', steps: 'Steps & data', models: 'Models' };
+  window.showTab = t => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x.dataset.t === t)));
+    document.querySelectorAll('.pane').forEach(x => x.classList.toggle('on', x.dataset.p === t));
+    const n = el('next'), i = order.indexOf(t); n.style.visibility = i < order.length - 1 ? 'visible' : 'hidden'; n.textContent = `Next: ${names[order[i + 1]] ?? ''} →`; n.dataset.t = order[i + 1];
+  };
+  document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => window.showTab(x.dataset.t)));
+  el('next').addEventListener('click', e => window.showTab(e.target.dataset.t));
+  window.showTab('response');
+</script>
+</body>
+</html>
