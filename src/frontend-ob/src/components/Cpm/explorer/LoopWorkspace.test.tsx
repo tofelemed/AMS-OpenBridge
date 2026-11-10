@@ -13,6 +13,7 @@ vi.mock('./SignalsTab', () => ({ default: () => <p>signals body</p> }));
 vi.mock('./RelationshipsTab', () => ({ default: () => <p>relationships body</p> }));
 vi.mock('./CalculationsTab', () => ({ default: () => <p>calculations body</p> }));
 vi.mock('./HistoryTab', () => ({ default: () => <p>history body</p> }));
+vi.mock('./LoopModelCard', () => ({ LoopModelLink: () => <button type="button">Loop model & setup →</button> }));
 
 afterEach(cleanup);
 
@@ -40,5 +41,14 @@ describe('LoopWorkspace', () => {
     render(<LoopWorkspace loop={LOOP} tab="History" windowKind="12h" onTab={() => {}} />);
     expect(screen.getByText('history body')).toBeTruthy();
     expect(screen.queryByText('calculations body')).toBeNull();
+  });
+
+  // CHG-158 (owner review): Loop model & setup → sits at the end of the tab row on Summary, not on a row of its own
+  it('puts Loop model & setup → at the end of the tab row on Summary only', () => {
+    const { container } = render(<LoopWorkspace loop={LOOP} tab="Summary" windowKind="12h" onTab={() => {}} />);
+    expect(container.querySelector('.cpm-tabs-row__end')?.textContent).toBe('Loop model & setup →');
+    cleanup();
+    render(<LoopWorkspace loop={LOOP} tab="Signals" windowKind="12h" onTab={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Loop model & setup →' })).toBeNull();
   });
 });

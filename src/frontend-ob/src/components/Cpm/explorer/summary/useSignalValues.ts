@@ -1,7 +1,8 @@
 /**
  * The values behind PV, SP, OP and Mode for one loop, shared by the Summary signal strip and the Signals table so
  * both show the same number. Live values first, then the newest trend bucket, then the last stored value, the only
- * plane with no time bound. A value is live or old, never both (CHG-078).
+ * plane with no time bound. A value is live or old, never both (CHG-078). CHG-158 (owner review): every value says where it
+ * came from — live, last received …, from historian or last stored … — as it did before the redesign.
  */
 import { useMemo } from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
@@ -36,7 +37,7 @@ export interface SignalValue {
   value: string | null;
   /** OP is a percentage of span in this engine; PV and SP carry no registered unit. */
   unit: string;
-  /** What differs from the rest: a stalled live value, or a stored one older than its neighbours. */
+  /** Where the shown value came from: live, last received …, from historian or last stored …; empty with no value. */
   note: string;
 }
 
@@ -54,13 +55,8 @@ export function useSignalValues(loop: CpmLoop) {
   const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0
     && !lastStored.isLoading && Object.keys(held).length === 0;
 
-  // One age when every stored value has the same one.
-  const ages = new Set(Object.values(held).map(v => ageLabel(v?.ts)));
-  const oneAge = !live.hasData && ages.size === 1 ? [...ages][0] : null;
-  const note = (liveTs: number | undefined, liveShown: boolean, heldTs: number | undefined, fromTrend: boolean): string => {
-    if (liveShown) { const s = liveSource(liveTs); return s === 'live' ? '' : s; }
-    return !fromTrend && heldTs && !oneAge ? `last stored ${ageLabel(heldTs)}` : '';
-  };
+  const note = (liveTs: number | undefined, liveShown: boolean, heldTs: number | undefined, fromTrend: boolean): string =>
+    liveShown ? liveSource(liveTs) : fromTrend ? 'from historian' : heldTs ? `last stored ${ageLabel(heldTs)}` : '';
 
   const signals: SignalValue[] = (['pv', 'sp', 'op'] as const).map(m => {
     const lv = live[m];
@@ -70,7 +66,7 @@ export function useSignalValues(loop: CpmLoop) {
     const shown = liveVal ?? (stored != null ? stored.toFixed(2) : heldVal != null ? heldVal.toFixed(2) : null);
     return {
       role: m.toUpperCase() as SignalValue['role'], value: shown, unit: m === 'op' ? '%' : '',
-      note: note(lv?.ts, !!liveVal, held[m]?.ts, stored != null),
+      note: note(lv?.ts, !!liveVal, heldVal != null ? held[m]?.ts : undefined, stored != null),
     };
   });
 
@@ -82,7 +78,7 @@ export function useSignalValues(loop: CpmLoop) {
   const sq = liveSignalQuality(liveQuality(live), live.lastSourceTs);
 
   return {
-    signals, mode, modeNote, oneAge, noData, series, rolling,
+    signals, mode, modeNote, noData, series, rolling,
     hasLive: live.hasData,
     quality: { tone: live.hasData ? sq.tone : ('muted' as const), text: live.hasData ? sq.text : 'No live publisher' },
   };

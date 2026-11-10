@@ -5,12 +5,12 @@
  * CHG-098 (SME review 2 #20): a bar with nothing BLOCKING is rendered inside the loop summary's "Basis and
  * limitations" disclosure (it is a limitation of the diagnosis), so the trend follows the summary directly;
  * a blocking bar stays above the tabs, where it explains why there is no verdict.
+ * CHG-158 (owner review): it opens closed; its head carries the counts, each cause its kind as a marked word.
  */
 import { usePipelineAccess } from '../access';
 import { pipelineHref } from '../cpaHref';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TonePill } from '../shared';
 import type { ExplorerTab, ReadinessSummary } from './readinessCauses';
 
 /** One line for a closed disclosure: "2 readiness items to fix · 1 plant fact". */
@@ -35,11 +35,11 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
       >
-        <strong>{summary.headline}</strong>
-        <span className="cpm-event-row__sub">
-          {summary.causes.length > 0 ? `${summary.causes.length} to fix` : 'nothing to fix'}
-          {summary.blocking > 0 ? ` · ${summary.blocking} blocking` : ''}
-          {summary.notes.length > 0 ? ` · ${summary.notes.length} plant fact(s)` : ''}
+        <strong className="cpm-causes__headline">{summary.headline}</strong>
+        <span className="cpm-causes__counts">
+          {summary.blocking > 0 && <span className="cpm-causes__count cpm-causes__count--bad">{summary.blocking} blocking</span>}
+          <span className="cpm-causes__count cpm-causes__count--warn">{summary.causes.length > 0 ? `${summary.causes.length} to fix` : 'nothing to fix'}</span>
+          {summary.notes.length > 0 && <span className="cpm-causes__count">{summary.notes.length} plant fact(s)</span>}
         </span>
         <span className="cpm-causes__caret" aria-hidden>{open ? '▾' : '▸'}</span>
       </button>
@@ -48,11 +48,13 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
         <ul className="cpm-causes__list">
           {summary.causes.map(c => (
             <li key={c.id} className="cpm-causes__item">
-              <TonePill tone={c.kind === 'blocking' ? 'bad' : c.kind === 'data' ? 'muted' : 'warn'}>
-                {c.kind === 'blocking' ? 'Blocking' : c.kind === 'data' ? 'Waiting for data' : 'Configuration'}
-              </TonePill>
               <span className="cpm-causes__text">
-                <strong>{c.label}</strong>
+                <span className="cpm-causes__title">
+                  <span className={`cpm-causes__kind cpm-causes__kind--${c.kind === 'blocking' ? 'bad' : c.kind === 'data' ? 'muted' : 'warn'}`}>
+                    {c.kind === 'blocking' ? 'Blocking' : c.kind === 'data' ? 'Waiting for data' : 'Configuration'}
+                  </span>
+                  <strong>{c.label}</strong>
+                </span>
                 {c.message && <span className="cpm-event-row__sub">{c.message}</span>}
               </span>
               {c.target && !(c.target.kind === 'route' && c.target.href === pipelineHref() && !canPipeline) && (
@@ -72,8 +74,10 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
           {/* CHG-059 (SME #23): facts about the plant that limit a diagnosis — information, nothing to fix */}
           {summary.notes.map(n => (
             <li key={n} className="cpm-causes__item">
-              <TonePill tone="muted">Plant fact</TonePill>
-              <span className="cpm-causes__text"><span className="cpm-event-row__sub">{n}</span></span>
+              <span className="cpm-causes__text">
+                <span className="cpm-causes__title"><span className="cpm-causes__kind cpm-causes__kind--muted">Plant fact</span></span>
+                <span className="cpm-event-row__sub">{n}</span>
+              </span>
             </li>
           ))}
         </ul>

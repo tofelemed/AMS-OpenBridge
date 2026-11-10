@@ -16,6 +16,7 @@ import SignalsTab from './SignalsTab';
 import CalculationsTab from './CalculationsTab';
 import RelationshipsTab from './RelationshipsTab';
 import HistoryTab from './HistoryTab';
+import { LoopModelLink } from './LoopModelCard';
 import { HISTORY_QUERY } from './historyQuery';
 
 export const TABS: ExplorerTab[] = ['Summary', 'Signals', 'Calculations', 'Relationships', 'History'];
@@ -50,9 +51,13 @@ export const LoopWorkspace: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowK
 
   return (
     <section className="cpm-surface">
-      <div className="cpm-tabs">
-        {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
-        <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
+      <div className="cpm-tabs-row">
+        <div className="cpm-tabs">
+          {/* The container scrolls for the case where the tabs do not fit the workspace column. */}
+          <Tabs idBase="loop-workspace" label={loop.loopId} options={tabs} value={tab} onChange={onTab} />
+        </div>
+        {/* CHG-158 (owner review): at the end of the tab row on Summary, as the owner's design shows */}
+        {tab === 'Summary' && <div className="cpm-tabs-row__end"><LoopModelLink loop={loop} /></div>}
       </div>
 
       {/* The panel is height-bounded so switching from the tall Summary chart to

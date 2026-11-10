@@ -9,6 +9,9 @@
  *    ending now), both on ONE y-scale and equal time spans, so the shapes line up (CHG-097, SME review 2 #26).
  * The gate row is the one LoopWorkspace already holds (same query key); the live trend is fetched only
  * while the comparison is on.
+ *
+ * CHG-158 (owner review): the toolbar holds every button — Historical ↗ and Trend ↗ (this loop and period on the Trend page)
+ * after Live, and the evaluated-window buttons at its end — so none sits on a row of its own under it.
  */
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -19,7 +22,8 @@ import type { CpmTrendPoint } from '../../../../api/cpm/kpis';
 import { useCpmTrend, useLatestGates } from '../../../../hooks/useCpm';
 import { loopSeries } from '../../../../utils/loopSeries';
 import { EmptyState, QueryError, TREND_TICK_MS, fmtDuration, useRollingWindow } from '../../shared';
-import { historicalHref } from '../../cpaHref';
+import { historicalHref, trendHref } from '../../cpaHref';
+import { loopPens } from '../../../Designer/trend/loopPens';
 import { fmtPeriod } from '../../context/LoopContextBar';
 import SignalTrend from '../../trend/SignalTrend';
 import TimeRangeBar from '../../trend/TimeRangeBar';
@@ -70,45 +74,49 @@ export const LoopTrendPanel: React.FC<{
     setParams(p => { if (mode) p.set('compare', mode); else p.delete('compare'); return p; }, { replace: true });
   const windowText = evaluated ? fmtPeriod({ label: 'Evaluated window', start: evaluated.startMs, end: evaluated.endMs }) : '';
 
+  const period = { from: from.toISOString(), to: to.toISOString() };
   return (
-    <div id="cpm-loop-trend">
+    <div id="cpm-loop-trend" className="cpm-loop-trend">
       <TimeRangeBar from={from} to={to} presets={range.presets} preset={range.preset}
         onPreset={range.applyPreset} onStep={range.step} onApplyCustom={range.applyCustom}
         nowLabel="Live" nowTitle="Back to the live rolling 8 h" onNow={range.goLive}
-        stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}>
-        <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
-          onClick={() => navigate(historicalHref(loop.loopId, { from: from.toISOString(), to: to.toISOString() }))}>
-          Historical ↗
-        </ObcButton>
-      </TimeRangeBar>
-
-      {/* The buttons say what they do; the sentences that said where the evaluated window lies are on their hover titles. */}
-      {evaluated && !inView && (
-        <p className="cpm-eval-note">
+        stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}
+        after={<>
+          <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
+            onClick={() => navigate(historicalHref(loop.loopId, period))}>
+            Historical ↗
+          </ObcButton>
+          {loopPens(loop).length > 0 && (
+            <ObcButton variant="flat" title={`Open ${loop.loopId} on the Trend page on this period`}
+              onClick={() => navigate(trendHref(loop.loopId, period))}>
+              Trend ↗
+            </ObcButton>
+          )}
+        </>}>
+        {/* The buttons say what they do; the sentences that said where the evaluated window lies are on their hover titles. */}
+        {evaluated && !inView && (
           <ObcButton variant="normal" title={`${windowText} is outside this trend range — the diagnosis is about that window, not this one.`}
             onClick={showEvaluated}>Show evaluated period →</ObcButton>
-        </p>
-      )}
-      {isEvaluatedView && (
-        <p className="cpm-eval-note">
-          <ObcButton variant={compareMode === 'previous' ? 'raised' : 'normal'} aria-pressed={compareMode === 'previous'}
-            title="Add the window just before it, of the same length, under it on the same scale"
-            onClick={() => setCompare(compareMode === 'previous' ? null : 'previous')}>
-            Compare with previous window
-          </ObcButton>
-          <ObcButton variant={compareMode === 'now' ? 'raised' : 'normal'} aria-pressed={compareMode === 'now'}
-            title="Add the same length of time ending now under it, on the same scale"
-            onClick={() => setCompare(compareMode === 'now' ? null : 'now')}>
-            Compare with now
-          </ObcButton>
-        </p>
-      )}
-      {evaluated && inView && !isEvaluatedView && (
-        <p className="cpm-eval-note">
+        )}
+        {isEvaluatedView && (
+          <>
+            <ObcButton variant={compareMode === 'previous' ? 'raised' : 'normal'} aria-pressed={compareMode === 'previous'}
+              title="Add the window just before it, of the same length, under it on the same scale"
+              onClick={() => setCompare(compareMode === 'previous' ? null : 'previous')}>
+              Compare with previous window
+            </ObcButton>
+            <ObcButton variant={compareMode === 'now' ? 'raised' : 'normal'} aria-pressed={compareMode === 'now'}
+              title="Add the same length of time ending now under it, on the same scale"
+              onClick={() => setCompare(compareMode === 'now' ? null : 'now')}>
+              Compare with now
+            </ObcButton>
+          </>
+        )}
+        {evaluated && inView && !isEvaluatedView && (
           <ObcButton variant="flat" title="The shaded band is the evaluated window behind the diagnosis."
             onClick={showEvaluated}>Show only that window →</ObcButton>
-        </p>
-      )}
+        )}
+      </TimeRangeBar>
 
       {trend.isLoading && <EmptyState title="Loading trend…" />}
       {/* A historian 403/500 is not an empty historian. */}

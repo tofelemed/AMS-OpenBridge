@@ -1,7 +1,7 @@
 /**
  * CHG-128: the band under the tabs of every page about one loop. It stays at the top of the content while the page scrolls. It
  * holds the one loop control, then only what this tab needs: the result on Summary, range and Export on Historical, window and
- * gate on Evidence. The control opens the Find loop box and tree that used to be the left list, and follows the header scope.
+ * gate on Evidence. The control opens the Find loop box and the loop list that used to be the left list, and follows the header scope.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +27,9 @@ export const LoopBand: React.FC<{
   children?: React.ReactNode;
   /** Pushed to the far end of the band. */
   end?: React.ReactNode;
-}> = ({ loopId, onLoop, onClear, only, children, end }) => {
+  /** CHG-158: drawn as a card on the page background (Loop Explorer, as the owner's design shows). */
+  card?: boolean;
+}> = ({ loopId, onLoop, onClear, only, children, end, card }) => {
   const ref = useStickyOffset();
   const navigate = useNavigate();
   const loops = useCpmLoops();
@@ -39,7 +41,7 @@ export const LoopBand: React.FC<{
   const outside = !!loop && scope.active && !scope.matches(loop);
 
   return (
-    <div ref={ref} className="cpm-loop-context cpm-band" role="region" aria-label="Loop and its controls" data-testid="loop-context">
+    <div ref={ref} className={`cpm-loop-context cpm-band${card ? ' cpm-band--card' : ''}`} role="region" aria-label="Loop and its controls" data-testid="loop-context">
       <div className="cpm-band__row">
         <Popover
           label="Choose a loop"

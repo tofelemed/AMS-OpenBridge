@@ -19,6 +19,10 @@
  * default, with a one-line summary). The Explorer gives the quick condition:
  * the full cause breakdown, limitations, recommendation and evidence-score note
  * live on the Investigation, the calculation proof in the Workbench.
+ *
+ * CHG-158 (owner review): the card is the body of the Loop summary dialog. It does not repeat the dialog title or the
+ * loop criticality (Loop model & setup holds it); the last verdict names its window once; the readiness ("Not producing
+ * verdicts") sits above the basis, closed; the basis says what is inside it on its own head.
  */
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -33,7 +37,7 @@ import { workbenchHref } from '../../evidence/selection';
 import { trendPeriodOf } from '../../trend/trendPeriod';
 import { pinEvaluated, revealTrend } from '../../trend/evaluatedWindow';
 import {
-  ageText, conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, windowAgeOf,
+  conditionOf, evidenceOf, leadingCauseOf, limitationsOf, nextCheckOf, primaryActionOf, windowAgeOf,
 } from './summaryText';
 import { EVIDENCE_SCORE_HELP } from '../../evidenceScore';
 import { inputContextOf } from '../../optionalInputs';
@@ -71,7 +75,9 @@ export const LoopSummaryCard: React.FC<{
   moreLine?: string;
   /** Called when a button here takes the user to the page behind, so a popup can close. */
   onLeave?: () => void;
-}> = ({ loop, matrix, windowKind, healthLabel, more, moreLine, onLeave }) => {
+  /** CHG-158: a blocking readiness bar, between the next check and the basis. */
+  readiness?: React.ReactNode;
+}> = ({ loop, matrix, windowKind, healthLabel, more, moreLine, onLeave, readiness }) => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const workbench = workbenchExit(loop.loopId, matrix, windowKind);
@@ -103,28 +109,17 @@ export const LoopSummaryCard: React.FC<{
   ].filter(Boolean).join(' · ');
 
   return (
-    <section className={`cpm-loop-summary cpm-loop-summary--${condition.tone}`} aria-label="Loop summary">
+    <section className="cpm-loop-summary" aria-label="Loop summary">
       <div className="cpm-loop-summary__head">
-        <div>
-          <span className="cpm-eyebrow">
-            Loop summary
-            {windowAge && <strong className="cpm-loop-summary__stale"> · window ended {windowAge}</strong>}
-          </span>
-          <h2 className="cpm-loop-summary__condition">{condition.label}</h2>
-        </div>
-        {finding && matrix.severity && (
-          <span className="cpm-loop-summary__severity">
-            <TonePill tone={toneFor(matrix.severity)}>Severity {matrix.severity.toLowerCase()}</TonePill>
-            <span className="cpm-loop-summary__muted">loop criticality {loop.criticality}</span>
-          </span>
-        )}
+        <h3 className="cpm-loop-summary__condition">{condition.label}</h3>
+        {windowAge && <span className="cpm-band__tag">window ended {windowAge}</span>}
+        {finding && matrix.severity && <TonePill tone={toneFor(matrix.severity)}>Severity {matrix.severity.toLowerCase()}</TonePill>}
       </div>
 
       {last && (
         <p className="cpm-loop-summary__note">
-          The newest window has no verdict. Last verdict: <strong>{conditionOf(last.diagnosis).label}</strong>
-          {last.windowEnd ? `, window ending ${fmtInstant(last.windowEnd)}` : ''}
-          {last.ageMs != null ? ` (${ageText(last.ageMs)})` : ''}.
+          Last verdict: <strong>{conditionOf(last.diagnosis).label}</strong>
+          {last.windowEnd ? ` · window ending ${fmtInstant(last.windowEnd)}` : ''}
         </p>
       )}
 
@@ -147,7 +142,7 @@ export const LoopSummaryCard: React.FC<{
       <div className="cpm-loop-summary__next">
         <span className="cpm-loop-summary__label">Next check</span>
         {/* CHG-098: two lines at most here; the full recommendation is on the Investigation */}
-        <p className="cpm-loop-summary__next-text" title={next}>{next}</p>
+        {next && <p className="cpm-loop-summary__next-text" title={next}>{next}</p>}
         <span className="cpm-loop-summary__actions">
           <ObcButton variant="raised" onClick={() => navigate(actionHref)}>{action.label}</ObcButton>
           {canPin && (
@@ -162,9 +157,11 @@ export const LoopSummaryCard: React.FC<{
         </span>
       </div>
 
+      {readiness}
+
       {/* CHG-098 (SME review 2 #20): the long basis behind one disclosure */}
       <div className="cpm-loop-summary__more">
-        <Accordion label="Basis and limitations" open={basisOpen} onToggle={setBasisOpen}>
+        <Accordion label="Basis and limitations" hint={!basisOpen && basisLine ? basisLine : undefined} open={basisOpen} onToggle={setBasisOpen}>
           <div className="cpm-collapsible__body">
             {basisOpen && (
               <>
@@ -194,8 +191,8 @@ export const LoopSummaryCard: React.FC<{
                   )}
                   <Row label="Data">
                     {matrix.sampleCount != null ? `${matrix.sampleCount.toLocaleString()} samples · ` : ''}
+                    {/* CHG-158: the age is beside the condition, not again here */}
                     {fmtPeriod({ label: 'window', start: matrix.windowStart, end: matrix.windowEnd })}
-                    {windowAge && <strong className="cpm-loop-summary__stale"> · ended {windowAge}</strong>}
                   </Row>
                   {limits.length > 0 && (
                     <Row label="Limitations">
@@ -215,7 +212,6 @@ export const LoopSummaryCard: React.FC<{
             )}
           </div>
         </Accordion>
-        {!basisOpen && basisLine && <p className="cpm-collapsible__summary">{basisLine}</p>}
       </div>
     </section>
   );

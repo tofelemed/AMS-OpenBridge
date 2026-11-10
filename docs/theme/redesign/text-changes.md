@@ -1319,3 +1319,21 @@ Removed on the owner's instruction (8 Nov): the `?` on the Overview title; in th
 |---|---|---|
 | Gate dialog, More about this gate | Open in workbench → / Open in Evidence Replay → / Open full loop ↗ (raised and outlined buttons) | Workbench → / Replay → / Loop ↗ (flat links under a line) |
 | Gate dialog, More about this gate | parts touching each other | space above each part |
+
+## CHG-158 owner review: Loop Explorer
+
+Removed on the owner's instruction (10 Nov): the `?` on the Loop Explorer title; the site / area / unit groups in the loop list (the header scope sets them); "Latest 12h ·" in the band (the page switch says the window, and the window end is said once); the gate key printed under the gate tiles (Gate key opens it); in the Loop summary dialog, the loop name, type, criticality, location and instrument health line, "The newest window has no verdict.", the age after the last verdict's window, "loop criticality …" beside the severity, and the age repeated in the Data row.
+
+| Where | Was | Now |
+|---|---|---|
+| Loop Explorer title | Loop Explorer `?` | Loop Explorer |
+| Band, result | Latest 12h · 7 Nov · 11:45 · Not evaluated: not enough data · persisting 36 days · window ended 3 days ago | Not evaluated: not enough data · window ended 3 days ago (time on hover), then persisting 36 days on the line under it; a recent window: window ended 10 Nov · 11:45 on that line |
+| Band, buttons | Review evidence → / Open details (flat) | Review evidence → / Open details (outlined) |
+| Summary tab | Loop model & setup → on a row of its own | Loop model & setup → at the end of the tab row |
+| PV, SP, OP, Mode | value, then "%" under OP; "last stored 3 days ago" once beside the signal quality | value with its unit beside it; under each value: live / last received … / from historian / last stored … |
+| Trend toolbar | Historical ↗ at the end; Show evaluated period →, Compare with previous window, Compare with now on rows under it | Historical ↗ and Trend ↗ after Live; the evaluated-window buttons at the end of the toolbar |
+| Gate results | key under the tiles with Full key | Gate key button in the panel head |
+| Loop summary dialog, title | Loop summary · FIC10401 | Loop summary |
+| Loop summary dialog, last verdict | The newest window has no verdict. Last verdict: X, window ending … (3 days ago). | Last verdict: X · window ending … |
+| Not producing verdicts | n to fix · n blocking (text) | n blocking, n to fix (marked counts); each cause's kind as a marked word; opens closed |
+| Basis and limitations | its summary line under the closed box | its summary line inside the box, under the label |

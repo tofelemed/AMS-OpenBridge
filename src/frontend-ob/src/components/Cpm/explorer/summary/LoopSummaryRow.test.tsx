@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The assessment in the band, on Summary only: the result, one fact line, Review evidence →, and a quiet Open details.
- * A stale or blocked loop cannot look fine without a click (CHG-129).
+ * The assessment in the band, on Summary only: the result and its age, one fact line, Review evidence → and Open details.
+ * A stale or blocked loop cannot look fine without a click (CHG-129); the window end is said once (CHG-158).
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +11,8 @@ import type { CpmLoop } from '../../../../api/cpmApi';
 
 const hooks = vi.hoisted(() => ({ gates: vi.fn(), readiness: vi.fn(), events: vi.fn(), kpis: vi.fn() }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { type: 'button', onClick: p.onClick }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; variant?: string }) =>
+    React.createElement('button', { type: 'button', onClick: p.onClick, 'data-variant': p.variant }, p.children),
 }));
 vi.mock('../../../../hooks/useCpm', () => ({
   useLatestGates: hooks.gates, useCpmReadiness: hooks.readiness, useCpmEvents: hooks.events,
@@ -52,23 +53,34 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('LoopSummaryRow', () => {
-  it('shows the assessment in the band: result, one fact line, Review evidence →, Open details', () => {
+  const headline = (c: HTMLElement) => c.querySelector('.cpm-band__headline')?.textContent ?? '';
+  const facts = (c: HTMLElement) => c.querySelector('.cpm-band__facts')?.textContent ?? '';
+
+  // CHG-158 (owner review): the result and its age on one line, the facts under it, two outlined buttons at the end
+  it('shows the result on one line and the facts under it, then Review evidence → and Open details', () => {
     const { container } = row();
-    const text = band(container);
-    expect(text).toMatch(/Latest 12h · /);
-    expect(text).toMatch(/Oscillation/i);
-    expect(text).toContain('13 % in band · persisting 11 h · evidence score 100');
-    expect(text).not.toMatch(/Loop summary/);
-    expect(screen.getByRole('button', { name: 'Review evidence →' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Open details' })).toBeTruthy();
+    expect(headline(container)).toMatch(/Oscillation/i);
+    expect(facts(container)).toContain('13 % in band · persisting 11 h · evidence score 100');
+    expect(band(container)).not.toMatch(/Loop summary|Latest/);
+    for (const name of ['Review evidence →', 'Open details'])
+      expect(screen.getByRole('button', { name }).getAttribute('data-variant')).toBe('normal');
   });
 
-  it('prints the window end short, once: "Latest 12h · 6 Nov · 23:45"', () => {
-    hooks.gates.mockReturnValue({ data: { diagnosis: 'SUSPECTED_OSCILLATION', confidence: 1, windowEnd: '2026-11-06T23:45:00Z', gates: [] }, isLoading: false, isError: false });
+  it('says when a recent window ended once, without the window kind the page switch already shows', () => {
     const { container } = row();
-    expect(band(container)).toMatch(/Latest 12h · [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2}$|Latest 12h · [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2}[^:]/);
-    expect(band(container)).not.toMatch(/UTC|[0-9]{2}[/][0-9]{2}[/][0-9]{4}/);
-    expect(band(container).match(/Latest 12h/g)).toHaveLength(1);
+    expect(facts(container)).toMatch(/^window ended [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2} · 13 % in band/);
+    expect(band(container).match(/window ended/g)).toHaveLength(1);
+    expect(band(container)).not.toMatch(/12h|UTC/);
+    expect(container.querySelector('.cpm-band__tag')).toBeNull();
+  });
+
+  it('flags an old window by its age only, with the time on hover', () => {
+    hooks.gates.mockReturnValue({ data: { diagnosis: 'INSUFFICIENT_DATA', windowEnd: new Date(Date.now() - 26 * 86_400_000).toISOString(), gates: [] }, isLoading: false, isError: false });
+    const { container } = row();
+    const tag = container.querySelector('.cpm-band__headline .cpm-band__tag')!;
+    expect(tag.textContent).toBe('window ended 26 days ago');
+    expect(tag.getAttribute('title')).toMatch(/^The latest 12h window ended [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2}$/);
+    expect(band(container).match(/window ended/g)).toHaveLength(1);
   });
 
   it('opens the Workbench from Review evidence →', () => {
@@ -80,31 +92,34 @@ describe('LoopSummaryRow', () => {
   it('leaves persistence out, never as 0, when no episode of this window kind is open', () => {
     hooks.events.mockReturnValue({ data: { events: [{ window_kind: '24h', closed_at: null, opened_at: new Date().toISOString() }] } });
     const { container } = row();
-    expect(band(container)).toContain('13 % in band · evidence score 100');
+    expect(facts(container)).toContain('13 % in band · evidence score 100');
     expect(band(container)).not.toMatch(/persisting/);
   });
 
-  it('keeps the age and the blocking count in the band', () => {
+  it('keeps the age and the blocking count on the result line', () => {
     hooks.gates.mockReturnValue({ data: { diagnosis: 'INSUFFICIENT_DATA', windowEnd: new Date(Date.now() - 26 * 86_400_000).toISOString(), gates: [] }, isLoading: false, isError: false });
     hooks.readiness.mockReturnValue({ data: { blocking: 1, causes: [], notes: [] } });
     const { container } = row();
-    expect(band(container)).toMatch(/not enough data/i);
-    expect(band(container)).toMatch(/window ended 26 days ago/);
-    expect(band(container)).toMatch(/1 blocking/);
+    expect(headline(container)).toMatch(/not enough data/i);
+    expect(headline(container)).toMatch(/window ended 26 days ago/);
+    expect(headline(container)).toMatch(/1 blocking/);
   });
 
   it('says so when the verdict could not be read', () => {
     hooks.gates.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new Error('boom') });
     const { container } = row();
-    expect(band(container)).toMatch(/Verdict unavailable/);
+    expect(headline(container)).toMatch(/Verdict unavailable/);
   });
 
-  it('holds the card, the readiness and the location behind Open details', () => {
+  // CHG-158: the name, location, type, criticality and instrument health are not repeated in the dialog
+  it('holds the card and the readiness behind Open details, without repeating who the loop is', () => {
     row();
     expect(screen.queryByTestId('summary-card')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
-    expect(screen.getByRole('dialog', { name: /Loop summary · FIC00701/ })).toBeTruthy();
+    const d = screen.getByRole('dialog', { name: 'Loop summary' });
     expect(screen.getByTestId('summary-card')).toBeTruthy();
-    expect(screen.getByRole('dialog').textContent).toContain('Flow controller (FCS0102)');
+    for (const gone of [/Flow controller/, /criticality/i, /hdpe|s200/, /Instrument health/i, /FIC00701/])
+      expect(d.textContent).not.toMatch(gone);
+    expect(screen.queryByRole('button', { name: /Instrument health/i })).toBeNull();
   });
 });

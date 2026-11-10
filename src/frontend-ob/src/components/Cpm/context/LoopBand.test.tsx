@@ -79,6 +79,21 @@ describe('LoopBand', () => {
     expect(screen.getAllByText('Retired')).toHaveLength(2);
   });
 
+  // CHG-158: the header sets the plant scope, so the list is the loops themselves, by tag, with no site / area / unit groups
+  it('lists the loops flat, by tag, without the plant groups', () => {
+    const { container } = band('/cpm/loop');
+    fireEvent.click(control());
+    expect(container.ownerDocument.querySelector('.cpm-tree__group-head')).toBeNull();
+    expect([...container.ownerDocument.querySelectorAll('.cpm-tree-item strong')].map(s => s.textContent)).toEqual(['FIC00701', 'OLD00001', 'TIC10101']);
+  });
+
+  it('draws the band as a card when the page asks for it', () => {
+    const { container } = band('/cpm/loop', { card: true });
+    expect(container.querySelector('.cpm-band--card')).toBeTruthy();
+    cleanup();
+    expect(band('/cpm/loop').container.querySelector('.cpm-band--card')).toBeNull();
+  });
+
   it('marks nothing on a loop that runs', () => {
     band('/cpm/loop');
     fireEvent.click(control());

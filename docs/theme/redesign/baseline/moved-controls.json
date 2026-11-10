@@ -100,6 +100,10 @@
     {
       "pattern": "^(never evaluated|not assessable|oscillating|stale|performing acceptably|suspected valve problem|excessive actuator effort|saturated / at limit|in manual mode|needs review|with a finding) \\( \\)$",
       "why": "the Loop state breakdown legend links, removed with the bar on the owner's instruction (CHG-155); every state still opens from its KPI card"
+    },
+    {
+      "pattern": "^[▾▸]? ?[a-z0-9_]+ / [a-z0-9_ ./-]+ [0-9]+$",
+      "why": "CHG-158: the loop list is flat; the header scope sets the site, area and unit, so the list no longer has group heads"
     }
   ]
 }

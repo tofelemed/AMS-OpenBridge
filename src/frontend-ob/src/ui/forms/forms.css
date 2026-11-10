@@ -144,6 +144,8 @@
   cursor: not-allowed;
 }
 .ui-accordion__label { min-width: 0; overflow-wrap: anywhere; }
+.ui-accordion__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-block: var(--traverse-space-2); }
+.ui-accordion__hint { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 400; }
 .ui-accordion[open] > .ui-accordion__summary .ui-accordion__chevron { transform: rotate(180deg); }
 
 .ui-pagination {

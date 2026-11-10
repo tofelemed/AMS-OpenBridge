@@ -1,15 +1,28 @@
 /* Loop Explorer, Summary. Placement only; the one new size is the PV, SP, OP and Mode row, which the owner asked for. */
 
-.cpm-explorer-tools { display: flex; justify-content: flex-end; margin-bottom: var(--traverse-space-2); }
+/* CHG-158 (owner review): Loop model & setup → at the end of the tab row; the row carries the one underline */
+.cpm-tabs-row { display: flex; align-items: center; gap: var(--traverse-space-3); margin: var(--traverse-space-3) 0 var(--traverse-space-1); border-bottom: 1px solid var(--traverse-border-subtle); }
+.cpm-tabs-row > .cpm-tabs { flex: 1 1 auto; min-width: 0; margin: 0; }
+.cpm-tabs-row .ui-tabs { border-bottom: 0; }
+.cpm-tabs-row__end { flex: none; }
 
-/* PV, SP, OP, Mode and the signal quality in one row of small cards */
-.cpm-signal-strip { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
+/* PV, SP, OP and Mode as one joined group of readings, the signal quality at the end of the row (CHG-158, the owner's design).
+   The 1 px grid gap over the border colour draws the dividers, whichever way the group wraps. */
+.cpm-signal-strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); margin-bottom: var(--traverse-space-3); }
+.cpm-signal-group {
+  display: grid; grid-template-columns: repeat(4, minmax(7rem, max-content)); gap: 1px; overflow: hidden;
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-border-subtle);
+}
+.cpm-signal-group > .cpm-signal { padding: var(--traverse-space-2) var(--traverse-space-4); border: 0; border-radius: 0; }
+.cpm-signal__reading { display: inline-flex; align-items: baseline; gap: var(--traverse-space-1); }
+.cpm-signal__unit { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
+@media (max-width: 640px) { .cpm-signal-group { flex: 1 1 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .cpm-signal {
   display: flex; flex-direction: column; min-width: 0; padding: var(--traverse-space-1) var(--traverse-space-3);
   border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-panel);
 }
 .cpm-signal__caption { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); letter-spacing: 0.05em; }
-.cpm-signal__value { font-size: 1.1rem; font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
+.cpm-signal__value { font-size: var(--traverse-type-section); font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
 .cpm-signal__sub { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
 .cpm-signal-strip__quality { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); margin: 0 0 0 auto; }
 .cpm-signal-strip__age { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
@@ -36,3 +49,28 @@ button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor
 .cpm-gate-tile--warn .cpm-gate-tile__mark { color: var(--traverse-status-warning-fg); }
 .cpm-gate-tile--bad .cpm-gate-tile__mark { color: var(--traverse-status-danger-fg); }
 .cpm-gate-tile--muted .cpm-gate-tile__mark { color: var(--traverse-text-muted); }
+
+/* CHG-158: the trend toolbar is a strip across the panel, holding every trend button */
+.cpm-loop-trend > .cpm-range-bar {
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4));
+  padding: var(--traverse-space-3) var(--traverse-space-4);
+  border-block: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+}
+.cpm-loop-trend .cpm-range-bar__end { flex-wrap: wrap; }
+
+/* CHG-158: "Not producing verdicts" — the counts in its head, each cause's kind as a marked word (the owner's design) */
+.cpm-causes__headline { flex: none; }
+.cpm-causes__counts { display: inline-flex; flex-wrap: wrap; gap: var(--traverse-space-1); margin-inline-start: auto; }
+.cpm-causes__counts + .cpm-causes__caret { margin-left: 0; }
+.cpm-causes__count {
+  padding: 0 var(--traverse-space-2); border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
+  background: var(--traverse-surface-panel); color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 600;
+}
+.cpm-causes__count--bad { border-color: var(--traverse-status-danger-bg); background: var(--traverse-status-danger-bg); color: var(--traverse-status-danger-fg); }
+.cpm-causes__count--warn { border-color: var(--traverse-status-warning-fg); color: var(--traverse-status-warning-fg); }
+.cpm-causes__title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-1) var(--traverse-space-2); }
+.cpm-causes__kind { display: inline-flex; align-items: center; gap: var(--traverse-space-1); font-size: var(--traverse-type-metadata); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.cpm-causes__kind::before { content: ''; width: var(--traverse-space-2); height: var(--traverse-space-2); border-radius: 50%; background: currentColor; }
+.cpm-causes__kind--bad { color: var(--traverse-status-danger-fg); }
+.cpm-causes__kind--warn { color: var(--traverse-status-warning-fg); }
+.cpm-causes__kind--muted { color: var(--traverse-text-secondary); }

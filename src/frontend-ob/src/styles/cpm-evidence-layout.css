@@ -142,7 +142,6 @@
 /* CHG-098 (SME review 2 #24): the legend is grouped (checks / window / symptoms / result / no result); the full
    matrix headers carry the gate's readable name under its code (folded into the abbr tooltip below 1000 px); the
    default "Checks behind the result" view lists only the gates that move each loop's result, as named chips. */
-.cpm-gate-legend__group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .cpm-gate-legend__group-label {
   font-size: var(--cpm-text-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--element-active-color);
 }

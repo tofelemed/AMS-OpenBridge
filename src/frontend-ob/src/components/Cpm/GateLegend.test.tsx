@@ -2,7 +2,7 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { GateLegend } from './GateLegend';
+import { GateKeyButton, GateLegend } from './GateLegend';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
@@ -17,11 +17,13 @@ describe('GateLegend', () => {
     expect(screen.getByText('ruled out')).toBeTruthy();
   });
 
-  it('shows the common marks in one row when compact, and the rest behind Full key', () => {
-    render(<GateLegend compact />);
-    expect(screen.getByText('symptom seen')).toBeTruthy();
-    expect(screen.queryByText('ruled out')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Full key' }));
-    expect(within(screen.getByRole('dialog', { name: 'Gate status key' })).getByText('ruled out')).toBeTruthy();
+  // CHG-158: no key printed on the page; one button opens it
+  it('keeps the key behind a Gate key button until it is opened', () => {
+    render(<GateKeyButton />);
+    expect(screen.queryByText('symptom seen')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Gate key' }));
+    const d = screen.getByRole('dialog', { name: 'Gate status key' });
+    expect(within(d).getByText('ruled out')).toBeTruthy();
+    expect(within(d).getByText('symptom seen')).toBeTruthy();
   });
 });

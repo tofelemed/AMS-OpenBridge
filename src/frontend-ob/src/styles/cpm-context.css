@@ -53,6 +53,20 @@
 .cpm-band__meta { color: var(--traverse-text-secondary); }
 .cpm-band .cpm-evidence-toolbar__window { max-width: 320px; }
 
+/* CHG-158 (owner review): the Loop Explorer draws the band as a card on the page background, as the owner's design shows:
+   the loop, a divider, the result and its age over one fact line, the buttons at the end. */
+.cpm-loop-context.cpm-band--card { background: var(--traverse-surface-page); border-bottom: 0; }
+.cpm-band--card .cpm-band__row {
+  padding: var(--traverse-space-3) var(--traverse-space-4);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-panel); background: var(--traverse-surface-panel);
+}
+.cpm-band__result--stack {
+  flex-direction: column; align-items: flex-start; gap: var(--traverse-space-1);
+  padding-inline-start: var(--traverse-space-4); border-inline-start: 1px solid var(--traverse-border-subtle);
+}
+.cpm-band__headline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); margin: 0; font-size: var(--traverse-type-body); }
+.cpm-band__facts { margin: 0; color: var(--traverse-text-secondary); }
+
 .cpm-evidence-more { display: flex; flex-direction: column; gap: var(--traverse-space-3); box-sizing: border-box; width: 320px; max-width: 100%; }
 
 /* The band stays put while the page scrolls, so a tall panel has to scroll inside itself. */
@@ -66,6 +80,7 @@
 }
 @media (max-width: 640px) {
   .cpm-band__loop { width: 100%; }
+  .cpm-band__result--stack { padding-inline-start: 0; border-inline-start: 0; }
   .cpm-band .ui-popover:first-child { flex: 1 1 100%; }
   .cpm-band .cpm-select, .cpm-band .cpm-evidence-toolbar__window { max-width: 100%; }
 }

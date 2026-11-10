@@ -46,6 +46,29 @@ describe('LoopSummaryCard', () => {
     expect(screen.getByText('Run a valve travel test on FV10405.')).toBeTruthy();
   });
 
+  // CHG-158 (owner review): the dialog title names the summary; criticality is on Loop model & setup
+  it('repeats neither the dialog title nor the loop criticality', () => {
+    renderCard();
+    expect(screen.queryByText(/Loop summary/)).toBeNull();
+    expect(screen.queryByText(/criticality/i)).toBeNull();
+  });
+
+  it('gives the last verdict and its window once, without the age again', () => {
+    const none = { ...matrix, diagnosis: 'INSUFFICIENT_DATA', severity: null, confidence: null,
+      lastVerdict: { diagnosis: 'CONFIRMED_OSCILLATION', windowEnd: '2026-11-06T22:45:00Z', confidence: 1, ageMs: 3 * 86_400_000 } } as unknown as CpmGateMatrix;
+    render(<MemoryRouter><LoopSummaryCard loop={loop} matrix={none} windowKind="12h" /></MemoryRouter>);
+    const line = screen.getByText(/^Last verdict:/).closest('p')!;
+    expect(line.textContent).toMatch(/^Last verdict: Oscillation confirmed · window ending [0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}/);
+    expect(line.textContent).not.toMatch(/ago|newest window/);
+  });
+
+  it('puts the age of an old window beside the condition', () => {
+    const old = { ...matrix, windowEnd: new Date(Date.now() - 3 * 86_400_000).toISOString() } as unknown as CpmGateMatrix;
+    render(<MemoryRouter><LoopSummaryCard loop={loop} matrix={old} windowKind="12h" /></MemoryRouter>);
+    const head = screen.getByRole('heading', { name: 'Oscillation confirmed' }).parentElement!;
+    expect(head.querySelector('.cpm-band__tag')?.textContent).toBe('window ended 3 days ago');
+  });
+
   it('keeps the basis, data and limitations behind one closed disclosure with a one-line summary', () => {
     renderCard(<div data-testid="readiness">readiness</div>, '1 plant fact(s)');
     const toggle = screen.getByText('Basis and limitations').closest('summary')!;
@@ -53,7 +76,7 @@ describe('LoopSummaryCard', () => {
     expect(screen.queryByText('Basis')).toBeNull();
     expect(screen.queryByText('Data')).toBeNull();
     expect(screen.queryByTestId('readiness')).toBeNull();
-    expect(screen.getByText(/8,640 samples · 1 plant fact\(s\)/)).toBeTruthy();
+    expect(toggle.textContent).toMatch(/8,640 samples · 1 plant fact\(s\)/);
     fireEvent.click(toggle);
     expect(toggle.closest('details')!.open).toBe(true);
     expect(screen.getByText('Basis')).toBeTruthy();

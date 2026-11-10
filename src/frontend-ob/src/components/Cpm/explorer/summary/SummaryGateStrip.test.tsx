@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-/** Gate results: tiles under their tier, the mark over the key and the word in the spoken label; a short key with the full one a click away. */
+/** Gate results: tiles under their tier, the mark over the key and the word in the spoken label; no key under them. */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { CpmGateCell } from '../../../../api/cpm/gates';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -48,10 +48,10 @@ describe('SummaryGateStrip', () => {
     expect(document.activeElement?.getAttribute('data-gate')).toBe('G15');
   });
 
-  it('gives the short key, and the full key in a dialog', () => {
+  // CHG-158: the key is not printed under the tiles; the Gate key button in the panel head opens it
+  it('prints no key under the tiles', () => {
     render(<SummaryGateStrip cells={CELLS} selected={null} onSelect={() => {}} />);
-    expect(screen.getByRole('note', { name: 'Gate symbols' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Full key' }));
-    expect(within(screen.getByRole('dialog', { name: 'Gate status key' })).getByRole('note', { name: 'Gate symbols' })).toBeTruthy();
+    expect(screen.queryByRole('note', { name: 'Gate symbols' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Full key' })).toBeNull();
   });
 });

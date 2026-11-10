@@ -1,17 +1,13 @@
 'use client';
 
 /**
- * The loop list: search plus a collapsible site/area/unit tree. The Explorer
- * shows it while no loop is open, and the loop band opens it from its control.
+ * The loop list: search, then the loops by tag. The Explorer shows it while no loop is open, and the loop band opens it
+ * from its control.
  *
- * What changed and why:
- * - The plant scope is not set here. It writes `?site=&area=&unit=` and follows
- *   you to every other CPM screen, so it is page scope, not list scope: its
+ * - The plant scope is not set here. It writes `?site=&area=&unit=` and follows you to every other CPM screen, so its
  *   control sits in the application header and this list only follows it.
- * - Groups collapse and carry counts. The previous render flattened
- *   site/area/unit into one string key and emitted a flat button list with no
- *   way to fold anything — 200 loops meant 200 buttons and no navigation by
- *   area, which is how the plant is actually organised.
+ * - CHG-158 (owner review): the list is flat. The header already narrows it to a site, area or unit, so grouping the
+ *   loops by that hierarchy again here repeated it.
  * - The list states how much of the fleet it is showing.
  */
 import React from 'react';
@@ -22,16 +18,6 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { EmptyState, QueryError, TonePill } from '../shared';
 import { loopMatchesQuery } from '../plantScope';
-
-/**
- * Above this many visible loops the tree stops opening every group — at plant
- * scale "everything expanded" is the same undifferentiated wall the flat list
- * was. Below it, collapsing would just add clicks.
- */
-const AUTO_EXPAND_MAX = 40;
-
-const groupKey = (l: CpmLoop) =>
-  [l.site || 'unassigned', l.area, l.unit].filter(Boolean).join(' / ');
 
 export interface LoopTreeProps {
   loops: CpmLoop[];
@@ -52,33 +38,10 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
 }) => {
   const [draft, setDraft] = React.useState('');
   const search = useDebounce(draft, 200);
-  const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
-
-  const groups = React.useMemo(() => {
-    const byLocation = new Map<string, CpmLoop[]>();
-    for (const l of loops.filter(x => loopMatchesQuery(x, search))) {
-      const key = groupKey(l);
-      if (!byLocation.has(key)) byLocation.set(key, []);
-      byLocation.get(key)!.push(l);
-    }
-    return [...byLocation.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [loops, search]);
-
-  const visibleCount = groups.reduce((n, [, ls]) => n + ls.length, 0);
-  const activeGroup = React.useMemo(() => {
-    const active = loops.find(l => l.loopId === selectedLoopId);
-    return active ? groupKey(active) : null;
-  }, [loops, selectedLoopId]);
-
-  // Default openness is derived, not stored, so it re-evaluates when the scope
-  // or the search changes; an explicit toggle overrides it for that group only.
-  const defaultOpen = React.useCallback((key: string) =>
-    search.trim().length > 0 || visibleCount <= AUTO_EXPAND_MAX || key === activeGroup,
-  [search, visibleCount, activeGroup]);
-
-  const isOpen = (key: string) => overrides[key] ?? defaultOpen(key);
-  const toggle = (key: string) =>
-    setOverrides(o => ({ ...o, [key]: !(o[key] ?? defaultOpen(key)) }));
+  const shown = React.useMemo(
+    () => loops.filter(l => loopMatchesQuery(l, search)).sort((a, b) => a.loopId.localeCompare(b.loopId)),
+    [loops, search],
+  );
 
   return (
     <>
@@ -86,7 +49,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
 
       {!isLoading && !isError && (
         <p className="cpm-tree__count" aria-live="polite">
-          {visibleCount} of {totalLoops} loop(s)
+          {shown.length} of {totalLoops} loop(s)
         </p>
       )}
 
@@ -94,7 +57,7 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
       {isError && (
         <QueryError title="Loop registry unavailable" error={error} retry={retry} />
       )}
-      {!isLoading && !isError && groups.length === 0 && (
+      {!isLoading && !isError && shown.length === 0 && (
         <EmptyState
           title="No loops"
           copy={search ? 'Nothing matches the search.' : 'Onboard loops in the Loop Registry.'}
@@ -105,41 +68,23 @@ export const LoopTree: React.FC<LoopTreeProps> = ({
       )}
 
       <div className="cpm-tree">
-        {groups.map(([key, groupLoops]) => {
-          const open = isOpen(key);
-          return (
-            <div key={key} className="cpm-tree__group">
-              <button
-                type="button"
-                className="cpm-tree__group-head"
-                aria-expanded={open}
-                onClick={() => toggle(key)}
-              >
-                <span className="cpm-tree__caret" aria-hidden>{open ? '▾' : '▸'}</span>
-                <span className="cpm-tree__group-name">{key}</span>
-                <span className="cpm-tree__group-count">{groupLoops.length}</span>
-              </button>
-              {open && groupLoops.map(l => (
-                <button
-                  key={l.loopId}
-                  type="button"
-                  className={`cpm-tree-item${l.loopId === selectedLoopId ? ' cpm-tree-item--active' : ''}`}
-                  aria-current={l.loopId === selectedLoopId ? 'true' : undefined}
-                  // replace-navigation lives in the parent: selecting a loop is
-                  // in-page selection in a master-detail view, not a page visit.
-                  onClick={() => onSelect(l.loopId)}
-                >
-                  <strong>{l.loopId}</strong>
-                  <span className="cpm-event-row__sub">{serviceName(l)}</span>
-                  {l.isActive === false && <TonePill tone="muted">Retired</TonePill>}
-                </button>
-              ))}
-            </div>
-          );
-        })}
+        {shown.map(l => (
+          <button
+            key={l.loopId}
+            type="button"
+            className={`cpm-tree-item${l.loopId === selectedLoopId ? ' cpm-tree-item--active' : ''}`}
+            aria-current={l.loopId === selectedLoopId ? 'true' : undefined}
+            // replace-navigation lives in the parent: selecting a loop is in-page selection in a master-detail view, not a page visit.
+            onClick={() => onSelect(l.loopId)}
+          >
+            <strong>{l.loopId}</strong>
+            <span className="cpm-event-row__sub">{serviceName(l)}</span>
+            {l.isActive === false && <TonePill tone="muted">Retired</TonePill>}
+          </button>
+        ))}
       </div>
 
-      {groups.length > 0 && (
+      {shown.length > 0 && (
         <div className="cpm-tree__foot">
           <ObcButton variant="flat" onClick={onOpenRegistry}>Loop Registry ↗</ObcButton>
         </div>

@@ -6056,3 +6056,28 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
 
 **Plant:** not deployed. This branch is not released.
+
+## CHG-158 — CPA owner page review 4: Loop Explorer (2026-11-10, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner's review of the Loop Explorer, with the layout of the PRM-004 design image for the page and the Loop summary dialog.
+
+**Changed.**
+- **Title:** no `?`.
+- **Loop list (Explorer and the loop control on every loop page):** flat, by tag. The header scope already narrows it to a site, area or unit.
+- **Band:** a card on the page background (Loop Explorer only). The result and its age on one line, one fact line under it, Review evidence → and Open details outlined at the end. The window end is said once: its age when old (time on hover), else its time. "Latest 12h" went; the page switch says the window.
+- **Summary tab:** Loop model & setup → at the end of the tab row. PV, SP, OP and Mode as one joined group, the unit beside the value and the source under each value again (live, last received …, from historian, last stored …), as before the redesign. The trend toolbar is a strip with Historical ↗ and the new Trend ↗ (this loop and period on /trend) after Live, and the evaluated-window buttons at its end. The gate key is no longer printed under the tiles; Gate key in the panel head opens it.
+- **Loop summary dialog:** titled Loop summary. It no longer repeats the loop name, type, criticality, location or instrument health (the band names the loop; Loop model & setup holds type and criticality). Condition and age on one line, the last verdict and its window once, Next check with its buttons, then Not producing verdicts (closed, counts in its head, each cause's kind as a marked word) and Basis and limitations (closed, its summary inside the box).
+- **Shared pieces:** the accordion takes an optional one-line hint; the time-range bar takes controls right after Now / Live.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.**
+
+**Plant:** not deployed. This branch is not released.
+
+| Where | Was | Now |
+|---|---|---|
+| Loop list | groups by site / area / unit | loops by tag |
+| Band | Latest 12h · time · result · facts · age (one row) | result · age, then facts (two lines) |
+| PV, SP, OP, Mode | one stored age beside the quality | the source under each value |
+| Trend toolbar | — | Trend ↗ |
+| Gate results | key under the tiles + Full key | Gate key |
+| Loop summary dialog | name, location, type, criticality, instrument health at the top | none of them |

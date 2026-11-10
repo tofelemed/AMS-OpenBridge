@@ -13,8 +13,10 @@ export const Accordion: React.FC<{
   onToggle: (open: boolean) => void;
   disabled?: boolean;
   reason?: string | null;
+  /** One quiet line under the label, saying what is inside (CHG-158). */
+  hint?: string;
   children: React.ReactNode;
-}> = ({ label, open, onToggle, disabled, reason, children }) => {
+}> = ({ label, open, onToggle, disabled, reason, hint, children }) => {
   const why = useDisabledReason(disabled, reason);
   return (
     <>
@@ -28,7 +30,12 @@ export const Accordion: React.FC<{
             if (!disabled) onToggle(!open);
           }}
         >
-          <span className="ui-accordion__label">{label}</span>
+          {hint ? (
+            <span className="ui-accordion__text">
+              <span className="ui-accordion__label">{label}</span>
+              <span className="ui-accordion__hint">{hint}</span>
+            </span>
+          ) : <span className="ui-accordion__label">{label}</span>}
           <span className="ui-icon ui-accordion__chevron"><ObiChevronDownGoogle /></span>
         </summary>
         {children}

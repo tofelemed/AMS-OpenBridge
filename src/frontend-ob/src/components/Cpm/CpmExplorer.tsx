@@ -78,11 +78,13 @@ export const CpmExplorer: React.FC = () => {
       <WorkspaceHeader
         page="/cpm/explorer"
         title="Loop Explorer"
+        // CHG-158 (owner review): no ? on the title
+        copy=""
         actions={<WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />}
       />
       {/* CHG-128: the one loop control. With no loop named the page opens on the list instead, so it is not offered twice. */}
       {requestedId && (
-        <LoopBand loopId={loop?.loopId ?? requestedId} onLoop={selectLoop}
+        <LoopBand card loopId={loop?.loopId ?? requestedId} onLoop={selectLoop}
           onClear={() => setParams(p => { p.delete('loop'); p.delete('gate'); return p; }, { replace: true })}>
           {loop && tab === 'Summary' && (
             <LoopSummaryRow loop={loop} windowKind={windowKind}

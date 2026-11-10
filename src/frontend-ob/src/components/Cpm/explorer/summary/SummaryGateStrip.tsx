@@ -3,7 +3,7 @@
 /**
  * Explorer › Summary › Gate results: the gates of the latest fused window as tiles under their tier, from the cached
  * gates/latest row the workspace already holds, so it costs no request. A tile is the mark over the key; the word is in
- * the spoken label and the gate's dialog, and the short key under the row gives the marks (Full key opens the rest).
+ * the spoken label and the gate's dialog. The key to the marks is behind Gate key in the panel head (CHG-158).
  * Marks and words come only from `gateMark`.
  *
  * A tile needs no run identity to be selectable: selecting opens the gate's dialog with the served cell. One roving
@@ -12,7 +12,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CpmGateCell } from '../../../../api/cpm/gates';
 import GateTierRow from '../../blocks/GateTierRow';
-import { GateLegend } from '../../GateLegend';
 import { buildTierGroups, gateMark, gateName } from '../../gateStatus';
 
 export interface SummaryGateStripProps {
@@ -54,31 +53,28 @@ export const SummaryGateStrip: React.FC<SummaryGateStripProps> = ({ cells, selec
   };
 
   return (
-    <>
-      <div ref={rootRef} role="group" aria-label="Gates of the latest fused window" onKeyDown={onKeyDown}>
-        <GateTierRow gates={keys} tile={key => {
-          const c = byKey.get(key)!;
-          const mark = gateMark(c.status, key, inputFlags);
-          return (
-            <button
-              type="button"
-              className={`cpm-gate-tile cpm-gate-tile--${mark.tone}${key === selected ? ' cpm-gate-tile--selected' : ''}`}
-              data-gate={key}
-              data-mark={mark.meaning}
-              aria-label={`${key} ${gateName(key)}: ${mark.word}`}
-              title={`${gateName(key)} — ${mark.label}`}
-              tabIndex={key === cursor ? 0 : -1}
-              onFocus={() => setCursor(key)}
-              onClick={() => onSelect(key)}
-            >
-              <span className="cpm-gate-tile__mark" aria-hidden>{mark.glyph}</span>
-              <span className="cpm-mono" aria-hidden>{key}</span>
-            </button>
-          );
-        }} />
-      </div>
-      <GateLegend compact />
-    </>
+    <div ref={rootRef} role="group" aria-label="Gates of the latest fused window" onKeyDown={onKeyDown}>
+      <GateTierRow gates={keys} tile={key => {
+        const c = byKey.get(key)!;
+        const mark = gateMark(c.status, key, inputFlags);
+        return (
+          <button
+            type="button"
+            className={`cpm-gate-tile cpm-gate-tile--${mark.tone}${key === selected ? ' cpm-gate-tile--selected' : ''}`}
+            data-gate={key}
+            data-mark={mark.meaning}
+            aria-label={`${key} ${gateName(key)}: ${mark.word}`}
+            title={`${gateName(key)} — ${mark.label}`}
+            tabIndex={key === cursor ? 0 : -1}
+            onFocus={() => setCursor(key)}
+            onClick={() => onSelect(key)}
+          >
+            <span className="cpm-gate-tile__mark" aria-hidden>{mark.glyph}</span>
+            <span className="cpm-mono" aria-hidden>{key}</span>
+          </button>
+        );
+      }} />
+    </div>
   );
 };
 

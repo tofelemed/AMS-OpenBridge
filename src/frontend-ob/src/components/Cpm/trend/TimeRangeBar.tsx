@@ -29,12 +29,14 @@ export interface TimeRangeBarProps {
   onApplyCustom: (from: string, to: string) => string | null;
   /** Shown beside the stepper text, e.g. "live" / "fixed period". */
   stateNote?: string;
+  /** Controls right after Now / Live (CHG-158: Historical ↗ and Trend ↗ on the Explorer). */
+  after?: React.ReactNode;
   /** Extra controls at the end of the row (e.g. "Open in Historical ›"). */
   children?: React.ReactNode;
 }
 
 export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
-  from, to, presets, preset, onPreset, onStep, nowLabel = 'Now', nowTitle, onNow, onApplyCustom, stateNote, children,
+  from, to, presets, preset, onPreset, onStep, nowLabel = 'Now', nowTitle, onNow, onApplyCustom, stateNote, after, children,
 }) => {
   const [draftFrom, setDraftFrom] = React.useState(() => toLocalInput(from));
   const [draftTo, setDraftTo] = React.useState(() => toLocalInput(to));
@@ -71,6 +73,7 @@ export const TimeRangeBar: React.FC<TimeRangeBarProps> = ({
         <ObcButton variant="flat" title="One period later" onClick={() => onStep(1)}>›</ObcButton>
       </div>
       <ObcButton variant="normal" title={nowTitle} onClick={() => { setCustomOpen(false); onNow(); }}>{nowLabel}</ObcButton>
+      {after}
       {children && <span className="cpm-range-bar__end">{children}</span>}
 
       {customOpen && (

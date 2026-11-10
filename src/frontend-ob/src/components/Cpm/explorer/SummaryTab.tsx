@@ -2,9 +2,10 @@
 
 /**
  * Explorer › Summary: the PV, SP, OP and Mode row and the trend (./summary/OperatingState), then this loop's KPIs, then the Gate
- * results of the latest fused window, fed from the gates/latest row the workspace already holds (no request). The loop model is
- * a dialog from "Loop model & setup →". A KPI card or a gate tile (`?gate=`, replace) opens its dialog; the gate's evidence is
- * fetched lazily, only then. The result, its window and Review evidence → are in the band above the tabs.
+ * results of the latest fused window, fed from the gates/latest row the workspace already holds (no request). "Loop model &
+ * setup →" is at the end of the tab row (LoopWorkspace), and the key to the gate marks behind Gate key (CHG-158). A KPI card or a
+ * gate tile (`?gate=`, replace) opens its dialog; the gate's evidence is fetched lazily, only then. The result, its window and
+ * Review evidence → are in the band above the tabs.
  */
 import { pipelineStep, usePipelineAccess } from '../access';
 import React, { Suspense } from 'react';
@@ -18,7 +19,7 @@ import { pipelineHref } from '../cpaHref';
 import { buildTierGroups } from '../gateStatus';
 import { effectiveInputFlags } from '../inputLimits';
 import { inputContextOf } from '../optionalInputs';
-import { LoopModelLink } from './LoopModelCard';
+import { GateKeyButton } from '../GateLegend';
 import OperatingState from './summary/OperatingState';
 import SummaryGateStrip from './summary/SummaryGateStrip';
 import { LoopKpiCards } from './summary/LoopKpiCards';
@@ -49,7 +50,6 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string; onTab: (t
 
   return (
     <div>
-      <div className="cpm-explorer-tools"><LoopModelLink loop={loop} /></div>
       <OperatingState loop={loop} />
 
       {/* KPI Phase 4: this loop's KPIs, judged by the engine's gates, with the change since yesterday */}
@@ -57,7 +57,10 @@ export const SummaryTab: React.FC<{ loop: CpmLoop; windowKind: string; onTab: (t
 
       <section className="cpm-summary-section" aria-label="Gate results">
         <PanelHead title="Gate results"
-          right={<ObcButton variant="flat" onClick={() => onTab('Calculations')}>All calculations →</ObcButton>} />
+          right={<>
+            {cells.length > 0 && <GateKeyButton />}
+            <ObcButton variant="flat" onClick={() => onTab('Calculations')}>All calculations →</ObcButton>
+          </>} />
         {gates.isLoading && <EmptyState title="Loading the latest fused result…" />}
         {failed && <QueryError title="Gate outcomes unavailable" error={gates.error} retry={() => void gates.refetch()} />}
         {noVerdictYet && (
