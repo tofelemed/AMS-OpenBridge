@@ -20,7 +20,9 @@ export const IdentityTab: React.FC<{
   /** The window's flags row; absent when the run's window is not among the loaded windows. */
   flags: WindowFlagsRow | undefined;
   inputs?: InputContext;
-}> = ({ run, manifest, flags, inputs }) => {
+  /** CHG-162: "Calculation v3.0.0 · profile v2.0.0", moved here from the page head. */
+  versions?: string | null;
+}> = ({ run, manifest, flags, inputs, versions }) => {
   const [copied, setCopied] = useState('');
   useEffect(() => {
     if (!copied) return;
@@ -36,6 +38,7 @@ export const IdentityTab: React.FC<{
     <div className="cpm-workbench__tab">
       <section className="cpm-surface">
         <h3 className="cpm-eyebrow">Identity</h3>
+        {versions && <KvRow label="Calculation">{versions}</KvRow>}
         {run ? identity.map(row => (
           <KvRow key={row.label} label={row.label}>
             {PLAIN.has(row.label) ? (row.value ?? '—') : <CopyableId label={row.label} value={row.value} chars={row.label === 'Bundle' ? 16 : 12} />}

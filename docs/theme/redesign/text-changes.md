@@ -1381,3 +1381,19 @@ Changed on the owner's instruction (10–11 Nov): the loop control is a search f
 | Result strip | Result · … · Back to conclusion ↑ (sticky) | removed: the window dropdown names the result on every tab |
 | Evidence, empty trend | … in the Loop Registry. (Historian series: root.site1.cpm.FIC10401) | … in the Loop Registry. |
 | Technical details & engine trace | disclosure at the foot of the page | removed |
+
+## CHG-162 owner review: Evidence Workbench
+
+Changed on the approved sample `samples/workbench-proposal.html` (11 Nov).
+
+| Where | Was | Now |
+|---|---|---|
+| Band | More ▾: Window kind, Load older windows, Jump to date + Go, Newest, Evaluate a window; ‹ Newer · Older ›; Back to Investigation ↗ in the header | Window kind dropdown ("12h fused"), ‹ ›, Newest, Go to date (opens the date), Investigation ↗ outlined at the band's end; Older › past the loaded list loads older windows; Evaluate a window in the gate head |
+| Run bar | 12h pinned run · 8,221 samples · Calculation v3.0.0 · profile v2.0.0 · LOOP RESULT Oscillation confirmed · Run id ↗ · copy · Reconstruct evidence ↗ | gate head row: FUSION / G15 · Decision ▲ Confirmed … Run 8fb7519a (copy) · Reconstruct evidence ↗ · Evaluate a window |
+| Proof, under the tabs | 2026-11-06 10:45:00 → 2026-11-06 22:45:00 · UTC (UTC+00:00) · Nominal 8,624 samples at 5.009 s | foot strip: 12 h window · 6 Nov 10:45 → 6 Nov 22:45 UTC · 8,221 of 8,624 samples at 5 s · Evidence Replay ↗ |
+| Not retained | Evidence not retained for this run (a heading) ? — The verdict and every scalar of this run are valid; only the arrays were not kept. | one line: Evidence not retained for this run ? The verdict and every value of this run stand. |
+| Loading | an unlabelled 360 px box | a 200 px box: Loading the evidence… |
+| Evidence behind it (G15) | Observed / Possible cause / Not assessed — input missing / Not seen in this window, each a long list | Observed: … · Possible cause: … (leading) · Hypotheses ↗ (Investigation's Hypotheses tab) |
+| What remains open (G15) | … · Evidence scores rank the explanations; they are not probabilities. | the note once, on the evidence-score row |
+| Proof links | See rules & parameters → · View signal context → | removed: the tabs above |
+| Versions | in the run bar | Identity & raw: Calculation |

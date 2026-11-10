@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Evidence Workbench (CHG-162 sample)</title>
+<style>
+  /* Traverse tokens. A sample only: nothing here is in the product. Values from lab :4173, FIC10401, 6 Nov 22:45 window. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1220px; padding: 20px 24px 28px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 16px; font-size: 24px; font-weight: 600; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; }
+  .field small { color: var(--text2); font-size: 13px; }
+  .vr { align-self: stretch; width: 1px; background: var(--border); } .grow { flex: 1; }
+  .btn { height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 6px; color: var(--action); font-weight: 600; white-space: nowrap; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); }
+  .icon { width: 32px; justify-content: center; padding: 0; border: 1px solid var(--strong); color: var(--text); }
+  .layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: start; }
+  .rail h4 { margin: 10px 0 4px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); font-weight: 600; }
+  .rail h4:first-child { margin-top: 0; }
+  .g { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; margin-bottom: 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); font-size: 13px; }
+  .g b { font-family: ui-monospace, Consolas, monospace; font-weight: 400; color: var(--text2); font-size: 12px; }
+  .g--warn { background: #8A5700; border-color: #8A5700; color: #fff; } .g--warn b { color: #fff; }
+  .g--bad { background: #B42332; border-color: #B42332; color: #fff; } .g--bad b { color: #fff; }
+  .g--on { outline: 2px solid var(--action); outline-offset: 1px; }
+  .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .pill { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--raised); color: var(--text2); white-space: nowrap; }
+  .pill--warn { background: var(--warn-bg); color: var(--warn); } .pill--bad { background: var(--bad-bg); color: var(--bad); }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 12px 8px; border-bottom: 2px solid transparent; color: var(--text2); }
+  .tab--on { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .body { padding: 14px 16px; display: grid; gap: 14px; }
+  .note { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-inline-start: 3px solid var(--info); background: var(--info-bg); }
+  .sec h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); font-weight: 600; }
+  .kv { display: grid; grid-template-columns: 260px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .kv:last-child { border: 0; } .kv span:first-child { color: var(--text2); } .kv small { color: var(--text2); }
+  ul { margin: 0; padding-inline-start: 18px; }
+  .foot { display: flex; align-items: center; gap: 12px; padding: 4px 16px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; color: var(--text2); }
+  .chart { height: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; align-items: flex-end; gap: 6px; }
+  .chart i { flex: 1; background: #006B83; border-radius: 2px 2px 0 0; }
+  .ann { position: relative; }
+  .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 2; }
+  [data-state] { display: none; } [data-state].on { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Understand the cause</span>
+  <h1 class="ann" data-n="1" style="display:inline-block;padding-inline-end:14px">Evidence Workbench</h1>
+
+  <!-- Band card: loop | type, window, step, Newest, date ... Investigation -->
+  <div class="card band ann" data-n="2">
+    <span class="field" style="min-width:270px">&#x1F50D;&#xFE0E; <span><strong>FIC10401</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+    <span class="vr"></span>
+    <span class="field" style="min-width:120px">12h fused<span class="grow"></span>&#9662;</span>
+    <span class="field" style="min-width:270px" data-window>6 Nov 22:45 · Oscillation confirmed<span class="grow"></span>&#9662;</span>
+    <span class="btn icon">‹</span><span class="btn icon">›</span>
+    <span class="btn">Newest</span>
+    <span class="field" style="min-width:150px;color:var(--muted)">Go to date<span class="grow"></span>&#128197;&#xFE0E;</span>
+    <span class="grow"></span>
+    <span class="btn btn--out">Investigation ↗</span>
+  </div>
+
+  <div class="layout">
+    <!-- the gate list, as today -->
+    <nav class="rail">
+      <h4>Eligibility</h4>
+      <div class="g g--warn">! <b>G0</b> Data quality</div><div class="g">✓ <b>G1</b> Mode / service</div><div class="g">✓ <b>G2</b> SP activity</div><div class="g">✓ <b>G2r</b> Operating region</div>
+      <h4>Performance</h4>
+      <div class="g">✓ <b>G3</b> Base performance</div><div class="g g--warn">● <b>G4</b> Actuator effort</div>
+      <h4>Diagnostic evidence</h4>
+      <div class="g g--warn" data-g5>◐ <b>G5</b> Oscillation (ACF)</div><div class="g g--warn">◐ <b>G6</b> Spectral (PSD)</div><div class="g">◯ <b>G7</b> Stiction shape</div><div class="g">◯ <b>G8</b> Lag asymmetry</div>
+      <div class="g">◯ <b>G9</b> Phase geometry</div><div class="g">◯ <b>G10</b> Actuator limits</div><div class="g">◯ <b>G11</b> Measurement health</div>
+      <h4>Confirmation</h4>
+      <div class="g">— <b>G12</b> System response</div><div class="g">— <b>G13</b> Interaction</div><div class="g">∅ <b>G14</b> Final-element</div>
+      <h4>Fusion</h4>
+      <div class="g g--bad g--on" data-g15>▲ <b>G15</b> Decision</div>
+      <span class="btn" style="padding:0">Key</span>
+    </nav>
+
+    <section class="card">
+      <!-- head row: the gate and its state ... run, Reconstruct, Evaluate -->
+      <div class="head ann" data-n="3">
+        <div data-state="g15" class="on"><span class="eyebrow">Fusion</span><h2>G15 · Decision <span class="pill pill--bad">▲ Confirmed</span></h2></div>
+        <div data-state="g5"><span class="eyebrow">Diagnostic evidence</span><h2>G5 · Oscillation (ACF) <span class="pill pill--warn">◐ Symptom seen</span></h2></div>
+        <div data-state="identity"><span class="eyebrow">Fusion</span><h2>G15 · Decision <span class="pill pill--bad">▲ Confirmed</span></h2></div>
+        <span class="grow"></span>
+        <span style="color:var(--text2)">Run</span><span class="mono">8fb7519a</span><span class="btn icon" title="Copy run id">⧉</span>
+        <span class="btn">Reconstruct evidence ↗</span>
+        <span class="btn">Evaluate a window</span>
+      </div>
+      <div class="tabs">
+        <span class="tab" data-tab="proof">Proof</span><span class="tab">Rules &amp; parameters</span><span class="tab">Signal context</span><span class="tab" data-tab="identity">Identity &amp; raw</span>
+      </div>
+
+      <!-- G15, arrays not kept: one line, not an empty box -->
+      <div class="body" data-state="g15" style="display:none">
+        <div class="note ann" data-n="4">Evidence arrays were not kept for this run; the verdict and every value stand.</div>
+        <div class="sec ann" data-n="5"><h3>Measured vs required</h3>
+          <div class="kv"><span>Evidence score (selected family)</span><span>100 of 100 <small>· ranks the evidence; not a probability</small></span></div>
+          <div class="kv"><span>Agreeing windows (persistence)</span><span>✓ 3 <small>· 3 required to persist</small></span></div>
+        </div>
+        <div class="sec ann" data-n="6"><h3>Evidence behind it</h3>
+          <div class="kv"><span>Observed</span><span>Sustained oscillation (G5, G6) · Phase-portrait geometry (G9) · Actuator stress (G4, G10)</span></div>
+          <div class="kv"><span>Possible cause</span><span>Controller tuning (leading) · Excessive actuator effort <span class="btn" style="height:auto;padding:0 0 0 8px">Hypotheses ↗</span></span></div>
+        </div>
+        <div class="sec"><h3>What remains open</h3>
+          <ul>
+            <li>Valve position expected but not mapped: map its tag so a valve (stiction) cause can be confirmed</li>
+            <li>Instrument health not configured: transmitter faults are not checked</li>
+            <li>No upstream or peer links: interaction with other loops not assessed</li>
+            <li>No approved step test: no process model to compare against</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- G5, with its chart -->
+      <div class="body" data-state="g5" style="display:none">
+        <div class="chart" title="Autocorrelation of the control error over the window (sample bars)"></div>
+        <div class="sec"><h3>Measured vs required</h3>
+          <div class="kv"><span>Oscillation period</span><span>280.5 s</span></div>
+          <div class="kv"><span>Sampling</span><span>✕ 2.0 samples per 10.0 s period &lt; 8 <small>· observed grid 5.0 s; no threshold configured for this profile</small></span></div>
+        </div>
+        <div class="sec"><h3>What remains open</h3><p style="margin:0;color:var(--text2)">Nothing this window flags limits this gate's claim.</p></div>
+      </div>
+
+      <!-- Identity & raw: the engine versions live here now -->
+      <div class="body" data-state="identity" style="display:none">
+        <div class="sec ann" data-n="7"><h3>Identity</h3>
+          <div class="kv"><span>Calculation</span><span>Evidence fusion v3.0.0 · profile v2.0.0</span></div>
+          <div class="kv"><span>Run</span><span class="mono">8fb7519a-893</span></div>
+          <div class="kv"><span>Build commit · Jar</span><span class="mono">072bb0de656c · dabe18627013</span></div>
+          <div class="kv"><span>Bundle · Dataset</span><span class="mono">profile:2232b1b2 · d38740d45c00</span></div>
+          <div class="kv"><span>Source · Purpose · Revisions</span><span>flink · LIVE · context r0, result r1</span></div>
+        </div>
+        <div class="sec"><h3>Observability</h3>
+          <ul><li>No valve position mapped</li><li>Instrument health not configured</li><li>No peer links configured</li><li>No approved step test</li><li>Bandwidth limited</li></ul>
+        </div>
+      </div>
+
+      <div class="foot ann" data-n="8"><span>12 h window · 6 Nov 10:45 → 22:45 UTC · 8,221 of 8,624 samples at 5 s</span><span class="grow"></span><span class="btn">Evidence Replay ↗</span></div>
+    </section>
+  </div>
+</div>
+<script>
+  const c = document.querySelector('.chart');
+  for (let i = 0; i < 40; i++) { const v = Math.abs(Math.cos(i * 0.62) * Math.exp(-i / 30)); const b = document.createElement('i'); b.style.height = `${8 + v * 170}px`; c.appendChild(b); }
+  window.showState = s => {
+    document.querySelectorAll('[data-state]').forEach(x => { const on = x.dataset.state === s; x.classList.toggle('on', on); if (x.classList.contains('body')) x.style.display = on ? 'grid' : 'none'; });
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('tab--on', (s === 'identity') === (t.dataset.tab === 'identity') && (t.dataset.tab === 'identity' || t.dataset.tab === 'proof')));
+    document.querySelector('[data-g15]').classList.toggle('g--on', s !== 'g5');
+    document.querySelector('[data-g5]').classList.toggle('g--on', s === 'g5');
+    document.querySelectorAll('.ann').forEach(a => a.classList.toggle('noann', s !== 'g15'));
+  };
+  const st = document.createElement('style'); st.textContent = '.noann::after{display:none}'; document.head.appendChild(st);
+  window.showState('g15');
+</script>
+</body>
+</html>

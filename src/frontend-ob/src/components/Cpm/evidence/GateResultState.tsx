@@ -79,7 +79,7 @@ export function classifyGateResult(i: GateStateInput): GateState {
     // nothing is pending: the policy keeps arrays only for windows with a finding, and CHG-049 throttles those to once an hour per loop and window
     return { kind: 'NOT_RETAINED', title: 'Evidence not retained for this run',
       detail: 'The live path keeps the arrays for windows with a finding, at most once an hour per loop and window; Reconstruct rebuilds them from the run\'s window, labelled as rebuilt.',
-      stillValid: 'The verdict and every scalar of this run are valid; only the arrays were not kept.', action: 'RECONSTRUCT', tone: 'muted' };
+      stillValid: 'The verdict and every value of this run stand.', action: 'RECONSTRUCT', tone: 'muted' };
   }
   if (readiness === 'PENDING' || readiness === 'PARTIAL') {
     return { kind: 'EVIDENCE_PENDING', title: 'Evidence still arriving',
@@ -99,16 +99,20 @@ export const GateResultStatePanel: React.FC<{
       state.action === 'RETRY' && onRetry ? { label: 'Retry', onClick: onRetry }
       : state.action === 'GO_TO_LATEST' && onGoToLatest ? { label: 'Go to the latest run', onClick: onGoToLatest }
       : undefined;
+    // CHG-162 (owner review): "not retained" is one line, not a panel the height of a chart
+    if (notRetained) {
+      return (
+        <div className="cpm-gate-state cpm-gate-state--note" data-state={state.kind}>
+          <h3>{state.title}</h3>
+          <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>
+          {state.stillValid && <span className="cpm-gate-state__valid">{state.stillValid}</span>}
+        </div>
+      );
+    }
     return (
       <div className="cpm-gate-state" data-state={state.kind}>
-        {/* Task 15: "not retained" is the title; no pill saying it again, and the policy sentence sits behind a ? */}
-        {!notRetained && <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>}
-        {notRetained ? (
-          <div className="cpm-gate-state__head">
-            <h3>{state.title}</h3>
-            <Toggletip variant="how-to" label={state.title}><p>{state.detail}</p></Toggletip>
-          </div>
-        ) : <EmptyState title={state.title} copy={state.detail} action={action} />}
+        <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>
+        <EmptyState title={state.title} copy={state.detail} action={action} />
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}
       </div>

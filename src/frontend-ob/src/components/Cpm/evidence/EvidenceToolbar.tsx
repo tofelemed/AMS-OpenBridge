@@ -45,6 +45,39 @@ export interface EvidenceMoreProps {
 
 const TIER_LABEL: Record<WindowTier, string> = { fused: 'Fused verdicts', short: 'Short features (G0–G4)', long: 'Long diagnostics (G5–G11)' };
 
+/** CHG-162 (owner review): the window kind in the band, by tier; an option reads "12h fused", its shape on hover. */
+export const WindowKindSelect: React.FC<{ kind: string; kinds: WindowKindOption[]; onKind: (kind: string) => void }> = ({ kind, kinds, onKind }) => (
+  <select className="cpm-select cpm-kind-select" aria-label="Window kind" value={kind} onChange={e => onKind(e.target.value)}>
+    {(['fused', 'short', 'long'] as WindowTier[]).map(tier => {
+      const items = kinds.filter(k => k.tier === tier);
+      return items.length ? (
+        <optgroup key={tier} label={TIER_LABEL[tier]}>
+          {items.map(k => <option key={k.kind} value={k.kind} title={k.label}>{`${k.kind} ${tier}`}</option>)}
+        </optgroup>
+      ) : null;
+    })}
+  </select>
+);
+
+/** CHG-162: Go to date in the band, a button that opens the date: the windows that end before the chosen site time. */
+export const DateJump: React.FC<{ onJump: (beforeIso: string) => void }> = ({ onJump }) => {
+  const [value, setValue] = useState('');
+  return (
+    <Popover label="Go to date" align="end"
+      trigger={t => <button type="button" className="ui-control ui-control--ghost" {...t}>Go to date</button>}>
+      {close => (
+        <div className="cpm-date-jump">
+          <input className="cpm-input" type="datetime-local" aria-label="Date and time" value={value} onChange={e => setValue(e.target.value)} />
+          {/* CHG-098 (SME review 2 #29): a disabled Go says why on hover */}
+          <span title={!value ? 'Pick a date and time first' : undefined}>
+            <ObcButton variant="flat" disabled={!value} onClick={() => { if (value) { onJump(new Date(fromSiteInput(value)).toISOString()); close(); } }}>Go</ObcButton>
+          </span>
+        </div>
+      )}
+    </Popover>
+  );
+};
+
 export const EvidenceWindowSelect: React.FC<EvidenceWindowProps> = (p) => {
   // A window with no run and no stored history cannot be opened, so it is not offered (CHG-160)
   const offered = p.windows.filter(w => w.hasRunIds || w.historyOnly);

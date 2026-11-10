@@ -2,8 +2,10 @@
  * v2.5 Task 2E.3 (spec §3.1-3.2, R13; NR-031) + the 2026-09-17 redesign: the gate evidence
  * workbench. It opens like every loop page - the loop band, here with its evaluated window - and reads one
  * IMMUTABLE method run named in the URL; "Newest" is an explicit navigation within the loaded window list, never a
- * "latest" read. Layout: header → loop band → [gate rail | run bar → evidence basis → verdict → four tabs (Proof, Rules &
- * parameters, Signal context, Identity & raw; ?sub=, kept by goTo) → Evidence Replay link]. There is no right column.
+ * "latest" read. CHG-162 (owner review, approved sample workbench-proposal.html): header → band card (loop, window kind,
+ * window, ‹ ›, Newest, Go to date … the way back) → [gate rail | one panel: gate head with the run's actions → evidence basis →
+ * four tabs (Proof, Rules & parameters, Signal context, Identity & raw; ?sub=, kept by goTo) → foot strip with the window, its
+ * samples and Evidence Replay]. There is no right column, and no More.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -12,10 +14,14 @@ import { EmptyState, QueryError, WorkspaceHeader, fmtWindowShape, windowSpecsOf 
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops, useCpmResolutions, useGateCatalogue } from '../../../hooks/useCpm';
 import { PROFILE_SECONDS } from '../windows/windowMath';
-import { EvidenceMore, EvidenceWindowSelect, type WindowKindOption } from './EvidenceToolbar';
+import { DateJump, EvidenceWindowSelect, WindowKindSelect, type WindowKindOption } from './EvidenceToolbar';
 import { EvaluateWindow } from './EvaluateWindow';
 import { GateRail } from './GateRail';
 import { RunSummaryBar } from './RunSummaryBar';
+import { WorkbenchHead } from './WorkbenchHead';
+import { nominalSamples, samplePeriodOf } from './tabs/proofRows';
+import { investigationHref } from '../cpaHref';
+import { windowSpan } from '../windowLabel';
 import { ReconstructDialog } from './ReconstructDialog';
 import { useFusedRow } from './useFusedRow';
 import { chipsOf } from './GateChipStrip';
@@ -41,7 +47,6 @@ import { verdictSentence } from './verdictCopy';
 import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf, zoneLabel } from './timezone';
 import { buildTierGroups } from '../gateStatus';
-import { conditionOf } from '../explorer/summary/summaryText';
 import { ReasonedButton } from '../ReasonedButton';
 import { backLink, replayLink } from './runLinks';
 import { useAuthStore } from '../../../store/authStore';
@@ -166,16 +171,15 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const sentenceReason = reason === 'NO_VP' && vpAbsent(inputContextOf(loop)) ? 'VP_NOT_APPLICABLE' : reason;
   const sentence = selection ? verdictSentence({ gate: selection.gate, name: entry?.name ?? selection.gate, status, reason: sentenceReason, headline, eligibilityDetail }) : '';
   const inputFlags = useMemo(() => effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)), [currentOption, loop]);
+  // CHG-162: while a run loads (a gate's own run can be slow) the list keeps the window's gates and their runs
   const chips = useMemo(() => chipsOf({
-    siblings: run.data?.methodRunIds ?? {},
+    siblings: run.data?.methodRunIds ?? currentOption?.methodRunIds ?? {},
     cells: chipCells(currentOption?.gates, run.data, analysisRunParam),
     result: run.data?.result ?? null, catalogue: catalogue.data,
     inputFlags,
   }), [run.data, currentOption, catalogue.data, inputFlags, analysisRunParam]);
 
   const fusedRow = useFusedRow(run.data?.loopId, run.data);
-  const diagnosis = currentOption?.diagnosis ?? fusedRow.row?.diagnosis ?? null;
-  const loopResult = diagnosis ? conditionOf(diagnosis).label : null;
   const md = fusedRow.row?.metadata;
   const versions = md ? `Calculation v${md.calculationVersion ?? '—'} · profile v${md.dynamicsProfileVersion ?? '—'}` : null;
   const reconstructReason = !run.data ? undefined
@@ -184,6 +188,15 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const gateTier = selection ? buildTierGroups([selection.gate])[0]?.label : undefined;
   const runWindowText = run.data
     ? `${run.data.windowKind} · ${formatInZone(run.data.support.fromMs, timeZone)} → ${formatInZone(run.data.support.toMs, timeZone)} · ${zoneLabel(timeZone, run.data.support.fromMs)}`
+    : '';
+  // CHG-162: the window and its samples, said once, in the foot strip
+  const period = run.data ? samplePeriodOf(run.data, fusedRow.row) : null;
+  const nominal = run.data ? nominalSamples(run.data, period) : null;
+  const count = run.data?.support.sampleCount;
+  const samplesText = count == null ? '' : nominal != null && period != null
+    ? ` · ${count.toLocaleString('en-GB')} of ${nominal.toLocaleString('en-GB')} samples at ${Number(period.toFixed(1))} s` : ` · ${count.toLocaleString('en-GB')} samples`;
+  const footText = run.data
+    ? `${windowSpan({ windowKind: run.data.windowKind, windowStart: run.data.support.fromMs, windowEnd: run.data.support.toMs }, timeZone)}${samplesText}`
     : '';
   const askReconstruct = () => { reconstruct.reset(); setReconOpen(true); };
   // CHG-102 5c: any window the historian holds, evaluated on demand; the result opens on its fused (G15) run
@@ -195,39 +208,38 @@ export const GateEvidenceWorkspace: React.FC = () => {
     : null;
   const atNewest = optionIndex === 0;
   const notListed = "This run's window is not in the listed windows of the chosen kind";
+  const toKind = (k: string) => setParams(p => { p.set('kind', k); p.delete('before'); return p; }, { replace: true });
+  const toDate = (iso: string) => setParams(p => { p.set('before', iso); return p; }, { replace: true });
+  // Older › past the loaded list asks for the next page of windows (Load older windows was under More)
+  const older = () => { if (nav.older) openWindow(nav.older); else if (windows.hasMore) windows.loadMore(); };
+  const backButton = selection ? (() => { const back = backLink({ loopId: selection.loopId, gate: selection.gate, methodRunId: selection.methodRunId, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd });
+    return <ObcButton variant="normal" onClick={() => navigate(back.href)}>{back.label.replace(/^Back to /, '')}</ObcButton>; })() : undefined;
   const band = (
-    <LoopBand loopId={loopId}
+    // CHG-162 (owner review): a card, as on Historical and Investigation; More's controls sit in it
+    <LoopBand card loopId={loopId}
       onLoop={id => setParams(p => { p.set('loop', id); for (const k of LOOP_KEYS) p.delete(k); return p; }, { replace: true })}
-      end={
-        <EvidenceMore loopId={loopId} kind={kind} kinds={kinds} windowsError={windows.error} onRetryWindows={windows.refetch}
-          hasMore={windows.hasMore} onLoadMore={windows.loadMore} loadingMore={windows.isLoadingMore}
-          onKind={k => setParams(p => { p.set('kind', k); p.delete('before'); return p; }, { replace: true })}
-          onJump={iso => setParams(p => { p.set('before', iso); return p; }, { replace: true })}>
-          {selection && (
-            <span title={atNewest ? 'Already the newest window' : undefined}>
-              <ObcButton variant="normal" disabled={!windows.options[0] || atNewest} onClick={() => openWindow(windows.options[0])}>Newest</ObcButton>
-            </span>
-          )}
-          {selection && evaluate && (
-            <ObcButton variant="normal" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>
-              {evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}
-            </ObcButton>
-          )}
-        </EvidenceMore>
-      }>
+      end={backButton}>
+      <WindowKindSelect kind={kind} kinds={kinds} onKind={toKind} />
       <EvidenceWindowSelect loopId={loopId} kind={kind} windows={windows.options} windowsLoading={windows.isLoading} windowsError={windows.error}
-        currentMethodRunId={selection?.methodRunId} onWindow={openWindow} runWindow={runWindow} />
+        currentMethodRunId={selection?.methodRunId} currentEnd={currentOption?.windowEnd} onWindow={openWindow} runWindow={runWindow} />
+      {windows.error ? <ObcButton variant="flat" onClick={windows.refetch}>Retry</ObcButton> : null}
       {selection && (
         <>
           {/* the reason a stepper is disabled rides on a wrapping span: ObcButton takes no title */}
-          <span title={optionIndex < 0 ? notListed : atNewest ? 'Already the newest window' : undefined}>
-            <ObcButton variant="flat" disabled={!nav.newer} onClick={() => { if (nav.newer) openWindow(nav.newer); }}>‹ Newer</ObcButton>
+          <span className="cpm-step-pair">
+            <span title={optionIndex < 0 ? notListed : atNewest ? 'Already the newest window' : 'Newer window'}>
+              <ObcButton variant="flat" disabled={!nav.newer} onClick={() => { if (nav.newer) openWindow(nav.newer); }}>‹</ObcButton>
+            </span>
+            <span title={optionIndex < 0 ? notListed : 'Older window'}>
+              <ObcButton variant="flat" disabled={!nav.older && !windows.hasMore} onClick={older}>›</ObcButton>
+            </span>
           </span>
-          <span title={optionIndex < 0 ? notListed : undefined}>
-            <ObcButton variant="flat" disabled={!nav.older} onClick={() => { if (nav.older) openWindow(nav.older); }}>Older ›</ObcButton>
+          <span title={atNewest ? 'Already the newest window' : undefined}>
+            <ObcButton variant="flat" disabled={!windows.options[0] || atNewest} onClick={() => openWindow(windows.options[0])}>Newest</ObcButton>
           </span>
         </>
       )}
+      {loopId && <DateJump onJump={toDate} />}
     </LoopBand>
   );
 
@@ -252,26 +264,33 @@ export const GateEvidenceWorkspace: React.FC = () => {
   }
 
   const runRef = { loopId: selection.loopId, gate: selection.gate, methodRunId: selection.methodRunId, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd };
-  const back = backLink(runRef);
   const replay = replayLink(runRef);
+  const toHypotheses = () => navigate(investigationHref(selection.loopId, { kind: run.data?.windowKind ?? kind, window: currentOption?.windowEnd, tab: 'Hypotheses' }));
 
   return (
-    <div className="cpm-screen cpm-evidence-workspace">
-      <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Workbench"
-        actions={<ObcButton variant="flat" onClick={() => navigate(back.href)}>{back.label}</ObcButton>} />
+    // CHG-162: buttons and fields are 32 px, as on Historical and Investigation (cpm-compact)
+    <div className="cpm-screen cpm-evidence-workspace cpm-compact">
+      <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Workbench" />
       {band}
       {/* Here, not in the More panel: a run must survive a click elsewhere, which closes the panel */}
       {evaluateOpen && evaluate}
       <div className="cpm-workbench">
-      {run.data ? <GateRail chips={chips} selected={selection.gate} onSelect={g => { const id = chips.find(c => c.gate === g)?.methodRunId; if (id) goTo(id, g); }} /> : <div className="cpm-rail" aria-hidden />}
-      <div className="cpm-workbench__main">
-      <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness} loopResult={loopResult} versions={versions} analysisRun={analysisRunParam}
-        reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct} />
+      {run.data || currentOption
+        ? <GateRail chips={chips} selected={selection.gate} onSelect={g => { const id = chips.find(c => c.gate === g)?.methodRunId; if (id) goTo(id, g); }} />
+        : <div className="cpm-rail" aria-hidden />}
+      <section className="cpm-surface cpm-workbench__main">
+      <WorkbenchHead gate={selection.gate} name={entry?.name ?? selection.gate} tier={gateTier} status={status} inputFlags={inputFlags}
+        actions={(
+          <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness}
+            reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct}>
+            {evaluate && <ObcButton variant="flat" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>{evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}</ObcButton>}
+          </RunSummaryBar>
+        )} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
       <div aria-busy={run.isLoading || manifest.isLoading}>
         <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline}
-          tier={gateTier} inputFlags={inputFlags} />
+          tier={gateTier} inputFlags={inputFlags} noHead />
       </div>
       {reconstruct.isSuccess && (
         <p className="cpm-copy" role="status">
@@ -289,19 +308,20 @@ export const GateEvidenceWorkspace: React.FC = () => {
             onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
             onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined}
             onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }}
-            onRules={() => setTab('rules')} onSignal={() => setTab('signal')} />
+            onHypotheses={selection.gate === 'G15' ? toHypotheses : undefined} />
         )}
         {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={rawManifest.data} manifestLoading={rawManifest.isLoading} manifestError={rawManifest.error} timeZone={timeZone} />}
         {tab === 'signal' && <SignalTab run={run.data} timeZone={timeZone} timeFmt={timeFmt} />}
-        {tab === 'identity' && <IdentityTab run={run.data} manifest={manifest.data} flags={currentOption?.flags} inputs={inputContextOf(loop)} />}
+        {tab === 'identity' && <IdentityTab run={run.data} manifest={manifest.data} flags={currentOption?.flags} inputs={inputContextOf(loop)} versions={versions} />}
       </div>
       {run.data && (
         <div className="cpm-workbench__foot">
+          <span className="cpm-copy">{footText}</span>
           <ReasonedButton variant="flat" disabled={replay.href == null} reason={replay.href == null ? replay.reason : null}
             onClick={() => { if (replay.href) navigate(replay.href); }}>Evidence Replay ↗</ReasonedButton>
         </div>
       )}
-      </div>
+      </section>
       </div>
       <ReconstructDialog open={reconOpen} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText} runId={selection.methodRunId}
         state={reconstruct.isPending ? 'pending' : reconstruct.isError ? 'error' : 'idle'} error={reconstruct.isError ? (reconstruct.error as Error).message : undefined}

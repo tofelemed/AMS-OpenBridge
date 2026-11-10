@@ -102,8 +102,8 @@ export const responseHref = (loop: string, opts: { event?: string | null; method
   build('/cpm/response', { loop, event: opts.event, methodRun: opts.methodRun });
 
 /** Investigation on one loop. `kind` is the fused window kind it reads as `?profile=`; `window` an evaluated END. */
-export const investigationHref = (loop: string, opts: { kind?: string | null; window?: string | null; gate?: string | null } = {}) =>
-  build('/cpm/investigation', { loop, profile: opts.kind, window: opts.window, gate: opts.gate });
+export const investigationHref = (loop: string, opts: { kind?: string | null; window?: string | null; gate?: string | null; tab?: string | null } = {}) =>
+  build('/cpm/investigation', { loop, profile: opts.kind, window: opts.window, gate: opts.gate, tab: opts.tab });
 
 /** Historical on one loop; `from` / `to` (ISO) carry the period being looked at (CHG-048), else its default range. */
 export const historicalHref = (loop: string, opts: {

@@ -29,7 +29,7 @@ const Probe: React.FC = () => { const l = useLocation(); return <div data-testid
 const bar = (over: Partial<React.ComponentProps<typeof RunSummaryBar>> = {}) => render(
   <MemoryRouter initialEntries={['/cpm/evidence']}>
     <Routes><Route path="*" element={<>
-      <RunSummaryBar run={run} selection={selection} readiness="COMPLETE" loopResult="No fault identified" onReconstruct={() => {}} {...over} />
+      <RunSummaryBar run={run} selection={selection} readiness="COMPLETE" onReconstruct={() => {}} {...over} />
       <Probe />
     </>} /></Routes>
   </MemoryRouter>,
@@ -40,9 +40,8 @@ describe('RunSummaryBar', () => {
     bar();
     const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
     expect(text).toMatch(/Proof retained · COMPLETE/);
-    expect(text).toMatch(/Loop result.*No fault identified/);
-    expect(text).toMatch(/12h pinned run/);
-    expect(text).toMatch(/1,977 samples/);
+    // CHG-162: the window and its samples are in the foot strip, the loop's result in the window dropdown
+    expect(text).not.toMatch(/Loop result|pinned run|samples/);
     expect(text).not.toMatch(/3535c78aa45a|Calc version/);
     expect(text).not.toMatch(/MODE|FIXED|Mode/);
     expect(screen.getByTitle(run.methodRunId)).toBeTruthy();
@@ -65,11 +64,10 @@ describe('RunSummaryBar', () => {
     expect(screen.getByRole('list', { name: 'Run summary' }).textContent).not.toMatch(/Proof retained|NONE/i);
   });
 
-  it('names a non-live purpose and opens the run by its link', () => {
+  it('names a non-live purpose, and has no Run id link (Identity & raw is a tab)', () => {
     bar({ run: { ...run, identity: { ...run.identity, purpose: 'SHADOW' } } });
     expect(screen.getByText('SHADOW')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Run id/ }));
-    expect(screen.getByTestId('loc').textContent).toBe(`/cpm/evidence?loop=FIC10405&methodRun=${run.methodRunId}&gate=G5&mode=FIXED&sub=identity`);
+    expect(screen.queryByRole('button', { name: /Run id/ })).toBeNull();
   });
 
   it('asks to reconstruct through its handler', () => {
@@ -98,10 +96,8 @@ describe('RunSummaryBar', () => {
 });
 
 describe('RunSummaryBar versions', () => {
-  it('reads the versions as Replay does and keeps the build hash off the bar', () => {
-    bar({ versions: 'Calculation v3.0.0 · profile v2.0.0' });
-    const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
-    expect(text).toContain('Calculation v3.0.0 · profile v2.0.0');
-    expect(text).not.toMatch(/3535c78aa45a|CALC VERSION|Calc version/i);
+  it('leaves the versions to Identity & raw', () => {
+    const text = bar().container.textContent ?? '';
+    expect(text).not.toMatch(/Calculation v|3535c78aa45a/);
   });
 });

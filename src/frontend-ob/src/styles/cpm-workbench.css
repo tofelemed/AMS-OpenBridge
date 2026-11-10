@@ -4,8 +4,31 @@
   display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
   gap: var(--traverse-space-4); align-items: start;
 }
-.cpm-workbench__main { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
-.cpm-workbench__foot { display: flex; justify-content: flex-start; }
+/* CHG-162 (owner review): the reading column is one panel: the gate head row and the foot strip run edge to edge. */
+.cpm-workbench__main { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; padding-block: 0; }
+.cpm-workbench__head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-4);
+  margin: 0 calc(-1 * var(--traverse-space-4)); padding: var(--traverse-space-2) var(--traverse-space-4);
+  border-bottom: 1px solid var(--traverse-border-subtle);
+}
+.cpm-workbench__gate { display: grid; gap: 2px; min-width: 0; }
+.cpm-workbench__gate .cpm-panel-title { margin: 0; }
+.cpm-workbench__head .cpm-run-bar { padding: 0; border: 0; gap: var(--traverse-space-2); }
+.cpm-run-bar__run { color: var(--traverse-text-secondary); }
+.cpm-workbench__foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3);
+  margin: 0 calc(-1 * var(--traverse-space-4)); padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-verdict--body { border: 0; }
+.cpm-verdict--body .cpm-verdict__sentence { margin: 0; }
+/* the band's window kind and Go to date keep to their content */
+.cpm-band .cpm-kind-select { width: auto; }
+.cpm-step-pair { display: inline-flex; align-items: center; }
+/* the window's end and state fit in 260 px; on a compact page the band then holds its controls on one line at 1440 */
+.cpm-compact .cpm-band .cpm-evidence-toolbar__window { max-width: 260px; }
+.cpm-date-jump { display: flex; align-items: center; gap: var(--traverse-space-2); }
 /* Task 16: the four tabs. Each panel is a column of surfaces; the links sit in a row under them. */
 .cpm-workbench__tab { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
 .cpm-workbench__links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
@@ -58,6 +81,11 @@
   .cpm-rail__picker { display: block; }
 }
 
-/* Evidence not retained: the ? sits beside the heading, with no extra gap around it. */
-.cpm-gate-state__head { display: flex; align-items: center; gap: var(--traverse-space-2); }
-.cpm-gate-state__head h3 { margin: 0; color: var(--element-active-color); font-size: 1.17em; }
+/* CHG-162: Evidence not retained is one line, a note, not a panel the height of a chart. */
+.cpm-gate-state--note {
+  flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2);
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  border-inline-start: var(--traverse-size-nav-indicator) solid var(--traverse-status-info-fg); background: var(--traverse-status-info-bg);
+}
+.cpm-gate-state--note h3 { margin: 0; font-size: var(--traverse-type-body); font-weight: 600; color: var(--traverse-text-primary); }
+.cpm-gate-state--note .cpm-gate-state__valid { font-size: var(--traverse-type-body); }

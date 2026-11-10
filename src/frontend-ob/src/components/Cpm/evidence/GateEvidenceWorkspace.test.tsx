@@ -104,7 +104,9 @@ describe('GateEvidenceWorkspace', () => {
   it('renders the selected run from the URL and never requests the latest gates', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await waitFor(() => expect(screen.getAllByText(/Base performance/).length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/5m pinned run/).length).toBeGreaterThan(0);   // the run is pinned; MODE FIXED is gone
+    // CHG-162: the window and its samples are said once, in the foot strip
+    expect(await screen.findByText(/^5 min window · .* · 61 samples$/)).toBeTruthy();
+    expect(screen.queryByText(/pinned run/)).toBeNull();
     expect(screen.queryByText(/FIXED/)).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Identity & raw' }));
     expect(screen.getAllByText(/profile:ef9abb/).length).toBeGreaterThan(0);
@@ -193,8 +195,7 @@ describe('GateEvidenceWorkspace', () => {
   it('a 5m run goes back to the Window Inspector on its own window, and offers no Replay', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
-    const back = screen.getByRole('button', { name: /^Back to / });
-    expect(back.textContent).toBe('Back to Window Inspector ↗');
+    const back = screen.getByRole('button', { name: 'Window Inspector ↗' });   // CHG-162: at the end of the band
     fireEvent.click(back);
     const where = decodeURIComponent(screen.getByTestId('loc').textContent ?? '');
     expect(where).toContain('/cpm/windows');
@@ -275,12 +276,31 @@ describe('GateEvidenceWorkspace', () => {
     expect(await screen.findByText('Signal context, not retained gate proof.')).toBeTruthy();
   });
 
-  it('opens the Identity & raw tab from Run id', async () => {
+  // CHG-162 (owner review): the band holds what More held; the way back sits at its end
+  it('puts the window kind, the window, the steps, Newest and Go to date in the band, with no More', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
-    fireEvent.click(screen.getByRole('button', { name: /Run id/ }));
-    await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('sub=identity'));
-    expect(screen.getByRole('tab', { name: 'Identity & raw' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('combobox', { name: 'Window kind' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^More/ })).toBeNull();
+    for (const name of ['‹', '›', 'Newest']) expect(screen.getByRole('button', { name })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go to date' })).toBeTruthy();
+    expect(document.querySelector('.cpm-screen')?.classList.contains('cpm-compact')).toBe(true);
+  });
+
+  it('has no Run id link, no loop result line, and no links that repeat the tabs', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    expect(screen.queryByRole('button', { name: /Run id/ })).toBeNull();
+    expect(screen.queryByText('Loop result')).toBeNull();
+    expect(screen.queryByRole('button', { name: /See rules|View signal context/ })).toBeNull();
+  });
+
+  // CHG-162: opening G5 loads its own run, which is slow at the plant; the list went blank while it loaded
+  it('keeps the gate list, from the window, while a run loads', async () => {
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => (url.endsWith('/method-runs/g15-run') ? new Promise(() => {}) : respond(url)));
+    renderAt('?loop=FIC10302&methodRun=g15-run&gate=G15&kind=24h');
+    const rail = await screen.findByRole('navigation', { name: 'Gates of this window' });
+    expect(within(rail).getByRole('button', { name: /^G0 Data quality: Pass/ })).toBeTruthy();
   });
 
   it('a short-tier gate on a fused row is stated as evaluated on the short windows, with the link', async () => {

@@ -27,10 +27,30 @@ export interface VerdictCardProps {
   question?: string | null;
   /** The window's input flags, for a mark that depends on them (gateMark). */
   inputFlags?: readonly string[] | null;
+  /** CHG-162: the page's head row names the gate and its mark, so the card is its sentence and tiles alone (or nothing). */
+  noHead?: boolean;
 }
 
-export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline, tier, question, inputFlags }) => {
+export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline, tier, question, inputFlags, noHead }) => {
   const tone = status ? gateTone(status, gate) : 'muted';
+  if (noHead) {
+    const said = sentence !== `${gate} ${name}: ${codeLabel(status)}.` ? sentence : '';
+    const tiles = state.kind === 'READY' ? headline : [];
+    if (!said && tiles.length === 0) return null;
+    return (
+      <div className="cpm-verdict cpm-verdict--body" role="region" aria-label="Verdict">
+        {said && <p className="cpm-verdict__sentence">{said}</p>}
+        {tiles.length > 0 && (
+          <div className="cpm-verdict__tiles">
+            {tiles.map(h => (
+              <KpiTile key={h.label} caption={h.label} tone={h.tone}
+                value={<span title={h.raw && h.raw !== h.value ? h.raw : undefined}>{h.unit ? `${h.value} ${h.unit}` : h.value}</span>} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
       <PanelHead eyebrow={tier ?? 'Verdict'} title={`${gate} · ${name}`} right={status ? <GateBadge status={status} gate={gate} inputFlags={inputFlags} /> : undefined} />

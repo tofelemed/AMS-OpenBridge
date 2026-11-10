@@ -3,7 +3,7 @@
 // not served, so the page calls the window divided by the sample period nominal.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProofTab, type ProofTabProps } from './ProofTab';
@@ -26,7 +26,7 @@ function show(over: Partial<ProofTabProps> = {}) {
   const props: ProofTabProps = {
     gate: 'G3', run: methodRun({ support: { fromMs: 0, toMs: 43_200_000, sampleCount: 1977 } }), manifest: manifest(), state: READY,
     eligibilityDetail: null, timeZone: 'UTC', timeFmt: ms => String(ms),
-    onRetry: () => {}, onNavigateGate: () => {}, onRules: () => {}, onSignal: () => {}, ...over,
+    onRetry: () => {}, onNavigateGate: () => {}, ...over,
   };
   return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><ProofTab {...props} /></MemoryRouter></QueryClientProvider>);
 }
@@ -40,15 +40,12 @@ describe('ProofTab', () => {
     expect(row.textContent).toContain('PV units');
   });
 
-  it('calls the window divided by the sample period nominal', () => {
+  // CHG-162: the window and its samples are said once, in the page's foot strip
+  it('leaves the window and its samples to the foot strip', () => {
     show();
-    expect(screen.getByText(/Nominal 8,640 samples at 5 s/)).toBeTruthy();
+    expect(screen.queryByText(/Nominal|→/)).toBeNull();
   });
 
-  it('omits the nominal clause when no sample period is served', () => {
-    fused.metrics = {};
-    try { show(); expect(screen.queryByText(/nominal/i)).toBeNull(); } finally { fused.metrics = { sample_period_sec: 5 }; }
-  });
 
   it('draws the run artifacts when they are ready, and says why there are none when they are not', () => {
     show();
@@ -59,12 +56,8 @@ describe('ProofTab', () => {
     expect(screen.getByRole('heading', { name: 'Evidence not retained for this run' })).toBeTruthy();
   });
 
-  it('goes on to the rules and to the signal context', () => {
-    const onRules = vi.fn(); const onSignal = vi.fn();
-    show({ onRules, onSignal });
-    fireEvent.click(screen.getByRole('button', { name: 'See rules & parameters →' }));
-    fireEvent.click(screen.getByRole('button', { name: 'View signal context →' }));
-    expect(onRules).toHaveBeenCalledTimes(1);
-    expect(onSignal).toHaveBeenCalledTimes(1);
+  it('offers no links that repeat the tabs above it', () => {
+    show();
+    expect(screen.queryByRole('button', { name: /See rules|View signal context/ })).toBeNull();
   });
 });

@@ -1,17 +1,19 @@
 /**
  * SME review #19 (CHG-055) + Task 16: "Why this result" on the Proof tab — each measured value against the threshold that
- * applied when the run happened, for the decision gate the observed symptoms and possible causes (CauseBreakdown), and what
- * remains open. The result sentence is the verdict card's and the thresholds' source line is on Rules & parameters, so
- * neither is said here again.
+ * applied when the run happened, for the decision gate the observed symptoms and possible causes, and what remains open. The
+ * result sentence is the verdict card's and the thresholds' source line is on Rules & parameters, so neither is said here
+ * again. CHG-162 (owner review): the evidence behind the decision is two lines and a way to the loop's hypotheses on
+ * Investigation, which hold the rest; the probability note is said once, on the evidence-score row.
  */
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useFusedRow } from './useFusedRow';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import { getEffectiveConfig } from '../../../api/cpm/config';
 import { diagnosisLabel, lowerFirst } from '../vocabulary';
 import { conditionOf, limitationOf } from '../explorer/summary/summaryText';
-import { CauseBreakdownRows } from '../CauseBreakdown';
+import { causeBreakdown } from '../causeAnalysis';
 import { whyRows } from './whyRules';
 import type { InputContext } from '../optionalInputs';
 import { INPUT_LIMITS_GATE } from '../inputLimits';
@@ -28,7 +30,9 @@ export const ExplainWhy: React.FC<{
   gate: string; run: MethodRun | undefined; manifest: EvidenceManifest | undefined; eligibilityDetail: string | null;
   /** CHG-059: the loop's optional-input context (VP / peers applicability). */
   inputs?: InputContext;
-}> = ({ gate, run, manifest, eligibilityDetail, inputs }) => {
+  /** Opens the loop's hypotheses on Investigation. */
+  onHypotheses?: () => void;
+}> = ({ gate, run, manifest, eligibilityDetail, inputs, onHypotheses }) => {
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
   const row = useFusedRow(run?.loopId, run);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
@@ -52,7 +56,9 @@ export const ExplainWhy: React.FC<{
   // of a short window read Insufficient evidence, so "no verdict" is never said.
   const cond = conditionOf(fused?.diagnosis);
   if (cond.kind === 'insufficient' || cond.kind === 'excluded') open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))}.`);
-  if (gate === 'G15' || gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
+  // G15 says it on its evidence-score row; G14 has no such row
+  if (gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
+  const causes = gate === 'G15' ? causeBreakdown(fused?.verdictV2, flags, inputs) : null;
 
   return (
     <div className="cpm-why" data-testid="explain-why">
@@ -74,10 +80,26 @@ export const ExplainWhy: React.FC<{
         <p className="cpm-metric-na">{cfg.isLoading || row.isLoading ? 'Loading the thresholds that applied…' : 'This gate reports a state, not a measured value against a threshold.'}</p>
       )}
 
-      {gate === 'G15' && fused && (
+      {causes && (causes.observed.length > 0 || causes.possible.length > 0) && (
         <>
           <h3 className="cpm-eyebrow">Evidence behind it</h3>
-          <CauseBreakdownRows verdict={fused.verdictV2} flags={flags} inputs={inputs} />
+          <dl className="cpm-why__rows">
+            {causes.observed.length > 0 && (
+              <>
+                <dt>Observed</dt>
+                <dd>{causes.observed.map(o => (o.detail ? `${o.label} (${o.detail})` : o.label)).join(' · ')}</dd>
+              </>
+            )}
+            {causes.possible.length > 0 && (
+              <>
+                <dt>Possible cause</dt>
+                <dd>
+                  <span>{causes.possible.map(c => `${c.label}${c.leading ? ' (leading)' : ''}${c.confirmed ? ' (confirmed)' : ''}`).join(' · ')}</span>
+                  {onHypotheses && <ObcButton variant="flat" onClick={onHypotheses}>Hypotheses ↗</ObcButton>}
+                </dd>
+              </>
+            )}
+          </dl>
         </>
       )}
 

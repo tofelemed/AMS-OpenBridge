@@ -31,7 +31,7 @@
 /* skeletons reserve the height a panel will take (no layout shift while artifacts decode) */
 .cpm-skeleton { min-height: 120px; border-radius: 8px; background: var(--container-backdrop-color); opacity: 0.6; animation: cpm-skeleton-pulse 1.4s ease-in-out infinite; }
 .cpm-skeleton--lanes { min-height: 260px; }
-.cpm-skeleton--evidence { min-height: 360px; }
+.cpm-skeleton--evidence { min-height: 200px; }   /* CHG-162: labelled, and no taller than a chart's head start */
 @keyframes cpm-skeleton-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.8; } }
 @media (prefers-reduced-motion: reduce) { .cpm-skeleton { animation: none; } }
 

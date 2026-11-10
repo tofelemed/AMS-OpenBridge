@@ -9,15 +9,17 @@ import { ExplainWhy } from './ExplainWhy';
 import type { MethodRun } from '../../../api/cpm/evidence';
 
 const fused = vi.hoisted(() => ({ diagnosis: 'INSUFFICIENT_EVIDENCE' as string }));
-vi.mock('./useFusedRow', () => ({
-  useFusedRow: () => ({ row: { diagnosis: fused.diagnosis, observabilityFlags: [], verdictV2: null }, isLoading: false, isError: false }),
+const useFusedRowMock = vi.hoisted(() => vi.fn());
+vi.mock('./useFusedRow', () => ({ useFusedRow: useFusedRowMock }));
+vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
-vi.mock('../CauseBreakdown', () => ({ CauseBreakdownRows: () => null }));
 afterEach(cleanup);
 
 const run = { loopId: 'FIC10405', support: { fromMs: 0, toMs: 1, sampleCount: 10 }, identity: { analysisRunId: null } } as unknown as MethodRun;
 const show = (diagnosis: string) => {
   fused.diagnosis = diagnosis;
+  useFusedRowMock.mockReturnValue({ row: { diagnosis: fused.diagnosis, observabilityFlags: [], verdictV2: null }, isLoading: false, isError: false });
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ExplainWhy gate="G15" run={run} manifest={undefined} eligibilityDetail={null} />
@@ -41,5 +43,26 @@ describe('ExplainWhy, the whole-window sentence', () => {
   it('still says it of an excluded window, with its real reason', () => {
     show('EXCLUDED_MODE');
     expect(screen.getByText(/^The whole window: excluded: loop not in automatic\.$/)).toBeTruthy();
+  });
+});
+
+// CHG-162 (owner review): the decision's evidence is two lines and a way to the hypotheses; the probability note is said once
+describe('ExplainWhy, the decision gate', () => {
+  const v2 = {
+    legacy: false, observations: { OSCILLATION: { present: true, score: 1, methodId: 'G5.ACF', role: 'PRIMARY', basis: 'G5=WARN' } },
+    hypotheses: { OSCILLATION_TUNING: { score: 1, state: 'QUALIFIED', evidenceGroups: ['OSCILLATION'], contradictions: [], disqualifiers: [] },
+      STICTION: { score: 0, state: 'NO_EVIDENCE', evidenceGroups: [], contradictions: [], disqualifiers: [] } },
+    leadingHypothesis: 'OSCILLATION_TUNING', confirmation: { claimType: 'X', state: 'NOT_APPLICABLE', reason: null, positiveEvidenceIds: [], contradictions: [], scope: null },
+    resultRevision: 1,
+  };
+  it('names what was observed and the possible causes, offers the hypotheses, and lists nothing not seen', () => {
+    const onHypotheses = vi.fn();
+    vi.mocked(useFusedRowMock).mockReturnValue({ row: { diagnosis: 'CONFIRMED_OSCILLATION', observabilityFlags: [], verdictV2: v2 }, isLoading: false, isError: false });
+    render(<QueryClientProvider client={new QueryClient()}><ExplainWhy gate="G15" run={run} manifest={undefined} eligibilityDetail={null} onHypotheses={onHypotheses} /></QueryClientProvider>);
+    expect(screen.getByText('Possible cause').nextElementSibling?.textContent).toMatch(/Controller tuning \(leading\)/);
+    expect(screen.queryByText(/Not seen in this window|Valve stiction/)).toBeNull();
+    screen.getByRole('button', { name: 'Hypotheses ↗' }).click();
+    expect(onHypotheses).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Evidence scores rank the explanations; they are not probabilities.')).toBeNull();
   });
 });
