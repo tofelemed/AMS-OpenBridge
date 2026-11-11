@@ -23,7 +23,7 @@ import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrenc
 import { ObiSettingsDefaultIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-default-iec';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { CPM_PAGES, type CpmPagePath } from './cpmTasks';
-import { ADMINISTRATION_PERMISSIONS } from '../../cpa/destinations';
+import { ADMINISTRATION_PERMISSIONS, GOVERNANCE_PERMISSIONS } from '../../cpa/destinations';
 
 export interface NavItem {
   path: string;
@@ -94,5 +94,6 @@ export const navItems: NavItem[] = [
   // redirect. Visible to anyone the /admin/* route lets in (CHG-172: asset.view
   // too, for Plant model and Tag aliases), so an auditor or rbac-manager still sees it.
   { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'System', permission: 'admin.users.edit', anyOf: [...ADMINISTRATION_PERMISSIONS] },
-  { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'system.manage' },
+  // CHG-174 (owner answer 2): Governance opens with system.manage or admin.audit.view, as the route and the palette.
+  { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'system.manage', anyOf: [...GOVERNANCE_PERMISSIONS] },
 ];

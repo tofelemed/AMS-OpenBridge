@@ -90,6 +90,10 @@ app.MapPost("/api/v1/audit/rechain", async (ClaimsPrincipal user, ChainIntegrity
 // Filter by entity (e.g. entityType=Display, entityId=<guid>), actor, event type, and time window.
 // This is what surfaces "who changed this display, and when" now that display-service emits governance
 // events onto the traverse.cpa.audit-events topic. Read-only; the store itself is append-only + hash-chained.
+// CHG-174: `offset` (optional, default 0) pages through every event on the server, and the answer echoes it,
+// so a client can tell this service pages; events at the same instant keep one order (event id), so pages
+// never overlap. The user filter matches the whole user name, ignoring case. Every other parameter and
+// field is unchanged.
 app.MapGet("/api/v1/audit", async (
     AuditDbContext db,
     string? entityType,
@@ -98,19 +102,27 @@ app.MapGet("/api/v1/audit", async (
     string? eventType,
     DateTimeOffset? from,
     DateTimeOffset? to,
-    int take = 100) =>
+    int take = 100,
+    int offset = 0) =>
 {
     var q = db.AuditEvents.AsNoTracking().AsQueryable();
     if (!string.IsNullOrWhiteSpace(entityType)) q = q.Where(e => e.EntityType == entityType);
     if (!string.IsNullOrWhiteSpace(entityId))   q = q.Where(e => e.EntityId == entityId);
-    if (!string.IsNullOrWhiteSpace(userId))      q = q.Where(e => e.UserId == userId);
+    if (!string.IsNullOrWhiteSpace(userId))
+    {
+        var user = userId.ToLower();
+        q = q.Where(e => e.UserId.ToLower() == user);
+    }
     if (!string.IsNullOrWhiteSpace(eventType))   q = q.Where(e => e.EventType == eventType);
     if (from.HasValue) q = q.Where(e => e.TimestampUtc >= from.Value);
     if (to.HasValue)   q = q.Where(e => e.TimestampUtc <= to.Value);
 
+    var skip = Math.Max(0, offset);
     var total = await q.CountAsync();
     var events = await q
         .OrderByDescending(e => e.TimestampUtc)
+        .ThenByDescending(e => e.EventId)
+        .Skip(skip)
         .Take(Math.Clamp(take, 1, 500))
         .Select(e => new
         {
@@ -119,7 +131,7 @@ app.MapGet("/api/v1/audit", async (
         })
         .ToListAsync();
 
-    return Results.Ok(new { total, count = events.Count, events });
+    return Results.Ok(new { total, count = events.Count, offset = skip, events });
 }).RequireAuthorization("admin.audit.view");
 
 app.Run();

@@ -3,7 +3,7 @@
  * APIs require. An address with a row in cpa/redirects.ts sits in LegacyRoute.
  */
 import React from 'react';
-import { ADMIN_PERMISSIONS, ADMINISTRATION_PERMISSIONS } from '../cpa/destinations';
+import { ADMINISTRATION_PERMISSIONS, GOVERNANCE_PERMISSIONS } from '../cpa/destinations';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LegacyRoute } from '../cpa/LegacyRoute';
 import { CPA_SLICE_ONLY, HOME_PATH } from '../productSlice';
@@ -83,9 +83,9 @@ export const AppRoutes: React.FC = () => (
         {/* v2.5 (3D.1): the governed gate configuration - reading needs cpm.config.read; every step beyond is its own permission on the server */}
         <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><GateConfigurationWorkspace /></RequirePermission>} />
         <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
-        {/* CHG-081: Pipeline is SuperAdmin only. Governance holds the one audit trail, so Audit log's rule opens it too; its other panels stay with system.manage. */}
+        {/* CHG-081: Pipeline is SuperAdmin only. CHG-174: Governance opens with system.manage or admin.audit.view (the trail), as in the sidebar and the palette; its other tabs stay with system.manage. */}
         <Route path="/cpm/pipeline"  element={<RequirePermission permission="system.manage"><CpmPipeline /></RequirePermission>} />
-        <Route path="/cpm/governance" element={<RequirePermission permission="system.manage" anyOf={['system.manage', ...ADMIN_PERMISSIONS]}><CpmGovernance /></RequirePermission>} />
+        <Route path="/cpm/governance" element={<RequirePermission permission="system.manage" anyOf={[...GOVERNANCE_PERMISSIONS]}><CpmGovernance /></RequirePermission>} />
         <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
         <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
         {/* Published-HMI launcher — every role with display.view */}

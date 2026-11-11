@@ -112,6 +112,10 @@
     {
       "pattern": "^(admin|engineer|operator|superadmin|viewer)system$",
       "why": "CHG-172: the role list became a table; each role's name is its own button and System sits in the Type column, so the old one-button 'Admin SYSTEM' names no longer exist (the selection works as before)"
+    },
+    {
+      "pattern": "^(cpmmanage|systemmanage|adminauditview|analyticsview|rbacmanage|displayedit)[a-z(]",
+      "why": "CHG-174: each permission row of Separation of duties pairs the key with the permission catalog's description, as Administration › Roles reads it (owner answer 1: one description per permission), so the row's accessible name changed; the key, its row and its marks are kept"
     }
   ]
 }

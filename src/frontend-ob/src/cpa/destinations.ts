@@ -4,14 +4,21 @@
  */
 import type { KindParam } from './tabKind';
 
-/** The administration keys: with system.manage they open Governance, which holds the one audit trail. */
+/** The administration keys. */
 export const ADMIN_PERMISSIONS: readonly string[] = ['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage'];
 
 /**
  * Who may open Administration: the /admin/* route guard, the sidebar and the user menu. CHG-172 (owner answer 3f): asset.view
- * too, because Plant model and Tag aliases open with it (writes inside need asset.edit). Governance keeps ADMIN_PERMISSIONS.
+ * too, because Plant model and Tag aliases open with it (writes inside need asset.edit).
  */
 export const ADMINISTRATION_PERMISSIONS: readonly string[] = [...ADMIN_PERMISSIONS, 'asset.view'];
+
+/**
+ * Who may open Governance, alike in the sidebar, the route and the palette (CHG-174, owner answer 2): system.manage (every tab) or
+ * admin.audit.view (the audit trail). Any administration key opened the route and the palette before, while the sidebar showed it
+ * to system.manage only. The tabs other than the trail still need system.manage; the services check every read.
+ */
+export const GOVERNANCE_PERMISSIONS: readonly string[] = ['system.manage', 'admin.audit.view'];
 
 export type NavGroup = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Set up' | 'Engineering' | 'System';
 
@@ -125,7 +132,7 @@ export const DESTINATIONS: readonly Destination[] = [
   {
     id: 'governance', label: 'Governance', group: 'System', path: '/cpm/governance',
     purpose: 'Who changed what, and the audit trail',
-    showTo: ['system.manage', ...ADMIN_PERMISSIONS], covers: [], carriesLoop: false, carriesWindow: false,
+    showTo: GOVERNANCE_PERMISSIONS, covers: [], carriesLoop: false, carriesWindow: false,
   },
 ];
 

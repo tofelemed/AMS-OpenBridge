@@ -1,23 +1,88 @@
-/* The one audit trail (CHG-124). Layout only: colours come from the shared CPM classes and tokens. */
-.cpm-audit__integrity {
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  border-radius: 6px;
-  background: var(--traverse-surface-raised);
-  color: var(--traverse-text-secondary);
+/* Governance (CHG-124 the one audit trail; CHG-174 the owner's approved sample): placement only. Sizes, colours and type come from
+   the app's own classes and tokens; the lists reuse the registry's rows (.cpm-reg-row) and Administration's filter row and panel
+   foot, the panels the shared Inspector. */
+.cpm-gov { padding-top: 0; }
+.cpm-gov__panel { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
+.cpm-gov-tabs { margin-top: 0; }
+.cpm-gov .ui-inspector__foot {
+  background: var(--traverse-surface-page);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
 }
-.cpm-audit__row { margin-bottom: 12px; }
-.cpm-audit__find { flex: 1 1 260px; }
-.cpm-audit__user { flex: 0 1 200px; }
-.cpm-audit__type { flex: 0 1 240px; }
-.cpm-audit__user, .cpm-audit__type { min-width: min(200px, 100%); }
-.cpm-audit__find .cpm-input, .cpm-audit__user .cpm-input, .cpm-audit__type .cpm-select { width: 100%; }
-.cpm-audit__scroll { overflow-x: auto; }
-.cpm-audit__table { min-width: 880px; }
-.cpm-audit__table td { vertical-align: top; }
 
-/* CHG-170 fix: the trail's row dates and the event dialog's Copy are link-buttons. Their rule lived in cpm-pipeline.css as
-   .cpm-pipeline-open and went with the Pipeline Health rewrite, so they fell back to grey browser buttons. */
-.cpm-audit-open { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+/* ── Header: Verify audit chain with its last run in one line under it ── */
+.cpm-gov-verify { display: inline-flex; flex-direction: column; align-items: flex-end; gap: var(--traverse-space-1); }
+.cpm-gov-verify__line { max-width: 20rem; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); text-align: end; }
+.cpm-gov-verify__line .cpm-pill__glyph { margin-inline-end: var(--traverse-space-1); }
+
+/* ── The trail's 32 px filter row: Find takes the room left, the others keep their widths ── */
+.cpm-gov-filters .cpm-gov-filters__find { flex: 1 1 10rem; }
+.cpm-gov-filters .cpm-gov-filters__user { flex: 0 1 9rem; }
+.cpm-gov-filters__select { flex: 0 1 9rem; }
+.cpm-gov-filters__range { flex: 0 1 9rem; }
+.cpm-gov-filters__days { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-admin-filters .cpm-gov-filters__days .cpm-input { flex: 0 1 11rem; }
+
+/* ── Lists: fixed columns, so they keep their places whatever the rows hold ── */
+.cpm-gov-table td { vertical-align: middle; overflow-wrap: anywhere; }
+.cpm-gov-table--trail th:nth-child(1) { width: 7.5rem; }
+.cpm-gov-table--trail td:first-child { white-space: nowrap; }
+.cpm-gov-table--trail th:nth-child(2) { width: 9rem; }
+.cpm-gov-table--approvals th:nth-child(2) { width: 11rem; }
+.cpm-gov-table--approvals th:nth-child(3) { width: 8rem; }
+.cpm-gov-table--approvals th:nth-child(4) { width: 8rem; }
+.cpm-gov-table--approvals td:last-child { white-space: nowrap; }
+.cpm-gov-entity { display: block; }
+/* a panel value with a line under it (the actor recorded by id, a loop not in the registry) */
+.cpm-gov-stack { display: inline-flex; flex-direction: column; align-items: flex-end; text-align: end; }
+.cpm-gov-muted { color: var(--traverse-text-secondary); font-style: italic; }
+/* an action: its glyph in its tone (✓ ◐ ✕) in a fixed slot, then the words */
+.cpm-gov-act { display: inline-flex; align-items: baseline; gap: var(--traverse-space-1); }
+.cpm-gov-act__glyph { display: inline-block; min-width: var(--traverse-space-3); }
+.cpm-gov-pills { display: inline-flex; flex-wrap: wrap; gap: var(--traverse-space-1); }
+/* the shared pager centred, the count at its end */
+.cpm-gov-pager { position: relative; align-items: center; min-height: var(--traverse-space-8); }
+.cpm-gov-pager__cover {
+  position: absolute; inset-inline-end: var(--traverse-space-4);
+  color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata);
+}
+.cpm-gov-links { display: flex; flex-wrap: wrap; gap: var(--traverse-space-1); margin-top: var(--traverse-space-2); }
+
+/* ── Separation of duties: full width, the permission column stays in place when the matrix scrolls sideways ── */
+.cpm-gov-duties { overflow-x: auto; }
+.cpm-gov-duties table { min-width: 56rem; }
+.cpm-gov-duties th, .cpm-gov-duties td { text-align: center; vertical-align: middle; }
+.cpm-gov-duties .cpm-gov-duties__key {
+  position: sticky; inset-inline-start: 0; z-index: 1; width: 24rem; text-align: start;
+  background: var(--traverse-surface-panel);
+}
+.cpm-gov-duties tbody .cpm-gov-duties__key { font-weight: 400; }
+
+/* ── Change traceability: the versions card, Build details in its foot ── */
+.cpm-gov-trace { max-inline-size: 48rem; }
+.cpm-gov-trace__foot { display: flex; margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-2); border-top: 1px solid var(--border-divider-color); }
+
+/* CHG-170 fix: the trail's row dates are link-buttons. Their rule lived in cpm-pipeline.css as .cpm-pipeline-open and went with
+   the Pipeline Health rewrite, so they fell back to grey browser buttons. CHG-174: the date reads as the row's other text. */
+.cpm-audit-open { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cpm-audit-open:hover { text-decoration: underline; }
 .cpm-audit-open:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+
+@media (max-width: 1279.98px) {
+  .cpm-gov-pager { flex-direction: column; gap: var(--traverse-space-2); }
+  .cpm-gov-pager__cover { position: static; }
+}
+/* A phone: each row's four cells in two lines (When · Actor, then Action · Entity); the headings stay for screen readers */
+@media (max-width: 600px) {
+  .cpm-gov-table, .cpm-gov-table tbody { display: block; }
+  .cpm-gov-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cpm-gov-table tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-1) var(--traverse-space-3);
+    padding: var(--traverse-space-2) var(--traverse-space-3); border-bottom: 1px solid var(--border-divider-color);
+  }
+  .cpm-gov-table tr > td { padding: 0; border: 0; background: none; box-shadow: none; overflow-wrap: break-word; }
+  .cpm-gov-table tr.cpm-reg-row--selected { background: var(--cpm-selected-bg); box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
+  .cpm-gov-table tr.cpm-reg-row--selected > td:first-child { box-shadow: none; }
+  .cpm-gov-verify { align-items: flex-start; }
+  .cpm-gov-verify__line { text-align: start; }
+}

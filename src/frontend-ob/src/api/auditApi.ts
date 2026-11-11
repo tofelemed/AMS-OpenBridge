@@ -2,6 +2,9 @@
  * Audit-service client (immutable hash-chained trail). Routed via the /api/audit
  * proxy (nginx + vite) because /api/v1/* belongs to ams-api. Requires the
  * admin.audit.view permission server-side; callers should handle 403 honestly.
+ *
+ * CHG-174: the service pages on the server (`offset`, echoed in the answer). An older
+ * service ignores `offset` and answers without it, which is how a caller tells.
  */
 import { apiJson } from './apiFetch';
 
@@ -24,6 +27,16 @@ export interface AuditQuery {
   from?: string;
   to?: string;
   take?: number;
+  /** Rows to skip, newest first (CHG-174). Sent only when given. */
+  offset?: number;
+}
+
+export interface AuditPage {
+  total: number;
+  count: number;
+  /** Echoed by a service that pages (CHG-174); absent from an older one. */
+  offset?: number;
+  events: AuditEventRow[];
 }
 
 export const getAuditEvents = (q: AuditQuery = {}, signal?: AbortSignal) => {
@@ -35,8 +48,8 @@ export const getAuditEvents = (q: AuditQuery = {}, signal?: AbortSignal) => {
   if (q.from) params.set('from', q.from);
   if (q.to) params.set('to', q.to);
   if (q.take) params.set('take', String(q.take));
-  return apiJson<{ total: number; count: number; events: AuditEventRow[] }>(
-    `/api/audit?${params.toString()}`, { signal });
+  if (q.offset != null) params.set('offset', String(q.offset));
+  return apiJson<AuditPage>(`/api/audit?${params.toString()}`, { signal });
 };
 
 /** Full-chain cryptographic verification; returns the service's verdict text. */

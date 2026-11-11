@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Governance in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Read from lab :4173 on 11 Nov (read-only, every non-GET call blocked):
+     4,825 audit events (newest 200 fetched: CpmLoop 92, gate_config_bundle 39, config_deployment 27, CpmEventFrame 22,
+     data-source-config 19, RolePermissions 1), five system roles, 8 gate-configuration bundles (none waiting), the calculation versions.
+     ILLUSTRATIVE: people (user names), the two user events (CHG-171, not on the lab yet), notes, the display and data-source names,
+     every id and hash, and all Approvals rows. Actions, entity types, plant tags, versions and permission keys are as read. Shell at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; min-height: 64px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .btn--sm { height: 32px; } .btn--q { border: 1px dashed var(--strong); color: var(--text2); }
+  .hacts { display: inline-flex; gap: 8px; align-items: flex-start; }
+  .hacts > span { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; } .hacts small { color: var(--text2); font-size: 12px; max-width: 300px; text-align: end; }
+  .hacts small b { font-weight: 600; } .hacts small.f b { color: var(--bad); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; align-items: flex-end; }
+  .tab { padding: 10px 14px 8px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field--q { border-style: dashed; color: var(--text2); }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; align-items: start; }
+  .filters { display: flex; align-items: center; gap: 8px; padding: 16px 16px 12px; }
+  .filters input[type=search] { flex: 1; min-width: 150px; padding-inline-start: 34px; background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%276.5%27 cy=%276.5%27 r=%275%27 fill=%27none%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3Cpath d=%27M10.5 10.5l4 4%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat 11px center; }
+  .filters select.field { padding: 0 6px; width: 116px; } .filters .user { width: 124px; } .filters .field--q { width: 96px; padding: 0 8px; }
+  .thead, .row { display: grid; align-items: center; gap: 12px; padding: 0 16px; }
+  .thead { height: 36px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 36px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row small, .sub { display: block; color: var(--text2); font-size: 12px; } .muted { color: var(--text2); font-style: italic; }
+  .g-aud { grid-template-columns: 92px 126px minmax(0, 1fr) minmax(0, 1.1fr); } .g-apr { grid-template-columns: minmax(0, 1fr) 176px 110px 96px; }
+  .act b { display: inline-block; width: 14px; font-size: 12px; } .act--ok b { color: var(--ok); } .act--warn b { color: var(--warn); } .act--bad b { color: var(--bad); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; vertical-align: 1px; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-bad b { color: var(--bad); } .t-muted b { color: var(--muted); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 16px; position: relative; }
+  .pager .cov { position: absolute; inset-inline-end: 16px; color: var(--text2); font-size: 12px; }
+  .pg { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--panel); }
+  .pg.on { background: var(--selected); border-color: var(--action); color: var(--action); font-weight: 600; } .pg.dis { color: var(--muted); border-color: var(--border); } .gap { color: var(--text2); }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text2); } .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 6px; }
+  .insp__head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .insp__body { padding: 0 20px 8px; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: center; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; overflow-wrap: anywhere; }
+  .kv .sub { text-align: end; }
+  .sect { border-top: 1px solid var(--border); padding: 12px 20px; }
+  .sect h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .sect.q { border: 1px dashed var(--strong); border-radius: 8px; margin: 4px 12px 8px; padding: 10px 12px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .ib { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text2); cursor: pointer; font-size: 14px; vertical-align: middle; }
+  .links { display: flex; gap: 2px; flex-wrap: wrap; padding: 2px 20px 8px; } .links .btn { padding: 0 8px; height: 32px; } .links .btn:first-child { padding-inline-start: 0; }
+  .lnk { color: var(--action); font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .illus { margin: 0 0 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .warnbox { margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: var(--bad-bg); color: var(--text); font-size: 13px; } .warnbox b { color: var(--bad); }
+  .warnbox.q { border: 1px dashed var(--strong); }
+  .errbox { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--bad-bg); display: flex; align-items: center; gap: 12px; } .errbox b { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; }
+  .diff td:first-child { color: var(--text2); width: 30%; } .diff td:nth-child(2) { color: var(--text2); text-decoration: line-through; text-decoration-color: var(--strong); } .diff td:nth-child(2).none { text-decoration: none; }
+  .diff td:nth-child(3) { font-weight: 600; }
+  /* duties */
+  .mx { overflow-x: auto; } .mx table { min-width: 900px; }
+  .mx th, .mx td { padding: 8px 12px; text-align: center; vertical-align: middle; } .mx tr > :first-child { text-align: start; position: sticky; left: 0; background: var(--panel); width: 380px; }
+  .mx td b { font-size: 15px; } .mx .y { color: var(--ok); } .mx .n { color: var(--muted); }
+  .mx tr.q > * { border-bottom-style: dashed; } .mx tr.q > :first-child { box-shadow: inset 3px 0 0 var(--strong); }
+  .mx th.r { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); }
+  /* dialogs */
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; overflow: auto; padding: 24px 0; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); } .dlg--wide { width: 820px; } .dlg--sm { width: 500px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; align-items: center; } .dlg h3 > span:last-child { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .dlg p { margin: 8px 0; } .dlg .kv { grid-template-columns: 150px 1fr; } .dlg .kv > span:last-child { text-align: start; }
+  .dlg .df { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .key { display: grid; grid-template-columns: 230px 1fr; gap: 6px 16px; align-items: center; } .key > span:nth-child(even) { color: var(--text2); }
+  .q2 { border: 1px dashed var(--strong); border-radius: 6px; padding: 2px 8px; color: var(--text2); }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; } [data-tabp] { display: none; } [data-tabp].on { display: block; } .md[data-tabp].on { display: grid; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+  /* below 1280 px: the sidebar folds, the panel becomes a drawer */
+  .narrow .shell { width: 1000px; grid-template-columns: 1fr; } .narrow .side, .narrow .topf { display: none; } .narrow .sample { width: 1000px; }
+  .narrow .md { grid-template-columns: 1fr; } .narrow .md > aside { position: fixed; top: 64px; right: 0; bottom: 0; width: 440px; z-index: 4; overflow: auto; border-radius: 0; box-shadow: -8px 0 28px rgba(21, 34, 56, .18); }
+  .narrow .md > aside.closed { display: none; } .dclose { display: none; } .narrow .dclose { display: inline-grid; }
+  #tCard .kv { grid-template-columns: 220px 1fr; }
+  .narrow .filters { flex-wrap: wrap; } .narrow .filters input[type=search] { flex-basis: 100%; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Platform Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div class="on">Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ? and no sentence; How to read and the open tab's actions top right -->
+    <div class="head">
+      <div class="ann" data-n="1" style="padding-inline-end:14px"><span class="eyebrow">System</span><h1>Governance</h1></div>
+      <span class="grow"></span>
+      <button class="btn ann" data-n="14" onclick="openHow()">How to read</button>
+      <span class="hacts" id="hacts"></span>
+    </div>
+    <!-- 2 four tabs, plain labels, each its own address (?tab=); the three lower cards leave the long scroll -->
+    <div class="tabs ann" data-n="2" role="tablist" id="tabs"></div>
+
+    <!-- AUDIT TRAIL -->
+    <div data-tabp="trail" class="md">
+      <section class="card">
+        <!-- 3 one 32 px filter row inside the card: search first, then the server filters; dropdowns named by their options -->
+        <div class="filters ann" data-n="3">
+          <input class="field" type="search" id="fq" placeholder="Actor, action, entity" aria-label="Find event" oninput="go({q:this.value})">
+          <input class="field user" placeholder="Exact user name" aria-label="User">
+          <span class="ann" data-n="Q" title="Owner question 7: every entity the services record, and event types from a fixed list"><select class="field" aria-label="Entity"><option>All entities</option><option>CPM loops</option><option>CPM events</option><option>Gate configuration bundles</option><option>Configuration deployments</option><option>Data sources</option><option>HMI displays</option><option>Roles</option><option>Role permissions</option><option>Users</option><option>System models</option></select></span>
+          <select class="field" aria-label="Event type"><option>All events</option><option>User created</option><option>User updated</option><option>Role permissions reset</option><option>Draft approved</option><option>Loop activated</option><option>…</option></select>
+          <span class="field field--q ann" data-n="Q" title="Owner question 4: a time range; the API already takes from / to">All time &#9662;</span>
+        </div>
+        <!-- 4 four columns: the zone once in the heading; the actor by name; the action in words with its glyph; the entity by short name -->
+        <div class="thead g-aud ann" data-n="4"><span>When · UTC</span><span>Actor</span><span>Action</span><span>Entity</span></div>
+        <div id="eRows" role="list" aria-label="Audit events"></div>
+        <div class="empty hide" id="eEmpty"><b>No audit events match</b>The trail records display, CPM, gate-configuration, data-source, role and user changes.</div>
+        <!-- 5 the shared 32 px pager; the long foot line becomes one coverage note -->
+        <div class="pager ann" data-n="5" id="ePager"><span class="pg dis">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="gap">…</span><span class="pg">8</span><span class="pg">›</span><span class="cov">Newest 200 of 4,825 <span class="ann" data-n="Q" title="Owner question 3: page through all 4,825 on the server" style="padding-inline-end:12px"></span></span></div>
+      </section>
+      <!-- 6 the selected event: today's row dialog as a panel (a drawer below 1280 px) -->
+      <aside class="card insp ann" data-n="6" aria-label="Selected event" id="ePanel"></aside>
+    </div>
+
+    <!-- APPROVALS -->
+    <div data-tabp="approvals" class="md">
+      <!-- 9 the queue: bundle, state in words, author, updated; site and class only where they differ; Open → becomes the panel's exit -->
+      <section class="card ann" data-n="9">
+        <div class="thead g-apr" style="border-top:0;border-radius:12px 12px 0 0"><span>Bundle</span><span>State</span><span>Author</span><span>Updated · UTC</span></div>
+        <div id="bRows" role="list" aria-label="Waiting for approval or activation"></div>
+        <div class="empty hide" id="bEmpty"><b>Nothing awaiting approval or activation</b>Validated drafts appear here for an independent approver; approved bundles until they are activated and verified.</div>
+        <div class="illus hide" id="bIllus" style="margin:12px 16px">Illustrative rows: the lab has no bundle waiting (8 bundles on hdpe: 4 rolled back, 2 superseded, 1 active, 1 draft).</div>
+      </section>
+      <!-- 10 the selected bundle: said once; what it waits for; the server's rules; the exit to its Approval tab -->
+      <aside class="card insp ann" data-n="10" aria-label="Selected bundle" id="bPanel"></aside>
+    </div>
+
+    <!-- SEPARATION OF DUTIES -->
+    <!-- 11 the full width: all five roles in view, the permission column stays when scrolled; "5 role(s) · live" goes -->
+    <section data-tabp="duties" class="card ann" data-n="11" style="padding:8px 0 4px" id="dCard"></section>
+
+    <!-- CHANGE TRACEABILITY -->
+    <!-- 12 the calculation versions producing today's verdicts; builds go to Build details; Registered loops goes (the top bar says it) -->
+    <section data-tabp="trace" class="card insp ann" data-n="12" style="max-width:760px" id="tCard"></section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim">
+  <!-- 14 How to read: the open tab's key in titled parts; today's five ? live here -->
+  <div class="card dlg dlg--wide" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div data-how="trail">
+      <h4>Actor</h4><div class="key">
+        <span>a user name</span><span>The person signed in when the change was made.</span>
+        <span>System</span><span>A service did it: a shelf that expired, an activation verified.</span>
+        <span><span class="muted">Not recorded by name</span></span><span>An older Administration event that names its actor by user id; the id is in Record details.</span></div>
+      <h4>Action</h4><div class="key">
+        <span><span class="act act--ok"><b>✓</b>Loop activated</span></span><span>Activated, acknowledged, approved, verified.</span>
+        <span><span class="act act--warn"><b>◐</b>Event shelved</span></span><span>Shelved.</span>
+        <span><span class="act act--bad"><b>✕</b>Loop deleted</span></span><span>Deleted.</span>
+        <span><span class="act"><b></b>Draft edited</span></span><span>Any other change.</span></div>
+      <h4>Filters</h4><p style="color:var(--text2)">Entity, User and Event type ask the server, so they reach older records. Find searches only the rows fetched. User matches the exact user name.</p>
+      <h4>Audit chain</h4><p style="color:var(--text2)">Entries are hash-chained by audit-service. Verify audit chain asks the service to walk the chain and shows its answer.</p>
+    </div>
+    <div data-how="approvals">
+      <h4>State</h4><div class="key">
+        <span><span class="pill t-warn"><b>◐</b>Validated</span> <span class="pill t-warn"><b>◐</b>Shadow evaluated</span></span><span>Waits for an independent approver.</span>
+        <span><span class="pill t-warn"><b>◐</b>Approved</span></span><span>Waits for activation.</span>
+        <span><span class="pill t-bad"><b>✕</b>Activation failed</span> <span class="pill t-bad"><b>✕</b>Partially acknowledged</span></span><span>NOT active: activate again once the fleet is fixed.</span></div>
+      <h4>Rules</h4>
+      <div class="key"><span>Approve</span><span>Needs cpm.config.approve (by someone other than the author).</span>
+        <span>Approval</span><span>An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server.</span>
+        <span class="q2">Site-wide change</span><span class="q2">a site-wide or objective / test-permission change needs an approver with the ControlAuthority role (the server's rule, stated nowhere today: question 11)</span></div>
+    </div>
+    <div data-how="duties">
+      <h4>Marks</h4><div class="key"><span><b style="color:var(--ok)">✓</b></span><span>The role holds the permission.</span><span><b style="color:var(--muted)">—</b></span><span>The role does not hold it.</span></div>
+      <h4>When a permission change applies</h4><p style="color:var(--text2)">Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
+    </div>
+    <div data-how="trace">
+      <h4>Why versions are stored</h4><p style="color:var(--text2)">Every stored window carries these versions in its payload, so any historical verdict can be attributed to the formula that produced it.</p>
+    </div>
+  </div>
+
+  <!-- 7 Record details: the ids, the code and the hash, in titled parts, each copyable -->
+  <div class="card dlg ann" data-n="7" data-dlg="erec">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Event</h4>
+    <div class="kv"><span>Event id</span><span><span class="mono">5b8e1c07-…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <div class="kv"><span>Event type</span><span class="mono" id="rType"></span></div>
+    <div class="kv"><span>Recorded at</span><span class="mono" id="rAt"></span></div>
+    <h4>Actor</h4>
+    <div class="kv"><span>User name</span><span id="rUser"></span></div>
+    <div class="kv"><span>User id</span><span><span class="mono">7c41e0d2-…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <h4>Entity</h4>
+    <div class="kv"><span>Entity type</span><span class="mono" id="rEt"></span></div>
+    <div class="kv"><span>Entity id</span><span><span class="mono" id="rEid"></span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <h4>Chain</h4>
+    <div class="kv"><span>Hash</span><span><span class="mono">3fa9c2d81e07…</span> <button class="ib" title="Copy the whole hash">⧉</button></span></div>
+    <div class="kv"><span>Correlation</span><span>Not recorded</span></div>
+    <p style="color:var(--text2);font-size:12px">Illustrative ids and hash.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- Full history (question 6): every event for this entity, from the API's entityType + entityId filter -->
+  <div class="card dlg dlg--wide" data-dlg="hist">
+    <h3 id="hTitle">Full history <span onclick="closeDlg()">&#x2715;</span></h3>
+    <table><tr><th>When · UTC</th><th>Actor</th><th>Action</th></tr>
+      <tr><td>25 Sep 18:37</td><td>g_admin</td><td><span class="act act--ok"><b>✓</b>Draft approved</span></td></tr>
+      <tr><td>25 Sep 18:37</td><td>a_engineer</td><td><span class="act"><b></b>Draft validated</span></td></tr>
+      <tr><td>25 Sep 18:37</td><td>a_engineer</td><td><span class="act"><b></b>Draft edited</span></td></tr>
+      <tr><td>25 Sep 18:37</td><td>a_engineer</td><td><span class="act"><b></b>Draft created</span></td></tr></table>
+    <p class="q2" style="margin-top:12px">Question 6. Its activation and rollback name the deployment, not the bundle: they join this list once the service serves the values (question 1).</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 8 Verify audit chain: titled parts; the failure with its glyph; the not-served sentence once, here only -->
+  <div class="card dlg ann" data-n="8" data-dlg="verify">
+    <h3>Verify audit chain <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Answer</h4><div id="vAns"></div>
+    <div class="kv" style="margin-top:8px"><span>Run at</span><span id="vAt">11 Nov 14:18 UTC</span></div>
+    <h4>Not served</h4><p style="color:var(--text2)">The chain range, entry count and algorithm are not served, so this answer cannot be checked here.</p>
+    <div class="df"><span class="grow"></span><button class="btn">Run again</button><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <div class="card dlg dlg--sm" data-dlg="brec">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Bundle id</span><span><span class="mono">7e0c52a9-…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <div class="kv"><span>Content hash</span><span><span class="mono" id="brHash"></span>… <button class="ib" title="Copy the whole hash">⧉</button></span></div>
+    <p style="color:var(--text2);font-size:12px">Illustrative id and hash.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 13 Build details: the build rows that left the versions card -->
+  <div class="card dlg ann" data-n="13" data-dlg="build">
+    <h3>Build details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Service</h4>
+    <div class="kv"><span>cplm-api build</span><span><span class="mono">1.0.0 · 2f5ff876</span> <button class="ib" title="Copy">⧉</button></span></div>
+    <h4>Engine builds observed</h4>
+    <div class="kv"><span>Engine build 1</span><span><span class="mono">calc 3.0.0 · commit 4e1a9c07b2d3-dirty · jar 9b2f61c0a7e4</span> <button class="ib" title="Copy">⧉</button></span></div>
+    <p style="color:var(--text2);font-size:12px">Versions as read on the lab; commit and jar illustrative.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out btn--sm" onclick="sample('new')">Trail · user updated</button>
+  <button class="btn btn--out btn--sm" onclick="sample('old')">Trail · actor by id</button>
+  <button class="btn btn--out btn--sm" onclick="sample('bundle')">Trail · draft approved</button>
+  <button class="btn btn--out btn--sm" onclick="sample('deploy')">Trail · rollback</button>
+  <button class="btn btn--out btn--sm" onclick="sample('loop')">Trail · deleted loop</button>
+  <button class="btn btn--out btn--sm" onclick="sample('today')">Trail · values not served</button>
+  <button class="btn btn--out btn--sm" onclick="sample('nomatch')">Trail · no match</button>
+  <button class="btn btn--out btn--sm" onclick="sample('vok')">Verified</button>
+  <button class="btn btn--out btn--sm" onclick="sample('vfail')">Verify failed</button>
+  <button class="btn btn--out btn--sm" onclick="sample('auditor')">Auditor only</button>
+  <button class="btn btn--out btn--sm" onclick="sample('appr')">Approvals</button>
+  <button class="btn btn--out btn--sm" onclick="sample('site')">Approvals · site bundle</button>
+  <button class="btn btn--out btn--sm" onclick="sample('apprLab')">Approvals · lab (empty)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('duties')">Separation of duties</button>
+  <button class="btn btn--out btn--sm" onclick="sample('norbac')">Duties · no rbac.manage</button>
+  <button class="btn btn--out btn--sm" onclick="sample('trace')">Change traceability</button>
+  <button class="btn btn--out btn--sm" onclick="sample('traceErr')">Versions not read</button>
+  <button class="btn btn--out btn--sm" onclick="sample('narrow')">1000 px · drawer</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w) => `<span class="pill t-${t}"><b>${g}</b>${w}</span>`;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  const GL = { ok: '✓', warn: '◐', bad: '✕' };
+  const act = (t, w) => `<span class="act${t ? ' act--' + t : ''}"><b>${GL[t] || ''}</b>${w}</span>`;
+  // ILLUSTRATIVE events modelled on the lab's newest 200 (people, notes, names, ids invented); newest first.
+  // [key, when, recorded, actor (null = id only), code, action, tone, entity type label, entity code, object, object id (not served), link, exit, change rows]
+  const EV = [
+    ['u1', '11 Nov 15:02', '11 Nov 2026 15:02:41', 'g_admin', 'USER_UPDATED', 'User updated', '', 'User', 'User', 'a_engineer', '5f3c91e2-…', 'a_engineer ↗', 'Open user →', [['Role', 'Viewer', 'Engineer'], ['Full name', '—', 'A. Engineer']]],
+    ['u2', '11 Nov 14:58', '11 Nov 2026 14:58:10', 'g_admin', 'USER_CREATED', 'User created', '', 'User', 'User', 'c_engineer', '8a01d7c4-…', 'c_engineer ↗', 'Open user →', [['User name', '', 'c_engineer'], ['Email', '', 'engineer.c@example.com'], ['Role', '', 'Engineer'], ['Active', '', 'Yes']]],
+    ['r1', '4 Nov 13:04', '4 Nov 2026 13:04:11', null, 'RBAC_ROLE_PERMISSIONS_RESET', 'Role permissions reset', '', 'Role permissions', 'RolePermissions', 'Engineer', 'Engineer', 'Engineer ↗', 'Open role →', [['Permissions', '', '22 keys after the reset']]],
+    ['b1', '4 Nov 11:20', '4 Nov 2026 11:20:43', 'platform_admin', 'CPM_EVIDENCE_REPUBLISHED_BULK', 'Evidence republished (bulk)', '', 'CPM loops', 'CpmLoop', '20 loops', 'bulk:20', null, null, [['Requested', '', '20'], ['Republished', '', '20'], ['Not found', '', '0']]],
+    ['d1', '4 Nov 07:09', '4 Nov 2026 07:09:14', 'platform_admin', 'ingestion.datasource.tested', 'Data source tested', '', 'Data source', 'data-source-config', 'OT Gateway (loop samples)', '6a2e…', 'OT Gateway ↗', 'Open data source →', [['Result', '', '✓ Success']]],
+    ['s1', '3 Nov 14:28', '3 Nov 2026 14:28:27', 'System', 'CPM_EVENT_SHELF_EXPIRED', 'Shelf expired', '', 'CPM event', 'CpmEventFrame', 'EVT-3189', '3189', 'EVT-3189 ↗', 'Open event →', [['Shelved until', '', '3 Nov 14:28']]],
+    ['k1', '15 Oct 07:05', '15 Oct 2026 07:05:52', 'platform_admin', 'CPM_EVENT_ACKNOWLEDGED', 'Event acknowledged', 'ok', 'CPM event', 'CpmEventFrame', 'EVT-2230', '2230', 'EVT-2230 ↗', 'Open event →', [['Note', '', 'Valve stiction confirmed on site']]],
+    ['l1', '10 Oct 13:28', '10 Oct 2026 13:28:29', 'g_admin', 'CPM_LOOP_ACTIVATED', 'Loop activated', 'ok', 'CPM loop', 'CpmLoop', 'FIC10503', 'FIC10503', 'FIC10503 ↗', 'Open loop →', [['Monitoring', '', 'On'], ['Site', '', 'hdpe']]],
+    ['x1', '26 Sep 02:50', '26 Sep 2026 02:50:12', 'g_admin', 'CPM_LOOP_DELETED', 'Loop deleted', 'bad', 'CPM loop', 'CpmLoop', 'TIC20104', 'TIC20104', null, null, [['Note', '', 'Analytics history retained']]],
+    ['v1', '25 Sep 18:37', '25 Sep 2026 18:37:18', 'System', 'CONFIG_ACTIVE_VERIFIED', 'Active (verified)', 'ok', 'Configuration deployment', 'config_deployment', 'FIC10302 · v6', 'e5b0…', 'FIC10302 v6 ↗', 'Open bundle →', [['Bundle', '', 'FIC10302 · v6'], ['Pinned results', '', '3']]],
+    ['p1', '25 Sep 18:37', '25 Sep 2026 18:37:18', 'g_admin', 'CONFIG_DEPLOYMENT_SCHEDULED', 'Rollback scheduled', '', 'Configuration deployment', 'config_deployment', 'FIC10302 · v6', 'e5b0…', 'FIC10302 v6 ↗', 'Open bundle →', [['Kind', '', 'Rollback'], ['Bundle', '', 'FIC10302 · v6'], ['Effective from', '', '25 Sep 18:37']]],
+    ['a1', '25 Sep 18:37', '25 Sep 2026 18:37:08', 'g_admin', 'CONFIG_DRAFT_APPROVED', 'Draft approved', 'ok', 'Gate configuration bundle', 'gate_config_bundle', 'FIC10302 · v7', 'c7d1…', 'FIC10302 v7 ↗', 'Open bundle →', [['Change class', '', 'Policy'], ['Site-wide or objective change', '', 'No']]],
+    ['a2', '25 Sep 18:37', '25 Sep 2026 18:37:08', 'a_engineer', 'CONFIG_DRAFT_VALIDATED', 'Draft validated', '', 'Gate configuration bundle', 'gate_config_bundle', 'FIC10302 · v7', 'c7d1…', 'FIC10302 v7 ↗', 'Open bundle →', [['State', '', 'Validated']]],
+    ['a3', '25 Sep 18:37', '25 Sep 2026 18:37:08', 'a_engineer', 'CONFIG_DRAFT_EDITED', 'Draft edited', '', 'Gate configuration bundle', 'gate_config_bundle', 'FIC10302 · v7', 'c7d1…', 'FIC10302 v7 ↗', 'Open bundle →', [['Edited', '', 'set activity_warn_ratio']]],
+    ['a4', '25 Sep 18:37', '25 Sep 2026 18:37:07', 'a_engineer', 'CONFIG_DRAFT_CREATED', 'Draft created', '', 'Gate configuration bundle', 'gate_config_bundle', 'FIC10302 · v7', 'c7d1…', 'FIC10302 v7 ↗', 'Open bundle →', [['Scope', '', 'Loop FIC10302'], ['Version', '', '7']]],
+    ['h1', '17 Aug 07:11', '17 Aug 2026 07:11:20', 'g_admin', 'DISPLAY_PUBLISHED', 'Display published', '', 'HMI display', 'Display', 'Unit 100 overview', 'd19f…', 'Unit 100 overview ↗', 'Open display →', [['Version', '', '4']]]];
+  // ILLUSTRATIVE queue: [key, object, scope, version, state, author, updated, class, hash]
+  const BUN = [
+    ['f1', 'FIC10301', 'Loop', 2, 'VALIDATED', 'b_engineer', '11 Nov 09:12', 'Policy', '9e2b41f0'],
+    ['f2', 'FIC10302', 'Loop', 8, 'SHADOW_EVALUATED', 'a_engineer', '10 Nov 16:40', 'State boundary', '3c1d0a77'],
+    ['f3', 'PIC30102', 'Loop', 3, 'APPROVED', 'a_engineer', '9 Nov 11:05', 'Policy', 'b81e44c2'],
+    ['f4', 'HDPE Plant', 'Site', 2, 'VALIDATED', 'b_engineer', '8 Nov 14:20', 'Policy', '5a7f0e19'],
+    ['f5', 'FIC10405', 'Loop', 4, 'ACTIVATION_FAILED', 'a_engineer', '7 Nov 10:02', 'Policy', 'e02b9d3f']];
+  const STATE = { VALIDATED: ['warn', '◐', 'Validated', 'Approval', 'Open approval →'], SHADOW_EVALUATED: ['warn', '◐', 'Shadow evaluated', 'Approval', 'Open approval →'],
+    APPROVED: ['warn', '◐', 'Approved', 'Activation', 'Open deployments →'], ACTIVATION_FAILED: ['bad', '✕', 'Activation failed', 'A new activation (NOT active)', 'Open deployments →'] };
+  const ROLES = ['Admin', 'Engineer', 'Operator', 'SuperAdmin', 'Viewer'];
+  // the lab's holders, read 11 Nov; [key, today's guard text, holders, dashed (question 12)]
+  const PERMS = [['cpm.manage', 'Loop onboarding, event ack/shelve, recompute', 'Admin Engineer SuperAdmin'], ['system.manage', 'Pipeline and OPC mutations', 'SuperAdmin'],
+    ['admin.audit.view', 'Audit trail reads', 'SuperAdmin'], ['analytics.view', 'Every CPM read', 'Admin Engineer Operator SuperAdmin Viewer'], ['rbac.manage', 'Role and permission changes', 'SuperAdmin'],
+    ['display.edit', 'Authoring HMI displays', 'Admin Engineer SuperAdmin'],
+    ['cpm.config.draft', 'Create and edit gate-configuration drafts', 'SuperAdmin', 1], ['cpm.config.approve', 'Approve a validated gate-configuration bundle', 'SuperAdmin', 1],
+    ['cpm.config.activate', 'Activate an approved gate-configuration bundle', 'SuperAdmin', 1], ['admin.users.edit', 'Create/edit/delete users', 'SuperAdmin', 1]];
+  const TABS = [['trail', 'Audit trail'], ['approvals', 'Approvals'], ['duties', 'Separation of duties'], ['trace', 'Change traceability']];
+  let S = {};
+  const SAMPLES = {
+    new: { tab: 'trail', e: 'u1' }, old: { tab: 'trail', e: 'r1' }, bundle: { tab: 'trail', e: 'a1' }, deploy: { tab: 'trail', e: 'p1' }, loop: { tab: 'trail', e: 'x1' },
+    today: { tab: 'trail', e: 'a1', notServed: true }, nomatch: { tab: 'trail', e: null, q: 'zzz' }, vok: { tab: 'trail', e: 'u1', v: 'ok' }, vfail: { tab: 'trail', e: 'u1', v: 'fail' },
+    auditor: { tab: 'trail', e: 'u1', auditor: true }, appr: { tab: 'approvals', b: 'f1' }, site: { tab: 'approvals', b: 'f4' }, apprLab: { tab: 'approvals', b: null, lab: true },
+    duties: { tab: 'duties' }, norbac: { tab: 'duties', norbac: true }, trace: { tab: 'trace' }, traceErr: { tab: 'trace', err: true },
+    narrow: { tab: 'trail', e: 'a1', narrow: true, drawer: true } };
+
+  function renderHead() {
+    const vline = S.v === 'ok' ? '<small>Last run 11 Nov 14:18 UTC</small>' : S.v === 'fail' ? '<small class="f"><b>✕</b> Verify failed · 11 Nov 14:18 UTC</small>' : '<small>Not verified in this session.</small>';
+    $('hacts').innerHTML = S.tab === 'trail'
+      ? `<span class="btn btn--q ann" data-n="Q" title="Owner question 5: a CSV of the filtered rows, built in the browser">Export CSV</span><span><button class="btn btn--out" onclick="openVerify()">Verify audit chain</button>${vline}</span>` : '';
+    $('tabs').classList.toggle('hide', !!S.auditor);
+    $('tabs').innerHTML = TABS.map(([k, l]) => `<span class="tab" role="tab" aria-selected="${S.tab === k}" onclick="go({tab:'${k}'})">${l}</span>`).join('');
+    document.querySelectorAll('[data-tabp]').forEach(p => p.classList.toggle('on', p.dataset.tabp === S.tab));
+    document.querySelectorAll('[data-how]').forEach(p => p.classList.toggle('hide', p.dataset.how !== S.tab));
+  }
+  const actorCell = a => (a === null ? '<span class="muted">Not recorded by name</span>' : a);
+  const objOf = e => (S.notServed && ['gate_config_bundle', 'config_deployment', 'data-source-config', 'Display', 'User'].includes(e[8]) ? `<span class="mono">${e[10]}</span>` : e[9]);
+  const actOf = e => (S.notServed && e[4] === 'CONFIG_DEPLOYMENT_SCHEDULED' ? 'Deployment scheduled' : e[5]);
+  function renderTrail() {
+    const needle = (S.q || '').toLowerCase();
+    const list = EV.filter(e => !needle || [e[3] || '', e[5], e[7], e[9]].some(v => v.toLowerCase().includes(needle)));
+    $('fq').value = S.q || '';
+    $('eRows').innerHTML = list.map(e => `<div class="row g-aud${S.e === e[0] ? ' sel' : ''}" role="listitem" onclick="go({e:'${e[0]}',drawer:true})"><span>${e[1]}</span><span>${actorCell(e[3])}</span><span>${act(e[6], actOf(e))}</span><span>${objOf(e)}<small>${e[7]}</small></span></div>`).join('');
+    $('eEmpty').classList.toggle('hide', list.length > 0); $('ePager').classList.toggle('hide', list.length === 0);
+    const e = EV.find(x => x[0] === S.e);
+    $('ePanel').classList.toggle('hide', !e); $('ePanel').classList.toggle('closed', !!S.narrow && !S.drawer);
+    if (!e) return;
+    const idOnly = e[3] === null;
+    const actor = idOnly ? '<span class="muted">Not recorded by name</span><span class="sub">Recorded by user id only; the id is in Record details.</span>' : e[3];
+    const gone = e[0] === 'x1' ? '<span class="sub">TIC20104 is not in the loop registry.</span>' : '';
+    const entity = `${objOf(e)}${gone}`;
+    const NEEDS = { gate_config_bundle: 'Bundle ↗', 'data-source-config': 'Data source ↗', Display: 'Display ↗', User: 'User ↗', config_deployment: '' };
+    const linkLabel = S.notServed && e[8] in NEEDS ? NEEDS[e[8]] : e[11];
+    const change = S.notServed
+      ? '<div class="sect"><h3>Change</h3><p class="sub" style="margin:0">Before and after values are stored, but the audit service does not serve them.</p></div>'
+      : `<div class="sect q ann" data-n="Q" title="Owner question 1: the audit service serves BeforeState / AfterState"><h3>Change</h3>${e[13].some(r => r[1])
+        ? `<table class="diff"><tr><th>Field</th><th>Before</th><th>After</th></tr>${e[13].map(r => `<tr><td>${r[0]}</td><td${r[1] && r[1] !== '—' ? '' : ' class="none"'}>${r[1] || '—'}</td><td>${r[2]}</td></tr>`).join('')}</table>`
+        : e[13].map(r => kv(r[0], r[2])).join('')}</div>`;
+    const links = [linkLabel ? `<span class="btn">${linkLabel}</span>` : '', `<span class="btn btn--q ann" data-n="Q" title="Owner question 6: every event for this entity" onclick="openHist()">Full history</span>`].join('');
+    $('ePanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">${e[7]}</span><h2>${actOf(e)}</h2></div><span class="grow"></span><button class="ib dclose" title="Close" onclick="go({drawer:false})">✕</button></div>
+      <div class="insp__body">${kv('Actor', actor)}${kv('When · UTC', `${e[2]} <span class="ann" data-n="Q" title="Owner question 9: seconds and year in the panel" style="padding-inline-end:10px"></span>`)}${kv('Entity', entity)}</div>
+      ${change}<div class="links">${links}</div>
+      <div class="insp__foot"><button class="btn" onclick="openRec()">Record details</button><span class="grow"></span>${e[12] && !(S.notServed && e[8] === 'config_deployment') ? `<button class="btn btn--raised">${e[12]}</button>` : ''}</div>`;
+  }
+  function renderApprovals() {
+    const rows = S.lab ? [] : BUN;
+    $('bRows').innerHTML = rows.map(b => { const s = STATE[b[4]];
+      return `<div class="row g-apr${S.b === b[0] ? ' sel' : ''}" role="listitem" onclick="go({b:'${b[0]}',drawer:true})"><span><strong>${b[1]}</strong><small>${b[2]} · v${b[3]}${b[7] !== 'Policy' ? ' · <b style="color:var(--warn)">◆</b> ' + b[7] : ''}</small></span><span>${pill(s[0], s[1], s[2])}</span><span>${b[5]}</span><span>${b[6]}</span></div>`; }).join('');
+    $('bEmpty').classList.toggle('hide', rows.length > 0); $('bIllus').classList.toggle('hide', rows.length === 0);
+    const b = rows.find(x => x[0] === S.b);
+    $('bPanel').classList.toggle('hide', !b); $('bPanel').classList.toggle('closed', !!S.narrow && !S.drawer);
+    if (!b) return;
+    const s = STATE[b[4]], site = b[2] === 'Site';
+    $('brHash').textContent = b[8];
+    $('bPanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">Gate configuration bundle</span><h2>${b[1]} · v${b[3]}</h2></div><span class="grow"></span>${pill(s[0], s[1], s[2])}<button class="ib dclose" title="Close" onclick="go({drawer:false})">✕</button></div>
+      <div class="insp__body">${site ? '' : kv('Site', 'HDPE Plant · <span class="mono">hdpe</span>')}${kv('Scope', site ? 'Site' : `Loop ${b[1]}`)}${kv('Change class', b[7] === 'Policy' ? 'Policy' : '<b style="color:var(--warn)">◆</b> ' + b[7])}${kv('Author', b[5])}${kv('Updated · UTC', b[6])}${kv('Waits for', s[3])}</div>
+      ${site ? '<div class="sect"><div class="warnbox q ann" data-n="Q" title="Owner question 11"><b>✕</b> a site-wide or objective / test-permission change needs an approver with the ControlAuthority role <span class="sub" style="margin-top:4px">The server\'s rule, word for word. No role of that name exists, so this bundle cannot be approved today.</span></div></div>' : ''}
+      <div class="links">${site ? '' : `<span class="btn">${b[1]} ↗</span>`}<span class="btn btn--q ann" data-n="Q" title="Owner question 10c: open the bundle at its tab">Diff &amp; impact ↗</span><span class="btn btn--q">Shadow ↗</span></div>
+      <div class="insp__foot"><button class="btn" onclick="openDlg('brec')">Record details</button><span class="grow"></span><button class="btn btn--raised">${s[4]}</button></div>`;
+  }
+  function renderDuties() {
+    if (S.norbac) {
+      $('dCard').innerHTML = '<div class="empty"><b>The live role matrix needs the rbac.manage permission</b>Your session can read the audit trail but not the RBAC model, so this panel will not describe a permission model it cannot verify.</div>';
+      return;
+    }
+    $('dCard').innerHTML = `<div class="mx" role="region" aria-label="Permissions by role" tabindex="0"><table><thead><tr><th>Permission</th>${ROLES.map(r => `<th class="r">${r}</th>`).join('')}</tr></thead><tbody>`
+      + PERMS.map(p => `<tr${p[3] ? ' class="q"' : ''}><th scope="row" style="text-transform:none;letter-spacing:0;font-weight:400"><span class="mono" style="color:var(--text);font-weight:600">${p[0]}</span><span class="sub">${p[1]}</span></th>${ROLES.map(r => (p[2].split(' ').includes(r) ? `<td aria-label="${r} holds ${p[0]}"><b class="y">✓</b></td>` : `<td aria-label="${r} does not hold ${p[0]}"><b class="n">—</b></td>`)).join('')}</tr>`).join('')
+      + '</tbody></table></div><div class="illus" style="margin:12px 16px 8px">Dashed rows: owner question 12, the gate-configuration and user-administration keys (descriptions from the permission catalog). On the lab only SuperAdmin holds them, so four eyes needs two SuperAdmin accounts.</div>';
+  }
+  function renderTrace() {
+    const body = S.err
+      ? '<div class="insp__body"><div class="errbox"><span><b>✕</b> Calculation versions could not be read<span class="sub">The service is currently unavailable. Try again shortly.</span></span><span class="grow"></span><button class="btn btn--out btn--sm">Retry</button></div></div>'
+      : `<div class="insp__body">${kv('Calculation engine', 'v3.0.0 · CplmGateFusionEngine (Flink)')}${kv('Dynamics profile', 'v2.0.0')}${kv('Threshold profiles in use', 'defaults only')}</div>`;
+    $('tCard').innerHTML = `<div class="insp__head"><div><span class="eyebrow">Producing today's verdicts</span></div></div>${body}<div class="insp__foot"><button class="btn" onclick="openDlg('build')">Build details</button><span class="grow"></span></div>`;
+  }
+  function render() {
+    document.body.classList.toggle('narrow', !!S.narrow);
+    renderHead(); renderTrail(); renderApprovals(); renderDuties(); renderTrace();
+  }
+  function go(p) { Object.assign(S, p); render(); }
+  function sample(n) { S = { drawer: false, narrow: false, q: '', ...SAMPLES[n] }; closeDlg(); render(); }
+  function openDlg(n) { document.querySelectorAll('[data-dlg]').forEach(d => d.classList.toggle('on', d.dataset.dlg === n)); $('scrim').classList.add('on'); }
+  function closeDlg() { $('scrim').classList.remove('on'); document.querySelectorAll('[data-dlg]').forEach(d => d.classList.remove('on')); }
+  function openHow() { openDlg('howto'); }
+  function openRec() {
+    const e = EV.find(x => x[0] === S.e) || EV[0];
+    const M = { Aug: '08', Sep: '09', Oct: '10', Nov: '11' };
+    $('rType').textContent = e[4]; $('rAt').textContent = e[2].replace(/^(\d+) (\w+) (\d+) (.*)$/, (_, d, m, y, t) => `${y}-${M[m]}-${d.padStart(2, '0')}T${t}+00:00`);
+    $('rUser').innerHTML = e[3] === null ? '<span class="muted">Not recorded by name</span>' : e[3]; $('rEt').textContent = e[8]; $('rEid').textContent = e[10];
+    openDlg('erec');
+  }
+  function openHist() { const e = EV.find(x => x[0] === S.e) || EV[11]; $('hTitle').firstChild.textContent = `Full history · ${e[9]} `; openDlg('hist'); }
+  function openVerify() {
+    $('vAns').innerHTML = S.v === 'fail'
+      ? '<p><span class="pill t-bad"><b>✕</b>Verify failed</span> CHAIN TAMPERING DETECTED.</p><p style="color:var(--text2)">A 500 here means the service reported possible tampering or could not complete the walk.</p><p class="illus">Illustrative: this refusal (audit-service Program.cs) was not seen on the lab.</p>'
+      : '<p>audit-service answered:</p><p class="mono">Chain verified. No tampering detected.</p>';
+    openDlg('verify');
+  }
+  Object.assign(window, { sample, openDlg, closeDlg, go, openHow, openRec, openHist, openVerify });
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  sample('new');
+</script>
+</body>
+</html>

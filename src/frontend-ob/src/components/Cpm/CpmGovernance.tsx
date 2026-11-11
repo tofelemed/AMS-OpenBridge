@@ -1,151 +1,87 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U12 Governance (/cpm/governance).
- * Stage 1 (DG-8): a read-only governance view — the one audit trail (fed by the A15 emitter +
- * display-service events, chained by audit-service), version provenance from stored results, and
- * the separation-of-duties model as the permission system actually enforces it. There is no
- * server-side approval workflow yet; the approval queue says so instead of simulating one.
+ * CPLM Phase 7 — U12 Governance (/cpm/governance): who changed what and when, is the trail intact, what waits for approval or
+ * activation, who may do what, which formula produced the verdicts. Read-only: approving, activating and rolling back stay on
+ * Gate Configuration with every rule and refusal.
+ *
+ * CHG-174 (owner review, the approved sample docs/theme/redesign/samples/governance-proposal.html and the owner's answers of
+ * 11 Nov 2026): the header is the eyebrow and the title (no ?, no sentence); top right How to read (a dialog for the open tab,
+ * holding the page's ? texts and the approval rules) and, on the Audit trail, Verify audit chain with its last run in one line
+ * under it (the Audit integrity card went). Four tabs in `?tab=`, without counts: Audit trail · Approvals · Separation of duties ·
+ * Change traceability; they were one long scroll. A user without system.manage sees the Audit trail only, as the lower cards
+ * showed to system.manage holders only. Verify sends the same request on the same permission, once; then the button reopens the
+ * answer and Run again asks again.
  */
 import React, { useState } from 'react';
-import {
-  EmptyState, PanelHead, WorkspaceHeader,
-  QueryError,
-} from './shared';
+import { useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { WorkspaceHeader } from './shared';
 import { AuditTrail } from './governance/AuditTrail';
+import { ApprovalsTab } from './governance/ApprovalsTab';
+import { DutiesTab } from './governance/DutiesTab';
 import { ChangeTraceability } from './governance/ChangeTraceability';
-import { AuditIntegrity, VerifyDialog } from './governance/VerifyDialog';
+import { GovernanceHowToRead, type GovernanceTab } from './governance/GovernanceHowToRead';
+import { VerifyDialog, VerifyLine } from './governance/VerifyDialog';
 import { ReasonedButton } from './ReasonedButton';
 import { useVerifyAuditChain } from '../../hooks/useAudit';
 import { useAuthStore } from '../../store/authStore';
-import { useRoleMatrix } from './useRoleMatrix';
-import { Toggletip } from '../../ui/Toggletip';
+import { Tabs, tabPanelProps } from '../../ui/Tabs';
+import '../../styles/cpm-audit.css';
 
-/**
- * Permissions this page calls out by name, so the live matrix can show which
- * roles actually hold each one instead of describing them in prose.
- */
-const WATCHED_PERMISSIONS: { key: string; guards: string }[] = [
-  { key: 'cpm.manage', guards: 'Loop onboarding, event ack/shelve, recompute' },
-  { key: 'system.manage', guards: 'Pipeline and OPC mutations' },
-  { key: 'admin.audit.view', guards: 'Audit trail reads' },
-  { key: 'analytics.view', guards: 'Every CPM read' },
-  { key: 'rbac.manage', guards: 'Role and permission changes' },
-  { key: 'display.edit', guards: 'Authoring HMI displays' },
+const TABS: ReadonlyArray<{ value: GovernanceTab; label: string }> = [
+  { value: 'trail', label: 'Audit trail' },
+  { value: 'approvals', label: 'Approvals' },
+  { value: 'duties', label: 'Separation of duties' },
+  { value: 'traceability', label: 'Change traceability' },
 ];
-
-/** What produces the verdicts, approvals and the duties. Only holders of system.manage opened this page before. */
-const GovernancePanels: React.FC = () => {
-  const matrix = useRoleMatrix();
-
-  return (
-      <div className="cpm-grid-2">
-        <ChangeTraceability />
-
-        <section className="cpm-surface">
-          {/*
-            This panel used to be a four-row literal — Admin/Engineer/Operator/
-            Viewer with hand-written "can" and "cannot" prose — under a heading
-            claiming it was "as enforced by the permission model". It was not:
-            add a role or regrant a permission and the page kept asserting the
-            old model, on the one screen whose whole purpose is attribution.
-            It is now read from auth-service's RBAC API (roles + per-role
-            permissions), which is the thing that actually enforces.
-          */}
-          <PanelHead
-            eyebrow="Separation of duties"
-            title="As enforced by the permission model"
-            // A role edit revokes its users' tokens and refresh tokens (permission.service.ts), and the gateway
-            // sees that within seconds (RevocationCache.cs), so they are signed out. Same sentence as Roles.
-            help={<Toggletip variant="how-to" label="When a permission change applies">
-              <p>Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
-            </Toggletip>}
-            right={matrix.canRead && matrix.data
-              ? <span className="cpm-hist-note">{matrix.data.roles.length} role(s) · live</span>
-              : null}
-          />
-
-          {!matrix.canRead && (
-            <EmptyState
-              title="The live role matrix needs the rbac.manage permission"
-              copy="Your session can read the audit trail but not the RBAC model, so this panel will not describe a permission model it cannot verify. The enforcement points below are route guards in this build."
-            />
-          )}
-          {matrix.canRead && matrix.isLoading && <EmptyState title="Reading roles…" />}
-          {matrix.canRead && matrix.isError && (
-            <QueryError title="RBAC model unavailable" error={matrix.error} retry={() => void matrix.refetch()} />
-          )}
-
-          {matrix.canRead && matrix.data && (
-            <div className="cpm-matrix-scroll" role="region" aria-label="Permissions by role" tabIndex={0}>
-              <table className="cpm-matrix cpm-rbac">
-                <thead>
-                  <tr>
-                    <th scope="col" style={{ textAlign: 'left' }}>Permission</th>
-                    {matrix.data.roles.map(r => (
-                      <th key={r.role_name} scope="col">{r.role_name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {WATCHED_PERMISSIONS.map(p => (
-                    <tr key={p.key}>
-                      <th scope="row" style={{ textAlign: 'left' }}>
-                        <span className="cpm-mono">{p.key}</span>
-                        <span className="cpm-event-row__sub">{p.guards}</span>
-                      </th>
-                      {matrix.data!.roles.map(r => {
-                        const held = matrix.data!.holders[r.role_name]?.has(p.key) ?? false;
-                        return (
-                          <td key={r.role_name}>
-                            <span
-                              role="img"
-                              className={`cpm-matrix__cell cpm-matrix__cell--${held ? 'good' : 'muted'}`}
-                              aria-label={`${r.role_name} ${held ? 'holds' : 'does not hold'} ${p.key}`}
-                            >
-                              <span aria-hidden>{held ? '✓' : '—'}</span>
-                            </span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
-  );
-};
 
 export const CpmGovernance: React.FC = () => {
   const canGovern = useAuthStore(s => s.hasPermission('system.manage'));
   const canAudit = useAuthStore(s => s.hasPermission('admin.audit.view'));
+  const [params, setParams] = useSearchParams();
+  const asked = TABS.find(t => t.value === params.get('tab'))?.value ?? 'trail';
+  const tab: GovernanceTab = canGovern ? asked : 'trail';
+  const [guide, setGuide] = useState(false);
   const verify = useVerifyAuditChain();
   const [verifying, setVerifying] = useState(false);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const run = () => verify.mutate(undefined, { onSettled: () => setRanAt(new Date()) });
   // Once an answer exists the button shows it. Only Run again in the dialog asks the service again.
   const hasAnswer = verify.isSuccess || verify.isError;
+  const open = (next: GovernanceTab) => setParams(p => { if (next === 'trail') p.delete('tab'); else p.set('tab', next); return p; });
+
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        eyebrow="System"
-        title="Governance"
-        copy="Who changed what, under which calculation versions, and which duties are separated by the permission model."
-        actions={
-          <ReasonedButton variant="normal" disabled={!canAudit || verify.isPending}
-            reason={!canAudit ? 'Needs the admin.audit.view permission' : null}
-            onClick={() => { if (!hasAnswer) run(); setVerifying(true); }}>
-            Verify audit chain
-          </ReasonedButton>
-        }
-      />
-      <AuditTrail />
-      <AuditIntegrity verify={verify} />
-      {canGovern && <GovernancePanels />}
+    <div className="cpm-screen cpm-gov">
+      <WorkspaceHeader eyebrow="System" title="Governance"
+        actions={<>
+          <ObcButton variant="flat" onClick={() => setGuide(true)}>How to read</ObcButton>
+          {tab === 'trail' && (
+            <span className="cpm-gov-verify">
+              <ReasonedButton variant="normal" disabled={!canAudit || verify.isPending}
+                reason={!canAudit ? 'Needs the admin.audit.view permission' : null}
+                onClick={() => { if (!hasAnswer) run(); setVerifying(true); }}>
+                Verify audit chain
+              </ReasonedButton>
+              {canAudit && <VerifyLine verify={verify} ranAt={ranAt} />}
+            </span>
+          )}
+        </>} />
+      {canGovern && (
+        <div className="cpm-tabs-row cpm-gov-tabs">
+          <div className="cpm-tabs">
+            <Tabs idBase="governance" label="Governance" options={TABS} value={tab} onChange={open} />
+          </div>
+        </div>
+      )}
+      <div className="cpm-gov__panel" {...(canGovern ? tabPanelProps('governance', tab) : {})}>
+        {tab === 'trail' && <AuditTrail />}
+        {tab === 'approvals' && <ApprovalsTab />}
+        {tab === 'duties' && <DutiesTab />}
+        {tab === 'traceability' && <ChangeTraceability />}
+      </div>
       {verifying && <VerifyDialog verify={verify} ranAt={ranAt} onRunAgain={run} onClose={() => setVerifying(false)} />}
+      <GovernanceHowToRead tab={tab} open={guide} onClose={() => setGuide(false)} />
     </div>
   );
 };

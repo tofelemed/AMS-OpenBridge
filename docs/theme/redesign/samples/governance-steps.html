@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the auditor's path through Governance (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov, read-only (every non-GET call blocked): 4,825 audit events, newest 200 fetched; five system roles; 8 gate-configuration bundles on hdpe, none waiting. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .step.qd { border-style: dashed; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found h4 { margin: 10px 0 4px; font-size: 14px; font-weight: 600; }
+  .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; } .found li b { color: var(--text); font-weight: 600; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Governance: the auditor's path</h1>
+  <p class="lead">Today the page is one long scroll under "System · Governance <b>?</b>" (the <b>?</b> holds "Who changed what, under which calculation versions, and which duties are separated by the permission model.") with <b>Verify audit chain</b> top right. <b>The audit trail</b>: Entity (All entities, CPM loops, CPM events, HMI displays), Find event ("Searches the rows fetched"), User ("Exact user name"), Event type (the types seen in the rows fetched), a <b>?</b> "How these filters differ"; a table When / actor, Action, Entity with 25 of the newest 200 rows, each date a grey bordered button ("04/11/2026, 13:04:11 UTC"), the actor under it, the action as a pill with a dot, the entity type with its raw id ("bulk:20", a GUID) under it; one foot line "1–25 of 200 fetched · page 1 of 8 · newest 200 of 4825, older entries are not fetched · times in UTC" between ← Prev and Next →. A row's date opens a dialog: When, Actor, Action, Entity, Correlation, Hash with Copy, "Before and after values: Not available", Technical details (event id, entity type, timestamp as recorded) and, for a single loop only, Open loop ↗. <b>Audit integrity</b>: "Not verified in this session." and the not-served sentence, which the Verify dialog repeats. For system.manage holders, two cards side by side: <b>Change traceability</b> (Calculation engine, Dynamics profile, cplm-api build, Registered loops, Threshold profiles in use, Technical details with the engine builds, then "APPROVALS · Gate configuration awaiting approval": site / scope / version / state / class / author / updated / Open →, empty on the lab) and <b>Separation of duties · As enforced by the permission model</b> ("5 role(s) · live", six permissions by five roles, of which two roles fit at 1440 px). Nothing exports. The page serves five jobs: who changed what and when, is the trail intact, what waits for approval or activation, who may do what, which formula produced the verdicts. So four tabs, the trail a list with a panel for the selected event, the queue a list with a panel for the selected bundle; one How to read.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">How to read</span><span class="chip">Verify audit chain (its last run under it)</span><span class="chip chip--q">Export CSV (question 5)</span><span style="color:var(--text2)">·</span><span class="chip">Audit trail</span><span class="chip">Approvals</span><span class="chip">Separation of duties</span><span class="chip">Change traceability</span><span style="color:var(--text2)">·</span><span class="chip">Lists: list · panel · Record details</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header and tabs</h2><q>Where am I, and what can I do here?</q>
+      <ul><li>System · Governance, no <b>?</b>, no sentence</li><li>How to read; on Audit trail: Verify audit chain with "Not verified in this session." / "Last run 11 Nov 14:18 UTC" / "✕ Verify failed · …" under it, and Export CSV (question 5)</li><li>Four tabs, each its own address (<code>?tab=</code>); an auditor without system.manage sees the trail alone, no tab row</li></ul></div>
+    <div class="card step"><h2>Find a change</h2><q>Who changed what, and when?</q>
+      <ul><li>One 32 px row in the card: Find (Actor, action, entity), Exact user name, All entities, All events, All time (question 4)</li><li>When · UTC "25 Sep 18:37", Actor by name ("System" for a service, "Not recorded by name" for an old id), Action in words with ✓ ◐ ✕, Entity by short name with its type under it</li><li>32 px pager; "Newest 200 of 4,825" once (question 3)</li></ul></div>
+    <div class="card step qd"><h2>Read one change</h2><q>What exactly changed, on which object?</q>
+      <ul><li>Panel: the entity type as eyebrow, the action once; Actor, When · UTC (seconds, question 9), Entity</li><li>Change: before → after for an edit (user role, full name; role permissions), the recorded values for the rest (question 1)</li><li>Record details: event id, type code, recorded at, user name and id, entity type and id, hash, correlation</li></ul></div>
+    <div class="card step qd"><h2>Trace it to its object</h2><q>Open the thing that changed, and its history.</q>
+      <ul><li>One flat link with a short name: FIC10503 ↗, FIC10302 v7 ↗, EVT-2230 ↗, Engineer ↗, a_engineer ↗</li><li>The exit in the foot: Open loop / bundle / event / role / user / data source / display →; a deleted loop keeps "TIC20104 is not in the loop registry."</li><li>Full history: every event for that entity (question 6)</li></ul></div>
+    <div class="card step"><h2>Prove the trail</h2><q>Has anything been altered?</q>
+      <ul><li>Verify audit chain runs once; the button reopens the answer, Run again asks again</li><li>Dialog: Answer (audit-service's own words, or ✕ Verify failed and "A 500 here means …"), Run at, Not served (the sentence once, here only)</li><li>The Audit integrity card goes: its line sits under the button, its <b>?</b> in How to read</li></ul></div>
+    <div class="card step"><h2>What waits for me</h2><q>Which configuration waits for approval or activation?</q>
+      <ul><li>Approvals: Bundle (FIC10301, "Loop · v2", ◆ State boundary when it is one), ◐ Validated / ◐ Shadow evaluated / ◐ Approved / ✕ Activation failed / ✕ Partially acknowledged, Author, Updated · UTC</li><li>Panel: the bundle once; Site, Scope, Change class, Author, Updated, Waits for; FIC10301 ↗; Open approval → / Open deployments →</li><li>Empty: the two sentences word for word</li></ul></div>
+    <div class="card step qd"><h2>Who may approve</h2><q>Which rules stop a change?</q>
+      <ul><li>How to read › Approvals: "Needs cpm.config.approve (by someone other than the author)." and "An approval is bound to the content hash and expires. …" word for word</li><li>A site-wide bundle shows the server's ControlAuthority refusal word for word (question 11)</li></ul></div>
+    <div class="card step"><h2>Who may do what</h2><q>Which role holds which duty?</q>
+      <ul><li>Full width: all five roles in view, the permission column stays when scrolled</li><li>The six permissions with their texts; dashed: cpm.config.draft, approve, activate, admin.users.edit (question 12)</li><li>The sign-out sentence once, in How to read</li></ul></div>
+    <div class="card step"><h2>Which formula</h2><q>Which versions produce today's verdicts?</q>
+      <ul><li>Change traceability: Calculation engine, Dynamics profile, Threshold profiles in use</li><li>Build details: cplm-api build, engine builds observed</li><li>"Calculation versions could not be read" with Retry when the read fails (today "v— · —")</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title <b>?</b> with "Who changed what, under which calculation versions, and which duties are separated by the permission model."</td><td>Eyebrow and title only; How to read and the open tab's actions top right</td></tr>
+        <tr><td><span class="n">2</span>One long scroll: trail, Audit integrity, then Change traceability (with the queue) beside Separation of duties for system.manage holders</td><td>Four tabs: Audit trail · Approvals · Separation of duties · Change traceability (<code>?tab=</code>), each shown to the role that sees that card today</td></tr>
+        <tr><td><span class="n">3</span>Four labelled 40 px fields (ENTITY, FIND EVENT, USER, EVENT TYPE) and a lone <b>?</b>; at 1000 px Event type wraps alone</td><td>One 32 px row inside the card, search first, dropdowns named by their options (labels for screen readers); the <b>?</b> text in How to read</td></tr>
+        <tr><td><span class="n">4</span>When / actor in one cell: a grey bordered button "04/11/2026, 13:04:11 UTC" (browser format, the zone on all 25 rows); actor "system" or a GUID; action pills with a dot ("Config draft approved", "CPM evidence republished bulk", "Ingestion datasource tested"); entity type over a raw id</td><td>When · UTC "4 Nov 13:04" (the zone once, in the heading); Actor: user name, "System", or "Not recorded by name"; Action in words with ✓ / ◐ / ✕ ("Draft approved", "Evidence republished (bulk)", "Data source tested"); Entity by short name, its type under it</td></tr>
+        <tr><td><span class="n">5</span>"1–25 of 200 fetched · page 1 of 8 · newest 200 of 4825, older entries are not fetched · times in UTC" between ← Prev and Next →</td><td>The shared 32 px pager, centred; "Newest 200 of 4,825" small at its end (question 3)</td></tr>
+        <tr><td><span class="n">6</span>Row dialog titled with the action; "Actor: Not recorded"; "Before and after values: Not available"; Open loop ↗ for a single loop only</td><td>Panel beside the list (a drawer below 1280 px): eyebrow the entity type, the action once; Actor, When · UTC, Entity; Change (question 1); one link to the object and Full history (question 6); Record details and the exit in the foot</td></tr>
+        <tr><td><span class="n">7</span>Correlation and Hash (64 characters over two lines, a grey Copy) in the dialog body; Technical details disclosure</td><td>Record details in titled parts: Event (id, type code, recorded at), Actor (user name, user id), Entity (type, id), Chain (hash, correlation); each copies with the ⧉ button</td></tr>
+        <tr><td><span class="n">8</span>Audit integrity card ("Not verified in this session." / "audit-service answered the last verification. Open Verify audit chain for its words.") plus the not-served sentence there and in the dialog; "VERIFY FAILED" in capitals without a glyph; "Run at 11/11/2026, 14:17:06 UTC"</td><td>One line under Verify audit chain; the dialog in parts Answer · Run at · Not served, ✕ Verify failed, "11 Nov 14:18 UTC"; the not-served sentence once; Run again · Close</td></tr>
+        <tr><td><span class="n">9</span>"APPROVALS · Gate configuration awaiting approval" (it also lists bundles waiting for activation); lower-case headings site · scope · version · state · class · author · updated; raw codes (APPROVED, POLICY); "v7 · 337ddfe7"; Open → on every row</td><td>The tab says it; Bundle (name, "Loop · v7" under it, ◆ State boundary when not Policy), State in words with its glyph, Author, Updated · UTC; Site and class only where rows differ; the hash in Record details; the row opens the panel</td></tr>
+        <tr><td><span class="n">10</span>Open → landing on the bundle's Properties tab</td><td>Panel: the bundle once, its state; Site, Scope, Change class, Author, Updated · UTC, Waits for; FIC10301 ↗; Record details; Open approval → (or Open deployments →) on the tab that step needs</td></tr>
+        <tr><td><span class="n">11</span>Half-width card: Admin and Engineer in view, the other three behind a sideways scroll that takes the permission names with it; "5 role(s) · live"; the <b>?</b> "When a permission change applies"</td><td>Full width, five roles in view, the permission column sticky; the count goes (the columns show it); the <b>?</b> text in How to read; the matrix and its texts otherwise as today</td></tr>
+        <tr><td><span class="n">12</span>"Registered loops 243" (the top bar says "All sites · 243 loops"); cplm-api build among the versions; the <b>?</b> "Why versions are stored … (A13) …"; "v— · —" when the read fails</td><td>Calculation engine, Dynamics profile, Threshold profiles in use; the <b>?</b> in How to read without "(A13)"; an error line with Retry</td></tr>
+        <tr><td><span class="n">13</span>Technical details disclosure: "Engine build 1 · calc 3.0.0 · commit 072bb0de…(40 characters)-dirty · jar …"</td><td>Build details dialog: Service (cplm-api build), Engine builds observed; the commit cut to 12 characters plus "-dirty"</td></tr>
+        <tr><td><span class="n">14</span>Five <b>?</b>: the title, How these filters differ, About the audit chain, Why versions are stored, When a permission change applies</td><td>How to read for the open tab: Actor, Action, Filters, Audit chain (trail); State, Rules (approvals); Marks, When a permission change applies (duties); Why versions are stored (traceability)</td></tr>
+        <tr><td>Below 1280 px the four filters wrap over two lines and the two lower cards stack</td><td>The panel becomes a drawer, as on Pipeline Health and Administration</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>Address and access</td><td><code>/cpm/governance</code>; <code>/admin/audit</code> lands here; the trail needs admin.audit.view, the other three tabs system.manage (as the cards today), the matrix rbac.manage; "Audit reads require the admin.audit.view permission" / "Your session does not carry it; the trail itself keeps recording regardless."; "Audit service refused the read (403)" with its sentence; "Audit service unreachable" with Retry</td></tr>
+        <tr><td>Trail reads</td><td><code>GET /api/audit</code> every 30 s, newest 200 per read, 25 rows a page, back to page 1 on a new filter; Entity, User and Event type ask the server (exact match), Find searches the rows fetched; newest first</td></tr>
+        <tr><td>Verify audit chain</td><td>Needs admin.audit.view (its disabled reason "Needs the admin.audit.view permission"); the POST only on a click; the button runs once and then reopens the answer; Run again; "audit-service answered:", the service's sentence as served, "A 500 here means the service reported possible tampering or could not complete the walk.", "The chain range, entry count and algorithm are not served, so this answer cannot be checked here."</td></tr>
+        <tr><td>Approvals</td><td>The same states (Validated, Shadow evaluated, Approved, Partially acknowledged, Activation failed), every site the user sees, newest update first; "Nothing awaiting approval or activation" / "Validated drafts appear here for an independent approver; approved bundles until they are activated and verified."; approving, activating and rolling back stay on Gate Configuration with every rule and refusal</td></tr>
+        <tr><td>Separation of duties</td><td>Read from the RBAC API; the six permissions and their texts; ✓ / — with "Admin holds cpm.manage" for screen readers; "The live role matrix needs the rbac.manage permission" and its first sentence; "RBAC model unavailable" with Retry; "Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again."</td></tr>
+        <tr><td>Change traceability</td><td>The calculations and capabilities reads; Calculation engine "v3.0.0 · CplmGateFusionEngine (Flink)", Dynamics profile "v2.0.0", Threshold profiles in use "defaults only", the build rows (in Build details)</td></tr>
+        <tr><td>Sizes</td><td>40 px header and dialog buttons; 32 px filter controls; rows as today</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Serve the before and after values from the audit service?</b> <span>The store keeps BeforeState and AfterState (<code>audit-service/Models/AuditEvent.cs:18-19</code>) but the read returns eight fields (<code>Program.cs:113</code>), so every event reads "Before and after values: Not available". Served, the panel shows a user's role change, the permissions a reset left, a draft's scope and version, a deployment's bundle and kind (a rollback reads "Rollback scheduled", not "Config deployment scheduled"), a data-source test's result, a display's or data source's name, a shelve reason, and the actor's id and name of CHG-171. Until then a bundle can still be named from the bundle list the page already reads. User events carry e-mail addresses: the trail stays admin.audit.view only. Backend change (audit-service, one additive field). Recommended. Drawn dashed.</span></li>
+      <li><b>Old events that name the actor by user id: "Not recorded by name", or look the id up?</b> <span>auth-service role events before CHG-171 (the lab's "RBAC role permissions reset · Engineer", 4 Nov 13:04) carry a user id; the lab's auth-service does not yet have CHG-171. A lookup needs the users list (admin.users.edit), which an auditor may lack. Recommended: "Not recorded by name", the id in Record details. No backend change. Drawn.</span></li>
+      <li><b>Reach the whole trail?</b> <span>The page reads the newest 200 of 4,825 and the service caps a read at 500 with no offset (<code>Program.cs:110</code>); Find searches those 200. Recommended: server paging, then the pager covers every record. Backend change. Drawn as the pager over the rows fetched.</span></li>
+      <li><b>A time range (All time, 24 h, 7 days, 30 days)?</b> <span>The service already takes <code>from</code> / <code>to</code>; the page offers none. Client only. Recommended. Drawn dashed.</span></li>
+      <li><b>Export CSV for an audit?</b> <span>Nothing exports today. (a) the filtered rows fetched, built in the browser: client only; (b) the whole filtered range: needs question 3. Recommended (a) now. Drawn dashed.</span></li>
+      <li><b>Full history of an object?</b> <span>A dialog listing every event for the selected event's entity, from the service's existing <code>entityType</code> + <code>entityId</code> filter. A bundle's activation and rollback name the deployment, so they join only with question 1. Client only. Recommended. Drawn dashed.</span></li>
+      <li><b>Entity and Event type offer everything the services record?</b> <span>Entity offers 3 of 10 (no Gate configuration bundle, Configuration deployment, Data source, Role, Role permissions, User, System model): on the lab 86 of the newest 200 events cannot be picked by entity (<code>AuditTrail.tsx:33-38</code>). Event type lists only the types seen in fetched rows (<code>:64-69</code>), so the 54 HMI display events appear only after picking HMI displays. A fixed list from the emitters. Client only. Recommended. Drawn.</span></li>
+      <li><b>Filters in the address?</b> <span><code>?user=</code>, <code>?entity=</code>, <code>?id=</code>, <code>?type=</code>, so Administration (CHG-172) can open "this user's changes"; <code>/admin/audit</code> already forwards its query (<code>cpa/redirects.ts:39</code>) and the page reads none. Client only. Recommended. Not drawn.</span></li>
+      <li><b>Seconds and the year in the panel?</b> <span>A draft's create, edit, validate and approve share one minute ("25 Sep 18:37" four times); the list keeps "25 Sep 18:37", the panel "25 Sep 2026 18:37:08". Client only. Recommended. Drawn.</span></li>
+      <li><b>Approvals: (a) the summary read, (b) an expired approval shown, (c) Diff &amp; impact ↗ and Shadow ↗?</b> <span>(a) The queue reads every bundle in full: 188 KB for hdpe's 8 bundles, six reads including test sites (<code>ConfigApprovalQueue.tsx:21-23</code>); <code>listBundleSummaries</code> exists. (b) An approved bundle whose approval ran out still reads Approved: the list has no approvals and no server code sets EXPIRED; activation then refuses "the approval expired at …; approve again". Backend change. (c) Links to the bundle's tabs. Recommended (a), (c) client; (b) later. (c) drawn dashed.</span></li>
+      <li><b>ControlAuthority: who may approve a site-wide change?</b> <span>The server refuses a SITE bundle, or one that edits G3.objective_type or G14.allowed_evidence_types, unless the approver holds a role named ControlAuthority (<code>ConfigStore.cs:224-225</code>, <code>CpmConfigurationController.cs:250</code>). No such role exists in the seeds, a user has one role, and no page states the rule: today no site-wide bundle can be approved. Decide with the control engineer: create the role, or make it a permission (backend). Recommended now: the server's words in the panel and How to read. Drawn dashed.</span></li>
+      <li><b>Separation of duties: add the gate-configuration and user-administration keys?</b> <span>The matrix leaves out cpm.config.draft, approve, activate (and validate, shadow, rollback) and admin.users.edit, the duties four eyes separates. On the lab only SuperAdmin holds them, so four eyes is between two SuperAdmin accounts, by user name (<code>ConfigStore.cs:223</code>), not between roles. Client only. Recommended. Drawn dashed.</span></li>
+      <li><b>One description per permission?</b> <span>Governance says "system.manage · Pipeline and OPC mutations", Administration › Roles "Manage pipeline jobs and OPC connections; view Pipeline Health and Governance" (the catalog). Recommended: the catalog's words on both. Client only. Not drawn (today's texts kept).</span></li>
+      <li><b>Who opens Governance?</b> <span>The sidebar shows it to system.manage only (<code>navItems.ts:96</code>); the route and the command palette open it for any administration key (<code>AppRoutes.tsx:88</code>, <code>destinations.ts:122</code>), so someone with only ingestion.view lands on "Audit reads require the admin.audit.view permission" and nothing else. Recommended: system.manage or admin.audit.view, in all three. Client only. Not drawn.</span></li>
+      <li><b>Remove or lock the chain re-hash?</b> <span>Found on the way: <code>POST /api/audit/rechain</code> recomputes and overwrites every hash, and needs only admin.audit.view, the read permission (<code>Program.cs:79-83</code>, reachable through the gateway's <code>/api/audit/{**rest}</code>). Anyone who can read the trail can make an altered trail verify again. Recommended: remove it, or an operations-only key. Backend change. Not drawn.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Audit findings</h3>
+    <h4>What the page says against what the server enforces</h4>
+    <ul>
+      <li><b>The ControlAuthority rule is stated nowhere.</b> See question 11; the only approval sentence the user meets is Gate Configuration's "An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server." (<code>ApprovalTab.tsx:72</code>), which is true for approve plus activate but silent on the role.</li>
+      <li><b>"As enforced by the permission model" leaves out the duties that are separated.</b> No cpm.config.* key and no admin.users.edit (<code>CpmGovernance.tsx:28-35</code>); four eyes is author ≠ approver by name (<code>ConfigStore.cs:223</code>), invisible in a role matrix (before-21-lower-panels-viewport.png).</li>
+      <li><b>"Gate configuration awaiting approval"</b> also lists Approved, Partially acknowledged and Activation failed bundles waiting for activation (<code>ConfigApprovalQueue.tsx:15</code>, <code>ChangeTraceability.tsx:41</code>); only the empty state says so. The queue shows to system.manage holders (<code>CpmGovernance.tsx:147</code>) but its reads need cpm.config.read: without it each site answers 403 and the raw message shows (<code>ConfigApprovalQueue.tsx:25-26</code>).</li>
+      <li><b>An expired approval reads Approved</b> in the queue (question 10b); the bundle state EXPIRED that the page's words know is never set by cplm-api.</li>
+      <li><b>"How these filters differ"</b> says "User and Event type ask the server" (<code>AuditTrail.tsx:113</code>); Entity asks the server too (<code>:59</code>).</li>
+      <li><b>"The trail records logins, …"</b> (<code>AuditTrail.tsx:130</code>; before-16-user-case-no-match-viewport.png): no service emits a login event; auth-service sends RBAC_* and, since CHG-171, USER_* only. "… emit here from now on" (<code>:131</code>) is stale.</li>
+      <li><b>"The enforcement points below are route guards in this build."</b> (<code>CpmGovernance.tsx:71</code>): nothing is below it.</li>
+      <li><b>Access differs by entry</b> (question 14).</li>
+    </ul>
+    <h4>Actors and time</h4>
+    <ul>
+      <li><b>An actor by user id:</b> the role reset shows a 36-character user id in the list and the dialog (before-01-default-viewport.png, before-04-event-role-reset-id-actor-viewport.png); the User filter cannot find it by name: "superadmin" returns 55 events without it (before-15-user-superadmin-viewport.png), and it is exact and case-sensitive: "Superadmin" finds nothing (before-16). New auth-service events name the user (<code>audit-emitter.ts:51</code>); the lab runs the old service.</li>
+      <li><b>Dates in the browser's format with seconds and the zone on every row:</b> "04/11/2026, 13:04:11 UTC", "7:09:14 UTC" (<code>shared.tsx:27-28</code>, <code>AuditTrail.tsx:144</code>; before-01), while every redesigned page writes "4 Nov 13:04" with the zone in the heading; the dialog and "Run at 11/11/2026, 14:17:06 UTC" (<code>VerifyDialog.tsx:25</code>) the same.</li>
+      <li><b>Two words for no actor:</b> "system" in the list (<code>AuditTrail.tsx:145</code>), "Not recorded" in the dialog (<code>AuditEventDialog.tsx:41</code>); the services write "system" for their own events (<code>ConfigDeploymentService.cs:196, 237</code>).</li>
+    </ul>
+    <h4>Events that cannot be filtered or traced to their object</h4>
+    <ul>
+      <li><b>Entity offers 3 of 10 entity types</b> (question 7): the newest 200 hold CpmLoop 92, gate_config_bundle 39, config_deployment 27, CpmEventFrame 22, data-source-config 19, RolePermissions 1; Display 54 older (before-14-entity-hmi-displays-viewport.png); CHG-171 adds User and Role.</li>
+      <li><b>Only a single loop links to its object</b> (<code>AuditEventDialog.tsx:37-39</code>): a bundle, deployment, CPM event, role, data source or display shows its raw id with no way to open it (before-09-event-config-approved-no-bundle-link-viewport.png, before-10-event-deployment-scheduled-viewport.png, before-11-event-cpm-event-acknowledged-viewport.png, before-12-event-data-source-updated-viewport.png).</li>
+      <li><b>A deployment names the deployment, not the bundle, and a rollback reads "Config deployment scheduled"</b> like an activation (<code>ConfigDeploymentService.cs:108</code>; before-10): the bundle and kind are in the values not served.</li>
+      <li><b>Bulk events</b> read "CPM loop · bulk:20": which loops is not recorded, and the number is the loops done, so "CPM loops bulk activated · bulk:0" (on the lab) is an activation of none, shown in the good tone (<code>CpmLoopsController.cs:140</code>, <code>auditLabels.ts:17-22</code>; before-06-event-bulk-loops-viewport.png).</li>
+      <li><b>"Ingestion datasource tested"</b> does not say whether the test passed (the result is in the values; ingestion <code>Program.cs:274</code>).</li>
+      <li><b>No correlation</b> on any of the 200 events: no emitter sets one, yet the dialog gives it a row.</li>
+      <li><b>The newest 200 of 4,825</b> only (question 3); Find searches those (before-17-find-engineer-viewport.png: "29 matching “Engineer”", before-18-find-no-match-viewport.png).</li>
+    </ul>
+    <h4>Bugs</h4>
+    <ul>
+      <li><b>Row dates and Copy are grey bordered browser buttons:</b> the <code>.cpm-pipeline-open</code> rule (CHG-150, <code>cpm-pipeline.css</code>) went with the Pipeline Health rewrite (CHG-170) but <code>AuditTrail.tsx:144</code> and <code>AuditEventDialog.tsx:22</code> still use it (before-01-default-viewport.png, before-04).</li>
+      <li><b>Separation of duties at 1440 px shows Admin and Engineer;</b> scrolled right, the permission names scroll away (before-21-lower-panels-viewport.png, before-34-duties-scrolled-right-viewport.png).</li>
+      <li><b>A failed versions read is silent:</b> "v— · —", "v—", "—" and no Technical details when calculations and capabilities answer 500, no error, no Retry (<code>ChangeTraceability.tsx:24-38</code>; before-21). They answered 500, then 200, during the captures.</li>
+      <li><b>The engine commit is shown whole</b> (40 characters plus "-dirty") because the shortener only cuts pure hex (<code>capabilities.ts:48-51</code>; before-33-traceability-technical-details-viewport.png).</li>
+      <li><b>The queue reads every bundle in full</b> and <b>Open → lands on Properties</b>, not Approval (<code>ConfigApprovalQueue.tsx:21-23, 36</code>; before-30-queue-simulated-rows-viewport.png, rows simulated in the browser).</li>
+      <li><b>A network failure reads as a 500:</b> with the request blocked the dialog says "VERIFY FAILED Failed to fetch" and "A 500 here means the service reported possible tampering …" (<code>VerifyDialog.tsx:28-33</code>; before-26-verify-dialog-post-blocked-viewport.png).</li>
+      <li><b>No-match keeps the coverage line</b> under the empty state ("0 matching “zzz” · newest 200 of 4825 …"; before-18).</li>
+    </ul>
+    <h4>Repeated, stale or wrong words</h4>
+    <ul>
+      <li>The not-served sentence twice (<code>VerifyDialog.tsx:37, 52</code>; before-28-verify-dialog-simulated-ok-viewport.png with before-29); "UTC" on every row plus "times in UTC"; "Audit integrity" saying "audit-service answered the last verification. Open Verify audit chain for its words." (before-29).</li>
+      <li>Action words repeating the entity: "Config draft approved · Gate configuration bundle", "CPM loop activated · CPM loop", "RBAC role permissions reset · Role permissions"; dotted codes humanised as "Ingestion datasource tested".</li>
+      <li>Raw codes and lower-case headings in the queue: "APPROVED", "POLICY", "site · scope · version" (before-30).</li>
+      <li>"5 role(s) · live"; "(A13)" in Why versions are stored (before-23-traceability-help-viewport.png); "Registered loops 243" against the top bar's "243 loops".</li>
+    </ul>
+    <h4>Found on the way, not part of this proposal</h4>
+    <ul>
+      <li>The chain re-hash needs only the read permission (question 15).</li>
+      <li>Verification loads the whole table into memory (<code>ChainIntegrityVerifier.cs:28-32</code>): fine at 4,825 rows, grows with the trail.</li>
+      <li>The lab's trail names six end-to-end test accounts as drafters; its six sites include test sites the queue reads (kpi_t_676cb0, kpi_demo, narnia, site1).</li>
+    </ul>
+    <h4>Not verified on the lab</h4>
+    <ul>
+      <li>Nothing was written: no verification, approval or export was sent; every non-GET request was blocked. Verify audit chain was seen only (a) failing because the POST was blocked (before-26) and (b) with the service's success sentence answered in the browser, not by the service (before-28). A real tamper answer was not seen.</li>
+      <li>The lab has no bundle waiting: the queue's rows were seen only by changing two states in the browser after a real read (before-30); the Approvals rows in the sample are illustrative.</li>
+      <li>The lab's auth-service does not have CHG-171: no USER_* event and no named role actor were seen; the sample's user events are illustrative. The values the service does not serve (question 1) were read from the emitters' code, not from the store.</li>
+      <li>Not signed in as an auditor without system.manage, or without rbac.manage: those states are from code. Night theme not checked. The capabilities and calculations reads answered 500 in one run and 200 in the next.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

@@ -43,9 +43,11 @@ export const getCapabilities = () => apiJson<CpmCapabilities>(`${BASE}/capabilit
 /**
  * 12-character prefix of a commit or digest for display. Anything that is not a real hash
  * ("unknown", "unknown-not-a-jar", null) is shown as-is: an abbreviated placeholder would
- * look like an identity, and the whole point of the field is not to invent one.
+ * look like an identity, and the whole point of the field is not to invent one. CHG-174: a build from a working tree with
+ * changes ("<commit>-dirty") keeps its mark after the 12 characters; it was shown whole.
  */
 export function shortIdentity(value: string | null | undefined): string {
   if (!value) return 'unknown';
-  return /^[0-9a-f]{40,64}$/i.test(value) ? value.slice(0, 12) : value;
+  const m = /^([0-9a-f]{40,64})(-dirty)?$/i.exec(value);
+  return m ? `${m[1].slice(0, 12)}${m[2] ?? ''}` : value;
 }

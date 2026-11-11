@@ -43,4 +43,9 @@ describe('shortIdentity', () => {
     expect(shortIdentity('unknown')).toBe('unknown');
     expect(shortIdentity('unknown-not-a-jar')).toBe('unknown-not-a-jar');
   });
+
+  // CHG-174 (Governance audit): a build from a working tree with changes reads "<commit>-dirty"; it was shown whole.
+  it('cuts a dirty commit to 12 characters and keeps the -dirty mark', () => {
+    expect(shortIdentity('072bb0de1234567890abcdef1234567890abcdef-dirty')).toBe('072bb0de1234-dirty');
+  });
 });

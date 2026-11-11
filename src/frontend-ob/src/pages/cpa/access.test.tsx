@@ -28,12 +28,14 @@ describe('who sees which page', () => {
     expect(menu(['analytics.view', 'admin.audit.view'])).toEqual([...READING, 'administration', 'governance']);
   });
 
-  it('a role manager keeps Administration, and is offered no Set up page', () => {
-    expect(menu(['rbac.manage'])).toEqual(['administration', 'governance']);
+  // CHG-174 (owner answer 2): Governance opens with system.manage or admin.audit.view only, as the sidebar always showed it; a
+  // role manager or an ingestion viewer without either landed on "Audit reads require the admin.audit.view permission" alone.
+  it('a role manager keeps Administration, and is offered no Set up page and no Governance', () => {
+    expect(menu(['rbac.manage'])).toEqual(['administration']);
   });
 
-  it('an ingestion viewer keeps Administration, where Data sources is', () => {
-    expect(menu(['ingestion.view'])).toEqual(['administration', 'governance']);
+  it('an ingestion viewer keeps Administration, where Data sources is, and no Governance', () => {
+    expect(menu(['ingestion.view'])).toEqual(['administration']);
   });
 
   it('system.manage alone keeps Pipeline Health and Governance, and no Administration', () => {

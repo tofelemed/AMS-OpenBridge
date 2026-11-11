@@ -70,8 +70,8 @@ export const REDIRECTS: readonly RedirectRow[] = [
     }, REGISTRY),
   },
   {
-    // Governance when no tab is named: it opens for every role that could open System. CHG-172: System settings is hidden
-    // (owner answer 2), so its old tab goes there too.
+    // Governance when no tab is named. CHG-172: System settings is hidden (owner answer 2), so its old tab goes there too.
+    // CHG-174: Governance opens with system.manage or admin.audit.view; another role meets its route's refusal.
     from: '/cpm/system',
     to: fromTab({
       pipeline: { path: '/cpm/pipeline' },

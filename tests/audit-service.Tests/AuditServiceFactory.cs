@@ -59,6 +59,14 @@ internal sealed class AuditServiceFactory : WebApplicationFactory<Program>
         await db.SaveChangesAsync();
     }
 
+    public async Task SeedAsync(IEnumerable<AuditEvent> events)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+        db.AuditEvents.AddRange(events);
+        await db.SaveChangesAsync();
+    }
+
     public async Task<List<AuditEvent>> ReadChainAsync()
     {
         using var scope = Services.CreateScope();
