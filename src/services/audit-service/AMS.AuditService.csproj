@@ -31,4 +31,9 @@
     <PackageReference Include="System.Text.Json" Version="8.0.4" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- CHG-173: tests/audit-service.Tests hosts the real Program (top-level, so internal) under TestServer. -->
+    <InternalsVisibleTo Include="audit-service.Tests" />
+  </ItemGroup>
 </Project>

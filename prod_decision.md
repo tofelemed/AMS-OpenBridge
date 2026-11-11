@@ -285,3 +285,9 @@ Service: `auth-service`. No migration, no config. Enforced by the server since C
 - **Delete ends the session at once:** the revocation feed lists a deleted user as inactive for the access-token lifetime + 5 min. Kept in memory: an auth-service restart in that window forgets it, and the deleted user's last access token then lives until it expires (`JWT_EXPIRES_IN`, 1 h at Marun).
 - **User changes are audited:** `USER_CREATED`, `USER_UPDATED` (what changed: email, name, role, active), `USER_DELETED`, `USER_BULK_IMPORTED`; never passwords or hashes. The actor is named by user name in `UserId` (as the .NET services do) with `AfterState.actor = { user_id, username }`; the RBAC role events the same.
 - **Optional repair, owner approval first:** `database/optional/69_auth_restore_seeded_role_defaults.sql` re-grants the default keys a system role is missing (additive, preview first, nobody signed out).
+
+## Audit integrity (CHG-173, unreleased, branch feat/cpa-redesign)
+
+Service: `audit-service`. No migration, no config.
+
+- **Rechain needs `system.manage` and is itself audited (owner approval 11 Nov 2026):** `POST /api/v1/audit/rechain` (gateway `/api/audit/rechain`) rewrites every hash of the audit chain, so it needs `system.manage`, not the read key `admin.audit.view`; verify and the trail query keep `admin.audit.view`. Every call appends `AUDIT_CHAIN_RECHAINED` (the caller's user name, when, total rows, rows rehashed) to the chain itself, in the same transaction and under the same advisory lock (101010) as the consumer's appends; a failed call rolls back and records nothing. The gateway only requires a signed-in user on the audit routes; the service enforces the key. On a new server, give `system.manage` only to the people who may re-hash the trail, and look for `AUDIT_CHAIN_RECHAINED` in the trail when reviewing it.

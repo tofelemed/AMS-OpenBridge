@@ -6,6 +6,12 @@ namespace AMS.AuditService.Persistence;
 
 public class ImmutableAuditRepository
 {
+    /// <summary>
+    /// The one lock every writer of the chain takes inside its transaction: this append and
+    /// ChainIntegrityVerifier.RechainAsync (CHG-173), so the two never interleave.
+    /// </summary>
+    public const string ChainLockSql = "SELECT pg_advisory_xact_lock(101010);";
+
     private readonly AuditDbContext _db;
     private readonly AuditHashChainService _hashService;
     private readonly ILogger<ImmutableAuditRepository> _logger;
@@ -29,7 +35,7 @@ public class ImmutableAuditRepository
         try
         {
             // Acquire exclusive lock for hashing
-            await _db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(101010);", ct);
+            await _db.Database.ExecuteSqlRawAsync(ChainLockSql, ct);
 
             // 1. Get the last hash
             var lastEvent = await _db.AuditEvents

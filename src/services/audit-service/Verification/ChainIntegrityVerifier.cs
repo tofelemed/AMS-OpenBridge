@@ -61,42 +61,65 @@ public class ChainIntegrityVerifier
     }
 
     /// <summary>
-    /// One-time migration: recompute the whole chain from genesis with the
-    /// current (canonical-JSON) hash algorithm. Exists because rows written
-    /// before the canonicalization fix hashed the raw JSON text, which jsonb
-    /// does not preserve — those rows can never verify, and their original
-    /// preimage is unrecoverable. This is a documented re-chain, not a cover-up:
-    /// the operation itself is logged and the caller is audited by the host.
+    /// Recompute the whole chain from genesis with the current (canonical-JSON)
+    /// hash algorithm. Exists because rows written before the canonicalization
+    /// fix hashed the raw JSON text, which jsonb does not preserve — those rows
+    /// can never verify, and their original preimage is unrecoverable.
+    /// CHG-173: a documented re-chain, not a cover-up. Every call appends an
+    /// AUDIT_CHAIN_RECHAINED record naming <paramref name="actor"/>, hashed under
+    /// the new chain. The rehash and the record are one save, under the chain
+    /// lock the consumer's append takes, so nothing lands between them and a
+    /// failure writes neither.
     /// </summary>
-    public async Task<(int total, int rehashed)> RechainAsync(CancellationToken ct)
+    public async Task<(int total, int rehashed)> RechainAsync(RechainActor actor, CancellationToken ct)
     {
-        var events = await _db.AuditEvents
-            .OrderBy(x => x.TimestampUtc)
-            .ThenBy(x => x.EventId)
-            .ToListAsync(ct);
-
-        var previous = new string('0', 64);
-        var rehashed = 0;
-        foreach (var evt in events)
+        // Postgres only: the in-memory provider of the tests has no transactions or advisory locks.
+        var relational = _db.Database.IsRelational();
+        await using var tx = relational ? await _db.Database.BeginTransactionAsync(ct) : null;
+        try
         {
-            var expected = _hashService.GenerateHash(evt, previous);
-            if (evt.PreviousHash != previous || !evt.CurrentHash.Equals(expected, StringComparison.OrdinalIgnoreCase))
+            if (relational)
+                await _db.Database.ExecuteSqlRawAsync(ImmutableAuditRepository.ChainLockSql, ct);
+
+            var events = await _db.AuditEvents
+                .OrderBy(x => x.TimestampUtc)
+                .ThenBy(x => x.EventId)
+                .ToListAsync(ct);
+
+            var previous = new string('0', 64);
+            var rehashed = 0;
+            foreach (var evt in events)
             {
-                evt.PreviousHash = previous;
-                evt.CurrentHash = expected;
-                rehashed++;
+                var expected = _hashService.GenerateHash(evt, previous);
+                if (evt.PreviousHash != previous || !evt.CurrentHash.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    evt.PreviousHash = previous;
+                    evt.CurrentHash = expected;
+                    rehashed++;
+                }
+                previous = evt.CurrentHash;
             }
-            previous = evt.CurrentHash;
-        }
 
-        if (rehashed > 0)
-        {
-            _db.AllowHashRechain = true;
+            var record = RechainRecord.Create(actor, events.Count, rehashed, DateTimeOffset.UtcNow,
+                events.Count > 0 ? events[^1].TimestampUtc : null);
+            record.CurrentHash = _hashService.GenerateHash(record, previous);
+            _db.AuditEvents.Add(record);
+
+            _db.AllowHashRechain = rehashed > 0;
             try { await _db.SaveChangesAsync(ct); }
             finally { _db.AllowHashRechain = false; }
+            if (tx is not null) await tx.CommitAsync(ct);
+
+            _logger.LogWarning(
+                "Chain re-chained by {Actor}: {Rehashed} of {Total} events rehashed under the canonical algorithm; recorded as {EventType} {EventId}.",
+                actor.Username, rehashed, events.Count, RechainRecord.EventType, record.EventId);
+            return (events.Count, rehashed);
         }
-        _logger.LogWarning("Chain re-chained: {Rehashed} of {Total} events rehashed under the canonical algorithm.",
-            rehashed, events.Count);
-        return (events.Count, rehashed);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Rechain requested by {Actor} failed and was rolled back; nothing was recorded.",
+                actor.Username);
+            throw;
+        }
     }
 }

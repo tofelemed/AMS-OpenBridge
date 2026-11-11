@@ -3,6 +3,7 @@ using AMS.AuditService.Consumers;
 using AMS.AuditService.Hashing;
 using AMS.AuditService.Persistence;
 using AMS.AuditService.Verification;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
@@ -75,12 +76,15 @@ app.MapPost("/api/v1/audit/verify", async (ChainIntegrityVerifier verifier, Canc
 
 // One-time migration: rows hashed before the canonical-JSON fix can never verify
 // (jsonb rewrote their preimage). Recomputes the chain under the current
-// algorithm; safe to call again (idempotent — rehashed count will be 0).
-app.MapPost("/api/v1/audit/rechain", async (ChainIntegrityVerifier verifier, CancellationToken ct) =>
+// algorithm; safe to call again (rehashed count will be 0).
+// CHG-173: rewriting every hash can make an altered trail verify again, so this
+// needs system.manage, not the read key admin.audit.view (verify keeps that), and
+// every call appends AUDIT_CHAIN_RECHAINED naming the caller to the chain itself.
+app.MapPost("/api/v1/audit/rechain", async (ClaimsPrincipal user, ChainIntegrityVerifier verifier, CancellationToken ct) =>
 {
-    var (total, rehashed) = await verifier.RechainAsync(ct);
+    var (total, rehashed) = await verifier.RechainAsync(RechainActor.From(user), ct);
     return Results.Ok(new { total, rehashed, note = "Chain recomputed under the canonical hash algorithm." });
-}).RequireAuthorization("admin.audit.view");
+}).RequireAuthorization("system.manage");
 
 // ── GET /api/v1/audit — query the immutable audit trail (Phase 5). ────────────
 // Filter by entity (e.g. entityType=Display, entityId=<guid>), actor, event type, and time window.
