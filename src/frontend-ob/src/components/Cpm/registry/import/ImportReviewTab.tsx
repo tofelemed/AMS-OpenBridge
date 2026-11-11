@@ -8,7 +8,7 @@ import React from 'react';
 import type { CsvRow } from '../../csvImport';
 import { MAX_BULK_LOOPS, PREVIEW_LIMIT } from '../../csvImport';
 import { TonePill } from '../../shared';
-import { importCounts, pathsText, plural, updatesNote } from './importText';
+import { importCounts, pathsText, plural, resumesNote, updatesNote } from './importText';
 
 const Status: React.FC<{ row: CsvRow }> = ({ row }) => {
   const why = row.problems.length > 0 ? row.problems : row.warnings;
@@ -22,8 +22,13 @@ const Status: React.FC<{ row: CsvRow }> = ({ row }) => {
   );
 };
 
-export const ImportReviewTab: React.FC<{ rows: CsvRow[] }> = ({ rows }) => {
+export const ImportReviewTab: React.FC<{
+  rows: CsvRow[];
+  /** Tags of rows that match a loop not monitored now: importing turns its monitoring back on. */
+  resumes?: string[];
+}> = ({ rows, resumes = [] }) => {
   const c = importCounts(rows);
+  const resumed = resumesNote(resumes);
   return (
     <>
       <p className="cpm-reg-import-line" data-testid="cpm-import-summary">
@@ -34,6 +39,7 @@ export const ImportReviewTab: React.FC<{ rows: CsvRow[] }> = ({ rows }) => {
         {'.'}
         {c.ready > 0 && c.fix > 0 && <span className="cpm-copy"> Rows that need correction are skipped.</span>}
       </p>
+      {resumed && <p className="cpm-event-row__sub cpm-tone-warn" role="note">{resumed}</p>}
       {c.ready > MAX_BULK_LOOPS && (
         <p className="cpm-field__error">{c.ready} rows exceeds the {MAX_BULK_LOOPS.toLocaleString()}-per-import limit — split the file.</p>
       )}

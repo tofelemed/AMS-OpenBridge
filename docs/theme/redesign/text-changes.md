@@ -1534,3 +1534,9 @@ Built on the approved sample `samples/loop-registry-proposal.html` (+ `loop-regi
 | Template | its two sample rows had 17 cells for 20 columns, so the template failed its own import | a cell per column |
 | Retire | Retire FIC10401 · REASON (REQUIRED) · Retire loop (disabled, nothing said) | Retire loop · Reason (required) · 0 / 500 · Retire loop, "Write a reason first" under it while disabled; Restore loop the same |
 | Export | (none) | Export CSV in the filter row: the loops the list holds, every page, in the bulk-import columns (cplm-loop-registry-2026-11-11.csv) |
+
+CHG-168 follow-up (owner, 11 Nov):
+
+| Where | Was | Now |
+|---|---|---|
+| Bulk import › Review | (nothing) | Monitoring turns back on for 1 loop that is not monitored now: FIC10401. (only when the file holds such loops) |

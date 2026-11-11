@@ -68,6 +68,9 @@ export const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => vo
   const parsed = useMemo(() => parseCsv(text, existing, locations.data, loopTypes), [text, existing, locations.data, loopTypes]);
   const valid = parsed.rows.filter(r => r.problems.length === 0);
   const counts = importCounts(parsed.rows);
+  // CHG-168 (owner, 11 Nov): rows that would turn a not-monitored loop's monitoring back on (the format has no such column)
+  const notMonitored = useMemo(() => new Set(existing.filter(l => l.isActive && l.monitoringEnabled === false).map(l => l.loopId.toUpperCase())), [existing]);
+  const resumes = valid.filter(r => notMonitored.has(r.tag.toUpperCase())).map(r => r.tag);
 
   const runImport = async () => {
     // ONE request for the whole file: the gateway counts a mutation per request (120/minute/user), and the server can only
@@ -154,7 +157,7 @@ export const BulkImportDialog: React.FC<{ existing: CpmLoop[]; onClose: () => vo
               fileError={fileError} onFile={f => { void loadFile(f); }} rows={parsed.rows.length} missing={parsed.missing}
               unknownColumns={parsed.unknownColumns} onTemplate={() => downloadTextFile('cplm-loop-registry-template.csv', templateCsv())} />
           )}
-          {step === 1 && <ImportReviewTab rows={parsed.rows} />}
+          {step === 1 && <ImportReviewTab rows={parsed.rows} resumes={resumes} />}
           {step === 2 && (
             <ImportActivateTab counts={counts} allowUnmodelled={allowUnmodelled} onAllowUnmodelled={setAllowUnmodelled}
               importing={importing} results={results} stats={stats} warning={warning} />

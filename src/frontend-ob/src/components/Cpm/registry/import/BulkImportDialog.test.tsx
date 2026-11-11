@@ -33,8 +33,8 @@ const CSV = [HEAD,
   'TIC 999,,hdpe,,,XIC,urgent,,,,,,,abc,,,,,,'].join('\n');
 const existing = [{ loopId: 'FIC10401' } as CpmLoop];
 
-const show = () => render(
-  <QueryClientProvider client={new QueryClient()}><BulkImportDialog existing={existing} onClose={() => undefined} /></QueryClientProvider>);
+const show = (loops: CpmLoop[] = existing) => render(
+  <QueryClientProvider client={new QueryClient()}><BulkImportDialog existing={loops} onClose={() => undefined} /></QueryClientProvider>);
 const next = () => screen.getByRole('button', { name: /^Next: / }) as HTMLButtonElement;
 const paste = (text = CSV) => fireEvent.change(screen.getByLabelText('CSV content'), { target: { value: text } });
 const tab = (name: string) => screen.getByRole('tab', { name });
@@ -70,6 +70,22 @@ describe('BulkImportDialog', () => {
     expect(screen.getAllByText('3 rows').length).toBe(1);
     expect(next().disabled).toBe(false);
     expect(next().textContent).toBe('Next: Review →');
+  });
+
+  // CHG-168 (owner, 11 Nov): the import format has no monitoring column, so a row for a loop that is not monitored turns its
+  // monitoring back on; the Review says so once, naming the loops, before anything is sent
+  it('warns once on Review that monitoring turns back on for loops not monitored now', () => {
+    show([{ loopId: 'FIC10401', isActive: true, monitoringEnabled: false } as CpmLoop]);
+    paste();
+    fireEvent.click(next());
+    expect(screen.getAllByText('Monitoring turns back on for 1 loop that is not monitored now: FIC10401.')).toHaveLength(1);
+  });
+
+  it('gives no monitoring warning when every matched loop is monitored', () => {
+    show([{ loopId: 'FIC10401', isActive: true, monitoringEnabled: true } as CpmLoop]);
+    paste();
+    fireEvent.click(next());
+    expect(screen.queryByText(/Monitoring turns back on/)).toBeNull();
   });
 
   it('reviews the rows on one line, Status before the paths, the paths under the location', () => {

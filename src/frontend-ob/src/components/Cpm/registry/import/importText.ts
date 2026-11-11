@@ -17,6 +17,16 @@ export function importCounts(rows: CsvRow[]): ImportCounts {
 }
 
 /** "(1 updates an existing loop)" beside the ready count, or nothing. */
+/**
+ * CHG-168 (owner, 11 Nov): the import format has no monitoring column, so importing a loop that is not monitored turns its
+ * monitoring back on. Said once on Review, naming up to five loops; null when no such loop is in the file.
+ */
+export function resumesNote(tags: string[]): string | null {
+  if (tags.length === 0) return null;
+  const named = tags.slice(0, 5).join(', ') + (tags.length > 5 ? ` and ${tags.length - 5} more` : '');
+  return `Monitoring turns back on for ${plural(tags.length, 'loop', 'loops')} that ${tags.length === 1 ? 'is' : 'are'} not monitored now: ${named}.`;
+}
+
 export const updatesNote = (n: number): string => (n === 0 ? '' : n === 1 ? ' (1 updates an existing loop)' : ` (${n} update existing loops)`);
 
 /** "1 new, 1 updates an existing loop · 1 row skipped", each part only when it has rows. */
