@@ -266,6 +266,14 @@ Services: `ams-frontend` and `cplm-api`. No migration, no config.
 - **Copy buttons (CHG-147):** they fall back to a hidden text field, because the plant runs over plain http and the clipboard API needs https.
 - **Deploy both services together.** The frontend calls the two new endpoints; an older `cplm-api` answers 404 to Retire.
 
+## CPA owner review: Pipeline Health (CHG-170, unreleased, branch feat/cpa-redesign)
+
+Services: `ams-frontend` and `cplm-api`. No migration, no config.
+
+- **One verdict-age rule on three pages (owner decision, 11 Nov 2026):** Overview, Performance and Pipeline Health judge how old the fused results are by the Overview's rule: the newest **12 h** result across the monitored loops in scope (each loop's newest LIVE row of any diagnosis), **Stale once older than 60 min** (`Cpm:Kpi:FreshSeconds`, 3600; `kpi_calculation_logic/KPI-LOGIC.md`). The value is `GET /api/v1/cpm/fleet/kpis` → `newestResultAt` (CHG-170). Performance's stale line used the heatmap's newest window and 3 h, and Pipeline Health the ranking's newest window with no tone, so the pages disagreed (96.3 h against 108 h on the lab). Performance reads the window of its 12h / 24h switch. To change the threshold, change `Cpm:Kpi:FreshSeconds`: all three pages follow.
+- **Jobs off the required list (CHG-170):** `GET /api/v1/cpm/pipeline-status` → `otherJobs` lists them with their state; a finished on-demand run (a name ending in "[run id]", FINISHED, FAILED or CANCELED) is left out. `unexpectedJobs` is unchanged. Note: the supervisor submits "AMS - CPLM On-Demand Evaluation", which the required list in `CpmReadinessController` does not name, so it shows there (and `ReadinessJobsTests` reports the drift).
+- **Deploy both services together.** With an older `cplm-api` the page falls back to the earlier reads, and the pages disagree again.
+
 ## Access control (CHG-171, unreleased, branch feat/cpa-redesign)
 
 Service: `auth-service`. No migration, no config. Enforced by the server since CHG-171 (owner approval 11 Nov 2026), whatever the page does:

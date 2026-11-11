@@ -424,6 +424,15 @@ export interface CpmPipelineStatus {
   alarmRunning: boolean;
   jobs: CpmPipelineJob[];
   unexpectedJobs: string[];
+  /** CHG-170: the jobs off the required list with their state, finished on-demand runs left out; absent on an older cplm-api. */
+  otherJobs?: CpmOtherJob[];
+}
+
+/** CHG-170: a job the engine runs that the required list does not name. */
+export interface CpmOtherJob {
+  name: string;
+  state: string;
+  running: boolean;
 }
 
 export const getPipelineStatus = () =>
@@ -581,7 +590,8 @@ export const recomputeLoop = (loopId: string) =>
     `${BASE}/loops/${encodeURIComponent(loopId)}/recompute`, { method: 'POST' });
 
 export const getReplayStatus = (replayId: string, jobId: string) =>
-  apiJson<{ replayId: string; jobId: string; state: string; finished: boolean; succeeded: boolean }>(
+  // CHG-170: gateResults (the result rows the run wrote) was returned but dropped here; Verified needs it
+  apiJson<{ replayId: string; jobId: string; state: string; finished: boolean; succeeded: boolean; gateResults?: number }>(
     `${BASE}/replays/${encodeURIComponent(replayId)}?jobId=${encodeURIComponent(jobId)}`);
 
 // ── Pipeline metrics (DG-1 proxy, U7/U11) ───────────────────────────────────

@@ -60,6 +60,9 @@ public sealed class CpmFleetKpiController : ControllerBase
             basis = Basis(t),
             computedAt,
             monitored = loops.Count,
+            // CHG-170 (additive): the newest result across the scope; with basis.freshSeconds it is the one stale rule of
+            // Overview, Performance and Pipeline Health
+            newestResultAt = FleetKpiClassifier.NewestResultAt(loops),
             states = new
             {
                 assessed = Count("assessed"), notAssessable = Count("not-assessable"),

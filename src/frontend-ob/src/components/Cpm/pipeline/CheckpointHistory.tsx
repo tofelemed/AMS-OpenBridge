@@ -1,20 +1,22 @@
 /**
- * What the engine's metrics carry and what they do not, then the checkpoint chart in a closed disclosure.
- * There is no server-side history for these metrics: the chart holds only the readings taken while this page is open.
+ * CHG-170 (owner review, Pipeline Health): Checkpoint history, the page's second view (`?view=history`; it was a closed
+ * disclosure at the foot of the Telemetry card). The same chart: max checkpoint age and max checkpoint duration of the CPLM
+ * jobs on two axes, gaps where nothing was read, the zoom tools. The plot starts lower so the axis names sit under the legend
+ * instead of being cut by it; the view says once that it covers the CPLM jobs (the tiles cover every job). There is no
+ * server-side history for these metrics: the page takes a reading from each metrics answer whichever view shows
+ * (useCheckpointSamples), up to 120, held only while it is open.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { KvRow, PanelHead, EmptyState, fmtDateTime } from '../shared';
-import { Toggletip } from '../../../ui/Toggletip';
+import { EmptyState, fmtDateTime } from '../shared';
 import { axisChrome, baseOption, chartPalette, useChartTheme } from '../../../charts/chartTheme';
 import { boxZoomOption } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
 import { siteAxisTick } from '../../../cpa/siteTime';
 import type { CpmJobMetrics } from '../../../api/cpmApi';
-import { NOT_EXPOSED } from './mergeJobs';
 
-interface Sample { t: number; ckptAgeSec: number | null; ckptDurMs: number | null }
+export interface Sample { t: number; ckptAgeSec: number | null; ckptDurMs: number | null }
 
 /** The largest value read; null when none was read, so the chart shows a gap, not 0. */
 const maxOf = (xs: Array<number | null | undefined>) => {
@@ -22,14 +24,9 @@ const maxOf = (xs: Array<number | null | undefined>) => {
   return v.length ? Math.max(...v) : null;
 };
 
-const NOT_CARRIED = ['Watermark lag', 'Kafka consumer lag', 'Latency', 'Backpressure', 'Parallelism'];
-
-export const TelemetryCard: React.FC<{
-  metrics: { collectedAt: string; jobs: CpmJobMetrics[] } | undefined;
-  lastVerdictAgeMin: number | null;
-}> = ({ metrics, lastVerdictAgeMin }) => {
+/** One reading per metrics answer (a new collectedAt): the CPLM jobs' largest checkpoint age and duration. */
+export function useCheckpointSamples(metrics: { collectedAt: string; jobs: CpmJobMetrics[] } | undefined): Sample[] {
   const [samples, setSamples] = useState<Sample[]>([]);
-  const [open, setOpen] = useState(false);
   const lastCollected = useRef<string | null>(null);
   useEffect(() => {
     if (!metrics || metrics.collectedAt === lastCollected.current) return;
@@ -39,7 +36,15 @@ export const TelemetryCard: React.FC<{
     const dur = cplm.length ? maxOf(cplm.map(j => j.checkpoint!.lastDurationMs)) : null;
     setSamples(prev => [...prev.slice(-119), { t: new Date(metrics.collectedAt).getTime(), ckptAgeSec: age, ckptDurMs: dur }]);
   }, [metrics]);
+  return samples;
+}
 
+/** The legend's band at the top, and the axis names under it (an axis name sits nameGap above the plot). */
+const LEGEND_TOP = 0;
+const NAME_GAP = 15;
+const PLOT_TOP = 48;
+
+export const CheckpointHistory: React.FC<{ samples: Sample[] }> = ({ samples }) => {
   const box = useBoxZoom({ hasY: true });
   const theme = useChartTheme();
   const option = useMemo(() => {
@@ -50,7 +55,7 @@ export const TelemetryCard: React.FC<{
     return {
       ...base,
       animation: false,
-      grid: { left: 48, right: 48, top: 24, bottom: 24 },
+      grid: { left: 48, right: 48, top: PLOT_TOP, bottom: 24 },
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
       tooltip: {
         ...base.tooltip, trigger: 'axis',
@@ -58,12 +63,12 @@ export const TelemetryCard: React.FC<{
           ? [`<strong>${fmtDateTime(rows[0].value[0])}</strong>`, ...rows.map(x => `${x.marker} ${x.seriesName}: ${x.value[1]}`)].join('<br/>')
           : '',
       },
-      legend: { ...base.legend, top: 0 },
+      legend: { ...base.legend, top: LEGEND_TOP },
       xAxis: { ...axis, type: 'time', axisLabel: { ...axis.axisLabel, hideOverlap: true,
         formatter: siteAxisTick(samples.length > 1 ? samples[samples.length - 1].t - samples[0].t : 3_600_000) } },
       yAxis: [
-        { ...axis, type: 'value', name: 'ckpt age (s)', splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
-        { ...axis, type: 'value', name: 'ckpt dur (ms)', splitLine: { show: false } },
+        { ...axis, type: 'value', name: 'ckpt age (s)', nameGap: NAME_GAP, splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
+        { ...axis, type: 'value', name: 'ckpt dur (ms)', nameGap: NAME_GAP, splitLine: { show: false } },
       ],
       series: [
         { name: 'Max checkpoint age', type: 'line', symbol: 'none', color: pv, lineStyle: { color: pv, width: 2 }, data: samples.map(s => [s.t, s.ckptAgeSec]) },
@@ -74,31 +79,23 @@ export const TelemetryCard: React.FC<{
   }, [samples, theme, box.zoom]);
   useKeepSelecting(box, option);
 
-  const verdictAge = lastVerdictAgeMin == null ? 'none stored yet'
-    : `window ended ${lastVerdictAgeMin < 120 ? `${lastVerdictAgeMin} min` : `${Math.round(lastVerdictAgeMin / 60)} h`} ago`;
-
   return (
-    <section className="cpm-surface">
-      <PanelHead title="Telemetry"
-        help={<Toggletip variant="how-to" label="Where a sample becomes a verdict">
-          <p>DCS / edge to Kafka, then Flink compute, then Postgres and IoTDB. The last fused verdict is the newest window end across the fleet.</p>
-        </Toggletip>} />
-      {NOT_CARRIED.map(label => <KvRow key={label} label={label}>{NOT_EXPOSED}</KvRow>)}
-      <KvRow label="Last fused verdict">{verdictAge}</KvRow>
-      <details className="cpm-pipeline-history" onToggle={e => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
-        <summary>Checkpoint history · Held only while this page is open · {samples.length} reading(s)</summary>
-        {open && (samples.length < 2
-          ? <EmptyState title="Collecting…" copy="The chart needs two readings; keep this page open." />
-          : (
-            <>
-              <ReactECharts option={option} style={{ height: 220 }} notMerge
-                onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-              <ChartZoomBar box={box} hasData live />
-            </>
-          ))}
-      </details>
+    <section className="cpm-surface cpm-pipeline-history" aria-labelledby="pipeline-history-title">
+      <div className="cpm-pipeline-history__head">
+        <h2 id="pipeline-history-title" className="cpm-panel-title">Checkpoint history</h2>
+        <span className="cpm-copy">{`CPLM jobs · held only while this page is open · ${samples.length} ${samples.length === 1 ? 'reading' : 'readings'}`}</span>
+      </div>
+      {samples.length < 2
+        ? <EmptyState title="Collecting…" copy="The chart needs two readings; keep this page open." />
+        : (
+          <>
+            <ReactECharts option={option} style={{ height: 220 }} notMerge
+              onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
+            <ChartZoomBar box={box} hasData live />
+          </>
+        )}
     </section>
   );
 };
 
-export default TelemetryCard;
+export default CheckpointHistory;

@@ -290,7 +290,9 @@ public sealed class CpmReadinessController : ControllerBase
             cplmRunning = reachable && jobs.Where(j => j.role == "cplm").All(j => j.running),
             alarmRunning = reachable && jobs.Where(j => j.role == "alarm").All(j => j.running),
             jobs,
-            unexpectedJobs = states.Keys.Where(k => !RequiredJobs.Any(r => r.Name == k))
+            unexpectedJobs = states.Keys.Where(k => !RequiredJobs.Any(r => r.Name == k)),
+            // CHG-170 (additive): the same jobs with their state, finished on-demand runs left out (Services/PipelineOtherJobs)
+            otherJobs = Traverse.CplmApi.Services.PipelineOtherJobs.Of(states, RequiredJobNames)
         });
     }
 

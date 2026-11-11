@@ -153,6 +153,14 @@
   padding: var(--traverse-space-4) var(--traverse-size-panel-padding) 0;
 }
 .ui-inspector__title { margin: 0; font-size: var(--traverse-type-section-title); font-weight: 600; }
+/* CHG-170: an optional word above the title (what kind of item it is), as the page header's eyebrow */
+.ui-inspector__heading { display: flex; flex-direction: column; min-width: 0; }
+.ui-inspector__eyebrow {
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .ui-inspector__meta { margin-inline-start: auto; color: var(--traverse-text-secondary); white-space: nowrap; }
 .ui-inspector__body {
   flex: 1;

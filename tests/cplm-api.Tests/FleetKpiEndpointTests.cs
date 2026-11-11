@@ -109,6 +109,9 @@ public sealed class FleetKpiEndpointTests : IAsyncLifetime
         st.GetProperty("notAssessable").GetInt32().Should().Be(2);
         st.GetProperty("stale").GetInt32().Should().Be(1);
         st.GetProperty("neverEvaluated").GetInt32().Should().Be(1);
+        // CHG-170: the newest result across the scope - the probe rows written 10 minutes ago, whatever their diagnosis
+        DateTimeOffset.Parse(k.GetProperty("newestResultAt").GetString()!).Should()
+            .BeCloseTo(DateTimeOffset.UtcNow.AddMinutes(-10), TimeSpan.FromMinutes(2));
 
         var expected = new Dictionary<string, int>
         {

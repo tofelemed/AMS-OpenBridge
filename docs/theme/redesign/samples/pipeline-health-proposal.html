@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Pipeline Health in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173 on 11 Nov 11:52 UTC (pipeline-status,
+     pipeline-metrics, fleet rankings 12h): 7 of 13 required jobs running (the three alarm and three platform jobs are not
+     deployed on the lab), 247 / 0 checkpoints, oldest 3.8 min (CPLM Instrument Context Engine), last fused verdict 6 Nov 23:45
+     (108 h, FIC10301), Overview Stale 165 / Never evaluated 76 of 241, one job not on the required list (CPLM On-Demand
+     Evaluation). The lab has no verification run, no healthy pipeline, no failed metrics read and no engine outage: those
+     states are illustrative and say so. Shell drawn at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; --pv:#40c057; --op:#fab005; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; position: relative; }
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .seg { display: inline-flex; height: 40px; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; background: var(--panel); color: var(--text2); padding: 0 14px; cursor: pointer; }
+  .seg button + button { border-inline-start: 1px solid var(--strong); }
+  .seg button[aria-pressed="true"] { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 0 -2px 0 var(--action); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .btn--sm { height: 32px; }
+  .field { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field small { color: var(--text2); font-size: 13px; }
+  /* tiles: the Overview card (label and icon on top, the number, one sub line), tone on the left edge */
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { display: flex; flex-direction: column; min-height: 104px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: inherit; text-decoration: none; cursor: pointer; }
+  .kpi:hover { border-color: var(--strong); }
+  .kpi.k-bad { box-shadow: inset 3px 0 0 var(--bad); } .kpi.k-warn { box-shadow: inset 3px 0 0 var(--warn); } .kpi.k-ok { box-shadow: inset 3px 0 0 var(--ok); }
+  .kh { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .ic { flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--raised); color: var(--text2); }
+  .ic svg { width: 18px; height: 18px; } .ic.i-bad { background: var(--bad-bg); color: var(--bad); } .ic.i-warn { background: var(--warn-bg); color: var(--warn); } .ic.i-ok { background: var(--ok-bg); color: var(--ok); } .ic.i-info { background: var(--info-bg); color: var(--info); }
+  .kv2 { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .ks { color: var(--text2); font-size: 13px; } .ks b { font-size: 12px; margin-inline-end: 4px; }
+  .ks.t-bad b { color: var(--bad); } .ks.t-ok b { color: var(--ok); } .ks.t-warn b { color: var(--warn); }
+  .kq { margin-top: 6px; padding: 2px 8px; border: 1px dashed var(--strong); border-radius: 6px; font-size: 13px; color: var(--text2); }
+  .kq .lnk { color: var(--action); font-weight: 600; white-space: nowrap; }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+  .col { display: grid; gap: 16px; }
+  .thead, .row { display: grid; align-items: center; gap: 12px; padding: 0 16px; grid-template-columns: minmax(0, 1.6fr) 120px 92px 124px 104px; }
+  .thead { height: 36px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); border-radius: 12px 12px 0 0; }
+  .thead span:nth-child(n+3), .row > span:nth-child(n+3) { text-align: end; }
+  .row { min-height: 36px; border-bottom: 1px solid var(--border); cursor: pointer; font-variant-numeric: tabular-nums; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { font-weight: 600; } .row .na { grid-column: 3 / -1; text-align: end; color: var(--muted); }
+  .grp { padding: 8px 16px 4px; border-bottom: 1px solid var(--border); background: var(--page); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); font-weight: 600; }
+  .grp--q, .row--q { border: 1px dashed var(--strong); border-width: 1px 0 0; } .row--q { border-width: 0 0 1px; color: var(--text2); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; vertical-align: 1px; }
+  .pill b { font-size: 12px; } .t-warn > b { color: var(--warn); } .t-ok > b { color: var(--ok); } .t-bad > b { color: var(--bad); } .t-muted > b { color: var(--muted); }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .foot { display: flex; align-items: center; gap: 10px; padding: 4px 16px; background: var(--page); color: var(--text2); border-radius: 0 0 12px 12px; min-height: 48px; }
+  .empty { padding: 40px 16px; text-align: center; color: var(--text2); } .empty strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 8px; } .empty p { max-width: 560px; margin: 0 auto 12px; }
+  .stale { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 16px; margin-bottom: 16px; border-radius: 8px; background: var(--warn-bg); color: var(--text); }
+  .stale b { color: var(--warn); }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 6px; }
+  .insp__head h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35; }
+  .insp__body { padding: 0 20px 12px; } .insp__body p { margin: 4px 0 8px; color: var(--text2); }
+  .kv { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .illus { margin: 8px 20px 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .illus--page { margin: 0 0 16px; }
+  .ib { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text2); cursor: pointer; font-size: 14px; vertical-align: middle; }
+  .hist { padding: 16px 20px 8px; } .hist h2 { margin: 0; font-size: 16px; font-weight: 600; display: flex; align-items: baseline; gap: 12px; } .hist h2 small { font-weight: 400; color: var(--text2); font-size: 13px; }
+  .zoom { display: flex; gap: 4px; padding: 0 0 8px 8px; }
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; overflow: auto; padding: 24px 0; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); } .dlg--wide { width: 820px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; align-items: center; } .dlg h3 > span:last-child { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; } .dlg p { margin: 6px 0; }
+  .dlg .df { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .key { display: grid; grid-template-columns: 220px 1fr; gap: 6px 16px; align-items: center; } .key > span:nth-child(even) { color: var(--text2); }
+  .q2 { border: 1px dashed var(--strong); border-radius: 6px; padding: 2px 8px; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+  /* below 1280 px: the sidebar folds, the panel column becomes a drawer */
+  .narrow .shell { width: 1000px; grid-template-columns: 1fr; } .narrow .side, .narrow .topf { display: none; } .narrow .sample { width: 1000px; }
+  .narrow .md { grid-template-columns: 1fr; } .narrow .col { position: fixed; top: 64px; right: 0; bottom: 0; width: 420px; z-index: 4; background: var(--page); padding: 16px; overflow: auto; box-shadow: -8px 0 28px rgba(21, 34, 56, .18); border-inline-start: 1px solid var(--border); }
+  .narrow .col.closed { display: none; } .narrow .col { align-content: start; }
+  #ver .kv { grid-template-columns: 110px 1fr; }
+  .dclose { display: none; } .narrow .dclose { display: flex; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div class="on">Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ?, no sentence. 2 two views top right, no counts, beside How to read -->
+    <div class="head">
+      <div class="ann" data-n="1" style="padding-inline-end:14px"><span class="eyebrow">System</span><h1>Pipeline Health</h1></div>
+      <span class="grow"></span>
+      <span class="ann" data-n="2"><div class="seg" role="group" aria-label="Pipeline Health view">
+        <button id="vJobs" aria-pressed="true" onclick="go({view:'jobs'})">Jobs</button><button id="vHist" aria-pressed="false" onclick="go({view:'hist'})">Checkpoint history</button>
+      </div></span>
+      <button class="btn ann" data-n="11" onclick="openDlg('howto')">How to read</button>
+    </div>
+
+    <div class="illus illus--page hide" id="illusPage"></div>
+    <!-- stale data says how old it is, once, for the whole page -->
+    <div class="stale hide ann" data-n="7" id="staleLine"></div>
+
+    <!-- 3 four tiles: Last fused verdict moved in from the Telemetry card; tone + glyph + word; each opens what is behind it -->
+    <div class="tiles ann" data-n="3" id="tiles"></div>
+
+    <!-- JOBS: the list grouped by role, the selected job in a panel; the verification below it -->
+    <div class="md" id="jobsView">
+      <section class="card ann" data-n="4" id="list">
+        <div class="thead"><span>Job</span><span>State</span><span>Uptime</span><span>Checkpoint age</span><span>OK / failed</span></div>
+        <div id="rows" role="list" aria-label="Required jobs"></div>
+        <div class="empty hide" id="down"><strong>The analysis engine did not answer</strong><p>Its job list could not be read, so no job can be shown and new verdicts may be late. Retry; if it stays down, ask the system administrator to check the analysis engine.</p><button class="btn btn--out btn--sm">Retry</button></div>
+        <!-- 7 Technical details of the list (JobManager address, jobs not on the required list) behind Engine details -->
+        <div class="foot ann" data-n="7" style="border-top:1px solid var(--border)"><span class="grow"></span><button class="btn" onclick="openDlg('engine')">Engine details</button></div>
+      </section>
+      <div class="col" id="col">
+        <div class="dclose" style="justify-content:flex-end"><button class="ib" title="Close" onclick="go({drawer:false})">&#x2715;</button></div>
+        <!-- 5 the selected job: today's dialog, as a panel (a drawer below 1280 px) -->
+        <aside class="card insp ann" data-n="5" aria-label="Selected job" id="panel">
+          <div class="insp__head"><div><span class="eyebrow" id="pRole"></span><h2 id="pName"></h2></div><span class="grow"></span><span id="pState"></span></div>
+          <div class="insp__body" id="pBody"></div>
+          <div class="insp__foot" id="pFoot"><span class="grow"></span><button class="btn ann" data-n="6" onclick="openDlg('record')">Record details</button></div>
+        </aside>
+        <!-- 8 end-to-end verification: its state once in the head, the run's rows, Run in the foot, ids behind Record details -->
+        <section class="card insp ann" data-n="8" aria-label="End-to-end verification" id="ver">
+          <div class="insp__head"><h2>End-to-end verification</h2><span class="grow"></span><span id="vState"></span></div>
+          <div class="insp__body" id="vBody"></div>
+          <div class="illus hide" id="vIllus">Illustrative: the lab has no verification run. Loop, run id and time invented to show the rows' place.</div>
+          <div class="insp__foot"><button class="btn hide" id="vRec" onclick="openDlg('vrecord')">Record details</button><span class="grow"></span><button class="btn btn--raised" id="vRun" onclick="openDlg('setup')">Run end-to-end verification</button></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- 10 CHECKPOINT HISTORY: today's closed disclosure on the Telemetry card, as the second view; the chart keeps its series and tools -->
+    <section class="card ann hide" data-n="10" id="histView">
+      <div class="hist"><h2>Checkpoint history <small id="hNote"></small></h2></div>
+      <div id="chart"></div>
+      <div class="zoom"><button class="btn btn--sm">Zoom area</button><button class="btn btn--sm">Undo</button><button class="btn btn--sm">Reset</button></div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim">
+  <!-- 11 How to read: the four ?, the five "Not exposed" rows and the read-only sentence, in titled parts -->
+  <div class="card dlg dlg--wide ann" data-n="11" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Job state</h4>
+    <div class="key">
+      <span><span class="pill t-ok"><b>✓</b>Running</span></span><span>RUNNING</span>
+      <span><span class="pill t-warn q2"><b>◐</b>Starting</span></span><span>INITIALIZING, CREATED, RESTARTING, RECONCILING (question 6; red today)</span>
+      <span><span class="pill t-bad"><b>✕</b>Missing</span></span><span>A required job the engine does not list.</span>
+      <span><span class="pill t-bad"><b>✕</b>Failed</span> …</span><span>FAILED, FAILING, CANCELED, CANCELLING, FINISHED, SUSPENDED</span>
+    </div>
+    <h4>Numbers</h4>
+    <div class="key">
+      <span>Uptime</span><span>Since the engine started the job.</span>
+      <span>Checkpoint age</span><span>Since the job's last completed checkpoint; the tile shows the oldest.</span>
+      <span>OK / failed</span><span>Checkpoints since job start.</span>
+      <span>Last fused verdict</span><span>The newest 12 h window that ended with a verdict, across the fleet (question 4).</span>
+      <span>—</span><span>Not read: the engine did not answer, or the job is not running. Never an estimate, never 0.</span>
+    </div>
+    <h4>Not exposed</h4>
+    <div class="key">
+      <span>Watermark lag · Kafka consumer lag · Latency · Backpressure · Parallelism</span><span>Not exposed by the proxy and not estimated.</span>
+    </div>
+    <h4>Where a sample becomes a verdict</h4>
+    <p style="color:var(--text2)">DCS / edge to Kafka, then Flink compute, then Postgres and IoTDB. Job lifecycle is owned by the supervisor; this page never starts or stops a job.</p>
+    <h4>End-to-end verification</h4>
+    <p style="color:var(--text2)">Submits a recompute on the chosen loop and waits for the batch verdict: historian read, normalise, gates, fused result in Postgres.</p>
+  </div>
+
+  <!-- 6 Record details of one job: today's Technical details in the job dialog -->
+  <div class="card dlg ann" data-n="6" data-dlg="record">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div id="rRows"></div>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 7 Engine details: today's Technical details under the table; "JobManager answering" goes (the tile says it) -->
+  <div class="card dlg ann" data-n="7" data-dlg="engine">
+    <h3>Engine details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>JobManager address</span><span><span class="mono">http://flink-jobmanager:8081</span> <button class="ib" title="Copy">⧉</button></span></div>
+    <div class="kv"><span>Jobs the engine runs that are not required</span><span>AMS - CPLM On-Demand Evaluation</span></div>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 9 the setup dialog: titled parts; the ? sentence moved here; the reference loop (question 8) -->
+  <div class="card dlg ann" data-n="9" data-dlg="setup">
+    <h3>Run end-to-end verification <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Loop</h4>
+    <span class="field q2" style="width:100%;height:40px">&#x1F50D;&#xFE0E; <span><strong>FIC10301</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+    <p style="color:var(--text2);font-size:13px">Proposed default (question 8): the loop with the newest verdict. Today: AIC30601, which has never had one.</p>
+    <h4>What it does</h4>
+    <p style="color:var(--text2)">Submits a recompute on this loop and waits for the batch verdict: historian read, normalise, gates, fused result in Postgres.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Start verification</button></div>
+  </div>
+
+  <!-- 8 Record details of the verification run: today's Technical details on the card -->
+  <div class="card dlg ann" data-n="8" data-dlg="vrecord">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Analysis run</span><span><span class="mono">7c1e04a2…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <div class="kv"><span>Replay id</span><span><span class="mono">7c1e04a29b3d</span> <button class="ib" title="Copy">⧉</button></span></div>
+    <div class="kv"><span>Engine job id</span><span><span class="mono">a41f93c0…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <p style="color:var(--text2);font-size:12px">Illustrative ids: the lab has no verification run.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out btn--sm" onclick="sample('lab')">Lab now</button>
+  <button class="btn btn--out btn--sm" onclick="sample('labMissing')">Missing job selected</button>
+  <button class="btn btn--out btn--sm" onclick="sample('healthy')">Healthy (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('metfail')">Metrics read failed (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('down')">Engine down (illustrative)</button>
+  <span>· Verification:</span>
+  <button class="btn btn--out btn--sm" onclick="sample('vrun')">Running</button>
+  <button class="btn btn--out btn--sm" onclick="sample('vok')">Verified</button>
+  <button class="btn btn--out btn--sm" onclick="sample('vfail')">Failed</button>
+  <span>·</span>
+  <button class="btn btn--out btn--sm" onclick="sample('hist')">Checkpoint history</button>
+  <button class="btn btn--out btn--sm" onclick="sample('narrow')">1000 px · drawer</button>
+  <span>· Dialogs:</span>
+  <button class="btn btn--out btn--sm" onclick="openDlg('howto')">How to read</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('record')">Record details (job)</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('engine')">Engine details</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('setup')">Run end-to-end verification</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w, extra) => `<span class="pill t-${t}${extra ? ' ' + extra : ''}"><b>${g}</b>${w}</span>`;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  const ICON = {
+    jobs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="18" height="5" rx="1"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>',
+    verdict: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+    ckpt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4h4"/></svg>',
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>'
+  };
+  // [key, engine job name, role, state, uptime, ok, failed, checkpoint age, last duration, state size, job id, started] - lab 11 Nov 11:52 UTC
+  const LAB = [
+    ['asm', 'AMS - Alarm State Machine', 'Alarm', 'MISSING'], ['iot', 'AMS - IoTDB Alarm Persistence', 'Alarm', 'MISSING'], ['lsr', 'AMS - Live State RBE', 'Alarm', 'MISSING'],
+    ['sfe', 'AMS - CPLM Short Feature Engine', 'CPLM', 'RUNNING', '1h 16m', 25, 0, '2.1 min', '16.2 s', '42.2 MB', '44856994566b3bb4c0e9246a7d224c23', '10:35'],
+    ['lde', 'AMS - CPLM Long Diagnostics Engine', 'CPLM', 'RUNNING', '1h 16m', 15, 0, '1.1 min', '1.4 s', '196.0 MB', '8058a121e0337205707568e0e2e56299', '10:36'],
+    ['gfe', 'AMS - CPLM Gate Fusion Engine', 'CPLM', 'RUNNING', '1h 15m', 25, 0, '2.5 min', '298 ms', '216.2 KB', '0f5aa1b5c8efc8b4656824250891c564', '10:36'],
+    ['llr', 'AMS - Loop Live RBE Engine', 'CPLM', 'RUNNING', '1h 16m', 76, 0, '53 s', '135 ms', '143.2 KB', '396367ab46c3cf37c824fbc8e5489278', '10:35'],
+    ['cde', 'AMS - CPLM Condition Engine', 'CPLM', 'RUNNING', '1h 16m', 76, 0, '42 s', '2.0 s', '185.4 KB', 'c2f3711f3dd8e022f8f0b78227f30b16', '10:35'],
+    ['ice', 'AMS - CPLM Instrument Context Engine', 'CPLM', 'RUNNING', '1h 16m', 15, 0, '3.8 min', '152 ms', '41.9 KB', 'e9128288d7e9286e9ed52bf0a17008f1', '10:35'],
+    ['rse', 'AMS - CPLM Response Engine', 'CPLM', 'RUNNING', '1h 15m', 15, 0, '3.1 min', '128 ms', '7.3 MB', '3267f50c21a51365115af8f430bf83dd', '10:36'],
+    ['aee', 'AMS - Analysis Execution Engine', 'Platform', 'MISSING'], ['ake', 'AMS - Alarm KPI Engine', 'Platform', 'MISSING'], ['ase', 'AMS Alarm State Export Engine', 'Platform', 'MISSING']];
+  // Healthy: illustrative numbers for the six jobs the lab does not run
+  const FILL = { asm: ['6d 4h', 8890, 0, '38 s', '210 ms', '3.1 MB'], iot: ['6d 4h', 8890, 0, '41 s', '96 ms', '88.0 KB'], lsr: ['6d 4h', 8891, 0, '35 s', '120 ms', '612.4 KB'], aee: ['6d 4h', 1778, 0, '2.4 min', '84 ms', '12.6 KB'], ake: ['6d 4h', 8889, 0, '44 s', '150 ms', '1.2 MB'], ase: ['6d 4h', 8890, 0, '29 s', '77 ms', '64.5 KB'] };
+  const label = n => n.replace(/^AMS[ -]+/, '');
+  let S = {};
+  const SAMPLES = {
+    lab: { mode: 'lab', view: 'jobs', sel: 'sfe', ver: 'none' }, labMissing: { mode: 'lab', view: 'jobs', sel: 'aee', ver: 'none' },
+    healthy: { mode: 'healthy', view: 'jobs', sel: 'sfe', ver: 'none' }, metfail: { mode: 'metfail', view: 'jobs', sel: 'sfe', ver: 'none' },
+    down: { mode: 'down', view: 'jobs', sel: null, ver: 'none' },
+    vrun: { mode: 'lab', view: 'jobs', sel: 'sfe', ver: 'run' }, vok: { mode: 'lab', view: 'jobs', sel: 'sfe', ver: 'ok' }, vfail: { mode: 'lab', view: 'jobs', sel: 'sfe', ver: 'fail' },
+    hist: { mode: 'lab', view: 'hist', sel: 'sfe', ver: 'none' }, narrow: { mode: 'lab', view: 'jobs', sel: 'ice', ver: 'none', narrow: true, drawer: true },
+  };
+  const jobs = () => LAB.map(j => {
+    if (S.mode === 'healthy' && j[3] === 'MISSING') { const f = FILL[j[0]]; return [j[0], j[1], j[2], 'RUNNING', ...f, '—', '5 Nov 07:31']; }
+    if (S.mode === 'healthy') return [...j.slice(0, 4), '6d 4h', j[5] * 117, 0, ...j.slice(7)];
+    return j;
+  });
+
+  function tile(cls, icon, ic, cap, val, sub, subTone, onclick, extra = '') {
+    return `<a class="kpi ${cls}" onclick="${onclick}"><div class="kh"><span>${cap}</span><span class="ic ${ic}">${ICON[icon]}</span></div><span class="kv2">${val}</span><span class="ks ${subTone}">${sub}</span>${extra}</a>`;
+  }
+  function renderTiles() {
+    const m = S.mode, down = m === 'down', met = m === 'metfail', healthy = m === 'healthy';
+    const req = down ? tile('k-bad', 'jobs', 'i-bad', 'Required jobs', '0/13', '<b>✕</b>analysis engine not answering', 't-bad', "go({sel:null})")
+      : healthy ? tile('k-ok', 'jobs', 'i-ok', 'Required jobs', '13/13', '<b>✓</b>analysis engine answering', 't-ok', "go({sel:'asm'})")
+      : tile('k-bad', 'jobs', 'i-bad', 'Required jobs', '7/13', '<b>✕</b>6 missing · analysis engine answering', 't-bad', "go({sel:'asm'})");
+    const q = '<div class="kq ann" data-n="Q" title="Owner questions 4 and 5">◐ Stale · <span class="lnk">165 loops ↗</span> · <span class="lnk">Never evaluated 76 ↗</span></div>';
+    const verdict = healthy ? tile('k-ok', 'verdict', 'i-ok', 'Last fused verdict', '18 min', 'window ended 11 Nov 11:30', '', "")
+      : tile('k-warn', 'verdict', 'i-warn', 'Last fused verdict', '108 h', 'window ended 6 Nov 23:45', '', "", q);
+    const oldest = down ? tile('', 'ckpt', 'i-info', 'Checkpoint age', '—', 'not read', '', "") : healthy
+      ? tile('', 'ckpt', 'i-info', 'Checkpoint age', '3.8 min', 'oldest: CPLM Instrument Context Engine', '', "go({sel:'ice'})")
+      : tile('', 'ckpt', 'i-info', 'Checkpoint age', '3.8 min', 'oldest: CPLM Instrument Context Engine', '', "go({sel:'ice'})");
+    const okf = down ? tile('', 'ok', 'i-info', 'Checkpoints ok / failed', '—', 'not read', '', "")
+      : healthy ? tile('k-ok', 'ok', 'i-ok', 'Checkpoints ok / failed', '113,452 / 0', '<b>✓</b>none failed · since job start', 't-ok', "")
+      : tile('k-ok', 'ok', 'i-ok', 'Checkpoints ok / failed', '247 / 0', '<b>✓</b>none failed · since job start', 't-ok', "");
+    $('tiles').innerHTML = req + verdict + oldest + okf;
+  }
+  function stateCell(st) {
+    if (st === 'RUNNING') return pill('ok', '✓', 'Running');
+    return pill('bad', '✕', st === 'MISSING' ? 'Missing' : st.charAt(0) + st.slice(1).toLowerCase());
+  }
+  function renderList() {
+    const down = S.mode === 'down';
+    $('down').classList.toggle('hide', !down);
+    $('list').querySelector('.thead').classList.toggle('hide', down);
+    if (down) { $('rows').innerHTML = ''; return; }
+    let html = '', grp = '';
+    for (const j of jobs()) {
+      if (j[2] !== grp) { grp = j[2]; html += `<div class="grp">${grp}</div>`; }
+      const run = j[3] === 'RUNNING';
+      html += `<div class="row${S.sel === j[0] ? ' sel' : ''}" role="listitem" onclick="go({sel:'${j[0]}',drawer:true})"><span><strong>${label(j[1])}</strong></span><span>${stateCell(j[3])}</span>`
+        + (run ? `<span>${j[4]}</span><span>${j[7]}</span><span>${j[5].toLocaleString()} / ${j[6]}</span>` : '<span class="na">Not listed by the engine</span>') + '</div>';
+    }
+    html += '<div class="grp grp--q ann" data-n="Q" title="Owner question 7" style="display:block">Not on the required list</div>'
+      + '<div class="row row--q" role="listitem"><span>CPLM On-Demand Evaluation</span><span class="pill t-muted q2"><b>?</b>state not read</span><span class="na" style="grid-column:3/-1">the status read names it, without a state</span></div>';
+    $('rows').innerHTML = html;
+  }
+  function renderPanel() {
+    const j = jobs().find(x => x[0] === S.sel);
+    $('panel').classList.toggle('hide', !j || S.mode === 'down');
+    if (!j) return;
+    $('pRole').textContent = j[2]; $('pName').textContent = label(j[1]); $('pState').innerHTML = stateCell(j[3]);
+    if (j[3] !== 'RUNNING') {
+      $('pBody').innerHTML = '<p>The engine does not list this required job, so it has no numbers. If it stays missing, ask the system administrator to check the analysis engine.</p>';
+      $('pFoot').classList.add('hide');
+    } else {
+      $('pBody').innerHTML = kv('Uptime', j[4]) + kv('Checkpoints ok / failed', `${j[5].toLocaleString()} / ${j[6]}`) + kv('Last checkpoint age', j[7]) + kv('Last checkpoint duration', j[8]) + kv('State size', j[9]);
+      $('pFoot').classList.remove('hide');
+    }
+    $('rRows').innerHTML = kv('Engine job name', j[1]) + kv('Engine job id', `<span class="mono">${(j[10] || '').slice(0, 8)}…</span> <button class="ib" title="Copy the whole id">⧉</button>`) + kv('Started · UTC', `11 Nov ${j[11] || ''}`);
+  }
+  function renderVer() {
+    const v = S.ver;
+    const st = { none: pill('muted', '○', 'Not run'), run: pill('warn', '◐', 'Running'), ok: pill('ok', '✓', 'Verified'), fail: pill('bad', '✕', 'Failed (FAILED)') }[v];
+    $('vState').innerHTML = st;
+    const written = '<div class="kv q2 ann" data-n="Q" title="Owner question 8: Verified only when the run wrote results (the API returns the count; the page drops it)" style="margin-top:6px"><span>Results</span><span>2 written</span></div>';
+    const rows = v === 'none' ? '' : kv('Loop', '<strong>FIC10301</strong> <span style="color:var(--text2)">Flow controller (FCS0101)</span>')
+      + (v === 'run' ? '' : kv('Round trip', v === 'ok' ? 'Completed in 41 s' : 'Failed in 23 s') + (v === 'ok' ? written : ''));
+    $('vBody').innerHTML = rows;
+    $('vBody').classList.toggle('hide', v === 'none');
+    $('vIllus').classList.toggle('hide', v === 'none');
+    $('vRec').classList.toggle('hide', v === 'none');
+    const b = $('vRun'); b.textContent = v === 'run' ? 'Verifying…' : 'Run end-to-end verification'; b.toggleAttribute('disabled', v === 'run');
+  }
+  function renderHist() {
+    $('hNote').textContent = 'CPLM jobs · held only while this page is open · 4 readings';
+    const W = 1124, H = 300, x0 = 64, x1 = W - 72, y0 = 44, y1 = H - 36;
+    const t0 = 0, t1 = 80, pts = [[0, 168, 9710], [27, 196, 9705], [53, 224, 9712], [80, 252, 9706]];
+    const X = t => x0 + (t - t0) / (t1 - t0) * (x1 - x0), YA = a => y1 - a / 300 * (y1 - y0), YD = d => y1 - d / 10000 * (y1 - y0);
+    let g = '';
+    for (let a = 0; a <= 300; a += 50) g += `<line x1="${x0}" x2="${x1}" y1="${YA(a)}" y2="${YA(a)}" stroke="#D3DCE8" stroke-opacity=".6"/><text x="${x0 - 8}" y="${YA(a) + 4}" text-anchor="end">${a}</text>`;
+    for (let d = 0; d <= 10000; d += 2000) g += `<text x="${x1 + 8}" y="${YD(d) + 4}">${d.toLocaleString()}</text>`;
+    for (let s = 0; s <= 80; s += 10) { const sec = 10 + s, mm = 56 + Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0'); g += `<line x1="${X(s)}" x2="${X(s)}" y1="${y1}" y2="${y1 + 5}" stroke="#75879C"/><text x="${X(s)}" y="${y1 + 20}" text-anchor="middle">11:${mm}:${ss}</text>`; }
+    const line = (k, Y, c, w) => `<polyline fill="none" stroke="${c}" stroke-width="${w}" points="${pts.map(p => X(p[0]) + ',' + Y(p[k])).join(' ')}"/>`;
+    $('chart').innerHTML = `<svg width="${W}" height="${H}" style="display:block;margin:0 auto;font:12px 'Noto Sans',sans-serif;fill:#4B5D73">
+      <text x="${x0}" y="${y0 - 14}" text-anchor="middle">ckpt age (s)</text><text x="${x1}" y="${y0 - 14}" text-anchor="middle">ckpt dur (ms)</text>
+      <g transform="translate(${W / 2 - 170},10)"><line x1="0" x2="22" y1="6" y2="6" stroke="#40c057" stroke-width="2"/><circle cx="11" cy="6" r="4" fill="#40c057"/><text x="28" y="10" style="fill:#152238">Max checkpoint age</text>
+      <line x1="170" x2="192" y1="6" y2="6" stroke="#fab005" stroke-width="2"/><circle cx="181" cy="6" r="4" fill="#fab005"/><text x="198" y="10" style="fill:#152238">Max checkpoint duration</text></g>
+      ${g}<line x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}" stroke="#75879C"/>${line(2, YD, '#fab005', 1.5)}${line(1, YA, '#40c057', 2)}</svg>`;
+  }
+  function render() {
+    document.body.classList.toggle('narrow', !!S.narrow);
+    $('vJobs').setAttribute('aria-pressed', String(S.view === 'jobs')); $('vHist').setAttribute('aria-pressed', String(S.view === 'hist'));
+    $('jobsView').classList.toggle('hide', S.view !== 'jobs'); $('histView').classList.toggle('hide', S.view !== 'hist');
+    $('col').classList.toggle('closed', !!S.narrow && !S.drawer);
+    const ill = { healthy: 'Illustrative: the lab runs 7 of 13 required jobs and its newest verdict is 108 h old. The six jobs the lab does not run, their numbers and the 18 min are invented.', metfail: 'Illustrative (simulated on the current page in the browser): a metrics read fails after a good one. Numbers kept from the last good read.', down: 'Illustrative (simulated on the current page in the browser): the engine does not answer. The verdict tile still reads, it comes from Postgres.' }[S.mode];
+    $('illusPage').classList.toggle('hide', !ill); $('illusPage').textContent = ill || '';
+    const st = $('staleLine'); st.classList.toggle('hide', S.mode !== 'metfail');
+    st.innerHTML = '<b>◐</b><span>Engine metrics could not be read · the numbers are from 11:52, 3 min ago</span><span class="grow"></span><button class="btn btn--sm">Retry</button>';
+    renderTiles(); renderList(); renderPanel(); renderVer(); if (S.view === 'hist') renderHist();
+  }
+  function go(p) { Object.assign(S, p); render(); }
+  function sample(n) { S = { drawer: false, narrow: false, ...SAMPLES[n] }; closeDlg(); render(); }
+  function openDlg(n) { document.querySelectorAll('[data-dlg]').forEach(d => d.classList.toggle('on', d.dataset.dlg === n)); $('scrim').classList.add('on'); }
+  function closeDlg() { $('scrim').classList.remove('on'); document.querySelectorAll('[data-dlg]').forEach(d => d.classList.remove('on')); }
+  window.sample = sample; window.openDlg = openDlg; window.closeDlg = closeDlg; window.go = go;
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  sample('lab');
+</script>
+</body>
+</html>

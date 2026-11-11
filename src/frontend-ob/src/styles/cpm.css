@@ -285,7 +285,8 @@
   border-bottom: 1px solid var(--border-outline-color);
 }
 .cpm-matrix thead tr:first-child th { top: 0; height: 26px; }
-.cpm-matrix thead tr:last-child th { top: 26px; height: 24px; }
+/* CHG-170: the second row only - a one-row header is both first and last child and must stay at the top */
+.cpm-matrix thead tr:last-child:not(:first-child) th { top: 26px; height: 24px; }
 .cpm-matrix thead tr:first-child th[rowspan] { top: 0; }
 .cpm-matrix__tier { font-size: var(--cpm-text-caption); text-transform: uppercase; letter-spacing: 0.05em; color: var(--traverse-text-secondary); }
 .cpm-matrix__gate { font-size: var(--cpm-text-caption); font-weight: 600; }

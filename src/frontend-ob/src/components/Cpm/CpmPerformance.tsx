@@ -34,6 +34,7 @@ import { useLoopRank } from './performance/useLoopRank';
 import { buildTierGroups, isRowFilter, latestWindowEnd, matrixViewOf, type MatrixView } from './gateStatus';
 import { useCpmLoops, useCpmResolutions, useFleetHeatmap, useFleetSummary } from '../../hooks/useCpm';
 import { useFleetKpis } from './kpi/useFleetKpis';
+import { fleetFreshness } from './verdictFreshness';
 import { explorerHref, pipelineHref, registryHref, windowsHref } from './cpaHref';
 import { effectiveInputFlags } from './inputLimits';
 import { inputContextOf } from './optionalInputs';
@@ -45,7 +46,8 @@ const HEALTH_FILTERS: { id: CpmHealthFilter; label: string }[] = [
   { id: 'active-affected', label: 'Active affected-device condition' },
 ];
 
-/** A fused window older than this is called out rather than shown as current. */
+/** A fused window older than this is called out rather than shown as current: the rule before CHG-170, kept for a cplm-api
+ *  without fleet/kpis newestResultAt. */
 const STALE_AFTER_MS = 3 * 3_600_000;
 
 const fmtAge = (ms: number) =>
@@ -162,10 +164,14 @@ export const CpmPerformance: React.FC = () => {
   const orderedGateKeys = useMemo(() => tierGroups.flatMap(g => g.keys), [tierGroups]);
 
   // Staleness: a diagnostic screen that silently shows yesterday's verdicts as
-  // current is the dangerous failure mode. The payload already carries the time.
-  const newestWindow = useMemo(() => latestWindowEnd(heatmapLoops), [heatmapLoops]);
+  // current is the dangerous failure mode. CHG-170 (owner answer 2): the fleet KPI answer's newest result, by the Overview's
+  // rule (Stale once older than basis.freshSeconds) - the field Pipeline Health's Last fused verdict reads, so the two agree.
+  // A cplm-api without the field keeps the heatmap's newest window and 3 h.
+  const heatmapNewest = useMemo(() => latestWindowEnd(heatmapLoops), [heatmapLoops]);
+  const freshness = fleetFreshness(fleetKpis.data);
+  const newestWindow = freshness ? freshness.at : heatmapNewest;
   const windowAgeMs = newestWindow != null ? Date.now() - newestWindow : null;
-  const stale = windowAgeMs != null && windowAgeMs > STALE_AFTER_MS;
+  const stale = freshness ? freshness.stale : windowAgeMs != null && windowAgeMs > STALE_AFTER_MS;
 
   const selectedRow = heatmapLoops.find(
     l => l.loopId.toLowerCase() === (selectedLoop ?? '').toLowerCase());

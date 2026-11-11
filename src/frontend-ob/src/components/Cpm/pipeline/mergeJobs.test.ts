@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtAge, mergeJobs } from './mergeJobs';
+import { fmtAge, fmtBytes, fmtMs, fmtUptime, mergeJobs } from './mergeJobs';
 import type { CpmJobMetrics, CpmPipelineJob } from '../../../api/cpmApi';
 
 const names = Array.from({ length: 13 }, (_, i) => `AMS - Job ${i + 1}`);
@@ -38,15 +38,45 @@ describe('mergeJobs', () => {
     expect(rows[2].state).toBe('MISSING');
   });
 
+  // CHG-170 (owner answer 3d): pipeline-status now names the jobs off the required list with their state
+  it('lists the jobs off the required list from the status read, with their state and no numbers', () => {
+    const rows = mergeJobs([metric(names[0], 'RUNNING')], status, [
+      { name: 'AMS - CPLM On-Demand Evaluation', state: 'RUNNING', running: true },
+      { name: 'Ad hoc job', state: 'RESTARTING', running: false },
+    ]);
+    expect(rows).toHaveLength(15);
+    expect(rows.slice(13)).toEqual([
+      expect.objectContaining({ name: 'AMS - CPLM On-Demand Evaluation', role: null, required: false, state: 'RUNNING', running: true, checkpoint: null }),
+      expect.objectContaining({ name: 'Ad hoc job', role: null, required: false, state: 'RESTARTING', running: false, uptimeSec: null }),
+    ]);
+  });
+
+  it('lists a job off the list once when both reads name it', () => {
+    const rows = mergeJobs([metric('AMS - Extra Job', 'RUNNING')], status, [{ name: 'AMS - Extra Job', state: 'RUNNING', running: true }]);
+    expect(rows.filter(r => r.name === 'AMS - Extra Job')).toHaveLength(1);
+    expect(rows.find(r => r.name === 'AMS - Extra Job')?.checkpoint?.completed).toBe(9);
+  });
+
   it('lets the RUNNING entry win when the engine lists a name twice', () => {
     const rows = mergeJobs([metric(names[0], 'CANCELED'), metric(names[0], 'RUNNING')], status);
     expect(rows[0].state).toBe('RUNNING');
     const rows2 = mergeJobs([metric(names[0], 'RUNNING'), metric(names[0], 'CANCELED')], status);
     expect(rows2[0].state).toBe('RUNNING');
   });
+});
 
+describe('formats', () => {
   it('formats a long checkpoint age as a duration', () => {
     expect(fmtAge(5400)).toBe('1.5 h');
-    expect(fmtAge(null)).toBe('Not exposed');
+  });
+
+  // CHG-170: "Not exposed" meant three things; a value that was not read is a dash, explained once in How to read
+  it('shows a value that was not read as a dash, never as Not exposed or 0', () => {
+    expect(fmtAge(null)).toBe('—');
+    expect(fmtUptime(null)).toBe('—');
+    expect(fmtMs(undefined)).toBe('—');
+    expect(fmtBytes(null)).toBe('—');
+    expect(fmtUptime(7200)).toBe('2h 0m');
+    expect(fmtBytes(3_145_728)).toBe('3.0 MB');
   });
 });

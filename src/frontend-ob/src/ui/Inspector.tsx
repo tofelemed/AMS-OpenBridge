@@ -9,6 +9,8 @@ import { useShellBand } from './shell/shellHooks';
 
 interface InspectorProps {
   title: string;
+  /** A short word above the title, what kind of item it is (CHG-170: a job's role). */
+  eyebrow?: string;
   /** A short identifier beside the title, at the head's end (CHG-166: a calculation's id). */
   meta?: React.ReactNode;
   children: React.ReactNode;
@@ -16,10 +18,15 @@ interface InspectorProps {
   primaryAction?: React.ReactNode;
 }
 
-const Body: React.FC<InspectorProps & { titleId: string; onClose?: () => void }> = ({ title, meta, titleId, children, primaryAction, onClose }) => (
+const Body: React.FC<InspectorProps & { titleId: string; onClose?: () => void }> = ({ title, eyebrow, meta, titleId, children, primaryAction, onClose }) => (
   <>
     <div className="ui-inspector__head">
-      <h2 id={titleId} className="ui-inspector__title">{title}</h2>
+      {eyebrow ? (
+        <div className="ui-inspector__heading">
+          <span className="ui-inspector__eyebrow">{eyebrow}</span>
+          <h2 id={titleId} className="ui-inspector__title">{title}</h2>
+        </div>
+      ) : <h2 id={titleId} className="ui-inspector__title">{title}</h2>}
       {meta != null && <span className="ui-inspector__meta">{meta}</span>}
       {onClose && (
         <button type="button" className="ui-control ui-control--ghost ui-control--icon" aria-label="Close inspector" onClick={onClose}>

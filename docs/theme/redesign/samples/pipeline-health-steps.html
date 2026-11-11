@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Pipeline Health (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov 11:52 UTC: 7 of 13 required jobs running, 247 / 0 checkpoints, last fused verdict 6 Nov 23:45. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .step.qd { border-style: dashed; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found h4 { margin: 10px 0 4px; font-size: 14px; font-weight: 600; }
+  .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; } .found li b { color: var(--text); font-weight: 600; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pipeline Health: the engineer's path</h1>
+  <p class="lead">Today the title carries a <b>?</b> ("The Flink/Kafka runtime that produces every verdict. This view is read-only; job lifecycle is owned by the supervisor."). Three tiles follow, each a link with all its text underlined, all three jumping to the same table: REQUIRED JOBS 7/13 "analysis engine answering", CHECKPOINT AGE 3.8 min "oldest: CPLM Instrument Context Engine", CHECKPOINTS OK / FAILED 247 / 0 "since job start". Then "Observed jobs ?" (Job, State, Uptime, Checkpoint age, OK / failed for the 13 required jobs; the first row, Alarm State Machine, sits under the header) with Technical details (JobManager address, JobManager answering, jobs not on the required list). Then two cards: "Telemetry ?" with five rows reading Not exposed (watermark lag, Kafka consumer lag, latency, backpressure, parallelism), "Last fused verdict · window ended 108 h ago" and the closed "Checkpoint history · Held only while this page is open · N reading(s)" chart; and "End-to-end verification ?" with one button that opens a loop dialog. A job name opens a read-only dialog. Status refreshes every 15 s, metrics every 20 s, the verdict age every 60 s. On one screen "Not exposed" appears 23 times; the engine's answering is said twice; the dialog repeats four of the row's five cells. The page answers four questions: is the pipeline up, is data arriving on time, which loops are affected, and what do I do. So one list with a panel, four tiles above it, the chart as a second view and the verification beside the job.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">Jobs | Checkpoint history</span><span class="chip">How to read</span><span style="color:var(--text2)">·</span><span class="chip">Tiles: Required jobs · Last fused verdict · Checkpoint age · Checkpoints ok / failed</span><span class="chip chip--q">Stale 165 ↗ · Never evaluated 76 ↗ (questions 4, 5)</span><span class="chip">List: Alarm · CPLM · Platform</span><span class="chip">Panel: the selected job</span><span class="chip">End-to-end verification</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header</h2><q>What is this page, and how do I read its words?</q>
+      <ul><li>System · Pipeline Health, no <b>?</b>, no sentence</li><li>Jobs | Checkpoint history top right, no counts</li><li>How to read: Job state, Numbers, Not exposed, Where a sample becomes a verdict, End-to-end verification (today's four <b>?</b> and the five Telemetry rows)</li></ul></div>
+    <div class="card step"><h2>Is it up?</h2><q>Are the required jobs running and is the engine answering?</q>
+      <ul><li>Required jobs 7/13, "✕ 6 missing · analysis engine answering"</li><li>The tile selects the first job not running (question 9)</li><li>Engine down: "0/13 ✕ analysis engine not answering" and the list's own empty state, "The analysis engine did not answer …"</li></ul></div>
+    <div class="card step"><h2>Is data on time?</h2><q>When did the engine last produce a result, and is checkpointing keeping up?</q>
+      <ul><li>Last fused verdict 108 h · window ended 6 Nov 23:45 (moved from Telemetry; rule and tone: question 4)</li><li>Checkpoint age 3.8 min · oldest: CPLM Instrument Context Engine (selects it)</li><li>Checkpoints ok / failed 247 / 0 · "✓ none failed · since job start"</li><li>Checkpoint history view: the same chart, CPLM jobs, while the page is open</li></ul></div>
+    <div class="card step qd"><h2>Which loops?</h2><q>Which loops are behind because of it?</q>
+      <ul><li>Under the verdict tile: ◐ Stale · 165 loops ↗ · Never evaluated 76 ↗ (questions 4, 5)</li><li>Each opens the Overview's existing drill-down (<code>/cpm?review=stale</code>, <code>?review=never-evaluated</code>), the same count and rule as the Overview</li><li>Today the page names no loop at all</li></ul></div>
+    <div class="card step"><h2>Which job?</h2><q>Which job is not running, and what does the engine say about it?</q>
+      <ul><li>One list in the supervisor's order, grouped Alarm · CPLM · Platform</li><li>Job, State (✓ Running / ✕ Missing), Uptime, Checkpoint age, OK / failed; a missing job says "Not listed by the engine" once</li><li>Panel: role, the job once, state; Uptime, Checkpoints ok / failed, Last checkpoint age, Last checkpoint duration, State size; Record details (engine job name, id, started)</li><li>Foot: Engine details (JobManager address, jobs not on the required list)</li></ul></div>
+    <div class="card step"><h2>What do I do?</h2><q>Does a sample really become a verdict, and who acts?</q>
+      <ul><li>A missing job: "The engine does not list this required job … ask the system administrator to check the analysis engine."</li><li>End-to-end verification beside the job: ○ Not run / ◐ Running / ✓ Verified / ✕ Failed; Loop, Round trip; Record details; Run end-to-end verification in its foot (cpm.manage)</li><li>Setup dialog: Loop, What it does, Cancel / Start verification (questions 8)</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title ? "The Flink/Kafka runtime that produces every verdict. This view is read-only; job lifecycle is owned by the supervisor."</td><td>Removed. "Job lifecycle is owned by the supervisor; this page never starts or stops a job." in How to read. "Read-only" goes: Run end-to-end verification submits a recompute</td></tr>
+        <tr><td><span class="n">2</span>Panel titles "Observed jobs" and "Telemetry"; the closed disclosure "Checkpoint history · Held only while this page is open · 1 reading(s)"</td><td>Views Jobs | Checkpoint history top right; the view's note once: "CPLM jobs · held only while this page is open · 4 readings" (<code>?view=history</code>). Question 1</td></tr>
+        <tr><td><span class="n">3</span>Three tiles, caption, number and sub all underlined, all jumping to the table; "Checkpoints ok / failed" amber or green with no word</td><td>Four tiles in the Overview card style (label, icon, number, one line), tone + glyph + word: "✕ 6 missing · analysis engine answering", "✓ none failed · since job start". Last fused verdict moved in ("108 h", "window ended 6 Nov 23:45"). Required jobs selects the first job not running, Checkpoint age the oldest job. Questions 3, 4, 5, 9</td></tr>
+        <tr><td><span class="n">4</span>Table with a blank band above the header and the first row under it; RUNNING / MISSING; "Not exposed" in three cells of each missing row (18); "Not on the required list" beside a name</td><td>One list grouped Alarm · CPLM · Platform (the supervisor's order; the dialog's Role as group headings); ✓ Running / ✕ Missing; "Not listed by the engine" once per missing row; numbers right-aligned; the header fixed. The group "Not on the required list" dashed: question 7</td></tr>
+        <tr><td><span class="n">5</span>Job dialog: State, Role, Uptime, Checkpoints ok / failed, Last checkpoint age, Last checkpoint duration, State size; a missing job reads Not exposed five times</td><td>The panel beside the list (a drawer below 1280 px): the role as eyebrow, the job once, its state; the five numbers. A missing job: "The engine does not list this required job, so it has no numbers. If it stays missing, ask the system administrator to check the analysis engine." (the ? and the empty state's words). Question 2</td></tr>
+        <tr><td><span class="n">6</span>Technical details in the dialog: Engine job name, Engine job id, "Started 11/11/2026, 10:35:48 UTC"</td><td>Record details from the panel foot: the name, the id short with Copy, "Started · UTC 11 Nov 10:35"</td></tr>
+        <tr><td><span class="n">7</span>Technical details under the table: JobManager address, "JobManager answering Yes", jobs the engine runs that are not required</td><td>Engine details from the list foot: the address with Copy, the jobs. "JobManager answering" goes (the tile says it). A failed read keeps the last numbers and says once how old they are: "Engine metrics could not be read · the numbers are from 11:52, 3 min ago · Retry"</td></tr>
+        <tr><td><span class="n">8</span>Verification: ? "What the verification does"; head pill VERIFIED / FAILED (state) / STATE UNKNOWN; rows Loop (id), Analysis run (id), Round trip; Technical details (Replay id, Engine job id); the card sat at the page's foot (at 1000 px about 1,200 px down)</td><td>In the right column under the job: "○ Not run / ◐ Running / ✓ Verified / ✕ Failed (FAILED)" once in its head; Loop (tag and name), Round trip; Record details (analysis run, replay id, engine job id, short with Copy); Run end-to-end verification in the foot. "Results 2 written" dashed: question 8</td></tr>
+        <tr><td><span class="n">9</span>Setup dialog: a loop field with no heading, AIC30601 by default</td><td>Titled parts Loop and What it does (the ? sentence; "an A8" dropped); the default loop dashed: question 8</td></tr>
+        <tr><td><span class="n">10</span>Chart in a closed disclosure at the bottom of Telemetry; the axis names "ckpt age (s)" / "ckpt dur (ms)" cut under the legend</td><td>The Checkpoint history view: the same two series, colours, two axes and Zoom area / Undo / Reset; the axis names above their axes; "CPLM jobs" said, since the tiles cover every job</td></tr>
+        <tr><td><span class="n">11</span>Four ? (title, Observed jobs, Telemetry, verification) and five Telemetry rows "Watermark lag · Kafka consumer lag · Latency · Backpressure · Parallelism — Not exposed"</td><td>How to read in five titled parts, aligned columns; the five metrics once under Not exposed; "—" means not read (engine silent or job not running), said once</td></tr>
+        <tr><td>Engine down: 0/13, 13 MISSING rows, 39 "Not exposed", tiles "Not exposed"</td><td>The list's existing empty state ("The analysis engine did not answer · Its job list could not be read …" with Retry); the checkpoint tiles "— not read"</td></tr>
+        <tr><td>Below 1280 px everything stacks</td><td>The panel column becomes a drawer, as Calculations</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>The address and access</td><td><code>/cpm/pipeline</code>; opens with system.manage; the verification needs cpm.manage and says why when disabled</td></tr>
+        <tr><td>Reads and refresh</td><td>pipeline-status every 15 s, pipeline-metrics every 20 s (one engine walk per 10 s server cache for every console); background polls do not extend the session; the chart's readings are taken while the page is open, up to 120</td></tr>
+        <tr><td>Jobs</td><td>The 13 required jobs in the supervisor's order, each a row whatever the engine says; MISSING for a job the engine does not list; RUNNING wins over a lingering cancelled copy; a value not read is never 0</td></tr>
+        <tr><td>Every number</td><td>Required running / required, engine answering, oldest checkpoint age and its job, checkpoints ok / failed since job start; per job state, uptime, checkpoint age, ok / failed, last duration, state size, engine job name, id, started; JobManager address; jobs not on the required list; Last fused verdict</td></tr>
+        <tr><td>Checkpoint history</td><td>Max checkpoint age and max checkpoint duration of the CPLM jobs on two axes, gaps where nothing was read, the zoom tools, "Collecting… The chart needs two readings; keep this page open."</td></tr>
+        <tr><td>Verification</td><td>Run end-to-end verification → the setup dialog with the loop control (any loop in the plant scope), Cancel / Start verification; "Verifying…" and the start blocked until the run reports finished; "Failed to start: …"; "Could not read the run state. The run may still be going." with Check again; Round trip Completed / Failed in N s, frozen when finished; the run's loop kept when another is chosen; "Run id not returned"; gate and KPI views refreshed when it finishes</td></tr>
+        <tr><td>States</td><td>"Reading the analysis engine's job metrics…"; "Analysis engine metrics unavailable" with Retry; "No job metrics · None of the required analysis jobs is listed yet — they may still be starting. Retry in a minute."; "The analysis engine did not answer …"; status endpoint unreachable → "—" "status endpoint unreachable"</td></tr>
+        <tr><td>Sizes</td><td>40 px header and dialog buttons; one-line table rows as today; tiles as the Overview's cards</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Two views, Jobs | Checkpoint history?</b> <span>The chart leaves its closed disclosure at the bottom of the Telemetry card and becomes the second view; the tiles stay above both, and readings are taken whichever view shows. The other way: a closed disclosure at the foot of the jobs list. Recommended: the views. No backend change.</span></li>
+      <li><b>The job dialog as a panel beside the list (a drawer below 1280 px), the engine ids in Record details?</b> <span>Recommended: yes. No backend change.</span></li>
+      <li><b>The Telemetry card goes: its five "Not exposed" rows become one part of How to read, Last fused verdict the second tile?</b> <span>Nothing is lost; the card held no other number. Recommended: yes. No backend change.</span></li>
+      <li><b>Last fused verdict: which rule, and should it carry a tone?</b> <span>Today it is the newest window end of a real verdict (diagnosis present, not INSUFFICIENT_DATA), 12 h windows only, read from a 200-loop ranking every 60 s: 6 Nov 23:45, 108 h. Performance's stale line, which links here, and the Overview's Stale KPI use the newest result of any kind: 7 Nov 11:45, 96 h. Recommended: the Overview's rule (newest 12 h result, Stale above 60 min, KPI-LOGIC.md), so the tile reads ◐ Stale when it is and agrees with both pages. Needs the newest result time across the fleet: a one-field addition to the fleet KPI answer (small backend change); without it, the heatmap read Performance already makes (up to 500 loops). Drawn dashed.</span></li>
+      <li><b>Which loops are affected: Stale 165 · Never evaluated 76 under the verdict tile, each opening the Overview's own drill-down?</b> <span>Adds the Overview's KPI read (one call, cached on the server) and two links; the counts and rule are the Overview's, so they always agree. Recommended: yes. No backend change. Drawn dashed.</span></li>
+      <li><b>Transitional job states as ◐ Starting (amber) instead of red?</b> <span>INITIALIZING, CREATED, RESTARTING and RECONCILING read as red as MISSING and FAILED today. Recommended: yes. Client side. Drawn dashed in How to read.</span></li>
+      <li><b>Jobs not on the required list as rows, at the end of the list?</b> <span>Today "AMS - CPLM On-Demand Evaluation" is a name in Technical details with no state (most likely a finished batch job of an earlier recompute); the table's "Not on the required list" row can never appear, because the metrics read keeps required jobs only. Recommended: rows with the engine's state, leaving out finished on-demand evaluations. Small backend change (pipeline-status already holds each job's state; return it for these). Drawn dashed.</span></li>
+      <li><b>End-to-end verification: (a) Verified only when the run wrote results; (b) the newest-verdict loop as the default; (c) keep the last result across visits?</b> <span>(a) The status already returns the number of results written (gateResults); the page drops it, so a finished job that wrote nothing reads VERIFIED. (b) Today the default is AIC30601, which has never had a verdict, though the disabled reason speaks of "a verdict to use as the reference". (c) Today the result is gone once the page is left; the audit trail has CPM_RECOMPUTE_STARTED but no list of runs is served. Recommended: (a) and (b) now, client side; (c) later, a backend read. (a) and (b) drawn dashed.</span></li>
+      <li><b>Each tile opens what is behind it?</b> <span>Today all three tiles only scroll to the table. Required jobs selects the first job not running, Checkpoint age the oldest job, Checkpoints ok / failed the list (it would select the job with failures when there are any). Recommended: yes. Client side. Drawn.</span></li>
+      <li><b>Judge each checkpoint age against that job's own interval (✓ / ◐ on the row and the tile)?</b> <span>On the lab the jobs checkpoint about every 1, 3 and 5 min (76, 25 and 15 checkpoints in 76 min), so 3.8 min is normal for one job and late for another; today the tile has no tone. Needs the proxy to read each job's checkpoint interval (backend change). Recommended: later. Not drawn.</span></li>
+      <li><b>Late records dropped in the job panel?</b> <span>The metrics read returns lateRecordsDropped per job ("the only signal that distinguishes no data from data that arrived too late"); the page has never shown it, and on the lab it is absent for every job, so the read may not find it. Recommended: check the backend read first, then a panel row. Not drawn.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Audit findings</h3>
+    <h4>Bugs</h4>
+    <ul>
+      <li><b>The first job is hidden under the table header.</b> A one-row header matches both <code>thead tr:first-child th { top: 0 }</code> and <code>tr:last-child th { top: 26px }</code>; the second wins, so the header sits 26 px down over "Alarm State Machine" with a blank band above it (header 281–308 px, row 282–314 px). <code>styles/cpm.css:287-288</code>; before-01-default-viewport.png, before-08-table-first-row-hidden.png.</li>
+      <li><b>VERIFIED does not prove a verdict was written.</b> Success is "the Flink job FINISHED" (<code>CplmRecomputeService.cs:339</code>); the answer carries gateResults, the client type drops it (<code>cpmApi.ts:583-585</code>), and the pill says VERIFIED (<code>VerificationCard.tsx:42</code>), while its ? promises "fused result in Postgres".</li>
+      <li><b>The default reference loop has no verdict.</b> The first monitoring-enabled loop: AIC30601, NOT_EVALUATED in the ranking (<code>CpmPipeline.tsx:48</code>; before-12-verification-setup-dialog-viewport.png). The disabled reason "No loop has a verdict to use as the reference yet" (<code>VerificationCard.tsx:33</code>) checks nothing of the kind.</li>
+      <li><b>"The analysis engine did not answer" can never show while the status read works.</b> Rows come from the supervisor's list, so an engine outage draws 0/13, 13 MISSING rows and 39 "Not exposed" instead (<code>CpmPipeline.tsx:78-83</code>, <code>mergeJobs.ts:38-45</code>; simulated: before-40-simulated-engine-down.png).</li>
+      <li><b>A failed metrics read contradicts itself.</b> "Analysis engine metrics unavailable" above a table of RUNNING rows, tiles reading "Not exposed"; no age of the data anywhere (collectedAt feeds only the chart, <code>TelemetryCard.tsx:35</code>). Simulated: before-41-simulated-metrics-failed-viewport.png.</li>
+      <li><b>The "Not on the required list" row is dead.</b> The metrics read keeps required names only (<code>FlinkPipelineMetricsCollector.cs:64</code>), so <code>mergeJobs.ts:46</code> never has extras; the one unexpected job is a name in Technical details without a state.</li>
+      <li><b>Required jobs: value and tone from two different reads.</b> The count uses states merged from metrics (20 s poll, 10 s cache), the tone uses status.allRequiredRunning (15 s, 5 s), so 13/13 can show red or 12/13 green between reads (<code>PipelineTiles.tsx:32, 42-43</code>). Code reading; not observed.</li>
+      <li><b>"Not answering" means "listed no job".</b> jobManagerReachable is <code>states.Count &gt; 0</code> (<code>CpmReadinessController.cs:275</code>): an engine that answers with an empty list reads "analysis engine not answering".</li>
+      <li><b>Chart axis names are cut</b> under the legend ("ckpt age (s)", "ckpt dur (ms)"). before-14-checkpoint-history-open-viewport.png.</li>
+    </ul>
+    <h4>Numbers wrong, contradictory or unexplained</h4>
+    <ul>
+      <li><b>Last fused verdict 108 h, Performance 96.3 h.</b> This page: newest real-verdict window, 6 Nov 23:45 (FIC10301); Performance: "Stale · Newest fused window emitted 96.3 h ago (07/11/2026, 11:45:00 UTC) · Pipeline Health ↗". Its ? says "the newest window end across the fleet", which it is not (<code>TelemetryCard.tsx:84</code> vs <code>FleetLatestSql.cs:34-55</code>, <code>CpmPipeline.tsx:31</code>). 4.5 days reads as neutral text at the bottom of the page. before-01-default.png, before-30-performance-stale-line-viewport.png.</li>
+      <li><b>"This view is read-only"</b> (title ?) while Run end-to-end verification POSTs a recompute: a Flink batch job, REPLAY rows in cplm_gate_results and an audit event (<code>CpmLoopsController.cs:293-324</code>).</li>
+      <li><b>"Not exposed" means three things:</b> a metric the proxy never carries (Telemetry), a job the engine does not list (missing rows and their dialog), and a read that failed (tiles when the engine is down or metrics fail). before-07-job-dialog-missing-viewport.png, before-40, before-41.</li>
+      <li><b>Checkpoint age has no reference.</b> 3.8 min is normal for CPLM Instrument Context Engine (about every 5 min) and would be late for CPLM Condition Engine (about every minute); the tile is grey. Intervals inferred from counts and uptime in pipeline-metrics.</li>
+      <li><b>Scopes differ:</b> the checkpoint tiles cover every running job, the chart only the CPLM jobs (<code>TelemetryCard.tsx:37</code>); "since job start" sums counts over jobs with different starts.</li>
+    </ul>
+    <h4>Repeated</h4>
+    <ul>
+      <li>"analysis engine answering" (tile) and "JobManager answering Yes" (Technical details).</li>
+      <li>The job dialog repeats State, Uptime, Checkpoints ok / failed and Last checkpoint age from its row; Uptime and Started are one fact (before-05, before-06).</li>
+      <li>Latency, backpressure and parallelism "not exposed" in the Observed jobs ? and again as Telemetry rows; 23 "Not exposed" on the lab screen.</li>
+      <li>"Observed jobs" heads a list whose missing rows were not observed.</li>
+    </ul>
+    <h4>Not drillable</h4>
+    <ul>
+      <li>All three tiles scroll to the same table (<code>PipelineTiles.tsx:8-22</code>; before-09-tile-click-jumps-to-table-viewport.png).</li>
+      <li>Last fused verdict names no loop and opens nothing; no way from this page to the loops behind it, though the Overview has Stale 165 and Never evaluated 76 with drill-downs (before-31-overview-stale-drilldown-viewport.png, before-32).</li>
+    </ul>
+    <h4>Words and formats</h4>
+    <ul>
+      <li>"Started 11/11/2026, 10:35:48 UTC"; chart ticks in seconds with no zone; RUNNING / MISSING; role "cplm" / "platform"; VERIFIED, FAILED (state), STATE UNKNOWN; "Needs the cpm.manage permission"; "an A8 recompute".</li>
+      <li>Tiles: caption, number and sub all underlined in link blue (before-01).</li>
+      <li>Transitional states red (<code>CpmPipeline.tsx:100</code>, <code>JobDialog.tsx:15</code>).</li>
+      <li>The page opens with system.manage, the verification needs cpm.manage (<code>navItems.ts:88</code>, <code>CpmPipeline.tsx:25</code>): a system.manage user without it sees the button disabled with the permission's code.</li>
+    </ul>
+    <h4>Found on the way, not part of this proposal</h4>
+    <ul>
+      <li>Three stale rules in the app: Overview KPI 60 min on the newest result (<code>FleetKpiModels.cs:7</code>), Performance 3 h on the heatmap's newest window (<code>CpmPerformance.tsx:49</code>), fleet summary the window length (12 h) on the newest verdict (<code>FleetLatestSql.cs:227</code>); Pipeline Health has none.</li>
+      <li>Performance's stale line still writes "07/11/2026, 11:45:00 UTC".</li>
+      <li>Lab facts: every CPLM job restarted 11 Nov 10:35 UTC and checkpoints normally, yet no 12 h window has ended since 7 Nov 11:45: the feed has produced nothing for four days. This page cannot say "engine running, nothing arriving" (consumer lag and watermark lag are not exposed). The three alarm and three platform jobs are not deployed on the lab, so Required jobs is red there for good; the required list is compiled in (<code>CpmReadinessController.cs:46-62</code>).</li>
+    </ul>
+    <h4>Not verified on the lab</h4>
+    <ul>
+      <li>No verification was run (it writes): the VERIFIED-without-results path and the AIC30601 outcome are from code only; every verification state in the sample is illustrative.</li>
+      <li>Engine down and a failed metrics read were simulated by replacing two GET answers in the browser, not real outages. The healthy state is illustrative.</li>
+      <li>No transitional state (RESTARTING, INITIALIZING) occurred; the unexpected job's state is not readable through the page; why lateRecordsDropped is absent was not checked; checkpoint intervals were inferred, not read; Night theme not checked.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

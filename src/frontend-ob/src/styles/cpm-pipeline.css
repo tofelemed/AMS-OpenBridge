@@ -1,7 +1,71 @@
-/* Pipeline Health: placement only. Sizes come from .cpm-table, .cpm-kv and .cpm-surface. */
-.cpm-pipeline-job { display: grid; gap: var(--traverse-space-2); }
-.cpm-pipeline-history { margin-top: var(--traverse-space-2); }
-.cpm-pipeline-history > summary { cursor: pointer; }
-.cpm-pipeline-open { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
-.cpm-pipeline-open:hover { text-decoration: underline; }
-.cpm-pipeline-open:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+/* Pipeline Health (CHG-170, owner review): placement only. Type, row, card and control sizes come from the app's own classes
+   (.cpm-event-row, .cpm-kpicard, .ui-inspector, .cpm-surface). */
+
+/* the list: Job · State · Uptime · Checkpoint age · OK / failed, numbers right-aligned */
+.cpm-pipeline-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.6fr) minmax(0, 0.8fr) minmax(0, 0.7fr); }
+.cpm-pipeline-row > :nth-child(n+3) { text-align: end; font-variant-numeric: tabular-nums; }
+.cpm-pipeline-row__note { grid-column: 3 / -1; color: var(--traverse-text-secondary); }
+.cpm-pipeline-row--static { cursor: default; }
+.cpm-pipeline-row--static:hover { background: none; }
+.cpm-pipeline-group {
+  padding: var(--traverse-space-2) var(--traverse-space-3) var(--traverse-space-1);
+  border-bottom: 1px solid var(--border-divider-color);
+  background: var(--traverse-surface-page);
+  color: var(--traverse-text-secondary);
+  font-size: var(--cpm-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* the list card's foot strip (Engine details), edge to edge on the page colour, as the other list feet */
+.cpm-pipeline-list { padding-bottom: 0; }
+.cpm-pipeline-foot {
+  display: flex; justify-content: flex-end;
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0; padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+
+/* the right column: the selected job's panel, the verification under it */
+.cpm-pipeline-col { display: grid; gap: var(--traverse-size-panel-gap); align-content: start; min-width: 0; }
+.cpm-pipeline .ui-inspector__foot {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--traverse-space-2);
+  background: var(--traverse-surface-page); border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-pipeline-panel-foot { display: flex; justify-content: flex-end; width: 100%; }
+.cpm-pipeline-ver__foot > .cpm-reasoned { margin-inline-start: auto; }
+.cpm-pipeline-ver .ui-inspector__body { flex: none; }
+/* the panel's values are short numbers: a label such as "Last checkpoint duration" keeps one line (the app caps labels at 45 %) */
+.cpm-pipeline .ui-inspector .cpm-kv__label { max-width: 65%; }
+
+/* tone + glyph + word: the glyph in its tone (cpm-pill--* sets --cpm-tone) */
+.cpm-pipeline-glyph { color: var(--cpm-tone); font-weight: 700; margin-inline-end: var(--traverse-space-1); }
+
+/* the tiles: the Overview card with its one line under the number (the Overview hides it in a tip) */
+.cpm-pipeline-tile .cpm-kpicard__sub { display: block; margin-top: var(--traverse-space-1); }
+.cpm-pipeline-tile__links { display: block; margin-top: var(--traverse-space-1); font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); }
+.cpm-pipeline-tile .cpm-link { font-weight: 600; white-space: nowrap; }
+.cpm-kpicard__icon--bad { background: var(--traverse-status-danger-bg); color: var(--traverse-status-danger-fg); --element-active-color: var(--traverse-status-danger-fg); }
+
+/* a failed metrics read: the last numbers stay, said once how old they are */
+.cpm-pipeline-stale {
+  display: flex; align-items: center; gap: var(--traverse-space-2);
+  padding: var(--traverse-space-1) var(--traverse-space-3) var(--traverse-space-1) var(--traverse-space-4);
+  border-radius: 8px; background: var(--traverse-status-warning-bg); color: var(--traverse-text-primary);
+}
+.cpm-pipeline-stale > span { flex: 1 1 auto; }
+
+/* Checkpoint history: the note beside the title */
+.cpm-pipeline-history__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-1) var(--traverse-space-3); margin-bottom: var(--traverse-space-3); }
+.cpm-pipeline-history__head .cpm-panel-title { margin: 0; }
+
+/* a phone: the job and its state on the first line, the three numbers under them, each named */
+@media (max-width: 600px) {
+  .cpm-pipeline-list .cpm-event-head { display: none; }
+  .cpm-pipeline-row { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--traverse-space-1); }
+  .cpm-pipeline-row > :first-child { grid-column: 1 / 3; }
+  .cpm-pipeline-row > :nth-child(2) { justify-self: end; }
+  .cpm-pipeline-row > :nth-child(n+3) { text-align: start; }
+  .cpm-pipeline-row > [data-label]::before { content: attr(data-label); display: block; color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+  .cpm-pipeline-row__note { grid-column: 1 / -1; }
+}

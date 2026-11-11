@@ -50,6 +50,9 @@ export interface FleetKpis {
   basis: FleetKpiBasis;
   computedAt: string;
   monitored: number;
+  /** CHG-170: the newest result of the window kind across the scope (null: none yet); Stale once older than basis.freshSeconds.
+   *  Absent on a cplm-api before CHG-170. Read through verdictFreshness, the one rule of Overview, Performance and Pipeline Health. */
+  newestResultAt?: string | null;
   states: { assessed: number; notAssessable: number; stale: number; neverEvaluated: number };
   notAssessableByReason: Array<{ reason: string; count: number }>;
   assessed: { acceptable: number; noFaultLimited: number; finding: number; symptomOnly: number; unrecognised: number };

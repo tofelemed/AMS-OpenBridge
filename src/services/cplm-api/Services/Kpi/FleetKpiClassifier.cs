@@ -123,6 +123,11 @@ public static class FleetKpiClassifier
         _ => false,
     };
 
+    /// <summary>CHG-170: the newest result of the window kind across the loops (each loop's newest LIVE row of any diagnosis,
+    /// the row the Stale KPI judges); null when no loop has one. GET fleet/kpis returns it as `newestResultAt`, so Overview,
+    /// Performance and Pipeline Health state one age with one rule (Stale once older than FreshSeconds).</summary>
+    public static DateTimeOffset? NewestResultAt(IEnumerable<KpiLoop> loops) => loops.Max(l => l.Row.WindowEnd);
+
     /// <summary>The Overview figures, each counted with Matches() over the same classified loops.</summary>
     public static IReadOnlyList<KpiFigure> Figures(IReadOnlyList<KpiLoop> loops, KpiThresholds t)
     {
