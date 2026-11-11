@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Gate Configuration in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173 on 11 Nov: 243 loops, one governed (FIC10302 runs
+     LOOP v6, Active (verified), with v1-v7 at its LOOP level), one draft in progress (FIC10301 v1), FIC10401 on the factory layer;
+     the catalogue (165 properties, 6 workers), the gate catalogue, v6's two deployments and approval. The lab has no shadow run,
+     no validation error, no PROFILE or SITE bundle and no bundle waiting for approval: those states are illustrative and say so. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .seg { display: inline-flex; height: 40px; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; background: var(--panel); color: var(--text2); padding: 0 14px; cursor: pointer; }
+  .seg button + button { border-inline-start: 1px solid var(--strong); }
+  .seg button[aria-pressed="true"] { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 0 -2px 0 var(--action); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .vr { align-self: stretch; width: 1px; background: var(--border); }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .btn--sm { height: 32px; } .btn--q { border: 1px dashed var(--strong); color: var(--text2); background: none; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field small { color: var(--text2); font-size: 13px; } .field--q { border-style: dashed; color: var(--text2); }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; align-items: start; }
+  .md--dep { grid-template-columns: minmax(0, 1fr) 520px; }
+  .filters { display: flex; align-items: center; gap: 8px; padding: 16px 16px 12px; }
+  .filters input { flex: 1; min-width: 150px; padding-inline-start: 34px; background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%276.5%27 cy=%276.5%27 r=%275%27 fill=%27none%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3Cpath d=%27M10.5 10.5l4 4%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat 11px center; }
+  .filters select.field { padding: 0 6px; }
+  .thead, .row { display: grid; align-items: center; gap: 12px; padding: 0 16px; }
+  .g-ov { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 150px; }
+  .g-eff { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 120px; }
+  .g-bp { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 150px; }
+  .g-bun { grid-template-columns: minmax(0, 1fr) 210px 120px 170px; }
+  .g-ip { grid-template-columns: minmax(0, 1fr) 80px 130px 130px 90px; }
+  .g-dep { grid-template-columns: minmax(0, 1fr) 190px; }
+  .thead { height: 36px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 52px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { font-weight: 600; } .row small, .sub { display: block; color: var(--text2); font-size: 12px; }
+  .grp { padding: 10px 16px 6px; border-bottom: 1px solid var(--border); background: var(--page); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); font-weight: 600; }
+  .grp span { text-transform: none; letter-spacing: 0; font-weight: 400; } .lvl0 { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; vertical-align: 1px; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-bad b { color: var(--bad); } .t-muted b { color: var(--muted); }
+  .cls { font-size: 12px; color: var(--text2); } .cls.sb { color: var(--warn); } .na { color: var(--muted); } .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .flag { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 4px; margin: 1px 4px 1px 0; white-space: nowrap; }
+  .flag--bad { background: var(--bad-bg); color: var(--bad); } .flag--muted { background: var(--raised); color: var(--text2); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 16px; }
+  .pg { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--panel); }
+  .pg.on { background: var(--selected); border-color: var(--action); color: var(--action); font-weight: 600; } .pg.dis { color: var(--muted); border-color: var(--border); }
+  .pgs { color: var(--text2); margin: 0 6px; font-size: 13px; } .gap { color: var(--text2); }
+  .foot { display: flex; align-items: center; gap: 10px; padding: 4px 16px; border-top: 1px solid var(--border); background: var(--page); color: var(--text2); border-radius: 0 0 12px 12px; min-height: 48px; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text2); } .empty strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 8px; }
+  .layers { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr) minmax(0, .7fr) minmax(0, 1.2fr); gap: 8px; padding: 16px 16px 0; }
+  .layer { border: 1px solid var(--border); border-inline-start: 3px solid var(--action); border-radius: 8px; padding: 6px 10px; }
+  .layer.off { border-inline-start: 3px dashed var(--strong); color: var(--text2); }
+  .layer > span { display: block; } .layer .v .pill { font-weight: 400; margin-inline-start: 4px; } .layer .k { font-size: 12px; letter-spacing: .06em; color: var(--text2); } .layer .v { font-weight: 600; } .layer .c { font-size: 12px; color: var(--text2); }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 6px; }
+  .insp__head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; } .insp__head h2.mono { font-size: 17px; color: var(--text); }
+  .insp__body { padding: 0 20px 12px; }
+  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; overflow-wrap: anywhere; } .kv .sub { text-align: end; }
+  .kv.tx > span:last-child { text-align: start; }
+  .q { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-inline-start: 6px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); cursor: help; vertical-align: 1px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .sect { border-top: 1px solid var(--border); padding: 12px 20px; } .sect h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  .acts > span { display: inline-flex; flex-direction: column; gap: 2px; } .acts small { color: var(--text2); font-size: 12px; max-width: 200px; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .illus { margin: 8px 20px 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .ib { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text2); cursor: pointer; font-size: 14px; vertical-align: middle; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 12px; }
+  .tab { padding: 10px 14px 8px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; } .tab i { font-style: normal; font-size: 12px; margin-inline-start: 6px; color: var(--ok); }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .line { margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--raised); color: var(--text); }
+  .pane { padding: 16px 20px; } .pane h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .pane h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .pane .kv { grid-template-columns: 120px 1fr; } .pane .kv > span:last-child { text-align: start; }
+  .nextf { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .alert { margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: var(--bad-bg); color: var(--bad); }
+  .form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .fl { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); min-width: 0; }
+  .in { height: 40px; border: 1px solid var(--strong); border-radius: 6px; padding: 0 10px; font: inherit; color: var(--text); background: var(--panel); min-width: 0; }
+  .in[disabled] { background: var(--raised); color: var(--text2); } .in::placeholder { color: var(--muted); }
+  textarea.in { height: 64px; padding: 8px 10px; resize: vertical; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; white-space: nowrap; } th small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  td.mono { white-space: nowrap; }
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; overflow: auto; padding: 24px 0; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); } .dlg--wide { width: 820px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; align-items: center; } .dlg h3 > span:last-child { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .dlg p { margin: 8px 0; } .dlg .kv { grid-template-columns: 170px 1fr; } .dlg .kv > span:last-child { text-align: start; }
+  .dlg .df { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .dlg .df > span { display: inline-flex; flex-direction: column; gap: 2px; align-items: flex-end; } .dlg .df small { color: var(--text2); font-size: 12px; }
+  .key { display: grid; grid-template-columns: 210px 1fr; gap: 6px 16px; align-items: center; } .key > span:nth-child(even) { color: var(--text2); }
+  .radio { display: grid; grid-template-columns: 24px 110px minmax(0, 1fr) 230px; gap: 8px; align-items: center; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .radio .from { color: var(--text2); font-size: 13px; } .radio .from.q2 { border: 1px dashed var(--strong); border-radius: 6px; padding: 2px 8px; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; } [data-pane] { display: none; } [data-pane].on { display: block; } [data-pane].md.on { display: grid; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div class="on">Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ?, no sentence. 2 the two views top right without counts, beside How to read -->
+    <div class="head">
+      <div class="ann" data-n="1" style="padding-inline-end:14px"><span class="eyebrow">Set up</span><h1>Gate Configuration</h1></div>
+      <span class="grow"></span>
+      <span class="ann" data-n="2"><div class="seg" role="group" aria-label="Gate configuration view">
+        <button id="vEff" aria-pressed="true" onclick="go({view:'eff'})">Effective</button><button id="vBun" aria-pressed="false" onclick="go({view:'bun'})">Bundles</button>
+      </div></span>
+      <button class="btn" onclick="openDlg('howto')">How to read</button>
+    </div>
+
+    <!-- 3 the band: the one loop control; in a bundle, the bundle and Record details; Open loop ↗ at the end -->
+    <div class="card band ann" data-n="3" id="band"></div>
+
+    <!-- EFFECTIVE, no loop: what every loop runs under (today's "Configuration by loop") -->
+    <section class="card" id="ovEff">
+      <div class="filters">
+        <input class="field ann" data-n="4" type="search" id="qOv" placeholder="Loop, service, profile or unit" aria-label="Find a loop">
+        <span class="field field--q ann" data-n="Q" title="Owner question 2: the count line as a filter">All loops 243 &#9662;</span>
+      </div>
+      <div class="thead g-ov"><span class="ann" data-n="5" style="justify-self:start;padding-inline-end:14px">Loop</span><span>Profile</span><span>Runs under</span><span>Effective from · UTC</span></div>
+      <div id="rowsOv" role="list" aria-label="Configuration by loop"></div>
+      <div class="empty hide" id="emptyOv"><strong id="emptyOvT"></strong><button class="btn btn--out btn--sm" onclick="sample('ov')">Show all loops</button></div>
+      <div class="pager" id="pagerOv"></div>
+      <!-- 6 the governed count once, and the catalogue's build identifiers (today's Technical details) behind Build details -->
+      <div class="foot ann" data-n="6"><span id="ovCount">1 of 243 loops run a governed bundle; the rest run the factory layer</span><span class="grow"></span><button class="btn" onclick="openDlg('build')">Build details</button></div>
+    </section>
+
+    <!-- EFFECTIVE, one loop: the properties with their source, a panel for the selected one -->
+    <div class="md" id="effLoop">
+      <section class="card">
+        <!-- 7 the layer stack and the three tiles, merged: each layer once, the active bundle in its own cell -->
+        <div class="layers ann" data-n="7" id="layers"></div>
+        <!-- 8 search first; the gate dropdown names each gate and counts what is set above factory inside its options -->
+        <div class="filters">
+          <input class="field ann" data-n="8" type="search" id="qEff" placeholder="Property" aria-label="Find a property">
+          <select class="field" id="gEff" aria-label="Gate"></select>
+        </div>
+        <div class="thead g-eff"><span class="ann" data-n="9" style="justify-self:start;padding-inline-end:14px">Property</span><span>Value</span><span>Source</span></div>
+        <div id="rowsEff" role="list" aria-label="Effective properties"></div>
+        <div class="empty hide" id="emptyEff"><strong id="emptyEffT"></strong><button class="btn btn--out btn--sm" onclick="clearEff()">Clear search</button></div>
+        <!-- 11 the Worker alignment tile, the APPLY acknowledgements disclosure and Technical details: one line, one dialog -->
+        <div class="foot ann" data-n="11"><span id="wLine"></span><span class="grow"></span><button class="btn" onclick="openDlg('workers')">Workers</button></div>
+      </section>
+      <!-- 10 the selected property: today's dialog, as a panel (a drawer below 1280 px) -->
+      <aside class="card insp ann" data-n="10" aria-label="Selected property">
+        <div class="insp__head"><h2 class="mono" id="pName"></h2><span class="grow"></span><span class="mono" id="pId" style="color:var(--text2)"></span></div>
+        <div class="insp__body" id="pRows"></div>
+      </aside>
+    </div>
+
+    <!-- BUNDLES: a loop's three levels (or, with no loop, the bundles in progress); a panel for the selected version -->
+    <div class="md" id="bunView">
+      <section class="card" id="bunList">
+        <!-- 12 the levels as one grouped list; Prepare bundle draft at its head; the callout and the Draft - Review - Publish strip go -->
+        <div class="filters ann" data-n="12" id="bunHead"></div>
+        <div class="thead" id="bunThead"></div>
+        <div id="rowsBun" role="list" aria-label="Bundles"></div>
+      </section>
+      <!-- 13 the selected version, said once in its heading; the summary rows; the main exit in the foot -->
+      <aside class="card insp ann" data-n="13" aria-label="Selected bundle" id="bunPanel">
+        <div class="insp__head"><div><span class="eyebrow" id="bEye"></span><h2 id="bName"></h2></div><span class="grow"></span><span id="bSt"></span></div>
+        <div class="insp__body" id="bRows"></div>
+        <div class="illus hide" id="bIllus"></div>
+        <div class="insp__foot"><span class="grow"></span><span class="btn btn--raised" id="bOpen" onclick="openBundle()"></span></div>
+      </aside>
+    </div>
+
+    <!-- ONE BUNDLE (today's Editor): the lifecycle as tabs, in order, each with Next -->
+    <section id="bdl">
+      <div class="tabs ann" data-n="14" role="tablist" id="bTabs">
+        <span class="tab" role="tab" data-t="prop">Properties</span><span class="tab" role="tab" data-t="diff">Diff &amp; impact</span><span class="tab" role="tab" data-t="shadow">Shadow</span><span class="tab" role="tab" data-t="appr">Approval</span><span class="tab" role="tab" data-t="dep">Deployments</span>
+        <span class="ann" data-n="Q" title="Owner question 5: the lifecycle marks on the tabs" style="align-self:center;color:var(--text2);font-size:12px;padding-inline-end:14px;margin-inline-start:24px">✓ done · ● current</span>
+      </div>
+      <p class="line hide" id="frozen"></p>
+
+      <div data-pane="prop" class="md">
+        <section class="card">
+          <!-- 15 one gate dropdown in place of the 17 chips; the same columns as Effective, plus Flags -->
+          <div class="filters"><input class="field ann" data-n="15" type="search" placeholder="Property" aria-label="Find a property"><select class="field" id="gBdl" aria-label="Gate"></select></div>
+          <div class="thead g-bp"><span>Property</span><span>Value · from</span><span>Flags</span></div>
+          <div id="rowsBp" role="list" aria-label="Properties"></div>
+          <div class="nextf"><span class="grow"></span><button class="btn btn--raised" onclick="tab('diff')">Next: Diff &amp; impact →</button></div>
+        </section>
+        <!-- the property editor of today's expanded row, as the panel -->
+        <aside class="card insp" aria-label="Selected property"><div class="insp__head"><h2 class="mono" id="eName"></h2><span class="grow"></span><span class="mono" id="eId" style="color:var(--text2)"></span></div><div class="insp__body" id="eBody"></div></aside>
+      </div>
+
+      <div data-pane="diff" class="card">
+        <div class="pane ann" data-n="16">
+          <h3 id="dTitle"></h3>
+          <div class="kv"><span>Affects</span><span id="dAff"></span></div>
+          <div class="kv"><span>Rollout</span><span>the whole scope switches at the effective time in one deployment; a phased rollout with stop criteria is not part of this build</span></div>
+          <table style="margin-top:8px"><thead><tr><th>Property</th><th>Before</th><th>After</th><th>Class</th></tr></thead><tbody id="dRows"></tbody></table>
+          <h4>Validation <span id="dVal"></span></h4>
+          <p id="dValP" style="margin:4px 0"></p>
+          <div class="acts" id="dAct"></div>
+        </div>
+        <div class="nextf"><span class="grow"></span><button class="btn btn--raised" onclick="tab('shadow')">Next: Shadow →</button></div>
+      </div>
+
+      <div data-pane="shadow" class="card">
+        <div class="pane ann" data-n="17">
+          <h3>Shadow evaluation <span class="pill t-muted" id="sState"><b>○</b>Not run</span><span class="q" title="A shadow run re-evaluates a retained interval of one loop under this draft, isolated by purpose - no episode, no operational result. The comparison is against the LIVE results of the same windows.">?</span></h3>
+          <div class="form"><label class="fl">Loop<input class="in" id="sLoop" disabled style="width:180px"></label><label class="fl">Hours<input class="in" value="24" style="width:90px"></label><span class="acts" id="sAct"></span></div>
+          <div id="sRep" class="hide">
+            <div class="kv" style="margin-top:12px"><span>Support</span><span>6 Nov 10:45 → 7 Nov 10:45</span></div>
+            <div class="kv"><span>Windows</span><span>96 shadow rows, 92 compared with a LIVE result</span></div>
+            <div class="kv"><span>Symptoms</span><span>3 removed · 0 added</span></div>
+            <p class="alert">POLICY_RECLASSIFICATION: this draft makes previously reported symptoms disappear. Approval must state that it changes what the site calls a finding.</p>
+            <table><thead><tr><th>Window · UTC</th><th>Diagnosis before → after</th><th>Gates changed</th></tr></thead><tbody>
+              <tr><td>12h · 7 Nov 10:45</td><td>OSCILLATION → NONE</td><td class="mono">G4: STRONG→PASS</td></tr>
+              <tr><td>12h · 6 Nov 22:45</td><td>OSCILLATION → OSCILLATION</td><td class="mono">G4: STRONG→ATTENTION</td></tr>
+              <tr><td>24h · 7 Nov 10:45</td><td>OSCILLATION → NONE</td><td class="mono">G4: STRONG→PASS</td></tr></tbody></table>
+            <div class="illus" style="margin:10px 0 0">Illustrative: the lab has no shadow run. Values invented to show the report's place.</div>
+          </div>
+        </div>
+        <div class="nextf"><span class="grow"></span><button class="btn btn--raised" onclick="tab('appr')">Next: Approval →</button></div>
+      </div>
+
+      <div data-pane="appr" class="card">
+        <div class="pane ann" data-n="18">
+          <h3 id="aTitle"></h3>
+          <table id="aTable"><thead><tr><th>Decision</th><th>Approver</th><th>Content</th><th>Expires · UTC</th><th>Note</th></tr></thead><tbody id="aRows"></tbody></table>
+          <h4>Approve <span class="q" title="An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server.">?</span></h4>
+          <div class="form"><label class="fl" style="flex:1">Approval note<textarea class="in" placeholder="Why this content is approved (recorded, hash-bound)"></textarea></label><label class="fl">Valid for (h)<input class="in" value="72" style="width:110px"></label><span class="acts" id="aAct"></span></div>
+        </div>
+        <div class="nextf"><span class="grow"></span><button class="btn btn--raised" onclick="tab('dep')">Next: Deployments →</button></div>
+      </div>
+
+      <div data-pane="dep">
+        <!-- 19 Activate and Roll back once, at the head; the deployments as a list with a panel; the matrix in the panel -->
+        <div class="card band ann" data-n="19" style="align-items:flex-end">
+          <label class="fl">Effective from (optional, ISO)<input class="in" placeholder="now" style="width:220px"></label><span class="acts" id="depAct"></span>
+        </div>
+        <div class="md md--dep">
+          <section class="card"><div class="thead g-dep" style="border-top:0"><span>Deployment · UTC</span><span>State</span></div><div id="rowsDep" role="list" aria-label="Deployments"></div><div class="empty hide" id="emptyDep">No deployment of this version yet.</div></section>
+          <aside class="card insp" id="depPanel" aria-label="Selected deployment"><div class="insp__head"><h2 id="dpT" style="font-size:17px"></h2><span class="grow"></span><span id="dpSt"></span></div><div class="insp__body" id="dpBody"></div></aside>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- dialogs -->
+<div class="scrim" id="scrim">
+  <!-- 2 How to read: titled parts, aligned columns; the five ? of today and the Gate role policy card -->
+  <div class="card dlg dlg--wide ann" data-n="2" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Levels</h4>
+    <p style="color:var(--text2);margin-top:0">A layer above sets a property, or leaves the one below. The most specific active level wins.</p>
+    <div class="key">
+      <span>FACTORY</span><span>Shipped defaults.</span>
+      <span>PROFILE</span><span>The class pack. A PROFILE bundle covers every loop of this class pack that has no LOOP bundle.</span>
+      <span>SITE</span><span>Every loop of the site without a PROFILE or LOOP bundle.</span>
+      <span>LOOP</span><span>Overrides the profile for this loop only.</span>
+      <span>Unset</span><span>No layer sets it.</span>
+    </div>
+    <h4>Change class</h4>
+    <div class="key">
+      <span>Policy</span><span>Re-evaluated on complete qualified support under one bundle; old and new values never mix inside one result.</span>
+      <span class="cls sb">◆ State boundary</span><span>A STATE_BOUNDARY change opens a new epoch: windows whose support began before the effective time report WAITING (warm-up) instead of a mixed result.</span>
+      <span class="cls" style="color:var(--bad)">✕ Deployment</span><span>A DEPLOYMENT-class change ships in a build; the workers refuse it as a bundle.</span>
+    </div>
+    <h4>Flags</h4>
+    <div class="key">
+      <span><span class="flag flag--bad">commissioning</span></span><span>Commissioning required: the catalogue has no starting value.</span>
+      <span><span class="flag flag--muted">unread by build</span></span><span>Not read by this build; the reason is in the property's panel.</span>
+      <span><span class="flag flag--bad">invalid</span></span><span>A validation error names this property.</span>
+    </div>
+    <h4>Bundle state</h4>
+    <p style="color:var(--text2);margin-top:0">Bundles in progress: drafts, validated, shadowed, approved or failed - active and superseded ones live on their loop's page.</p>
+    <div class="key">
+      <span><span class="pill t-muted"><b>○</b>Draft</span></span><span>Editable.</span>
+      <span><span class="pill t-warn"><b>◐</b>Validated</span> …</span><span>Validated, Shadow evaluated, Approved, Scheduled, Prepared: on its way.</span>
+      <span><span class="pill t-ok"><b>✓</b>Active (verified)</span></span><span>Every required worker applied it and a result carries its hash.</span>
+      <span><span class="pill t-bad"><b>✕</b>Activation failed</span> …</span><span>Rejected, Approval expired, Partially acknowledged, Activation failed: not active.</span>
+      <span><span class="pill t-muted"><b>↺</b>Rolled back</span> <span class="pill t-muted"><b>⊘</b>Superseded</span></span><span>Settled.</span>
+    </div>
+    <h4>Gate roles</h4>
+    <div class="key" id="roles"></div>
+    <p style="color:var(--text2)">G9 geometry is supporting-only. It cannot create a stiction suspect without qualified independent evidence.</p>
+  </div>
+
+  <!-- 11 Workers: the acknowledgements, the bundle, the build identifiers (shortened, copyable) -->
+  <div class="card dlg ann" data-n="11" data-dlg="workers">
+    <h3>Workers <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>APPLY acknowledgements</h4>
+    <table><thead><tr><th>Job</th><th>Applied</th></tr></thead><tbody id="wRows"></tbody></table>
+    <h4>Build</h4>
+    <div id="wBuild"></div>
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 6 Build details (overview): today's Technical details -->
+  <div class="card dlg ann" data-n="6" data-dlg="build">
+    <h3>Build details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Catalogue hash</span><span><span class="mono">8bbcbbbb</span> <button class="ib" title="Copy the whole hash">⧉</button></span></div>
+    <div class="kv"><span>Catalogue properties</span><span>165</span></div>
+    <div class="kv"><span>Workers announced</span><span>6</span></div>
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 20 Record details of one bundle: the identifiers and the who / when / note of today's lifecycle column -->
+  <div class="card dlg ann" data-n="20" data-dlg="record">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div id="rRows"></div>
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 21 Prepare bundle draft: the level, the note; the callout moved here; Create draft says why when disabled -->
+  <div class="card dlg dlg--wide ann" data-n="21" data-dlg="draft">
+    <h3>Prepare bundle draft <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>Nothing changes for a loop until a bundle is published.</p>
+    <h4>Level <span class="q" title="LOOP: overrides the profile for this loop only. PROFILE: every loop of this class pack that has no LOOP bundle. SITE: every loop of the site without a PROFILE or LOOP bundle.">?</span></h4>
+    <div id="dLevels"></div>
+    <h4>Note</h4>
+    <input class="in" style="width:100%" placeholder="Draft note" aria-label="Draft note">
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Cancel</button><span><button class="btn btn--raised">Create draft</button></span></div>
+  </div>
+
+  <!-- Q owner question 7: a confirmation before Roll back (today it acts at once) -->
+  <div class="card dlg ann" data-n="Q" data-dlg="rollback" style="border:2px dashed var(--strong)">
+    <h3>Roll back to the previous bundle <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Rolls back</span><span>The activation of 25 Sept 18:37</span></div>
+    <div class="kv"><span>Active again</span><span>The bundle that ran before it</span></div>
+    <p style="color:var(--text2)">Proposed (owner question 7): today Roll back acts on the first click.</p>
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Roll back</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out btn--sm" onclick="sample('ov')">All loops</button>
+  <button class="btn btn--out btn--sm" onclick="sample('ovq')">Search FIC103</button>
+  <button class="btn btn--out btn--sm" onclick="sample('ovz')">No match</button>
+  <button class="btn btn--out btn--sm" onclick="sample('e302')">FIC10302 · G4</button>
+  <button class="btn btn--out btn--sm" onclick="sample('e302g0')">FIC10302 · G0</button>
+  <button class="btn btn--out btn--sm" onclick="sample('e302q')">Search “period”</button>
+  <button class="btn btn--out btn--sm" onclick="sample('e401')">FIC10401 · factory layer</button>
+  <span>· Bundles:</span>
+  <button class="btn btn--out btn--sm" onclick="sample('bip')">In progress</button>
+  <button class="btn btn--out btn--sm" onclick="sample('b302')">FIC10302 · v6</button>
+  <button class="btn btn--out btn--sm" onclick="sample('b302v7')">v7 · rolled back</button>
+  <button class="btn btn--out btn--sm" onclick="sample('b401')">FIC10401 · no bundle</button>
+  <span>· One bundle:</span>
+  <button class="btn btn--out btn--sm" onclick="sample('v6')">v6 · Properties</button>
+  <button class="btn btn--out btn--sm" onclick="sample('v6dep')">v6 · Deployments</button>
+  <button class="btn btn--out btn--sm" onclick="sample('d1')">Draft FIC10301 v1</button>
+  <button class="btn btn--out btn--sm" onclick="sample('d1shadow')">Draft · shadow report (illustrative)</button>
+  <span>· Dialogs:</span>
+  <button class="btn btn--out btn--sm" onclick="openDlg('howto')">How to read</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('workers')">Workers</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('build')">Build details</button>
+  <button class="btn btn--out btn--sm" onclick="openDraft()">Prepare bundle draft</button>
+  <button class="btn btn--out btn--sm" onclick="openRecord()">Record details</button>
+  <button class="btn btn--out btn--sm" onclick="openDlg('rollback')">Roll back (question 7)</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w) => `<span class="pill t-${t}"><b>${g}</b>${w}</span>`;
+  const kv = (k, v, tx) => `<div class="kv${tx ? ' tx' : ''}"><span>${k}</span><span>${v}</span></div>`;
+  const q = t => `<span class="q" title="${t.replace(/"/g, '&quot;')}">?</span>`;
+  const ST = { ACTIVE_VERIFIED: ['ok', '✓', 'Active (verified)'], ROLLED_BACK: ['muted', '↺', 'Rolled back'], SUPERSEDED: ['muted', '⊘', 'Superseded'], DRAFT: ['muted', '○', 'Draft'] };
+  const st = s => pill(...ST[s]);
+  const GN = { G0: 'Data quality', G1: 'Mode / service', G2: 'SP activity', G2r: 'Operating region', G3: 'Base performance', G4: 'Actuator effort', G5: 'Oscillation (ACF)', G6: 'Spectral (PSD)', G7: 'Stiction shape', G8: 'Lag asymmetry', G9: 'Phase geometry', G10: 'Actuator limits', G11: 'Measurement health', G12: 'System response', G13: 'Interaction', G14: 'Final-element confirmation', G15: 'Decision' };
+  const ABOVE = { G0: 2, G1: 1, G2: 1, G2r: 2, G3: 2, G4: 3, G5: 5, G6: 5, G7: 3, G8: 2, G9: 7, G10: 5, G11: 3, G12: 0, G13: 4, G14: 0, G15: 3 };
+  const ROLES = [['BLOCKING', 'G0 · G1 · G11'], ['ELIGIBILITY', 'G2 · G2r'], ['PERFORMANCE', 'G3 · G4'], ['PRIMARY', 'G5 · G6 · G10'], ['SUPPORTING', 'G7 · G8 · G9 · G13'], ['CONTEXT', 'G12'], ['CONFIRMATION', 'G14'], ['FUSION', 'G15']];
+  $('roles').innerHTML = ROLES.map(([r, g]) => `<span>${r}</span><span>${g}</span>`).join('');
+  // Catalogue reasons a property is not read by this build (server text, word for word)
+  const NR = { ACQUISITION_FROM_REGISTRY: 'the acquisition contract rides cplm.loop.model (registry), not the bundle', ALIGNMENT_COMPILED: 'the ingestion joiner aligns roles on its grid; G13 aligns peers within 0.75 grid (fixed)',
+    NOT_COMPUTED_IN_BUILD: 'VP movement is not noise-gated; tracking error uses G10.nonfollowing_error_pp', GAP_POLICY_COMPILED: 'a gap restarts the G12 capture ring (g12-max-gap-s job argument) and the window tiers count coverage; no separate gap threshold is read',
+    WINDOW_CONTRACT_COMPILED: 'the per-window sample floors are the compiled execution plan (min_samples per horizon)', DIAGNOSTIC_MODE_NOT_GOVERNED_IN_BUILD: 'every gate runs OPERATIONAL; OBSERVE_ONLY / SHADOW are analysis-run purposes, DISABLED needs the keyed scheduler (a later deployment)',
+    STALE_AGE_DECIDED_AT_INGESTION: 'the ingestion joiner\'s grid and hold rules decide freshness; the profile governs VP age (G11.instrument_verified_max_age_s)', ROLE_FIXED_BY_FUSION_IN_BUILD: 'this gate\'s role in fusion is compiled (eligibility / performance / blocking / confirmation / decision), not a runtime property',
+    ACF_LAG_COMPILED: 'the ACF is evaluated to min(n/2, 2000) samples; the band comes from G5.period_min_s / period_max_s', SHAPE_SIGNAL_BY_CLASS: 'the oscillation signal is OP for self-regulating and PV for integrating loops (dynamic class), not a free property',
+    ESTIMATOR_FIXED_WELCH_PSD: 'this build computes the Welch PSD only; LEGACY_DFT is not selectable (DEPLOYMENT_REQUIRED)', HARMONIC_ORDER_COMPILED: 'harmonic energy is read at fixed orders in the PSD' };
+  // [name, value FIC10302, source, value FIC10401/draft, source, id, class P|S, unit, type, catalogue start, commissioning, not-read code, bounds, read by, depends on, what it does]
+  const R = {
+    G0: [["acquisition_mode",null,"NO_VALUE",null,"NO_VALUE","CFG-154","S","contract","enum",null,1,"ACQUISITION_FROM_REGISTRY","PERIODIC_NATIVE · CHANGE_BASED · AVERAGED · INTERPOLATED","flink:short, api","","Approved source contract, cannot be fabricated in UI"],
+      ["alignment_tolerance_s",null,"NO_VALUE",null,"NO_VALUE","CFG-056","S","s","number",null,1,"ALIGNMENT_COMPILED","≥ 0 ≤ 3600","flink:short","G0.acquisition_mode","Maximum verified role alignment uncertainty"],
+      ["bad_fraction_max",0.05,"PROFILE",0.05,"PROFILE","CFG-053","P","fraction","number",null,1,0,"≥ 0 ≤ 1","flink:short","","Worst permitted invalid support; native bad values never become usable"],
+      ["coverage_min",0.95,"PROFILE",0.95,"PROFILE","CFG-052","P","fraction","number",null,1,0,"≥ 0 ≤ 1","flink:short","","Minimum qualified time coverage for dependent method"],
+      ["evidence_retention_days",null,"NO_VALUE",null,"NO_VALUE","CFG-003","P","day","integer",null,1,0,"≥ 1 ≤ 3650","api","","Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"],
+      ["jitter_warn_fraction",null,"NO_VALUE",null,"NO_VALUE","CFG-058","P","fraction","number",null,1,"NOT_COMPUTED_IN_BUILD","≥ 0 ≤ 10","flink:short","G0.acquisition_mode","Observed interval variation warning, not interpolation permission"],
+      ["max_gap_s",null,"NO_VALUE",null,"NO_VALUE","CFG-055","S","s","number",null,1,"GAP_POLICY_COMPILED","≥ 0.001 ≤ 86400","flink:short","G0.acquisition_mode","Largest allowed unsupported interval; event censor/split"],
+      ["min_samples",10,"FACTORY",10,"FACTORY","CFG-057","P","sample","integer",10,0,"WINDOW_CONTRACT_COMPILED","≥ 2 ≤ 1000000","flink:short","","Necessary but not sufficient method support"],
+      ["mode","OPERATIONAL","FACTORY","OPERATIONAL","FACTORY","CFG-001","P","state","enum","OPERATIONAL",0,"DIAGNOSTIC_MODE_NOT_GOVERNED_IN_BUILD","OPERATIONAL · OBSERVE_ONLY · SHADOW · DISABLED","flink:short, api","","Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"],
+      ["required_signal_max_age_s",null,"NO_VALUE",null,"NO_VALUE","CFG-054","S","s","number",null,1,"STALE_AGE_DECIDED_AT_INGESTION","≥ 0.001 ≤ 86400","flink:short","G0.acquisition_mode","Per-role policy may be stricter; cannot replace actual source freshness"],
+      ["role","REQUIRED_CONTEXT","FACTORY","REQUIRED_CONTEXT","FACTORY","CFG-002","P","role","enum","REQUIRED_CONTEXT",0,"ROLE_FIXED_BY_FUSION_IN_BUILD","REQUIRED_CONTEXT · PRIMARY · SUPPORTING · DISPLAY_ONLY · INAPPLICABLE","flink:short, api","","Validated method/profile restricts allowed role; no role can permit unsupported confirmation"]],
+    G4: [["activity_high_ratio",8,"PROFILE",8,"PROFILE","CFG-078","P","dimensionless","number",null,1,0,"≥ 0 ≤ 10000","flink:short","G4.activity_warn_ratio","High ratio must exceed warning"],
+      ["activity_warn_ratio",4.5,"LOOP",3,"PROFILE","CFG-077","P","dimensionless","number",null,1,0,"≥ 0 ≤ 10000","flink:short","","Ratio versus approved regime-specific activity reference, not valve proof"],
+      ["evidence_retention_days",null,"NO_VALUE",null,"NO_VALUE","CFG-018","P","day","integer",null,1,0,"≥ 1 ≤ 3650","api","","Commissioned retention within site capacity/legal policy; pinned case evidence survives ordinary expiry"],
+      ["min_pv_excitation_pv_eu",null,"NO_VALUE",null,"NO_VALUE","CFG-080","S","PV_EU","number",null,1,"NOT_COMPUTED_IN_BUILD","≥ 0 ≤ 1000000000000","flink:short","","Avoid unstable near-zero denominator; return unavailable"],
+      ["mode","OPERATIONAL","FACTORY","OPERATIONAL","FACTORY","CFG-016","P","state","enum","OPERATIONAL",0,"DIAGNOSTIC_MODE_NOT_GOVERNED_IN_BUILD","OPERATIONAL · OBSERVE_ONLY · SHADOW · DISABLED","flink:short, api","","Diagnostic execution mode; required eligibility checks remain enforced even if display/optional method disabled"],
+      ["reversal_deadband_pp",0.5,"PROFILE",0.5,"PROFILE","CFG-079","S","percentage_point","number",null,1,0,"≥ 0 ≤ 100","flink:short","","Meaningful command movement threshold"],
+      ["role","SUPPORTING","FACTORY","SUPPORTING","FACTORY","CFG-017","P","role","enum","SUPPORTING",0,"ROLE_FIXED_BY_FUSION_IN_BUILD","REQUIRED_CONTEXT · PRIMARY · SUPPORTING · DISPLAY_ONLY · INAPPLICABLE","flink:short, api","","Validated method/profile restricts allowed role; no role can permit unsupported confirmation"],
+      ["travel_rate_min_support_s",3600,"FACTORY",3600,"FACTORY","CFG-081","P","s","number",3600,0,"NOT_COMPUTED_IN_BUILD","≥ 1 ≤ 31536000","flink:short","G4.reversal_deadband_pp","Minimum duration before rate extrapolation"]],
+    G5: [["min_samples_per_period",8,"PROFILE",8,"PROFILE","CFG-085","P","sample/cycle","integer",8,0,0,"≥ 4 ≤ 1000","flink:long","G5.period_min_s, G0.acquisition_mode","At least method capability floor; shape may require more"],
+      ["period_max_s",900,"PROFILE",900,"PROFILE","CFG-083","S","s","number",null,1,0,"≥ 0.001 ≤ 31536000","flink:long","G5.period_min_s","Upper period <= supported horizon/cycle policy"],
+      ["period_min_s",10,"PROFILE",10,"PROFILE","CFG-082","S","s","number",null,1,0,"≥ 0.001 ≤ 31536000","flink:long","","Lower resolvable period; must satisfy sampling contract"]],
+    G6: [["period_max_s",900,"PROFILE",900,"PROFILE","CFG-089","S","s","number",null,1,0,"≥ 0.001 ≤ 31536000","flink:long","G6.period_min_s","Qualified period upper bound"],
+      ["period_min_s",10,"PROFILE",10,"PROFILE","CFG-088","S","s","number",null,1,0,"≥ 0.001 ≤ 31536000","flink:long","","Qualified period lower bound"]],
+  };
+  const UNIT = { s: 's', day: 'days', sample: 'samples', percentage_point: 'pp', PV_EU: 'PV units', 'sample/cycle': 'samples / cycle' };
+  const valTxt = (v, u) => v == null ? '<span class="na">No value</span>' : `${v}${UNIT[u] ? ' ' + UNIT[u] : ''}`;
+  const clsTxt = c => c === 'S' ? '<span class="cls sb">◆ State boundary</span>' : '<span class="cls">Policy</span>';
+
+  // ---- the overview: page 1 of 13 in the API's order (governed first); service without the repeated tag
+  const F = 'Flow, fast self-regulating', LV = 'Level, integrating';
+  const OV = [['FIC10302', 'Reactor feed flow · U1001 polymerization reactor 1', F, 1], ['AIC30601', 'Analyser controller · B2', 'Unknown'], ['B2_027PIC', 'B2 027 Pressure Control · B2', 'Liquid pressure, fast'],
+    ['DEMO-BAD-006', 'Unmodelled location · Unit9', F], ['DEMO-FIC-001', 'Feed flow control · Crude1', F], ['DEMO-FIC-005', 'Bed inlet temperature · Crude1', F], ['DEMO-FIC-009', 'Recycle compressor suction pressure · Crude1', F],
+    ['DEMO-FIC-013', 'Reboiler steam flow · Crude1', F], ['DEMO-FIC-017', 'Separator interface level · Crude1', F], ['DEMO-FIC-021', 'Column overhead pressure, train 2 · Crude1', F], ['DEMO-FIC-025', 'Fuel gas pressure · Crude1', F],
+    ['DEMO-FIC-029', 'Reflux drum level · Crude1', F], ['DEMO-FIC-033', 'Condenser outlet temperature · Crude1', F], ['DEMO-FIC-037', 'Feed flow control · Crude1', F], ['DEMO-FIC-041', 'Bed inlet temperature · Crude1', F],
+    ['DEMO-FIC-045', 'Recycle compressor suction pressure · Crude1', F], ['DEMO-FIC-049', 'Reboiler steam flow, train 2 · Crude1', F], ['DEMO-LIC-003', 'Column overhead pressure · Crude1', LV], ['DEMO-LIC-007', 'Fuel gas pressure, train 2 · Crude1', LV], ['DEMO-LIC-011', 'Reflux drum level · Crude1', LV]];
+  const OVQ = [OV[0], ['FIC10301', 'Flow controller (FCS0101) · U4002 catalyst tankfarm', F], ['FIC10303A', 'Flow controller (FCS0101) · U1005 catalyst dosage', F], ['FIC10303B', 'Flow controller (FCS0101) · U4002 catalyst tankfarm', F]];
+  // ---- the bundles of hdpe (summary rows): [v, hash, state, note, author, updated, effective from, created]
+  const V = { v7: [7, '337ddfe7', 'ROLLED_BACK', 'slice-3 e2e v2', 'e2e_cfg_engineer_a733d49f', '25 Sept 18:37', '25 Sept 18:37', '25 Sept 18:37'], v6: [6, 'f9153b00', 'ACTIVE_VERIFIED', 'slice-3 e2e', 'e2e_cfg_engineer_a733d49f', '25 Sept 18:37', '25 Sept 18:37', '25 Sept 18:36'],
+    v5: [5, '337ddfe7', 'ROLLED_BACK', 'slice-3 e2e v2', 'e2e_cfg_engineer_d9063637', '25 Sept 14:32', '25 Sept 14:31', '25 Sept 14:31'], v4: [4, 'f9153b00', 'SUPERSEDED', 'slice-3 e2e', 'e2e_cfg_engineer_d9063637', '25 Sept 18:37', '25 Sept 14:31', '25 Sept 14:29'],
+    v3: [3, '337ddfe7', 'ROLLED_BACK', 'slice-3 e2e v2', 'e2e_cfg_engineer_6f384ad0', '17 Sept 02:36', '17 Sept 02:33', '17 Sept 02:33'], v2: [2, 'f9153b00', 'ROLLED_BACK', 'slice-3 e2e', 'e2e_cfg_engineer_6f384ad0', '17 Sept 16:34', '17 Sept 02:36', '17 Sept 02:33'],
+    v1: [1, 'f9153b00', 'SUPERSEDED', 'slice-3 e2e', 'e2e_cfg_engineer_6880e995', '25 Sept 14:31', '17 Sept 16:34', '17 Sept 02:30'], d1: [1, '9e89f6b8', 'DRAFT', '', 'admin', '17 Sept 08:24', '', '17 Sept 08:24'] };
+  const DIFF = 'G0.bad_fraction_max|0.05|P G0.coverage_min|0.95|P G1.auto_fraction_min|0.7|P G10.limit_tolerance_pp|5|S G10.nonfollowing_dwell_s|60|S G10.nonfollowing_error_pp|5|S G10.occupancy_warn_fraction|0.05|P G10.role|PRIMARY|P|SUPPORTING G11.freeze_dwell_s|60|S G11.freeze_tolerance_pv_eu|0|S G11.instrument_verified_max_age_s|60|S G13.coherence_display_min|0.6|P G13.lag_max_s|600|S G13.min_compatible_support_s|1800|S G15.episode_persistence_s|129600|S G15.recovery_support_s|21600|S G2.stability_band_span_fraction|0.01|P G2r.applied_input_region_max|100|P G2r.applied_input_region_min|0|P G3.error_band_span_fraction|0.005|P G3.objective_compliance_min|0.005|P G4.activity_high_ratio|8|P G4.activity_warn_ratio|4.5|P G4.reversal_deadband_pp|0.5|S G5.period_max_s|900|S G5.period_min_s|10|S G5.regularity_min|0.1|P G6.peak_to_background_min|3|P G6.period_max_s|900|S G6.period_min_s|10|S G7.role|PRIMARY|P|SUPPORTING G7.shape_score_high|0.8|P G8.asymmetry_display_threshold|0.7|P G9.corner_angle_deg|65|S G9.geometry_contribution_cap|0.5|P G9.min_command_range_pp|2|P'.split(' ').map(s => s.split('|'));
+  const JOBS = ['AMS - CPLM Condition Engine', 'AMS - CPLM Gate Fusion Engine', 'AMS - CPLM Long Diagnostics Engine', 'AMS - CPLM Response Engine', 'AMS - CPLM Short Feature Engine'];
+  const DEP = { v6: [{ k: 'Rollback', at: '25 Sept 18:37', t: 'Rollback verified - the previous bundle is active again', eff: '25 Sept 18:37 · by admin', rb: '617f2e13', probe: '648 results pinned to this hash · checked 25 Sept 18:37' },
+    { k: 'Activation', at: '25 Sept 18:37', t: 'Active and verified - a result carries this bundle hash', eff: '25 Sept 18:37 · by admin', probe: '647 results pinned to this hash · checked 25 Sept 18:37' }], d1: [] };
+
+  let S = {};
+  const SAMPLES = {
+    ov: { view: 'eff', loop: null, q: '' }, ovq: { view: 'eff', loop: null, q: 'FIC103' }, ovz: { view: 'eff', loop: null, q: 'zzz' },
+    e302: { view: 'eff', loop: 'FIC10302', gate: 'G4', sel: 'activity_warn_ratio', q: '' }, e302g0: { view: 'eff', loop: 'FIC10302', gate: 'G0', sel: 'acquisition_mode', q: '' },
+    e302q: { view: 'eff', loop: 'FIC10302', gate: 'G5', sel: 'G5.period_min_s', q: 'period' }, e401: { view: 'eff', loop: 'FIC10401', gate: 'G4', sel: 'activity_warn_ratio', q: '' },
+    bip: { view: 'bun', loop: null, bsel: 'd1' }, b302: { view: 'bun', loop: 'FIC10302', bsel: 'v6' }, b302v7: { view: 'bun', loop: 'FIC10302', bsel: 'v7' }, b401: { view: 'bun', loop: 'FIC10401', bsel: null },
+    v6: { view: 'bdl', loop: 'FIC10302', bundle: 'v6', tab: 'prop', gate: 'G4', esel: 'activity_warn_ratio' }, v6dep: { view: 'bdl', loop: 'FIC10302', bundle: 'v6', tab: 'dep', gate: 'G4', esel: 'activity_warn_ratio', dsel: 0 },
+    d1: { view: 'bdl', loop: 'FIC10301', bundle: 'd1', tab: 'prop', gate: 'G4', esel: 'activity_warn_ratio' }, d1shadow: { view: 'bdl', loop: 'FIC10301', bundle: 'd1', tab: 'shadow', gate: 'G4', esel: 'activity_warn_ratio', shadowRep: true },
+  };
+  const LOOPS = { FIC10302: 'Reactor feed flow', FIC10401: 'Flow controller (FCS0101)', FIC10301: 'Flow controller (FCS0101)' };
+  const pager = (cur, n) => { const ps = [1, 2, 3, 4, null, n];
+    return `<span class="pg${cur === 1 ? ' dis' : ''}">«</span><span class="pg${cur === 1 ? ' dis' : ''}">‹</span>` + ps.map(p => p == null ? '<span class="gap">…</span>' : `<span class="pg${p === cur ? ' on' : ''}">${p}</span>`).join('')
+      + `<span class="pgs">Page ${cur} of ${n}</span><span class="pg">›</span><span class="pg">»</span>`; };
+
+  function render() {
+    $('vEff').setAttribute('aria-pressed', String(S.view === 'eff')); $('vBun').setAttribute('aria-pressed', String(S.view !== 'eff'));
+    const lp = S.loop ? `<span class="field" style="width:300px">&#x1F50D;&#xFE0E; <span><strong>${S.loop}</strong> <small>${LOOPS[S.loop]}</small></span><span class="grow"></span>&#9662;</span>` : '<span class="field" style="width:300px;color:var(--muted)">&#x1F50D;&#xFE0E; Search loops<span class="grow"></span>&#9662;</span>';
+    const b = S.view === 'bdl' ? V[S.bundle] : null;
+    $('band').innerHTML = lp + (b ? `<span class="vr"></span><span class="chip">LOOP v${b[0]} ${st(b[2])}</span><button class="btn btn--sm" onclick="openRecord()">Record details</button>` : '')
+      + '<span class="grow"></span>' + (S.loop ? '<span class="btn btn--sm">Open loop ↗</span>' : '');
+    $('ovEff').classList.toggle('hide', !(S.view === 'eff' && !S.loop));
+    $('effLoop').classList.toggle('hide', !(S.view === 'eff' && S.loop));
+    $('bunView').classList.toggle('hide', S.view !== 'bun');
+    $('bdl').classList.toggle('hide', S.view !== 'bdl');
+    if (S.view === 'eff' && !S.loop) renderOv();
+    if (S.view === 'eff' && S.loop) renderEff();
+    if (S.view === 'bun') renderBun();
+    if (S.view === 'bdl') renderBdl();
+  }
+
+  function renderOv() {
+    $('qOv').value = S.q;
+    const rows = S.q === 'FIC103' ? OVQ : S.q ? [] : OV;
+    $('rowsOv').innerHTML = rows.map(r => `<div role="listitem" class="row g-ov" onclick="go({loop:'${r[0] === 'FIC10302' ? 'FIC10302' : 'FIC10401'}',gate:'G4',sel:'activity_warn_ratio',q:''})"><span><strong>${r[0]}</strong><small>${r[1]}</small></span><span>${r[2]}</span>`
+      + (r[3] ? `<span>${st('ACTIVE_VERIFIED')}<small>LOOP v6</small></span><span>25 Sept 18:37</span>` : `<span>${pill('muted', '○', 'Factory layer')}</span><span class="na">—</span>`) + '</div>').join('');
+    $('emptyOv').classList.toggle('hide', rows.length > 0); $('emptyOvT').textContent = `No loop matches “${S.q}”`;
+    $('pagerOv').classList.toggle('hide', rows.length < 20); $('pagerOv').innerHTML = pager(1, 13);
+  }
+
+  function effRow(r, gate, i) { return { key: `${gate}.${r[0]}`, short: r[0], v: S.loop === 'FIC10302' ? r[1] : r[3], src: S.loop === 'FIC10302' ? r[2] : r[4], r, gate }; }
+  function renderEff() {
+    const e302 = S.loop === 'FIC10302';
+    $('layers').innerHTML = [['FACTORY', 'Shipped defaults', '57 properties', 1], ['PROFILE', F, e302 ? '47 overrides' : '48 overrides', 1], ['SITE', 'hdpe', 'no bundle', 0],
+      ['LOOP', e302 ? `v6 ${st('ACTIVE_VERIFIED')}` : 'no bundle', e302 ? '1 override' : '—', e302]]
+      .map(([k, v, c, on]) => `<div class="layer${on ? '' : ' off'}"><span class="k">${k}</span><span class="v">${v}</span><span class="c">${c}</span></div>`).join('');
+    const gates = Object.keys(GN);
+    $('gEff').innerHTML = (S.q ? '<option value="">All matching gates</option>' : '') + gates.filter(g => !S.q || R[g]?.some(r => r[0].includes(S.q))).map(g => `<option value="${g}">${g} · ${GN[g]}${ABOVE[g] ? ` · ${ABOVE[g]} set above factory` : ''}</option>`).join('');
+    $('gEff').value = S.q ? '' : S.gate; $('qEff').value = S.q;
+    const list = S.q ? Object.keys(R).flatMap(g => R[g].filter(r => r[0].includes(S.q)).map(r => effRow(r, g))) : (R[S.gate] ?? []).map(r => effRow(r, S.gate));
+    const srcTxt = (s) => s === 'LOOP' ? '<strong>LOOP</strong> v6' : s === 'NO_VALUE' ? '<span class="na">Unset</span>' : s === 'FACTORY' ? '<span style="color:var(--text2)">FACTORY</span>' : s;
+    $('rowsEff').innerHTML = list.map(x => `<div role="listitem" class="row g-eff${(S.q ? x.key : x.short) === S.sel ? ' sel' : ''}" onclick="go({sel:'${S.q ? x.key : x.short}'})"><span><span class="mono" title="${x.key}">${S.q ? x.key : x.short}</span><small>${clsTxt(x.r[6])}</small></span><span>${valTxt(x.v, x.r[7])}</span><span>${srcTxt(x.src)}</span></div>`).join('');
+    $('emptyEff').classList.toggle('hide', list.length > 0); $('emptyEffT').textContent = S.q ? `No property matches “${S.q}”` : 'This sample holds G0, G4, G5 and G6 only';
+    $('wLine').innerHTML = e302 ? `Workers ${pill('ok', '✓', '5 of 5 applied')} · one jar · catalogue matches` : `Workers ${pill('muted', '○', '5 workers')} · factory layer, nothing to acknowledge`;
+    $('wRows').innerHTML = [...JOBS.slice(0, 2), 'AMS - CPLM Instrument Context Engine', ...JOBS.slice(2)].map(j => `<tr><td>${j}</td><td>${j.includes('Instrument') ? '<span class="na">observer · reads no property</span>' : e302 ? pill('ok', '✓', 'ACK') : '<span class="na">factory layer</span>'}</td></tr>`).join('');
+    $('wBuild').innerHTML = (e302 ? kv('Bundle', 'LOOP v6 · Policy · effective 25 Sept 18:37') + kv('Bundle hash', '<span class="mono">f9153b00</span> <button class="ib" title="Copy the whole hash">⧉</button>') : '')
+      + kv('Catalogue hash', '<span class="mono">8bbcbbbb</span> <button class="ib" title="Copy the whole hash">⧉</button>') + kv('Catalogue properties', '165') + kv('Workers announced', '6') + kv('Worker jar', '<span class="mono">dabe1862</span> <button class="ib" title="Copy the whole hash">⧉</button>');
+    const x = list.find(y => (S.q ? y.key : y.short) === S.sel) ?? list[0];
+    if (!x) { $('pName').textContent = ''; $('pRows').innerHTML = ''; return; }
+    const r = x.r;
+    $('pName').textContent = x.key; $('pId').textContent = r[5];
+    const srcFull = x.src === 'LOOP' ? 'LOOP · bundle v6' : x.src === 'PROFILE' ? `PROFILE · ${F}` : x.src === 'FACTORY' ? 'FACTORY · shipped default' : '<span class="na">Unset · no layer sets it</span>';
+    $('pRows').innerHTML = kv('Value', valTxt(x.v, r[7])) + kv('Source', srcFull) + kv('Class ' + q('Policy and State boundary are explained in How to read.'), clsTxt(r[6])) + kv('Unit', r[7]) + kv('Type', r[8])
+      + kv('Factory default', r[9] == null ? '<span class="na">No value</span>' : `<span class="mono">${r[9]}</span>`) + kv('What it does', r[15], 1) + (r[11] ? kv('Not read by this build', NR[r[11]], 1) : '');
+  }
+
+  function renderBun() {
+    const loop = S.loop;
+    $('bunHead').innerHTML = loop ? '<span class="grow"></span><button class="btn btn--raised" onclick="openDraft()">Prepare bundle draft</button>'
+      : '<span style="color:var(--text2)">Bundles in progress</span>';
+    $('bunThead').className = 'thead ' + (loop ? 'g-bun' : 'g-ip');
+    $('bunThead').innerHTML = loop ? '<span>Version</span><span>By</span><span>Updated · UTC</span><span>State</span>' : '<span>Scope</span><span>Version</span><span>State</span><span>Updated · UTC</span><span>By</span>';
+    const row = id => { const v = V[id]; return `<div role="listitem" class="row g-bun${S.bsel === id ? ' sel' : ''}" onclick="go({bsel:'${id}'})"><span><strong>v${v[0]}</strong><small>${v[3]}</small></span><span style="overflow-wrap:anywhere;font-size:13px">${v[4]}</span><span>${v[5]}</span><span>${st(v[2])}</span></div>`; };
+    if (!loop) $('rowsBun').innerHTML = `<div role="listitem" class="row g-ip sel"><span><strong>LOOP FIC10301</strong></span><span><strong>v1</strong></span><span>${st('DRAFT')}</span><span>17 Sept 08:24</span><span>admin</span></div>`;
+    else if (loop === 'FIC10302') $('rowsBun').innerHTML = '<div class="grp">LOOP</div>' + ['v7', 'v6', 'v5', 'v4', 'v3', 'v2', 'v1'].map(row).join('')
+      + `<div class="grp">PROFILE <span>· ${F}</span></div><div class="lvl0">no bundle at this level - the layer below applies</div><div class="grp">SITE <span>· hdpe</span></div><div class="lvl0">no bundle at this level - the layer below applies</div>`;
+    else $('rowsBun').innerHTML = ['LOOP', `PROFILE <span>· ${F}</span>`, 'SITE <span>· hdpe</span>'].map(g => `<div class="grp">${g}</div><div class="lvl0">no bundle at this level - the layer below applies</div>`).join('');
+    const id = loop ? S.bsel : 'd1';
+    $('bunPanel').style.visibility = id ? '' : 'hidden';
+    if (!id) return;
+    const v = V[id];
+    $('bEye').textContent = id === 'd1' ? 'LOOP FIC10301' : 'LOOP'; $('bName').textContent = `v${v[0]}`; $('bSt').innerHTML = st(v[2]);
+    $('bRows').innerHTML = kv('Change class', 'Policy') + kv('Created', v[7]) + (v[6] ? kv('Effective from', v[6]) : '')
+      + kv('Validation errors', '0') + kv('Content hash', `<span class="mono">${v[1]}</span> <button class="ib" title="Copy the whole hash">⧉</button>`);
+    $('bOpen').textContent = `Open v${v[0]} →`; $('bIllus').classList.add('hide');
+  }
+
+  function renderBdl() {
+    const d = S.bundle === 'd1', v = V[S.bundle], frozen = !d;
+    document.querySelectorAll('#bTabs .tab').forEach(t => { t.setAttribute('aria-selected', String(t.dataset.t === S.tab)); const done = frozen;
+      t.innerHTML = t.innerHTML.replace(/<i[^>]*>.*?<\/i>/, '') + (done ? '<i>✓</i>' : (d && t.dataset.t === 'prop' ? '<i style="color:var(--action)">●</i>' : '')); });
+    document.querySelectorAll('#bdl > [data-pane]').forEach(p => p.classList.toggle('on', p.dataset.pane === S.tab));
+    $('frozen').classList.toggle('hide', !frozen); $('frozen').textContent = `This version is ${ST[v[2]][2]} - create a new version to change it.`;
+    // Properties
+    const gates = Object.keys(GN);
+    $('gBdl').innerHTML = gates.map(g => `<option value="${g}">${g} · ${GN[g]}</option>`).join(''); $('gBdl').value = S.gate;
+    const rows = (R[S.gate] ?? []).map(r => ({ r, v: d ? r[3] : r[1], src: d ? r[4] : r[2] }));
+    $('rowsBp').innerHTML = rows.map(x => { const r = x.r, comm = r[10] && x.v == null;
+      return `<div role="listitem" class="row g-bp${r[0] === S.esel ? ' sel' : ''}" onclick="go({esel:'${r[0]}'})"><span><span class="mono">${r[0]}</span><small>${clsTxt(r[6])}</small></span><span>${valTxt(x.v, r[7])}<small>${x.src === 'NO_VALUE' ? 'unset - no layer sets it' : 'from ' + x.src}</small></span><span>${comm ? '<span class="flag flag--bad">commissioning</span>' : ''}${r[11] ? '<span class="flag flag--muted">unread by build</span>' : ''}</span></div>`; }).join('');
+    const x = rows.find(y => y.r[0] === S.esel) ?? rows[0];
+    if (!x) { $('eName').textContent = 'This sample holds G0 and G4 only'; $('eId').textContent = ''; $('eBody').innerHTML = ''; return; }
+    const r = x.r;
+    $('eName').textContent = `${S.gate}.${r[0]}`; $('eId').textContent = r[5];
+    const inh = x.src === 'LOOP' ? [r[3], r[4]] : [x.v, x.src];
+    const edit = d && !r[11];
+    $('eBody').innerHTML = `<p style="margin:4px 0 8px">${clsTxt(r[6])}${r[10] && x.v == null ? ' <span class="flag flag--bad">Commissioning required</span>' : ''}${r[11] ? ' <span class="flag flag--muted">not read by this build</span>' : ''}</p><p style="margin:0 0 8px">${r[15]}</p>`
+      + kv('Effective', `${valTxt(x.v, r[7])} <span style="color:var(--text2);font-size:13px">${x.src === 'NO_VALUE' ? 'unset' : 'from ' + x.src}</span>`) + kv('Inherited', inh[1] === 'NO_VALUE' ? '<span class="na">No value</span>' : `${valTxt(inh[0], r[7])} <span style="color:var(--text2);font-size:13px">from ${inh[1]}</span>`)
+      + kv('Catalogue start', r[9] == null ? '<span class="na">No value</span>' : r[9]) + kv('Bounds', `<span class="mono">${r[12]}</span>`) + (r[14] ? kv('Depends on', `<span class="mono">${r[14]}</span>`) : '') + kv('Read by', `<span class="mono">${r[13]}</span>`) + kv('Type · unit', `${r[8]} · ${r[7]}`)
+      + (r[11] ? `<p style="margin:8px 0;color:var(--text2)">Read-only in this build: ${r[11]}: ${NR[r[11]]}</p>` : '')
+      + (edit ? `<div style="margin-top:12px"><input class="in" placeholder="${r[7]}" aria-label="${S.gate}.${r[0]} value" style="width:100%;margin-bottom:8px"><span class="acts"><span><button class="btn btn--raised" disabled>Set</button><small>Enter or choose a value first</small></span><span><button class="btn btn--out" disabled>Reset to inherited</button><small>Already inherited: this level sets no value of its own</small></span></span></div>` : '');
+    // Diff & impact
+    $('dTitle').innerHTML = `36 properties differ from the factory layer <span class="cls">Policy</span>`;
+    $('dAff').textContent = `1 loop (${S.loop})`;
+    $('dRows').innerHTML = DIFF.map(([p, a, c, b]) => `<tr><td class="mono">${p}</td><td class="mono">${b ?? '<span class="na">No value</span>'}</td><td class="mono">${p === 'G4.activity_warn_ratio' && d ? '3' : a}</td><td>${clsTxt(c)}</td></tr>`).join('');
+    $('dVal').innerHTML = d ? '' : pill('ok', '✓', 'Valid');
+    $('dValP').innerHTML = d ? 'Not validated yet.' : 'No errors. 40 properties in this bundle are read by no running job (declared by the build); they are accepted and stated, not applied.';
+    $('dAct').innerHTML = d ? '<span><button class="btn btn--raised">Validate</button></span>' : '<span><button class="btn" disabled>Validate</button></span>';
+    // Shadow: Run shadow is the one control (the lifecycle's Shadow button only opened this tab)
+    $('sLoop').value = S.loop; $('sRep').classList.toggle('hide', !S.shadowRep);
+    $('sState').innerHTML = S.shadowRep ? '<b>✓</b>Finished' : '<b>○</b>Not run'; $('sState').className = 'pill ' + (S.shadowRep ? 't-ok' : 't-muted');
+    $('sAct').innerHTML = `<span><button class="btn" disabled>Run shadow</button>${d ? '<small>Validate the bundle first — only a validated bundle can be shadow-run</small>' : ''}</span>`;
+    // Approval
+    $('aTitle').innerHTML = d ? 'No approval binds the current content' : 'Approved by admin <span class="pill t-bad"><b>✕</b>Expired</span>';
+    $('aTable').classList.toggle('hide', d);
+    $('aRows').innerHTML = d ? '' : `<tr><td>${pill('ok', '✓', 'Approved')}</td><td>admin (Admin)</td><td class="mono">f9153b00</td><td>25 Sept 20:37</td><td>slice-3 e2e review</td></tr>`;
+    $('aAct').innerHTML = d ? '<span><button class="btn" disabled>Approve</button><small>Validate the draft first.</small></span>' : '<span><button class="btn" disabled>Approve</button></span>';
+    // Deployments: Activate and Roll back once
+    $('depAct').innerHTML = d ? '<span><button class="btn" disabled>Activate</button><small>Approve the content first.</small></span><span><button class="btn" disabled>Roll back</button><small>Only a verified activation can be rolled back.</small></span>'
+      : '<span><button class="btn" disabled>Activate</button></span><span class="ann" data-n="Q" title="Owner question 7: a confirmation first"><button class="btn btn--raised" onclick="openDlg(\'rollback\')">Roll back</button></span>';
+    const deps = DEP[S.bundle] ?? [];
+    $('emptyDep').classList.toggle('hide', deps.length > 0); $('depPanel').style.visibility = deps.length ? '' : 'hidden';
+    $('rowsDep').innerHTML = deps.map((p, i) => `<div role="listitem" class="row g-dep${i === (S.dsel ?? 0) ? ' sel' : ''}" onclick="go({dsel:${i}})"><span><strong>${p.k}</strong><small>${p.at} · 5 of 5 PREPARE · 5 of 5 APPLY</small></span><span>${pill('ok', '✓', 'Active (verified)')}</span></div>`).join('');
+    const p = deps[S.dsel ?? 0];
+    if (p) { $('dpT').textContent = p.t; $('dpSt').innerHTML = '';
+      $('dpBody').innerHTML = kv('Effective', p.eff) + kv('Epoch', '—') + (p.rb ? kv('Rolls back', `<span class="mono">${p.rb}</span> <button class="ib" title="Copy the deployment id">⧉</button>`) : '') + kv('Probe', p.probe)
+        + `<h4 style="margin:12px 0 4px;font-size:15px">5 of 5 PREPARE · 5 of 5 APPLY <span style="font-weight:400;color:var(--text2);font-size:13px">· 5 required workers</span></h4>`
+        + `<table><thead><tr><th>Required worker</th><th>PREPARE</th><th>APPLY <small>· jar dabe1862</small></th></tr></thead><tbody>${JOBS.map(j => `<tr><td style="font-size:13px">${j.replace('AMS - CPLM ', '')}</td><td>${pill('ok', '✓', 'ACK')}</td><td>${pill('ok', '✓', 'ACK')}</td></tr>`).join('')}</tbody></table>`
+        + '<p class="sub" style="font-size:12px;margin:8px 0 0">ACTIVE_VERIFIED after every required worker ACKed PREPARE and APPLY with this hash on one jar, and either a result carries the hash (probeResults.verifiedBy = RESULT) or the probe window passed with no result from the scope (ACK_WINDOW); a partial matrix is PARTIALLY_ACKNOWLEDGED, never active</p>'
+        + '<p class="sub" style="font-size:12px;margin:4px 0 0">Observers: AMS - CPLM Instrument Context Engine (read no catalogue property; not required to answer)</p>'; }
+  }
+
+  window.go = ch => { Object.assign(S, ch); if (ch.view === 'eff' && S.loop && !S.gate) S.gate = 'G4'; if (ch.view === 'bun' && S.loop === 'FIC10302' && !S.bsel) S.bsel = 'v6'; render(); };
+  window.sample = s => { S = Object.assign({}, SAMPLES[s]); render(); };
+  window.tab = t => go({ tab: t });
+  window.openBundle = () => go({ view: 'bdl', bundle: S.loop ? S.bsel : 'd1', loop: S.loop ?? 'FIC10301', tab: 'prop', gate: 'G4', esel: 'activity_warn_ratio' });
+  window.clearEff = () => go({ q: '', sel: null });
+  window.openDlg = d => { $('scrim').classList.add('on'); document.querySelectorAll('[data-dlg]').forEach(x => x.classList.toggle('on', x.dataset.dlg === d)); };
+  window.closeDlg = () => $('scrim').classList.remove('on');
+  window.openRecord = () => { const v = V[S.bundle ?? 'v6'] ?? V.v6;
+    $('rRows').innerHTML = kv('Content hash', `<span class="mono">${v[1]}</span> <button class="ib" title="Copy the whole hash">⧉</button>`) + kv('Etag', `<span class="mono">${v[2] === 'DRAFT' ? 'fc6578a9656ff2f5' : '6c8eae20025f98e6'}</span>`)
+      + kv('Created', `${v[4]} · ${v[7]}`) + kv('Updated', v[5]) + (v[3] ? kv('Note', v[3]) : '') + kv('Catalogue hash', '<span class="mono">8bbcbbbb</span> <button class="ib" title="Copy the whole hash">⧉</button>'); openDlg('record'); };
+  window.openDraft = () => { const l302 = (S.loop ?? 'FIC10302') === 'FIC10302';
+    $('dLevels').innerHTML = `<div class="radio" style="font-size:12px;color:var(--text2);min-height:28px"><span></span><span>LEVEL</span><span></span><span class="ann" data-n="Q" title="Owner question 6" style="padding-inline-end:14px">STARTS FROM</span></div>`
+      + [['LOOP', S.loop ?? 'FIC10302', l302 ? `v7 ${pill('muted', '↺', 'Rolled back')}` : 'First version at this level'], ['PROFILE', F, 'First version at this level'], ['SITE', 'hdpe', 'First version at this level']]
+        .map(([k, r, f], i) => `<label class="radio"><input type="radio" name="lvl"${i === 0 ? ' checked' : ''}><strong>${k}</strong><span>${r}</span><span class="from q2">${f}</span></label>`).join(''); openDlg('draft'); };
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  $('qOv').addEventListener('input', e => { S.q = e.target.value.trim(); renderOv(); });
+  $('qEff').addEventListener('input', e => { S.q = e.target.value.trim(); S.sel = null; renderEff(); });
+  $('gEff').addEventListener('change', e => go({ gate: e.target.value || 'G0', q: '', sel: null }));
+  $('gBdl').addEventListener('change', e => go({ gate: e.target.value, esel: null }));
+  document.querySelectorAll('#bTabs .tab').forEach(t => t.addEventListener('click', () => tab(t.dataset.t)));
+  sample('e302');
+</script>
+</body>
+</html>

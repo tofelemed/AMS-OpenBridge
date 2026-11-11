@@ -2,7 +2,7 @@
 // one carrying the reason it is disabled (state or permission) - the reader never guesses why a button
 // is grey; a deployment's ACK matrix is summarised in one line before it is unfolded.
 import { describe, expect, it } from 'vitest';
-import { ackSummary, lifecycleActions, lifecycleSteps } from './lifecycle';
+import { ackSummary, frozenSentence, lifecycleActions, lifecycleSteps, tabMarks } from './lifecycle';
 import type { Deployment } from '../../../api/cpm/config';
 
 const perms = { validate: true, shadow: true, approve: true, activate: true, rollback: true };
@@ -38,7 +38,23 @@ describe('lifecycleActions', () => {
   it('an expired approval blocks deploy with that reason; a verified activation enables rollback', () => {
     expect(lifecycleActions({ state: 'APPROVED' }, perms, true, false).find(x => x.key === 'deploy')).toMatchObject({ enabled: false, reason: 'The approval expired; approve again before activating.' });
     expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, true).find(x => x.key === 'rollback')).toMatchObject({ enabled: true });
-    expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, true).find(x => x.key === 'validate')).toMatchObject({ enabled: false, reason: 'This version is ACTIVE_VERIFIED - create a new version to change it.' });
+    expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, true).find(x => x.key === 'validate')).toMatchObject({ enabled: false, reason: 'This version is Active (verified) - create a new version to change it.' });
+  });
+});
+
+describe('tabMarks (CHG-169)', () => {
+  it('marks the tabs from the state: a draft is on Properties, an approved one on Approval, a settled one has done them all', () => {
+    expect(tabMarks('DRAFT')).toEqual({ properties: 'current', diff: null, shadow: null, approval: null, deployments: null });
+    expect(tabMarks('VALIDATED')).toEqual({ properties: 'done', diff: 'current', shadow: null, approval: null, deployments: null });
+    expect(tabMarks('APPROVED')).toEqual({ properties: 'done', diff: 'done', shadow: 'done', approval: 'current', deployments: null });
+    expect(tabMarks('SCHEDULED').deployments).toBe('current');
+    expect(tabMarks('ACTIVATION_FAILED').deployments).toBe('current');
+    expect(tabMarks('REJECTED').diff).toBe('current');
+    for (const s of ['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED']) expect(Object.values(tabMarks(s))).toEqual(['done', 'done', 'done', 'done', 'done']);
+  });
+  it('the frozen reason names the state in its word', () => {
+    expect(frozenSentence('ACTIVE_VERIFIED')).toBe('This version is Active (verified) - create a new version to change it.');
+    expect(frozenSentence('APPROVED')).toBe('This version is Approved - create a new version to change it.');
   });
 });
 

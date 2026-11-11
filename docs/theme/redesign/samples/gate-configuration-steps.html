@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Gate Configuration (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov: FIC10302 (LOOP v6 active, v1-v7), FIC10301 (draft v1), FIC10401 (factory layer). */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gate Configuration: the engineer's path</h1>
+  <p class="lead">Today the title carries a <b>?</b> with a sentence, and the page is two pages. With no loop it shows "Overview · Configuration by loop" (a count sentence "1 of 243 loops run a governed bundle; the rest run the factory layer", a labelled FIND A LOOP field whose placeholder is cut, "243 loop(s)", 20 rows, "← Prev · Page 1 of 13 · Next →"), "Lifecycle · Bundles in progress", Technical details and the Gate role policy card. With a loop it shows three tiles (Effective layer, Profile, Worker alignment), a second Technical details, and tabs Effective | Bundles | Editor; the Gate role policy card repeats under Effective and Bundles. Effective draws the four layers again as cards, then a gate dropdown, Find a property and a 3-column table, then an APPLY acknowledgements disclosure. Bundles adds a callout and a "Draft → Review → Publish" strip over three boxes of version buttons. The Editor is two columns under three rows of tabs (views; Properties | Diff &amp; impact | Shadow; 17 gate chips): a property table whose row expands into an editor, and a lifecycle column (six steps, created / updated / note, "Actions · In order", Approval, Deployments). At 1440 × 900 its first property row is below the fold. On that one screen ACTIVE_VERIFIED is said five times, the bundle hash five times, "This version is ACTIVE_VERIFIED … create a new version to change it." twice and Roll back is offered twice; the lifecycle is drawn three times in three vocabularies. The page answers three questions (what does each loop run under, where does each value of this loop come from, which versions exist at its levels) and holds one task done in order: change a value, validate, shadow, approve, activate, roll back. So two views, Effective and Bundles, each a list with a panel; one bundle opens as tabs in lifecycle order.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">Effective | Bundles</span><span class="chip">How to read</span><span style="color:var(--text2)">·</span><span class="chip">Band: loop · (bundle, Record details) · Open loop ↗</span><span style="color:var(--text2)">·</span><span class="chip">List: search first, gate ▾</span><span class="chip chip--q">All loops 243 ▾ (question 2)</span><span class="chip">Panel: the selected property or version</span><span class="chip">Bundle: Properties · Diff &amp; impact · Shadow · Approval · Deployments</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header</h2><q>What is this page, and how do I read its words?</q>
+      <ul><li>Set up · Gate Configuration, no <b>?</b>, no sentence</li><li>Effective | Bundles top right, no counts</li><li>How to read: Levels, Change class, Flags, Bundle state, Gate roles (today's five <b>?</b> and the Gate role policy card)</li></ul></div>
+    <div class="card step"><h2>Every loop</h2><q>What does each loop run under?</q>
+      <ul><li>Effective with no loop: search first (loop, service, profile or unit)</li><li>Loop (service · unit under it), Profile, Runs under (✓ Active (verified) · LOOP v6 / ○ Factory layer), Effective from · UTC</li><li>20 a page, governed first, the shared pager; a row opens the loop</li><li>Foot: the governed count, Build details</li></ul></div>
+    <div class="card step"><h2>One loop's values</h2><q>Where does each value come from?</q>
+      <ul><li>The layer strip: FACTORY 57 · PROFILE Flow, fast self-regulating 47 · SITE no bundle · LOOP v6 ✓ Active (verified) 1</li><li>Property search, then "G4 · Actuator effort · 3 set above factory"</li><li>Property over its class, Value with its unit, Source</li><li>Panel: value, source, class, unit, type, factory default, what it does, not read by this build</li><li>Foot: Workers ✓ 5 of 5 applied → the Workers dialog</li></ul></div>
+    <div class="card step"><h2>Versions</h2><q>Which versions exist, and which one runs?</q>
+      <ul><li>Bundles: LOOP, PROFILE, SITE grouped in one list, newest first; "no bundle at this level - the layer below applies"</li><li>Panel: class, created, effective from, validation errors, content hash; Open v6 →</li><li>Prepare bundle draft: level, note, the version it starts from</li><li>With no loop: the bundles in progress of the scope</li></ul></div>
+    <div class="card step"><h2>Change it</h2><q>What do I change, and what does that change?</q>
+      <ul><li>Properties: the same list as Effective plus Flags; the panel is the editor: effective, inherited, bounds, Set, Reset to inherited</li><li>Diff &amp; impact: affects, rollout, the class sentences, the diff, validation; Validate</li><li>Next: X → on every tab; the frozen reason once</li></ul></div>
+    <div class="card step"><h2>Prove and release</h2><q>Is it safe, who approved it, did every worker apply it?</q>
+      <ul><li>Shadow: loop, hours, Run shadow; the report and the reclassification alert</li><li>Approval: the approvals, then note, valid for (h), Approve</li><li>Deployments: effective from, Activate, Roll back once; each deployment in a panel with its matrix, probe and semantics</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title ? "What each loop runs under, the bundles in progress, and the editor for one of them." (and the loop version "What this loop runs under today, the bundles at its three levels, and the editor for one of them.")</td><td>Removed: the two views name the questions. Question 1</td></tr>
+        <tr><td><span class="n">2</span>Overview page / loop page; tabs Effective | Bundles | Editor (Editor only once a bundle is open)</td><td>Effective | Bundles top right; no loop = every loop / bundles in progress; a loop = its values / its levels; a bundle opens under Bundles (<code>?view=editor&amp;bundle=</code> stays). Question 1</td></tr>
+        <tr><td><span class="n">2</span>Five ? (title, "How the layers combine", "The three levels", "What this list holds", "Gate role policy") and the Gate role policy card under every view</td><td>How to read in five titled parts; their sentences word for word ("A layer above sets a property, or leaves the one below.", "The most specific active level wins.", the three level lines, "Drafts, validated, shadowed, approved or failed - active and superseded ones live on their loop's page.", the roles and the G9 sentence). Question 8</td></tr>
+        <tr><td><span class="n">3</span>Band: Search loops · Open loop ↗; in the editor a panel head "LOOP FIC10302 · V6 / Properties · G0 / ACTIVE_VERIFIED / ‹ Bundles" and "hash / etag f9153b00aaf3ba1a · 6c8eae20025f98e6"</td><td>Band: loop · LOOP v6 ✓ Active (verified) · Record details … Open loop ↗; ‹ Bundles goes (the toggle); hash and etag in Record details</td></tr>
+        <tr><td><span class="n">4</span>"FIND A LOOP" label, placeholder "loop, service, profile or unit" (cut), "243 loop(s)"</td><td>Search first, no label, "Loop, service, profile or unit"; the count goes (question 2 puts the counts in a dropdown)</td></tr>
+        <tr><td><span class="n">5</span>Rows: underlined tag; "Analyser controller AIC30601 · B2"; "LOOP v6 · f9153b00"; "factory layer"; "25/09/2026, 18:37:18 UTC"; "← Prev Page 1 of 13 Next →"</td><td>The row opens the loop; "Analyser controller · B2" (tag once); "LOOP v6" (the hash lives in Bundles); "○ Factory layer"; "25 Sept 18:37" under "Effective from · UTC"; the shared pager, 32 px, centred</td></tr>
+        <tr><td><span class="n">6</span>"1 of 243 loops run a governed bundle; the rest run the factory layer" at the card's top right; Technical details (catalogue hash, 165 properties, 6 workers announced); eyebrows "Overview", "Lifecycle"</td><td>The count in the list foot; Build details (a dialog, the hash short and copyable); eyebrows removed</td></tr>
+        <tr><td><span class="n">7</span>Tiles "LOOP v6 · Effective layer · ACTIVE_VERIFIED", "FLOW_FAST_SELF_REG · Profile", and the cards "FACTORY shipped 57 properties shipped defaults · PROFILE FLOW_FAST_SELF_REG 47 overrides class pack · SITE hdpe — no bundle · LOOP FIC10302 1 override bundle LOOP v6 · f9153b00" under "Where each value comes from ?"</td><td>One strip: FACTORY Shipped defaults 57 properties · PROFILE Flow, fast self-regulating 47 overrides · SITE hdpe no bundle · LOOP v6 ✓ Active (verified) 1 override. The tiles' links to Bundles: the toggle</td></tr>
+        <tr><td><span class="n">8</span>Gate dropdown "G0 · 2 set above factory", then Find a property</td><td>Search first ("Property"), then "G0 · Data quality · 2 set above factory"; "All matching gates" while searching</td></tr>
+        <tr><td><span class="n">9</span>Rows "G0.bad_fraction_max" with a ● POLICY pill; "NO_VALUE" · "unset"; FACTORY / PROFILE pills</td><td>"bad_fraction_max" over "Policy" or "◆ State boundary" (the full key in search results, on hover, in the panel); "No value" · "Unset"; values with units ("3600 s", "0.5 pp"); "LOOP v6", "PROFILE", "FACTORY" as words</td></tr>
+        <tr><td><span class="n">10</span>Property dialog: Value, Source, Class, Id, Unit, Type, Factory default, What it does, Not read by this build</td><td>The panel beside the list, the same rows; the id in its heading. Question 3</td></tr>
+        <tr><td><span class="n">11</span>Worker alignment tile "5 of 5 applied · one jar · catalogue matches"; disclosure "APPLY acknowledgements" (job · jar · catalogue · applied "ACK f9153b00" ×5, jar and catalogue the same on every row; the bundle line); the loop's Technical details (bundle hash, catalogue hash, properties, workers announced, worker jars)</td><td>Foot "Workers ✓ 5 of 5 applied · one jar · catalogue matches" and a Workers dialog: Job · Applied (observer row kept); Build: Bundle, Bundle hash, Catalogue hash, Catalogue properties, Workers announced, Worker jar, short and copyable. A Jar or Catalogue column returns only when a worker differs</td></tr>
+        <tr><td><span class="n">12</span>"Bundles ?"; callout "Nothing changes for a loop until a bundle is published."; strip "Draft → Review → Publish"; three boxes of version buttons "v7 · 337ddfe7 ● ROLLED_BACK POLICY · 25/09/2026, 18:37:18 UTC · e2e_cfg_engineer_a733d49f · slice-3 e2e v2"</td><td>One list grouped LOOP / PROFILE · Flow, fast self-regulating / SITE · hdpe: Version (note under it), By, Updated · UTC, State ("↺ Rolled back"); Prepare bundle draft at its head; the callout into the draft dialog; the strip goes (the bundle's tabs are the sequence)</td></tr>
+        <tr><td><span class="n">12</span>Bundles in progress (scope · version · hash · state · class · updated · author)</td><td>Bundles with no loop: Scope, Version, State, Updated · UTC, By; hash and class in the panel</td></tr>
+        <tr><td><span class="n">13</span>A version button opened the editor at once</td><td>It selects the version; the panel: LOOP v6 ✓ Active (verified), Change class, Created, Effective from, Validation errors, Content hash ⧉; the foot "Open v6 →"</td></tr>
+        <tr><td><span class="n">14</span>Lifecycle column: "v6 · f9153b00aaf3 ACTIVE_VERIFIED", steps Draft · Validated · Shadow · Approved · Deploying · Active, created / updated / note, "ACTIONS In order" with Validate · Shadow · Approve · Activate · Roll back</td><td>Tabs Properties · Diff &amp; impact · Shadow · Approval · Deployments with ✓ done / ● current, "Next: X →" in each foot; each action on its step's tab; created / updated / note in Record details. Questions 4, 5</td></tr>
+        <tr><td><span class="n">14</span>"This version is ACTIVE_VERIFIED: create a new version to change it." (centre) and "This version is ACTIVE_VERIFIED - create a new version to change it." (Actions)</td><td>Once, under the tabs: "This version is Active (verified) - create a new version to change it."; the disabled actions under it do not repeat it</td></tr>
+        <tr><td><span class="n">15</span>17 gate chips (a third tab row); tab label "Properties · 2 invalid"; catalogue order</td><td>The gate dropdown "G4 · Actuator effort", the invalid count in its options ("· 1 invalid") and the invalid flag on the row; alphabetical, as Effective</td></tr>
+        <tr><td><span class="n">15</span>The row that expands into the editor (name repeated in its head, "CFG-077 · number · dimensionless", effective, inherited, catalogue start, bounds, read by, field, Set, Reset to inherited)</td><td>The panel: class and flags, what it does, Effective, Inherited, Catalogue start, Bounds, Depends on, Read by, Type · unit, the field, Set and Reset to inherited with the reason under each disabled one</td></tr>
+        <tr><td><span class="n">16</span>Validate in the lifecycle column; eyebrow "DIFF &amp; IMPACT", "VALIDATION No errors ● VALID"</td><td>Validate on Diff &amp; impact, under the validation it produces; "Validation ✓ Valid"</td></tr>
+        <tr><td><span class="n">17</span>Actions "Shadow" (it only opened the Shadow tab) beside "Run shadow"</td><td>Run shadow only; eyebrow "SHADOW EVALUATION not run" → "Shadow evaluation ○ Not run ?"</td></tr>
+        <tr><td><span class="n">18</span>"APPROVAL approved by admin (expired)" with a row "● APPROVED admin (Admin) f9153b00 expires 25/09/2026, 20:37:01 UTC · slice-3 e2e review"; Approve's note and Valid for (h) inline under the button</td><td>Approval tab: "Approved by admin ✕ Expired", a table Decision · Approver · Content · Expires · UTC · Note, then Approval note, Valid for (h), Approve; the hash-bound and expiry rule behind ?</td></tr>
+        <tr><td><span class="n">19</span>Activate (with "Effective from (optional, ISO)") and Roll back in the column; "Roll back to the previous bundle" on the activation card; "DEPLOYMENTS 2 of this version, newest first"; each card: kind · date, the state text, a state pill, "bundle hash f9153b00aaf3ba1a", effective · epoch · by, rolls back, the matrix disclosure, probe</td><td>Deployments tab: Effective from, Activate, Roll back once at the head; a list (Rollback / Activation · 25 Sept 18:37 · 5 of 5 PREPARE · 5 of 5 APPLY · state) and a panel (the state text, Effective · by, Epoch, Rolls back, Probe, the matrix with the shared jar in its heading, the semantics, the observers). "bundle hash" goes: it is the version's own hash (Record details). Question 7</td></tr>
+        <tr><td><span class="n">20</span>"hash / etag" under the editor head; created / updated / note in the lifecycle column; "v6 · f9153b00aaf3" as its title</td><td>Record details from the band: Content hash, Etag, Created, Updated, Note, Catalogue hash, each hash short with Copy</td></tr>
+        <tr><td><span class="n">21</span>Prepare bundle draft: three radios "LOOP FIC10302 · PROFILE FLOW_FAST_SELF_REG · SITE hdpe", a "draft note" field, Create draft disabled with no reason</td><td>Titled parts Level ? and Note; the callout sentence; "Starts from" per level (question 6); a disabled Create draft says why ("Loading the LOOP versions…", "The LOOP versions could not be read, so a draft cannot start from the right one." stay)</td></tr>
+        <tr><td>"No loop matches · Nothing in scope matches "zzz"." / "No property matches · Nothing in this loop's configuration matches "zzz"."</td><td>"No loop matches “zzz”" with Show all loops; "No property matches “zzz”" with Clear search</td></tr>
+        <tr><td>Below 1280 px the lifecycle column drops under the table (at 1000 px the actions sit about 1,000 px down)</td><td>Each panel becomes a drawer, as Calculations; the bundle's actions are on their tabs</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>The address</td><td><code>?loop= ?view=effective|bundles|editor ?bundle= ?gate= ?tab=</code>; the first landing replaces, every move pushes, Back retraces. <code>?tab=</code> gains approval and deployments</td></tr>
+        <tr><td>Every loop</td><td>20 a page, governed first then by loop id; search over loop, service, profile and unit; the plant scope from the header; the fleet read only while the list is open</td></tr>
+        <tr><td>One loop's values</td><td>All 165 properties as the server resolves them; source per property; class, id, unit, type, factory default, what it does, the not-read reason; search across gates; layer counts; the observer row; "a worker runs ANOTHER catalogue" stays on screen</td></tr>
+        <tr><td>Bundles</td><td>Three levels, newest first, the active one marked; state, class, date, author, validation errors, note; Prepare bundle draft needs cpm.config.draft ("Drafting a bundle needs cpm.config.draft."), the level and note, the error kept in the dialog with the note typed, Create draft / Creating…</td></tr>
+        <tr><td>Editor fields and rules</td><td>Typed inputs (choose… for enum and boolean, "a, b, c (replaces the whole list)", the unit as placeholder); every parse error (a fraction not a percent, integer, bounds, enum); Set, Reset to inherited and their reasons; "Read-only in this build: …"; errors per property; editable only in Draft, Validated, Shadow evaluated, Rejected with cpm.config.draft; the etag on each change</td></tr>
+        <tr><td>Diff &amp; impact</td><td>The affects text per scope, the rollout sentence, the STATE_BOUNDARY sentence, the DEPLOYMENT alert, the diff, errors, warnings, the not-read sentence, "Not validated yet."</td></tr>
+        <tr><td>Shadow</td><td>Loop (fixed for a LOOP bundle), Hours 24, Run shadow / Run again / Starting…, its reasons, the ? text, support, windows, symptoms, the reclassification alert word for word, 40 windows, the no-LIVE sentence, polling while running</td></tr>
+        <tr><td>Approval and activation</td><td>Four eyes ("Needs cpm.config.approve (by someone other than the author)."), the note "recorded, hash-bound", Valid for (h) 72, an expired approval needs a new one, Effective from (optional, ISO), the server's refusals as "Refused:" / "Conflict:", every reason sentence from "Needs cpm.config.validate." to "Only a verified activation can be rolled back."</td></tr>
+        <tr><td>Deployments</td><td>Newest first; the state text from the server and its tone; effective, epoch, by, rolls back; PREPARE / APPLY / active bundle per job with jar, NACK reason and "other hash"; the mixed-jar alert; the semantics; observers; the probe; polling in flight; the matrix opens by itself while a deployment is in flight or refused</td></tr>
+        <tr><td>Permissions</td><td>The page needs cpm.config.read ("Reading the governed configuration needs cpm.config.read."); each step its own permission</td></tr>
+        <tr><td>States</td><td>Loading skeletons; "Catalogue unavailable", "Effective configuration unavailable", "Configuration summary unavailable", "Bundles unavailable", "Versions unavailable" with Retry; "Nothing in progress in this scope."</td></tr>
+        <tr><td>Other pages</td><td>The effective-configuration drawer in Loop Explorer and the Workbench, and Governance's approval queue, unchanged</td></tr>
+        <tr><td>Sizes</td><td>40 px header and panel buttons and form fields; 32 px band and filter fields and pager; two-line rows as today</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Two views, Effective | Bundles, in place of the overview page, the loop page's tiles and the Editor tab?</b> <span>With no loop, Effective lists what every loop runs under and Bundles lists the bundles in progress; with a loop, its values and its levels; a bundle opens under Bundles. Recommended: yes. No backend change.</span></li>
+      <li><b>The governed count as a dropdown: All loops 243 · Governed bundle 1 · Factory layer 242?</b> <span>Adds a filter (client side, no backend change). Recommended: yes; drawn dashed. If not, the count line stays in the list foot as drawn.</span></li>
+      <li><b>The selected property in a panel?</b> <span>On Effective it replaces today's dialog; in a bundle it replaces the row that expands into the editor. Recommended: yes, a drawer below 1280 px. No backend change.</span></li>
+      <li><b>A bundle's lifecycle as five tabs in order, each action on its step's tab?</b> <span>Properties · Diff &amp; impact (Validate) · Shadow (Run shadow) · Approval (Approve) · Deployments (Activate, Roll back), with Next: X →, in place of the always-visible lifecycle column. The other way: keep a lifecycle panel to the right of every tab. Recommended: the tabs. No backend change.</span></li>
+      <li><b>The tabs carry the lifecycle marks (✓ done, ● current) in place of the six-step strip?</b> <span>The marks come from the state, as the strip's do today. Recommended: yes. No backend change.</span></li>
+      <li><b>Prepare bundle draft says which version a draft starts from, and should it start from the active one?</b> <span>Today a draft starts from the newest version of the level by number, whatever its state, and nothing says so: a LOOP draft for FIC10302 starts from v7 (↺ Rolled back, G4.activity_warn_ratio 5), not the active v6 (4.5). Recommended: show "Starts from" (drawn dashed) and start from the level's active version when it has one. Both client side, no backend change.</span></li>
+      <li><b>A confirmation before Roll back?</b> <span>Today it acts on the first click. Adds a step. Recommended: yes; drawn dashed. No backend change.</span></li>
+      <li><b>Gate role policy into How to read?</b> <span>Task 25 put the card under every view of this page; it is the build's reference, the same for every loop. Recommended: How to read › Gate roles, the G9 sentence with it. No backend change.</span></li>
+      <li><b>Diff &amp; impact against the layers below the bundle, not the factory layer only?</b> <span>A first version is compared with FACTORY alone, so the class pack reads as changes: v6 sets one value yet says "36 properties differ from the factory layer" and shows that one as "NO_VALUE → 4.5" where the loop ran 3 (PROFILE); the empty draft FIC10301 v1 says the same. It changes what an approver reads. Client side (the bundle carries its layers; the editor's "inherited" already does this). Recommended: yes. Not drawn: the sample keeps today's 36 rows.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Found on the way, not part of this proposal</h3>
+    <ul>
+      <li>System Response's "Check G12 settings" opens <code>/cpm/config?loop=…&amp;view=effective&amp;gate=G12</code>, but Effective ignores <code>?gate=</code> and opens on G0 (checked in a fresh session: the gate dropdown reads G0).</li>
+      <li>Diff &amp; impact of a version with no parent compares with the FACTORY layer only (question 9): 36 "differences" for a bundle that sets one value, and for an empty draft.</li>
+      <li>A new draft starts from the newest version of its level whatever its state: FIC10302's next LOOP draft would carry v7's rolled-back value (question 6).</li>
+      <li>Roll back is offered twice on one screen ("Roll back" in Actions and "Roll back to the previous bundle" on the activation) and acts without a confirmation.</li>
+      <li>The Actions' "Shadow" button only switches to the Shadow tab, where "Run shadow" is the real action.</li>
+      <li>On an active version the Shadow tab says "Validate the bundle first — only a validated bundle can be shadow-run"; it is validated, it is frozen.</li>
+      <li>A bundle id that does not exist shows "Could not load this data · bundle … not found · Retry": the "Bundle not found" state with "‹ Bundles" never shows for the server's 404.</li>
+      <li>Vocabulary: "Draft → Review → Publish" and "until a bundle is published", while no step or action is called Review or Publish (Validate, Shadow, Approve, Activate).</li>
+      <li>The overview says "Active (verified)", "Flow, fast self-regulating", "factory layer"; the loop pages say ACTIVE_VERIFIED, FLOW_FAST_SELF_REG, "Factory layer" for the same facts.</li>
+      <li>Two orders: Effective sorts properties alphabetically, the editor in catalogue order.</li>
+      <li>"rolls back 617f2e13-2ef": a deployment id cut at 12 characters through its hyphen; "epoch —" on every deployment of the lab.</li>
+      <li>"approved by admin (expired)" on the active version: the approval's 2 h validity ran out after activation, and the page still reads it as a warning.</li>
+      <li>The editor shows "catalogue start NO_VALUE" when the catalogue has no start value (the check is <code>!== null</code>; the field is absent). Long names break mid-word ("G0.evidence_retention_day / s").</li>
+      <li>The loop's Technical details stays open when another loop is chosen (the header is not remounted).</li>
+      <li>Lab facts: one governed loop (FIC10302, LOOP v6); no PROFILE or SITE bundle; one draft (FIC10301 v1) that sets nothing; no shadow run, no validation error, nothing waiting for approval or activation, every approval expired. Those states are illustrative in the sample and say so.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

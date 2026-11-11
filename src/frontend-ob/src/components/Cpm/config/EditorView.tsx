@@ -1,27 +1,33 @@
 /**
- * The editor of one bundle (2026-09-17 audit F18, extracted from the shell on 2026-09-18): the property
- * table per gate with one editor open, Diff & impact and Shadow as tabs, the lifecycle column (steps,
- * actions in order with their reason, approvals) and the deployments timeline. Two columns; the shell
- * owns the URL (bundle, gate, tab) and the loop context.
+ * One bundle (2026-09-17 audit F18, extracted from the shell on 2026-09-18). The shell owns the URL (bundle, gate, tab) and the
+ * loop context; the band above names the bundle and holds its Record details.
+ * CHG-169 (owner review, the approved sample docs/theme/redesign/samples/gate-configuration-proposal.html): five tabs in
+ * lifecycle order - Properties · Diff & impact · Shadow · Approval · Deployments (`?tab=`) - with ✓ done / ● current from the
+ * state (they replace the six-step strip) and "Next: X →" at each foot. Each lifecycle action sits on its step's tab (Validate on
+ * Diff & impact, Run shadow on Shadow, Approve on Approval, Activate and Roll back on Deployments) instead of the always-visible
+ * lifecycle column; the column's "Shadow" button, which only switched tabs, went. Why a version cannot change is said once,
+ * under the tabs, in the state's word; the disabled actions under it do not repeat it. A bundle the server does not know reads
+ * "Bundle not found". Every action sends what the column sent, with the same permissions and the same server refusals.
  */
 import React, { useEffect, useMemo } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Tabs, tabPanelProps } from '../../../ui/Tabs';
-import { EmptyState, KvRow, PanelHead, QueryError, TonePill } from '../shared';
-import type { CatalogueEntry, PatchOp } from '../../../api/cpm/config';
+import { EmptyState, QueryError } from '../shared';
+import { ApiError } from '../../../api/apiFetch';
+import type { PatchOp } from '../../../api/cpm/config';
 import { useBundle, useConfigActions, useConfigCatalogue, useDeployments } from './useConfig';
-import { PropertyTable } from './PropertyTable';
+import { PropertiesTab } from './PropertiesTab';
 import { DiffImpactPanel } from './DiffImpactPanel';
 import { ShadowComparison } from './ShadowComparison';
-import { LifecyclePanel } from './LifecyclePanel';
-import { DeploymentStatus } from './DeploymentStatus';
-import { bundleStateTone, shortHash } from './configSupport';
+import { ApprovalTab, currentApproval } from './ApprovalTab';
+import { DeploymentsTab } from './DeploymentsTab';
+import { BUNDLE_TABS, EDITABLE_STATES, frozenSentence, lifecycleActions, tabMarks, type BundleTab, type LifecycleAction } from './lifecycle';
 
-export type ConfigTab = 'properties' | 'diff' | 'shadow';
-export const TABS: ConfigTab[] = ['properties', 'diff', 'shadow'];
-const TAB_TITLE: Record<ConfigTab, string> = { properties: 'Properties', diff: 'Diff & impact', shadow: 'Shadow' };
-export const GATES = ['G0', 'G1', 'G2', 'G2r', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'G14', 'G15'];
-const EDITABLE_STATES = new Set(['DRAFT', 'VALIDATED', 'SHADOW_EVALUATED', 'REJECTED']);
+export type ConfigTab = BundleTab;
+export const TABS: ConfigTab[] = BUNDLE_TABS;
+export { GATES } from './configLists';
+const TAB_TITLE: Record<ConfigTab, string> = { properties: 'Properties', diff: 'Diff & impact', shadow: 'Shadow', approval: 'Approval', deployments: 'Deployments' };
+const MARK = { done: ' ✓', current: ' ●' } as const;
 
 export interface ConfigPerms { draft: boolean; validate: boolean; shadow: boolean; approve: boolean; activate: boolean; rollback: boolean }
 
@@ -42,7 +48,8 @@ export interface EditorViewProps {
 
 export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, perms, loopId, siteLoopCount, onGate, onTab, onBack, onSiteKnown }) => {
   const catalogue = useConfigCatalogue();
-  const byProperty = useMemo(() => new Map((catalogue.data?.properties ?? []).map(p => [p.property, p] as [string, CatalogueEntry])), [catalogue.data]);
+  const entries = useMemo(() => catalogue.data?.properties ?? [], [catalogue.data]);
+  const byProperty = useMemo(() => new Map(entries.map(p => [p.property, p])), [entries]);
   const bundle = useBundle(bundleId);
   const b = bundle.data;
   const parent = useBundle(b?.parentBundleId ?? undefined);
@@ -50,70 +57,69 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
   const actions = useConfigActions(b?.site);
   useEffect(() => { if (b?.site && onSiteKnown) onSiteKnown(b.site); }, [b?.site, onSiteKnown]);
 
-  const editable = !!b && EDITABLE_STATES.has(b.state) && perms.draft;
-  const gateProps = useMemo(() => (catalogue.data?.properties ?? []).filter(p => p.gate === gate), [catalogue.data, gate]);
-  const onOp = (op: PatchOp) => { if (b) actions.patch.mutate({ id: b.bundleId, etag: b.etag, ops: [op] }); };
+  if (bundle.isLoading && !b) return <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the bundle…</span></div>;
+  const missing = <section className="cpm-surface"><EmptyState title="Bundle not found" copy="The bundle in the address does not exist (any more). Go back to the levels." action={{ label: '‹ Bundles', onClick: onBack }} /></section>;
+  if (bundle.isError) return bundle.error instanceof ApiError && bundle.error.status === 404 ? missing : <QueryError error={bundle.error} retry={() => void bundle.refetch()} />;
+  if (!b) return missing;
+
+  const editable = EDITABLE_STATES.has(b.state) && perms.draft;
+  const frozen = EDITABLE_STATES.has(b.state) ? null : frozenSentence(b.state);
+  const { expired } = currentApproval(b);
   const deploymentList = deployments.data?.deployments ?? [];
   const verifiedActivation = deploymentList.find(d => d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE');
-  const invalidCount = b?.validation?.errors.length ?? 0;
-  const tabs = TABS.map(t => ({ value: t, label: t === 'properties' && invalidCount ? `${TAB_TITLE[t]} · ${invalidCount} invalid` : TAB_TITLE[t] }));
-
-  if (bundle.isLoading && !b) return <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the bundle…</span></div>;
-  if (bundle.isError) return <QueryError error={bundle.error} retry={() => void bundle.refetch()} />;
-  if (!b) return <EmptyState title="Bundle not found" copy="The bundle in the address does not exist (any more). Go back to the levels." action={{ label: '‹ Bundles', onClick: onBack }} />;
+  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, !!verifiedActivation);
+  // the frozen reason is said once, under the tabs; a disabled action with that reason says nothing more under itself
+  const reasonOf = (a: LifecycleAction) => (a.enabled || a.reason === frozen ? null : a.reason);
+  const marks = tabMarks(b.state);
+  const options = TABS.map(t => ({ value: t, label: `${TAB_TITLE[t]}${marks[t] ? MARK[marks[t]!] : ''}` }));
+  const next = TABS[TABS.indexOf(tab) + 1];
+  const foot = next && (
+    <div className="cpm-config-next"><ObcButton variant="raised" onClick={() => onTab(next)}>Next: {TAB_TITLE[next]} {'→'}</ObcButton></div>
+  );
+  const onOp = (op: PatchOp) => actions.patch.mutate({ id: b.bundleId, etag: b.etag, ops: [op] });
 
   return (
-    <div className="cpm-config-columns">
-      <div className="cpm-config-centre">
-        {catalogue.isError && <QueryError error={catalogue.error} retry={() => void catalogue.refetch()} />}
-        <section className="cpm-surface">
-          <PanelHead eyebrow={`${b.scopeKind}${b.scopeRef ? ` ${b.scopeRef}` : ` ${b.site}`} · v${b.version}`} title={tab === 'properties' ? `Properties · ${gate}` : TAB_TITLE[tab]}
-            right={<span className="cpm-config-inline"><TonePill tone={bundleStateTone(b.state)}>{b.state}</TonePill><ObcButton variant="flat" onClick={onBack}>‹ Bundles</ObcButton></span>} />
-          <KvRow label="hash / etag"><span className="cpm-mono">{shortHash(b.contentHash, 16)} · {b.etag}</span></KvRow>
-          {!editable && perms.draft && <p className="cpm-copy">This version is {b.state}: create a new version to change it.</p>}
-          {actions.patch.isError && <p className="cpm-field__error" role="alert">{actions.patch.error instanceof Error ? actions.patch.error.message : String(actions.patch.error)}</p>}
-          <div className="cpm-tabs">
-            <Tabs idBase="config-editor" label="Bundle editor" options={tabs} value={tab} onChange={onTab} />
-          </div>
-          <div {...tabPanelProps('config-editor', tab)}>
-            {tab === 'properties' && (
-              <>
-                <div className="cpm-config-gates" role="tablist" aria-label="Gate">
-                  {GATES.map(g => <button key={g} type="button" role="tab" aria-selected={g === gate} className={`cpm-config-gate${g === gate ? ' cpm-config-gate--selected' : ''}`} onClick={() => onGate(g)}>{g}</button>)}
-                </div>
-                <PropertyTable entries={gateProps} bundle={b} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
-              </>
-            )}
-            {tab === 'diff' && <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount} />}
-            {tab === 'shadow' && (
-              <ShadowComparison bundle={b} defaultLoopId={loopId} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
-                onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
-            )}
-          </div>
-        </section>
+    <div className="cpm-config-onebundle">
+      {catalogue.isError && <QueryError title="Catalogue unavailable" error={catalogue.error} retry={() => void catalogue.refetch()} />}
+      <div className="cpm-tabs-row">
+        <div className="cpm-tabs"><Tabs idBase="config-editor" label="Bundle lifecycle" options={options} value={tab} onChange={onTab} /></div>
+        <span className="cpm-tabs-row__end cpm-event-row__sub">✓ done · ● current</span>
       </div>
-
-      <aside className="cpm-config-side" aria-label="Bundle lifecycle">
-        <LifecyclePanel bundle={b} perms={{ validate: perms.validate, shadow: perms.shadow, approve: perms.approve, activate: perms.activate, rollback: perms.rollback }}
-          pending={{ validate: actions.validate.isPending, approve: actions.approve.isPending, deploy: actions.deploy.isPending, rollback: actions.rollback.isPending }}
-          errors={{ validate: actions.validate.error, approve: actions.approve.error, deploy: actions.deploy.error, rollback: actions.rollback.error }}
-          hasVerifiedActivation={!!verifiedActivation}
-          onValidate={() => actions.validate.mutate(b.bundleId)} onShadow={() => onTab('shadow')}
-          onApprove={a => actions.approve.mutate({ id: b.bundleId, ...a })}
-          onDeploy={a => actions.deploy.mutate({ bundleId: b.bundleId, ...a })}
-          onRollback={() => { if (verifiedActivation) actions.rollback.mutate(verifiedActivation.deploymentId); }} />
-        {deployments.isError && <QueryError error={deployments.error} retry={() => void deployments.refetch()} />}
-        {deploymentList.length > 0 && (
-          <>
-            <PanelHead eyebrow="Deployments" title={`${deploymentList.length} of this version, newest first`} />
-            <ol className="cpm-config-deployments" aria-label="Deployments">
-              {deploymentList.map(d => (
-                <DeploymentStatus key={d.deploymentId} deployment={d} canRollback={perms.rollback} rollbackPending={actions.rollback.isPending} onRollback={id => actions.rollback.mutate(id)} />
-              ))}
-            </ol>
-          </>
+      {frozen && <p className="cpm-config-frozen">{frozen}</p>}
+      {tab === 'properties' && actions.patch.isError && <p className="cpm-field__error" role="alert">{actions.patch.error instanceof Error ? actions.patch.error.message : String(actions.patch.error)}</p>}
+      <div {...tabPanelProps('config-editor', tab)}>
+        {tab === 'properties' && (
+          <PropertiesTab bundle={b} entries={entries} gate={gate} onGate={onGate} editable={editable} pending={actions.patch.isPending} onOp={onOp} foot={foot} />
         )}
-      </aside>
+        {tab === 'diff' && (
+          <section className="cpm-surface">
+            <DiffImpactPanel bundle={b} parent={parent.data} catalogue={byProperty} siteLoopCount={siteLoopCount}
+              validate={{ enabled: validate.enabled, reason: reasonOf(validate), busy: actions.validate.isPending, error: actions.validate.error, onValidate: () => actions.validate.mutate(b.bundleId) }} />
+            {foot}
+          </section>
+        )}
+        {tab === 'shadow' && (
+          <section className="cpm-surface">
+            <ShadowComparison bundle={b} defaultLoopId={loopId} canShadow={perms.shadow} pending={actions.shadow.isPending} error={actions.shadow.error}
+              onStart={a => actions.shadow.mutate({ id: b.bundleId, ...a })} />
+            {foot}
+          </section>
+        )}
+        {tab === 'approval' && (
+          <section className="cpm-surface">
+            <ApprovalTab bundle={b} action={approve} reason={reasonOf(approve)} busy={actions.approve.isPending} error={actions.approve.error}
+              onApprove={a => actions.approve.mutate({ id: b.bundleId, ...a })} />
+            {foot}
+          </section>
+        )}
+        {tab === 'deployments' && (
+          <DeploymentsTab bundle={b} deployments={deploymentList} deploymentsLoading={deployments.isLoading} deploymentsError={deployments.isError ? deployments.error : null} retryDeployments={() => void deployments.refetch()}
+            activate={deploy} rollback={rollback} reasons={{ activate: reasonOf(deploy), rollback: reasonOf(rollback) }}
+            busy={{ deploy: actions.deploy.isPending, rollback: actions.rollback.isPending }} errors={{ deploy: actions.deploy.error, rollback: actions.rollback.error }}
+            verifiedActivation={verifiedActivation}
+            onDeploy={a => actions.deploy.mutate({ bundleId: b.bundleId, ...a })} onRollback={id => actions.rollback.mutate(id)} />
+        )}
+      </div>
     </div>
   );
 };

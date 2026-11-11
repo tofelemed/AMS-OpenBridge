@@ -1,16 +1,18 @@
-// 2026-09-18 Gate Configuration redesign: the URL machine. No loop → the overview (one fleet read, the
-// bundles of the site in summary form); ?loop= alone → the URL is replaced with view=effective and the
-// effective read is the only per-loop request; the Bundles view reads the three levels only when opened;
-// a version opens the editor; the loop band drives everything.
+// CHG-169 (owner review, the approved sample and the answers of 11 Nov 2026): the address machine and what each view reads.
+// No loop: Effective lists every loop (one fleet read, no per-loop read); Bundles lists the bundles in progress. ?loop= alone is
+// replaced with view=effective; ?gate= opens that gate (it opened on G0); a bundle opens under Bundles as five tabs; the band
+// names it with its state and Record details; a missing bundle reads "Bundle not found"; How to read holds the gate roles.
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
 import { useAuthStore } from '../../../store/authStore';
+import { setActiveZone } from '../../../cpa/activeZone';
 import { configHref } from '../cpaHref';
 import { GateConfigurationWorkspace } from './GateConfigurationWorkspace';
+import { respond } from './configTestData';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/apiFetch')>();
@@ -23,46 +25,9 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', () => ({ ObiContentCopyGoogle: () => null }));
+vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-close-google', () => ({ ObiCloseGoogle: () => null }));
 
-const loops = { loops: [
-  { loopId: 'FIC10302', displayName: 'Reactor feed flow', site: 'hdpe', area: 'a', unit: 'u', loopType: 'FIC', tags: {}, links: [], observabilityFlags: [] },
-  { loopId: 'TIC10101', displayName: 'Temp', site: 'hdpe', area: 'a', unit: 'u', loopType: 'TIC', tags: {}, links: [], observabilityFlags: [] },
-] };
-const effective = {
-  loopId: 'FIC10302', site: 'hdpe', profileId: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED',
-  bundle: { bundleId: 'l2', version: 2, contentHash: 'f9153b00aaf3ba1a', scopeKind: 'LOOP', scopeRef: 'FIC10302', changeClass: 'POLICY', effectiveFrom: '2026-09-17T06:36:16Z', catalogueHash: 'c' },
-  properties: { 'G0.mode': 'OPERATIONAL', 'G4.activity_warn_ratio': 4.5 }, sources: { 'G0.mode': 'FACTORY', 'G4.activity_warn_ratio': 'LOOP' },
-  workers: [{ jobName: 'a', jarSha256: 'j', catalogueHash: 'c', ack: { status: 'ACK', bundleHash: 'f9153b00aaf3ba1a', jarSha256: 'j', receivedAt: 't' } }],
-};
-const summaryRow = (kind: string, id: string, version: number, state: string) => ({ bundleId: id, version, contentHash: 'f9153b00aaf3ba1a', site: 'hdpe', scopeKind: kind, scopeRef: kind === 'LOOP' ? 'FIC10302' : kind === 'PROFILE' ? 'FLOW_FAST_SELF_REG' : null, parentBundleId: null, changeClass: 'POLICY', state, effectiveFrom: null, createdBy: 'alice', createdAt: 't', updatedAt: '2026-09-17T06:36:16Z', note: null, validationErrors: 0 });
-
-function respond(url: string): unknown {
-  if (url.includes('/gate-catalogue')) return { gates: [{ gate: 'G0', role: 'BLOCKING' }, { gate: 'G9', role: 'SUPPORTING' }] };
-  if (url.includes('/configuration/effective/summary')) return { count: 2, loops: [
-    { loopId: 'FIC10302', displayName: 'Reactor feed flow', site: 'hdpe', area: 'a', unit: 'u', loopType: 'FIC', profileId: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED', bundle: { ...effective.bundle, since: null } },
-    { loopId: 'TIC10101', displayName: 'Temp', site: 'hdpe', area: 'a', unit: 'u', loopType: 'TIC', profileId: 'TEMP_SLOW_SELF_REG', state: 'NO_ACTIVE_BUNDLE', bundle: null },
-  ] };
-  if (url.includes('/configuration/effective?')) return effective;
-  if (url.includes('/configuration/catalogue')) return { catalogueHash: 'c'.repeat(64), count: 2, executionPlanHash: 'e', properties: [
-    { property: 'G0.mode', id: 'CFG-001', gate: 'G0', type: 'enum', unit: 'state', effect: 'x', default: 'OPERATIONAL', validation: ['OPERATIONAL'], dependencies: [], consumers: [], changeClass: 'POLICY', commissioningRequired: false, notReadByBuild: null },
-    { property: 'G4.activity_warn_ratio', id: 'CFG-020', gate: 'G4', type: 'number', unit: 'ratio', effect: 'y', default: 4, validation: {}, dependencies: [], consumers: [], changeClass: 'POLICY', commissioningRequired: false, notReadByBuild: null },
-  ], workers: [], factoryLayerAvailable: true, profileIds: ['FLOW_FAST_SELF_REG'], executionPlan: {} };
-  if (url.includes('/configuration/drafts?')) {
-    const q = new URL('http://x' + url).searchParams;
-    if (q.get('projection') !== 'summary') throw new Error(`lists must read summary rows: ${url}`);
-    const kind = q.get('scopeKind');
-    const all = [summaryRow('LOOP', 'l2', 2, 'ACTIVE_VERIFIED'), summaryRow('LOOP', 'l1', 1, 'SUPERSEDED'), summaryRow('SITE', 's1', 1, 'DRAFT')];
-    return { site: 'hdpe', projection: 'summary', bundles: kind ? all.filter(b => b.scopeKind === kind) : all };
-  }
-  if (/\/configuration\/drafts\/l2$/.test(url)) return { ...summaryRow('LOOP', 'l2', 2, 'ACTIVE_VERIFIED'), parentHash: null, catalogueHash: 'c', executionPlanHash: 'e',
-    layers: [{ kind: 'FACTORY', ref: null, ordinal: 0, content: { 'G0.mode': 'OPERATIONAL' }, content_hash: 'h' }], resolved: { properties: { 'G0.mode': 'OPERATIONAL' }, sources: { 'G0.mode': 'FACTORY' }, execution_plan: {} },
-    validation: { errors: [], warnings: [], notReadByBuild: {}, changeClass: 'POLICY' }, shadow: null, etag: 'W/"2"', approvals: [] };
-  if (url.includes('/configuration/deployments')) return { count: 0, deployments: [] };
-  if (url.includes('/assets/filters')) return { sites: ['hdpe'], areas: [], units: [] };
-  if (url.includes('/loops')) return loops;
-  throw new Error(`unexpected request ${url}`);
-}
-
+const ALL = ['cpm.config.read', 'cpm.config.draft', 'cpm.config.validate', 'cpm.config.shadow', 'cpm.config.approve', 'cpm.config.activate', 'cpm.config.rollback'];
 const LocationProbe: React.FC = () => { const l = useLocation(); return <div data-testid="loc">{l.pathname + l.search}</div>; };
 function renderAt(search: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -76,83 +41,153 @@ function renderAt(search: string) {
 }
 const urls = () => vi.mocked(fetchMod.apiJson).mock.calls.map(c => String(c[0]));
 const loc = () => screen.getByTestId('loc').textContent ?? '';
+const asUser = (permissions: string[]) => useAuthStore.setState({ user: { user_id: 'u', username: 'admin', email: '', role: 'Admin', is_active: true, permissions }, status: 'authenticated', accessToken: 't' });
 
 describe('GateConfigurationWorkspace', () => {
+  beforeAll(() => setActiveZone('UTC'));
   beforeEach(() => {
     vi.mocked(fetchMod.apiJson).mockReset();
     vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => respond(url));
-    useAuthStore.setState({ user: { user_id: 'u', username: 'admin', email: '', role: 'Admin', is_active: true, permissions: ['cpm.config.read', 'cpm.config.draft', 'cpm.config.validate', 'cpm.config.shadow', 'cpm.config.approve', 'cpm.config.activate', 'cpm.config.rollback'] }, status: 'authenticated', accessToken: 't' });
+    vi.mocked(fetchMod.apiFetch).mockReset();
+    asUser(ALL);
   });
   afterEach(cleanup);
 
-  it('without a loop it lands on the overview: one fleet read, the bundles in summary form, no per-loop effective read', async () => {
+  it('without a loop Effective lists every loop from one fleet read; the header holds Effective | Bundles and How to read', async () => {
     renderAt('');
-    await waitFor(() => expect(screen.getByRole('table', { name: 'Configuration by loop' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByRole('row').length).toBe(3));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Gate Configuration');
+    expect(screen.getByRole('button', { name: 'Effective' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Bundles' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'How to read' })).toBeTruthy();
     expect(urls().some(u => u.includes('/configuration/effective/summary'))).toBe(true);
     expect(urls().some(u => u.includes('/configuration/effective?'))).toBe(false);
-    expect(urls().filter(u => u.includes('/configuration/drafts?')).every(u => u.includes('projection=summary'))).toBe(true);
-    expect(screen.getByRole('table', { name: 'Bundles in progress' }).textContent).toMatch(/SITE hdpe.*DRAFT/);
-    expect(screen.queryByText(/Site → scope → reference/)).toBeNull();                              // the left column is gone
+    expect(urls().some(u => u.includes('/configuration/drafts?'))).toBe(false);          // the bundles in progress are Bundles' read
+    expect(screen.queryByText('Technical details')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Gate role policy' })).toBeNull();
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=effective'));
   });
 
-  it('?loop= alone is replaced with view=effective and shows the effective configuration', async () => {
+  it('?loop= alone is replaced with view=effective: the layer strip, the loop in the band, Open loop', async () => {
     renderAt('?loop=FIC10302');
     await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=effective'));
-    await waitFor(() => expect(screen.getByRole('list', { name: 'Layers' })).toBeTruthy());
-    expect(screen.getByText('LOOP v2')).toBeTruthy();                                              // the Effective layer tile
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Gate Configuration');
+    const strip = await screen.findByRole('list', { name: 'Layers' });
+    expect(within(strip).getAllByRole('listitem').map(li => li.textContent)).toEqual([
+      'FACTORYShipped defaults2 properties', 'PROFILEFlow, fast self-regulating1 override', 'SITEhdpeno bundle', 'LOOPv6✓Active (verified)1 override',
+    ]);
+    expect(screen.queryByText('Effective layer')).toBeNull();                              // the tiles went
+    expect(urls().some(u => u.includes('/configuration/drafts?'))).toBe(false);           // the levels load only on Bundles
     fireEvent.click(screen.getByRole('button', { name: /Open loop/ }));
     await waitFor(() => expect(loc()).toBe('/cpm/explorer?loop=FIC10302'));
-    expect(urls().some(u => u.includes('/configuration/drafts?'))).toBe(false);                    // the levels load only on the Bundles view
   });
 
-  it('shows the gate role policy once, on the loop page and on the overview', async () => {
-    renderAt('?loop=FIC10302');
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Gate role policy' }).textContent).toMatch(/BLOCKING.*G0/));
-    expect(screen.getAllByRole('region', { name: 'Gate role policy' })).toHaveLength(1);
-    cleanup();
-    renderAt('');
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Gate role policy' }).textContent).toMatch(/SUPPORTING.*G9/));
+  it('?gate= opens that gate (System Response links G12); choosing a gate puts it in the address', async () => {
+    renderAt('?loop=FIC10302&view=effective&gate=G12');
+    const gate = await screen.findByRole('combobox', { name: 'Gate' }) as HTMLSelectElement;
+    expect(gate.value).toBe('G12');
+    expect(screen.getByRole('button', { name: 'noise_multiplier' })).toBeTruthy();
+    expect([...gate.options].map(o => o.textContent)).toEqual(['G0 · Data quality', 'G4 · Actuator effort · 2 set above factory', 'G12 · Step-test evidence']);
+    fireEvent.change(gate, { target: { value: 'G4' } });
+    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=effective&gate=G4'));
+    const rows = screen.getAllByRole('row').slice(1).map(r => r.textContent);
+    expect(rows).toEqual([expect.stringMatching(/^activity_warn_ratioPolicy4\.5LOOP v6$/), expect.stringMatching(/^activity_high_ratioPolicy8PROFILE$/)]);   // catalogue order
+    expect(screen.getByRole('heading', { name: 'G4.activity_warn_ratio' })).toBeTruthy();
+    expect(screen.getByRole('complementary').textContent).toMatch(/SourceLOOP · bundle v6/);
   });
 
-  it('the Worker alignment tile opens the acknowledgements', async () => {
-    renderAt('?loop=FIC10302');
-    await waitFor(() => expect(screen.getByText('Worker alignment')).toBeTruthy());
-    expect(document.getElementById('config-workers')!.hasAttribute('open')).toBe(false);
-    const tile = () => screen.getByText('Worker alignment').closest('button')!;
-    const box = () => document.getElementById('config-workers') as HTMLDetailsElement;
-    fireEvent.click(tile());
-    await waitFor(() => expect(box().hasAttribute('open')).toBe(true));
-    box().open = false;                                       // the user closes it
-    fireEvent.click(tile());                                  // the tile opens it every time
-    await waitFor(() => expect(box().open).toBe(true));
-    box().open = false;
-    expect(box().open).toBe(false);                           // its own toggle still works
+  it('the foot says the workers in one line and opens Workers with the build identifiers', async () => {
+    renderAt('?loop=FIC10302&view=effective');
+    await screen.findByRole('list', { name: 'Layers' });
+    expect(screen.getByText('2 of 2 applied')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Workers' }));
+    const dialog = screen.getByRole('dialog', { name: 'Workers' });
+    expect(within(dialog).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['AMS - CPLM Short Feature Engine✓ACK', 'AMS - CPLM Gate Fusion Engine✓ACK']);
+    expect(dialog.textContent).toMatch(/Bundle hashf9153b00/);
+    expect(dialog.textContent).toMatch(/Worker jardabe1862/);
   });
 
-  it('a failed catalogue read is shown with a retry on a loop page; a missing catalogue is never "no warning"', async () => {
-    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => { if (url.includes('/configuration/catalogue')) throw new Error('catalogue down'); return respond(url); });
-    renderAt('?loop=FIC10302');
-    await waitFor(() => expect(screen.getByText('Catalogue unavailable')).toBeTruthy());
-    expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
-  });
-
-  it('the Bundles view reads the three levels on demand and a version opens the editor', async () => {
+  it('Bundles reads the three levels on demand; a row selects, the panel opens the version; the toggle goes back', async () => {
     renderAt('?loop=FIC10302&view=bundles');
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^v2/ }).length).toBeGreaterThan(0));
+    await screen.findByRole('heading', { name: 'LOOP v6' });
     const lists = urls().filter(u => u.includes('/configuration/drafts?'));
     expect(lists.some(u => u.includes('scopeKind=LOOP&scopeRef=FIC10302'))).toBe(true);
     expect(lists.some(u => u.includes('scopeKind=PROFILE&scopeRef=FLOW_FAST_SELF_REG'))).toBe(true);
     expect(lists.some(u => u.includes('scopeKind=SITE'))).toBe(true);
-    fireEvent.click(screen.getAllByRole('button', { name: /^v2/ })[0]);
-    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=editor&bundle=l2'));
-    await waitFor(() => expect(screen.getByText(/Properties · G0/)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'v7' }));
+    expect(screen.getByRole('heading', { name: 'LOOP v7' })).toBeTruthy();
+    expect(loc()).toBe('/cpm/config?loop=FIC10302&view=bundles');
+    fireEvent.click(screen.getByRole('button', { name: 'Open v7 →' }));
+    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=editor&bundle=l7'));
+    expect(screen.getByRole('button', { name: 'Bundles' }).getAttribute('aria-pressed')).toBe('true');   // a bundle opens under Bundles
+    fireEvent.click(screen.getByRole('button', { name: 'Bundles' }));
+    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=bundles'));
+  });
+
+  it('without a loop Bundles lists the bundles in progress', async () => {
+    renderAt('?view=bundles');
+    await screen.findByRole('heading', { name: 'LOOP FIC10301 v1' });
+    expect(screen.getAllByRole('row').slice(1).map(r => r.textContent)).toEqual([expect.stringMatching(/^LOOP FIC10301v1○Draft.*admin$/)]);
+    fireEvent.click(screen.getByRole('button', { name: 'Open v1 →' }));
+    await waitFor(() => expect(loc()).toBe('/cpm/config?view=editor&bundle=d1'));
+  });
+
+  it('a bundle: the band names it with its state; Record details holds its identifiers, short and copyable; five tabs with marks', async () => {
+    renderAt('?loop=FIC10302&view=editor&bundle=l6&tab=deployments');
+    await screen.findByText('LOOP v6');
+    const band = screen.getByRole('region', { name: 'Loop and its controls' });
+    expect(band.textContent).toMatch(/LOOP v6✓Active \(verified\)Record details/);
+    expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Properties ✓', 'Diff & impact ✓', 'Shadow ✓', 'Approval ✓', 'Deployments ✓']);
+    expect(screen.getByRole('tab', { name: 'Deployments ✓' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getAllByText('This version is Active (verified) - create a new version to change it.')).toHaveLength(1);
+    fireEvent.click(within(band).getByRole('button', { name: 'Record details' }));
+    const dialog = screen.getByRole('dialog', { name: 'Record details' });
+    expect(dialog.textContent).toMatch(/Content hashf9153b00/);
+    expect(dialog.textContent).toMatch(/Etag6c8eae20025f98e6/);
+    expect(dialog.textContent).toMatch(/Created.*e2e_cfg_engineer · 25 Sept 18:36 UTC/);
+    expect(dialog.textContent).toMatch(/Noteslice-3 e2e/);
+    expect(within(dialog).getByRole('button', { name: 'Copy content hash' })).toBeTruthy();
+  });
+
+  it('Next moves to the next tab and the tab is in the address', async () => {
+    renderAt('?loop=FIC10302&view=editor&bundle=l6');
+    fireEvent.click(await screen.findByRole('button', { name: 'Next: Diff & impact →' }));
+    await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=editor&bundle=l6&tab=diff'));
+    expect(screen.getByRole('heading', { name: '1 property differs from the layers below' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next: Shadow →' }));
+    await waitFor(() => expect(loc()).toMatch(/tab=shadow$/));
+    expect(screen.queryByText(/Validate the bundle first/)).toBeNull();                   // a frozen version is not told to validate
+  });
+
+  it('a bundle the server does not know reads Bundle not found, and ‹ Bundles leads back', async () => {
+    renderAt('?loop=FIC10302&view=editor&bundle=nope');
+    await screen.findByText('Bundle not found');
+    expect(screen.queryByText(/Could not load this data/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '‹ Bundles' }));
     await waitFor(() => expect(loc()).toBe('/cpm/config?loop=FIC10302&view=bundles'));
   });
 
-  it('configHref keeps the Governance links working and names the loop for a LOOP scope', () => {
+  it('How to read holds the levels, the states and the gate roles of the build', async () => {
+    renderAt('');
+    fireEvent.click(screen.getByRole('button', { name: 'How to read' }));
+    const dialog = screen.getByRole('dialog', { name: 'How to read' });
+    expect(within(dialog).getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['Levels', 'Change class', 'Flags', 'Bundle state', 'Gate roles']);
+    expect(dialog.textContent).toMatch(/The most specific active level wins\./);
+    await waitFor(() => expect(dialog.textContent).toMatch(/BLOCKINGG0/));
+    expect(dialog.textContent).toMatch(/G9 geometry is supporting-only\./);
+  });
+
+  it('without cpm.config.read the page says what it needs', () => {
+    asUser([]);
+    renderAt('');
+    expect(screen.getByText('Reading the governed configuration needs cpm.config.read.')).toBeTruthy();
+  });
+
+  it('configHref keeps the Governance and System Response links working', () => {
     expect(configHref({ site: 'hdpe', scope: 'LOOP', ref: 'FIC10302', bundle: 'l2' })).toBe('/cpm/config?loop=FIC10302&view=editor&bundle=l2');
     expect(configHref({ site: 'hdpe', scope: 'SITE', bundle: 's1' })).toBe('/cpm/config?view=editor&bundle=s1');
+    expect(configHref({ loop: 'FIC10302', gate: 'G12' })).toBe('/cpm/config?loop=FIC10302&view=effective&gate=G12');
+    expect(configHref({ loop: 'FIC10302', bundle: 'l6', tab: 'deployments' })).toBe('/cpm/config?loop=FIC10302&view=editor&bundle=l6&tab=deployments');
   });
 });

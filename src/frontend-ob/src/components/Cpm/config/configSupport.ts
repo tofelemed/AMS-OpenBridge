@@ -6,6 +6,7 @@
  */
 import type { CpmTone } from '../shared';
 import type { CatalogueEntry, DeploymentState, EffectiveConfig } from '../../../api/cpm/config';
+import { RESET_TO_INHERITED } from '../../../api/cpm/config';
 
 export function bundleStateTone(state: string | null | undefined): CpmTone {
   switch (state) {
@@ -102,6 +103,19 @@ export function parseInput(entry: CatalogueEntry, text: string): { value?: unkno
 /** The layer a bundle edits (its own scope); the property values it explicitly sets. */
 export function ownLayerContent(layers: Array<{ kind: string; content: Record<string, unknown> }>, scopeKind: string): Record<string, unknown> {
   return layers.find(l => l.kind === scopeKind)?.content ?? {};
+}
+
+const RESOLUTION_ORDER = ['FACTORY', 'SITE', 'PROFILE', 'LOOP', 'REGIME'];
+
+/** CHG-169 (owner answer 2d): the values the layers BELOW a bundle's own level resolve to (what the loop would run without it). */
+export function resolveBelow(layers: Array<{ kind: string; content: Record<string, unknown> }>, scopeKind: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const kind of RESOLUTION_ORDER) {
+    if (kind === scopeKind) break;
+    const layer = layers.find(l => l.kind === kind);
+    for (const [k, v] of Object.entries(layer?.content ?? {})) if (v !== RESET_TO_INHERITED) out[k] = v;
+  }
+  return out;
 }
 
 /** Properties whose value differs between two resolved blocks (the diff of a draft against its parent or the effective config). */

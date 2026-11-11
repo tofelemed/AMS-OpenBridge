@@ -1,7 +1,101 @@
-/* Task 25 (Gate Configuration): placement only, no new sizes. */
-.cpm-config-steps { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.cpm-config-step { color: var(--traverse-text-secondary); }
-.cpm-config-step:not(:last-child)::after { content: '→'; margin-left: 8px; }
-.cpm-config-draft__levels { border: 0; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.cpm-config-draft__level { display: flex; align-items: center; gap: 8px; }
-.cpm-config-callout { margin: 0 0 8px; }
+/* Gate Configuration. CHG-169 (owner review, the approved sample docs/theme/redesign/samples/gate-configuration-proposal.html):
+   placement and tone only; every size is the app's own token or class. Table cells keep the shared .cpm-table sizes. */
+
+/* ── The band: the loop, the open bundle with its state and Record details; 32 px, as the sample draws it ── */
+.cpm-config-band {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2);
+  padding-inline-start: var(--traverse-space-3); border-inline-start: 1px solid var(--traverse-border-subtle);
+}
+.cpm-config-band__name { font-weight: 600; }
+.cpm-config-workspace .cpm-band .cpm-loop-combo { min-height: var(--traverse-space-8); }
+.cpm-config-workspace .cpm-band obc-button::part(wrapper) { min-height: var(--traverse-space-8); }
+.cpm-config-workspace .cpm-band obc-button::part(visible-wrapper) { min-height: calc(var(--traverse-space-8) - 2px); }
+.cpm-config-workspace .cpm-band obc-button { --ui-components-button-padding-horizontal: calc(var(--traverse-space-1) / 2); }
+
+/* ── A list card: the filter row (32 px) or the head, the rows, the pager, the foot strip ── */
+.cpm-config-list { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
+.cpm-config-list--foot { padding-bottom: 0; }
+.cpm-config-list__head { display: flex; align-items: center; justify-content: flex-end; gap: var(--traverse-space-2); }
+.cpm-config-list__head > .cpm-copy { margin-inline-end: auto; }
+.cpm-config-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-config-filters .cpm-input { flex: 1 1 12rem; min-width: 0; height: var(--traverse-space-8); padding-block: 0; }
+.cpm-config-filters .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+.cpm-config-list .cpm-events-pager { padding: 0; }
+.cpm-config-rows { width: 100%; }
+.cpm-config-rows th { text-align: start; }
+.cpm-config-rows__by { overflow-wrap: anywhere; }
+.cpm-config-rows__empty { text-align: center; }
+/* the first cell's name: a button for the keyboard, read as the row's text (the row itself selects on a click) */
+.cpm-config-rowbtn {
+  padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: start; cursor: pointer;
+}
+.cpm-config-rowbtn.cpm-mono { font-weight: 400; }
+.cpm-config-rowbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cpm-config-rowbtn:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; border-radius: var(--traverse-radius-control); }
+/* Bundles: a level's heading row (LOOP / PROFILE · its class pack / SITE · its site) */
+.cpm-config-group > th { background: var(--traverse-surface-page); color: var(--traverse-text-secondary); }
+.cpm-config-group__ref { text-transform: none; letter-spacing: normal; font-weight: 400; }
+/* the foot strip, edge to edge on the page colour, as the other list feet */
+.cpm-config-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3);
+  margin: 0 calc(-1 * var(--traverse-space-4)); padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-config-foot > obc-button:only-child { margin-inline-start: auto; }
+.cpm-config-foot .cpm-copy { max-width: none; }
+
+/* ── Effective with a loop: the layer strip, each layer once ── */
+.cpm-config-strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--traverse-space-2); }
+.cpm-config-strip__layer {
+  display: flex; flex-direction: column; gap: var(--traverse-space-1); min-width: 0; padding: var(--traverse-space-2) var(--traverse-space-3);
+  border: 1px solid var(--traverse-border-subtle); border-inline-start: 3px solid var(--tone-success); border-radius: var(--traverse-radius-control);
+}
+.cpm-config-strip__layer--absent { border-style: dashed; border-inline-start-color: var(--traverse-border-subtle); color: var(--traverse-text-secondary); }
+.cpm-config-strip__kind { font-size: var(--traverse-type-metadata); letter-spacing: 0.06em; text-transform: uppercase; color: var(--traverse-text-secondary); }
+.cpm-config-strip__what { font-weight: 600; overflow-wrap: anywhere; }
+
+/* ── The change class in words: Policy plain, a state boundary and a deployment in their status colour ── */
+.cpm-config-class--warn { color: var(--traverse-status-warning-fg); }
+.cpm-config-class--bad { color: var(--traverse-status-danger-fg); }
+
+/* ── One bundle: the tabs with their marks, the frozen reason once, each tab's card with Next at its foot ── */
+.cpm-config-onebundle { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
+.cpm-config-onebundle > .cpm-tabs-row { margin: 0; }
+.cpm-config-frozen { margin: 0; padding: var(--traverse-space-2) var(--traverse-space-3); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-hover); color: var(--traverse-text-primary); }
+.cpm-config-next {
+  display: flex; justify-content: flex-end; margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) calc(-1 * var(--traverse-space-4));
+  padding: var(--traverse-space-2) var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-config-list > .cpm-config-next { margin-top: 0; }
+.cpm-config-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--traverse-space-2) var(--traverse-space-3); margin-bottom: var(--traverse-space-3); }
+.cpm-config-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--traverse-space-2); }
+.cpm-config-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--traverse-space-3); }
+.cpm-config-form__grow { flex: 1 1 18rem; }
+.cpm-config-form .cpm-textarea { width: 100%; }
+.cpm-config-part { display: flex; flex-direction: column; gap: var(--traverse-space-2); margin-top: var(--traverse-space-3); }
+.cpm-config-part:first-child { margin-top: 0; }
+.cpm-config-diff td.cpm-mono { overflow-wrap: normal; }
+
+/* ── A panel's body: the property editor (its name is the panel's heading), the deployment's matrix ── */
+.ui-inspector .cpm-config-property { border-top: 0; padding-top: 0; }
+.ui-inspector .cpm-config-property__edit { flex-direction: column; align-items: stretch; margin-top: var(--traverse-space-2); }
+.ui-inspector .cpm-config-property__edit > .cpm-input,
+.ui-inspector .cpm-config-property__edit > .cpm-select { width: 100%; }
+.cpm-config-depdetail { display: flex; flex-direction: column; }
+.cpm-config-deployment__sum { margin: var(--traverse-space-3) 0 var(--traverse-space-1); }
+
+/* ── Prepare bundle draft: the level table with the version each starts from, then the note ── */
+.cpm-config-draft__levels { width: 100%; }
+.cpm-config-draft__level { display: inline-flex; align-items: center; gap: var(--traverse-space-2); cursor: pointer; }
+.cpm-config-draft__note { width: 100%; }
+
+/* ── Narrow screens: the rows wrap inside the card instead of pushing the page sideways ── */
+@media (max-width: 600px) {
+  .cpm-config-rows td, .cpm-config-rows th { overflow-wrap: break-word; }
+  .cpm-config-band { padding-inline-start: 0; border-inline-start: 0; }
+}
+
+/* a row that holds a short, copyable identifier: the label sits level with it */
+.cpm-config-workspace .cpm-kv:has(.cpm-copy-id), .cpm-config-details .cpm-kv:has(.cpm-copy-id) { align-items: center; }

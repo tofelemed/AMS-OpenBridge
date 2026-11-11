@@ -1,77 +1,65 @@
 /**
- * 2026-09-17 audit F18: the properties of one gate as a table - name · effective value with the layer
- * it comes from · change class · flags (commissioning required, not read by this build, invalid) - with
- * one row expanded at a time into the editor (PropertyForm: definition, inherited, bounds, read-by,
- * set / reset). A wall of every property fully expanded was unreadable at 165 properties.
+ * The properties of one gate as a table (2026-09-17 audit F18): name, the effective value with the layer it comes from, the
+ * change class and the flags (commissioning required, not read by this build, invalid).
+ * CHG-169 (owner review, the approved sample): a row no longer expands into the editor - it selects the property, and its
+ * editor is the panel beside the list (a drawer below 1280 px). The name reads short within its gate (the full key while a
+ * search crosses gates, and in the panel); the class in words under it; the value with its unit, "No value" when unset.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { TonePill } from '../shared';
-import type { Bundle, CatalogueEntry, PatchOp } from '../../../api/cpm/config';
-import { PropertyForm } from './PropertyForm';
-import { isLayerSource, valueText } from './configSupport';
+import type { Bundle, CatalogueEntry } from '../../../api/cpm/config';
+import { isLayerSource } from './configSupport';
+import { valueWithUnit } from './configWords';
+import { errorsFor } from './configLists';
+import { Breakable, ClassWord } from './configBits';
 
 export interface PropertyTableProps {
   entries: CatalogueEntry[];
   bundle: Bundle;
-  editable: boolean;
-  pending: boolean;
-  onOp: (op: PatchOp) => void;
+  selected: string | null;
+  /** A search crosses gates: show the full key, gate included. */
+  fullKeys: boolean;
+  onSelect: (property: string) => void;
 }
 
-const errorsFor = (bundle: Bundle, property: string): string[] =>
-  (bundle.validation?.errors ?? []).filter(e => e.includes(`'${property}'`) || e.includes(property + ' '));
+export const shortKey = (property: string): string => property.slice(property.indexOf('.') + 1);
 
-export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, editable, pending, onOp }) => {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  if (entries.length === 0) return <p className="cpm-copy">The catalogue has no property for this gate.</p>;
-  return (
-    <div className="cpm-config-table__wrap">
-      <table className="cpm-table cpm-config-table" aria-label="Properties">
-        <thead>
-          <tr><th>property</th><th>effective · from</th><th>class</th><th>flags</th></tr>
-        </thead>
-        <tbody>
-          {entries.map(p => {
-            const errors = errorsFor(bundle, p.property);
-            const effective = bundle.resolved.properties[p.property];
-            const source = bundle.resolved.sources[p.property];
-            const open = expanded === p.property;
-            const commissioning = p.commissioningRequired && (effective === null || effective === undefined);
-            const editorId = `prop-editor-${p.property.replace(/\W/g, '-')}`;
-            return (
-              <React.Fragment key={p.property}>
-                <tr data-property={p.property} data-invalid={errors.length > 0 || undefined} data-expanded={open || undefined} className={errors.length ? 'cpm-config-row--invalid' : undefined}>
-                  <td>
-                    <button type="button" className="cpm-config-table__name" aria-expanded={open} aria-controls={editorId} onClick={() => setExpanded(open ? null : p.property)}>
-                      <span className="cpm-mono">{p.property}</span>
-                      <span className="cpm-config-property__meta">{p.id} · {p.unit || p.type}</span>
-                    </button>
-                  </td>
-                  <td>
-                    <span className="cpm-mono">{valueText(effective)}</span>
-                    <span className="cpm-config-property__meta cpm-config-table__from">{isLayerSource(source) ? `from ${source}` : 'unset - no layer sets it'}</span>
-                  </td>
-                  <td><TonePill tone={p.changeClass === 'DEPLOYMENT' ? 'bad' : p.changeClass === 'STATE_BOUNDARY' ? 'warn' : 'muted'}>{p.changeClass}</TonePill></td>
-                  <td className="cpm-config-table__flags">
-                    {/* short words in the row; the editor below spells each one out */}
-                    {commissioning && <span title="Commissioning required: the catalogue has no starting value"><TonePill tone="bad">commissioning</TonePill></span>}
-                    {p.notReadByBuild != null && <span title={`Not read by this build: ${p.notReadByBuild}`}><TonePill tone="muted">unread by build</TonePill></span>}
-                    {errors.length > 0 && <span title={errors.join(' · ')}><TonePill tone="bad">invalid</TonePill></span>}
-                  </td>
-                </tr>
-                {open && (
-                  <tr className="cpm-config-table__editor" id={editorId}>
-                    <td colSpan={4}>
-                      <PropertyForm entry={p} layers={bundle.layers} scopeKind={bundle.scopeKind} effective={effective} source={source}
-                        errors={errors} editable={editable} pending={pending} onOp={onOp} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
+export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, selected, fullKeys, onSelect }) => (
+  <table className="cpm-table cpm-config-rows cpm-config-props" aria-label="Properties">
+    <thead><tr><th>Property</th><th>Value · from</th><th>Flags</th></tr></thead>
+    <tbody>
+      {entries.map(p => {
+        const errors = errorsFor(bundle.validation?.errors ?? [], p.property);
+        const effective = bundle.resolved.properties[p.property];
+        const source = bundle.resolved.sources[p.property];
+        const commissioning = p.commissioningRequired && (effective === null || effective === undefined);
+        const isSelected = p.property === selected;
+        return (
+          <tr key={p.property} data-property={p.property} data-invalid={errors.length > 0 || undefined} aria-current={isSelected ? 'true' : undefined}
+            className={`cpm-reg-row${isSelected ? ' cpm-reg-row--selected' : ''}${errors.length ? ' cpm-config-row--invalid' : ''}`} onClick={() => onSelect(p.property)}>
+            <td>
+              <button type="button" className="cpm-config-rowbtn cpm-mono" aria-label={fullKeys ? p.property : shortKey(p.property)} title={p.property}
+                onClick={e => { e.stopPropagation(); onSelect(p.property); }}>
+                <Breakable name={fullKeys ? p.property : shortKey(p.property)} />
+              </button>
+              <div className="cpm-event-row__sub"><ClassWord changeClass={p.changeClass} /></div>
+            </td>
+            <td>
+              <span>{valueWithUnit(effective, p.unit)}</span>
+              <div className="cpm-event-row__sub">{isLayerSource(source) ? `from ${source}` : 'unset - no layer sets it'}</div>
+            </td>
+            <td>
+              {/* short words in the row; the panel spells each one out. The flex sits on a wrapper: a flex <td> stops being a
+                  table cell and loses the row's height, highlight and line (CHG-169 review). */}
+              <div className="cpm-config-table__flags">
+                {commissioning && <span title="Commissioning required: the catalogue has no starting value"><TonePill tone="bad">commissioning</TonePill></span>}
+                {p.notReadByBuild != null && <span title={`Not read by this build: ${p.notReadByBuild}`}><TonePill tone="muted">unread by build</TonePill></span>}
+                {errors.length > 0 && <span title={errors.join(' · ')}><TonePill tone="bad">invalid</TonePill></span>}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+);
