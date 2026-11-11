@@ -15,3 +15,9 @@
 .cpm-audit__scroll { overflow-x: auto; }
 .cpm-audit__table { min-width: 880px; }
 .cpm-audit__table td { vertical-align: top; }
+
+/* CHG-170 fix: the trail's row dates and the event dialog's Copy are link-buttons. Their rule lived in cpm-pipeline.css as
+   .cpm-pipeline-open and went with the Pipeline Health rewrite, so they fell back to grey browser buttons. */
+.cpm-audit-open { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.cpm-audit-open:hover { text-decoration: underline; }
+.cpm-audit-open:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }

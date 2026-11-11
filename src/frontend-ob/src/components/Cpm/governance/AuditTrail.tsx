@@ -141,7 +141,7 @@ export const AuditTrail: React.FC = () => {
               {pageItems.map(e => (
                 <tr key={e.eventId}>
                   <td title={e.timestampUtc}>
-                    <button type="button" className="cpm-pipeline-open" onClick={() => setOpened(e)}>{fmtDateTime(e.timestampUtc)}</button>
+                    <button type="button" className="cpm-audit-open" onClick={() => setOpened(e)}>{fmtDateTime(e.timestampUtc)}</button>
                     <div className="cpm-event-row__sub">{e.userId || 'system'}</div>
                   </td>
                   <td><span title={e.eventType}><TonePill tone={eventTone(e.eventType)}>{auditLabel(e.eventType)}</TonePill></span></td>

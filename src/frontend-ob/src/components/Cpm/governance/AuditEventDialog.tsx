@@ -19,7 +19,7 @@ const Copyable: React.FC<{ label: string; value: string }> = ({ label, value }) 
   return (
     <>
       <span className="cpm-mono">{value}</span>{' '}
-      <button type="button" className="cpm-pipeline-open" aria-label={`Copy ${label}`} onClick={() => void copy()}>Copy</button>
+      <button type="button" className="cpm-audit-open" aria-label={`Copy ${label}`} onClick={() => void copy()}>Copy</button>
       <span className="cpm-sr-only" role="status">{msg}</span>
     </>
   );
