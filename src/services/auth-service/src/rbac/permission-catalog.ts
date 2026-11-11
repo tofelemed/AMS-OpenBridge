@@ -39,9 +39,12 @@ export interface PermissionDef {
 const ALL: SystemRole[] = ['Viewer', 'Operator', 'Engineer', 'Admin', 'SuperAdmin'];
 const OPERATOR_UP: SystemRole[] = ['Operator', 'Engineer', 'Admin', 'SuperAdmin'];
 const ENGINEER_UP: SystemRole[] = ['Engineer', 'Admin', 'SuperAdmin'];
-// CHG-081: platform administration (users, roles, audit, OT data sources, pipeline / governance) is SuperAdmin only;
-// gate configuration (cpm.config.*, seeded by SQL, not in this catalog) likewise — scripts/cpm-14-superadmin-role.sql.
+const ADMIN_UP: SystemRole[] = ['Admin', 'SuperAdmin'];
+// CHG-081: platform administration (users, roles, audit, OT data sources, pipeline / governance) and gate
+// configuration (cpm.config.*) are SuperAdmin only — scripts/cpm-14-superadmin-role.sql.
 const SUPERADMIN_ONLY: SystemRole[] = ['SuperAdmin'];
+// CHG-171: the role lists below ARE the "Reset to default" matrix, so they must equal what the SQL seeds grant
+// (database/scripts/17, 33, 37, 47, 59, schema.sql, cpm-14). tests/seed-defaults.test.ts fails if they drift.
 
 export const PERMISSION_CATALOG: PermissionDef[] = [
   // ── Alarms: response (operator) ──────────────────────────────────────────
@@ -77,6 +80,18 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { key: 'analysis.edit',           description: 'Create/edit analyses',          category: 'analysis',  roles: ENGINEER_UP },
   // ── Control-loop performance ─────────────────────────────────────────────
   { key: 'cpm.manage',              description: 'Onboard and configure control loops (CPLM)', category: 'cpm', roles: ENGINEER_UP },
+  // CPA v2.5 keys (59_cpm_v25_permissions.sql). Approval, activation and rollback are not Engineer's (the site assigns
+  // them); model review reaches Admin through the seed's catch-all; gate configuration is SuperAdmin-only (CHG-081).
+  { key: 'cpm.analysis.create',     description: 'Start a bounded analysis run (replay, shadow, evidence reconstruction)', category: 'cpm', roles: ENGINEER_UP },
+  { key: 'cpm.context.manage',      description: 'Maintain analysis context: instrument bindings, controller snapshots', category: 'cpm', roles: ENGINEER_UP },
+  { key: 'cpm.model.review',        description: 'Review a system-response model (validate, reject, promote, expire)', category: 'cpm', roles: ADMIN_UP },
+  { key: 'cpm.config.read',         description: 'Read the effective gate configuration and its provenance', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.draft',        description: 'Create and edit gate-configuration drafts', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.validate',     description: 'Validate a gate-configuration draft', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.shadow',       description: 'Run a shadow evaluation of a gate-configuration draft', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.approve',      description: 'Approve a validated gate-configuration bundle', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.activate',     description: 'Activate an approved gate-configuration bundle', category: 'cpm', roles: SUPERADMIN_ONLY },
+  { key: 'cpm.config.rollback',     description: 'Roll back to the previously active gate-configuration bundle', category: 'cpm', roles: SUPERADMIN_ONLY },
   // ── System / ops (SuperAdmin only by decision, CHG-081): also gates Pipeline Health and Governance ─
   { key: 'system.manage',           description: 'Manage pipeline jobs and OPC connections; view Pipeline Health and Governance', category: 'system', roles: SUPERADMIN_ONLY },
   // ── OT data-source configuration (ingestion-service; SuperAdmin only by decision) ─

@@ -14,6 +14,7 @@ import {
   defaultPermissionsForRole,
   type SystemRole,
 } from '../rbac/permission-catalog';
+import { assertRoleKeepsHolders, lockAccessChanges, roleKeys } from './access-guard';
 
 const SYSTEM_ROLE_NAMES = new Set(SYSTEM_ROLES.map((r) => r.name as string));
 
@@ -111,6 +112,9 @@ export class PermissionService {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      // CHG-171: never leave nobody holding rbac.manage / admin.users.edit (covers Reset too).
+      await lockAccessChanges(client);
+      await assertRoleKeepsHolders(client, role, uniqueKeys);
       await client.query('DELETE FROM role_permissions WHERE role_name = $1', [role]);
       for (const key of uniqueKeys) {
         await client.query(
@@ -280,6 +284,9 @@ export class PermissionService {
         }
         const target = await client.query('SELECT 1 FROM roles WHERE role_name = $1', [reassignTo]);
         if (target.rows.length === 0) throw new ValidationError(`reassignTo role '${reassignTo}' does not exist`);
+        // CHG-171: the moved users take reassignTo's permissions; never the last administrators' keys.
+        await lockAccessChanges(client);
+        await assertRoleKeepsHolders(client, role, await roleKeys(client, reassignTo));
         // Phase 3: reassigned users change permission set → revoke their live tokens.
         await client.query('UPDATE users SET role = $1, credentials_changed_at = NOW() WHERE role = $2', [reassignTo, role]);
       }
@@ -295,7 +302,10 @@ export class PermissionService {
     }
   }
 
-  /** Reset a SYSTEM role's permissions to the manifest default matrix. */
+  /**
+   * Reset a SYSTEM role's permissions to the manifest default matrix — which equals what the SQL
+   * seeds grant (CHG-171; tests/seed-defaults.test.ts keeps the two in step).
+   */
   async resetRolePermissions(role: string): Promise<string[]> {
     if (!SYSTEM_ROLE_NAMES.has(role)) {
       throw new ValidationError(`Reset applies to system roles only; '${role}' is custom — edit it directly`);

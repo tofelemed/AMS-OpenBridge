@@ -4,6 +4,9 @@
 
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { UserAdminService } from '../services/user-admin.service';
+import { UserQueryService } from '../services/user-query.service';
+import { actorFromRequest } from '../utils/actor';
 import {
   LoginRequest,
   CreateUserRequest,
@@ -18,6 +21,8 @@ import {
 } from '../config/cookies';
 
 const authService = new AuthService();
+const userAdmin = new UserAdminService();
+const userQuery = new UserQueryService();
 
 export class AuthController {
   /**
@@ -142,7 +147,7 @@ export class AuthController {
         return;
       }
 
-      const user = await authService.getUserById(req.user.user_id);
+      const user = await userQuery.getUserById(req.user.user_id);
       res.status(200).json({
         success: true,
         data: { ...user, permissions: req.user.permission ?? [] },
@@ -217,7 +222,7 @@ export class AuthController {
   async createUser(req: Request, res: Response): Promise<void> {
     try {
       const userData: CreateUserRequest = req.body;
-      const user = await authService.createUser(userData);
+      const user = await userAdmin.createUser(userData, actorFromRequest(req));
       res.status(201).json({
         success: true,
         data: user,
@@ -237,7 +242,7 @@ export class AuthController {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 20;
-      const result = await authService.getAllUsers(page, pageSize);
+      const result = await userQuery.getAllUsers(page, pageSize);
 
       res.status(200).json({
         success: true,
@@ -263,7 +268,7 @@ export class AuthController {
   async getUserById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const user = await authService.getUserById(id);
+      const user = await userQuery.getUserById(id);
       res.status(200).json({
         success: true,
         data: user,
@@ -283,7 +288,7 @@ export class AuthController {
     try {
       const { id } = req.params;
       const updateData: UpdateUserRequest = req.body;
-      const user = await authService.updateUser(id, updateData);
+      const user = await userAdmin.updateUser(id, updateData, actorFromRequest(req));
       res.status(200).json({
         success: true,
         data: user,
@@ -302,7 +307,7 @@ export class AuthController {
   async deleteUser(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      await authService.deleteUser(id);
+      await userAdmin.deleteUser(id, actorFromRequest(req));
       res.status(200).json({
         success: true,
         message: 'User deleted successfully',
@@ -344,7 +349,7 @@ export class AuthController {
         filters.status = req.query.status as string;
       }
       
-      const result = await authService.getUsersPage(page, pageSize, filters);
+      const result = await userQuery.getUsersPage(page, pageSize, filters);
 
       res.status(200).json({
         success: true,

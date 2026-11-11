@@ -265,3 +265,15 @@ Services: `ams-frontend` and `cplm-api`. No migration, no config.
 - **LIVE on Trend (CHG-149):** shown while the newest sample is within max(60 s, a tenth of the live range). A longer range tolerates a longer gap.
 - **Copy buttons (CHG-147):** they fall back to a hidden text field, because the plant runs over plain http and the clipboard API needs https.
 - **Deploy both services together.** The frontend calls the two new endpoints; an older `cplm-api` answers 404 to Retire.
+
+## Access control (CHG-171, unreleased, branch feat/cpa-redesign)
+
+Service: `auth-service`. No migration, no config. Enforced by the server since CHG-171 (owner approval 11 Nov 2026), whatever the page does:
+
+- **Own account:** nobody changes their own role, or deactivates or deletes their own account (409).
+- **Last administrator:** no change may leave no active user holding `rbac.manage`, or none holding `admin.users.edit` - a user's role change, deactivation, deletion or bulk-import overwrite, a role losing the key (Save or Reset), a role deleted with its users moved (409). These changes run one at a time (a transaction advisory lock). On a new server, keep two active users who hold both keys, so one can always repair the other.
+- **Assigning a role beyond your own rights needs `rbac.manage`** (Add user, Edit, bulk import; 403). A user administrator without `rbac.manage` assigns only roles whose permissions are all their own.
+- **Reset to default = the seeded defaults** (SuperAdmin 38 keys, Admin 25, Engineer 24, Operator 14, Viewer 9, with the SuperAdmin role present). The catalog `permission-catalog.ts` is the reset source; the auth-service test `tests/seed-defaults.test.ts` fails if it and any seed script disagree. When a seed script grants a system role a new key, add it to the catalog in the same change.
+- **Delete ends the session at once:** the revocation feed lists a deleted user as inactive for the access-token lifetime + 5 min. Kept in memory: an auth-service restart in that window forgets it, and the deleted user's last access token then lives until it expires (`JWT_EXPIRES_IN`, 1 h at Marun).
+- **User changes are audited:** `USER_CREATED`, `USER_UPDATED` (what changed: email, name, role, active), `USER_DELETED`, `USER_BULK_IMPORTED`; never passwords or hashes. The actor is named by user name in `UserId` (as the .NET services do) with `AfterState.actor = { user_id, username }`; the RBAC role events the same.
+- **Optional repair, owner approval first:** `database/optional/69_auth_restore_seeded_role_defaults.sql` re-grants the default keys a system role is missing (additive, preview first, nobody signed out).

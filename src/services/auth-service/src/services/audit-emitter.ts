@@ -1,5 +1,5 @@
 /**
- * Emits RBAC governance events to the platform audit trail (Kafka `traverse.cpa.audit-events`),
+ * Emits RBAC governance and user-administration events (CHG-171) to the platform audit trail (Kafka `traverse.cpa.audit-events`),
  * which audit-service consumes into its immutable hash-chained store (Phase 3).
  *
  * Previously auth-service logged role/permission changes to the app log only, so
@@ -14,8 +14,47 @@
 
 import { Kafka, Producer, logLevel } from 'kafkajs';
 import logger from '../config/logger';
+import { Actor } from '../types';
 
 const TOPIC = 'traverse.cpa.audit-events';
+/** audit-service stores UserId in a VARCHAR(100); a longer value would fail its insert. */
+const USER_ID_MAX = 100;
+
+export type AuditEntity = 'Role' | 'User' | 'RolePermissions';
+
+/**
+ * The event JSON (CHG-171). audit-service has no separate actor-name field, so — like the .NET
+ * emitters, which put preferred_username in UserId — UserId is the actor's USER NAME, and
+ * AfterState carries `actor: { user_id, username }` so the id is kept too. Callers must never
+ * pass passwords or hashes in before/after.
+ */
+export function buildAuditPayload(
+  eventType: string,
+  actor: Actor | undefined,
+  entityType: AuditEntity,
+  entityId: string,
+  before?: unknown,
+  after?: unknown
+): string {
+  const who = actor && (actor.username || actor.user_id)
+    ? { user_id: actor.user_id, username: actor.username }
+    : undefined;
+  let afterState = after;
+  if (who) {
+    afterState = after === undefined ? { actor: who }
+      : typeof after === 'object' && after !== null && !Array.isArray(after) ? { ...after, actor: who }
+      : { value: after, actor: who };
+  }
+  return JSON.stringify({
+    EventType: eventType,
+    TimestampUtc: new Date().toISOString(),
+    UserId: (who ? who.username || who.user_id : 'system').slice(0, USER_ID_MAX),
+    EntityType: entityType,
+    EntityId: entityId,
+    ...(before !== undefined ? { BeforeState: before } : {}),
+    ...(afterState !== undefined ? { AfterState: afterState } : {}),
+  });
+}
 
 class AuditEmitter {
   private producer: Producer | null = null;
@@ -48,27 +87,19 @@ class AuditEmitter {
   }
 
   /**
-   * Fire-and-forget audit emit. `actorUserId` is the admin performing the change;
-   * `entityId` is the role name or user id affected.
+   * Fire-and-forget audit emit. `actor` is the signed-in user performing the change (named by
+   * user name and id); `entityId` is the role name or user id affected.
    */
   emit(
     eventType: string,
-    actorUserId: string | undefined,
-    entityType: 'Role' | 'User' | 'RolePermissions',
+    actor: Actor | undefined,
+    entityType: AuditEntity,
     entityId: string,
     before?: unknown,
     after?: unknown
   ): void {
     if (!this.enabled || !this.producer) return;
-    const payload = JSON.stringify({
-      EventType: eventType,
-      TimestampUtc: new Date().toISOString(),
-      UserId: actorUserId ?? 'system',
-      EntityType: entityType,
-      EntityId: entityId,
-      ...(before !== undefined ? { BeforeState: before } : {}),
-      ...(after !== undefined ? { AfterState: after } : {}),
-    });
+    const payload = buildAuditPayload(eventType, actor, entityType, entityId, before, after);
 
     void this.ensureConnected()
       .then(() => this.producer!.send({ topic: TOPIC, messages: [{ value: payload }] }))

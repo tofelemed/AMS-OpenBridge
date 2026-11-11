@@ -109,27 +109,32 @@ if (schemaMissing.length) fail.push(`In manifest but missing from schema.sql: ${
 if (schemaExtra.length)   fail.push(`In schema.sql but not in manifest: ${schemaExtra.join(', ')}`);
 
 // ── D. Manifest role-hierarchy invariants (no DB needed) ────────────────────
-// The tiers must nest: Viewer ⊆ Operator ⊆ Engineer ⊆ Admin, and Admin holds
-// every key. Guards against a manifest edit that quietly breaks the tiering.
+// The tiers must nest: Viewer ⊆ Operator ⊆ Engineer ⊆ Admin ⊆ SuperAdmin, and SuperAdmin
+// holds every key (CHG-081: platform administration and gate configuration are SuperAdmin-only).
+// Guards against a manifest edit that quietly breaks the tiering. Whether these defaults equal
+// what the SQL seeds grant is the auth-service test tests/seed-defaults.test.ts (CHG-171).
 const GROUP = {
-  ALL: ['Viewer', 'Operator', 'Engineer', 'Admin'],
-  OPERATOR_UP: ['Operator', 'Engineer', 'Admin'],
-  ENGINEER_UP: ['Engineer', 'Admin'],
-  ADMIN_ONLY: ['Admin'],
+  ALL: ['Viewer', 'Operator', 'Engineer', 'Admin', 'SuperAdmin'],
+  OPERATOR_UP: ['Operator', 'Engineer', 'Admin', 'SuperAdmin'],
+  ENGINEER_UP: ['Engineer', 'Admin', 'SuperAdmin'],
+  ADMIN_UP: ['Admin', 'SuperAdmin'],
+  SUPERADMIN_ONLY: ['SuperAdmin'],
 };
-const roleSet = { Viewer: new Set(), Operator: new Set(), Engineer: new Set(), Admin: new Set() };
+const roleSet = { Viewer: new Set(), Operator: new Set(), Engineer: new Set(), Admin: new Set(), SuperAdmin: new Set() };
 for (const m of manifestSrc.matchAll(/\{\s*key:\s*'([^']+)'[\s\S]*?roles:\s*([A-Z_]+)/g)) {
+  if (!GROUP[m[2]]) fail.push(`Unknown role group ${m[2]} on ${m[1]} (add it to GROUP here)`);
   for (const r of GROUP[m[2]] ?? []) roleSet[r].add(m[1]);
 }
 const subset = (a, b) => [...a].every((k) => b.has(k));
 if (!subset(roleSet.Viewer, roleSet.Operator)) fail.push('Viewer is not a subset of Operator');
 if (!subset(roleSet.Operator, roleSet.Engineer)) fail.push('Operator is not a subset of Engineer');
 if (!subset(roleSet.Engineer, roleSet.Admin)) fail.push('Engineer is not a subset of Admin');
-if (roleSet.Admin.size !== manifestKeys.size) fail.push('Admin does not hold every permission');
+if (!subset(roleSet.Admin, roleSet.SuperAdmin)) fail.push('Admin is not a subset of SuperAdmin');
+if (roleSet.SuperAdmin.size !== manifestKeys.size) fail.push('SuperAdmin does not hold every permission');
 
 // ── Report ───────────────────────────────────────────────────────────────────
 console.log(`RBAC catalog guard:`);
-console.log(`  roles         : Viewer ${roleSet.Viewer.size} ⊆ Operator ${roleSet.Operator.size} ⊆ Engineer ${roleSet.Engineer.size} ⊆ Admin ${roleSet.Admin.size}`);
+console.log(`  roles         : Viewer ${roleSet.Viewer.size} ⊆ Operator ${roleSet.Operator.size} ⊆ Engineer ${roleSet.Engineer.size} ⊆ Admin ${roleSet.Admin.size} ⊆ SuperAdmin ${roleSet.SuperAdmin.size}`);
 console.log(`  manifest keys : ${manifestKeys.size} (${internalKeys.size} internal)`);
 console.log(`  schema.sql    : ${schemaKeys.size}`);
 console.log(`  enforced (.NET): ${enforced.size}`);

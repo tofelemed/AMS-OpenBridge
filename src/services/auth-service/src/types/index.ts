@@ -100,6 +100,15 @@ export interface TokenPayload {
   aud?: string | string[];
 }
 
+/**
+ * The signed-in user performing an administrative change (CHG-171): the subject of the
+ * refusal rules (own account, role escalation) and the actor named in the audit trail.
+ */
+export interface Actor {
+  user_id: string;
+  username: string;
+}
+
 export interface CreateUserRequest {
   username: string;
   email: string;

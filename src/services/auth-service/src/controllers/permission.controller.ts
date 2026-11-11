@@ -7,12 +7,12 @@
 import { Request, Response } from 'express';
 import { PermissionService } from '../services/permission.service';
 import { auditEmitter } from '../services/audit-emitter';
+import { actorFromRequest } from '../utils/actor';
 
 const permissionService = new PermissionService();
 
-/** Actor performing the change, for the audit trail. */
-const actorOf = (req: Request): string | undefined =>
-  (req.user as any)?.sub ?? (req.user as any)?.user_id;
+/** Actor performing the change, named in the audit trail by user name and id (CHG-171). */
+const actorOf = actorFromRequest;
 
 export class PermissionController {
   /**

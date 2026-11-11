@@ -29,14 +29,16 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
-// Test connection
-pool.query('SELECT NOW()', (err, _res) => {
-  if (err) {
-    console.error('Database connection error:', err);
-  } else {
-    console.log('✅ Database connected successfully');
-  }
-});
+// Test connection (skipped under unit tests, which replace the pool's query with an in-memory fake)
+if (process.env.NODE_ENV !== 'test') {
+  pool.query('SELECT NOW()', (err, _res) => {
+    if (err) {
+      console.error('Database connection error:', err);
+    } else {
+      console.log('✅ Database connected successfully');
+    }
+  });
+}
 
 export default pool;
 

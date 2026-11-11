@@ -1,6 +1,7 @@
 /**
  * Authentication Service
- * Handles login, RS256 token generation/verification, and user management.
+ * Handles login, RS256 token generation/verification, and the self-service profile/password.
+ * User administration lives in user-admin.service.ts (writes) and user-query.service.ts (reads).
  *
  * Tokens are signed with RS256 (private key in this service only). The access
  * token embeds the user's functional permissions (resolved from their role) as
@@ -15,6 +16,7 @@ import pool from '../config/database';
 import logger from '../config/logger';
 import { keyConfig, publicKeyForKid } from '../config/keys';
 import { PermissionService } from './permission.service';
+import { revokeUserTokens } from './token-revocation';
 import {
   User,
   UserPublic,
@@ -22,8 +24,6 @@ import {
   AuthTokens,
   RefreshResult,
   TokenPayload,
-  CreateUserRequest,
-  UpdateUserRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
 } from '../types';
@@ -141,8 +141,7 @@ export class AuthService {
    * next verifyToken) and deletes stored refresh tokens (blocks silent re-mint).
    */
   async revokeUserTokens(userId: string): Promise<void> {
-    await pool.query('UPDATE users SET credentials_changed_at = NOW() WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+    await revokeUserTokens(pool, userId);
   }
 
   /**
@@ -353,134 +352,6 @@ export class AuthService {
   }
 
   /**
-   * Create new user
-   */
-  async createUser(userData: CreateUserRequest): Promise<UserPublic> {
-    const { username, email, password, full_name, role } = userData;
-
-    const usernameCheck = await pool.query(
-      'SELECT user_id FROM users WHERE username = $1',
-      [username]
-    );
-    if (usernameCheck.rows.length > 0) {
-      throw new ConflictError('Username already exists');
-    }
-
-    const emailCheck = await pool.query(
-      'SELECT user_id FROM users WHERE email = $1',
-      [email]
-    );
-    if (emailCheck.rows.length > 0) {
-      throw new ConflictError('Email already exists');
-    }
-
-    const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-    const result = await pool.query(
-      `INSERT INTO users (username, email, password_hash, full_name, role)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING user_id, username, email, full_name, role, is_active, created_at`,
-      [username, email, password_hash, full_name || null, role || 'Viewer']
-    );
-
-    const user = result.rows[0];
-    logger.info(`User created: ${username}`);
-
-    return {
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      is_active: user.is_active,
-      created_at: user.created_at,
-    };
-  }
-
-  /**
-   * Get user by ID
-   */
-  async getUserById(userId: string): Promise<UserPublic> {
-    const result = await pool.query(
-      'SELECT user_id, username, email, full_name, role, is_active, created_at FROM users WHERE user_id = $1',
-      [userId]
-    );
-
-    if (result.rows.length === 0) {
-      throw new NotFoundError('User');
-    }
-
-    return result.rows[0];
-  }
-
-  /**
-   * Update user
-   */
-  async updateUser(
-    userId: string,
-    updateData: UpdateUserRequest
-  ): Promise<UserPublic> {
-    const updates: string[] = [];
-    const values: any[] = [];
-    let paramCount = 1;
-
-    if (updateData.email !== undefined) {
-      const emailCheck = await pool.query(
-        'SELECT user_id FROM users WHERE email = $1 AND user_id != $2',
-        [updateData.email, userId]
-      );
-      if (emailCheck.rows.length > 0) {
-        throw new ConflictError('Email already exists');
-      }
-      updates.push(`email = $${paramCount++}`);
-      values.push(updateData.email);
-    }
-
-    if (updateData.full_name !== undefined) {
-      updates.push(`full_name = $${paramCount++}`);
-      values.push(updateData.full_name || null);
-    }
-
-    if (updateData.role !== undefined) {
-      updates.push(`role = $${paramCount++}`);
-      values.push(updateData.role);
-    }
-
-    if (updateData.is_active !== undefined) {
-      updates.push(`is_active = $${paramCount++}`);
-      values.push(updateData.is_active);
-    }
-
-    if (updates.length === 0) {
-      throw new ValidationError('No fields to update');
-    }
-
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(userId);
-
-    const result = await pool.query(
-      `UPDATE users SET ${updates.join(', ')}
-       WHERE user_id = $${paramCount}
-       RETURNING user_id, username, email, full_name, role, is_active, created_at`,
-      values
-    );
-
-    if (result.rows.length === 0) {
-      throw new NotFoundError('User');
-    }
-
-    // Phase 3: a role change or deactivation must take effect promptly, so revoke
-    // this user's live tokens (their next request re-mints with the new role/perms
-    // or is rejected if deactivated).
-    if (updateData.role !== undefined || updateData.is_active !== undefined) {
-      await this.revokeUserTokens(userId);
-    }
-
-    logger.info(`User updated: ${userId}`);
-    return result.rows[0];
-  }
-
-  /**
    * Update user's own profile (self-service)
    */
   async updateProfile(
@@ -570,187 +441,5 @@ export class AuthService {
     await this.revokeUserTokens(userId);
 
     logger.info(`Password changed for user: ${userId}`);
-  }
-
-  /**
-   * Get all users (with pagination)
-   */
-  async getAllUsers(
-    page: number = 1,
-    pageSize: number = 20
-  ): Promise<{ users: UserPublic[]; total: number }> {
-    const offset = (page - 1) * pageSize;
-
-    const [usersResult, countResult] = await Promise.all([
-      pool.query(
-        `SELECT user_id, username, email, full_name, role, is_active, created_at
-         FROM users
-         ORDER BY created_at DESC
-         LIMIT $1 OFFSET $2`,
-        [pageSize, offset]
-      ),
-      pool.query('SELECT COUNT(*) as total FROM users'),
-    ]);
-
-    return {
-      users: usersResult.rows,
-      total: parseInt(countResult.rows[0].total),
-    };
-  }
-
-  /**
-   * Delete user by ID
-   */
-  async deleteUser(userId: string): Promise<void> {
-    const userCheck = await pool.query(
-      'SELECT user_id FROM users WHERE user_id = $1',
-      [userId]
-    );
-
-    if (userCheck.rows.length === 0) {
-      throw new NotFoundError('User');
-    }
-
-    await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
-    logger.info(`User deleted: ${userId}`);
-  }
-
-  /**
-   * Get users page with stats (batch endpoint)
-   * Combines users list, pagination, and statistics in one call
-   * Supports filters: search (full_name, email), role, status
-   */
-  async getUsersPage(
-    page: number = 1,
-    pageSize: number = 20,
-    filters?: {
-      search?: string;
-      role?: string;
-      status?: string;
-    }
-  ): Promise<{
-    users: UserPublic[];
-    pagination: {
-      page: number;
-      pageSize: number;
-      total: number;
-      totalPages: number;
-    };
-    stats: {
-      total: number;
-      active: number;
-      inactive: number;
-      byRole: Record<string, number>;
-    };
-    filterOptions: {
-      roles: string[];
-      statuses: Array<{ value: string; label: string }>;
-    };
-  }> {
-    const offset = (page - 1) * pageSize;
-
-    const whereClauses: string[] = [];
-    const queryParams: any[] = [];
-    let paramIndex = 1;
-
-    if (filters?.search && filters.search.trim()) {
-      whereClauses.push(
-        `(LOWER(full_name) LIKE LOWER($${paramIndex}) OR LOWER(email) LIKE LOWER($${paramIndex}))`
-      );
-      queryParams.push(`%${filters.search.trim()}%`);
-      paramIndex++;
-    }
-
-    if (filters?.role && filters.role !== 'all') {
-      whereClauses.push(`role = $${paramIndex}`);
-      queryParams.push(filters.role);
-      paramIndex++;
-    }
-
-    if (filters?.status && filters.status !== 'all') {
-      const isActive = filters.status === 'active';
-      whereClauses.push(`is_active = $${paramIndex}`);
-      queryParams.push(isActive);
-      paramIndex++;
-    }
-
-    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    const usersQuery = `
-      SELECT user_id, username, email, full_name, role, is_active, created_at
-      FROM users
-      ${whereClause}
-      ORDER BY created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    queryParams.push(pageSize, offset);
-
-    const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
-    const countParams = queryParams.slice(0, paramIndex - 1);
-
-    const statsQuery = `
-      SELECT
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE is_active = TRUE) as active,
-        COUNT(*) FILTER (WHERE is_active = FALSE) as inactive
-      FROM users
-      ${whereClause}
-    `;
-
-    const roleStatsQuery = `
-      SELECT role, COUNT(*) as role_count
-      FROM users
-      ${whereClause}
-      GROUP BY role
-    `;
-
-    const allRolesQuery = `
-      SELECT DISTINCT role
-      FROM users
-      ORDER BY role
-    `;
-
-    const [usersResult, countResult, statsResult, roleStatsResult, allRolesResult] = await Promise.all([
-      pool.query(usersQuery, queryParams),
-      pool.query(countQuery, countParams),
-      pool.query(statsQuery, countParams),
-      pool.query(roleStatsQuery, countParams),
-      pool.query(allRolesQuery),
-    ]);
-
-    const total = parseInt(countResult.rows[0].total);
-    const statsRow = statsResult.rows[0];
-    const byRole = roleStatsResult.rows.reduce(
-      (acc, row) => {
-        acc[row.role] = parseInt(row.role_count);
-        return acc;
-      },
-      {} as Record<string, number>
-    );
-
-    const availableRoles = allRolesResult.rows.map((row) => row.role);
-
-    return {
-      users: usersResult.rows,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
-      stats: {
-        total: parseInt(statsRow.total),
-        active: parseInt(statsRow.active),
-        inactive: parseInt(statsRow.inactive),
-        byRole,
-      },
-      filterOptions: {
-        roles: availableRoles,
-        statuses: [
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' },
-        ],
-      },
-    };
   }
 }

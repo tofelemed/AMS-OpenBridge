@@ -133,7 +133,20 @@ INSERT INTO permissions (permission_key, description, category) VALUES
     -- OT data-source configuration (ingestion-service). Admin-only by decision;
     -- also seeded by 47_ingestion_permissions.sql on the docker-init path.
     ('ingestion.view',          'View OT data-source configurations', 'ingestion'),
-    ('ingestion.manage',        'Create/edit/test OT data-source configurations', 'ingestion')
+    ('ingestion.manage',        'Create/edit/test OT data-source configurations', 'ingestion'),
+    -- CPA v2.5 keys (CHG-171: catalogued so Reset restores them). Also seeded, and granted to Engineer
+    -- (cpm.analysis.create, cpm.context.manage), by 59_cpm_v25_permissions.sql / ops cpm-08. Keys only here:
+    -- Admin and SuperAdmin receive them through the catch-alls below, as before.
+    ('cpm.analysis.create',     'Start a bounded analysis run (replay, shadow, evidence reconstruction)', 'cpm'),
+    ('cpm.model.review',        'Review a system-response model (validate, reject, promote, expire)', 'cpm'),
+    ('cpm.context.manage',      'Maintain analysis context: instrument bindings, controller snapshots', 'cpm'),
+    ('cpm.config.read',         'Read the effective gate configuration and its provenance', 'cpm'),
+    ('cpm.config.draft',        'Create and edit gate-configuration drafts', 'cpm'),
+    ('cpm.config.validate',     'Validate a gate-configuration draft', 'cpm'),
+    ('cpm.config.shadow',       'Run a shadow evaluation of a gate-configuration draft', 'cpm'),
+    ('cpm.config.approve',      'Approve a validated gate-configuration bundle', 'cpm'),
+    ('cpm.config.activate',     'Activate an approved gate-configuration bundle', 'cpm'),
+    ('cpm.config.rollback',     'Roll back to the previously active gate-configuration bundle', 'cpm')
 ON CONFLICT (permission_key) DO NOTHING;
 
 -- =============================================

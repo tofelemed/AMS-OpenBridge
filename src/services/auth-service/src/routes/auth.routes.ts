@@ -16,7 +16,8 @@ import {
 } from '../utils/validation';
 import * as bulkImportService from '../services/bulkImportService';
 import { getJwks } from '../config/keys';
-import pool from '../config/database';
+import { revocationsHandler } from './revocations.route';
+import { actorFromRequest } from '../utils/actor';
 
 const router = Router();
 const authController = new AuthController();
@@ -27,48 +28,8 @@ router.get('/.well-known/jwks.json', (_req: Request, res: Response) => {
   res.status(200).json(getJwks());
 });
 
-// ── Internal: edge-revocation feed for the API gateway (Plan 04 §2) ─────────────
-// The gateway polls this every few seconds and rejects signature-valid tokens whose
-// owner was revoked (credentials_changed_at bump) or deactivated — the edge-only
-// enforcement point. Guarded by the internal service key; disabled if none is set.
-router.get('/internal/revocations', async (req: Request, res: Response) => {
-  const serviceKey = process.env.TRAVERSE_SERVICE_KEY;
-  if (!serviceKey) {
-    res.status(404).json({ error: 'Internal endpoints disabled (no TRAVERSE_SERVICE_KEY).' });
-    return;
-  }
-  if (req.header('X-Service-Key') !== serviceKey) {
-    res.status(403).json({ error: 'Invalid service key.' });
-    return;
-  }
-
-  // v2.5 lab finding (2026-09-17): ::bigint ROUNDS the epoch, so a user created at hh:mm:48.84 got changed = 49 and a token
-  // issued in the same second (iat 48) read as revoked (gateway: iat < changed) - the first login after a credential change
-  // failed with 401 until the next second. floor() makes "changed" the second the change happened in, which is what iat is.
-  const since = Number.parseInt(String(req.query.sinceEpoch ?? ''), 10);
-  const sinceEpoch = Number.isFinite(since) ? since : Math.floor(Date.now() / 1000) - 1800;
-
-  try {
-    const result = await pool.query(
-      `SELECT user_id,
-              floor(EXTRACT(EPOCH FROM credentials_changed_at))::bigint AS changed,
-              is_active
-         FROM users
-        WHERE credentials_changed_at > to_timestamp($1)
-           OR is_active = false`,
-      [sinceEpoch]
-    );
-    res.status(200).json({
-      data: result.rows.map((r) => ({
-        user_id: r.user_id,
-        changed: Number(r.changed) || 0,
-        is_active: r.is_active !== false,
-      })),
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to read revocations.' });
-  }
-});
+// Internal: edge-revocation feed for the API gateway (Plan 04 §2; deleted users listed since CHG-171).
+router.get('/internal/revocations', revocationsHandler);
 
 // Public routes
 router.post('/login', validateLogin, (req, res) =>
@@ -167,10 +128,12 @@ router.post('/users/bulk-import/execute', authenticateToken, canManageUsers, asy
       res.status(400).json({ success: false, error: 'Maximum 5000 rows allowed per import' });
       return;
     }
-    const result = await bulkImportService.executeBulkImport(rows, options || {});
+    // CHG-171: rows follow the Add / Edit rules for the signed-in importer (role escalation, own account,
+    // last administrator). With skipErrors off a refused row aborts the import with its 4xx status.
+    const result = await bulkImportService.executeBulkImport(rows, options || {}, actorFromRequest(req));
     res.json({ success: true, data: result });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.statusCode || 500).json({ success: false, error: error.message });
   }
 });
 

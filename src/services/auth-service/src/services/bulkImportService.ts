@@ -6,6 +6,15 @@ import pool from '../config/database';
 import logger from '../config/logger';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
+import { Actor } from '../types';
+import { auditEmitter } from './audit-emitter';
+import {
+    GuardUser,
+    assertOwnAccountChange,
+    assertUserKeepsHolders,
+    lockAccessChanges,
+    roleAssignmentChecker,
+} from './access-guard';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
 
@@ -268,11 +277,18 @@ export const validateBulkImport = async (rows: Record<string, any>[]): Promise<B
 // ============================================================================
 
 /**
- * Execute bulk import - batch insert/update users
+ * Execute bulk import - batch insert/update users.
+ *
+ * CHG-171: every row follows the Add / Edit rules for the signed-in importer (`actor`): a role
+ * beyond the importer's own rights needs rbac.manage (403); an overwrite may not change the
+ * importer's own role or deactivate them, nor leave no active rbac.manage / admin.users.edit
+ * holder (409). A refused row is reported in `errors` (skipErrors) or aborts the import.
+ * One audit record names the importer and lists the users created and updated (no passwords).
  */
 export const executeBulkImport = async (
     rows: Record<string, any>[],
-    options: { skipErrors?: boolean; overwriteDuplicates?: boolean } = {}
+    options: { skipErrors?: boolean; overwriteDuplicates?: boolean } = {},
+    actor: Actor
 ): Promise<BulkImportResult> => {
     const { skipErrors = true, overwriteDuplicates = false } = options;
 
@@ -280,6 +296,8 @@ export const executeBulkImport = async (
     let updated = 0;
     let skipped = 0;
     const errors: { row: number; error: string }[] = [];
+    const createdUsers: { username: string; role: string; is_active: boolean }[] = [];
+    const updatedUsers: { username: string; role: string; is_active: boolean; before: { role: string; is_active: boolean } }[] = [];
 
     // Process in a single transaction on one dedicated client (a pooled BEGIN/COMMIT
     // via pool.query would run on different connections and leak idle-in-transaction ones).
@@ -287,6 +305,7 @@ export const executeBulkImport = async (
     await client.query('BEGIN');
 
     try {
+        const canAssign = roleAssignmentChecker(client, actor);
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             // Per-row SAVEPOINT so a single row's DB error can be skipped without
@@ -304,13 +323,24 @@ export const executeBulkImport = async (
 
                 // Check if user with this username or email already exists
                 const existingResult = await client.query(
-                    `SELECT user_id, username, email FROM users WHERE username = $1 OR email = $2`,
+                    `SELECT user_id, username, email, role, is_active FROM users WHERE username = $1 OR email = $2`,
                     [username, email]
                 );
+                let audited: (() => void) | undefined;
 
                 if (existingResult.rows.length > 0) {
                     const existing = existingResult.rows[0];
                     if (overwriteDuplicates) {
+                        const target: GuardUser = { ...existing, full_name: null };
+                        assertOwnAccountChange(actor, target, { role, is_active: isActive });
+                        if (role !== existing.role) await canAssign(role);
+                        if (role !== existing.role || (!isActive && existing.is_active)) {
+                            // Taken here, not for the whole import: a create-only import never blocks other admin changes.
+                            // Re-taken per row: a lock taken inside a row savepoint is released if that row is rolled back.
+                            await lockAccessChanges(client);
+                            await assertUserKeepsHolders(client, target, { role, is_active: isActive });
+                        }
+
                         // Update existing user (but don't update password unless provided)
                         const updateFields: string[] = [];
                         const updateValues: unknown[] = [];
@@ -340,11 +370,14 @@ export const executeBulkImport = async (
                             );
                         }
                         updated++;
+                        audited = () => updatedUsers.push({ username: existing.username, role, is_active: isActive,
+                            before: { role: existing.role, is_active: existing.is_active } });
                     } else {
                         skipped++;
                     }
                 } else {
                     // Create new user
+                    await canAssign(role);
                     const userId = uuidv4();
                     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
@@ -354,9 +387,11 @@ export const executeBulkImport = async (
                         [userId, username, email, passwordHash, fullName, role, isActive]
                     );
                     created++;
+                    audited = () => createdUsers.push({ username, role, is_active: isActive });
                 }
 
                 await client.query('RELEASE SAVEPOINT row_sp');
+                audited?.();
             } catch (err: any) {
                 await client.query('ROLLBACK TO SAVEPOINT row_sp');
                 if (skipErrors) {
@@ -378,6 +413,13 @@ export const executeBulkImport = async (
     }
 
     logger.info('Bulk import completed', { created, updated, skipped, errorCount: errors.length });
+    auditEmitter.emit('USER_BULK_IMPORTED', actor, 'User', 'bulk-import', undefined, {
+        totalProcessed: rows.length,
+        created: createdUsers,
+        updated: updatedUsers,
+        skipped,
+        errors: errors.length,
+    });
 
     return {
         totalProcessed: rows.length,
