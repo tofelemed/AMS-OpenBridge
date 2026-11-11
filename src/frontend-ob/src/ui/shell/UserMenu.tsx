@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiChevronDownGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-chevron-down-google';
 import { ObiUser } from '@oicl/openbridge-webcomponents-react/icons/icon-user';
-import { ADMIN_PERMISSIONS } from '../../cpa/destinations';
+import { ADMINISTRATION_PERMISSIONS } from '../../cpa/destinations';
 import { useAuthStore } from '../../store/authStore';
 import { Popover } from '../Popover';
 
@@ -17,7 +17,7 @@ export const UserMenu: React.FC<{ compact: boolean }> = ({ compact }) => {
   const hasPermission = useAuthStore(s => s.hasPermission);
   const navigate = useNavigate();
   const name = user?.full_name || user?.username || 'Signed in';
-  const canAdmin = ADMIN_PERMISSIONS.some(p => hasPermission(p));
+  const canAdmin = ADMINISTRATION_PERMISSIONS.some(p => hasPermission(p));
 
   const signOut = async () => {
     await logout();

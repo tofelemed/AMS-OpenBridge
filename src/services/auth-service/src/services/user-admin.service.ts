@@ -49,10 +49,14 @@ function auditDiff(before: GuardUser, after: UserPublic): [Record<string, unknow
 }
 
 export class UserAdminService {
-  /** Create a user. Refused (403) if the role has permissions the actor lacks and the actor lacks rbac.manage. */
+  /**
+   * Create a user. Refused (403) if the role has permissions the actor lacks and the actor lacks rbac.manage.
+   * `is_active` (CHG-172, Add user's "Active account") is stored; without it the account is active, as before.
+   */
   async createUser(userData: CreateUserRequest, actor: Actor): Promise<UserPublic> {
     const { username, email, password, full_name } = userData;
     const role = userData.role || 'Viewer';
+    const isActive = userData.is_active === undefined ? true : asBoolean(userData.is_active);
     await assertCanAssignRole(pool, actor, role);
 
     const usernameCheck = await pool.query('SELECT user_id FROM users WHERE username = $1', [username]);
@@ -68,10 +72,10 @@ export class UserAdminService {
     const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const result = await pool.query(
-      `INSERT INTO users (username, email, password_hash, full_name, role)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING user_id, username, email, full_name, role, is_active, created_at`,
-      [username, email, password_hash, full_name || null, role]
+      [username, email, password_hash, full_name || null, role, isActive]
     );
 
     const user = result.rows[0];

@@ -35,7 +35,6 @@ export const SLICE_ADMIN_TABS = new Set([
   '/admin/plant-model',
   '/admin/aliases',
   '/admin/audit',
-  '/admin/system',
 ]);
 
 export function isSliceNavPath(path: string): boolean {

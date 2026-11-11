@@ -1,16 +1,23 @@
 'use client';
 
 /**
- * One data source, open: its connection facts, the loop-ingest MODE map and the actions (Test, Edit, On/Off, Delete).
- * Connection fields stay here. The configuration and client ids are build and engine identifiers: closed under Technical details.
+ * One data source in the panel beside the list (a drawer below 1280 px). CHG-172 (owner review, the approved sample, badge 13):
+ * the profile as eyebrow, the name and the state once (the heading had three pills and no state); the connection rows, every
+ * topic filter (only the first was shown), times in the site zone named once ("25 Sep 19:45"); Loop ingest; Test · Edit ·
+ * Turn off / Turn on · Delete (owner answer 10a: the button read On / Off) with the test's answer under them; the configuration
+ * and client ids and the version in Record details (they were Technical details).
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { T } from '../../styles/theme';
+import { Inspector } from '../../ui/Inspector';
+import { KvRow, TonePill } from '../Cpm/shared';
+import { DetailsDialog } from '../Cpm/config/DetailsDialog';
 import type { DataSourceDto, ProfileInfo, TestResult } from './dataSourcesApi';
 import LoopIngestPanel from './LoopIngestPanel';
-import { Fact, Pill } from './adminUi';
-import { TechnicalDetails } from '../../ui/TechnicalDetails';
+import { stamp, zoneTag } from './adminTime';
+
+export const SourceState: React.FC<{ active: boolean }> = ({ active }) =>
+  (active ? <TonePill tone="good" glyph="✓">Active</TonePill> : <TonePill tone="muted" glyph="○">Off</TonePill>);
 
 interface Props {
   source: DataSourceDto;
@@ -18,96 +25,75 @@ interface Props {
   canManage: boolean;
   testing: boolean;
   lastTest?: TestResult;
-  confirmingDelete: boolean;
+  open: boolean;
+  onClose: () => void;
   onTest: () => void;
   onEdit: () => void;
   onToggle: () => void;
   onAskDelete: () => void;
-  onCancelDelete: () => void;
-  onDelete: () => void;
   onSaved: (saved: DataSourceDto) => void;
 }
 
 export const DataSourceDetail: React.FC<Props> = ({
-  source, profile, canManage, testing, lastTest, confirmingDelete,
-  onTest, onEdit, onToggle, onAskDelete, onCancelDelete, onDelete, onSaved,
+  source, profile, canManage, testing, lastTest, open, onClose, onTest, onEdit, onToggle, onAskDelete, onSaved,
 }) => {
+  const [record, setRecord] = useState(false);
   const mqtt = source.profileConfig?.mqtt;
+  const topics = mqtt?.topics ?? [];
+  const zone = zoneTag();
+  const ok = source.lastConnectionStatus === 'SUCCESS';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <h3 className="cpm-panel-title">{source.name}</h3>
-          <Pill text={source.sourceType} color={T.blue} />
-          {profile && <Pill text={profile.displayName} color={T.blue} />}
-          {mqtt?.topics?.[0] && <Pill text={mqtt.topics[0]} color={T.success} mono />}
-        </div>
+    <>
+      <Inspector eyebrow={profile?.displayName ?? source.sourceType} title={source.name} open={open} onClose={onClose}
+        meta={<SourceState active={source.isActive} />}
+        primaryAction={
+          <div className="cpm-admin-foot cpm-admin-foot--end">
+            <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
+          </div>
+        }>
+        <KvRow label="Connection URL"><span className="cpm-mono">{source.connectionUrl}</span></KvRow>
+        <KvRow label="Username">{source.username}</KvRow>
+        <KvRow label={topics.length > 1 ? 'Topic filters' : 'Topic filter'}><span className="cpm-mono">{topics.join(', ') || '—'}</span></KvRow>
+        {profile && <KvRow label="Feeds">{`${profile.module} · ${profile.destination}`}</KvRow>}
+        <KvRow label="QoS · keepalive">{`QoS ${mqtt?.qos ?? 1} · ${mqtt?.keepalive_seconds ?? 60} s`}</KvRow>
+        <KvRow label="Timeout">{`${source.timeoutSeconds} s`}</KvRow>
+        <KvRow label={`Last connection test · ${zone}`}>
+          {source.lastConnectionTest
+            ? <span className={ok ? 'cpm-admin-good' : source.lastConnectionStatus ? 'cpm-field__error' : undefined}>{`${ok ? '✓' : '✗'} ${stamp(source.lastConnectionTest)}`}</span>
+            : '—'}
+        </KvRow>
+        <KvRow label={`Last data received · ${zone}`}>{source.lastDataReceived ? stamp(source.lastDataReceived) : '—'}</KvRow>
+
+        {/* loop_ingest: a missing MODE map once excluded the whole fleet unnoticed. Loop-samples profile only. */}
+        {source.profileType === 'MQTT_LOOP_SAMPLES' && <LoopIngestPanel source={source} canManage={canManage} onSaved={onSaved} />}
+
         {canManage && (
-          <div className="cpm-admin-bar__actions">
-            <ObcButton variant="flat" disabled={testing} onClick={onTest}>{testing ? 'Testing…' : 'Test'}</ObcButton>
-            <ObcButton variant="flat" onClick={onEdit}>Edit</ObcButton>
-            <ObcButton variant="flat" onClick={onToggle}>{source.isActive ? 'Off' : 'On'}</ObcButton>
-            <ObcButton variant="flat" onClick={onAskDelete}>Delete</ObcButton>
+          <div className="cpm-admin-part">
+            <div className="cpm-admin-inline">
+              <ObcButton variant="normal" disabled={testing} onClick={onTest}>{testing ? 'Testing…' : 'Test'}</ObcButton>
+              <ObcButton variant="normal" onClick={onEdit}>Edit</ObcButton>
+              <ObcButton variant="normal" onClick={onToggle}>{source.isActive ? 'Turn off' : 'Turn on'}</ObcButton>
+              <ObcButton variant="flat" onClick={onAskDelete}>Delete</ObcButton>
+            </div>
+            {lastTest && (
+              <p role="status" className={lastTest.ok ? 'cpm-admin-ok' : 'cpm-admin-warn'}>
+                {lastTest.ok ? `✓ Connected in ${lastTest.latencyMs} ms` : `✗ ${lastTest.error ?? 'Connection failed'}`}
+              </p>
+            )}
+            {!lastTest && source.lastConnectionStatus === 'FAILED' && source.lastConnectionError && (
+              <p className="cpm-field__error" title={source.lastConnectionError}>
+                Last test error: {source.lastConnectionError.length > 160 ? `${source.lastConnectionError.slice(0, 160)}…` : source.lastConnectionError}
+              </p>
+            )}
           </div>
         )}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px 24px' }}>
-        <Fact label="Connection URL" value={source.connectionUrl} mono />
-        <Fact label="Username" value={source.username} />
-        {profile && <Fact label="Feeds" value={`${profile.module} · ${profile.destination}`} />}
-        <Fact label="QoS / Keepalive" value={`QoS ${mqtt?.qos ?? 1} · ${mqtt?.keepalive_seconds ?? 60}s`} />
-        <Fact label="Timeout" value={`${source.timeoutSeconds}s`} />
-        <Fact
-          label="Last Connection Test"
-          value={source.lastConnectionTest
-            ? `${source.lastConnectionStatus === 'SUCCESS' ? '✓' : '✗'} ${new Date(source.lastConnectionTest).toLocaleString()}`
-            : '—'}
-          color={source.lastConnectionStatus === 'SUCCESS' ? T.success : source.lastConnectionStatus ? T.critical : undefined}
-        />
-        <Fact label="Last Data Received" value={source.lastDataReceived ? new Date(source.lastDataReceived).toLocaleString() : '—'} />
-      </div>
-
-      {/* loop_ingest: a missing MODE map once excluded the whole fleet unnoticed. Loop-samples profile only. */}
-      {source.profileType === 'MQTT_LOOP_SAMPLES' && (
-        <LoopIngestPanel source={source} canManage={canManage} onSaved={onSaved} />
-      )}
-
-      {lastTest && (
-        <div role="status" style={{
-          padding: '9px 14px', borderRadius: T.radiusSm, fontSize: '12.5px', fontWeight: 600,
-          background: lastTest.ok ? T.successBg : T.criticalBg,
-          border: `1px solid ${lastTest.ok ? T.success : T.critical}`,
-          color: lastTest.ok ? T.success : T.critical,
-        }}>
-          {lastTest.ok ? `✓ Connected in ${lastTest.latencyMs} ms` : `✗ ${lastTest.error ?? 'Connection failed'}`}
-        </div>
-      )}
-      {!lastTest && source.lastConnectionStatus === 'FAILED' && source.lastConnectionError && (
-        <div style={{ fontSize: '12px', color: T.critical }} title={source.lastConnectionError}>
-          Last test error: {source.lastConnectionError.length > 160 ? `${source.lastConnectionError.slice(0, 160)}…` : source.lastConnectionError}
-        </div>
-      )}
-
-      {confirmingDelete && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
-          background: T.criticalBg, border: `1px solid ${T.criticalBorder}`, borderRadius: T.radiusSm,
-        }}>
-          <span style={{ fontSize: '13px', color: T.critical, fontWeight: 600 }}>
-            Delete "{source.name}" and its stored credentials?
-          </span>
-          <ObcButton variant="flat" onClick={onDelete}>Delete</ObcButton>
-          <ObcButton variant="flat" onClick={onCancelDelete}>Cancel</ObcButton>
-        </div>
-      )}
-
-      <TechnicalDetails items={[
-        { label: 'Configuration id', value: source.configId },
-        { label: 'Client id', value: source.effectiveClientId },
-        { label: 'Version', value: source.version, mono: false },
+      </Inspector>
+      <DetailsDialog title="Record details" open={record} onClose={() => setRecord(false)} rows={[
+        { label: 'Configuration id', copy: source.configId },
+        { label: 'Client id', copy: source.effectiveClientId },
+        { label: 'Version', value: source.version },
       ]} />
-    </div>
+    </>
   );
 };
 

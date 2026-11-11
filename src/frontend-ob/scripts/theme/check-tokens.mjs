@@ -18,6 +18,9 @@ const NEW_CODE = /^(ui|pages\/cpa|help|charts|theme|cpa)\//;
 // The legacy files whose OpenBridge controls were replaced in Phase 3 (PRM-004 Phase 3 step 2): T9 holds them there.
 const T9_REPLACED_FILES = new Set([
   'components/Administration/RolesConfig.tsx',
+  // CHG-172: the role panel and its dialogs moved out of RolesConfig.tsx; the check follows the code.
+  'components/Administration/roles/RolePanel.tsx',
+  'components/Administration/roles/RoleDialogs.tsx',
   'components/Cpm/CollapsibleSection.tsx',
   'components/Cpm/CpmEvents.tsx',
   'components/Cpm/CpmPerformance.tsx',

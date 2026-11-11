@@ -141,7 +141,7 @@ export const configHref = (q: {
   });
 };
 
-type AdminSection = 'users' | 'roles' | 'data-sources' | 'plant-model' | 'aliases' | 'system';
+type AdminSection = 'users' | 'roles' | 'data-sources' | 'plant-model' | 'aliases';
 
 /** One section of Administration. */
 export const adminHref = (section: AdminSection) => `/admin/${section}`;

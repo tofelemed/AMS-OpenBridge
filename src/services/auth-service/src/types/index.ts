@@ -115,6 +115,8 @@ export interface CreateUserRequest {
   password: string;
   full_name?: string;
   role: string;
+  /** Add user's "Active account" (CHG-172). Absent = active. */
+  is_active?: boolean;
 }
 
 export interface UpdateUserRequest {

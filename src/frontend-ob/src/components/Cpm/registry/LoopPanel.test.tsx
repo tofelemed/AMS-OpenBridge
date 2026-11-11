@@ -263,13 +263,14 @@ describe('LoopPanel actions and links', () => {
     expect(where()).toBe('/cpm/explorer?loop=FIC1');
   });
 
-  // CHG-153: Plant tree opens /admin/plant-model: the /admin/* guard (any administration permission) and the tab's asset.view
-  it('shows Effective rules to cpm.config.read only, and Plant tree to asset.view with an administration right', () => {
+  // CHG-153: Plant tree opens /admin/plant-model. CHG-172 (owner answer 3f): asset.view alone opens that tab and its route.
+  it('shows Effective rules to cpm.config.read only, and Plant tree to asset.view', () => {
+    asUser(['cpm.manage']);
     open();
     expect(screen.queryByRole('button', { name: /Effective rules/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Plant tree/ })).toBeNull();
     cleanup();
-    asUser(['cpm.manage', 'asset.view', 'admin.users.edit']);
+    asUser(['cpm.manage', 'asset.view']);
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Plant tree ↗' }));
     expect(where()).toBe('/admin/plant-model?search=fic1');

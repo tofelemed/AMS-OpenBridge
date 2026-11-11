@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Administration in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Read from lab :4173 on 11 Nov (read-only, every write blocked):
+     20 accounts (all active), five system roles and their permission sets (38 keys), 8 data sources, plant model counts
+     3 / 8 / 29 / 273 / 1102, 703 tag aliases. People are ILLUSTRATIVE: names, user names and addresses are invented, as are the
+     inactive account, the custom role, the broker address and ids. Permission names, plant tags and paths are shown as they are.
+     Shell drawn at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .btn--sm { height: 32px; } .btn--q { border: 1px dashed var(--strong); color: var(--text2); }
+  .hacts { display: inline-flex; gap: 8px; align-items: flex-start; }
+  .hacts > span { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; } .hacts small { color: var(--text2); font-size: 12px; max-width: 420px; text-align: end; }
+  [data-tabp="system"] .kv { grid-template-columns: 340px 1fr; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; align-items: flex-end; }
+  .tab { padding: 10px 14px 8px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .tab--link { color: var(--action); font-weight: 600; border: 1px dashed var(--strong); border-bottom: 0; border-radius: 6px 6px 0 0; margin-inline-start: 8px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field--q { border-style: dashed; color: var(--text2); }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; align-items: start; }
+  .md--roles { grid-template-columns: 300px minmax(0, 1fr); }
+  .filters { display: flex; align-items: center; gap: 8px; padding: 16px 16px 12px; }
+  .filters input { flex: 1; min-width: 150px; padding-inline-start: 34px; background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%276.5%27 cy=%276.5%27 r=%275%27 fill=%27none%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3Cpath d=%27M10.5 10.5l4 4%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat 11px center; }
+  .filters select.field { padding: 0 6px; }
+  .thead, .row { display: grid; align-items: center; gap: 12px; padding: 0 16px; }
+  .thead { height: 36px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 36px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { font-weight: 600; } .row small, .sub { display: block; color: var(--text2); font-size: 12px; }
+  .g-users { grid-template-columns: minmax(0, 1fr) 150px 130px; } .g-roles { grid-template-columns: minmax(0, 1fr) 70px; }
+  .g-src { grid-template-columns: minmax(0, 1fr) 110px; } .g-al { grid-template-columns: minmax(0, 1fr) 130px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; vertical-align: 1px; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-bad b { color: var(--bad); } .t-muted b { color: var(--muted); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 16px; }
+  .pg { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--panel); }
+  .pg.on { background: var(--selected); border-color: var(--action); color: var(--action); font-weight: 600; } .pg.dis { color: var(--muted); border-color: var(--border); } .gap { color: var(--text2); }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text2); }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 6px; }
+  .insp__head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .insp__body { padding: 0 20px 8px; }
+  .kv { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: center; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; overflow-wrap: anywhere; }
+  .q { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-inline-start: 6px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); cursor: help; vertical-align: 1px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .sect { border-top: 1px solid var(--border); padding: 12px 20px; }
+  .sect h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; } .sect h3 .btn { margin-inline-start: auto; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .ib { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text2); cursor: pointer; font-size: 14px; vertical-align: middle; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  .acts > span { display: inline-flex; flex-direction: column; gap: 2px; } .acts small, .dact small { color: var(--text2); font-size: 12px; max-width: 200px; }
+  .dact { display: inline-flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+  .links { display: flex; gap: 2px; flex-wrap: wrap; padding: 4px 20px 8px; } .links .btn { padding: 0 8px; } .links .btn:first-child { padding-inline-start: 0; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .insp__foot small { color: var(--text2); font-size: 12px; max-width: 330px; text-align: end; }
+  .illus { margin: 0 0 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .warnbox { margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: var(--bad-bg); color: var(--text); font-size: 13px; } .warnbox b { color: var(--bad); }
+  .okbox { margin: 8px 0 0; padding: 6px 12px; border-radius: 8px; background: var(--ok-bg); font-size: 13px; } .okbox b { color: var(--ok); }
+  /* roles */
+  .rcount { color: var(--text2); font-size: 13px; padding-top: 4px; } .rcount b { color: var(--action); font-weight: 600; }
+  .pcols { columns: 2; column-gap: 24px; }
+  .pblock { break-inside: avoid; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px 6px; }
+  .pcat { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--text2); min-height: 36px; }
+  .perm { display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start; padding: 5px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .perm input { margin: 3px 0 0; width: 16px; height: 16px; } .perm small { display: block; color: var(--text2); font-size: 12px; line-height: 1.35; }
+  .in { height: 40px; border: 1px solid var(--strong); border-radius: 6px; padding: 0 10px; font: inherit; color: var(--text); background: var(--panel); width: 100%; min-width: 0; }
+  .in[disabled] { background: var(--raised); color: var(--text2); } .in::placeholder { color: var(--muted); } .in--q { border-style: dashed; }
+  .fl { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); min-width: 0; }
+  .fl small { color: var(--text2); font-size: 12px; } .fl small.w { color: var(--warn); } .fl small.b { color: var(--bad); }
+  /* tree */
+  .strip { display: flex; align-items: stretch; gap: 0; padding: 10px 16px; margin-bottom: 16px; border: 1px dashed var(--strong); border-radius: 12px; background: var(--panel); }
+  .stage { display: flex; flex-direction: column; min-width: 150px; } .stage span:first-child { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .stage b { font-size: 16px; color: var(--ok); } .stage small { color: var(--text2); font-size: 12px; } .arr { align-self: center; padding: 0 14px; color: var(--text2); }
+  .tnode { display: grid; grid-template-columns: 18px 96px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 36px; padding: 5px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .tnode:hover { background: var(--hover); } .tnode.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .tnode .lv { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); } .tnode .tw { color: var(--text2); font-size: 11px; }
+  .tnode .nm small { display: block; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text2); overflow-wrap: anywhere; }
+  .tag { font-size: 12px; padding: 0 8px; border: 1px solid var(--border); border-radius: 10px; color: var(--text2); }
+  /* dialogs */
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; overflow: auto; padding: 24px 0; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); } .dlg--wide { width: 820px; } .dlg--sm { width: 480px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; align-items: center; } .dlg h3 > span:last-child { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 4px; } .dlg h4 .btn { margin-inline-start: auto; height: 32px; }
+  .dlg p { margin: 8px 0; } .dlg .kv { grid-template-columns: 170px 1fr; } .dlg .kv > span:last-child { text-align: start; }
+  .dlg .df { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .chk { display: flex; align-items: flex-start; gap: 8px; min-height: 40px; color: var(--text); padding-top: 9px; } .chk small { display: block; color: var(--text2); font-size: 12px; }
+  .key { display: grid; grid-template-columns: 220px 1fr; gap: 6px 16px; align-items: center; } .key > span:nth-child(even) { color: var(--text2); }
+  .q2 { border: 1px dashed var(--strong); border-radius: 6px; padding: 2px 8px; color: var(--text2); }
+  .drop { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed var(--strong); border-radius: 8px; }
+  textarea.in { height: 132px; padding: 8px 10px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; resize: vertical; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; }
+  .stats { display: flex; gap: 18px; color: var(--text2); } .stats b { color: var(--text); font-size: 16px; margin-inline-end: 4px; }
+  .mrow { display: grid; grid-template-columns: 90px 16px 120px 1fr 32px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .trow { display: grid; grid-template-columns: 1fr 32px; gap: 8px; margin-bottom: 8px; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; } [data-pane] { display: none; } [data-pane].on { display: block; } [data-tabp] { display: none; } [data-tabp].on { display: block; } .md[data-tabp].on { display: grid; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+  /* below 1280 px: the sidebar folds, the panel becomes a drawer */
+  .narrow .shell { width: 1000px; grid-template-columns: 1fr; } .narrow .side, .narrow .topf { display: none; } .narrow .sample { width: 1000px; }
+  .narrow .md { grid-template-columns: 1fr; } .narrow .md > aside { position: fixed; top: 64px; right: 0; bottom: 0; width: 440px; z-index: 4; overflow: auto; border-radius: 0; box-shadow: -8px 0 28px rgba(21, 34, 56, .18); }
+  .narrow .md--roles > aside { width: 620px; } .narrow .md > aside.closed { display: none; } .dclose { display: none; } .narrow .dclose { display: inline-grid; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Platform Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div class="on">Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ?; How to read and the open tab's own actions top right (they left the card's bar) -->
+    <div class="head">
+      <div class="ann" data-n="1" style="padding-inline-end:14px"><span class="eyebrow">System</span><h1>Administration</h1></div>
+      <span class="grow"></span>
+      <button class="btn" id="howBtn" onclick="openDlg('howto')">How to read</button>
+      <span class="hacts" id="hacts"></span>
+    </div>
+    <!-- 2 six tabs, plain labels, each its own address; Audit log is a link at the end: it always opened Governance (question 1) -->
+    <div class="tabs ann" data-n="2" role="tablist" id="tabs"></div>
+
+    <!-- USERS -->
+    <div data-tabp="users" class="md" id="pUsers">
+      <section class="card">
+        <!-- 3 one filter row: search first; role and status dropdowns named by their options, the counts inside them -->
+        <div class="filters ann" data-n="3">
+          <input class="field" type="search" id="uq" placeholder="Name or email" aria-label="Find user" oninput="go({uq:this.value})">
+          <span class="ann" data-n="Q" title="Owner question 3: the search does not look at the user name today"></span>
+          <select class="field" aria-label="Role" id="uRole"></select>
+          <select class="field" aria-label="Status" id="uSt"></select>
+        </div>
+        <!-- 4 the same three columns; the role as a word, the status tone + glyph + word -->
+        <div class="thead g-users ann" data-n="4"><span>User</span><span>Role</span><span>Status</span></div>
+        <div id="uRows" role="list" aria-label="Users"></div>
+        <div class="empty hide" id="uEmpty">No users found</div>
+      </section>
+      <!-- 5 the selected user: today's row dialog, as a panel (a drawer below 1280 px) -->
+      <aside class="card insp ann" data-n="5" aria-label="Selected user" id="uPanel"></aside>
+    </div>
+
+    <!-- ROLES -->
+    <div data-tabp="roles" class="md md--roles" id="pRoles">
+      <!-- 8 the role list: name, its description under it, System / Custom as a word -->
+      <section class="card ann" data-n="8">
+        <div class="thead g-roles" style="border-top:0;border-radius:12px 12px 0 0"><span>Role</span><span>Type</span></div>
+        <div id="rRows" role="list" aria-label="Roles"></div>
+      </section>
+      <!-- 9 the selected role: description, the permissions with what each allows, the count, Save in the foot with its sentence -->
+      <aside class="card insp ann" data-n="9" aria-label="Selected role" id="rPanel"></aside>
+    </div>
+
+    <!-- DATA SOURCES -->
+    <div data-tabp="sources" class="md" id="pSources">
+      <!-- 12 one filter row; name with its profile under it; "MQTT" on every row goes; ✓ Active / ○ Off -->
+      <section class="card ann" data-n="12">
+        <div class="filters"><input class="field" type="search" placeholder="Name, type or broker URL" aria-label="Find data source"></div>
+        <div class="thead g-src"><span>Data source</span><span>State</span></div>
+        <div id="sRows" role="list" aria-label="Data sources"></div>
+      </section>
+      <!-- 13 the selected source: profile, name, state once; rows; Loop ingest; actions; ids behind Record details -->
+      <aside class="card insp ann" data-n="13" aria-label="Selected data source" id="sPanel"></aside>
+    </div>
+
+    <!-- PLANT MODEL -->
+    <div data-tabp="plant">
+      <!-- 17 the onboarding stages leave the ? and sit above the tree (question 11) -->
+      <div class="strip ann" data-n="17" id="strip"></div>
+      <div class="md">
+        <!-- 16 the tree with its search; + child / Edit / Delete leave every row for the panel; CPM said once on the device -->
+        <section class="card ann" data-n="16">
+          <div class="filters"><input class="field" type="search" placeholder="Name or path, 2 characters or more" aria-label="Find in plant model"></div>
+          <div id="tRows" role="tree" aria-label="Plant model"></div>
+        </section>
+        <aside class="card insp" aria-label="Selected node" id="tPanel"></aside>
+      </div>
+    </div>
+
+    <!-- TAG ALIASES -->
+    <div data-tabp="aliases" class="md" id="pAliases">
+      <!-- 19 one filter row; tag with its UNS path under it; Delete leaves 500 rows for the panel; the 32 px pager replaces "Showing 500 of 703" -->
+      <section class="card ann" data-n="19">
+        <div class="filters"><input class="field" type="search" placeholder="Tag or path" aria-label="Find tag alias">
+          <span class="field field--q ann" data-n="Q" title="Owner question 12c: a Source dropdown; the API already filters by source">All sources 703 &#9662;</span></div>
+        <div class="thead g-al"><span>Tag → UNS path</span><span>Source</span></div>
+        <div id="aRows" role="list" aria-label="Tag aliases"></div>
+        <div class="pager"><span class="pg dis">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="gap">…</span><span class="pg">8</span><span class="pg">›</span></div>
+      </section>
+      <aside class="card insp" aria-label="Selected tag alias" id="aPanel"></aside>
+    </div>
+
+    <!-- SYSTEM SETTINGS -->
+    <!-- 21 one card in three titled parts; "Not connected" six times becomes one reason beside Save; question 2 -->
+    <section data-tabp="system" class="card ann" data-n="21" style="padding:4px 20px 12px">
+      <div class="sect" style="border:0;padding-inline:0"><h3>Data retention</h3><div class="kv"><span>Active alarm retention (days)</span><span>—</span></div><div class="kv"><span>Historical log retention (days)</span><span>—</span></div></div>
+      <div class="sect" style="padding-inline:0"><h3>Backup and export</h3><div class="kv"><span>Backup path</span><span>—</span></div><div class="kv"><span>Nightly audit trail CSV export</span><span>—</span></div></div>
+      <div class="sect" style="padding-inline:0"><h3>Interface and diagnostics</h3><div class="kv"><span>Default theme</span><span>—</span></div><div class="kv" style="border:0"><span>Backend log level</span><span>—</span></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim">
+  <!-- 22 How to read: the open tab's key, titled parts, aligned columns; today's four ? live here -->
+  <div class="card dlg dlg--wide ann" data-n="22" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div data-how="users"><h4>Status</h4><div class="key">
+      <span><span class="pill t-ok"><b>✓</b>Active</span></span><span>The account can sign in.</span>
+      <span><span class="pill t-muted"><b>⊘</b>Inactive</span></span><span>The account cannot sign in.</span></div>
+      <h4>Role</h4><p style="color:var(--text2)">One role per user. What a role allows is on Roles &amp; permissions.</p></div>
+    <div data-how="roles"><h4>Type</h4><div class="key">
+      <span>System</span><span>Protected: cannot be renamed or deleted; its permissions can be edited, and Reset to default restores them.</span>
+      <span>Custom</span><span>Made here. Delete role moves its users to another role.</span></div>
+      <h4>Permissions</h4><p style="color:var(--text2)">Permissions are fixed by the product: a role is given some of them, none can be invented.</p></div>
+    <div data-how="sources"><h4>Data sources</h4><p style="color:var(--text2)">OT data sources: MQTT broker connections consumed by the ingestion service.</p>
+      <h4>State</h4><div class="key"><span><span class="pill t-ok"><b>✓</b>Active</span></span><span>The ingestion service subscribes to it.</span><span><span class="pill t-muted"><b>○</b>Off</span></span><span>Kept, not subscribed.</span></div>
+      <h4>MODE map</h4><div class="key"><span>counts as AUTO</span><span>AUT, CAS</span><span>counts as MANUAL</span><span>MAN, IMAN</span><span>NOT RECOGNISED</span><span>The engine treats it as manual.</span></div></div>
+    <div data-how="plant"><h4>Levels</h4><p style="color:var(--text2)">Site → Area → Unit → Device → Measurement. Path segments are permanent identity; names are labels.</p>
+      <h4>Marks</h4><div class="key"><span><span class="tag">CPM</span></span><span>Managed by the CPM Loop Registry: the panel opens the loop.</span></div></div>
+    <div data-how="aliases"><h4>Tag aliases</h4><p style="color:var(--text2)">OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this table; a tag without an alias parks as unknown instead of flowing.</p></div>
+  </div>
+
+  <!-- 6 the user editor: Add user and Edit user, titled parts, the hint behind ?, every check kept -->
+  <div class="card dlg ann" data-n="6" data-dlg="user">
+    <h3 id="ueTitle">Add user <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Account</h4>
+    <div class="fgrid">
+      <label class="fl" id="ueUser">Username *<input class="in" placeholder="john_doe"></label>
+      <label class="fl">Email *<input class="in" id="ueMail" placeholder="john.doe@example.com"></label>
+      <label class="fl">Full name<input class="in" id="ueName" placeholder="John Doe"></label>
+      <label class="fl" id="uePw"><span>Password * <span class="q" title="8+ chars with upper, lower, and a number">?</span></span><input class="in" type="password"></label>
+    </div>
+    <h4>Access</h4>
+    <div class="fgrid">
+      <label class="fl">Role *<select class="in" id="ueRole"><option>SuperAdmin</option><option>Admin</option><option>Engineer</option><option>Operator</option><option selected>Viewer</option></select><small id="ueSelfR" class="hide q2">You cannot change your own role or status. (question 4)</small></label>
+      <div class="fl">Status<label class="chk"><input type="checkbox" checked id="ueAct"> Active account</label></div>
+    </div>
+    <div class="warnbox hide" id="ueErr" role="alert">Username must be 3+ chars (letters, numbers, underscores).</div>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" id="ueSave">Create user</button></div>
+  </div>
+
+  <div class="card dlg dlg--sm" data-dlg="udel">
+    <h3>Delete user <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p id="udelMsg"></p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" style="background:var(--bad)">Delete</button></div>
+  </div>
+
+  <!-- 7 bulk import: the same three steps as tabs; columns and template in one part; the counts in one line -->
+  <div class="card dlg dlg--wide ann" data-n="7" data-dlg="bulk">
+    <h3>Bulk import users <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="tabs" style="margin:8px 0 4px"><span class="tab" id="bt1">File</span><span class="tab" id="bt2">Preview</span><span class="tab" style="color:var(--muted)">Result</span></div>
+    <div data-pane="bfile">
+      <h4>Columns <button class="btn">Download template</button></h4>
+      <p class="mono">username, email, full_name, password, role, is_active</p>
+      <p style="color:var(--text2)">Roles: Admin, Engineer, Operator, Viewer. <span class="q2">The list leaves out SuperAdmin and custom roles, which import with a warning (finding)</span></p>
+      <h4>File</h4>
+      <div class="drop"><span>Click to choose a CSV file, or drag &amp; drop it here</span><span class="grow"></span><span style="color:var(--text2);font-size:13px">.csv · up to 5000 rows</span></div>
+    </div>
+    <div data-pane="bprev">
+      <div class="illus">Illustrative rows: no file was imported on the lab.</div>
+      <div class="stats"><span><b>4</b>Total</span><span><b>2</b>Valid</span><span><b>1</b>Warnings</span><span><b>0</b>Duplicates</span><span><b>1</b>Errors</span></div>
+      <h4>Options</h4>
+      <div style="display:flex;gap:24px"><label class="chk" style="padding:0;min-height:0"><input type="checkbox" checked> Skip error rows</label><label class="chk" style="padding:0;min-height:0"><input type="checkbox"> Overwrite existing (duplicates)</label></div>
+      <h4>Rows</h4>
+      <table><tr><th>#</th><th>Status</th><th>Username</th><th>Email</th><th>Role</th><th>Notes</th></tr>
+        <tr><td>2</td><td><span class="pill t-ok"><b>✓</b>valid</span></td><td>j_engineer</td><td>engineer.j@example.com</td><td>Engineer</td><td>—</td></tr>
+        <tr><td>3</td><td><span class="pill t-ok"><b>✓</b>valid</span></td><td>k_operator</td><td>operator.k@example.com</td><td>Operator</td><td>—</td></tr>
+        <tr><td>4</td><td><span class="pill t-warn"><b>!</b>warning</span></td><td>l_super</td><td>super.l@example.com</td><td>SuperAdmin</td><td>role 'SuperAdmin' is non-standard. Expected: Admin, Engineer, Operator, or Viewer</td></tr>
+        <tr><td>5</td><td><span class="pill t-bad"><b>✕</b>error</span></td><td>m</td><td>not-an-address</td><td>Viewer</td><td>…</td></tr></table>
+    </div>
+    <div class="df"><span class="grow"></span><span id="bFoot"></span></div>
+  </div>
+
+  <!-- 11 Add custom role: today's inline form, as a small dialog -->
+  <div class="card dlg dlg--sm ann" data-n="11" data-dlg="radd">
+    <h3>Add custom role <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Role</h4>
+    <label class="fl">Role name<input class="in" placeholder="e.g. ShiftSupervisor"></label>
+    <label class="fl" style="margin-top:12px">Description<input class="in" placeholder="What this role is for"></label>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" disabled>Create</button></div>
+  </div>
+
+  <!-- 10 Reset to default gains a confirmation (it signs everyone with the role out); question 5 -->
+  <div class="card dlg dlg--sm ann" data-n="10" data-dlg="rreset">
+    <h3>Reset to default <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>The role gets its default permission set back; changes made on this page are lost.</p>
+    <p style="color:var(--text2)">Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
+    <p class="q2" id="rresetQ"></p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Reset to default</button></div>
+  </div>
+
+  <div class="card dlg dlg--sm ann" data-n="10" data-dlg="rdel">
+    <h3>Delete role "Supervisor" <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users).</p>
+    <label class="fl">Reassign users to<select class="in in--q" title="Owner question 9: a list of the roles instead of free text"><option>Viewer</option><option>Operator</option><option>Engineer</option><option>Admin</option><option>SuperAdmin</option></select></label>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" style="background:var(--bad)">Delete role</button></div>
+  </div>
+
+  <!-- 14 the data-source editor: today's full-page four-step wizard, as a tabbed dialog; every field, check and warning kept -->
+  <div class="card dlg dlg--wide ann" data-n="14" data-dlg="src">
+    <h3 id="seTitle">Edit data source <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="tabs" role="tablist" id="seTabs" style="margin:8px 0 4px"></div>
+    <div data-pane="sp1">
+      <h4>Profile <span class="q" title="What is this configuration for? The profile decides which module the data feeds and which pipeline it lands on.">?</span></h4>
+      <label class="fl">Data Source Profile *<select class="in"><option>Alarms &amp; Events — Alarm Management (CAMS)</option><option selected>Control-Loop Signals (CPA) — Loop Performance (CPM)</option><option>Process Telemetry — HMI Displays &amp; Historian</option><option>Transmitter Health (Instrumental NE107) — Loop Performance (CPM)</option><option>PRM (MQTT Gateway) — Device Diagnostics (PRM)</option></select>
+        <small>Per-parameter control-loop feed (PV/SP/OP/MODE + tuning params) from the OT gateway; the subscriber joins each loop's parameters onto a per-loop grid tuple for the CPM diagnostics engine — loops must be registered in the CPM Loop Registry first.</small></label>
+      <label class="fl" style="margin-top:12px;max-width:260px"><span>Transport Type <span class="q" title="Determined by profile selection">?</span></span><input class="in" value="MQTT" disabled></label>
+      <h4>Data routing</h4>
+      <p style="color:var(--text2)">MQTT topics (Advanced, suggested <span class="mono">OT/+/+/+/+/PIDParams/+</span>) → <b>Control-Loop Signals (CPA)</b> parser → <span class="mono">traverse.cpa.loop.samples.v1</span> → <b>Loop Performance (CPM)</b></p>
+    </div>
+    <div data-pane="sp2">
+      <h4>Name</h4>
+      <label class="fl">Name *<input class="in" value="OT Gateway (loop samples)" placeholder="e.g., OT Gateway PRM upload"></label>
+      <label class="fl" style="margin-top:12px">Description<textarea class="in" style="font-family:inherit;font-size:14px;height:84px" placeholder="Optional: Describe this data source configuration"></textarea></label>
+    </div>
+    <div data-pane="sp3">
+      <h4>Broker</h4>
+      <label class="fl">Broker URL * <input class="in mono" value="mqtt://broker.example:1883" placeholder="mqtts://192.168.190.91:8883"><small>Include the scheme and port. Use <span class="mono">mqtts://</span> for TLS (8883) or <span class="mono">mqtt://</span> for plaintext (1883).</small></label>
+      <h4>Sign-in</h4>
+      <div class="fgrid"><label class="fl">Username *<input class="in" value="ingest_user"></label><label class="fl">Password<input class="in" type="password" placeholder="Leave blank to keep current password"></label></div>
+    </div>
+    <div data-pane="sp4">
+      <h4>Topic Filters * <span class="q" title="Wildcards: + matches one level, # matches all remaining levels and must be last. Suggested for Control-Loop Signals (CPA): OT/+/+/+/+/PIDParams/+ — enter the actual topic(s) your OT gateway publishes for this module.">?</span><button class="btn">Add topic</button></h4>
+      <div class="trow"><input class="in mono" value="OT/+/+/+/+/PIDParams/+"><button class="ib" title="Remove topic" disabled>✕</button></div>
+      <h4>Session</h4>
+      <div class="fgrid">
+        <label class="fl"><span>QoS <span class="q" title="QoS 1 is required for the broker to queue messages while ingestion is down. Duplicates are suppressed downstream.">?</span></span><select class="in"><option>0 — at most once</option><option selected>1 — at least once (recommended)</option><option>2 — exactly once</option></select></label>
+        <label class="fl"><span>Client ID <span class="q" title="Leave blank to derive one from this config. It must be stable and unique — the broker keys its offline queue on it, and two clients sharing an ID evict each other repeatedly.">?</span></span><input class="in mono" placeholder="ingestion-7d2c41a0-…"></label>
+        <label class="fl">Session Expiry (seconds)<input class="in" value="86400"><small class="w">How long the broker holds queued messages after a disconnect. MQTT 5 defaults this to 0, which silently discards them — leave it well above your longest expected restart.</small></label>
+        <label class="fl"><span>Keepalive (seconds) <span class="q" title="The broker declares the client dead after 1.5× this with no traffic.">?</span></span><input class="in" value="60"></label>
+      </div>
+      <label class="chk"><input type="checkbox"> <span>Clean session<small>Leave OFF. When on, the broker forgets the subscription on disconnect and anything published while ingestion is restarting is lost permanently.</small></span></label>
+      <h4>Broker certificate (TLS)</h4>
+      <p style="color:var(--text2)">The broker URL is <span class="mono">mqtt://</span> (plaintext), so nothing here applies. Credentials are encrypted at rest but travel in the clear — use <span class="mono">mqtts://</span> outside a trusted network.</p>
+      <h4>Timeout</h4>
+      <label class="fl" style="max-width:260px"><span>Timeout (seconds) <span class="q" title="Used by the connection test (and the subscriber connect attempt in a later phase).">?</span></span><input class="in" value="15"></label>
+      <h4>Next steps after saving</h4>
+      <p style="color:var(--text2);margin:0">1. Click <b>Test</b> to verify the broker accepts these credentials<br>
+        <span class="q2">2. The ingestion runtime arrives in a later phase — active configurations take effect when it ships (question 10b: ingestion runs today)</span><br>
+        3. Every OT tag the gateway publishes must be mapped in the asset model (alias mapping) before its data can land — records for unknown tags are parked, not auto-created</p>
+    </div>
+    <div class="df"><button class="btn" id="seBack">← Back</button><span class="grow"></span><button class="btn btn--raised" id="seNext"></button></div>
+  </div>
+
+  <div class="card dlg dlg--sm" data-dlg="sdel">
+    <h3>Delete data source <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>Delete "OT Gateway (loop samples)" and its stored credentials?</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" style="background:var(--bad)">Delete</button></div>
+  </div>
+
+  <!-- 15 Edit MODE map: today's inline editor, as a dialog; the warnings word for word -->
+  <div class="card dlg ann" data-n="15" data-dlg="mode">
+    <h3>Edit MODE map <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p style="color:var(--text2)">Source MODE value → engine token. Use exact tokens: <b>AUT</b>, <b>MAN</b>, <b>CAS</b>, <b>IMAN</b>. Everything else in this block is managed through the API and is left untouched by this save.</p>
+    <div class="mrow"><input class="in mono" value="1" aria-label="MODE value 1"><span>→</span><input class="in mono" value="AUT" aria-label="Engine token 1"><span style="color:var(--ok);font-size:13px;font-weight:600">counts as AUTO</span><button class="ib" title="Remove">✕</button></div>
+    <div class="mrow"><input class="in mono" value="2" aria-label="MODE value 2"><span>→</span><input class="in mono" value="MAN" aria-label="Engine token 2"><span style="color:var(--text2);font-size:13px;font-weight:600">counts as MANUAL</span><button class="ib" title="Remove">✕</button></div>
+    <div class="mrow"><input class="in mono" value="3" aria-label="MODE value 3"><span>→</span><input class="in mono" value="CAS" aria-label="Engine token 3"><span style="color:var(--ok);font-size:13px;font-weight:600">counts as AUTO</span><button class="ib" title="Remove">✕</button></div>
+    <div class="mrow"><input class="in mono" value="4" aria-label="MODE value 4"><span>→</span><input class="in mono" value="IMAN" aria-label="Engine token 4"><span style="color:var(--text2);font-size:13px;font-weight:600">counts as MANUAL</span><button class="ib" title="Remove">✕</button></div>
+    <div class="acts"><button class="btn btn--out btn--sm">Add value</button><button class="btn btn--out btn--sm">Use Yokogawa CENTUM preset</button></div>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Save MODE map</button></div>
+  </div>
+
+  <div class="card dlg dlg--sm" data-dlg="srec">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Configuration id</span><span><span class="mono">7d2c41a0…</span> <button class="ib" title="Copy the whole id">⧉</button></span></div>
+    <div class="kv"><span>Client id</span><span><span class="mono">ingestion-7d2c41a0…</span> <button class="ib" title="Copy">⧉</button></span></div>
+    <div class="kv"><span>Version</span><span>3</span></div>
+    <p style="color:var(--text2);font-size:12px">Illustrative ids.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 18 plant editor: where it goes said once, the names, the type fields; the identity sentence by the segment -->
+  <div class="card dlg ann" data-n="18" data-dlg="node">
+    <h3>Add Area <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Place</h4>
+    <div class="kv"><span>Under</span><span>HDPE Plant · <span class="mono">hdpe</span></span></div>
+    <div class="kv"><span>Full path</span><span class="mono">hdpe/section_700</span></div>
+    <h4>Names</h4>
+    <div class="fgrid">
+      <label class="fl">Display name *<input class="in" value="Section 700"></label>
+      <label class="fl"><span>Path segment * <span class="q" title="Letters, digits, _ and - only.">?</span></span><input class="in mono" value="section_700"><small>The path segment is permanent identity — the display name can change later.</small></label>
+    </div>
+    <label class="fl" style="margin-top:12px">Description<input class="in"></label>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Create Area</button></div>
+  </div>
+
+  <div class="card dlg dlg--sm" data-dlg="ndel">
+    <h3>Delete Device <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>Delete 'FC10711' (hdpe/section_100/u1001_polymerization_reactor_1/fc10711)? Deletes are refused while children or control loops still reference it.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" style="background:var(--bad)">Delete</button></div>
+  </div>
+
+  <div class="card dlg dlg--wide" data-dlg="pimp">
+    <h3>Import plant model from CSV <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="tabs" style="margin:8px 0 4px"><span class="tab" aria-selected="true">Source</span><span class="tab" style="color:var(--muted)">Review</span><span class="tab" style="color:var(--muted)">Import</span><span class="grow"></span><span style="color:var(--text2);font-size:13px;padding-bottom:8px">Nothing is written until the last step.</span></div>
+    <h4>Columns <button class="btn">Download template</button></h4>
+    <p><span class="mono">site, area, unit, device, measurement, name, description, engineering_unit, range_lo, range_hi, device_template, ot_tag</span>. Level cells accept the path segment (<span class="mono">section_100</span>) or the display name (<span class="mono">Section 100</span>).</p>
+    <h4>File contents</h4>
+    <textarea class="in" placeholder="site,area,unit,device,measurement,name,description,engineering_unit,range_lo,range_hi,device_template,ot_tag"></textarea>
+    <label class="chk"><input type="checkbox"> Create missing hierarchy levels (sites / areas / units) from the file. Off = rows referencing unknown hierarchy are rejected — the origin-spec default.</label>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" disabled>Validate →</button></div>
+  </div>
+
+  <!-- 20 alias dialogs: titled parts, hints behind ?, the confirmation word for word, "Confirm" becomes Delete -->
+  <div class="card dlg ann" data-n="20" data-dlg="aadd">
+    <h3>Add tag alias <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Mapping</h4>
+    <label class="fl"><span>Legacy / OT tag * <span class="q" title="Exactly as the source system sends it, e.g. 45FIC109.PV">?</span></span><input class="in mono" placeholder="45FIC109.PV"></label>
+    <label class="fl" style="margin-top:12px"><span>Canonical UNS path * <span class="q" title="site/[area/]unit/device.measurement">?</span></span><input class="in mono" placeholder="hdpe/section_100/u1001_polymerization_reactor_1/45fic109.pv"></label>
+    <label class="fl" style="margin-top:12px;max-width:280px"><span>Source system <span class="q" title="ot-gateway, PI-AF, instrumental-pro, …">?</span></span><input class="in" value="ot-gateway"></label>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" disabled>Create alias</button></div>
+  </div>
+  <div class="card dlg" data-dlg="aimp">
+    <h3>Import tag aliases from CSV <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Columns <button class="btn">Download template</button></h4>
+    <p><span class="mono">legacy_path, canonical_path, source_system</span>. Duplicate (legacy_path, source_system) pairs are reported per row, not fatal.</p>
+    <h4>File contents</h4>
+    <textarea class="in" placeholder="legacy_path,canonical_path,source_system"></textarea>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" disabled>Import</button></div>
+  </div>
+  <div class="card dlg dlg--sm" data-dlg="adel">
+    <h3>Delete alias <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p>Delete the mapping 'FCS0102.PIC30102.PV' → 'hdpe/section_100/u1005_catalyst_dosage/pic30102.pv'? Events using this tag will park as unknown until remapped.</p>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" style="background:var(--bad)">Delete</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out btn--sm" onclick="sample('own')">Users · own account</button>
+  <button class="btn btn--out btn--sm" onclick="sample('other')">Users · another user</button>
+  <button class="btn btn--out btn--sm" onclick="sample('inactive')">Users · inactive (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('nomatch')">Users · no match</button>
+  <button class="btn btn--out btn--sm" onclick="sample('roles')">Roles · Engineer</button>
+  <button class="btn btn--out btn--sm" onclick="sample('dirty')">Roles · unsaved</button>
+  <button class="btn btn--out btn--sm" onclick="sample('custom')">Roles · custom (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('sources')">Data sources</button>
+  <button class="btn btn--out btn--sm" onclick="sample('nomap')">Data sources · no MODE map (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="sample('plant')">Plant model</button>
+  <button class="btn btn--out btn--sm" onclick="sample('aliases')">Tag aliases</button>
+  <button class="btn btn--out btn--sm" onclick="sample('system')">System settings</button>
+  <button class="btn btn--out btn--sm" onclick="sample('narrow')">1000 px · drawer</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w) => `<span class="pill t-${t}"><b>${g}</b>${w}</span>`;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  const q = t => `<span class="q" title="${t.replace(/"/g, '&quot;')}">?</span>`;
+  // ILLUSTRATIVE people: [user name, full name, role, active, email, created]; the first is the signed-in account
+  const USERS = [
+    ['platform_admin', 'Platform Administrator', 'SuperAdmin', 1, 'platform.admin@example.com', '10 Oct 2026'],
+    ['a_engineer', 'A. Engineer', 'Engineer', 1, 'engineer.a@example.com', '3 Nov 2026'],
+    ['b_engineer', 'B. Engineer', 'Engineer', 1, 'engineer.b@example.com', '3 Nov 2026'],
+    ['c_engineer', '', 'Engineer', 1, 'engineer.c@example.com', '4 Nov 2026'],
+    ['d_operator', 'D. Operator', 'Operator', 1, 'operator.d@example.com', '12 Oct 2026'],
+    ['e_operator', 'E. Operator', 'Operator', 1, 'operator.e@example.com', '12 Oct 2026'],
+    ['f_viewer', 'F. Viewer', 'Viewer', 1, 'viewer.f@example.com', '12 Oct 2026'],
+    ['g_admin', 'G. Admin', 'Admin', 1, 'admin.g@example.com', '1 Oct 2026'],
+    ['h_viewer', 'H. Viewer', 'Viewer', 0, 'viewer.h@example.com', '20 Sep 2026']];
+  // permission catalog as served (38 keys), each with its description
+  const CAT = [
+    ['ADMIN', [['admin.audit.view', 'View the audit log'], ['admin.users.edit', 'Create/edit/delete users'], ['rbac.manage', 'Manage roles and their permissions']]],
+    ['ALARM', [['alarm.acknowledge', 'Acknowledge an alarm'], ['alarm.acknowledge_batch', 'Acknowledge alarms in batch'], ['alarm.export', 'Export alarm data'], ['alarm.shelve', 'Shelve an alarm'], ['alarm.suppress', 'Suppress an alarm (by design)'], ['alarm.unshelve', 'Unshelve an alarm'], ['alarm.view', 'View active alarms']]],
+    ['ANALYSIS', [['analysis.edit', 'Create/edit analyses'], ['analysis.view', 'View analyses']]],
+    ['ANALYTICS', [['analytics.view', 'View analytics / KPIs']]],
+    ['ASSET', [['asset.edit', 'Create/edit UNS assets'], ['asset.view', 'View the UNS asset model']]],
+    ['BINDING', [['binding.resolve', 'Resolve path+role bindings']]],
+    ['CPM', [['cpm.analysis.create', 'Start a bounded analysis run (replay, shadow, evidence reconstruction)'], ['cpm.config.activate', 'Activate an approved gate-configuration bundle'], ['cpm.config.approve', 'Approve a validated gate-configuration bundle'], ['cpm.config.draft', 'Create and edit gate-configuration drafts'], ['cpm.config.read', 'Read the effective gate configuration and its provenance'], ['cpm.config.rollback', 'Roll back to the previously active gate-configuration bundle'], ['cpm.config.shadow', 'Run a shadow evaluation of a gate-configuration draft'], ['cpm.config.validate', 'Validate a gate-configuration draft'], ['cpm.context.manage', 'Maintain analysis context: instrument bindings, controller snapshots'], ['cpm.manage', 'Onboard and configure control loops (CPLM)'], ['cpm.model.review', 'Review a system-response model (validate, reject, promote, expire)']]],
+    ['DISPLAY', [['display.edit', 'Create/edit controlled displays'], ['display.publish', 'Publish controlled displays'], ['display.view', 'View displays and personal views']]],
+    ['HISTORIAN', [['historian.view', 'View historian trends and raw data']]],
+    ['INGESTION', [['ingestion.manage', 'Create/edit/test OT data-source configurations'], ['ingestion.view', 'View OT data-source configurations']]],
+    ['SOE', [['soe.view', 'View sequence of events']]],
+    ['SYSTEM', [['system.manage', 'Manage pipeline jobs and OPC connections; view Pipeline Health and Governance']]],
+    ['TEMPLATE', [['template.edit', 'Create/edit templates'], ['template.publish', 'Publish templates'], ['template.view', 'View templates']]]];
+  const ALL = CAT.flatMap(c => c[1].map(p => p[0]));
+  const VIEW = ['alarm.view', 'analysis.view', 'analytics.view', 'asset.view', 'binding.resolve', 'display.view', 'historian.view', 'soe.view', 'template.view'];
+  const OPER = [...VIEW, 'alarm.acknowledge', 'alarm.acknowledge_batch', 'alarm.export', 'alarm.shelve', 'alarm.unshelve'];
+  const ENG = [...OPER, 'alarm.suppress', 'analysis.edit', 'asset.edit', 'cpm.manage', 'display.edit', 'display.publish', 'template.edit', 'template.publish'];
+  // the lab's roles as read on 11 Nov; Supervisor is illustrative
+  const ROLES = {
+    Admin: ['System Administrator - full access', 1, [...ENG, 'cpm.analysis.create', 'cpm.context.manage', 'cpm.model.review']],
+    Engineer: ['Engineer - operate + configure, no user admin', 1, ENG],
+    Operator: ['Operator - alarm operations', 1, OPER],
+    SuperAdmin: ['Super Administrator - platform administration, gate configuration, pipeline and governance', 1, ALL],
+    Viewer: ['Viewer - read-only access', 1, VIEW],
+    Supervisor: ['Approves gate configuration on shift', 0, [...VIEW, 'cpm.config.read', 'cpm.config.approve', 'cpm.model.review']]};
+  const RESETQ = {
+    Engineer: 'Question 5: today Reset uses the code list, which lacks cpm.analysis.create and cpm.context.manage; on the lab Engineer already lost both (reset 4 Nov 13:04).',
+    SuperAdmin: 'Question 5: today Reset uses the code list, which lacks 10 of these 38 keys (cpm.config.*, cpm.analysis.create, cpm.context.manage, cpm.model.review): gate configuration would leave every role.',
+    Admin: 'Question 5: today Reset uses the code list, which lacks cpm.analysis.create, cpm.context.manage and cpm.model.review.' };
+  const SOURCES = [
+    ['loop', 'OT Gateway (loop samples)', 'Control-Loop Signals (CPA)', 1], ['ne107', 'Lab Instrumental NE107', 'Transmitter Health (Instrumental NE107)', 1],
+    ['soak', 'OT Gateway (lab soak)', 'Control-Loop Signals (CPA)', 0], ['e2e', 'E2E OT Gateway', 'Control-Loop Signals (CPA)', 0]];
+  // tree: [id, depth, level, name, path, cpm, expandable, open]
+  const TREE = [
+    ['dal', 0, 'Site', 'Dallas Terminal', 'dallas', 0, 1, 0], ['hdpe', 0, 'Site', 'HDPE Plant', 'hdpe', 0, 1, 1],
+    ['s100', 1, 'Area', 'Section 100', 'hdpe/section_100', 0, 1, 1], ['u1001', 2, 'Unit', '1001-Polymerization Reactor 1', 'hdpe/section_100/u1001_polymerization_reactor_1', 0, 1, 1],
+    ['fc10711', 3, 'Device', 'FC10711', 'hdpe/section_100/u1001_polymerization_reactor_1/fc10711', 1, 1, 1],
+    ['m1', 4, 'Measurement', 'FC10711 MODE', '…/fc10711.mode', 0, 0, 0], ['m2', 4, 'Measurement', 'FC10711 OP', '…/fc10711.op', 0, 0, 0],
+    ['m3', 4, 'Measurement', 'FC10711 PV', '…/fc10711.pv', 0, 0, 0], ['m4', 4, 'Measurement', 'FC10711 SP', '…/fc10711.sp', 0, 0, 0],
+    ['fic10302', 3, 'Device', 'FIC10302', 'hdpe/section_100/u1001_polymerization_reactor_1/fic10302', 1, 1, 0],
+    ['fic10405', 3, 'Device', 'FIC10405', 'hdpe/section_100/u1001_polymerization_reactor_1/fic10405', 1, 1, 0],
+    ['hou', 0, 'Site', 'Houston Refinery', 'houston', 0, 1, 0]];
+  const ALIASES = [['FCS0102.PIC30102.MODE', 'hdpe/section_100/u1005_catalyst_dosage/pic30102.mode'], ['FCS0102.PIC30102.OUT', 'hdpe/section_100/u1005_catalyst_dosage/pic30102.op'],
+    ['FCS0102.PIC30102.PV', 'hdpe/section_100/u1005_catalyst_dosage/pic30102.pv'], ['FCS0102.PIC30102.SV', 'hdpe/section_100/u1005_catalyst_dosage/pic30102.sp'],
+    ['FCS0102.PIC30104.MODE', 'hdpe/section_100/u1006_catalyst_storage/pic30104.mode'], ['FCS0102.PIC30104.OUT', 'hdpe/section_100/u1006_catalyst_storage/pic30104.op'],
+    ['FCS0102.PIC30104.PV', 'hdpe/section_100/u1006_catalyst_storage/pic30104.pv'], ['FCS0102.PIC30104.SV', 'hdpe/section_100/u1006_catalyst_storage/pic30104.sp']];
+  const TABS = [['users', 'Users'], ['roles', 'Roles & permissions'], ['sources', 'Data sources'], ['plant', 'Plant model'], ['aliases', 'Tag aliases'], ['system', 'System settings']];
+  let S = {};
+  const SAMPLES = {
+    own: { tab: 'users', u: 'platform_admin' }, other: { tab: 'users', u: 'a_engineer' }, inactive: { tab: 'users', u: 'h_viewer' }, nomatch: { tab: 'users', u: null, uq: 'zzz' },
+    roles: { tab: 'roles', r: 'Engineer' }, dirty: { tab: 'roles', r: 'Engineer', dirty: true }, custom: { tab: 'roles', r: 'Supervisor', custom: true },
+    sources: { tab: 'sources', s: 'loop' }, nomap: { tab: 'sources', s: 'e2e' }, plant: { tab: 'plant', t: 'fc10711' }, aliases: { tab: 'aliases', a: 2 },
+    system: { tab: 'system' }, narrow: { tab: 'users', u: 'a_engineer', narrow: true, drawer: true } };
+
+  function renderHead() {
+    const A = {
+      users: '<button class="btn btn--out" onclick="openBulk(1)">Bulk import</button><button class="btn btn--raised" onclick="openUser(\'add\')">Add user</button>',
+      roles: '<button class="btn btn--raised" onclick="openDlg(\'radd\')">Add custom role</button>',
+      sources: '<button class="btn btn--raised" onclick="openSrc(\'add\',1)">Add data source</button>',
+      plant: '<button class="btn btn--out" onclick="openDlg(\'pimp\')">Import CSV</button><button class="btn btn--raised">Add site</button>',
+      aliases: '<button class="btn btn--out" onclick="openDlg(\'aimp\')">Import CSV</button><button class="btn btn--raised" onclick="openDlg(\'aadd\')">Add alias</button>',
+      system: '<span><button class="btn btn--raised" disabled>Save settings</button><small>No settings service is connected, so nothing can be saved.</small></span>' };
+    $('hacts').innerHTML = A[S.tab];
+    $('howBtn').classList.toggle('hide', S.tab === 'system');
+    $('tabs').innerHTML = TABS.map(([k, l]) => `<span class="tab" role="tab" aria-selected="${S.tab === k}" onclick="go({tab:'${k}'})">${l}</span>`).join('')
+      + '<span class="tab tab--link ann" data-n="Q" title="Owner question 1: the tab always opened Governance">Audit log ↗</span>';
+    document.querySelectorAll('[data-tabp]').forEach(p => p.classList.toggle('on', p.dataset.tabp === S.tab));
+    document.querySelectorAll('[data-how]').forEach(p => p.classList.toggle('hide', p.dataset.how !== S.tab));
+  }
+  function renderUsers() {
+    const needle = (S.uq || '').toLowerCase();
+    const list = USERS.filter(u => !needle || [u[1], u[4]].some(v => v.toLowerCase().includes(needle)));
+    $('uq').value = S.uq || '';
+    const n = r => USERS.filter(u => u[2] === r).length;
+    $('uRole').innerHTML = `<option>All roles ${USERS.length}</option>` + ['Admin', 'Engineer', 'Operator', 'SuperAdmin', 'Viewer'].map(r => `<option>${r} ${n(r)}</option>`).join('');
+    $('uSt').innerHTML = `<option>All statuses ${USERS.length}</option><option>Active ${USERS.filter(u => u[3]).length}</option><option>Inactive ${USERS.filter(u => !u[3]).length}</option>`;
+    $('uRows').innerHTML = list.map(u => `<div class="row g-users${S.u === u[0] ? ' sel' : ''}" role="listitem" onclick="go({u:'${u[0]}',drawer:true})"><span><strong>${u[0]}</strong>${u[1] ? `<small>${u[1]}</small>` : ''}</span><span>${u[2]}</span><span>${u[3] ? pill('ok', '✓', 'Active') : pill('muted', '⊘', 'Inactive')}</span></div>`).join('');
+    $('uEmpty').classList.toggle('hide', list.length > 0);
+    const u = USERS.find(x => x[0] === S.u);
+    $('uPanel').classList.toggle('hide', !u); $('uPanel').classList.toggle('closed', !!S.narrow && !S.drawer);
+    if (!u) return;
+    const self = u[0] === 'platform_admin';
+    $('uPanel').innerHTML = `<div class="insp__head"><div><h2>${u[0]}</h2>${u[1] ? `<span class="sub" style="font-size:13px">${u[1]}</span>` : ''}</div><span class="grow"></span>${u[3] ? pill('ok', '✓', 'Active') : pill('muted', '⊘', 'Inactive')}<button class="ib dclose" title="Close" onclick="go({drawer:false})">✕</button></div>
+      <div class="insp__body">${kv('Email', u[4])}${kv('Role', `${u[2]} <span class="btn btn--sm btn--q ann" data-n="Q" title="Owner question 8: opens the role on Roles &amp; permissions">Permissions ↗</span>`)}${kv('Created', u[5])}</div>
+      ${S.u === 'h_viewer' ? '<div class="illus" style="margin:0 20px 12px">Illustrative: every lab account is active.</div>' : ''}
+      <div class="insp__foot">${self ? '<span class="dact"><button class="btn" disabled>Delete</button><small>You cannot delete your own account.</small></span>' : '<button class="btn" onclick="openDlg(\'udel\')">Delete</button>'}<span class="grow"></span><button class="btn btn--raised" onclick="openUser('edit')">Edit</button></div>`;
+    $('udelMsg').textContent = `Delete user "${u[0]}"? This cannot be undone.`;
+  }
+  function renderRoles() {
+    const names = ['Admin', 'Engineer', 'Operator', 'SuperAdmin', 'Viewer', ...(S.custom ? ['Supervisor'] : [])];
+    $('rRows').innerHTML = names.map(r => `<div class="row g-roles${S.r === r ? ' sel' : ''}" role="listitem" onclick="go({r:'${r}',drawer:true})"><span><strong>${r}</strong><small>${ROLES[r][0]}</small></span><span style="color:var(--text2);font-size:13px">${ROLES[r][1] ? 'System' : 'Custom'}</span></div>`).join('');
+    const R = ROLES[S.r]; if (!R) return;
+    const on = new Set(R[2]); if (S.dirty) on.add('admin.audit.view');
+    const blocks = CAT.map(([c, ps]) => { const all = ps.every(p => on.has(p[0]));
+      return `<div class="pblock"><div class="pcat"><span>${c}</span><button class="btn btn--sm">${all ? 'Clear' : 'All'}</button></div>` + ps.map(([k, d]) => `<label class="perm"><input type="checkbox"${on.has(k) ? ' checked' : ''}><span><span class="mono">${k}</span><small>${d}</small></span></label>`).join('') + '</div>'; }).join('');
+    const sys = R[1];
+    $('rPanel').classList.toggle('closed', !!S.narrow && !S.drawer);
+    $('rPanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">${sys ? 'System role' : 'Custom role'}</span><h2>${S.r}</h2></div><span class="grow"></span><span class="rcount">${on.size} of 38${S.dirty ? ' · <b>unsaved changes</b>' : ''}</span><button class="ib dclose" title="Close" onclick="go({drawer:false})">✕</button></div>
+      <div class="insp__body"><label class="fl">Description<input class="in" value="${R[0]}"></label>
+        ${S.r === 'Admin' ? '<p class="q2" style="font-size:13px;margin:8px 0 0">Finding: Admin has no platform keys since CHG-081, yet reads "full access"; the code says "plant configuration; no platform administration".</p>' : ''}</div>
+      <div class="links"><span class="btn btn--q ann" data-n="Q" title="Owner question 8">Users with this role ↗</span><span class="btn btn--q" title="Owner question 8: Governance's role matrix">Permissions by role ↗</span></div>
+      <div class="sect"><h3>Permissions</h3><div class="pcols">${blocks}</div></div>
+      ${S.custom ? '<div class="illus" style="margin:0 20px 12px">Illustrative: the lab has no custom role.</div>' : ''}
+      <div class="insp__foot">${sys ? '<button class="btn btn--out" onclick="openReset()">Reset to default</button>' : '<button class="btn" onclick="openDlg(\'rdel\')">Delete role</button>'}${S.dirty ? '<button class="btn">Discard changes</button>' : ''}<span class="grow"></span><small>Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</small><button class="btn btn--raised"${S.dirty ? '' : ' disabled title="Tick or clear a permission first"'}>Save permissions</button></div>`;
+  }
+  function renderSources() {
+    $('sRows').innerHTML = SOURCES.map(s => `<div class="row g-src${S.s === s[0] ? ' sel' : ''}" role="listitem" onclick="go({s:'${s[0]}',drawer:true})"><span><strong>${s[1]}</strong><small>${s[2]}</small></span><span>${s[3] ? pill('ok', '✓', 'Active') : pill('muted', '○', 'Off')}</span></div>`).join('')
+      + '<div class="illus" style="margin:12px 16px">Names shortened: the lab lists 8 sources, six of them "E2E OT Gateway (mosquitto-test)" left by tests. Broker address and user are invented.</div>';
+    const s = SOURCES.find(x => x[0] === S.s); if (!s) return;
+    const nomap = S.s === 'e2e';
+    const ingest = nomap
+      ? `<div class="sect"><h3>Loop ingest ${pill('bad', '✕', 'NO MODE MAP')}<button class="btn btn--sm" onclick="openDlg('mode')">Edit MODE map</button></h3>
+         <div class="warnbox" role="status"><b>✕</b> No MODE map: every MODE value reaches the engine raw (e.g. "1"), which it cannot classify, so every sample counts as not-auto and Gate 1 excludes this source’s whole fleet — with Gate 0 still green.</div>
+         ${kv('MODE value map', '<span style="color:var(--bad)">not configured</span>')}${kv('Grid', '5 s')}${kv('Registry refresh', '60 s')}${kv('Quality protocol', '<span class="mono">STRING_ENUM (default)</span>')}
+         <div class="illus" style="margin:8px 0 0">Illustrative: the lab's sources all have a map.</div></div>`
+      : `<div class="sect"><h3>Loop ingest ${pill('ok', '✓', 'MODE map · 4 values')}<button class="btn btn--sm" onclick="openDlg('mode')">Edit MODE map</button></h3>
+         ${kv('MODE value map', '<span class="mono">1→AUT 2→MAN 3→CAS 4→IMAN</span>')}${kv('Grid', '5 s')}${kv('Registry refresh', '30 s')}${kv('Quality protocol', '<span class="mono">STRING_ENUM (default)</span>')}${kv('Topic template', '<span class="mono">{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}</span>')}${kv('Param roles overlay', '<span class="mono">POS→vp</span>')}</div>`;
+    $('sPanel').classList.toggle('closed', !!S.narrow && !S.drawer);
+    $('sPanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">${s[2]}</span><h2>${s[1]}</h2></div><span class="grow"></span>${s[3] ? pill('ok', '✓', 'Active') : pill('muted', '○', 'Off')}<button class="ib dclose" title="Close" onclick="go({drawer:false})">✕</button></div>
+      <div class="insp__body">${kv('Connection URL', '<span class="mono">mqtt://broker.example:1883</span>')}${kv('Username', 'ingest_user')}${kv('Topic filter', '<span class="mono">OT/+/+/+/+/PIDParams/+</span>')}${kv('Feeds', 'Loop Performance (CPM) · <span class="mono">traverse.cpa.loop.samples.v1</span>')}${kv('QoS · keepalive', 'QoS 1 · 60 s')}${kv('Timeout', '15 s')}${kv('Last connection test · UTC', '✓ 25 Sep 19:45')}${kv('Last data received · UTC', '6 Oct 19:55')}</div>
+      ${ingest}
+      <div class="sect"><div class="acts"><button class="btn btn--out btn--sm">Test</button><button class="btn btn--out btn--sm" onclick="openSrc('edit',1)">Edit</button><button class="btn btn--out btn--sm btn--q ann" data-n="Q" title="Owner question 10a: today the button reads On / Off">${s[3] ? 'Turn off' : 'Turn on'}</button><button class="btn btn--sm" onclick="openDlg('sdel')">Delete</button></div>
+        ${S.s === 'loop' ? '<div class="okbox" role="status"><b>✓</b> Connected in 42 ms <span style="color:var(--text2);font-size:12px">(illustrative: Test was not pressed on the lab)</span></div>' : ''}</div>
+      <div class="insp__foot"><span class="grow"></span><button class="btn" onclick="openDlg('srec')">Record details</button></div>`;
+  }
+  function renderPlant() {
+    $('strip').innerHTML = [['1 · Hierarchy', '3 / 8 / 29', 'sites / areas / units'], ['2 · Instruments &amp; tags', '273 / 1102', 'devices / measurements'], ['3 · OT aliases', '703', 'DCS tag → UNS path'], ['4 · Control loops', '243 (241 monitored)', 'CPM → Loop Registry'], ['5 · Ingestion sources', '8', 'Administration → Data Sources']]
+      .map((x, i) => (i ? '<span class="arr">→</span>' : '') + `<div class="stage"><span>${x[0]}</span><b>${x[1]}</b><small>${x[2]}</small></div>`).join('') + '<span class="ann" data-n="Q" title="Owner question 11" style="margin-inline-start:auto"></span>';
+    $('tRows').innerHTML = TREE.map(n => `<div class="tnode${S.t === n[0] ? ' sel' : ''}" role="treeitem" style="padding-inline-start:${16 + n[1] * 22}px" onclick="go({t:'${n[0]}'})"><span class="tw">${n[6] ? (n[7] ? '▾' : '▸') : ''}</span><span class="lv">${n[2]}</span><span class="nm"><strong>${n[3]}</strong><small>${n[4]}</small></span><span>${n[5] ? '<span class="tag">CPM</span>' : ''}</span></div>`).join('');
+    const n = TREE.find(x => x[0] === S.t); if (!n) return;
+    const child = { Site: 'Area', Area: 'Unit', Unit: 'Device', Device: 'measurement' }[n[2]];
+    $('tPanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">${n[2]}</span><h2>${n[3]}</h2></div></div>
+      <div class="insp__body">${kv('Path', `<span class="mono">${n[4]}</span> <button class="ib" title="Copy">⧉</button>`)}${kv('Description', '—')}${n[5] ? kv('Template', 'CpmLoop') + kv('Managed by', 'CPM Loop Registry') : ''}</div>
+      <div class="sect"><div class="acts">${child ? `<button class="btn btn--out btn--sm" onclick="openDlg('node')">Add ${child}</button>` : ''}<button class="btn btn--out btn--sm" onclick="openDlg('node')">Edit</button><button class="btn btn--sm" onclick="openDlg('ndel')">Delete</button></div></div>
+      ${n[5] ? '<div class="insp__foot"><span class="grow"></span><span class="btn btn--raised">Loop Registry →</span></div>' : ''}`;
+  }
+  function renderAliases() {
+    $('aRows').innerHTML = ALIASES.map((a, i) => `<div class="row g-al${S.a === i ? ' sel' : ''}" role="listitem" onclick="go({a:${i},drawer:true})"><span><strong class="mono">${a[0]}</strong><small class="mono">${a[1]}</small></span><span style="color:var(--text2)">ot-gateway</span></div>`).join('')
+      + '<div class="illus" style="margin:12px 16px">Rows taken from the lab\'s ot-gateway aliases (the list itself starts with the 59 instrumental-pro unit aliases); 100 per page (question 12a).</div>';
+    const a = ALIASES[S.a]; if (!a) return;
+    $('aPanel').innerHTML = `<div class="insp__head"><div><span class="eyebrow">Tag alias</span><h2 class="mono" style="font-size:18px">${a[0]}</h2></div><span class="grow"></span>${pill('ok', '✓', 'Active')}</div>
+      <div class="insp__body">${kv('Canonical UNS path', `<span class="mono">${a[1]}</span>`)}${kv('Source', 'ot-gateway')}</div>
+      <div class="links"><span class="btn btn--q ann" data-n="Q" title="Owner question 12: opens Plant model searched by this path">Plant model ↗</span></div>
+      <div class="insp__foot"><button class="btn" onclick="openDlg('adel')">Delete</button><span class="grow"></span></div>`;
+  }
+  function render() {
+    document.body.classList.toggle('narrow', !!S.narrow);
+    renderHead(); renderUsers(); renderRoles(); renderSources(); renderPlant(); renderAliases();
+  }
+  function go(p) { Object.assign(S, p); render(); }
+  function sample(n) { S = { drawer: false, narrow: false, uq: '', ...SAMPLES[n] }; closeDlg(); render(); }
+  function openDlg(n) { document.querySelectorAll('[data-dlg]').forEach(d => d.classList.toggle('on', d.dataset.dlg === n)); $('scrim').classList.add('on'); }
+  function closeDlg() { $('scrim').classList.remove('on'); document.querySelectorAll('[data-dlg]').forEach(d => d.classList.remove('on')); }
+  function openUser(mode, err) {
+    const edit = mode === 'edit', u = USERS.find(x => x[0] === S.u) || USERS[1], self = edit && u[0] === 'platform_admin';
+    $('ueTitle').firstChild.textContent = edit ? 'Edit user ' : 'Add user ';
+    $('ueUser').classList.toggle('hide', edit); $('uePw').classList.toggle('hide', edit);
+    $('ueMail').value = edit ? u[4] : ''; $('ueName').value = edit ? u[1] : ''; $('ueRole').value = edit ? u[2] : 'Viewer';
+    $('ueRole').disabled = self; $('ueAct').disabled = self; $('ueRole').classList.toggle('in--q', self); $('ueSelfR').classList.toggle('hide', !self);
+    $('ueAct').checked = edit ? !!u[3] : true; $('ueSave').textContent = edit ? 'Save changes' : 'Create user';
+    $('ueErr').classList.toggle('hide', !err); openDlg('user');
+  }
+  function openBulk(step) {
+    $('bt1').setAttribute('aria-selected', String(step === 1)); $('bt2').setAttribute('aria-selected', String(step === 2));
+    document.querySelectorAll('[data-dlg="bulk"] [data-pane]').forEach(x => x.classList.toggle('on', x.dataset.pane === (step === 1 ? 'bfile' : 'bprev')));
+    $('bFoot').innerHTML = step === 1 ? '<button class="btn" onclick="closeDlg()">Cancel</button>' : '<button class="btn">Choose another file</button><button class="btn btn--raised">Import users</button>';
+    openDlg('bulk');
+  }
+  function openReset() { $('rresetQ').textContent = RESETQ[S.r] || 'Question 5: the default comes from the code list, not the seeded one.'; openDlg('rreset'); }
+  const STEPS = [['sp1', 'Profile'], ['sp2', 'Name'], ['sp3', 'Connection'], ['sp4', 'Advanced']];
+  function openSrc(mode, step) {
+    S.seMode = mode; S.step = step;
+    $('seTitle').firstChild.textContent = mode === 'edit' ? 'Edit data source ' : 'Add data source ';
+    $('seTabs').innerHTML = STEPS.map(([k, l], i) => `<span class="tab" role="tab" aria-selected="${i + 1 === step}" onclick="openSrc('${mode}',${i + 1})">${l}</span>`).join('');
+    document.querySelectorAll('[data-dlg="src"] [data-pane]').forEach(x => x.classList.toggle('on', x.dataset.pane === STEPS[step - 1][0]));
+    $('seBack').textContent = step === 1 ? 'Cancel' : '← Back';
+    $('seBack').onclick = () => (step === 1 ? closeDlg() : openSrc(mode, step - 1));
+    $('seNext').textContent = step < 4 ? `Next: ${STEPS[step][1]} →` : (mode === 'edit' ? 'Save changes' : 'Create data source');
+    $('seNext').onclick = () => { if (step < 4) openSrc(mode, step + 1); };
+    openDlg('src');
+  }
+  window.sample = sample; window.openDlg = openDlg; window.closeDlg = closeDlg; window.go = go; window.openUser = openUser; window.openBulk = openBulk; window.openSrc = openSrc; window.openReset = openReset;
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  sample('own');
+</script>
+</body>
+</html>

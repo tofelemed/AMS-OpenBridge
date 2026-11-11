@@ -3,214 +3,79 @@
 /**
  * Tag Aliases — admin surface for assets.alias_mapping (P4.3 / G-08).
  *
- * The alias table is the OT bridge: `legacy OT tag → canonical UNS path`, so the
- * DCS never has to be renamed. It shipped write-only (create + resolve, no list,
- * no delete) and sat empty in production. This page lists, creates, retires and
- * CSV-imports aliases. legacy_path + source_system are immutable identity —
- * correcting them is delete + recreate, mirroring the server contract.
+ * The alias table is the OT bridge: `legacy OT tag → canonical UNS path`, so the DCS never has to be renamed. It shipped
+ * write-only (create + resolve, no list, no delete) and sat empty in production. This page lists, creates, retires and
+ * CSV-imports aliases. legacy_path + source_system are immutable identity — correcting them is delete + recreate, mirroring the
+ * server contract.
+ *
+ * CHG-172 (owner review, the approved sample docs/theme/redesign/samples/administration-proposal.html, badges 19-20, and the
+ * owner's answers 12a/12c of 11 Nov 2026): one list (the tag with its UNS path under it, Source; ⊘ Inactive only on an inactive
+ * row; inactive aliases listed as before); one filter row, a search (the server ignores case since CHG-172) and a Source dropdown
+ * with each source's count; the shared pager, 100 a page (the API pages; 203 of 703 could not be reached without a search under
+ * "Showing 500 of 703"). The selected alias is in a panel beside the list with Delete. The Source counts come from one read of
+ * every alias (in pages of 1000), cached for a minute.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { Modal, FormField } from '../shared/Modal';
-import { useConfirm } from '../shared/dialogService';
-import { parseCsv, downloadTextFile } from '../../utils/csv';
-import { apiFetch, apiJson, ApiError } from '../../api/apiFetch';
-import { useAuthStore } from '../../store/authStore';
 import { toast } from 'react-toastify';
-import { T } from '../../styles/theme';
-import { Toggletip } from '../../ui/Toggletip';
+import { apiFetch, apiJson } from '../../api/apiFetch';
+import { useAuthStore } from '../../store/authStore';
+import { EmptyState } from '../Cpm/shared';
+import { Pagination } from '../../ui/forms/Pagination';
+import { AdminActions } from './AdminActions';
+import { AdminConfirmDialog } from './AdminConfirmDialog';
+import { ALIAS_API, AddAliasDialog, ImportAliasDialog } from './aliases/AliasDialogs';
+import { AliasPanel, AliasState, type AliasRow } from './aliases/AliasPanel';
 
-const ALIAS_API = '/api/aliases';
+const PAGE_SIZE = 100;
+const FACET_PAGE = 1000;
+const FACET_PAGES = 10;
 
-interface AliasRow {
-  id: string;
-  legacyPath: string;
-  canonicalPath: string;
-  sourceSystem: string;
-  isActive: boolean;
-  createdAt: string;
+/** Every alias's source system, counted: one read in pages of 1000 (the API's ceiling). */
+async function sourceCounts(): Promise<{ total: number; bySource: Array<[string, number]> }> {
+  const counts = new Map<string, number>();
+  let total = 0;
+  for (let page = 0; page < FACET_PAGES; page++) {
+    const res = await apiJson<{ total: number; items: AliasRow[] }>(`${ALIAS_API}?take=${FACET_PAGE}&skip=${page * FACET_PAGE}&includeInactive=true`);
+    total = res.total;
+    res.items.forEach(a => counts.set(a.sourceSystem, (counts.get(a.sourceSystem) ?? 0) + 1));
+    if ((page + 1) * FACET_PAGE >= res.total || res.items.length === 0) break;
+  }
+  return { total, bySource: [...counts].sort(([a], [b]) => a.localeCompare(b)) };
 }
-
-const AddAliasDialog: React.FC<{ onClose: (changed: boolean) => void }> = ({ onClose }) => {
-  const [legacyPath, setLegacyPath] = useState('');
-  const [canonicalPath, setCanonicalPath] = useState('');
-  const [sourceSystem, setSourceSystem] = useState('ot-gateway');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await apiJson(ALIAS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legacyPath: legacyPath.trim(), canonicalPath: canonicalPath.trim(), sourceSystem: sourceSystem.trim() || 'unknown' }),
-      });
-      onClose(true);
-    } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal
-      isOpen
-      onClose={() => onClose(false)}
-      title="Add tag alias"
-      subtitle="Maps an OT/legacy tag name to its canonical UNS path."
-      width="520px"
-      footer={
-        <>
-          <ObcButton variant="normal" onClick={() => onClose(false)}>Cancel</ObcButton>
-          <ObcButton variant="raised" disabled={saving || !legacyPath.trim() || !canonicalPath.trim()} onClick={save}>
-            {saving ? 'Saving…' : 'Create alias'}
-          </ObcButton>
-        </>
-      }
-    >
-      <FormField label="Legacy / OT tag" required hint="Exactly as the source system sends it, e.g. 45FIC109.PV">
-        <input className="ob-input" value={legacyPath} style={{ fontFamily: 'monospace' }}
-          onChange={e => setLegacyPath(e.target.value)} placeholder="45FIC109.PV" />
-      </FormField>
-      <FormField label="Canonical UNS path" required hint="site/[area/]unit/device.measurement">
-        <input className="ob-input" value={canonicalPath} style={{ fontFamily: 'monospace' }}
-          onChange={e => setCanonicalPath(e.target.value)} placeholder="hdpe/section_100/u1001_polymerization_reactor_1/45fic109.pv" />
-      </FormField>
-      <FormField label="Source system" hint="ot-gateway, PI-AF, instrumental-pro, …">
-        <input className="ob-input" value={sourceSystem} onChange={e => setSourceSystem(e.target.value)} />
-      </FormField>
-      {error && <div style={{ color: T.critical, fontSize: '13px', marginTop: 8 }}>{error}</div>}
-    </Modal>
-  );
-};
-
-const ImportAliasDialog: React.FC<{ onClose: (changed: boolean) => void }> = ({ onClose }) => {
-  const [text, setText] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ created: number; errors: { legacyPath?: string; error: string }[] } | null>(null);
-
-  const downloadTemplate = () => downloadTextFile('tag-aliases-template.csv', [
-    'legacy_path,canonical_path,source_system',
-    '45FIC109.PV,hdpe/section_100/u1001_polymerization_reactor_1/45fic109.pv,ot-gateway',
-  ].join('\n'));
-
-  const runImport = async () => {
-    setImporting(true);
-    try {
-      const rows = parseCsv(text);
-      const creates = rows
-        .filter(r => (r['legacy_path'] ?? '').trim() && (r['canonical_path'] ?? '').trim())
-        .map(r => ({
-          legacyPath: r['legacy_path'].trim(),
-          canonicalPath: r['canonical_path'].trim(),
-          sourceSystem: (r['source_system'] ?? '').trim() || 'ot-gateway',
-        }));
-      if (creates.length === 0) {
-        toast.error('No importable rows — legacy_path and canonical_path are required.');
-        return;
-      }
-      // Chunked: /aliases/bulk caps at 5000 rows per request.
-      let created = 0;
-      const errors: { legacyPath?: string; error: string }[] = [];
-      for (let i = 0; i < creates.length; i += 2000) {
-        const res = await apiJson<{ created: number; errors: { legacyPath?: string; error: string }[] }>(
-          `${ALIAS_API}/bulk`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ creates: creates.slice(i, i + 2000) }),
-          });
-        created += res.created;
-        errors.push(...(res.errors ?? []));
-      }
-      setResult({ created, errors });
-    } catch (e) {
-      toast.error(e instanceof ApiError ? (e.detail ?? e.message) : String(e));
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  return (
-    <Modal
-      isOpen
-      onClose={() => onClose(!!result)}
-      title="Import tag aliases from CSV"
-      subtitle="Columns: legacy_path, canonical_path, source_system"
-      width="640px"
-      footer={
-        <>
-          <ObcButton variant="normal" onClick={() => onClose(!!result)}>{result ? 'Close' : 'Cancel'}</ObcButton>
-          {!result && (
-            <ObcButton variant="raised" disabled={!text.trim() || importing} onClick={runImport}>
-              {importing ? 'Importing…' : 'Import'}
-            </ObcButton>
-          )}
-        </>
-      }
-    >
-      {!result ? (
-        <>
-          <p style={{ fontSize: '13px', color: T.textSecondary, marginTop: 0 }}>
-            Duplicate (legacy_path, source_system) pairs are reported per row, not fatal.{' '}
-            <button type="button" onClick={downloadTemplate}
-              style={{ background: 'none', border: 'none', color: T.blue, cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: '13px' }}>
-              Download template
-            </button>
-          </p>
-          <textarea
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="legacy_path,canonical_path,source_system"
-            style={{
-              width: '100%', minHeight: 180, fontFamily: 'monospace', fontSize: '12px',
-              background: T.card, color: T.textPrimary, border: `1px solid ${T.border}`,
-              borderRadius: 6, padding: 10, resize: 'vertical',
-            }}
-          />
-        </>
-      ) : (
-        <div style={{ fontSize: '13px', color: T.textPrimary }}>
-          <p><strong>{result.created}</strong> alias(es) created.</p>
-          {result.errors.length > 0 && (
-            <div style={{ maxHeight: 200, overflow: 'auto', border: `1px solid ${T.border}`, borderRadius: 6 }}>
-              {result.errors.map((e, i) => (
-                <div key={i} style={{ padding: '4px 10px', fontSize: '12px', color: T.critical, borderBottom: `1px solid ${T.borderLight}` }}>
-                  {e.legacyPath ? `${e.legacyPath}: ` : ''}{e.error}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-};
 
 export const AliasConfig: React.FC = () => {
   const qc = useQueryClient();
-  const confirm = useConfirm();
   const canEdit = useAuthStore(s => s.hasPermission('asset.edit'));
   const [search, setSearch] = useState('');
+  const [source, setSource] = useState('');
+  const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const [deleting, setDeleting] = useState<AliasRow | null>(null);
 
+  useEffect(() => { setPage(1); }, [search, source]);
+  const url = useMemo(() => {
+    const q = `${ALIAS_API}?take=${PAGE_SIZE}&skip=${(page - 1) * PAGE_SIZE}&includeInactive=true`;
+    return `${q}${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}${source ? `&source=${encodeURIComponent(source)}` : ''}`;
+  }, [page, search, source]);
+  // The previous page stays on screen while the next one is read, so the pager does not vanish under the cursor.
   const aliases = useQuery({
-    queryKey: ['aliases', search],
-    staleTime: 15_000,
-    queryFn: () => apiJson<{ total: number; items: AliasRow[] }>(
-      `${ALIAS_API}?take=500&includeInactive=true${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`),
+    queryKey: ['aliases', url], staleTime: 15_000, placeholderData: prev => prev,
+    queryFn: () => apiJson<{ total: number; items: AliasRow[] }>(url),
   });
+  const facets = useQuery({ queryKey: ['aliases', 'sources'], staleTime: 60_000, queryFn: sourceCounts });
+
+  const items = aliases.data?.items ?? [];
+  const pageCount = Math.max(1, Math.ceil((aliases.data?.total ?? 0) / PAGE_SIZE));
+  const selected = items.find(a => a.id === selectedId) ?? items[0];
+  const pick = (a: AliasRow) => { setSelectedId(a.id); setDrawer(true); };
 
   const onDelete = async (row: AliasRow) => {
-    if (!await confirm({
-      title: 'Delete alias',
-      message: `Delete the mapping '${row.legacyPath}' → '${row.canonicalPath}'? Events using this tag will park as unknown until remapped.`,
-      danger: true,
-    })) return;
+    setDeleting(null);
     const res = await apiFetch(`${ALIAS_API}/${row.id}`, { method: 'DELETE' });
     if (!res.ok && res.status !== 404) {
       toast.error(`Delete failed (HTTP ${res.status})`);
@@ -226,71 +91,68 @@ export const AliasConfig: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div className="cpm-title-row">
-          <Toggletip variant="how-to" label="About tag aliases">
-            <p>
-              OT/legacy tag → canonical UNS path. Ingestion resolves incoming tag names through this
-              table; a tag without an alias parks as unknown instead of flowing.
-            </p>
-          </Toggletip>
-        </div>
-        {canEdit && (
-          <span style={{ display: 'inline-flex', gap: 8 }}>
-            <ObcButton variant="normal" onClick={() => setImportOpen(true)}>Import CSV</ObcButton>
-            <ObcButton variant="raised" onClick={() => setAddOpen(true)}>+ Add Alias</ObcButton>
-          </span>
+    <>
+      {canEdit && (
+        <AdminActions>
+          <ObcButton variant="normal" onClick={() => setImportOpen(true)}>Import CSV</ObcButton>
+          <ObcButton variant="raised" onClick={() => setAddOpen(true)}>Add alias</ObcButton>
+        </AdminActions>
+      )}
+      <div className="cpm-master-detail">
+        <section className="cpm-surface cpm-admin-list" aria-label="Tag aliases">
+          <div className="cpm-compact cpm-admin-filters" role="group" aria-label="Tag alias filters">
+            <input className="cpm-input" type="search" aria-label="Find tag alias" placeholder="Tag or path" value={search}
+              onChange={e => setSearch(e.target.value)} />
+            <select className="cpm-select" aria-label="Source" value={source} onChange={e => setSource(e.target.value)}>
+              <option value="">{facets.data ? `All sources ${facets.data.total}` : 'All sources'}</option>
+              {(facets.data?.bySource ?? []).map(([s, n]) => <option key={s} value={s}>{`${s} ${n}`}</option>)}
+            </select>
+          </div>
+          {aliases.data && items.length === 0 && (
+            <EmptyState title={`No aliases${search.trim() || source ? ' match the search' : ' configured yet'}.`} />
+          )}
+          {items.length > 0 && (
+            <table className="cpm-table cpm-reg-table cpm-admin-table cpm-admin-table--aliases">
+              <thead><tr><th>Tag → UNS path</th><th>Source</th></tr></thead>
+              <tbody>
+                {items.map(a => {
+                  const on = a.id === selected?.id;
+                  return (
+                    <tr key={a.id} className={`cpm-reg-row${on ? ' cpm-reg-row--selected' : ''}`} aria-current={on ? 'true' : undefined} onClick={() => pick(a)}>
+                      <td>
+                        <button type="button" className="cpm-admin-rowlink" onClick={e => { e.stopPropagation(); pick(a); }}>
+                          <strong className="cpm-mono">{a.legacyPath}</strong>
+                          <span className="cpm-event-row__sub cpm-mono">{a.canonicalPath}</span>
+                        </button>
+                        {!a.isActive && <> <AliasState active={false} /></>}
+                      </td>
+                      <td className="cpm-copy">{a.sourceSystem}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {pageCount > 1 && (
+            <div className="cpm-events-pager">
+              <Pagination page={page} pageCount={pageCount} onChange={setPage} label="Alias pages" />
+            </div>
+          )}
+        </section>
+        {selected && (
+          <AliasPanel alias={selected} canEdit={canEdit} open={drawer} onClose={() => setDrawer(false)} onDelete={() => setDeleting(selected)} />
         )}
       </div>
 
-      <input className="ob-input" value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Search by tag or path…" style={{ maxWidth: 420 }} />
-
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: T.textSecondary }}>
-              {['Legacy / OT tag', 'Canonical UNS path', 'Source', 'Active', ''].map(h => (
-                <th key={h} style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontWeight: 600 }}>{h || <span className="ui-sr">Actions</span>}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(aliases.data?.items ?? []).map(row => (
-              <tr key={row.id}>
-                <td style={{ padding: '6px 12px', borderBottom: `1px solid ${T.borderLight}`, fontFamily: 'monospace', color: T.textPrimary }}>{row.legacyPath}</td>
-                <td style={{ padding: '6px 12px', borderBottom: `1px solid ${T.borderLight}`, fontFamily: 'monospace', color: T.textSecondary }}>{row.canonicalPath}</td>
-                <td style={{ padding: '6px 12px', borderBottom: `1px solid ${T.borderLight}`, color: T.textSecondary }}>{row.sourceSystem}</td>
-                <td style={{ padding: '6px 12px', borderBottom: `1px solid ${T.borderLight}`, color: row.isActive ? T.success : T.textMuted }}>
-                  {row.isActive ? 'active' : 'inactive'}
-                </td>
-                <td style={{ padding: '6px 12px', borderBottom: `1px solid ${T.borderLight}`, textAlign: 'right' }}>
-                  {canEdit && (
-                    <ObcButton variant="flat" size="small" onClick={() => onDelete(row)}>Delete</ObcButton>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {aliases.data && aliases.data.items.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: 16, color: T.textMuted }}>
-                  No aliases{search.trim() ? ' match the search' : ' configured yet'}.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {aliases.data && aliases.data.total > aliases.data.items.length && (
-        <p style={{ fontSize: '12px', color: T.textMuted, margin: 0 }}>
-          Showing {aliases.data.items.length} of {aliases.data.total} — narrow with search.
+      <AdminConfirmDialog open={!!deleting} title="Delete alias" confirmLabel="Delete" onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && void onDelete(deleting)}>
+        <p className="cpm-copy">
+          {deleting && `Delete the mapping '${deleting.legacyPath}' → '${deleting.canonicalPath}'? Events using this tag will park as unknown until remapped.`}
         </p>
-      )}
-
+      </AdminConfirmDialog>
       {addOpen && <AddAliasDialog onClose={refresh} />}
       {importOpen && <ImportAliasDialog onClose={refresh} />}
-    </div>
+    </>
   );
 };
 

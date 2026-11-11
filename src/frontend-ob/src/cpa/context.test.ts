@@ -148,7 +148,7 @@ describe('old addresses (design 2026-11-06, section 3)', () => {
     ['/cpm/system', 'tab=governance', '/cpm/governance'],
     ['/cpm/system', 'tab=users', '/admin/users'],
     ['/cpm/system', 'tab=roles', '/admin/roles'],
-    ['/cpm/system', 'tab=settings', '/admin/system'],
+    ['/cpm/system', 'tab=settings', '/cpm/governance'],
   ])('%s?%s lands on its own page', (path, search, to) => {
     expect(sorted(resolveRedirect(path, search))).toBe(sorted(to));
   });
@@ -156,7 +156,7 @@ describe('old addresses (design 2026-11-06, section 3)', () => {
   it.each([
     '/cpm', '/cpm/performance', '/cpm/events', '/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/response',
     '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/registry', '/cpm/config', '/cpm/pipeline', '/cpm/governance',
-    '/trend', '/admin', '/admin/users', '/admin/roles', '/admin/system', '/admin/plant-model', '/admin/data-sources', '/admin/aliases',
+    '/trend', '/admin', '/admin/users', '/admin/roles', '/admin/plant-model', '/admin/data-sources', '/admin/aliases',
   ])('keeps %s at its address', path => {
     expect(resolveRedirect(path, 'loop=A')).toBeNull();
   });

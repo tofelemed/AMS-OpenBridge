@@ -16,7 +16,12 @@ describe('who sees which page', () => {
   });
 
   it('an operator reads the loops and gets no System page', () => {
-    expect(menu(['analytics.view', 'asset.view'])).toEqual(READING);
+    expect(menu(['analytics.view'])).toEqual(READING);
+  });
+
+  // CHG-172 (owner answer 3f): Plant model and Tag aliases open with asset.view, so Administration shows; Governance does not.
+  it('an asset viewer keeps Administration, where Plant model and Tag aliases are, and gains no Governance', () => {
+    expect(menu(['analytics.view', 'asset.view'])).toEqual([...READING, 'administration']);
   });
 
   it('an auditor keeps the trail, on Governance, and gains nothing', () => {

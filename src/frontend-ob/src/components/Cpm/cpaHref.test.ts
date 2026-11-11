@@ -100,7 +100,6 @@ describe('links that carry the context (design 2026-11-06, section 4)', () => {
   it('names each Administration section', () => {
     expect(adminHref('users')).toBe('/admin/users');
     expect(adminHref('aliases')).toBe('/admin/aliases');
-    expect(adminHref('system')).toBe('/admin/system');
     expect(governanceHref()).toBe('/cpm/governance');
   });
 

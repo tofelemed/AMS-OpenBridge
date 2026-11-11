@@ -4,8 +4,14 @@
  */
 import type { KindParam } from './tabKind';
 
-/** Who may open Administration today: the /admin/* route guard. */
+/** The administration keys: with system.manage they open Governance, which holds the one audit trail. */
 export const ADMIN_PERMISSIONS: readonly string[] = ['admin.users.edit', 'admin.audit.view', 'rbac.manage', 'ingestion.view', 'ingestion.manage'];
+
+/**
+ * Who may open Administration: the /admin/* route guard, the sidebar and the user menu. CHG-172 (owner answer 3f): asset.view
+ * too, because Plant model and Tag aliases open with it (writes inside need asset.edit). Governance keeps ADMIN_PERMISSIONS.
+ */
+export const ADMINISTRATION_PERMISSIONS: readonly string[] = [...ADMIN_PERMISSIONS, 'asset.view'];
 
 export type NavGroup = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Set up' | 'Engineering' | 'System';
 
@@ -113,8 +119,8 @@ export const DESTINATIONS: readonly Destination[] = [
   },
   {
     id: 'administration', label: 'Administration', group: 'System', path: '/admin',
-    purpose: 'Users, roles, data sources, plant model, tag aliases and settings',
-    showTo: ADMIN_PERMISSIONS, covers: [], carriesLoop: false, carriesWindow: false,
+    purpose: 'Users, roles, data sources, plant model and tag aliases',
+    showTo: ADMINISTRATION_PERMISSIONS, covers: [], carriesLoop: false, carriesWindow: false,
   },
   {
     id: 'governance', label: 'Governance', group: 'System', path: '/cpm/governance',

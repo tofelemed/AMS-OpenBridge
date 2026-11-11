@@ -34,9 +34,10 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 afterEach(() => { cleanup(); updateRole.mockClear(); });
 
 describe('Role description field', () => {
+  // CHG-172 (owner review): the field is labelled Description in the role panel, which links to other pages (a router).
   it('saves when the edit is committed, not per keystroke, and follows the selected role', async () => {
-    render(<RolesConfig />);
-    const field = await screen.findByRole('textbox', { name: 'Role description' }) as HTMLInputElement;
+    render(<MemoryRouter><RolesConfig /></MemoryRouter>);
+    const field = await screen.findByRole('textbox', { name: 'Description' }) as HTMLInputElement;
     await waitFor(() => expect(field.value).toBe('Reads'));
 
     fireEvent.input(field, { target: { value: 'Reads all' } });

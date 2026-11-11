@@ -59,7 +59,7 @@ const CASES = [
   ['/cpm/system', 'tab=governance', '/cpm/governance'],
   ['/cpm/system', 'tab=users', '/admin/users'],
   ['/cpm/system', 'tab=roles', '/admin/roles'],
-  ['/cpm/system', 'tab=settings', '/admin/system'],
+  ['/cpm/system', 'tab=settings', '/cpm/governance'],
 ];
 
 const canonical = url => {

@@ -23,6 +23,7 @@ import { ObiWrench } from '@oicl/openbridge-webcomponents-react/icons/icon-wrenc
 import { ObiSettingsDefaultIec } from '@oicl/openbridge-webcomponents-react/icons/icon-settings-default-iec';
 import { ObiPlaceholder } from '@oicl/openbridge-webcomponents-react/icons/icon-placeholder';
 import { CPM_PAGES, type CpmPagePath } from './cpmTasks';
+import { ADMINISTRATION_PERMISSIONS } from '../../cpa/destinations';
 
 export interface NavItem {
   path: string;
@@ -88,10 +89,10 @@ export const navItems: NavItem[] = [
   { path: '/cpm/pipeline', label: 'Pipeline Health',     Icon: ObiMonitoring, group: 'System', permission: 'system.manage' },
   { path: '/edge',       label: 'Edge Node Monitor',   Icon: ObiPlaceholder,  group: 'System', permission: 'historian.view' },
   { path: '/iotdb-trend', label: 'IoTDB Trend Viewer',  Icon: ObiDatabase, group: 'System', permission: 'historian.view' },
-  // Administration is ONE entry — the hub's own 7-tab bar handles the sections;
+  // Administration is ONE entry — the hub's own tab bar handles the sections;
   // a bare /admin lands on the first tab the user can see via the hub's index
-  // redirect. Visible to anyone holding ANY admin permission — matches the
-  // /admin/* route's anyOf guard, so an auditor or rbac-manager still sees it.
-  { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'System', permission: 'admin.users.edit', anyOf: ['admin.users.edit', 'admin.audit.view', 'rbac.manage'] },
+  // redirect. Visible to anyone the /admin/* route lets in (CHG-172: asset.view
+  // too, for Plant model and Tag aliases), so an auditor or rbac-manager still sees it.
+  { path: '/admin',      label: 'Administration',      Icon: ObiUser, group: 'System', permission: 'admin.users.edit', anyOf: [...ADMINISTRATION_PERMISSIONS] },
   { path: '/cpm/governance', label: 'Governance',      Icon: ObiListAltCheckGoogle, group: 'System', permission: 'system.manage' },
 ];

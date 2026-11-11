@@ -84,6 +84,11 @@ export const validateCreateUser = validate([
     .trim()
     .isLength({ max: 200 })
     .withMessage('Full name must be less than 200 characters'),
+  // CHG-172: Add user's "Active account" box, same rule as the update.
+  body('is_active')
+    .optional()
+    .isBoolean()
+    .withMessage('is_active must be a boolean'),
 ]);
 
 // Update user validation

@@ -7,13 +7,16 @@
  * rollout stands without reading the runbook. Stages the current user cannot
  * query (loops need analytics.view, sources need ingestion.view) show "no
  * access" instead of erroring.
+ *
+ * CHG-172 (owner review, the approved sample, badge 17; owner answer 11): a slim strip above the plant tree, so its counts load
+ * with the page (it sat behind a ?, and its five reads started only when the ? opened, reading "…" first). The line "Each stage
+ * feeds the next." went: the arrows say it. Placement and tone come from classes, not inline colours.
  */
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import { listDataSources } from './dataSourcesApi';
-import { T } from '../../styles/theme';
 
 const ASSET_API = (import.meta.env.VITE_ASSET_SERVICE_URL as string | undefined) || '/api/assets';
 
@@ -32,10 +35,10 @@ interface Stage {
   tone: Tone;
 }
 
-const TONE_COLOR: Record<Tone, string> = {
-  good: 'var(--tone-success)',
-  warn: 'var(--tone-warning)',
-  muted: T.textMuted,
+const TONE_CLASS: Record<Tone, string> = {
+  good: 'cpm-admin-stage__value--good',
+  warn: 'cpm-admin-stage__value--warn',
+  muted: 'cpm-admin-stage__value--muted',
 };
 
 export const PlantModelStatus: React.FC = () => {
@@ -127,29 +130,18 @@ export const PlantModelStatus: React.FC = () => {
   ];
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'stretch', gap: 0, flexWrap: 'wrap',
-      background: T.card, border: `1px solid ${T.border}`, borderRadius: 8,
-      padding: '10px 14px',
-    }}>
-      <p style={{ flexBasis: '100%', margin: '0 0 8px' }}>Each stage feeds the next.</p>
+    <section className="cpm-admin-strip" aria-label="Onboarding stages">
       {stages.map((s, i) => (
         <React.Fragment key={s.n}>
-          {i > 0 && (
-            <span aria-hidden style={{ alignSelf: 'center', padding: '0 12px', color: T.textMuted, fontSize: '13px' }}>
-              →
-            </span>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 130 }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em', color: T.textMuted, textTransform: 'uppercase' }}>
-              {s.n} · {s.title}
-            </span>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: TONE_COLOR[s.tone] }}>{s.value}</span>
-            <span style={{ fontSize: '11px', color: T.textSecondary }}>{s.detail}</span>
+          {i > 0 && <span aria-hidden className="cpm-admin-strip__arrow">→</span>}
+          <div className="cpm-admin-stage">
+            <span className="cpm-admin-stage__title">{s.n} · {s.title}</span>
+            <span className={`cpm-admin-stage__value ${TONE_CLASS[s.tone]}`}>{s.value}</span>
+            <span className="cpm-admin-stage__detail">{s.detail}</span>
           </div>
         </React.Fragment>
       ))}
-    </div>
+    </section>
   );
 };
 

@@ -46,6 +46,8 @@ export interface CreateUserPayload {
   password: string;
   full_name?: string;
   role: string;
+  /** Add user's "Active account" (CHG-172; it was dropped, so an unticked account was created active). */
+  is_active?: boolean;
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
@@ -120,12 +122,17 @@ export async function getImportTemplate(): Promise<string> {
   return res.data as string;
 }
 
-/** Human-readable message from an axios error (auth-service returns `{ error }`). */
+/**
+ * Human-readable message from an axios error (auth-service returns `{ error }`). CHG-172 (owner answer 3c): a 403 shows the
+ * server's own words ("Missing required permission: …", the role-assignment refusal) as a 409 always did; only a 403 that
+ * carries none reads "Admin access required.".
+ */
 export function extractApiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    if (error.response?.status === 403) return 'Admin access required.';
+    const said = (error.response?.data as { error?: string } | undefined)?.error;
     if (error.response?.status === 401) return 'Your session expired. Please sign in again.';
-    return (error.response?.data as { error?: string } | undefined)?.error || error.message;
+    if (error.response?.status === 403) return said || 'Admin access required.';
+    return said || error.message;
   }
   return 'An unexpected error occurred.';
 }

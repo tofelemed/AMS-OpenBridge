@@ -108,6 +108,10 @@
     {
       "pattern": "^loop: .* change loop$",
       "why": "CHG-160 (owner review): the loop control is a search field, named 'Loop <tag> <name>', on every loop page"
+    },
+    {
+      "pattern": "^(admin|engineer|operator|superadmin|viewer)system$",
+      "why": "CHG-172: the role list became a table; each role's name is its own button and System sits in the Type column, so the old one-button 'Admin SYSTEM' names no longer exist (the selection works as before)"
     }
   ]
 }

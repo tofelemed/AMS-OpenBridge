@@ -1,17 +1,140 @@
-/* Administration: placement only. Sizes, colours and type come from the app's own classes and tokens. */
+/* Administration (CHG-172, the owner's approved sample): placement and tone only. Sizes, colours and type come from the app's own
+   classes and tokens; the lists reuse the registry's rows (.cpm-reg-row), the editors its parts (.cpm-reg-part). */
 .cpm-admin { padding-top: 0; }
 .cpm-admin__panel { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
-.cpm-admin-audit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-3); }
-.cpm-admin-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-3); }
-.cpm-admin-bar__actions { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
-.cpm-admin-user { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.cpm-admin-user:hover { text-decoration: underline; }
-.cpm-admin-user__name { display: block; font-weight: 600; }
-.cpm-admin-user__full { display: block; color: var(--traverse-text-secondary); }
-.cpm-admin-dialog__facts { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
-.cpm-admin-dialog__actions { display: flex; gap: var(--traverse-space-2); }
-.cpm-admin-source { display: block; width: 100%; text-align: left; background: none; border: 0; padding: var(--traverse-space-2) var(--traverse-space-3); color: inherit; font: inherit; cursor: pointer; border-bottom: 1px solid var(--border-divider-color); }
-.cpm-admin-source[aria-current="true"] { background: var(--container-backdrop-color); box-shadow: inset 3px 0 0 var(--traverse-focus); }
-.cpm-admin-source__line { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); align-items: center; }
-.cpm-admin-bar--end { justify-content: flex-end; }
-.cpm-admin-source__type { display: block; color: var(--traverse-text-secondary); }
+
+/* ── Header and tab row: the open tab's actions flow in the header's own row; Audit log ↗ follows the last tab ── */
+.cpm-admin-actions { display: contents; }
+.cpm-tabs-row.cpm-admin-tabs > .cpm-tabs { flex: 0 1 auto; }
+.cpm-admin-tabs { margin-top: 0; }
+
+/* ── The list card: the 32 px filter row at its top, the rows, the shared pager ── */
+.cpm-admin-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
+.cpm-admin-filters .cpm-input { flex: 1 1 12rem; min-width: 0; height: var(--traverse-space-8); padding-block: 0; }
+.cpm-admin-filters .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+.cpm-admin-list .cpm-reg-table td { vertical-align: middle; }
+/* the columns keep their places whatever the rows hold (they moved with each search) */
+.cpm-admin-table { table-layout: fixed; }
+.cpm-admin-table--users th:nth-child(2) { width: 9rem; }
+.cpm-admin-table--users th:nth-child(3) { width: 8rem; }
+.cpm-admin-table--roles th:nth-child(2) { width: 5rem; }
+.cpm-admin-table--sources th:nth-child(2) { width: 6.5rem; }
+.cpm-admin-table--aliases th:nth-child(2) { width: 9rem; }
+.cpm-admin-list .cpm-reg-row--selected .cpm-pill { border-color: var(--border-divider-color); }
+.cpm-admin-rowlink {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: start; cursor: pointer; min-width: 0; max-width: 100%;
+}
+.cpm-admin-rowlink > * { overflow-wrap: anywhere; }
+.cpm-admin-rowlink:hover strong { text-decoration: underline; }
+.cpm-admin-none { margin: var(--traverse-space-3) 0; }
+.cpm-admin-loading { display: flex; justify-content: center; padding: var(--traverse-space-8); }
+
+/* ── Panels: the foot on the page colour, as the other lists' feet; a part under a hairline ── */
+.cpm-admin .ui-inspector__foot {
+  background: var(--traverse-surface-page);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+.cpm-admin-foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--traverse-space-2); }
+.cpm-admin-foot--end { justify-content: flex-end; }
+.cpm-admin-foot--roles { align-items: center; }
+.cpm-admin-foot__note { flex: 1 1 12rem; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); text-align: end; }
+.cpm-admin-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-admin-part { margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-3); border-top: 1px solid var(--border-divider-color); }
+.cpm-admin-part__head { flex-wrap: wrap; margin-bottom: var(--traverse-space-1); }
+.cpm-admin-part__head > obc-button { margin-inline-start: auto; }
+.cpm-admin-notice { margin: 0 0 var(--traverse-space-2); color: var(--traverse-status-info-fg); }
+.cpm-admin-warn, .cpm-admin-ok {
+  margin: var(--traverse-space-2) 0; padding: var(--traverse-space-2) var(--traverse-space-3);
+  border-radius: var(--traverse-radius-control); color: var(--traverse-text-primary); font-size: var(--traverse-type-metadata);
+}
+.cpm-admin-warn { background: var(--traverse-status-danger-bg); }
+.cpm-admin-ok { background: var(--traverse-status-success-bg); }
+.cpm-admin-good { color: var(--traverse-status-success-fg); }
+.cpm-admin-caution { margin: 0; color: var(--traverse-status-warning-fg); font-size: var(--traverse-type-metadata); }
+.cpm-admin-mark {
+  padding: 0 var(--traverse-space-2); border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-panel);
+  color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); white-space: nowrap;
+}
+.cpm-admin-confirm { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+
+/* ── Roles: the role list narrow, the role panel wide; the permission groups in two columns ── */
+@media (min-width: 1280px) {
+  .cpm-master-detail.cpm-admin-roles { grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr); }
+}
+.cpm-admin-roles .ui-inspector--drawer { width: min(100%, 40rem); }
+.cpm-admin-count { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); white-space: nowrap; }
+.cpm-admin-count strong { color: var(--traverse-action-primary); font-weight: 600; }
+.cpm-admin-perms { margin-top: var(--traverse-space-3); }
+.cpm-admin-perms__cols { columns: 2 18rem; column-gap: var(--traverse-space-5); margin-top: var(--traverse-space-2); }
+.cpm-admin-pblock {
+  break-inside: avoid; margin-bottom: var(--traverse-space-3); padding: var(--traverse-space-1) var(--traverse-space-3) var(--traverse-space-2);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
+}
+.cpm-admin-pblock__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--traverse-space-2);
+  color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.cpm-admin-perm { padding: var(--traverse-space-1) 0; border-top: 1px solid var(--border-divider-color); }
+.cpm-admin-perm__key { display: flex; align-items: center; gap: var(--traverse-space-2); cursor: pointer; }
+.cpm-admin-perm__key input { margin: 0; }
+.cpm-admin-perm__what { display: block; padding-inline-start: var(--traverse-space-6); color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
+
+/* ── Editors and imports ── */
+.cpm-admin-check { display: flex; align-items: center; gap: var(--traverse-space-2); min-height: var(--traverse-size-control-min-height); cursor: pointer; }
+.cpm-admin-check--top { align-items: flex-start; padding-top: var(--traverse-space-2); }
+.cpm-admin-check--top > span { display: flex; flex-direction: column; }
+.cpm-admin-options { display: flex; flex-wrap: wrap; gap: var(--traverse-space-5); }
+.cpm-admin-counts { display: flex; flex-wrap: wrap; gap: var(--traverse-space-4); margin: 0 0 var(--traverse-space-3); color: var(--traverse-text-secondary); }
+.cpm-admin-counts strong { color: var(--traverse-text-primary); }
+.cpm-admin-scroll { max-height: 18rem; overflow: auto; margin-top: var(--traverse-space-2); }
+.cpm-admin-drop { cursor: pointer; }
+.cpm-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-2); }
+.cpm-admin-moderow {
+  display: grid; grid-template-columns: minmax(0, 6rem) auto minmax(0, 8rem) minmax(0, 1fr) auto;
+  align-items: center; gap: var(--traverse-space-2); margin: var(--traverse-space-2) 0;
+}
+.cpm-admin-stack { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+.cpm-admin-indent { padding-inline-start: var(--traverse-space-6); }
+.cpm-admin-plan { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-3); padding: var(--traverse-space-1) 0; border-bottom: 1px solid var(--border-divider-color); }
+
+/* ── Plant model: the onboarding strip above the tree, then the tree's rows ── */
+.cpm-admin-strip {
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--traverse-space-2) 0; margin-bottom: var(--traverse-space-3);
+  padding: var(--traverse-space-3) var(--traverse-space-4);
+  background: var(--container-backdrop-color); border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-panel);
+}
+.cpm-admin-stage { display: flex; flex-direction: column; min-width: 9rem; }
+.cpm-admin-stage__title { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); letter-spacing: 0.06em; text-transform: uppercase; }
+.cpm-admin-stage__value { font-size: var(--traverse-type-key); font-weight: 600; }
+.cpm-admin-stage__value--good { color: var(--traverse-status-success-fg); }
+.cpm-admin-stage__value--warn { color: var(--traverse-status-warning-fg); }
+.cpm-admin-stage__value--muted { color: var(--traverse-text-secondary); }
+.cpm-admin-stage__detail { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
+.cpm-admin-strip__arrow { align-self: center; padding: 0 var(--traverse-space-3); color: var(--traverse-text-secondary); }
+.cpm-admin-tree { border-top: 1px solid var(--border-divider-color); }
+.cpm-admin-node {
+  display: grid; grid-template-columns: var(--traverse-space-5) 7.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--traverse-space-2);
+  min-height: var(--traverse-size-control-min-height); padding-block: var(--traverse-space-1); padding-inline-end: var(--traverse-space-3);
+  border-bottom: 1px solid var(--border-divider-color); cursor: pointer;
+}
+.cpm-admin-node:hover { background: var(--traverse-surface-hover); }
+.cpm-admin-node--selected { background: var(--cpm-selected-bg); box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
+.cpm-admin-node--selected:hover { background: var(--cpm-selected-hover-bg); }
+.cpm-admin-node--selected .cpm-admin-mark { border-color: var(--border-divider-color); }
+.cpm-admin-node__twist { padding: 0; border: 0; background: none; color: var(--traverse-text-secondary); font: inherit; cursor: pointer; }
+.cpm-admin-node__level { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); letter-spacing: 0.06em; text-transform: uppercase; }
+.cpm-admin-node__note { margin: 0; padding-block: var(--traverse-space-1); }
+
+@media (max-width: 600px) {
+  .cpm-admin-table { table-layout: auto; }
+  .cpm-admin-table th:nth-child(n) { width: auto; }
+  .cpm-admin-perms__cols { columns: 1; }
+  .cpm-admin-node { grid-template-columns: var(--traverse-space-5) minmax(0, 1fr) auto; }
+  .cpm-admin-node__level { display: none; }
+  .cpm-admin-moderow { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; }
+  .cpm-admin-moderow > span:nth-child(4) { grid-column: 1 / -1; }
+  .cpm-admin-strip__arrow { display: none; }
+  .cpm-admin-stage { min-width: 50%; }
+}

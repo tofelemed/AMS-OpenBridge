@@ -6,21 +6,25 @@
  * Source → Review → Import; one by-paths preload; level cells accept segments
  * or display names; hierarchy auto-create is an explicit opt-in that lists
  * exactly what it will create; ot_tag columns become alias rows.
+ *
+ * CHG-172 (owner review, the approved sample): the three steps as tabs (a step ahead is shown and not reachable), "Nothing is
+ * written until the last step." once beside them (it was the subtitle), Columns with Download template and File contents as
+ * titled parts. Every check, count and request is as before.
  */
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { Modal } from '../shared/Modal';
+import { Dialog } from '../../ui/Dialog';
+import { Tabs, tabPanelProps } from '../../ui/Tabs';
+import { ReasonedButton } from '../Cpm/ReasonedButton';
+import { Part } from '../Cpm/registry/wizard/editorParts';
 import { parseCsv, downloadTextFile } from '../../utils/csv';
 import { apiJson, ApiError } from '../../api/apiFetch';
 import { toast } from 'react-toastify';
-import { T } from '../../styles/theme';
-import { slugSegment } from './PlantModelConfig';
+import { ASSET_API, SEGMENT_RX, TYPE_NAMES, slugSegment } from './plant/plantModel';
 
-const ASSET_API = (import.meta.env.VITE_ASSET_SERVICE_URL as string | undefined) || '/api/assets';
 const ALIAS_API = '/api/aliases';
-
-const SEGMENT_RX = /^[A-Za-z0-9_-]+$/;
-const TYPE_NAMES: Record<number, string> = { 1: 'Site', 2: 'Area', 3: 'Unit', 4: 'Device', 5: 'Measurement' };
+const STEPS = [{ value: 'source', label: 'Source' }, { value: 'review', label: 'Review' }, { value: 'import', label: 'Import' }] as const;
 
 // ── CSV import (P4.1) ───────────────────────────────────────────────────────
 
@@ -68,6 +72,7 @@ function resolveLevel(
 }
 
 export const ImportDialog: React.FC<{ onClose: (changed: boolean) => void }> = ({ onClose }) => {
+  const id = useId();
   const [step, setStep] = useState(0);
   const [text, setText] = useState('');
   const [createMissing, setCreateMissing] = useState(false);
@@ -241,118 +246,95 @@ export const ImportDialog: React.FC<{ onClose: (changed: boolean) => void }> = (
   };
 
   const badRows = plan?.rows.filter(r => r.problems.length > 0) ?? [];
-
-  return (
-    <Modal
-      isOpen
-      onClose={() => onClose(step === 2)}
-      title="Import plant model from CSV"
-      subtitle="Source → Review → Import. Nothing is written until the last step."
-      width="720px"
-      footer={
-        <>
-          <ObcButton variant="normal" onClick={() => onClose(step === 2)}>
-            {step === 2 ? 'Close' : 'Cancel'}
-          </ObcButton>
-          {step === 0 && (
-            <ObcButton variant="raised" disabled={!text.trim() || validating} onClick={validate}>
-              {validating ? 'Validating…' : 'Validate →'}
-            </ObcButton>
-          )}
-          {step === 1 && (
-            <>
-              <ObcButton variant="normal" onClick={() => { setStep(0); setPlan(null); }}>← Back</ObcButton>
-              <ObcButton variant="raised" disabled={importing || (plan?.creates.length ?? 0) === 0} onClick={runImport}>
-                {importing ? 'Importing…' : `Import ${plan?.creates.length ?? 0} asset(s)`}
-              </ObcButton>
-            </>
-          )}
-        </>
-      }
-    >
+  const tab = STEPS[step].value;
+  const footer = (
+    <>
+      <ObcButton variant="flat" onClick={() => onClose(step === 2)}>{step === 2 ? 'Close' : 'Cancel'}</ObcButton>
       {step === 0 && (
+        <ReasonedButton variant="raised" disabled={!text.trim() || validating} reason={!text.trim() ? 'Paste the file contents first' : null}
+          onClick={() => void validate()}>
+          {validating ? 'Validating…' : 'Validate →'}
+        </ReasonedButton>
+      )}
+      {step === 1 && (
         <>
-          <p style={{ fontSize: '13px', color: T.textSecondary, marginTop: 0 }}>
-            Columns: <code>{CSV_HEADERS.join(', ')}</code>. Level cells accept the path segment
-            (<code>section_100</code>) or the display name (<code>Section 100</code>).{' '}
-            <button type="button" onClick={downloadTemplate}
-              style={{ background: 'none', border: 'none', color: T.blue, cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: '13px' }}>
-              Download template
-            </button>
-          </p>
-          <textarea
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder={CSV_HEADERS.join(',')}
-            style={{
-              width: '100%', minHeight: 200, fontFamily: 'monospace', fontSize: '12px',
-              background: T.card, color: T.textPrimary, border: `1px solid ${T.border}`,
-              borderRadius: 6, padding: 10, resize: 'vertical',
-            }}
-          />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: '13px', color: T.textPrimary }}>
-            <input type="checkbox" checked={createMissing} onChange={e => setCreateMissing(e.target.checked)} />
-            Create missing hierarchy levels (sites / areas / units) from the file.
-            Off = rows referencing unknown hierarchy are rejected — the origin-spec default.
-          </label>
+          <ObcButton variant="normal" onClick={() => { setStep(0); setPlan(null); }}>← Back</ObcButton>
+          <ObcButton variant="raised" disabled={importing || (plan?.creates.length ?? 0) === 0} onClick={() => void runImport()}>
+            {importing ? 'Importing…' : `Import ${plan?.creates.length ?? 0} asset(s)`}
+          </ObcButton>
         </>
       )}
+    </>
+  );
 
-      {step === 1 && plan && (
-        <>
-          <div style={{ display: 'flex', gap: 18, fontSize: '13px', marginBottom: 10 }}>
-            <span style={{ color: T.textPrimary }}><strong>{plan.rows.length}</strong> row(s)</span>
-            <span style={{ color: badRows.length ? T.critical : T.success }}>
-              <strong>{badRows.length}</strong> with problems
-            </span>
-            <span style={{ color: T.textPrimary }}><strong>{plan.creates.length}</strong> asset(s) to create</span>
-            <span style={{ color: T.textPrimary }}><strong>{plan.aliases.length}</strong> OT alias(es)</span>
-          </div>
-          {badRows.length > 0 && (
-            <div style={{ maxHeight: 160, overflow: 'auto', border: `1px solid ${T.border}`, borderRadius: 6, marginBottom: 10 }}>
-              {badRows.map(r => (
-                <div key={r.line} style={{ padding: '4px 10px', fontSize: '12px', color: T.critical, borderBottom: `1px solid ${T.borderLight}` }}>
-                  Line {r.line}: {r.problems.join('; ')}
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ maxHeight: 240, overflow: 'auto', border: `1px solid ${T.border}`, borderRadius: 6 }}>
-            {plan.creates.map(c => (
-              <div key={c.contextualPath} style={{
-                display: 'flex', gap: 10, padding: '4px 10px', fontSize: '12px',
-                borderBottom: `1px solid ${T.borderLight}`, alignItems: 'baseline',
-              }}>
-                <span style={{ width: 90, color: T.textMuted, textTransform: 'uppercase', fontSize: '10px', fontWeight: 700 }}>
-                  {TYPE_NAMES[c.type]}
+  return createPortal(
+    <Dialog open size="wide" title="Import plant model from CSV" onClose={() => onClose(step === 2)} footer={footer}>
+      <div className="cpm-tabs-row cpm-admin-tabs">
+        <div className="cpm-tabs">
+          <Tabs idBase="admin-plant-import" label="Import plant model from CSV" value={tab}
+            options={STEPS.map((s, i) => ({ value: s.value, label: s.label, disabled: i !== step }))} onChange={() => undefined} />
+        </div>
+        <span className="cpm-tabs-row__end cpm-event-row__sub">Nothing is written until the last step.</span>
+      </div>
+      <div className="cpm-reg-editor__panel" {...tabPanelProps('admin-plant-import', tab)}>
+        {step === 0 && (
+          <>
+            <Part title="Columns" end={<ObcButton variant="flat" onClick={downloadTemplate}>Download template</ObcButton>}>
+              <p className="cpm-copy">
+                <code>{CSV_HEADERS.join(', ')}</code>. Level cells accept the path segment (<code>section_100</code>) or the display
+                name (<code>Section 100</code>).
+              </p>
+            </Part>
+            <Part title="File contents">
+              <textarea id={`${id}-csv`} aria-label="File contents" className="cpm-textarea cpm-mono" rows={8} value={text}
+                spellCheck={false} placeholder={CSV_HEADERS.join(',')} onChange={e => setText(e.target.value)} />
+              <label className="cpm-admin-check cpm-admin-check--top">
+                <input type="checkbox" checked={createMissing} onChange={e => setCreateMissing(e.target.checked)} />
+                <span>
+                  Create missing hierarchy levels (sites / areas / units) from the file.
+                  Off = rows referencing unknown hierarchy are rejected — the origin-spec default.
                 </span>
-                <span style={{ fontFamily: 'monospace', color: T.textPrimary }}>{c.contextualPath}</span>
-                <span style={{ color: T.textSecondary }}>{c.name}</span>
-              </div>
-            ))}
-            {plan.creates.length === 0 && (
-              <div style={{ padding: 12, fontSize: '13px', color: T.textMuted }}>
-                Nothing to create — every referenced asset already exists.
+              </label>
+            </Part>
+          </>
+        )}
+
+        {step === 1 && plan && (
+          <>
+            <p className="cpm-admin-counts">
+              <span><strong>{plan.rows.length}</strong> row(s)</span>
+              <span className={badRows.length ? 'cpm-field__error' : 'cpm-admin-good'}><strong>{badRows.length}</strong> with problems</span>
+              <span><strong>{plan.creates.length}</strong> asset(s) to create</span>
+              <span><strong>{plan.aliases.length}</strong> OT alias(es)</span>
+            </p>
+            {badRows.length > 0 && (
+              <div className="cpm-admin-scroll">
+                {badRows.map(r => <p key={r.line} className="cpm-field__error">Line {r.line}: {r.problems.join('; ')}</p>)}
               </div>
             )}
-          </div>
-        </>
-      )}
-
-      {step === 2 && result && (
-        <div style={{ fontSize: '13px', color: T.textPrimary }}>
-          <p><strong>{result.created}</strong> asset(s) created, <strong>{result.aliases}</strong> alias(es) written.</p>
-          {result.errors.length > 0 && (
-            <div style={{ maxHeight: 200, overflow: 'auto', border: `1px solid ${T.border}`, borderRadius: 6 }}>
-              {result.errors.map((e, i) => (
-                <div key={i} style={{ padding: '4px 10px', fontSize: '12px', color: T.critical, borderBottom: `1px solid ${T.borderLight}` }}>
-                  {e.path ? `${e.path}: ` : ''}{e.error}
+            <div className="cpm-admin-scroll">
+              {plan.creates.map(c => (
+                <div key={c.contextualPath} className="cpm-admin-plan">
+                  <span className="cpm-admin-node__level">{TYPE_NAMES[c.type]}</span>
+                  <span className="cpm-mono">{c.contextualPath}</span>
+                  <span className="cpm-copy">{c.name}</span>
                 </div>
               ))}
+              {plan.creates.length === 0 && <p className="cpm-copy">Nothing to create — every referenced asset already exists.</p>}
             </div>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
+          </>
+        )}
+
+        {step === 2 && result && (
+          <>
+            <p className="cpm-copy"><strong>{result.created}</strong> asset(s) created, <strong>{result.aliases}</strong> alias(es) written.</p>
+            {result.errors.length > 0 && (
+              <div className="cpm-admin-scroll">
+                {result.errors.map((e, i) => <p key={i} className="cpm-field__error">{e.path ? `${e.path}: ` : ''}{e.error}</p>)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Dialog>, document.body);
 };

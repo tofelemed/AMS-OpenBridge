@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the administrator's path through Administration (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov, read-only (every non-GET call blocked): 20 accounts, five system roles, 38 permission keys, 8 data sources, 703 tag aliases. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .step.qd { border-style: dashed; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found h4 { margin: 10px 0 4px; font-size: 14px; font-weight: 600; }
+  .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; } .found li b { color: var(--text); font-weight: 600; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Administration: the administrator's path</h1>
+  <p class="lead">Today the page is a hub of seven tabs under "System · Administration": Users, Roles &amp; permissions, Data sources, Plant model, Tag aliases, Audit log, System settings. Each tab keeps its own actions in a bar inside the card, and four of them show a lone <b>?</b> at the card's top left. <b>Users</b>: "20 users · 20 active · 0 inactive", Bulk import / Add user, "Search name or email…", All roles, All statuses, a table User / Role / Status (the role as a neutral "· Engineer" badge); a user name opens a dialog with Email and Created, Delete and Edit. <b>Roles</b>: "+ New custom role" (an inline form), a role list marked SYSTEM / CUSTOM, a matrix of 13 categories of permission keys (what each allows only on hover), "25 selected • unsaved", Save permissions, Reset to default or Delete role, Discard changes. <b>Data sources</b>: a search, "+ New Configuration" (a four-step wizard that replaces the whole tab), 8 sources each reading MQTT, a detail with three pills, Test · Edit · On · Delete, seven UPPERCASE facts, Loop ingest with an inline MODE-map editor, Technical details. <b>Plant model</b>: Import CSV, "+ Add Site", a search, a tree whose every row carries "+ child", Edit and Delete, and a "CPM · FC10711 ↗" chip on a loop and each of its four signals; its <b>?</b> "Onboarding stages" holds a live five-stage strip. <b>Tag aliases</b>: Import CSV, "+ Add Alias", a search, 500 of 703 aliases each with its own Delete, then "Showing 500 of 703 — narrow with search". <b>Audit log</b> is a tab that leaves for Governance. <b>System settings</b>: six rows reading "Not connected" and a disabled Save settings. The page serves five jobs: let the right people in, decide what each role allows, connect the OT data, model the plant, map the DCS tags. So the same six places, each a list with a panel for the selected item and its actions top right; editors become dialogs in titled parts; one How to read.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">How to read</span><span class="chip">The tab's own actions top right</span><span style="color:var(--text2)">·</span><span class="chip">Users</span><span class="chip">Roles &amp; permissions</span><span class="chip">Data sources</span><span class="chip">Plant model</span><span class="chip">Tag aliases</span><span class="chip">System settings</span><span class="chip chip--q">Audit log ↗ (question 1)</span><span style="color:var(--text2)">·</span><span class="chip">Each: list · panel · dialogs</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header and tabs</h2><q>Where am I, and what can I do on this tab?</q>
+      <ul><li>System · Administration, no <b>?</b>, no sentence</li><li>How to read and the open tab's actions top right: Bulk import · Add user / Add custom role / Add data source / Import CSV · Add site / Import CSV · Add alias / Save settings (disabled, reason under it)</li><li>Six tabs, each its own address (<code>/admin/users</code> …); Audit log ↗ a link at the end</li></ul></div>
+    <div class="card step"><h2>Find a person</h2><q>Who has access, and is the account on?</q>
+      <ul><li>One filter row: search, then the two dropdowns with their counts inside ("All roles 20", "Active 20", "Inactive 0")</li><li>User (name, full name under), Role as a word, ✓ Active / ⊘ Inactive</li><li>Search finds full name and email, not the user name (question 3)</li></ul></div>
+    <div class="card step"><h2>Change a person</h2><q>Change a role, status or address; add or remove someone.</q>
+      <ul><li>Panel: the user name once, full name, status; Email, Role, Created; Delete and Edit in the foot</li><li>Own account: Delete disabled, "You cannot delete your own account." (today a toast after the click)</li><li>Add user / Edit user: Account and Access parts, every check word for word; own role and status locked (question 4)</li><li>Bulk import: File · Preview · Result</li></ul></div>
+    <div class="card step"><h2>See who can do what</h2><q>What does a role allow, and who holds it?</q>
+      <ul><li>Role list: name, description under it, System / Custom</li><li>Panel: each permission with what it allows (today only on hover), grouped as today, All / Clear per group, "22 of 38"</li><li>Users with this role ↗, Permissions by role ↗ (question 8)</li></ul></div>
+    <div class="card step"><h2>Change a role</h2><q>Give or take a permission; reset; add or remove a custom role.</q>
+      <ul><li>Foot: Reset to default or Delete role, Discard changes, the sign-out sentence once beside Save permissions</li><li>Reset to default gains a confirmation (it signs everyone with the role out), and its default is wrong today (question 5)</li><li>Add custom role: a small dialog; Delete role: reassign from a list (question 9)</li></ul></div>
+    <div class="card step"><h2>Connect the OT data</h2><q>Is the feed connected, tested and mapped?</q>
+      <ul><li>List: name, profile under it, ✓ Active / ○ Off ("MQTT" on every row goes)</li><li>Panel: profile, name, state once; connection rows with times in UTC; Loop ingest with the MODE map and its warnings; Test · Edit · Turn off · Delete; Record details (ids)</li><li>Editor: Profile · Name · Connection · Advanced, "Next: Name →"; Edit MODE map as a dialog</li></ul></div>
+    <div class="card step qd"><h2>Model the plant</h2><q>Is the plant modelled, and where does a node sit?</q>
+      <ul><li>The five onboarding stages above the tree, out of the <b>?</b> (question 11)</li><li>Tree: level, name, path under it, CPM on the loop's device only</li><li>Panel: Path with Copy, Description, Template, Managed by; Add Area / Unit / Device / measurement, Edit, Delete; Loop Registry → for a CPM node</li></ul></div>
+    <div class="card step"><h2>Map the DCS tags</h2><q>Which tag lands on which UNS path?</q>
+      <ul><li>Tag with its UNS path under it, Source; a 32 px pager reaches all 703 (question 12a)</li><li>Panel: tag, path, source, state; Delete in the foot (today on each of 500 rows)</li><li>Add alias / Import CSV in titled parts</li></ul></div>
+    <div class="card step qd"><h2>Settings and changes</h2><q>What is configured, and who changed what?</q>
+      <ul><li>System settings: three titled parts, values "—", "No settings service is connected, so nothing can be saved." once (question 2)</li><li>Audit log ↗ opens Governance, as the tab already does (question 1); user changes are not recorded there (question 14)</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Actions in a bar inside each tab's card; "+ New custom role", "+ New Configuration", "+ Add Site", "+ Add Alias"; four lone <b>?</b> at the card corners</td><td>The open tab's actions top right beside How to read: Add custom role, Add data source, Add site, Add alias (the "+" goes). The four <b>?</b> become How to read</td></tr>
+        <tr><td><span class="n">2</span>Seven tabs; "Audit log" redirects to Governance when clicked</td><td>Six tabs; Audit log ↗ a link at the end of the row (question 1)</td></tr>
+        <tr><td><span class="n">3</span>"20 users · 20 active · 0 inactive" above the filters; "Page 1 of 2 · 60 users" beside the pager; filters in a 2:1:1 grid</td><td>One 32 px filter row, search first; the counts inside the dropdowns ("All roles 20", "Active 20"); the shared 32 px pager when there are more than 50</td></tr>
+        <tr><td><span class="n">4</span>Role as a neutral badge "· Engineer"; status ✓ Active or "· Inactive"</td><td>Role as a word; ✓ Active / ⊘ Inactive</td></tr>
+        <tr><td><span class="n">5</span>Row dialog titled with the user name: Email, Created "10/10/2026", Delete, Edit; deleting yourself answers with a toast</td><td>Panel beside the list (a drawer below 1280 px): user name once, full name, status; Email, Role, Created "10 Oct 2026"; Delete and Edit in the foot; Delete disabled on your own account with the toast's words under it</td></tr>
+        <tr><td><span class="n">6</span>"Edit superadmin · Update role, status, or profile" / "Add user · Create a new account"; the password hint under the field</td><td>"Edit user" / "Add user" (the panel says who); parts Account and Access; the hint behind <b>?</b>; fields, checks and messages word for word</td></tr>
+        <tr><td><span class="n">7</span>Bulk import: subtitle "Upload a CSV to create or update accounts", columns in a blue box, five count boxes</td><td>File · Preview · Result as tabs; Columns with Download template; the counts in one line; options and rows unchanged</td></tr>
+        <tr><td><span class="n">8</span>Role list with SYSTEM / CUSTOM in capitals; the description only inside the matrix</td><td>Name with its description under it; System / Custom</td></tr>
+        <tr><td><span class="n">9</span>"Admin system role — protected, permissions editable"; keys only, description on hover; "25 selected • unsaved"; the sign-out sentence in the <b>?</b> and again in the notice</td><td>Eyebrow System role / Custom role, the role once; Description field; each key with what it allows; "22 of 38 · unsaved changes"; the sign-out sentence once, beside Save permissions; the notice keeps "Saved N permissions for X."</td></tr>
+        <tr><td><span class="n">10</span>Reset to default acts at once; Delete role asks for a role name in free text</td><td>Reset to default asks first (the sign-out sentence word for word); Delete role keeps its message, the role picked from a list (questions 5, 9)</td></tr>
+        <tr><td><span class="n">11</span>Inline create form under the button, which turns into "Cancel"</td><td>A small dialog: Role name, Description, Create; the notice after it unchanged</td></tr>
+        <tr><td><span class="n">12</span>Each source with "MQTT" under it (every row), "Active" / "Off" pills; the search's placeholder "Search data sources…"</td><td>Name with its profile under it; ✓ Active / ○ Off; placeholder "Name, type or broker URL" (what it searches)</td></tr>
+        <tr><td><span class="n">13</span>Heading with three pills (MQTT, profile, first topic) and no state; Test · Edit · On · Delete; "LAST CONNECTION TEST ✓ 25/09/2026, 19:45:25" in browser time; inline delete strip; Technical details</td><td>Profile as eyebrow, name, state; Topic filter a row; "Last connection test · UTC ✓ 25 Sep 19:45"; Test · Edit · Turn off · Delete (question 10a); the delete question as a dialog, word for word; Record details (configuration id, client id, version)</td></tr>
+        <tr><td><span class="n">14</span>A full-page wizard replacing the tab: "Step 4 of 4: Polling and timeouts", a stepper, "← Back to list", emoji 🗑 🛡 💾, help under every field, "Next steps after saving" box</td><td>A tabbed dialog Profile · Name · Connection · Advanced, "Next: Name →"; help behind <b>?</b>; the warnings (session expiry, clean session, TLS, "Do not verify") stay in view; the stale "later phase" texts are question 10b</td></tr>
+        <tr><td><span class="n">15</span>MODE map editor opening inside the panel</td><td>A dialog with the same rows, preset, warnings and Save MODE map</td></tr>
+        <tr><td><span class="n">16</span>"+ child · Edit · Delete" on every tree row; the path beside the name; "CPM · FC10711 ↗" on the device and each of its four signals</td><td>Select a node: its panel holds Add …, Edit, Delete, Path with Copy, Template, Managed by and "Loop Registry →"; the path under the name; CPM once on the device</td></tr>
+        <tr><td><span class="n">17</span>"Onboarding stages" behind a <b>?</b>, counts fetched only when it opens ("…" first)</td><td>A slim strip above the tree: 3 / 8 / 29 → 273 / 1102 → 703 → 243 (241 monitored) → 8 (question 11)</td></tr>
+        <tr><td><span class="n">18</span>"Add Area under Dallas Terminal" with the identity sentence as subtitle; "Full path: dallas/" in a hint; delete ends in "Confirm"</td><td>"Add Area" with a Place part (Under, Full path) and Names (the identity sentence under Path segment); delete confirmation word for word, its button "Delete"</td></tr>
+        <tr><td><span class="n">19</span>Columns Legacy / OT tag, Canonical UNS path, Source, Active ("active" in every row), Delete on every row; "Showing 500 of 703 — narrow with search"</td><td>Tag with its UNS path under it, Source; ⊘ Inactive only on an inactive row; the panel holds Delete; the 32 px pager (question 12a)</td></tr>
+        <tr><td><span class="n">20</span>Add alias subtitle repeating the <b>?</b>; delete ends in "Confirm"</td><td>One Mapping part, hints behind <b>?</b>; delete confirmation word for word, button "Delete"</td></tr>
+        <tr><td><span class="n">21</span>"Not connected" six times, and the disabled Save's reason</td><td>Values "—"; the reason once, under Save settings in the header (question 2)</td></tr>
+        <tr><td><span class="n">22</span>Four <b>?</b>: About roles and permissions, About data sources, Onboarding stages, About tag aliases</td><td>How to read for the open tab: Status (Users), Type (Roles), State and MODE map (Data sources), Levels and the CPM mark (Plant model), what an alias does (Tag aliases)</td></tr>
+        <tr><td>Below 1280 px everything stacks: at 1000 px a data source's detail starts below eight list rows</td><td>The panel becomes a drawer, as on Pipeline Health</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>Addresses and access</td><td><code>/admin/users</code>, <code>/roles</code>, <code>/data-sources</code>, <code>/plant-model</code>, <code>/aliases</code>, <code>/system</code>, <code>/admin/audit</code> → Governance; each tab's permission check and the /admin route guard unchanged; a bare /admin opens the first tab the role may see</td></tr>
+        <tr><td>Users</td><td>Server search, role and status filters, 50 per page, back to page 1 on a new filter; the role list from the roles API (built-in five when it is refused); Add user: Username, Email, Full name, Password, Role, Active account; "Username must be 3+ chars (letters, numbers, underscores).", "Password must be 8+ chars with upper, lower, and a number.", "Enter a valid email address."; the form boundary that stops password managers filling the search; Delete user "…"? This cannot be undone.; Bulk import: template, .csv only, 5000 rows, validate first, Skip error rows, Overwrite existing (duplicates), the row table, the result counts</td></tr>
+        <tr><td>Roles</td><td>System first then by name; the latest click wins; every permission key and category, All / Clear; Save permissions only when changed; Discard changes; Reset to default for a system role, Delete role for a custom one with its message; description saved when the field is left; "Saved N permissions for X." and the sign-out sentence word for word</td></tr>
+        <tr><td>Data sources</td><td>Edit needs ingestion.manage, reading ingestion.view; Test, On / Off, Delete with "Delete "…" and its stored credentials?"; every wizard field, default, check and message (topic filter rule, client id rule, password kept when blank, CA file checks, TLS modes and their warnings); the profile_config carried across on save; Loop ingest facts, the two red warnings and "Nothing here counts as AUTO …", the CENTUM preset</td></tr>
+        <tr><td>Plant model</td><td>asset.edit for every write; search from 2 characters; children loaded when a node opens; the path segment slug and its check; Template on devices and measurements; unit and limits on measurements; deletes refused while referenced, the reason shown; the CSV importer's three steps and checks</td></tr>
+        <tr><td>Tag aliases</td><td>asset.edit for writes; inactive aliases listed; the three fields and their defaults; CSV import in chunks with per-row errors; the delete question</td></tr>
+        <tr><td>Sizes</td><td>40 px header and dialog buttons; 32 px filter controls; rows as today</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Audit log as a link at the end of the tab row, not a tab?</b> <span>Clicking the tab already leaves for Governance (<code>cpa/redirects.ts:39</code>); its own page (<code>AuditLogLink.tsx</code>, "The audit log is on Governance." with Open Governance →) never renders. Recommended: "Audit log ↗". No backend change. Drawn dashed.</span></li>
+      <li><b>System settings: hide the tab until a settings service exists?</b> <span>Its six settings are alarm-system settings (alarm retention, audit CSV, theme, log level), none read or saved; retention really lives in the database policies. Recommended: hide it; if kept, as drawn (values "—", the reason once). No backend change.</span></li>
+      <li><b>User search finds the user name too?</b> <span>Today it matches full name and email only (<code>auth.service.ts:656-660</code>): on the lab one of 20 accounts is not found by its own user name. Placeholder "Name or email" now; "User name, name or email" after. Small backend change (one clause). Drawn dashed.</span></li>
+      <li><b>Guard your own account and the last administrator?</b> <span>Today you can change your own role or untick Active account, and nothing stops removing the last active holder of admin.users.edit or rbac.manage, by user edit, role edit or deletion; the only lockout guard is in the cpm-14 SQL script. Recommended: own role and status locked with "You cannot change your own role or status." (client), and the server refusing to leave no active holder of admin.users.edit and rbac.manage (backend change). Drawn dashed.</span></li>
+      <li><b>Reset to default: (a) ask first, (b) restore the real default?</b> <span>(a) It acts at once and signs everyone with the role out. (b) It applies the code list, which lacks the 10 keys seeded by SQL (cpm.config.*, cpm.analysis.create, cpm.context.manage, cpm.model.review): Reset on SuperAdmin would remove gate configuration from every role; Engineer on the lab already lost cpm.analysis.create and cpm.context.manage (reset 4 Nov 13:04). (a) client; (b) backend change (one list of defaults). Drawn dashed.</span></li>
+      <li><b>Editing a user signs them out only when their role or status changes?</b> <span>Today every save sends role and Active, and the server ends the user's sessions whenever either is present, so fixing an email signs the person out without a word. Recommended: send only what changed. Client only. Not drawn.</span></li>
+      <li><b>A deleted user loses access at once?</b> <span>Deactivation ends sessions within about 5 s; deletion removes the row the gateway's revocation feed reads, so a live session keeps working until its token expires (1 h on the lab). Recommended: the server deactivates, then deletes. Backend change. Not drawn.</span></li>
+      <li><b>Links between who and what: Permissions ↗ on a user's role, Users with this role ↗ and Permissions by role ↗ (Governance's matrix) on a role?</b> <span>Today nothing on the page connects a person to what they may do. Client only (the Users tab reads <code>?role=</code>). Drawn dashed.</span></li>
+      <li><b>Delete role: pick the target role from a list?</b> <span>Today a free-text field filled with "Viewer"; a typo returns "reassignTo role '…' does not exist", and "leave blank to cancel if there are users" is not what happens (blank → "Role '…' has N user(s); pass reassignTo to move them first"). Recommended: a list; the message reworded with the control engineer. Client only. Drawn dashed.</span></li>
+      <li><b>Data sources: (a) Turn on / Turn off instead of On / Off; (b) remove the stale "later phase" texts; (c) offer only CPA profiles?</b> <span>(b) "2. The ingestion runtime arrives in a later phase — active configurations take effect when it ships", "(and the subscriber connect attempt in a later phase)", "Polling and timeouts": ingestion runs on the lab today. (c) The list also offers Alarms &amp; Events, Process Telemetry and PRM, modules outside this product. Recommended (a), (b); keep (c). No backend change. (a), (b) drawn dashed.</span></li>
+      <li><b>Onboarding stages above the plant tree?</b> <span>Live counts hidden in help, fetched only when the <b>?</b> opens. Five reads on arrival (cached a minute). Recommended: yes. No backend change. Drawn dashed.</span></li>
+      <li><b>Tag aliases: (a) 32 px pager, 100 per page; (b) search ignoring case; (c) a Source dropdown; (d) edit the path or deactivate an alias?</b> <span>(a) 203 of 703 cannot be reached without a search; the API pages already. (b) "fcs0102" finds nothing, "FCS0102" finds them: backend change. (c) The API filters by source already. (d) The API has the update; the page has only delete: adds a capability. Recommended (a), (b), (c); (d) later. (a) drawn, (c) dashed.</span></li>
+      <li><b>Plant model and Tag aliases open for asset.view / asset.edit holders?</b> <span>The tabs are meant to open with asset.view and write with asset.edit, but /admin needs an administration key, so Admin and Engineer, who hold asset.edit, cannot reach either editor. Client only (sidebar and route). Not drawn.</span></li>
+      <li><b>User changes in the audit trail?</b> <span>Role changes are recorded (with the actor as a user id); creating, editing, deactivating, deleting and bulk-importing users are not. Backend change. Not drawn.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Audit findings</h3>
+    <h4>What the page says about permissions against what is enforced</h4>
+    <ul>
+      <li><b>Reset to default is not the default.</b> The server resets from the code catalog (<code>permission.service.ts:299-305</code>, <code>permission-catalog.ts:46-89</code>), which lacks the ten cpm keys seeded by <code>59_cpm_v25_permissions.sql:15-24</code>. Lab: SuperAdmin holds 38 keys, its code default 28 (before-22-roles-superadmin.png); Engineer holds cpm.manage only, after "RBAC role permissions reset · Engineer · 04/11/2026, 13:04:11" (before-22-roles-engineer.png, before-80-audit-tab-lands-on-governance-viewport.png), though the seed grants it cpm.analysis.create and cpm.context.manage. No confirmation, and it signs everyone with the role out (<code>RolesConfig.tsx:113-122</code>, <code>:280</code>).</li>
+      <li><b>No guard on your own account or the last administrator.</b> Edit on your own account offers Role and Active account (before-04-users-edit-dialog-self-viewport.png); <code>auth.service.ts:419-481</code> checks nothing; rbac.manage and admin.users.edit can be unticked on SuperAdmin and saved (<code>permission.service.ts:82-136</code>). Only "You cannot delete your own account." exists, as a toast after the click and in the client only (before-03-users-delete-self-toast-viewport.png; <code>UserManagementConfig.tsx:175-179</code>; the server's delete has no check, <code>auth.service.ts:604-616</code>).</li>
+      <li><b>Anyone with admin.users.edit can make anyone SuperAdmin.</b> The role is only checked to exist (<code>validation.ts:15-20, 96-98</code>). Safe while admin.users.edit is SuperAdmin-only (the default); a custom role given it can raise itself.</li>
+      <li><b>Custom roles cannot be assigned without rbac.manage.</b> The role list comes from GET /roles, which needs rbac.manage (<code>auth.routes.ts:190</code>); a user administrator without it gets the five built-in roles (<code>UserManagementConfig.tsx:84-90</code>).</li>
+      <li><b>"Admin access required."</b> is the message for every refusal on Users (<code>usersApi.ts:126</code>), while the server checks the admin.users.edit permission and says so ("Missing required permission: admin.users.edit", <code>rbac.middleware.ts:72-77</code>); Admin no longer holds it.</li>
+      <li><b>Plant model and Tag aliases: "Reads gate on asset.view (any role)"</b> (<code>Administration.tsx:26</code>), but /admin needs one of the administration keys (<code>AppRoutes.tsx:102</code>, <code>cpa/destinations.ts:8</code>): Admin and Engineer (asset.edit) cannot open the editors their role allows.</li>
+      <li><b>Audit log tab</b> shows only with admin.audit.view and redirects to Governance (<code>cpa/redirects.ts:39</code>); its sentence and disabled reason never show (<code>AuditLogLink.tsx</code>). A user with only admin.audit.view opening Administration lands on Governance.</li>
+      <li><b>Admin reads "System Administrator - full access"</b> (before-20-roles-admin-default.png) though CHG-081 took every platform key from it; the code's description is "plant configuration; no platform administration (CHG-081)" (<code>permission-catalog.ts:93</code>), but descriptions are never synced. Operator reads "alarm operations" against "alarm response operations".</li>
+      <li><b>Bulk import says "Roles: Admin, Engineer, Operator, Viewer."</b> (before-08-users-bulk-import-viewport.png): SuperAdmin and custom roles import with a "non-standard" warning (<code>bulkImportService.ts:61-70, 198-202</code>); a role changed by import does not end the user's sessions as the Edit dialog's change does.</li>
+    </ul>
+    <h4>Bugs</h4>
+    <ul>
+      <li><b>Add user's "Active account" does nothing:</b> the create request leaves it out (<code>UserManagementConfig.tsx:126-132</code> against <code>:313-318</code>); an unticked account is created active. Code reading.</li>
+      <li><b>Every user edit signs the person out</b>, even an email fix (<code>UserManagementConfig.tsx:119-124</code> always sends role and is_active; <code>auth.service.ts:475-477</code>).</li>
+      <li><b>A deleted user's session keeps working</b> until the token expires: 1 h (<code>infra/docker/docker-compose.yml:1118</code>); the revocation feed lists existing rows only (<code>auth.routes.ts:52-59</code>); the gateway's note says 15 min (<code>RevocationCache.cs:53</code>).</li>
+      <li><b>User search misses user names</b> (<code>auth.service.ts:656-660</code>; before-14-users-search-username-miss-viewport.png); "1 users · 1 active · 0 inactive" (before-11-users-search-one-result-viewport.png); the table's columns move with each result.</li>
+      <li><b>Delete role:</b> blank does not cancel, it asks the server, which refuses with "pass reassignTo to move them first" (<code>RolesConfig.tsx:137-148</code>, <code>permission.service.ts:275-279</code>).</li>
+      <li><b>Plant CSV import refuses an alias-only file:</b> "Import 0 asset(s)" stays disabled when only ot_tag aliases are planned (<code>PlantModelImport.tsx:265</code>).</li>
+      <li><b>203 of 703 tag aliases unreachable</b> without a search (take=500, <code>AliasConfig.tsx:204-206, 285-289</code>; before-57-aliases-bottom-500-of-703-viewport.png); search is case-sensitive (<code>asset-model/Program.cs:887-888</code>; before-55-aliases-search-upper-viewport.png, before-56-aliases-search-lower-no-match-viewport.png).</li>
+      <li><b>"Name is required" before any typing</b> on the wizard's second step (<code>DataSourceWizard.tsx:577-584</code>; before-39-ds-new-2-name-required-viewport.png).</li>
+      <li><b>Onboarding counts read "…"</b> when the <b>?</b> opens: the strip only starts its five reads then (<code>PlantModelConfig.tsx:382</code>; before-41-plant-onboarding-stages.png against before-41b-plant-onboarding-stages-after-6s.png).</li>
+      <li><b>A data source's detail shows no state</b>; the only hint is the button "On" (<code>DataSourceDetail.tsx:38-52</code>; before-30-ds-default-viewport.png). Only the first topic filter is shown (<code>:43</code>).</li>
+      <li><b>Deletes end in "Confirm"</b> on Plant model and Tag aliases (<code>PlantModelConfig.tsx:348-352</code>, <code>AliasConfig.tsx:209-213</code>; before-46-plant-delete-confirm-viewport.png, before-54-aliases-delete-confirm-viewport.png).</li>
+      <li><b>Times without a zone, in browser format:</b> "25/09/2026, 19:45:25" (<code>DataSourceDetail.tsx:64, 68</code>), Created "10/10/2026" (<code>UserRowDialog.tsx:29</code>).</li>
+      <li>The wizard tests for <code>ssl://</code> (<code>DataSourceWizard.tsx:86</code>) that the URL rule never allows (<code>dataSourcesApi.ts:166</code>).</li>
+    </ul>
+    <h4>Repeated, stale or wrong words</h4>
+    <ul>
+      <li>The sign-out sentence twice (<code>RolesConfig.tsx:108, 172</code>); "Not connected" six times plus the Save reason (before-60-system-settings-viewport.png); "MQTT" on all eight sources; "+ child · Edit · Delete" on every tree row and Delete on 500 alias rows; "CPM · FC10711 ↗" five times for one loop (before-42-plant-expanded-viewport.png); "active" in every alias row.</li>
+      <li>Stale: "The ingestion runtime arrives in a later phase …", "(and the subscriber connect attempt in a later phase)", "Polling and timeouts", "Data routing … (step 4 …)" (before-38-ds-edit-4.png, before-38-ds-edit-1-profile.png).</li>
+      <li>Emoji as icons: 🗑, 🛡, 💾 (<code>DataSourceWizard.tsx:401, 477, 597</code>).</li>
+      <li>Dialog titles repeating who: "Edit superadmin · Update role, status, or profile", "Edit Configuration — &lt;name&gt;", "Add Area under Dallas Terminal".</li>
+      <li>"system role — protected, permissions editable", SYSTEM / CUSTOM in capitals, "· Engineer" with a neutral dot, "Off" / "On" as both state and action; "the origin-spec default" in the plant importer.</li>
+    </ul>
+    <h4>Found on the way, not part of this proposal</h4>
+    <ul>
+      <li>User changes leave no audit record (<code>auth.controller.ts:217-316</code>; only role events, <code>permission.controller.ts:79-155</code>), and role events name the actor by user id (<code>permission.controller.ts:14-15</code>; before-80).</li>
+      <li>The lab keeps six data sources named "E2E OT Gateway (mosquitto-test)" left by tests, and about fifteen accounts left by E2E test runs.</li>
+      <li>Visiting Governance raises the app-wide "The API is returning errors" banner (capabilities 500), seen afterwards on Administration (explore/system.png).</li>
+    </ul>
+    <h4>Not verified on the lab</h4>
+    <ul>
+      <li>Nothing was written: no user, role, data source, asset or alias was created, edited, deleted, tested, reset or imported; every non-GET request was blocked. The save paths, Reset to default, the bulk-import preview and result, the CSV review steps, Test and MODE-map save are from code only.</li>
+      <li>The lab has no custom role, so Delete role and its prompt were not opened; no inactive account; no source without a MODE map. Those states in the sample are illustrative.</li>
+      <li>Not signed in as a user without rbac.manage, as Admin or as Engineer: the access findings are from code. The lockout cases were not attempted. Night theme not checked.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

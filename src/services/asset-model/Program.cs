@@ -876,16 +876,12 @@ app.MapGet("/aliases/resolve", async (string legacy, string? source, AssetDbCont
 
 // ── GET /aliases ─────────────────────────────────────────────────────────────
 // Admin listing (G-08): before this, the alias table was write-only — rows could
-// be created but never seen, corrected, or removed.
+// be created but never seen, corrected, or removed. CHG-172: the search ignores case (AliasQuery).
 app.MapGet("/aliases", async (
     AssetDbContext db, string? search, string? source, bool includeInactive = false,
     int skip = 0, int take = 100) =>
 {
-    var q = db.AliasMappings.AsQueryable();
-    if (!includeInactive) q = q.Where(a => a.IsActive);
-    if (!string.IsNullOrWhiteSpace(source)) q = q.Where(a => a.SourceSystem == source);
-    if (!string.IsNullOrWhiteSpace(search))
-        q = q.Where(a => a.LegacyPath.Contains(search) || a.CanonicalPath.Contains(search));
+    var q = Traverse.AssetModel.Services.AliasQuery.Filter(db.AliasMappings, search, source, includeInactive);
 
     var total = await q.CountAsync();
     var items = await q.OrderBy(a => a.SourceSystem).ThenBy(a => a.LegacyPath)

@@ -3,7 +3,7 @@
  * APIs require. An address with a row in cpa/redirects.ts sits in LegacyRoute.
  */
 import React from 'react';
-import { ADMIN_PERMISSIONS } from '../cpa/destinations';
+import { ADMIN_PERMISSIONS, ADMINISTRATION_PERMISSIONS } from '../cpa/destinations';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LegacyRoute } from '../cpa/LegacyRoute';
 import { CPA_SLICE_ONLY, HOME_PATH } from '../productSlice';
@@ -98,8 +98,9 @@ export const AppRoutes: React.FC = () => (
         <Route path="/trend"          element={<RequirePermission permission="historian.view"><TrendPage /></RequirePermission>} />
         {/* Infrastructure */}
         <Route path="/edge"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="historian.view"><EdgeNodeMonitor /></RequirePermission>} />
-        {/* Administration — was reachable by ANY authenticated user via direct URL. Plain /admin picks the first section the role may open. */}
-        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={[...ADMIN_PERMISSIONS]}><LegacyRoute><Administration /></LegacyRoute></RequirePermission>} />
+        {/* Administration — was reachable by ANY authenticated user via direct URL. Plain /admin picks the first section the role may open.
+            CHG-172: asset.view opens it too (Plant model and Tag aliases); each tab keeps its own check inside. */}
+        <Route path="/admin/*"    element={<RequirePermission permission="admin.users.edit" anyOf={[...ADMINISTRATION_PERMISSIONS]}><LegacyRoute><Administration /></LegacyRoute></RequirePermission>} />
         <Route path="*"           element={<Navigate to={HOME_PATH} replace />} />
   </Routes>
 );

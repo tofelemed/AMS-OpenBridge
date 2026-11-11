@@ -1,19 +1,27 @@
 'use client';
 
+/**
+ * Roles & permissions. CHG-172 (owner review, the approved sample docs/theme/redesign/samples/administration-proposal.html,
+ * badges 8-11, and the answers of 11 Nov 2026): a role list (the name, its description under it, System / Custom as a word) with
+ * the selected role in a panel beside it (RolePanel; a drawer below 1280 px); Add custom role in the page header opens a small
+ * dialog; Reset to default asks first (it signs everyone with the role out); Delete role picks the reassignment target from a
+ * list. `?role=` opens a role (Permissions ↗ on a user). System roles first, then by name; the latest click wins; Save only when
+ * changed; every request, notice and refusal as before.
+ */
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { TextInput } from '../../ui/forms/TextInput';
-import PermissionCheckbox from './PermissionCheckbox';
 import {
   getRoles, getPermissionCatalog, getRolePermissions, setRolePermissions,
   resetRolePermissions, createRole, deleteRole, updateRole,
   extractRoleApiError, type Role, type PermissionDef,
 } from '../../api/rolesApi';
-import { usePrompt } from '../shared/dialogService';
-import { T } from '../../styles/theme';
-import { Toggletip } from '../../ui/Toggletip';
-
-/* Layout tokens — shared idiom with the other Administration tabs. */
+import { useAuthStore } from '../../store/authStore';
+import { EmptyState } from '../Cpm/shared';
+import { AdminActions } from './AdminActions';
+import { AdminConfirmDialog } from './AdminConfirmDialog';
+import { RolePanel, SIGN_OUT } from './roles/RolePanel';
+import { AddRoleDialog, DeleteRoleDialog } from './roles/RoleDialogs';
 
 const sortRoles = (rs: Role[]) =>
   [...rs].sort((a, b) =>
@@ -21,8 +29,11 @@ const sortRoles = (rs: Role[]) =>
       ? a.role_name.localeCompare(b.role_name)
       : a.is_system_role ? -1 : 1);
 
+type Asking = 'add' | 'reset' | 'delete' | null;
+
 export const RolesConfig: React.FC = () => {
-  const prompt = usePrompt();
+  const canUsers = useAuthStore(s => s.hasPermission('admin.users.edit'));
+  const [params, setParams] = useSearchParams();
   const [roles, setRoles] = useState<Role[]>([]);
   const [catalog, setCatalog] = useState<PermissionDef[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -32,13 +43,10 @@ export const RolesConfig: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [asking, setAsking] = useState<Asking>(null);
+  const [drawer, setDrawer] = useState(false);
 
-  // Create-role form
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-
-  const selectedRole = roles.find((r) => r.role_name === selected) ?? null;
+  const selectedRole = roles.find(r => r.role_name === selected) ?? null;
   // The description saves on commit (blur or Enter), so the field edits a draft of the stored text.
   const [descDraft, setDescDraft] = useState('');
   useEffect(() => { setDescDraft(selectedRole?.description ?? ''); }, [selectedRole?.role_name, selectedRole?.description]);
@@ -54,13 +62,12 @@ export const RolesConfig: React.FC = () => {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [catalog]);
 
-  // H: clicking role A then role B could leave A selected if A's response landed
-  // last — a sequence guard makes the latest click win regardless of order.
+  // Clicking role A then role B could leave A selected if A's response landed last: a sequence guard makes the latest click win.
   const loadSeq = useRef(0);
   const loadRole = useCallback(async (role: string) => {
     const seq = ++loadSeq.current;
     setError(null); setNotice(null);
-    setSelected(role); // optimistic — the row highlights immediately
+    setSelected(role); // optimistic: the row highlights immediately
     try {
       const perms = await getRolePermissions(role);
       if (seq !== loadSeq.current) return; // a newer click superseded this one
@@ -71,13 +78,15 @@ export const RolesConfig: React.FC = () => {
     }
   }, []);
 
+  const wanted = useRef(params.get('role'));
   const refresh = useCallback(async (keep?: string) => {
     setLoading(true); setError(null);
     try {
       const [rs, cat] = await Promise.all([getRoles(), getPermissionCatalog()]);
       const sorted = sortRoles(rs);
       setRoles(sorted); setCatalog(cat);
-      const target = keep && sorted.some((r) => r.role_name === keep) ? keep : sorted[0]?.role_name;
+      const ask = keep ?? wanted.current ?? undefined;
+      const target = ask && sorted.some(r => r.role_name === ask) ? ask : sorted[0]?.role_name;
       if (target) await loadRole(target);
     } catch (e) { setError(extractRoleApiError(e)); }
     finally { setLoading(false); }
@@ -85,209 +94,127 @@ export const RolesConfig: React.FC = () => {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  const pick = (role: string) => {
+    setDrawer(true);
+    setParams(p => { p.set('role', role); return p; }, { replace: true });
+    void loadRole(role);
+  };
+
   const togglePerm = (key: string) =>
-    setSelectedPerms((prev) => {
+    setSelectedPerms(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
 
   const toggleCategory = (keys: string[], all: boolean) =>
-    setSelectedPerms((prev) => {
+    setSelectedPerms(prev => {
       const next = new Set(prev);
-      keys.forEach((k) => (all ? next.delete(k) : next.add(k)));
+      keys.forEach(k => (all ? next.delete(k) : next.add(k)));
       return next;
     });
 
-  const onSave = async () => {
-    if (!selected) return;
+  /** One write: busy while it runs, the refusal in the panel (or the open dialog) as the server words it. */
+  const run = async (work: () => Promise<void>) => {
     setBusy(true); setError(null); setNotice(null);
-    try {
-      const saved = await setRolePermissions(selected, [...selectedPerms]);
-      setBaseline(new Set(saved)); setSelectedPerms(new Set(saved));
-      setNotice(`Saved ${saved.length} permissions for ${selected}. Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.`);
-    } catch (e) { setError(extractRoleApiError(e)); }
+    try { await work(); } catch (e) { setError(extractRoleApiError(e)); }
     finally { setBusy(false); }
   };
 
-  const onReset = async () => {
-    if (!selected) return;
-    setBusy(true); setError(null); setNotice(null);
-    try {
-      const perms = await resetRolePermissions(selected);
-      setBaseline(new Set(perms)); setSelectedPerms(new Set(perms));
-      setNotice(`${selected} reset to its default permission set.`);
-    } catch (e) { setError(extractRoleApiError(e)); }
-    finally { setBusy(false); }
-  };
+  const onSave = () => selected && run(async () => {
+    const saved = await setRolePermissions(selected, [...selectedPerms]);
+    setBaseline(new Set(saved)); setSelectedPerms(new Set(saved));
+    setNotice(`Saved ${saved.length} permissions for ${selected}.`);
+  });
 
-  const onCreate = async () => {
-    setBusy(true); setError(null); setNotice(null);
-    try {
-      const role = await createRole({ roleName: newName.trim(), description: newDesc.trim() || undefined });
-      setCreating(false); setNewName(''); setNewDesc('');
-      await refresh(role.role_name);
-      setNotice(`Custom role "${role.role_name}" created. Select permissions and Save.`);
-    } catch (e) { setError(extractRoleApiError(e)); }
-    finally { setBusy(false); }
-  };
+  const onReset = () => selected && run(async () => {
+    const perms = await resetRolePermissions(selected);
+    setBaseline(new Set(perms)); setSelectedPerms(new Set(perms));
+    setAsking(null);
+    setNotice(`${selected} reset to its default permission set.`);
+  });
 
-  const onDelete = async () => {
-    if (!selectedRole || selectedRole.is_system_role) return;
-    const reassignTo = await prompt({
-      title: `Delete role "${selectedRole.role_name}"`,
-      message: 'If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users).',
-      label: 'Reassign users to',
-      defaultValue: 'Viewer',
-      confirmLabel: 'Delete role',
-      required: false,
-    });
-    if (reassignTo === null) return;
-    setBusy(true); setError(null); setNotice(null);
-    try {
-      await deleteRole(selectedRole.role_name, reassignTo.trim() || undefined);
-      const name = selectedRole.role_name;
-      setSelected(null);
-      await refresh();
-      setNotice(`Role "${name}" deleted.`);
-    } catch (e) { setError(extractRoleApiError(e)); }
-    finally { setBusy(false); }
-  };
+  const onCreate = (name: string, description: string) => run(async () => {
+    const role = await createRole({ roleName: name, description: description || undefined });
+    setAsking(null);
+    await refresh(role.role_name);
+    setNotice(`Custom role "${role.role_name}" created. Select permissions and Save.`);
+  });
+
+  const onDelete = (reassignTo: string) => selectedRole && !selectedRole.is_system_role && run(async () => {
+    const name = selectedRole.role_name;
+    await deleteRole(name, reassignTo || undefined);
+    setAsking(null);
+    setSelected(null);
+    wanted.current = null;
+    setParams(p => { p.delete('role'); return p; }, { replace: true });
+    await refresh();
+    setNotice(`Role "${name}" deleted.`);
+  });
 
   const onSaveDescription = async (description: string) => {
     if (!selectedRole) return;
     try {
       await updateRole(selectedRole.role_name, { description });
-      setRoles((rs) => rs.map((r) => r.role_name === selectedRole.role_name ? { ...r, description } : r));
+      setRoles(rs => rs.map(r => (r.role_name === selectedRole.role_name ? { ...r, description } : r)));
     } catch (e) { setError(extractRoleApiError(e)); }
   };
 
-  if (loading) return <div style={{ color: T.textSecondary, padding: 24 }}>Loading roles…</div>;
+  const ask = (what: Asking) => { setError(null); setAsking(what); };
+  const dialogError = asking ? error : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="cpm-title-row">
-          <Toggletip variant="how-to" label="About roles and permissions">
-            <p>Assign permissions to roles. Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.</p>
-          </Toggletip>
-        </div>
-        <ObcButton variant="raised" onClick={() => { setCreating((c) => !c); setError(null); setNotice(null); }}>
-          {creating ? 'Cancel' : '+ New custom role'}
-        </ObcButton>
-      </div>
-
-      {error &&  <div role="alert" style={{ background: T.dangerBg, color: T.danger, border: `1px solid ${T.danger}22`, borderRadius: T.radiusSm, padding: '8px 12px', fontSize: 13 }}>{error}</div>}
-      {notice && <div style={{ background: T.blueLight, color: T.blue, border: `1px solid ${T.blueMuted}`, borderRadius: T.radiusSm, padding: '8px 12px', fontSize: 13 }}>{notice}</div>}
-
-      {creating && (
-        <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <TextInput label="Role name" value={newName} placeholder="e.g. ShiftSupervisor" onChange={setNewName} />
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <TextInput label="Description" value={newDesc} placeholder="What this role is for" onChange={setNewDesc} />
-          </div>
-          <ObcButton variant="raised" disabled={busy || !newName.trim()} onClick={onCreate}>Create</ObcButton>
+    <>
+      <AdminActions>
+        <ObcButton variant="raised" onClick={() => ask('add')}>Add custom role</ObcButton>
+      </AdminActions>
+      {loading && roles.length === 0 ? <EmptyState title="Loading roles…" /> : (
+        <div className="cpm-master-detail cpm-admin-roles">
+          <section className="cpm-surface cpm-admin-list" aria-label="Roles">
+            {roles.length === 0 && error && <p className="cpm-field__error" role="alert">{error}</p>}
+            <table className="cpm-table cpm-reg-table cpm-admin-table cpm-admin-table--roles">
+              <thead><tr><th>Role</th><th>Type</th></tr></thead>
+              <tbody>
+                {roles.map(r => {
+                  const on = r.role_name === selected;
+                  return (
+                    <tr key={r.role_name} className={`cpm-reg-row${on ? ' cpm-reg-row--selected' : ''}`} aria-current={on ? 'true' : undefined}
+                      onClick={() => pick(r.role_name)}>
+                      <td>
+                        <button type="button" className="cpm-admin-rowlink" onClick={e => { e.stopPropagation(); pick(r.role_name); }}>
+                          <strong>{r.role_name}</strong>
+                          {r.description && <span className="cpm-event-row__sub">{r.description}</span>}
+                        </button>
+                      </td>
+                      <td className="cpm-copy">{r.is_system_role ? 'System' : 'Custom'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+          {selectedRole && (
+            <RolePanel role={selectedRole} groups={byCategory} total={catalog.length} selected={selectedPerms} dirty={dirty} busy={busy}
+              notice={notice} error={asking ? null : error} canUsers={canUsers}
+              description={descDraft} onDescription={setDescDraft} onCommitDescription={v => void onSaveDescription(v)}
+              onToggle={togglePerm} onToggleGroup={toggleCategory} onSave={() => void onSave()}
+              onDiscard={() => setSelectedPerms(new Set(baseline))} onReset={() => ask('reset')} onDelete={() => ask('delete')}
+              open={drawer} onClose={() => setDrawer(false)} />
+          )}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 16, alignItems: 'start' }}>
-        {/* ── Role list ── */}
-        <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radius, overflow: 'hidden' }}>
-          {roles.map((r) => {
-            const active = r.role_name === selected;
-            return (
-              <button
-                key={r.role_name}
-                onClick={() => loadRole(r.role_name)}
-                style={{
-                  width: '100%', textAlign: 'left', cursor: 'pointer',
-                  padding: '10px 12px', border: 'none', borderBottom: `1px solid ${T.border}`,
-                  background: active ? T.blueLight : T.card,
-                  color: active ? T.blue : T.textPrimary,
-                  fontWeight: active ? 700 : 500, fontSize: 13,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}
-              >
-                {r.role_name}
-                <span style={{ fontSize: 10, color: r.is_system_role ? T.textMuted : T.blue, fontWeight: 600 }}>
-                  {r.is_system_role ? 'SYSTEM' : 'CUSTOM'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── Permission matrix ── */}
-        <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 16 }}>
-          {!selectedRole ? (
-            <div style={{ color: T.textSecondary, fontSize: 13 }}>Select a role.</div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>
-                    {selectedRole.role_name}
-                    <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500, marginLeft: 8 }}>
-                      {selectedRole.is_system_role ? 'system role — protected, permissions editable' : 'custom role'}
-                    </span>
-                  </div>
-                  <div style={{ marginTop: 6, maxWidth: 420 }}>
-                    <TextInput
-                      label="Role description"
-                      hideLabel
-                      value={descDraft}
-                      placeholder="Role description"
-                      onChange={setDescDraft}
-                      onCommit={onSaveDescription}
-                    />
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, color: dirty ? T.blue : T.textMuted, fontWeight: 600 }}>
-                  {selectedPerms.size} selected{dirty ? ' • unsaved' : ''}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                {byCategory.map(([category, perms]) => {
-                  const keys = perms.map((p) => p.permission_key);
-                  const allOn = keys.every((k) => selectedPerms.has(k));
-                  return (
-                    <div key={category} style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusSm, padding: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: T.textSecondary, letterSpacing: '0.03em' }}>{category}</span>
-                        <button onClick={() => toggleCategory(keys, allOn)}
-                          style={{ fontSize: 11, color: T.blue, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                          {allOn ? 'Clear' : 'All'}
-                        </button>
-                      </div>
-                      {perms.map((p) => (
-                        <PermissionCheckbox
-                          key={p.permission_key}
-                          permissionKey={p.permission_key}
-                          description={p.description}
-                          checked={selectedPerms.has(p.permission_key)}
-                          onToggle={() => togglePerm(p.permission_key)}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 16, borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
-                <ObcButton variant="raised" disabled={busy || !dirty} onClick={onSave}>Save permissions</ObcButton>
-                {selectedRole.is_system_role
-                  ? <ObcButton variant="normal" disabled={busy} onClick={onReset}>Reset to default</ObcButton>
-                  : <ObcButton variant="flat" disabled={busy} onClick={onDelete}>Delete role</ObcButton>}
-                {dirty && (
-                  <ObcButton variant="flat" disabled={busy} onClick={() => setSelectedPerms(new Set(baseline))}>Discard changes</ObcButton>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+      {asking === 'add' && <AddRoleDialog busy={busy} error={dialogError} onCancel={() => setAsking(null)} onCreate={(n, d) => void onCreate(n, d)} />}
+      <AdminConfirmDialog open={asking === 'reset'} title="Reset to default" confirmLabel="Reset to default" busy={busy} error={dialogError}
+        onCancel={() => setAsking(null)} onConfirm={() => void onReset()}>
+        <p className="cpm-copy">The role gets its default permission set back; changes made on this page are lost.</p>
+        <p className="cpm-copy">{SIGN_OUT}</p>
+      </AdminConfirmDialog>
+      {asking === 'delete' && selectedRole && (
+        <DeleteRoleDialog role={selectedRole.role_name} roles={roles} busy={busy} error={dialogError}
+          onCancel={() => setAsking(null)} onDelete={t => void onDelete(t)} />
+      )}
+    </>
   );
 };
 

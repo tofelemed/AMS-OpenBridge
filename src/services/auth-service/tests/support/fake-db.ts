@@ -138,9 +138,9 @@ export class FakeDb {
       case 'SELECT user_id, username, email, role, is_active FROM users WHERE username = $1 OR email = $2':
         return result(s.users.filter((u) => u.username === p[0] || u.email === p[1])
           .map((u) => pick(u, ['user_id', 'username', 'email', 'role', 'is_active'])));
-      case 'INSERT INTO users (username, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, username, email, full_name, role, is_active, created_at': {
+      case 'INSERT INTO users (username, email, password_hash, full_name, role, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, username, email, full_name, role, is_active, created_at': {
         this.requireRole(p[4]);
-        const u = this.addUser({ username: p[0], email: p[1], full_name: p[3], role: p[4], credentials_changed_at: this.now });
+        const u = this.addUser({ username: p[0], email: p[1], full_name: p[3], role: p[4], is_active: p[5], credentials_changed_at: this.now });
         u.password_hash = p[2];
         return result([{ ...pick(u, PUBLIC_COLS), created_at: new Date(this.now * 1000) }]);
       }
@@ -194,7 +194,44 @@ export class FakeDb {
     const upd = /^UPDATE users SET (.+) WHERE user_id = \$(\d+)( RETURNING (.+))?$/.exec(sql);
     if (upd) return this.updateUser(upd[1], p[Number(upd[2]) - 1], p, upd[4]);
 
+    const page = this.usersPage(sql, p);
+    if (page) return page;
+
     throw new Error(`FakeDb: unhandled SQL: ${sql}`);
+  }
+
+  /** The five reads of the Users page batch (user-query.service.ts), over the WHERE clause it builds. */
+  private usersPage(sql: string, p: any[]): Rows | null {
+    if (sql === 'SELECT DISTINCT role FROM users ORDER BY role') {
+      return result([...new Set(this.state.users.map((u) => u.role))].sort().map((role) => ({ role })));
+    }
+    const m = /^(SELECT .+?) FROM users( WHERE (.+?))?( GROUP BY role| ORDER BY created_at DESC LIMIT \$(\d+) OFFSET \$(\d+))?$/.exec(sql);
+    if (!m) return null;
+    const keep = whereFilter(m[3] ?? '', p);
+    const rows = this.state.users.filter(keep);
+    const select = m[1];
+    if (m[5]) {
+      // Newest first: the fake has no created_at, so the latest added comes first.
+      const limit = Number(p[Number(m[5]) - 1]);
+      const offset = Number(p[Number(m[6]) - 1]);
+      if (select !== 'SELECT user_id, username, email, full_name, role, is_active, created_at') return null;
+      return result([...rows].reverse().slice(offset, offset + limit)
+        .map((u) => ({ ...pick(u, PUBLIC_COLS), created_at: new Date(this.now * 1000) })));
+    }
+    if (m[4] === ' GROUP BY role' && select === 'SELECT role, COUNT(*) as role_count') {
+      const counts = new Map<string, number>();
+      rows.forEach((u) => counts.set(u.role, (counts.get(u.role) ?? 0) + 1));
+      return result([...counts].map(([role, n]) => ({ role, role_count: String(n) })));
+    }
+    if (!m[4] && select === 'SELECT COUNT(*) as total') return result([{ total: String(rows.length) }]);
+    if (!m[4] && select === 'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = TRUE) as active, COUNT(*) FILTER (WHERE is_active = FALSE) as inactive') {
+      return result([{
+        total: String(rows.length),
+        active: String(rows.filter((u) => u.is_active).length),
+        inactive: String(rows.filter((u) => !u.is_active).length),
+      }]);
+    }
+    return null;
   }
 
   private requireRole(role: string): void {
@@ -222,6 +259,39 @@ export class FakeDb {
 
 function pick<T extends object>(o: T, cols: string[]): Record<string, unknown> {
   return Object.fromEntries(cols.map((c) => [c, (o as any)[c]]));
+}
+
+/** SQL LIKE on one value: % any run, _ any one character (no escape character is used by the service). */
+function like(value: string | null, pattern: string): boolean {
+  if (value == null) return false;
+  const rx = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
+  return new RegExp(`^${rx}$`, 's').test(value);
+}
+
+/**
+ * The Users page WHERE clause: terms joined by AND, each `(LOWER(col) LIKE LOWER($n) OR …)`, `role = $n`
+ * or `is_active = $n`. Anything else throws, so a changed query fails a test.
+ */
+function whereFilter(where: string, p: any[]): (u: FakeUser) => boolean {
+  if (!where) return () => true;
+  const terms = where.split(' AND ').map((term): ((u: FakeUser) => boolean) => {
+    const search = /^\((.+)\)$/.exec(term);
+    if (search) {
+      const ors = search[1].split(' OR ').map((part) => {
+        const lk = /^LOWER\((\w+)\) LIKE LOWER\(\$(\d+)\)$/.exec(part);
+        if (!lk) throw new Error(`FakeDb: unhandled search clause: ${part}`);
+        const col = lk[1];
+        const pattern = String(p[Number(lk[2]) - 1]).toLowerCase();
+        return (u: FakeUser) => like(((u as any)[col] ?? null)?.toLowerCase() ?? null, pattern);
+      });
+      return (u) => ors.some((f) => f(u));
+    }
+    const eq = /^(role|is_active) = \$(\d+)$/.exec(term);
+    if (!eq) throw new Error(`FakeDb: unhandled WHERE term: ${term}`);
+    const value = p[Number(eq[2]) - 1];
+    return (u) => (u as any)[eq[1]] === value;
+  });
+  return (u) => terms.every((f) => f(u));
 }
 
 /** A role matrix shaped like production: SuperAdmin alone holds the administration keys. */

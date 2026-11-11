@@ -53,7 +53,7 @@ export class UserQueryService {
   /**
    * Get users page with stats (batch endpoint)
    * Combines users list, pagination, and statistics in one call
-   * Supports filters: search (full_name, email), role, status
+   * Supports filters: search (username, full_name, email; the user name since CHG-172), role, status
    */
   async getUsersPage(
     page: number = 1,
@@ -90,7 +90,7 @@ export class UserQueryService {
 
     if (filters?.search && filters.search.trim()) {
       whereClauses.push(
-        `(LOWER(full_name) LIKE LOWER($${paramIndex}) OR LOWER(email) LIKE LOWER($${paramIndex}))`
+        `(LOWER(username) LIKE LOWER($${paramIndex}) OR LOWER(full_name) LIKE LOWER($${paramIndex}) OR LOWER(email) LIKE LOWER($${paramIndex}))`
       );
       queryParams.push(`%${filters.search.trim()}%`);
       paramIndex++;

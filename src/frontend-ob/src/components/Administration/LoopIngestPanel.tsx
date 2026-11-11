@@ -13,38 +13,15 @@
  * Everything else in loop_ingest stays read-only here — param_roles in particular has
  * overlay semantics and a server-side guard, and belongs in the API, not a text box.
  *
- * PUT replaces profile_config wholesale, so saving is a read-modify-write of the whole
- * stored object (CHG-012). The mqtt block, including the TLS certificate, is carried
- * across untouched.
+ * CHG-172 (owner review, the approved sample, badge 13/15): a titled part of the data-source panel; the pill is tone, glyph and
+ * word; the facts are rows; Edit MODE map opens a dialog (ModeMapDialog) instead of editing inside the panel.
  */
-
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { T } from '../../styles/theme';
-import { Fact, Pill, monoFamily } from './adminUi';
-import { DataSourceDto, LoopIngestConfig, extractApiError, updateDataSource } from './dataSourcesApi';
-// Single source of truth for the engine's mode tokens -- it must stay in step with
-// ingestion-service ModeVocabulary.cs, so it lives in one place, not three.
-import { classifyMode, type ModeClass } from '../../utils/modeVocabulary';
-
-/** SME-confirmed Yokogawa CENTUM enum (docs/ot-data-integration/10 §2). */
-const CENTUM_PRESET: Array<[string, string]> = [['1', 'AUT'], ['2', 'MAN'], ['3', 'CAS'], ['4', 'IMAN']];
-
-interface Row { value: string; token: string }
-
-const toRows = (map?: Record<string, string>): Row[] =>
-  Object.entries(map ?? {}).map(([value, token]) => ({ value, token }));
-
-const CLASS_COLOR: Record<ModeClass, string> = {
-  auto: T.success,
-  manual: T.textSecondary,
-  unrecognised: T.critical,
-};
-const CLASS_LABEL: Record<ModeClass, string> = {
-  auto: 'counts as AUTO',
-  manual: 'counts as MANUAL',
-  unrecognised: 'NOT RECOGNISED — engine treats it as manual',
-};
+import { KvRow, TonePill } from '../Cpm/shared';
+import { DataSourceDto, LoopIngestConfig } from './dataSourcesApi';
+import { classifyMode } from '../../utils/modeVocabulary';
+import { ModeMapDialog } from './ModeMapDialog';
 
 const LoopIngestPanel: React.FC<{
   source: DataSourceDto;
@@ -52,174 +29,45 @@ const LoopIngestPanel: React.FC<{
   onSaved: (saved: DataSourceDto) => void;
 }> = ({ source, canManage, onSaved }) => {
   const li = (source.profileConfig?.loop_ingest ?? {}) as LoopIngestConfig;
-  const storedMap = li.mode_value_map;
   const [editing, setEditing] = useState(false);
-  const [rows, setRows] = useState<Row[]>(() => toRows(storedMap));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const mapEntries = Object.entries(storedMap ?? {});
+  const mapEntries = Object.entries(li.mode_value_map ?? {});
   const mapPresent = mapEntries.length > 0;
   const storedHasAuto = mapEntries.some(([, token]) => classifyMode(token) === 'auto');
-  const draftHasAuto = rows.some(r => r.value.trim() && classifyMode(r.token) === 'auto');
-
-  const beginEdit = () => { setRows(toRows(storedMap)); setError(null); setEditing(true); };
-  const setRow = (i: number, patch: Partial<Row>) =>
-    setRows(rs => rs.map((r, n) => (n === i ? { ...r, ...patch } : r)));
-
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      const map: Record<string, string> = {};
-      for (const r of rows) {
-        const v = r.value.trim();
-        const t = r.token.trim().toUpperCase();
-        if (v && t) map[v] = t;
-      }
-      // Read-modify-write: PUT replaces profile_config, so send the whole object.
-      const pc = source.profileConfig ?? {};
-      const saved = await updateDataSource(source.configId, {
-        profileConfig: { ...pc, loop_ingest: { ...li, mode_value_map: map } },
-      });
-      onSaved(saved);
-      setEditing(false);
-    } catch (err) {
-      const { message, field } = extractApiError(err);
-      setError(field ? `${message} (${field})` : message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const paramRoles = li.param_roles && Object.keys(li.param_roles).length
     ? Object.entries(li.param_roles).map(([k, v]) => `${k}→${v ?? '(removed)'}`).join('  ')
     : 'none — built-in roles apply (PV, SP, OP, MODE, VP, …)';
+  const good = mapPresent && storedHasAuto;
 
   return (
-    <div style={{
-      borderTop: `1px solid ${T.border}`, paddingTop: '12px',
-      display: 'flex', flexDirection: 'column', gap: '10px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: T.textPrimary }}>Loop ingest</span>
-        <Pill
-          text={mapPresent ? `MODE map · ${mapEntries.length} value${mapEntries.length === 1 ? '' : 's'}` : 'NO MODE MAP'}
-          color={mapPresent && storedHasAuto ? T.success : T.critical}
-        />
-        {canManage && !editing && (
-          <ObcButton variant="flat" onClick={beginEdit}>Edit MODE map</ObcButton>
-        )}
+    <section className="cpm-admin-part" aria-label="Loop ingest">
+      <div className="cpm-title-row cpm-admin-part__head">
+        <h3 className="cpm-reg-part__title">Loop ingest</h3>
+        <TonePill tone={good ? 'good' : 'bad'} glyph={good ? '✓' : '✕'}>
+          {mapPresent ? `MODE map · ${mapEntries.length} value${mapEntries.length === 1 ? '' : 's'}` : 'NO MODE MAP'}
+        </TonePill>
+        {canManage && <ObcButton variant="flat" onClick={() => setEditing(true)}>Edit MODE map</ObcButton>}
       </div>
 
       {/* The failure this panel exists to make visible. */}
-      {!editing && (!mapPresent || !storedHasAuto) && (
-        <div role="status" style={{
-          padding: '9px 14px', borderRadius: T.radiusSm, fontSize: '12.5px', lineHeight: 1.5,
-          background: T.criticalBg, border: `1px solid ${T.critical}`, color: T.critical,
-        }}>
+      {!good && (
+        <p className="cpm-admin-warn" role="status">
           {!mapPresent
             ? 'No MODE map: every MODE value reaches the engine raw (e.g. "1"), which it cannot classify, so every sample counts as not-auto and Gate 1 excludes this source’s whole fleet — with Gate 0 still green.'
             : 'No mapped value counts as AUTO: every loop on this source will be excluded at Gate 1. A cascade slave counts as auto — map it to CAS.'}
-        </div>
+        </p>
       )}
 
-      {!editing ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px 24px' }}>
-          <Fact
-            label="MODE value map"
-            value={mapPresent ? mapEntries.map(([v, t]) => `${v}→${t}`).join('  ') : 'not configured'}
-            mono
-            color={mapPresent ? undefined : T.critical}
-          />
-          <Fact label="Grid" value={`${li.grid_seconds ?? 5} s`} />
-          <Fact label="Registry refresh" value={`${li.registry_refresh_seconds ?? 60} s`} />
-          <Fact label="Quality protocol" value={li.quality_protocol ?? 'STRING_ENUM (default)'} mono />
-          <Fact label="Topic template" value={li.topic_template ?? '{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}'} mono />
-          <Fact label="Param roles overlay" value={paramRoles} mono />
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '12px', color: T.textSecondary, lineHeight: 1.5 }}>
-            Source MODE value → engine token. Use exact tokens: <strong>AUT</strong>, <strong>MAN</strong>,
-            {' '}<strong>CAS</strong>, <strong>IMAN</strong>. Everything else in this block is managed through
-            the API and is left untouched by this save.
-          </div>
+      <KvRow label="MODE value map">
+        {mapPresent ? <span className="cpm-mono">{mapEntries.map(([v, t]) => `${v}→${t}`).join('  ')}</span> : <span className="cpm-field__error">not configured</span>}
+      </KvRow>
+      <KvRow label="Grid">{`${li.grid_seconds ?? 5} s`}</KvRow>
+      <KvRow label="Registry refresh">{`${li.registry_refresh_seconds ?? 60} s`}</KvRow>
+      <KvRow label="Quality protocol"><span className="cpm-mono">{li.quality_protocol ?? 'STRING_ENUM (default)'}</span></KvRow>
+      <KvRow label="Topic template"><span className="cpm-mono">{li.topic_template ?? '{ns}/{site}/{fcs}/{class}/{loop}/{group}/{param}'}</span></KvRow>
+      <KvRow label="Param roles overlay"><span className="cpm-mono">{paramRoles}</span></KvRow>
 
-          {rows.map((row, i) => {
-            const cls = classifyMode(row.token);
-            const filled = row.value.trim() !== '' || row.token.trim() !== '';
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <input
-                  aria-label={`MODE value ${i + 1}`}
-                  value={row.value}
-                  placeholder="value"
-                  onChange={e => setRow(i, { value: e.target.value })}
-                  style={{
-                    width: '90px', padding: '6px 10px', fontFamily: monoFamily, fontSize: '13px',
-                    background: T.card, color: T.textPrimary,
-                    border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
-                  }}
-                />
-                <span style={{ color: T.textMuted }}>→</span>
-                <input
-                  aria-label={`Engine token ${i + 1}`}
-                  value={row.token}
-                  placeholder="AUT"
-                  onChange={e => setRow(i, { token: e.target.value })}
-                  style={{
-                    width: '120px', padding: '6px 10px', fontFamily: monoFamily, fontSize: '13px',
-                    background: T.card, color: T.textPrimary,
-                    border: `1px solid ${filled && cls === 'unrecognised' ? T.critical : T.border}`,
-                    borderRadius: T.radiusSm,
-                  }}
-                />
-                {filled && (
-                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: CLASS_COLOR[cls] }}>
-                    {CLASS_LABEL[cls]}
-                  </span>
-                )}
-                <ObcButton variant="flat" onClick={() => setRows(rs => rs.filter((_, n) => n !== i))}>
-                  Remove
-                </ObcButton>
-              </div>
-            );
-          })}
-
-          {rows.length > 0 && !draftHasAuto && (
-            <div style={{ fontSize: '12.5px', fontWeight: 600, color: T.critical }}>
-              Nothing here counts as AUTO — saving this map excludes every loop on this source at Gate 1.
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <ObcButton variant="flat" onClick={() => setRows(rs => [...rs, { value: '', token: '' }])}>
-              Add value
-            </ObcButton>
-            <ObcButton variant="flat" onClick={() => setRows(CENTUM_PRESET.map(([value, token]) => ({ value, token })))}>
-              Use Yokogawa CENTUM preset
-            </ObcButton>
-          </div>
-
-          {error && (
-            <div role="alert" style={{
-              padding: '9px 14px', borderRadius: T.radiusSm, fontSize: '12.5px', fontWeight: 600,
-              background: T.criticalBg, border: `1px solid ${T.critical}`, color: T.critical,
-            }}>
-              {error}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <ObcButton variant="raised" disabled={saving} onClick={save}>
-              {saving ? 'Saving…' : 'Save MODE map'}
-            </ObcButton>
-            <ObcButton variant="flat" disabled={saving} onClick={() => setEditing(false)}>Cancel</ObcButton>
-          </div>
-        </div>
-      )}
-    </div>
+      {editing && <ModeMapDialog source={source} onClose={() => setEditing(false)} onSaved={onSaved} />}
+    </section>
   );
 };
 

@@ -23,6 +23,16 @@ describe('PermissionCheckbox (RD12)', () => {
     expect(names).toEqual(['cpm.manage', 'system.manage']);
   });
 
+  // CHG-172 (owner review): what each permission allows is on screen (it was a hover title only); the name stays the key.
+  it('shows what the permission allows on screen, tied to the box', () => {
+    render(<PermissionCheckbox permissionKey="cpm.manage" description="Onboard and configure control loops (CPLM)" checked={false} onToggle={() => undefined} />);
+    const box = screen.getByRole('checkbox', { name: 'cpm.manage' });
+    const said = screen.getByText('Onboard and configure control loops (CPLM)');
+    expect(box.getAttribute('aria-describedby')).toBe(said.id);
+    expect(said.closest('label')).toBeNull();
+    expect(document.querySelector('[title]')).toBeNull();
+  });
+
   it('reflects the checked state and reports a toggle', () => {
     const onToggle = vi.fn();
     render(<PermissionCheckbox permissionKey="cpm.manage" checked onToggle={onToggle} />);
