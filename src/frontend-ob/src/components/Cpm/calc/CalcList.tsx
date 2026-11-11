@@ -1,7 +1,7 @@
 /**
  * Task 20: the calculation list. Calculation (name, then `CPLM-010 · G3` under it), Value / unit, Gate result. The ID and
  * Gate columns went: the id and gate are under the name. All 19 stay, with no paging. A row only selects: what it shows
- * is in the right column.
+ * is in the right column. CHG-166: a PV-unit value reads in the loop's own unit (1.988 kg/h).
  */
 import React from 'react';
 import GateResult from './GateResult';
@@ -14,7 +14,9 @@ export const CalcList: React.FC<{
   onSelect: (id: string) => void;
   /** The sortable heading for a key. */
   head: (key: CalcSortKey, label: string, title?: string) => React.ReactNode;
-}> = ({ rows, selectedId, onSelect, head }) => {
+  /** The loop's PV engineering unit; null when none is set. */
+  pvUnit?: string | null;
+}> = ({ rows, selectedId, onSelect, head, pvUnit = null }) => {
   const shared = windowWideReason(rows);
   return (
   <>
@@ -44,7 +46,7 @@ export const CalcList: React.FC<{
                     <span className="cpm-metric-na">{na.short}</span>
                     {na.reason && na.reason !== shared && <div className="cpm-event-row__sub">{na.reason}</div>}
                   </>
-                ) : value != null ? valueText(metric, value) : null}
+                ) : value != null ? valueText(metric, value, { pvUnit }) : null}
               </span>
               <span><GateResult gate={metric.gate} status={status} /></span>
             </div>

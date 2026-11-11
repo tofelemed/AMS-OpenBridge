@@ -11,8 +11,27 @@
 /* The window's one shared reason, above the list. */
 .cpm-calc-list__reason { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-secondary); }
 
-/* The band's facts wrap among themselves; Run details stays inline after them on the first line. */
-.cpm-calc-band { display: flex; flex: 1 1 0; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); min-width: 0; }
-.cpm-calc-band__facts { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); min-width: 0; }
-.cpm-calc-band__run { flex: none; white-space: nowrap; }
-@media (max-width: 600px) { .cpm-calc-band { flex-basis: 100%; flex-wrap: wrap; } }
+/* CHG-166: the window dropdown says the verdict alone here (no pill beside it), so it keeps the band's 320 px rather than the
+   250 px the other compact pages cut it to: "6 Nov 22:45 · Oscillation confirmed" stays whole. */
+.cpm-calculations.cpm-compact .cpm-band .cpm-evidence-toolbar__window { max-width: 320px; }
+
+/* CHG-166 (owner review): the list head is one row named by its options; the search takes the room the dropdowns leave. */
+.cpm-calc-filters { align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
+.cpm-calc-filters .cpm-input { flex: 1 1 10rem; min-width: 0; }
+.cpm-calc-filters .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+/* the search is 32 px too, as the page's selects are (cpm-compact) */
+.cpm-compact .cpm-calc-filters .cpm-input { height: var(--traverse-space-8); padding-block: 0; }
+/* a phone: two controls a line (search and category, then gate and result) rather than three uneven lines */
+@media (max-width: 640px) {
+  .cpm-calc-filters .cpm-input, .cpm-calc-filters .cpm-select { flex: 1 1 calc(50% - var(--traverse-space-2)); }
+}
+
+/* CHG-166: the list panel's foot strip (the window, its samples, the run, Run details), edge to edge, as on Evidence Replay. */
+.cpm-calc-list--foot { padding-bottom: 0; }
+.cpm-calc-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3);
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0; padding: var(--traverse-space-1) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
+  border-end-start-radius: inherit; border-end-end-radius: inherit;
+}
+.cpm-calc-foot .cpm-copy { flex: 1 1 auto; max-width: none; }

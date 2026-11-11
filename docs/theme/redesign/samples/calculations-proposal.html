@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Calculations in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173, FIC10401: the evaluated 12 h window
+     ending 6 Nov 22:45 (Oscillation confirmed) and the newest window ending 7 Nov 11:45 (Not evaluated). Shell drawn at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 16px; font-size: 22px; font-weight: 600; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; }
+  .field small { color: var(--text2); font-size: 13px; } .field.ph { color: var(--muted); }
+  select.field { font: inherit; color: var(--text); padding-inline-end: 6px; }
+  .vr { align-self: stretch; width: 1px; background: var(--border); } .grow { flex: 1; }
+  .btn { height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 6px; color: var(--action); font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; font: inherit; font-weight: 600; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); }
+  .btn--raised { background: var(--action); color: var(--on); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); } .pill--bad i { background: var(--bad); }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 374px; gap: 16px; align-items: start; }
+  .list { padding: 16px 16px 0; }
+  .filters { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .filters input { flex: 1; min-width: 140px; font: inherit; }
+  .reason { margin: 0 0 8px; color: var(--text2); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 12px; padding: 0 12px; }
+  .thead { height: 36px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 52px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { display: block; font-weight: 600; } .row small { color: var(--text2); font-size: 12px; }
+  .na { color: var(--text2); }
+  .gb { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 0 8px; height: 22px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel); white-space: nowrap; }
+  .gb--ok b { color: var(--ok); } .gb--warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .gb--bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; } .gb--muted { background: var(--raised); color: var(--text2); border-color: transparent; }
+  .gb--seen { color: var(--text2); }
+  .foot { display: flex; align-items: center; gap: 12px; padding: 4px 16px; margin: 0 -16px; border-top: 1px solid var(--border); background: var(--page); color: var(--text2); border-radius: 0 0 12px 12px; }
+  .empty { padding: 24px 12px; color: var(--text2); text-align: center; display: none; }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 0; }
+  .insp__head h2 { margin: 0; font-size: 20px; font-weight: 600; } .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--text2); }
+  .insp__body { padding: 8px 20px 12px; }
+  .kv { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .kv > span:first-child { color: var(--text2); display: inline-flex; gap: 6px; align-items: baseline; } .kv > span:last-child { text-align: end; }
+  .kv .mf { font-family: ui-monospace, Consolas, monospace; display: block; } .kv .tx { display: block; color: var(--text); text-align: end; }
+  .kv small { display: block; color: var(--text2); font-size: 12px; }
+  .q { display: inline-grid; place-items: center; width: 14px; height: 14px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); }
+  .links { display: flex; flex-direction: column; align-items: flex-start; margin-top: 12px; } .links .gap { height: 8px; }
+  .insp__foot { padding: 12px 20px 20px; border-top: 1px solid var(--border); }
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; }
+  .scrim.on { display: grid; }
+  .dlg { width: 560px; padding: 20px 24px; }
+  .dlg h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; display: flex; } .dlg h3 span { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg .kv { grid-template-columns: 160px 1fr; } .dlg p { margin: 8px 0 0; } .dlg .df { display: flex; justify-content: flex-end; margin-top: 12px; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .noann .ann::after { display: none; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div class="on">Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title only (no ?, no actions) -->
+    <div class="ann" data-n="1" style="display:inline-block;padding-inline-end:14px"><span class="eyebrow">Understand the cause</span><h1>Calculations</h1></div>
+
+    <!-- 2 band card: loop | window kind, verdict ... Investigation ↗ -->
+    <div class="card band ann" data-n="2">
+      <span class="field" style="width:300px">&#x1F50D;&#xFE0E; <span><strong>FIC10401</strong> <small>Flow controller (FCS0101)</small></span><span class="grow"></span>&#9662;</span>
+      <span class="vr"></span>
+      <select class="field" aria-label="Window kind"><option>12h fused</option><option>24h fused</option></select>
+      <span class="pill" id="verdict"></span>
+      <span class="grow"></span>
+      <span class="btn btn--out">Investigation ↗</span>
+    </div>
+
+    <div class="md">
+      <section class="card list">
+        <!-- 3 filters in the list head: search first, then three dropdowns named by their options -->
+        <div class="filters ann" data-n="3">
+          <input class="field ph" type="search" placeholder="&#x1F50D;&#xFE0E;  Name, ID or unit" id="q">
+          <select class="field" id="fcat" aria-label="Category"></select>
+          <select class="field" id="fgate" aria-label="Gate"></select>
+          <select class="field" id="fres" aria-label="Gate result"></select>
+          <button class="btn" id="clear" style="display:none">Clear filters</button>
+        </div>
+        <p class="reason" id="reason"></p>
+        <div class="grid thead"><span>Calculation ↑</span><span class="ann" data-n="4" style="justify-self:start;padding-inline-end:14px">Value / unit</span><span>Gate result</span></div>
+        <div id="rows" role="list" aria-label="Calculations"></div>
+        <div class="empty" id="empty">No calculation matches the filters</div>
+        <!-- 7 foot: the window once, then Run details -->
+        <div class="foot ann" data-n="7"><span id="span"></span><span class="grow"></span><button class="btn" onclick="openDlg('run')">Run details</button></div>
+      </section>
+
+      <!-- 5, 6 the selected calculation -->
+      <aside class="card insp">
+        <div class="insp__head ann" data-n="5"><h2 id="pname"></h2><span class="grow"></span><span class="mono" id="pid"></span></div>
+        <div class="insp__body">
+          <div class="kv"><span>Value</span><span id="pval"></span></div>
+          <div class="kv"><span>Unit</span><span id="punit"></span></div>
+          <div class="kv"><span>Gate <span class="q" title="The gate's own result on this window. The window's verdict is in the band.">?</span></span><span id="pgate"></span></div>
+          <div class="kv"><span>Method</span><span><span class="mf" id="pform"></span><span class="tx" id="ptext"></span></span></div>
+          <div class="links ann" data-n="6" style="padding-inline-end:14px">
+            <button class="btn" onclick="openDlg('record')">Record details</button>
+            <span class="gap"></span>
+            <span class="btn">Rules &amp; parameters ↗</span>
+            <span class="btn">Identity &amp; raw ↗</span>
+          </div>
+        </div>
+        <div class="insp__foot"><span class="btn btn--raised" id="proof"></span></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<!-- dialogs -->
+<div class="scrim" id="scrim">
+  <div class="card dlg ann" data-n="8" data-dlg="run">
+    <h3>Run details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Gates</span><span id="rgates"></span></div>
+    <div class="kv"><span>Decision run (G15)</span><span class="mono" id="rrun"></span></div>
+    <div class="kv"><span>Bundle</span><span>profile:2232</span></div>
+    <div class="kv"><span>Calculation</span><span>v3.0.0 · profile v2.0.0</span></div>
+    <div class="kv"><span>Engine build</span><span class="mono">072bb0de656c</span></div>
+    <div class="kv"><span>Computed</span><span id="rcomp"></span></div>
+    <div class="kv"><span>Proof retained</span><span>Not held</span></div>
+    <p>Complete retention shows the proof was kept, not that it was sufficient.</p>
+    <div class="df"><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+  <div class="card dlg ann" data-n="8" data-dlg="record">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div id="rec"></div>
+    <div class="df"><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out" onclick="setState('eval')">Evaluated window · 6 Nov 22:45</button>
+  <button class="btn btn--out" onclick="setState('newest')">Newest window · 7 Nov 11:45 (not evaluated)</button>
+</div>
+
+<script>
+  // The 19 stored metrics (calcCatalogue.ts) with the method text of calcMethods.ts and the lab values of FIC10401.
+  // e = evaluated window (6 Nov 22:45), n = newest window (7 Nov 11:45). Gate results: [word, kind] as the page draws them.
+  const PASS = ['✓', 'Pass', 'ok'], ATT = ['!', 'Attention', 'warn'], STRONG = ['⬤', 'Strong symptom', 'warn'], SEEN = ['◐', 'Symptom seen', 'warn'],
+    NOTSEEN = ['◯', 'Not seen', 'seen'], CONF = ['▲', 'Confirmed', 'bad'], NE = ['—', 'Not evaluated', 'muted'];
+  const part = w => ['●', w, 'part'];  // the gate judged the window, but this metric has no value: muted, never a pass for it
+  const PVU = 'kg/h';
+  const M = [
+    ['CPLM-001', 'Sample completeness', 'G0', 'Data & mode', 'ratio', 'short', 'samples received ÷ samples expected', 'Expected samples are the window length divided by the declared sample period, rounded. It is not capped at 1: above 1 means more samples arrived than the grid expects.', '0.95', ATT, 'Insufficient data', part('Not usable')],
+    ['CPLM-002', 'Sample count', 'G0', 'Data & mode', 'count', 'short', 'n samples in the window', 'A count of the samples the window evaluated. It does not say the instruments are healthy.', '8221', ATT, 'Insufficient data', part('Not usable')],
+    ['CPLM-003', 'Automatic-mode fraction', 'G1', 'Data & mode', 'ratio', 'short', 'samples in AUTO ÷ samples', 'Counts samples, not elapsed time. Gate G1 judges it against the AUTO fractions of the run’s profile.', '1.00', PASS, 'Not calculated', NE],
+    ['CPLM-010', 'Mean absolute error', 'G3', 'Control error', 'PV units', 'short', 'mean(|SP − PV|)', 'Mean size of the control error per sample, in PV units. Not weighted by time, and not a cause.', '1.988', PASS, 'Not calculated', NE],
+    ['CPLM-011', 'Root-mean-square error', 'G3', 'Control error', 'PV units', 'short', '√mean((SP − PV)²)', 'Per-sample root mean square of the error, in PV units. Large errors count for more than in the mean absolute error.', '2.414', PASS, 'Not calculated', NE],
+    ['CPLM-012', 'Integral absolute error', 'G3', 'Control error', 'PV·s', 'short', 'Σ |SP − PV| · Δt', 'The error summed over the real gap to the next sample; the last sample takes the median gap. It grows with the window length.', '85,666', PASS, 'Not calculated', NE],
+    ['CPLM-013', 'Integral squared error', 'G3', 'Control error', 'PV²·s', 'short', 'Σ (SP − PV)² · Δt', 'The squared error summed over the same gaps. It stresses large deviations and grows with the window length.', '250,412', PASS, 'Not calculated', NE],
+    ['CPLM-014', 'Good-error time', 'G3', 'Control error', 'fraction', 'short', 'samples inside the band ÷ samples', 'Counts samples whose error is within the good-error band: 0.5 % of the declared PV span, or 0.5 PV units when no span is declared. 0 is a measured result.', '1.00', PASS, 'Not calculated', NE],
+    ['CPLM-020', 'Actuator effort ratio', 'G4', 'Actuator', 'ratio', 'short', 'std(OP) ÷ std(PV)', 'Population standard deviation of the output over that of the process value, with OP on 0–100 % when its range is declared. It reads 0 when PV does not move.', '2.41', STRONG, 'Not calculated', NE],
+    ['CPLM-021', 'OP travel per day', 'G4', 'Actuator', '%/day', 'long', 'Σ |ΔOP| × 24 ÷ window hours', 'The output’s total travel in the window, scaled linearly to a day. It is not a measured full day.', '15,416', STRONG, 'Insufficient data', NE],
+    ['CPLM-022', 'OP reversals per hour', 'G4', 'Actuator', 'per h', 'long', 'direction changes of OP ÷ window hours', 'A change is a sign flip of the output step. Steps of 1e-9 or less are ignored.', '358.4', STRONG, 'Insufficient data', NE],
+    ['CPLM-030', 'Oscillation period (ACF)', 'G5', 'Oscillation', 's', 'long', 'median of 2 × zero-crossing spacing × Δt', 'Read from where the autocorrelation of the detrended OP crosses zero (PV on an integrating loop). 0 s means no period was found; it is not an oscillation of zero seconds.', '280.5', SEEN, 'Insufficient data', part('Symptom seen')],
+    ['CPLM-031', 'Oscillation regularity', 'G5', 'Oscillation', 'ratio', 'long', 'min(1, period ÷ (3 × std of the periods))', 'How steady the zero-crossing periods are, from 0 to 1. A low value is a real result: not regular. It is 1 when the periods do not spread (std of 1e-9 or less).', '1.00', SEEN, 'Insufficient data', part('Symptom seen')],
+    ['CPLM-040', 'Harmonic amplitude ratio', 'G6', 'Oscillation', 'ratio', 'long', '(A2 + A3 + A5) ÷ A1', 'Spectrum amplitude at 2×, 3× and 5× the dominant frequency over the amplitude at the dominant frequency.', '0.10', SEEN, 'Insufficient data', part('Not seen')],
+    ['CPLM-041', 'Harmonic energy ratio', 'G6', 'Oscillation', 'ratio', 'long', '(A2² + A3² + A5²) ÷ A1²', 'The same harmonics as an energy ratio against the dominant frequency.', '0.00', SEEN, 'Insufficient data', part('Not seen')],
+    ['CPLM-050', 'OP triangularity', 'G7', 'Oscillation', 'score', 'long', 'mean over valid cycles of SSEsine ÷ (SSEsine + SSEtriangle)', 'Per cycle, the fit error of a sine against the fit error of a triangle wave. It needs a valid period and reads 0 with no valid cycle.', '0.4023', NOTSEEN, 'Insufficient data', part('Not seen')],
+    ['CPLM-060', 'Horch oddness', 'G8', 'Oscillation', 'score', 'long', 'Σ |φ₊ − φ₋| ÷ (Σ |φ₊ − φ₋| + Σ |φ₊ + φ₋|)', 'Odd symmetry of the standardised OP–PV cross-correlation, over up to 200 lags, or a quarter of the samples if fewer.', '0.3209', NOTSEEN, 'Insufficient data', part('Not seen')],
+    ['CPLM-070', 'Phase-portrait corner score (raw)', 'G9', 'Oscillation', 'score', 'long', 'turning angle at sharp corners ÷ total turning angle', 'On the PV–OP plane, the share of the turning angle at vertices sharper than the profile’s corner angle. It is the raw score: read it with the G9 result and the phase-area band, never alone.', '0.8737', NOTSEEN, 'Insufficient data', part('Not seen')],
+    ['CPLM-090', 'Fused evidence score', 'G15', 'Decision', 'score', 'gate', 'min(selected family score, G14 cap)', 'Detector score times the class prior for the leading family. The cap is 0.89 without a mapped valve position, and 0.54 when the family has not persisted across recent windows. A score, not a probability.', '100 / 100', CONF, 'Insufficient data', NE],
+  ].map(r => ({ id: r[0], name: r[1], gate: r[2], cat: r[3], unit: r[4], src: r[5], formula: r[6], text: r[7], eval: { v: r[8], g: r[9] }, newest: { v: r[10], g: r[11] } }));
+  const GATES = { G0: 'Data quality', G1: 'Mode / service', G3: 'Base performance', G4: 'Actuator effort', G5: 'Oscillation (ACF)', G6: 'Spectral (FFT)', G7: 'Stiction shape', G8: 'Horch oddness', G9: 'Phase geometry', G15: 'Diagnosis band' };
+  const CATS = ['Control error', 'Actuator', 'Data & mode', 'Oscillation', 'Decision'];
+  const STATE = {
+    eval: { verdict: ['bad', 'Oscillation confirmed'], span: '12 h window · 6 Nov 10:45 → 22:45 UTC · 8,221 samples · Original run', reason: '', qual: 'Qualified',
+      gates: '17 gates · 5 need review · 3 not judged', run: '8fb7519a-8936-540f-96ee-35ecd5f3edac', comp: '6 Nov 22:48 UTC', band: 'CONFIRMED (evidence score ≤ 100)' },
+    newest: { verdict: ['muted', 'Not evaluated: not enough data'], span: '12 h window · 6 Nov 23:45 → 7 Nov 11:45 UTC · 7,023 samples · Original run', reason: 'Computed on a window that failed data qualification.', qual: 'Unqualified',
+      gates: '17 gates · 1 need review · 7 not judged', run: 'd1705623-d3ca-5a5e-8a09-511ce4d7b63a', comp: '7 Nov 14:35 UTC', band: 'Not reported' },
+  };
+  let state = 'eval', sel = 'CPLM-010';
+  const $ = id => document.getElementById(id);
+  // Q2: a PV-unit metric reads in the loop's own unit, as System Response does (CHG-165)
+  const unitOf = m => ({ 'PV units': PVU, 'PV·s': PVU + '·s', 'PV²·s': '(' + PVU + ')²·s' })[m.unit];
+  const valText = m => { const x = m[state]; if (state === 'newest') return `<span class="na">${x.v}</span>`; const u = unitOf(m) ?? (['ratio', 'count', 'fraction'].includes(m.unit) || m.id === 'CPLM-090' ? '' : m.unit); return `${x.v}${u ? ' ' + u : ''}`; };
+  const badge = g => g[2] === 'part' ? `<span class="pill" style="font-size:12px"><i></i>${g[1]}</span>` : `<span class="gb gb--${g[2]}"><b>${g[0]}</b> ${g[1]}</span>`;
+  const why = m => (m.id === 'CPLM-090' ? 'too few qualified samples in the window' : 'computed on a window that failed data qualification');
+  function filters() {
+    const c = $('fcat').value, g = $('fgate').value, r = $('fres').value, q = $('q').value.trim().toLowerCase();
+    return m => (c === 'all' || m.cat === c) && (g === 'all' || m.gate === g) && (r === 'all' || m[state].g[1] === r) && (!q || [m.name, m.id, m.unit].some(t => t.toLowerCase().includes(q)));
+  }
+  function fillSelects() {
+    const c = $('fcat').value || 'all', g = $('fgate').value || 'all', r = $('fres').value || 'all';
+    $('fcat').innerHTML = `<option value="all">All categories</option>` + CATS.map(x => `<option>${x}</option>`).join('');
+    const gs = [...new Set(M.filter(m => c === 'all' || m.cat === c).map(m => m.gate))];
+    $('fgate').innerHTML = `<option value="all">All gates</option>` + gs.map(x => `<option value="${x}">${x} · ${GATES[x]}</option>`).join('');
+    const rs = [...new Set(M.map(m => m[state].g[1]))];
+    $('fres').innerHTML = `<option value="all">All results</option>` + rs.map(x => `<option>${x}</option>`).join('');
+    $('fcat').value = c; $('fgate').value = gs.includes(g) ? g : 'all'; $('fres').value = rs.includes(r) ? r : 'all';
+  }
+  function render() {
+    const S = STATE[state], ok = filters(), vis = M.filter(ok);
+    $('verdict').className = 'pill pill--' + S.verdict[0]; $('verdict').innerHTML = `<i></i>${S.verdict[1]}`;
+    $('span').textContent = S.span; $('reason').textContent = S.reason; $('reason').style.display = S.reason ? '' : 'none';
+    $('rows').innerHTML = vis.map(m => `<div role="listitem" class="grid row${m.id === sel ? ' sel' : ''}" onclick="pick('${m.id}')"><span><strong>${m.name}</strong><small>${m.id} · ${m.gate}</small></span><span>${valText(m)}${state === 'newest' && m.id === 'CPLM-090' ? `<small class="na" style="display:block;font-size:12px">${why(m)}</small>` : ''}</span><span>${badge(m[state].g)}</span></div>`).join('');
+    $('empty').style.display = vis.length ? 'none' : 'block';
+    $('clear').style.display = ($('fcat').value !== 'all' || $('fgate').value !== 'all' || $('fres').value !== 'all' || $('q').value) ? '' : 'none';
+    const m = vis.find(x => x.id === sel) ?? vis[0] ?? M[0];
+    $('pname').textContent = m.name; $('pid').textContent = m.id;
+    $('pval').innerHTML = state === 'newest' ? `<span class="na">${m.newest.v}</span><small>${why(m)}</small>` : m.eval.v;
+    const lu = unitOf(m); $('punit').innerHTML = lu ? `${lu} <small>the loop's PV unit (${m.unit})</small>` : m.unit;
+    $('pgate').innerHTML = `${m.gate} · ${GATES[m.gate]} ${badge(m[state].g)}`;
+    $('pform').textContent = m.formula; $('ptext').textContent = m.text;
+    $('proof').textContent = `Open ${m.gate} proof →`;
+    $('rgates').textContent = S.gates; $('rrun').textContent = S.run; $('rcomp').textContent = S.comp;
+    const stored = { short: 'cplm_long_feature_results (short-tier metric over the fused window)', long: 'cplm_long_feature_results', gate: 'cplm_gate_results' }[m.src];
+    $('rec').innerHTML = [['Window qualification', m.src === 'gate' ? 'Not reported' : S.qual], ...(m.src === 'gate' ? [['Evidence-score band', S.band]] : []),
+      [`Gate ${m.gate} in stored results`, 'Observed'], ['Stored in', stored]].map(([k, v]) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`).join('');
+  }
+  window.pick = id => { sel = id; render(); };
+  window.setState = s => { state = s; if (s === 'newest') sel = 'CPLM-001'; fillSelects(); render(); };
+  window.openDlg = d => { $('scrim').classList.add('on'); document.querySelectorAll('[data-dlg]').forEach(x => x.classList.toggle('on', x.dataset.dlg === d)); };
+  window.closeDlg = () => $('scrim').classList.remove('on');
+  window.setFilter = (cat, gate, res) => { $('fcat').value = cat ?? 'all'; fillSelects(); $('fgate').value = gate ?? 'all'; $('fres').value = res ?? 'all'; render(); };
+  ['fcat', 'fgate', 'fres'].forEach(i => $(i).addEventListener('change', () => { if (i === 'fcat') fillSelects(); render(); }));
+  $('q').addEventListener('input', render);
+  $('clear').addEventListener('click', () => { $('q').value = ''; setFilter(); });
+  fillSelects(); render();
+</script>
+</body>
+</html>

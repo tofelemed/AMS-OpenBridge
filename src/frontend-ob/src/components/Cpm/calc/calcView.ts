@@ -42,12 +42,37 @@ export function isGateJudged(cell: Pick<CpmGateCell, 'key' | 'status'> | undefin
   return !NOT_JUDGED.has(cell.status.toUpperCase());
 }
 
-/** The value as the list and the panel write it; a 0 reads 0. The panel shows the unit on its own row, so it asks for none here. */
-export function valueText(metric: MetricDef, value: number, withUnit = true): string {
+/** The catalogue's PV-unit placeholders: the loop's PV unit, its integral over time, and the integral of its square. */
+const PV_PLACEHOLDERS: Partial<Record<string, (pv: string) => string>> = {
+  'PV units': pv => pv,
+  'PV·s': pv => `${pv}·s`,
+  'PV²·s': pv => `${/^°?[A-Za-z]+$/.test(pv) ? pv : `(${pv})`}²·s`,
+};
+
+/** The catalogue unit is one of the PV-unit placeholders. */
+export const isPvUnit = (unit: string): boolean => unit in PV_PLACEHOLDERS;
+
+/**
+ * CHG-166 (owner review, question 2): a PV-unit calculation in the loop's own unit, as System Response writes its quantities
+ * (`displayUnit`); the placeholder stays when the loop has no PV unit. Any other unit is the catalogue's.
+ */
+export function loopUnit(unit: string, pvUnit: string | null | undefined): string {
+  const pv = pvUnit?.trim();
+  const swap = PV_PLACEHOLDERS[unit];
+  return swap && pv ? swap(pv) : unit;
+}
+
+/**
+ * The value as the list and the panel write it; a 0 reads 0. The number is formatted from the catalogue unit, so the loop's
+ * unit never changes it. The panel shows the unit on its own row, so it asks for none.
+ */
+export function valueText(metric: MetricDef, value: number, opts: { pvUnit?: string | null; withUnit?: boolean } = {}): string {
   if (metric.field === 'confidence') return `${evidenceScore(value)} / 100`;
   const full = fmtQuantity(value, metric.unit);
   const suffix = ` ${metric.unit}`;
-  return !withUnit && full.endsWith(suffix) ? full.slice(0, -suffix.length) : full;
+  if (!full.endsWith(suffix)) return full;
+  const bare = full.slice(0, -suffix.length);
+  return opts.withUnit === false ? bare : `${bare} ${loopUnit(metric.unit, opts.pvUnit)}`;
 }
 
 /**

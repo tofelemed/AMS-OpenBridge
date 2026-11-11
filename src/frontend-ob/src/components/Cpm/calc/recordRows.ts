@@ -1,11 +1,11 @@
 /**
- * Task 20: the facts the old drawer's Definition, Validation and Coverage tabs held, now one closed "Record details" under the
- * panel. Each reads Not reported when the served payloads do not carry it. There is no per-metric history: there was none.
+ * Task 20: the facts the old drawer's Definition, Validation and Coverage tabs held. Each reads Not reported when the served
+ * payloads do not carry it. There is no per-metric history: there was none. CHG-166 (owner review): shown in the Record details
+ * dialog; Engine (not reported), Emitted (Run details' Computed), Catalogue note (the fused score's Method) and Kind (the page's
+ * name, or the category) are gone, and the evidence-score band is a row only on the fused score, the one metric on that scale.
  */
-import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import type { CpmCalculations, CpmKpiRow } from '../../../api/cpmApi';
 import type { MetricDef } from '../calcCatalogue';
-import { fmtDateTime } from '../shared';
 
 export const NOT_REPORTED = 'Not reported';
 
@@ -17,24 +17,22 @@ const STORED_IN: Record<MetricDef['source'], string> = {
 
 export function recordRows(
   metric: MetricDef, value: number | null,
-  ctx: { row: CpmKpiRow | undefined; matrix: CpmGateMatrix | undefined; catalogue: CpmCalculations | undefined },
+  ctx: { row: CpmKpiRow | undefined; catalogue: CpmCalculations | undefined },
 ): Array<[label: string, value: string]> {
-  const { row, matrix, catalogue } = ctx;
-  const qualified = metric.source !== 'gate' && typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null;
+  const { row, catalogue } = ctx;
+  const fused = metric.source === 'gate';
+  const qualified = !fused && typeof row?.long_metrics_qualified === 'boolean' ? row.long_metrics_qualified : null;
   const gateDef = catalogue?.gates.find(g => g.key === metric.gate);
-  // only the fused evidence score sits on the band scale
-  const band = metric.source === 'gate' && value != null
+  const band = fused && value != null
     ? [...(catalogue?.bands ?? [])].sort((a, b) => a.maxConfidence - b.maxConfidence).find(b => value <= b.maxConfidence)
     : undefined;
-  const created = typeof row?.created_at === 'string' ? row.created_at : null;
+  const bandRow: Array<[string, string]> = fused
+    ? [['Evidence-score band', band ? `${band.band} (evidence score ≤ ${(band.maxConfidence * 100).toFixed(0)})` : NOT_REPORTED]]
+    : [];
   return [
     ['Window qualification', qualified == null ? NOT_REPORTED : qualified ? 'Qualified' : 'Unqualified'],
-    ['Evidence-score band', band ? `${band.band} (evidence score ≤ ${(band.maxConfidence * 100).toFixed(0)})` : NOT_REPORTED],
+    ...bandRow,
     [`Gate ${metric.gate} in stored results`, gateDef ? (gateDef.observedInResults ? 'Observed' : 'Never observed') : NOT_REPORTED],
-    ['Catalogue note', catalogue?.note || NOT_REPORTED],
-    ['Engine', matrix?.metadata.calculationSource || NOT_REPORTED],
-    ['Emitted', created ? fmtDateTime(created) : NOT_REPORTED],
     ['Stored in', STORED_IN[metric.source]],
-    ['Kind', metric.source === 'gate' ? 'Decision' : 'Calculation'],
   ];
 }

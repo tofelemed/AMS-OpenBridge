@@ -1446,3 +1446,25 @@ Built on the approved sample `samples/system-response-proposal.html` (owner: "Sy
 | Event identity | Window from / Window to / Duration · run · bundle · purpose | Steps & data: Event · Window 7 Oct 05:43 → 7 Oct 05:47 UTC · Run · Bundle · Purpose |
 | Workbench exit | Open in Evidence Workbench → (right column) | Workbench ↗ in the band |
 | Model history | charts one under another; legend Interval upper — … · Interval lower — … | Models tab: trends side by side; one legend entry Interval — …; Export models CSV; path OP → PV |
+
+## CHG-166 owner review: Calculations
+
+Built on the approved sample `samples/calculations-proposal.html` (+ `calculations-steps.html`) and the owner's four answers of 11 Nov: the window list in the band, the loop's own units, Run details trimmed on Calculations and Replay, Record details as a dialog.
+
+| Where | Was | Now |
+|---|---|---|
+| Title | Calculations `?` (Every calculated metric for a loop, with its latest value and method.) | Calculations |
+| Header | 12h / 24h · Back to Investigation ↗ | removed: the band holds both |
+| Band | a strip: loop · 12 h window · 6 Nov 10:45 → 6 Nov 22:45 UTC · ● Oscillation confirmed · Calculation v3.0.0 · profile v2.0.0 · Run details ↗ | a card: loop · 12h fused ▾ · 6 Nov 22:45 · Oscillation confirmed ▾ · ‹ › … Investigation ↗ (outlined); › past the loaded list loads older windows; "Verdict unavailable" when the verdict cannot be read |
+| Verdict | a pill in the band | in the window dropdown, as on the Workbench and Replay |
+| List head | FIND CALCULATION [Name, ID or unit] · GATE [All gates] · GATE RESULT [All results], then All · Control error · Actuator · Data & mode · Oscillation · Decision, then 19 shown / 19 available | one row, named by its options: [Name, ID or unit] · [All categories] · [All gates] · [All results] · Clear filters; no count |
+| Gate options | G5 | G5 · Oscillation (ACF) |
+| Values | 1.988 PV units · 85,666 PV·s · 250,412 PV²·s | 1.988 kg/h · 85,666 kg/h·s · 250,412 (kg/h)²·s (the loop's PV unit; PV units when none is registered) |
+| Foot of the list | (none) | 12 h window · 6 Nov 10:45 → 6 Nov 22:45 UTC · 8,221 samples · Original run · Run details |
+| Panel head | Mean absolute error, then an Id row CPLM-010 | Mean absolute error … CPLM-010 |
+| Panel rows | Id · Value · Unit PV units · Method · Related gate · Signal engineering unit kg/h | Value · Unit kg/h (the loop’s PV unit (PV units)) · Gate `?` · Method |
+| Gate and verdict | G3 is the gate’s own result. The window’s verdict is Oscillation confirmed. | Gate `?` (Gate result and window verdict: The gate’s own result on this window. The window’s verdict is in the band.) |
+| Panel links | Retained value & identity ↗ · Original configuration `?` (Rules and thresholds belong to the selected run.) · Inspect parameters ↗ · ▸ Record details | Record details (a dialog) · Rules & parameters ↗ · Identity & raw ↗ (the Workbench tabs they open) |
+| Record details | 8 rows under the panel: Window qualification, Evidence-score band, Gate G3 in stored results, Catalogue note, Engine, Emitted, Stored in, Kind | a dialog: Window qualification, Evidence-score band (the fused score only), Gate G3 in stored results, Stored in |
+| Run details (Calculations and Replay) | Window · Result · Samples · Gates · Decision run (G15) · Bundle · Calculation · Engine build · Computed 2026-11-06T22:48:20.195929Z · Proof retained | Gates · Decision run (G15) · Bundle · Calculation · Engine build · Computed 6 Nov 22:48 UTC · Proof retained (the foot says the window, the run and the samples) |
+| No loop | Pick a loop above. The list then shows each calculation with this loop's latest value and the gate that judges it. | Choose a loop above to see its calculations. |

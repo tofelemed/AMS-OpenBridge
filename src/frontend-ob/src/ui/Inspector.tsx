@@ -9,15 +9,18 @@ import { useShellBand } from './shell/shellHooks';
 
 interface InspectorProps {
   title: string;
+  /** A short identifier beside the title, at the head's end (CHG-166: a calculation's id). */
+  meta?: React.ReactNode;
   children: React.ReactNode;
   /** The panel's one primary action (SPEC §3). */
   primaryAction?: React.ReactNode;
 }
 
-const Body: React.FC<InspectorProps & { titleId: string; onClose?: () => void }> = ({ title, titleId, children, primaryAction, onClose }) => (
+const Body: React.FC<InspectorProps & { titleId: string; onClose?: () => void }> = ({ title, meta, titleId, children, primaryAction, onClose }) => (
   <>
     <div className="ui-inspector__head">
       <h2 id={titleId} className="ui-inspector__title">{title}</h2>
+      {meta != null && <span className="ui-inspector__meta">{meta}</span>}
       {onClose && (
         <button type="button" className="ui-control ui-control--ghost ui-control--icon" aria-label="Close inspector" onClick={onClose}>
           <span className="ui-icon"><ObiCloseGoogle /></span>

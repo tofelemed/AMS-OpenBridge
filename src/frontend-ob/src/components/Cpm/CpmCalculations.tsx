@@ -1,28 +1,34 @@
 'use client';
 
 /**
- * Calculations (/cpm/calculations?loop=&metric=&window=&kind=&gate=). The 19 stored metrics for one loop, by category, with
- * the selected one in the right column (Task 20; it was a paged table and a modal drawer). Every value belongs to the window
- * the verdict judges: the newest fused window, or the exact window `?window=` names. A metric the engine did not calculate
- * says so and why; it is never 0. The first visible row is selected when the URL names none, and `?metric=` follows the choice.
+ * Calculations (/cpm/calculations?loop=&metric=&window=&kind=&gate=). The 19 stored metrics for one loop, with the selected one
+ * in the right column (Task 20). Every value belongs to the window the verdict judges: the newest fused window, or the exact
+ * window `?window=` names. A metric the engine did not calculate says so and why; it is never 0. The first visible row is
+ * selected when the URL names none, and `?metric=` follows the choice. CHG-166 (owner review, the approved sample
+ * docs/theme/redesign/samples/calculations-proposal.html and its four answers): no tabs and no `?` on the title; the band a
+ * card (loop, 12h fused / 24h fused, the window list with its verdict and ‹ › … Investigation ↗); the list head one row named by
+ * its options; values in the loop's unit; the window, its samples and the run once in the list's foot strip with Run details;
+ * Record details a dialog; 32 px controls.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import WindowKindToggle from './explorer/summary/WindowKindToggle';
 import { WINDOW_KINDS, useWindowKind } from './useWindowKind';
 import { EmptyState, QueryError, WorkspaceHeader } from './shared';
 import { LoopBand } from './context/LoopBand';
 import { fmtInstant } from './context/LoopContextBar';
 import { investigationHref } from './cpaHref';
-import { conditionOf } from './explorer/summary/summaryText';
 import { METRICS } from './calcCatalogue';
 import { DEFAULT_CALC_SORT, calcOrderText, nextCalcSort, sortMetrics, type CalcSort, type CalcSortKey } from './calcSort';
 import SortHeader from './SortHeader';
+import { useEvidenceWindows } from './evidence/useEvidenceWindows';
+import { sameInstant } from './evidence/useWindowAt';
 import CalcBand from './calc/CalcBand';
 import CalcFilters, { type CategoryChoice } from './calc/CalcFilters';
+import CalcFoot from './calc/CalcFoot';
 import CalcPanel from './calc/CalcPanel';
 import CalcList from './calc/CalcList';
+import { loopUnit } from './calc/calcView';
 import { useCalcValues } from './calc/useCalcValues';
 import { recordRows } from './calc/recordRows';
 
@@ -30,7 +36,7 @@ export const CpmCalculations: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   // CHG-089: the fused window kind (12h default). ?window= here is an evaluated END, as calculationsHref writes it.
-  const [windowKind, setWindowKind] = useWindowKind('kind');
+  const [windowKind] = useWindowKind('kind');
   const endParam = params.get('window');
   const windowEnd = endParam && !(WINDOW_KINDS as readonly string[]).includes(endParam) ? endParam : null;
   const loopId = params.get('loop') ?? undefined;
@@ -51,6 +57,9 @@ export const CpmCalculations: React.FC = () => {
   const v = useCalcValues(loopId, windowKind, windowEnd);
   const loop = v.loop;
   const timeZone = loop?.timezone || 'UTC';
+  const pvUnit = loop?.engineering?.pvUnit ?? null;
+  // CHG-166: the window list the Workbench, Replay and Investigation read
+  const list = useEvidenceWindows(loop?.loopId, windowKind, 'fused', timeZone);
 
   const inCategory = useMemo(() => METRICS.filter(m => category === 'All' || m.category === category), [category]);
   const gates = useMemo(() => ['all', ...new Set(inCategory.map(m => m.gate))], [inCategory]);
@@ -63,7 +72,8 @@ export const CpmCalculations: React.FC = () => {
     (category === 'All' || x.metric.category === category)
     && (gate === 'all' || x.metric.gate === gate)
     && (result === 'all' || x.status.label === result)
-    && (!q || [x.metric.name, x.metric.id, x.metric.unit].some(t => t.toLowerCase().includes(q))));
+    // the unit as the row writes it (kg/h) finds the row as well as the catalogue's (PV units)
+    && (!q || [x.metric.name, x.metric.id, x.metric.unit, loopUnit(x.metric.unit, pvUnit)].some(t => t.toLowerCase().includes(q))));
   const tone = new Map(views.map(x => [x.metric.id, x.status.tone]));
   const ordered = sortMetrics(filtered.map(x => x.metric), sort, m => tone.get(m.id) ?? 'muted');
   const byId = new Map(views.map(x => [x.metric.id, x]));
@@ -98,23 +108,29 @@ export const CpmCalculations: React.FC = () => {
       orderText={key === 'name' ? (sort.key === 'id' ? 'by ID' : sort.dir === 'asc' ? 'by name, A to Z' : 'by name, Z to A') : calcOrderText(sort)} />
   );
   const noWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('metric'); };
+  // A kind change opens that kind's newest window (as on Replay); the chosen calculation stays.
+  const setKind = (k: string) => setParams(p => { p.set('kind', k); p.delete('window'); return p; }, { replace: true });
+  // The newest window is no end at all: the page then follows the newest, as Investigation does. The calculation stays.
+  const openWindow = (end: string) => setParams(p => {
+    if (sameInstant(end, list.options[0]?.windowEnd)) p.delete('window'); else p.set('window', end);
+    return p;
+  }, { replace: true });
 
   return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        page="/cpm/calculations"
-        title="Calculations"
-        actions={<>
-          <WindowKindToggle value={windowKind} kinds={WINDOW_KINDS} onChange={setWindowKind} />
-          <ObcButton variant="flat" disabled={!loopId}
-            onClick={() => { if (loopId) navigate(investigationHref(loopId, { kind: windowKind, window: v.matrix?.windowEnd ?? windowEnd })); }}>
-            Back to Investigation {'↗'}
+    // CHG-166: buttons and fields are 32 px, as on the other redesigned pages (cpm-compact)
+    <div className="cpm-screen cpm-compact cpm-calculations">
+      <WorkspaceHeader page="/cpm/calculations" title="Calculations" copy="" />
+      <LoopBand card loopId={loop?.loopId ?? loopId}
+        onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}
+        end={loop && (
+          <ObcButton variant="normal" onClick={() => navigate(investigationHref(loop.loopId, { kind: windowKind, window: v.matrix?.windowEnd ?? windowEnd }))}>
+            Investigation {'↗'}
           </ObcButton>
-        </>}
-      />
-      <LoopBand loopId={loop?.loopId ?? loopId}
-        onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}>
-        {loop && <CalcBand matrix={v.matrix} timeZone={timeZone} verdictFailed={v.verdictFailed} />}
+        )}>
+        {loop && (
+          <CalcBand loopId={loop.loopId} kind={windowKind} onKind={setKind} list={list} matrix={v.matrix} timeZone={timeZone}
+            verdictFailed={v.verdictFailed} onWindow={openWindow} />
+        )}
       </LoopBand>
       {v.kpiError != null && (
         <QueryError title="Window values unavailable — the values below are missing, not absent" error={v.kpiError} retry={v.retryKpis} />
@@ -126,8 +142,7 @@ export const CpmCalculations: React.FC = () => {
 
       {!loop && (
         <section className="cpm-surface">
-          <EmptyState level={2} title="Select a loop"
-            copy="Pick a loop above. The list then shows each calculation with this loop's latest value and the gate that judges it." />
+          <EmptyState level={2} title="Select a loop" copy="Choose a loop above to see its calculations." />
         </section>
       )}
       {loop && v.notStored && (
@@ -140,23 +155,21 @@ export const CpmCalculations: React.FC = () => {
 
       {loop && !v.notStored && (
         <div className="cpm-master-detail">
-          <section className="cpm-surface">
+          <section className={`cpm-surface cpm-calc-list${v.matrix ? ' cpm-calc-list--foot' : ''}`}>
             <CalcFilters search={search} onSearch={setSearch} gate={gate} gates={gates} onGate={setGate}
               result={result} results={results} onResult={setResult} category={category}
               onCategory={c => { setCategory(c); if (gateParam !== 'all' && !METRICS.some(m => (c === 'All' || m.category === c) && m.gate === gateParam)) setGate('all'); }}
-              shown={visible.length} available={METRICS.length}
               filtered={!!q || result !== 'all' || category !== 'All' || gate !== 'all'} onClear={clearFilters} />
-            <CalcList rows={visible} selectedId={selectedId} onSelect={pick} head={head} />
+            <CalcList rows={visible} selectedId={selectedId} onSelect={pick} head={head} pvUnit={pvUnit} />
             {visible.length === 0 && (
               <EmptyState title="No calculation matches the filters" />
             )}
+            {v.matrix && <CalcFoot matrix={v.matrix} timeZone={timeZone} />}
           </section>
           {selected && (
-            <CalcPanel view={selected} loopId={loop.loopId} runId={v.runIdOf(selected.metric.gate)}
-              pvUnit={loop.engineering?.pvUnit ?? null}
-              verdict={v.matrix?.diagnosis ? conditionOf(v.matrix.diagnosis).label : null}
+            <CalcPanel view={selected} loopId={loop.loopId} runId={v.runIdOf(selected.metric.gate)} pvUnit={pvUnit}
               stamped={v.stamped} deployed={v.deployed}
-              record={recordRows(selected.metric, selected.value, { row: v.row, matrix: v.matrix, catalogue: v.catalogue })} open={drawer} onClose={() => setDrawer(false)} />
+              record={recordRows(selected.metric, selected.value, { row: v.row, catalogue: v.catalogue })} open={drawer} onClose={() => setDrawer(false)} />
           )}
         </div>
       )}

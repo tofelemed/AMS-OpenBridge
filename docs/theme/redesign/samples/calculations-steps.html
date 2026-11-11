@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Calculations (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, FIC10401, 12 h window ending 6 Nov 22:45. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 42%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .note { padding: 8px 12px; margin-top: 8px; border-inline-start: 3px solid var(--info); background: var(--info-bg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calculations: the engineer's path</h1>
+  <p class="lead">Today the header holds 12h / 24h and Back to Investigation; the band holds the window, the verdict, the versions and Run details ↗; the list opens with two lines of labelled filters and a count; the panel says the verdict again, splits the unit over two rows and spreads three Workbench links under a heading with a <b>?</b>. The page answers one question, what the engine computed on this window and how, so it gets no tabs: the band picks the loop and the window kind, the list says what was computed, the panel says how, and the foot names the window once.</p>
+
+  <div class="card band"><b>Band</b><span class="chip">Loop search ▾</span><span class="chip">12h fused ▾</span><span class="chip">● window verdict</span><span style="color:var(--text2)">… Investigation ↗ (outlined)</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Band</h2><q>Which loop, which window, and what was its verdict?</q>
+      <ul><li>Loop search first</li><li>12h fused / 24h fused (was the header's 12h / 24h)</li><li>The window's verdict, once</li><li>Investigation ↗ at the far end</li></ul></div>
+    <div class="card step"><h2>Calculations</h2><q>What did the engine compute, and what did each gate make of it?</q>
+      <ul><li>Search, Category, Gate, Result in one row, no labels</li><li>All 19 rows: name, ID · gate, value with unit, gate result</li><li>Sort by calculation or by gate result</li></ul></div>
+    <div class="card step"><h2>Selected calculation</h2><q>How is this value computed, and which gate judges it?</q>
+      <ul><li>Value, Unit (the loop's unit), Gate with its result</li><li>Method: formula and one sentence</li><li>The stale-version warning when the value is older than the engine</li></ul></div>
+    <div class="card step"><h2>Proof</h2><q>Where is the evidence for this value?</q>
+      <ul><li>Open G3 proof → (the gate's run in the Workbench)</li><li>Rules &amp; parameters ↗, Identity &amp; raw ↗: the same run, those tabs</li><li>Record details (a dialog)</li></ul></div>
+    <div class="card step"><h2>Foot</h2><q>Which window and which run wrote these values?</q>
+      <ul><li>12 h window · 6 Nov 10:45 → 22:45 UTC · 8,221 samples · Original run</li><li>Run details: gates, run, bundle, versions, build, computed, proof retained</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title ? "Every calculated metric for a loop, with its latest value and method."</td><td>Removed, as on the pages before</td></tr>
+        <tr><td><span class="n">2</span>Header 12h / 24h toggle</td><td>Band dropdown "12h fused" / "24h fused", as on the Workbench</td></tr>
+        <tr><td><span class="n">2</span>Header "Back to Investigation ↗"</td><td>Band end: "Investigation ↗", outlined</td></tr>
+        <tr><td><span class="n">2</span>Band "12 h window · 6 Nov 10:45 → 6 Nov 22:45 UTC"</td><td>The foot, once, with the samples and the run</td></tr>
+        <tr><td><span class="n">2</span>Band "Calculation v3.0.0 · profile v2.0.0"</td><td>Run details only (it was there as well); the stale-version warning stays in the panel</td></tr>
+        <tr><td><span class="n">7</span>Band "Run details ↗"</td><td>The foot: "Run details" (opens a dialog, so no ↗), as on Replay</td></tr>
+        <tr><td><span class="n">3</span>Labels FIND CALCULATION, GATE, GATE RESULT</td><td>Removed; each control is named by its options ("Name, ID or unit", "All gates", "All results")</td></tr>
+        <tr><td><span class="n">3</span>Category toggle, six buttons on a second line</td><td>Dropdown "All categories" in the same row, same six choices</td></tr>
+        <tr><td><span class="n">3</span>Gate options "G5"</td><td>"G5 · Oscillation (ACF)"</td></tr>
+        <tr><td><span class="n">3</span>"19 shown / 19 available"</td><td>Removed: the list never pages, so the rows are the count</td></tr>
+        <tr><td><span class="n">5</span>Panel "Id" row</td><td>Beside the title (CPLM-010)</td></tr>
+        <tr><td><span class="n">4</span>Panel "Unit" and "Signal engineering unit" rows</td><td>One Unit row, "kg/h · the loop's PV unit (PV units)"; the list reads 1.988 kg/h (question 2)</td></tr>
+        <tr><td><span class="n">5</span>"G3 is the gate's own result. The window's verdict is Oscillation confirmed."</td><td>Removed: the verdict is in the band, the gate's result on the Gate row; the difference sits behind the Gate ?</td></tr>
+        <tr><td><span class="n">6</span>"Original configuration ?" heading and "Rules and thresholds belong to the selected run."</td><td>Removed; the link is named after the Workbench tab it opens</td></tr>
+        <tr><td><span class="n">6</span>"Inspect parameters ↗", "Retained value &amp; identity ↗"</td><td>"Rules &amp; parameters ↗", "Identity &amp; raw ↗" (the Workbench's tab names), under Record details as on Window Inspector</td></tr>
+        <tr><td><span class="n">8</span>Record details: a disclosure of 8 rows under the panel</td><td>A Record details dialog, as on Window Inspector: Window qualification, Gate G3 in stored results, Stored in, and Evidence-score band on the fused score only</td></tr>
+        <tr><td><span class="n">8</span>Record rows Engine, Emitted, Catalogue note, Kind</td><td>Engine: engine metadata, "Not reported" on the lab. Emitted: the same instant as Run details' Computed on the lab (22:48:20 and 14:35:28 on both windows). Catalogue note: the fused score's Method already says the 0.89 cap, and it repeated on all 19. Kind: "Calculation" on 18 rows is the page's name; "Decision" is the category</td></tr>
+        <tr><td><span class="n">8</span>Run details rows Window, Result, Samples</td><td>The foot says them (question 3); Computed "2026-11-06T22:48:20.195929Z" reads "6 Nov 22:48 UTC"</td></tr>
+        <tr><td>No loop: "Pick a loop above. The list then shows each calculation with this loop's latest value and the gate that judges it."</td><td>"Choose a loop above to see its calculations.", as on Loop Explorer</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>All 19 calculations</td><td>No paging; name, then "CPLM-010 · G3"; value; gate result with glyph and word</td></tr>
+        <tr><td>No value is ever 0</td><td>Not calculated / Insufficient data with the engine's reason; a window-wide reason once above the rows; the gate's result muted when the metric has no value ("Pass on other inputs")</td></tr>
+        <tr><td>Sorting</td><td>Calculation (ID, name A to Z, Z to A) and Gate result (needing attention first)</td></tr>
+        <tr><td>Filters</td><td>Search, category, gate, result, same choices; the gate list narrows to the category; ?gate= in the address; Clear filters</td></tr>
+        <tr><td>The window</td><td>Newest fused window, or the exact one ?window= names; ?kind= and ?metric= in the address; "That window is not stored" with Show the newest window</td></tr>
+        <tr><td>Warnings</td><td>Window values unavailable, values not stored, window unavailable, verdict unavailable, stale version</td></tr>
+        <tr><td>Method for each calculation</td><td>The same formula and sentence</td></tr>
+        <tr><td>Open G3 proof →</td><td>Primary at the panel foot; off with its reason when the gate has no run on the window</td></tr>
+        <tr><td>Run details</td><td>Gates tally, decision run, bundle, versions, engine build, computed, proof retained and its note</td></tr>
+        <tr><td>Below 1280 px</td><td>The panel is a drawer a row opens. At 1000 px the band should fit one line, about 830 of 950 px (today it wraps to two)</td></tr>
+        <tr><td>Sizes</td><td>Two-line 52 px rows and type as today; band and filter controls 32 px, as on the other redesigned pages</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Window choice in the band?</b> <span>The page shows the newest window, or the one a link names; it has no window list. The Workbench, Replay and Window Inspector have one with ‹ ›. Adding it adds a capability. Recommended: yes, the Workbench's list; the verdict then sits in that dropdown, as there. Not drawn in the sample.</span>
+        <div class="card band" style="margin:6px 0 0"><b>If yes</b><span class="chip">Loop search ▾</span><span class="chip">12h fused ▾</span><span class="chip chip--q">6 Nov 22:45 · Oscillation confirmed ▾</span><span class="chip chip--q">‹</span><span class="chip chip--q">›</span><span style="color:var(--text2)">… Investigation ↗</span></div></li>
+      <li><b>The loop's unit in place of "PV units"?</b> <span>1.988 kg/h, 85,666 kg/h·s, as System Response shows (CHG-165); "PV units" stays when no unit is registered. Recommended: yes.</span></li>
+      <li><b>Run details is shared with Replay.</b> <span>Dropping Window, Result and Samples (both feet say them) and the readable Computed time changes Replay too. Recommended: yes, on both.</span></li>
+      <li><b>Record details as a dialog?</b> <span>Today a closed disclosure that stretches the panel when open; Window Inspector opens its Record details as a dialog. Recommended: the dialog.</span></li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>

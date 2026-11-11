@@ -153,6 +153,7 @@
   padding: var(--traverse-space-4) var(--traverse-size-panel-padding) 0;
 }
 .ui-inspector__title { margin: 0; font-size: var(--traverse-type-section-title); font-weight: 600; }
+.ui-inspector__meta { margin-inline-start: auto; color: var(--traverse-text-secondary); white-space: nowrap; }
 .ui-inspector__body {
   flex: 1;
   min-height: 0;
