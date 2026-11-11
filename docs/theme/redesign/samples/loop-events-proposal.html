@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Loop Events in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173 on 11 Nov: Open 325 (Triage, page 1),
+     EVT-2231 / EVT-2230 (PIC40102), EVT-829 (FIC10303A, shelf expired), and the 300 fast conditions (26 open, all stale).
+     The lab has no shelved episode: that state is illustrative and says so. Shell drawn at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; }
+  .grow { flex: 1; }
+  .seg { display: inline-flex; height: 40px; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; background: var(--panel); color: var(--text2); padding: 0 14px; cursor: pointer; }
+  .seg button + button { border-inline-start: 1px solid var(--strong); }
+  .seg button[aria-pressed="true"] { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 0 -2px 0 var(--action); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); }
+  .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .field { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field--q { border-style: dashed; color: var(--text2); }
+  .md { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .list { padding: 0; }
+  .filters { display: flex; align-items: center; gap: 8px; padding: 16px 16px 12px; }
+  .filters input { flex: 1; min-width: 150px; padding-inline-start: 34px; background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%276.5%27 cy=%276.5%27 r=%275%27 fill=%27none%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3Cpath d=%27M10.5 10.5l4 4%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat 11px center; }
+  .filters select.field { padding: 0 6px; }
+  .chip { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; white-space: nowrap; }
+  .thead, .row { display: grid; align-items: center; gap: 12px; padding: 0 16px; }
+  .ep { grid-template-columns: minmax(0, 1.7fr) 96px minmax(0, 1.5fr) 104px; }
+  .co { grid-template-columns: 132px minmax(0, 1.5fr) minmax(0, 1.3fr) 104px 76px 92px; }
+  .thead { height: 36px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 76px; padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .co.row { min-height: 58px; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { display: block; font-weight: 600; } .row small, .sub { display: block; color: var(--text2); font-size: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-bad b { color: var(--bad); } .t-muted b { color: var(--muted); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 16px; }
+  .pg { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--panel); }
+  .pg.on { background: var(--selected); border-color: var(--action); color: var(--action); font-weight: 600; } .pg.dis { color: var(--muted); border-color: var(--border); }
+  .pgs { color: var(--text2); margin: 0 6px; font-size: 13px; } .gap { color: var(--text2); }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text2); } .empty strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 4px; }
+  .insp__head h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35; }
+  .insp__body { padding: 0 20px 12px; }
+  .kv { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: center; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; }
+  .kv .sub { text-align: end; }
+  .q { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-inline-start: 6px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); cursor: help; vertical-align: 1px; }
+  .strip { display: grid; grid-template-columns: repeat(3, 1fr); padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .strip strong { display: block; font-size: 16px; font-weight: 600; } .strip span { color: var(--text2); font-size: 13px; line-height: 1.3; display: block; }
+  .links { display: flex; gap: 2px; margin: 8px 0 4px; flex-wrap: wrap; } .links .btn { padding: 0 8px; } .links .btn:first-child { padding-inline-start: 0; }
+  .sect { border-top: 1px solid var(--border); padding: 12px 20px; }
+  .sect h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .note { width: 100%; height: 40px; border: 1px solid var(--strong); border-radius: 6px; padding: 0 10px; font: inherit; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: flex-start; }
+  .acts > span { display: inline-flex; flex-direction: column; gap: 2px; } .acts small { color: var(--text2); font-size: 12px; max-width: 150px; }
+  .acth { display: flex; align-items: center; } .acth .btn { margin-inline-start: auto; height: 32px; }
+  .act { list-style: none; margin: 6px 0 0; padding: 0; } .act li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 4px 0; } .act li span:first-child { color: var(--text2); font-size: 13px; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .insp__foot > span:first-child { color: var(--text2); } .insp__foot strong { color: var(--text); }
+  .illus { margin: 8px 20px 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .scrim { position: fixed; inset: 0; background: rgba(243, 246, 250, .6); display: none; place-items: center; z-index: 5; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); }
+  .dlg--wide { width: 760px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; } .dlg h3 span { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; }
+  .dlg p { margin: 8px 0; } .dlg .kv { grid-template-columns: 120px 1fr; } .dlg .kv > span:last-child { text-align: start; }
+  .dlg .df { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .key { display: grid; grid-template-columns: 250px 1fr; gap: 6px 16px; align-items: center; }
+  .key > span:nth-child(even) { color: var(--text2); }
+  .opts { display: inline-flex; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; height: 40px; }
+  .opts span { padding: 0 12px; display: grid; place-items: center; border-inline-start: 1px solid var(--strong); cursor: pointer; } .opts span:first-child { border: 0; }
+  .opts span.on { background: var(--selected); color: var(--action); font-weight: 600; }
+  .status { color: var(--text2); } .status.bad { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 0 10px 0 0; height: 40px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div class="on">Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title; the view toggle (no counts) beside How to read, top right -->
+    <div class="head">
+      <div><span class="eyebrow">Find problems</span><h1>Loop Events</h1></div>
+      <span class="grow"></span>
+      <span class="ann" data-n="1"><div class="seg" role="group" aria-label="Loop events view">
+        <button id="vEp" aria-pressed="true" onclick="setState('open')">Episodes</button>
+        <button id="vCo" aria-pressed="false" onclick="setState('cond')">Fast conditions</button>
+      </div></span>
+      <button class="btn" onclick="openDlg('howto')">How to read</button>
+    </div>
+
+    <div class="md">
+      <!-- EPISODES list -->
+      <section class="card list" id="listEp">
+        <!-- 2 one filter row, search first, dropdowns named by their options; no count note, no list title -->
+        <div class="filters ann" data-n="2">
+          <input class="field" type="search" id="q" placeholder="Loop, EVT, family or diagnosis" aria-label="Find">
+          <select class="field" id="fstate" aria-label="Event state">
+            <option value="all">All 500</option><option value="open">Open 325</option><option value="unobservable">Unobservable 322</option>
+            <option value="unacknowledged">Unacknowledged 323</option><option value="acknowledged">Acknowledged 7</option>
+            <option value="shelved">Shelved 0</option><option value="shelfExpired">Shelf expired 1</option><option value="closed">Closed 175</option>
+          </select>
+          <select class="field" aria-label="Severity"><option>All severities</option><option>High</option><option>Medium</option><option>Low</option></select>
+          <select class="field" aria-label="Order"><option>Triage</option><option>Newest</option></select>
+          <!-- 3 question: a window-kind filter, as on every other CPA page (adds a capability) -->
+          <span class="field field--q ann" data-n="3" title="Owner question 7: not on the page today">All windows</span>
+        </div>
+        <div class="thead ep"><span>Loop / peak diagnosis</span><span>Severity</span><span>Review</span><span class="ann" data-n="4" style="justify-self:start;padding-inline-end:14px">Opened · UTC</span></div>
+        <div id="rowsEp" role="list" aria-label="Episodes"></div>
+        <div class="empty hide" id="emptyEp"><strong id="emptyT"></strong><button class="btn btn--out" onclick="setState('open')">Show all events</button></div>
+        <!-- 5 the shared pager: 32 px buttons, centred; no "1–10 of 325" line -->
+        <div class="pager ann" data-n="5" id="pagerEp"></div>
+      </section>
+
+      <!-- FAST CONDITIONS list -->
+      <section class="card list hide" id="listCo">
+        <!-- 12 search + state (question 2: adds a capability), rows open first, pager -->
+        <div class="filters ann" data-n="12">
+          <input class="field" type="search" id="cq" placeholder="Loop or description" aria-label="Find a condition">
+          <select class="field" id="cstate" aria-label="Condition state"><option value="all">All 300</option><option value="open">Open 26</option><option value="closed">Closed 274</option></select>
+        </div>
+        <div class="thead co"><span>State</span><span>Loop</span><span>Condition</span><span>Started · UTC</span><span>Duration</span><span>Close reason</span></div>
+        <div id="rowsCo" role="list" aria-label="Fast conditions"></div>
+        <div class="empty hide" id="emptyCo"><strong>No condition matches</strong></div>
+        <div class="pager" id="pagerCo"></div>
+      </section>
+
+      <!-- the selected episode -->
+      <aside class="card insp" id="panelEp" aria-label="Selected episode">
+        <!-- 6 the head is the finding; rows merged; each fact once -->
+        <div class="insp__head ann" data-n="6"><h2 id="pPeak"></h2><span class="grow"></span><span id="pSev"></span></div>
+        <div class="insp__body">
+          <div class="kv" id="kLatest"><span>Latest</span><span id="pLatest"></span></div>
+          <div class="kv"><span>Condition</span><span id="pCond"></span></div>
+          <div class="kv"><span>Review</span><span id="pReview"></span></div>
+          <div class="kv"><span>Shelf</span><span id="pShelf"></span></div>
+          <div class="kv"><span>Period</span><span id="pPeriod"></span></div>
+          <div class="strip" role="group" aria-label="Evidence of this episode">
+            <div><strong id="pEv"></strong><span>Peak evidence</span></div>
+            <div><strong id="pSup"></strong><span>Qualified support</span></div>
+            <div><strong id="pWin"></strong><span>Non-overlap windows</span></div>
+          </div>
+          <!-- 7 links named after what they open: a dialog first, then the pages (flat) -->
+          <div class="links ann" data-n="7" style="padding-inline-end:14px">
+            <button class="btn" onclick="openDlg('record')">Record details</button>
+            <span class="btn">Historical ↗</span>
+            <span class="btn">Loop ↗</span>
+          </div>
+        </div>
+        <!-- 8 the actions: Shelve… and Unshelve… open dialogs -->
+        <div class="sect ann" data-n="8">
+          <input class="note" placeholder="Note (optional)" aria-label="Note">
+          <div class="acts" id="pActs"></div>
+        </div>
+        <!-- 9 Activity & notes: who, when and why of each action, once -->
+        <div class="sect ann" data-n="9">
+          <div class="acth"><h3>Activity &amp; notes</h3><button class="btn" onclick="openDlg('history')">Full history</button></div>
+          <ul class="act" id="pAct"></ul>
+        </div>
+        <div class="illus hide" id="pIllus">Illustrative: the lab has no shelved episode (Shelved 0). Values drawn on EVT-2228.</div>
+        <!-- 10 the foot names the episode once and holds the way on -->
+        <div class="insp__foot ann" data-n="10"><span id="pFoot"></span><span class="grow"></span><span class="btn btn--raised">Investigation →</span></div>
+      </aside>
+
+      <!-- the selected fast condition -->
+      <aside class="card insp hide" id="panelCo" aria-label="Selected condition">
+        <div class="insp__head"><h2 id="cKind"></h2><span class="grow"></span><span id="cState"></span></div>
+        <div class="insp__body">
+          <div class="kv"><span>Gate</span><span id="cGate"></span></div>
+          <div class="kv"><span>Started</span><span id="cStart"></span></div>
+          <div class="kv"><span>Duration</span><span id="cDur"></span></div>
+          <div class="kv"><span>Last update</span><span id="cLast"></span></div>
+          <div class="kv" id="kReason"><span>Close reason</span><span id="cReason"></span></div>
+          <div class="links ann" data-n="13" style="padding-inline-end:14px"><span class="btn">Workbench ↗</span><span class="btn">Window Inspector ↗</span></div>
+        </div>
+        <div class="insp__foot"><span id="cFoot"></span><span class="grow"></span><span class="btn btn--raised">Loop Explorer →</span></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<!-- dialogs (11) -->
+<div class="scrim" id="scrim">
+  <div class="card dlg dlg--wide ann" data-n="11" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Review</h4>
+    <div class="key">
+      <span><span class="pill t-warn"><b>!</b>Unacknowledged</span></span><span>Open and not reviewed. An active shelf takes it out of this queue.</span>
+      <span><span class="pill t-ok"><b>✓</b>Acknowledged</span></span><span>Reviewed. A shelf stays until it expires or is unshelved.</span>
+      <span><span class="pill t-muted"><b>◐</b>Shelved · expires in 3.0 h</span></span><span>Out of the queue until the expiry. Shelving does not review it.</span>
+      <span><span class="pill t-warn"><b>!</b>Shelf expired · unreviewed</span></span><span>Back in the queue: nobody reviewed it.</span>
+    </div>
+    <h4>Condition</h4>
+    <div class="key">
+      <span><span class="pill t-warn"><b>●</b>Open</span></span><span>The newest window still carries the finding.</span>
+      <span><span class="pill t-warn"><b>⊘</b>Open · Unobservable</span></span><span>The newest window could not be judged (excluded or insufficient data), so the condition has not recovered.</span>
+      <span><span class="pill t-muted"><b>○</b>Closed · recovered</span></span><span>An evaluable, fault-free result with enough qualified support.</span>
+      <span><span class="pill t-muted"><b>○</b>Closed · family changed</span></span><span>A different fault family took over the loop.</span>
+      <span><span class="pill t-muted"><b>?</b>Availability unknown</span></span><span>Recorded before v2.5.</span>
+    </div>
+    <h4>Rows</h4>
+    <div class="key">
+      <span>One row</span><span>One episode of one fault family on one window kind (12h or 24h). A change in its evidence score extends it rather than duplicating it.</span>
+      <span>Triage · Newest</span><span>Worst first · by the time it opened.</span>
+    </div>
+    <h4>Fast conditions</h4>
+    <div class="key">
+      <span>G10 · Valve / saturation, G11 · Sensor health</span><span>Limit high, limit low and freeze, detected within a minute, before the next fused window.</span>
+      <span><span class="pill t-muted"><b>◌</b>Stale</span></span><span>Open on record but not updated for 10 min: the engine restarted or the loop's samples stopped.</span>
+    </div>
+  </div>
+
+  <div class="card dlg ann" data-n="11" data-dlg="shelve">
+    <h3 id="shT">Shelve <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p id="shP"></p>
+    <div class="kv"><span>For</span><span><span class="opts" id="shOpts"><span>1 hour</span><span class="on">8 hours</span><span>24 hours</span><span>7 days</span><span>Until…</span></span></span></div>
+    <div class="kv"><span>Reason</span><span><input class="note" id="shR" placeholder="maintenance planned · known disturbance · awaiting VP mapping"></span></div>
+    <p class="status" id="shS" role="status"></p>
+    <div class="df"><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised" id="shB">Shelve</button></div>
+  </div>
+
+  <div class="card dlg ann" data-n="11" data-dlg="unshelve">
+    <h3>Unshelve <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p id="unP"></p>
+    <div class="kv"><span>Reason</span><span><input class="note" placeholder="Optional: valve overhauled · disturbance cleared · shelved by mistake"></span></div>
+    <div class="df"><button class="btn" onclick="closeDlg()">Cancel</button><button class="btn btn--raised">Unshelve</button></div>
+  </div>
+
+  <div class="card dlg dlg--wide ann" data-n="11" data-dlg="history">
+    <h3>Full history <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>Actions</h4>
+    <table><thead><tr><th>Time · UTC</th><th>Action</th><th>By</th><th>Until</th><th>Reason</th></tr></thead><tbody id="hRows"></tbody></table>
+    <p class="status hide" id="hNone">No action recorded yet.</p>
+    <h4>Notes</h4>
+    <p class="status" id="hNotes"></p>
+    <div style="display:flex;gap:8px;align-items:center"><select class="field" aria-label="Link a loop note" style="flex:1"><option>Link a loop note…</option><option>3 Oct 09:12 · Valve sticks below 20 % OP, maintenance asked</option></select><button class="btn btn--out">Link</button></div>
+    <p class="status" style="font-size:12px">Illustrative: the link row shows only when the loop has notes not yet linked; the lab's loop notes were not read.</p>
+  </div>
+
+  <div class="card dlg ann" data-n="11" data-dlg="record">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Fault family</span><span id="rFam"></span></div>
+    <div class="kv"><span>Calculation</span><span>v3.0.0 · profile v2.0.0</span></div>
+    <div class="kv"><span>Support until</span><span id="rUntil"></span></div>
+    <div class="df"><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out" onclick="setState('open')">Open · EVT-2231</button>
+  <button class="btn btn--out" onclick="setState('ack')">Acknowledged · EVT-2230</button>
+  <button class="btn btn--out" onclick="setState('shelved')">Shelved (illustrative)</button>
+  <button class="btn btn--out" onclick="setState('expired')">Shelf expired · EVT-829</button>
+  <button class="btn btn--out" onclick="setState('empty')">No match</button>
+  <button class="btn btn--out" onclick="setState('cond')">Fast conditions</button>
+</div>
+
+<script>
+  // Lab :4173, 11 Nov. Page 1 of Open · Triage: every row is Oscillation confirmed · High · Open · Unobservable, opened 5 Oct 07:45.
+  const base = (id, loop, kind, sup, until, extra = {}) => Object.assign({ id, loop, kind, peak: 'Oscillation confirmed', sev: ['bad', 'High'], ack: false, cond: 'unobs',
+    opened: '5 Oct 07:45', closed: null, latest: 'Not evaluated: not enough data', ev: '100', sup, win: '1', family: 'Oscillation', until, shelf: null, act: [] }, extra);
+  const D = '2.1 d', H = '16.8 h';
+  const PAGE = [
+    base(2231, 'PIC40102', '24h', D, '6 Oct 10:00'),
+    base(2230, 'PIC40102', '12h', H, '5 Oct 12:30', { ack: true, act: [['15 Oct 07:05', 'Acknowledged', 'superadmin', '']] }),
+    base(2229, 'PIC30325', '24h', D, '6 Oct 10:00'), base(2228, 'PIC30325', '12h', H, '5 Oct 12:30'),
+    base(2227, 'LIC20402', '24h', D, '6 Oct 10:00'), base(2226, 'LIC20402', '12h', H, '5 Oct 12:30'),
+    base(2225, 'FIC10406', '24h', D, '6 Oct 10:00'), base(2224, 'FIC10406', '12h', '2.2 d', '6 Nov 22:00', { win: '3' }),
+    base(2223, 'PIC10104', '24h', D, '6 Oct 10:00'), base(2222, 'PIC10104', '12h', H, '5 Oct 12:30'),
+  ];
+  const EXPIRED = base(829, 'FIC10303A', '24h', '—', '—', { peak: 'Valve nonlinearity (stiction) suspected', cond: 'closed', opened: '2 Sept 07:30', closed: '5 Oct 07:30',
+    latest: 'No fault identified', ev: '89', win: '39', family: 'Final element nonlinearity', shelf: { s: 'expired', until: '21 Sept 12:24', ago: '50.7 d ago' },
+    act: [['20 Sept 12:24', 'Shelved', 'admin', '', '21 Sept 12:24']] });
+  const SHELVED = Object.assign({}, PAGE[3], { shelf: { s: 'active', until: '11 Nov 21:30', left: 'expires in 8.0 h' },
+    act: [['11 Nov 13:30', 'Shelved', 'superadmin', 'maintenance planned', '11 Nov 21:30']] });
+  // Fast conditions as the API orders them: open first. All 26 open ones are stale on the lab (last update 7 Nov or older).
+  const C = (state, loop, desc, gate, kind, start, dur, last, reason) => ({ state, loop, desc, gate, kind, start, dur, last, reason });
+  const CONDS = [
+    C('stale', 'TIC20607', 'Temperature controller (FCS0102)', 'G10', 'Limit high', '7 Nov 10:24', '1.5 h', '7 Nov 11:51'),
+    C('stale', 'TIC30501', 'Temperature controller (FCS0102)', 'G10', 'Limit high', '7 Nov 10:24', '1.5 h', '7 Nov 11:51'),
+    C('stale', 'TIC30304', 'Temperature controller (FCS0102)', 'G10', 'Limit low', '7 Nov 10:24', '1.5 h', '7 Nov 11:51'),
+    C('stale', 'LIC20601', 'Level controller (FCS0102)', 'G10', 'Limit high', '7 Nov 09:46', '2.1 h', '7 Nov 11:51'),
+    C('stale', 'LIC30101', 'Level controller (FCS0102)', 'G10', 'Limit high', '7 Nov 09:46', '2.1 h', '7 Nov 11:51'),
+    C('stale', 'LIC30501', 'Level controller (FCS0102)', 'G10', 'Limit high', '7 Nov 09:46', '2.1 h', '7 Nov 11:51'),
+    C('stale', 'TIC10704', 'Temperature controller (FCS0101)', 'G10', 'Limit high', '7 Nov 09:46', '2.1 h', '7 Nov 11:51'),
+    C('stale', 'PIC00551', 'Pressure controller (FCS0101)', 'G10', 'Limit high', '7 Nov 10:06', '1.7 h', '7 Nov 11:51'),
+    C('stale', 'TIC80105', 'Temperature controller (FCS0101)', 'G10', 'Limit low', '7 Nov 11:48', '3.1 min', '7 Nov 11:51'),
+    C('stale', 'FIC10302', 'Reactor feed flow', 'G11', 'Freeze', '25 Sept 16:42', '1.0 min', '25 Sept 16:43'),
+    C('closed', 'TIC80105', 'Temperature controller (FCS0101)', 'G10', 'Limit low', '7 Nov 11:43', '3.3 min', '7 Nov 11:46', 'left limit'),
+    C('closed', 'TIC80105', 'Temperature controller (FCS0101)', 'G10', 'Limit low', '7 Nov 11:38', '3.6 min', '7 Nov 11:42', 'left limit'),
+    C('closed', 'TIC80105', 'Temperature controller (FCS0101)', 'G10', 'Limit low', '7 Nov 11:34', '3.3 min', '7 Nov 11:37', 'left limit'),
+  ];
+  const GATE = { G10: 'G10 · Valve / saturation', G11: 'G11 · Sensor health' };
+  const STATES = {
+    open: { rows: PAGE, sel: 2231, filter: 'open' }, ack: { rows: PAGE, sel: 2230, filter: 'open' },
+    shelved: { rows: PAGE.map(e => e.id === 2228 ? SHELVED : e), sel: 2228, filter: 'open', illus: true },
+    expired: { rows: [EXPIRED], sel: 829, filter: 'shelfExpired' }, empty: { rows: [], q: 'zzz', filter: 'open' }, cond: { view: 'cond' },
+  };
+  let state = 'open', rows = PAGE, sel = 2231, csel = 0;
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w) => `<span class="pill t-${t}"><b>${g}</b>${w}</span>`;
+  const review = e => e.shelf?.s === 'active' ? pill('muted', '◐', `Shelved · ${e.shelf.left}`)
+    : e.shelf?.s === 'expired' ? (e.ack ? pill('muted', '◐', 'Shelf expired') : pill('warn', '!', 'Shelf expired · unreviewed'))
+    : e.ack ? pill('ok', '✓', 'Acknowledged') : pill('warn', '!', 'Unacknowledged');
+  const line = e => e.cond === 'closed' ? 'Closed' : e.cond === 'unobs' ? 'Open · Unobservable' : 'Open';
+  const condPill = e => e.cond === 'closed' ? pill('muted', '○', 'Closed · recovered') : e.cond === 'unobs' ? pill('warn', '⊘', 'Open · Unobservable') : pill('warn', '●', 'Open');
+  const sevPill = s => `<span class="pill t-${s[0]}"><b>●</b>${s[1]}</span>`;
+  const pager = (cur, n) => { const ps = n <= 5 ? [...Array(n).keys()].map(i => i + 1) : [1, 2, 3, null, n];
+    return `<span class="pg${cur === 1 ? ' dis' : ''}">«</span><span class="pg${cur === 1 ? ' dis' : ''}">‹</span>` + ps.map(p => p == null ? '<span class="gap">…</span>' : `<span class="pg${p === cur ? ' on' : ''}">${p}</span>`).join('')
+      + `<span class="pgs">Page ${cur} of ${n}</span><span class="pg${cur === n ? ' dis' : ''}">›</span><span class="pg${cur === n ? ' dis' : ''}">»</span>`; };
+  function renderEp() {
+    const q = $('q').value.trim().toLowerCase();
+    const vis = rows.filter(e => !q || [e.loop, 'evt-' + e.id, String(e.id), e.peak, e.family].some(t => t.toLowerCase().includes(q)));
+    $('rowsEp').innerHTML = vis.map(e => `<div role="listitem" class="row ep${e.id === sel ? ' sel' : ''}" onclick="pick(${e.id})">
+      <span><strong>${e.loop}</strong>${e.peak}<small>EVT-${e.id} · ${e.kind}</small></span><span>${sevPill(e.sev)}</span>
+      <span>${review(e)}<small style="margin-top:2px">${line(e)}</small></span><span class="sub" style="font-size:13px">${e.opened}</span></div>`).join('');
+    $('emptyEp').classList.toggle('hide', vis.length > 0);
+    $('emptyT').textContent = q ? `No episode matches “${$('q').value.trim()}”` : 'No episode matches this filter and plant scope';
+    $('pagerEp').classList.toggle('hide', vis.length === 0 || rows.length < 10);
+    $('pagerEp').innerHTML = pager(1, 33);
+    const e = vis.find(x => x.id === sel) ?? vis[0];
+    $('panelEp').style.visibility = e ? '' : 'hidden';
+    if (!e) return;
+    $('pPeak').textContent = e.peak; $('pSev').innerHTML = sevPill(e.sev);
+    $('kLatest').classList.toggle('hide', !e.latest || e.latest === e.peak); $('pLatest').textContent = e.latest;
+    $('pCond').innerHTML = condPill(e);
+    $('pReview').innerHTML = (e.ack ? pill('ok', '✓', 'Acknowledged') : pill('warn', '!', 'Unacknowledged'))
+      + (e.cond === 'closed' && !e.ack ? '<span class="q" title="This episode has closed but was never acknowledged: a closed, unacknowledged episode is an unreviewed finding, not a resolved one. It can still be acknowledged; shelving no longer applies.">?</span>' : '');
+    $('pShelf').innerHTML = !e.shelf ? '<span class="sub" style="font-size:14px">Not shelved</span>'
+      : e.shelf.s === 'active' ? `${pill('muted', '◐', 'Shelved')}<span class="sub">until ${e.shelf.until} · ${e.shelf.left}</span>`
+      : `${pill('warn', '!', 'Returned')}<span class="sub">expired ${e.shelf.until} · ${e.shelf.ago}</span>`;
+    $('pPeriod').textContent = `${e.opened} → ${e.closed ?? 'now'}`;
+    $('pEv').textContent = e.ev; $('pSup').textContent = e.sup; $('pWin').textContent = e.win;
+    const closed = e.cond === 'closed', active = e.shelf?.s === 'active';
+    $('pActs').innerHTML = `<span><button class="btn btn--raised"${e.ack ? ' disabled' : ''}>Acknowledge</button>${e.ack ? '<small>Already acknowledged</small>' : ''}</span>`
+      + `<span><button class="btn btn--out"${closed ? ' disabled' : ''} onclick="openDlg('shelve')">${active ? 'Update shelf…' : 'Shelve…'}</button>${closed ? '<small>A closed episode cannot be shelved</small>' : ''}</span>`
+      + (e.shelf ? `<span><button class="btn btn--out" onclick="openDlg('unshelve')">Unshelve…</button></span>` : '')
+      + `<span><button class="btn btn--out" disabled title="Write the note first">Save note</button></span>`;
+    $('pAct').innerHTML = e.act.length ? e.act.map(a => `<li><span>${a[0]}</span><span>${a[1]} · ${a[2]}${a[4] ? ` · until ${a[4]}` : ''}${a[3] ? ` — ${a[3]}` : ''}</span></li>`).join('') : '<li style="display:block" class="sub"><span style="font-size:14px">No activity yet</span></li>';
+    $('pFoot').innerHTML = `<strong>${e.loop}</strong> · EVT-${e.id} · ${e.kind}`;
+    $('pIllus').classList.toggle('hide', !STATES[state].illus);
+    // dialogs that depend on the episode
+    $('shT').firstChild.textContent = active ? 'Update shelf ' : 'Shelve ';
+    $('shP').textContent = active ? `This episode is shelved (${e.shelf.left}). A new expiry and reason replace the current ones; the history keeps both.`
+      : 'A shelf always expires; the episode returns to the queue afterwards with the acknowledgement it has. Shelving does not review it.';
+    $('shB').textContent = active ? 'Update shelf' : 'Shelve';
+    if (active) $('shR').value = 'maintenance planned';
+    $('unP').textContent = active ? `The shelf (${e.shelf.left}) ends now and the episode returns to the Unacknowledged queue.`
+      : 'The shelf already expired; unshelving clears the returned-from-shelf flag. The episode stays unacknowledged.';
+    $('hRows').innerHTML = e.act.map(a => `<tr><td>${a[0]}</td><td>${a[1] === 'Acknowledged' ? pill('ok', '✓', a[1]) : pill('muted', '◐', a[1])}</td><td>${a[2]}</td><td>${a[4] ?? '—'}</td><td>${a[3] || '—'}</td></tr>`).join('');
+    $('hNone').classList.toggle('hide', e.act.length > 0);
+    $('hNotes').textContent = 'No loop note is linked to this episode.';
+    $('rFam').textContent = e.family; $('rUntil').textContent = e.until === '—' ? 'Not recorded' : `${e.until} UTC`;
+    shelveStatus();
+  }
+  function shelveStatus() {
+    const r = $('shR').value.trim();
+    $('shS').textContent = r.length < 3 ? 'A reason is required.' : 'Shelved until 11 Nov 21:30 UTC · expires in 8.0 h';
+    $('shB').disabled = r.length < 3;
+  }
+  function renderCo() {
+    const q = $('cq').value.trim().toLowerCase(), f = $('cstate').value;
+    const vis = CONDS.filter(c => (f === 'all' || (f === 'open') === (c.state !== 'closed')) && (!q || (c.loop + ' ' + c.desc).toLowerCase().includes(q)));
+    const badge = c => c.state === 'closed' ? pill('muted', '○', 'Closed') : c.state === 'stale' ? pill('muted', '◌', 'Open · stale') : pill('warn', '●', 'Open');
+    $('rowsCo').innerHTML = vis.map(c => { const i = CONDS.indexOf(c); return `<div role="listitem" class="row co${i === csel ? ' sel' : ''}" onclick="cpick(${i})">
+      <span>${badge(c)}</span><span><strong>${c.loop}</strong><small>${c.desc}</small></span><span>${c.kind}<small>${GATE[c.gate]}</small></span>
+      <span class="sub" style="font-size:13px">${c.start}</span><span>${c.dur}</span><span>${c.reason || '—'}</span></div>`; }).join('');
+    $('emptyCo').classList.toggle('hide', vis.length > 0);
+    $('pagerCo').innerHTML = pager(1, f === 'open' ? 3 : f === 'closed' ? 28 : 30);
+    $('pagerCo').classList.toggle('hide', vis.length === 0);
+    const c = vis.find(x => CONDS.indexOf(x) === csel) ?? vis[0];
+    $('panelCo').style.visibility = c ? '' : 'hidden';
+    if (!c) return;
+    $('cKind').textContent = c.kind; $('cState').innerHTML = badge(c); $('cGate').textContent = GATE[c.gate];
+    $('cStart').textContent = c.start; $('cDur').textContent = c.dur;
+    $('cLast').innerHTML = c.last + (c.state === 'stale' ? '<span class="sub">not updated for 10 min or more</span>' : '');
+    $('kReason').classList.toggle('hide', !c.reason); $('cReason').textContent = c.reason;
+    $('cFoot').innerHTML = `<strong>${c.loop}</strong> · ${c.desc}`;
+  }
+  window.pick = id => { sel = id; renderEp(); };
+  window.cpick = i => { csel = i; renderCo(); };
+  window.setState = s => {
+    state = s; const S = STATES[s], cond = S.view === 'cond';
+    $('vEp').setAttribute('aria-pressed', String(!cond)); $('vCo').setAttribute('aria-pressed', String(cond));
+    ['listEp', 'panelEp'].forEach(i => $(i).classList.toggle('hide', cond)); ['listCo', 'panelCo'].forEach(i => $(i).classList.toggle('hide', !cond));
+    if (cond) { csel = 0; renderCo(); return; }
+    [...$('fstate').options].forEach(o => { o.dataset.t ??= o.text; o.text = s === 'empty' ? o.dataset.t.replace(/\d+$/, '0') : o.dataset.t; });
+    rows = S.rows; sel = S.sel ?? null; $('q').value = S.q ?? ''; $('fstate').value = S.filter; $('shR').value = ''; renderEp();
+  };
+  window.openDlg = d => { $('scrim').classList.add('on'); document.querySelectorAll('[data-dlg]').forEach(x => x.classList.toggle('on', x.dataset.dlg === d)); };
+  window.closeDlg = () => $('scrim').classList.remove('on');
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  $('q').addEventListener('input', renderEp); $('cq').addEventListener('input', renderCo); $('cstate').addEventListener('change', () => { csel = -1; renderCo(); });
+  $('shR').addEventListener('input', shelveStatus);
+  $('fstate').addEventListener('change', e => { if (e.target.value === 'shelfExpired') setState('expired'); else if (e.target.value === 'open') setState('open'); });
+  document.querySelectorAll('#shOpts span').forEach(o => o.addEventListener('click', () => { document.querySelectorAll('#shOpts span').forEach(x => x.classList.toggle('on', x === o)); }));
+  setState('open');
+</script>
+</body>
+</html>

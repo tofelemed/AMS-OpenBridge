@@ -1,26 +1,43 @@
-/* Loop Events (CHG-136): placement and tone only; every size is the app's own token or class. */
+/* Loop Events (CHG-136, CHG-167 the owner's approved sample): placement and tone only; every size is the app's own token or class. */
 
-/* The list's heading sits inside a surface with no padding of its own */
-.cpm-episodes__title { padding: var(--traverse-space-3) var(--traverse-space-3) 0; }
+/* ── The list card: one filter row inside it, then the column head, the rows and the pager ── */
+.cpm-events-list { padding: 0; }
+.cpm-events-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2);
+  padding: var(--traverse-space-4) var(--traverse-space-4) var(--traverse-space-3);
+}
+/* search first, taking the room the dropdowns leave */
+.cpm-events-filters .cpm-input { flex: 1 1 12rem; min-width: 0; }
+.cpm-events-filters .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+.cpm-events-notice { padding: var(--traverse-space-2) var(--traverse-space-4); }
+/* the shared pager (32 px buttons), centred under the rows */
+.cpm-events-pager { display: flex; justify-content: center; padding: var(--traverse-space-3) var(--traverse-space-4); }
 
 /* One grid for the head and every row: minmax(0, ..) so no row sizes itself to its content, and the head carries the
-   rows' 3px edge so every value starts under its heading */
+   rows' 3px edge so every value starts under its heading. CHG-167: the Review column is wide enough for
+   "Shelf expired · unreviewed", which ran into the Opened date; on a narrower list the pill wraps inside its column. */
 .cpm-episodes .cpm-events-grid {
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.6fr) minmax(0, 0.9fr) minmax(0, 0.6fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.6fr) minmax(0, 1.5fr) minmax(0, 0.65fr);
+  column-gap: var(--traverse-space-3);
+  border-left: 3px solid transparent;
+}
+/* Fast conditions: State, Loop, Condition, Started, Duration, Close reason */
+.cpm-events-list .cpm-conditions-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 0.6fr) minmax(0, 0.7fr);
   column-gap: var(--traverse-space-2);
   border-left: 3px solid transparent;
 }
-.cpm-episodes .cpm-event-row--selected { border-left-color: var(--cpm-selected-edge); }
+.cpm-events-list .cpm-event-row--selected { border-left-color: var(--cpm-selected-edge); }
 /* the pill looks the same on the selected row: keep its own outline */
-.cpm-episodes .cpm-event-row--selected .cpm-pill { border-color: var(--border-divider-color); }
+.cpm-events-list .cpm-event-row--selected .cpm-pill { border-color: var(--border-divider-color); }
+/* the review pill over its state line, one each; a long pill wraps in its column rather than running into the next */
+.cpm-events-list .cpm-event-row--dense .cpm-event-row__states { flex-direction: column; flex-wrap: nowrap; min-width: 0; }
+.cpm-events-list .cpm-event-row__states .cpm-pill { white-space: normal; max-width: 100%; }
 
-/* Peak diagnosis and "EVT-n · 12h" are lines under the tag, one each */
+/* Peak diagnosis and "EVT-n · 12h" (or a loop's description, a gate's name) are lines under the first, one each */
 .cpm-episodes__line { display: block; }
 
-/* Review X → runs the full width of the detail */
-.cpm-episode-review { display: flex; margin: var(--traverse-space-2) 0; }
-.cpm-episode-review > * { flex: 1; }
-
+/* ── The panel ── */
 /* Peak evidence, qualified support, windows: one strip */
 .cpm-episode-strip {
   display: grid;
@@ -34,15 +51,75 @@
 .cpm-episode-strip__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-1); min-width: 0; }
 .cpm-episode-strip__value { font-weight: 600; }
 
-/* Full history ↗ sits on the heading's row, on its baseline */
-.cpm-episode-activity .cpm-panel-head { align-items: center; }
+/* a second pill on a row (Availability unknown beside the condition) keeps its distance */
+.cpm-events .cpm-kv__value .cpm-pill + .cpm-pill { margin-inline-start: var(--traverse-space-1); }
+/* Record details · Historical ↗ · Loop ↗, flat, on one line */
+.cpm-events-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); margin: var(--traverse-space-2) 0; }
+/* the note and the actions, then Activity & notes: sections edge to edge of the panel */
+.cpm-events-panel__sect {
+  margin: var(--traverse-space-3) calc(-1 * var(--traverse-size-panel-padding)) 0;
+  padding: var(--traverse-space-3) var(--traverse-size-panel-padding) 0;
+  border-top: 1px solid var(--traverse-border-subtle);
+}
+.cpm-events-note { width: 100%; }
+.cpm-events-panel__head { display: flex; align-items: center; justify-content: space-between; gap: var(--traverse-space-2); }
 
-/* Activity & notes: time, then what happened */
-.cpm-episode-activity__list { list-style: none; margin: 0; padding: 0; }
+/* Activity & notes: the time in its own column, then what happened */
+.cpm-episode-activity__list { list-style: none; margin: var(--traverse-space-1) 0 0; padding: 0; }
 .cpm-episode-activity__item {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--traverse-space-1) var(--traverse-space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+  gap: var(--traverse-space-2);
   padding: var(--traverse-space-1) 0;
-  border-bottom: 1px solid var(--border-divider-color);
+}
+
+/* The foot names the item once, beside the way on; it sits on the page colour, as the list feet do */
+.cpm-events .ui-inspector__foot {
+  background: var(--traverse-surface-page);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+.cpm-events-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
+.cpm-events-foot__id { flex: 1 1 10rem; min-width: 0; color: var(--traverse-text-secondary); }
+.cpm-events-foot__id strong { color: var(--traverse-text-primary); font-weight: 600; }
+
+/* ── Dialogs ── */
+/* Shelve / Unshelve: titled parts in two aligned columns */
+.cpm-events-form {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--traverse-space-3) var(--traverse-space-4);
+  margin: var(--traverse-space-4) 0;
+}
+.cpm-events-form__row { display: contents; }
+.cpm-events-form__label { color: var(--traverse-text-secondary); }
+.cpm-events-form .cpm-input { width: 100%; }
+.cpm-events-form__value { min-width: 0; }
+/* the For options keep their own width and wrap inside the dialog on a phone (the dialog sits outside .cpm-screen) */
+.cpm-events-form__value .ui-segmented { flex-wrap: wrap; max-width: 100%; }
+/* Record details: the copy control beside its value, the label on the same line */
+.cpm-events-record .cpm-kv { align-items: center; }
+.cpm-events-copy { margin-inline-start: var(--traverse-space-1); vertical-align: middle; }
+/* Full history: the link control on one line under the notes */
+.cpm-events-link .cpm-select { flex: 1 1 12rem; min-width: 0; }
+/* How to read: a key per part, the pill or term beside what it means */
+.cpm-howto__key {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--traverse-space-2) var(--traverse-space-4);
+  margin: 0;
+}
+.cpm-howto__row { display: contents; }
+.cpm-howto__key dt { margin: 0; color: var(--traverse-text-primary); }
+.cpm-howto__key dd { margin: 0; color: var(--traverse-text-secondary); }
+
+/* ── A phone: one stacked card per row, the column head goes; dialogs read in one column ── */
+@media (max-width: 600px) {
+  .cpm-episodes .cpm-events-grid,
+  .cpm-events-list .cpm-conditions-grid { grid-template-columns: minmax(0, 1fr); row-gap: var(--traverse-space-1); }
+  .cpm-events-list .cpm-event-head { display: none; }
+  .cpm-events-form, .cpm-howto__key { grid-template-columns: minmax(0, 1fr); }
+  .cpm-howto__key dd { margin-bottom: var(--traverse-space-2); }
 }

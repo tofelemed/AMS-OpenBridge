@@ -1,6 +1,7 @@
 /**
- * SME review #22 (CHG-058; CHG-136: inside the Full history dialog, no heading of its own): the loop notes linked to this diagnosis episode, and linking one written before the
- * episode opened. Linking is a record, not an acknowledgement.
+ * SME review #22 (CHG-058; CHG-136 inside the Full history dialog): the loop notes linked to this diagnosis episode, and linking
+ * one written before the episode opened. Linking is a record, not an acknowledgement. CHG-167 (owner review): the Notes part of
+ * Full history; "No loop note is linked to this episode." when there is none; the control reads "Link a loop note…" · Link.
  */
 import React, { useState } from 'react';
 import type { CpmEventFrame } from '../../../api/cpmApi';
@@ -10,6 +11,7 @@ import { ReasonedButton } from '../ReasonedButton';
 import { fmtInstant } from '../context/LoopContextBar';
 import { codeLabel } from '../vocabulary';
 import { ActionReceipt, byNow, receiptDone, receiptFailed, useReceiptUser, type Receipt } from '../ActionReceipt';
+import { stamp } from './eventTime';
 
 export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
@@ -24,7 +26,7 @@ export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
   const notes = linked.data?.investigations ?? [];
   return (
     <section className="cpm-episode-notes" data-testid="episode-notes">
-      {notes.length > 0 && (
+      {notes.length > 0 ? (
         <ol className="cpm-loop-notes__list">
           {notes.map(n => (
             <li key={n.refId} className="cpm-loop-notes__item">
@@ -33,23 +35,20 @@ export const EpisodeNotes: React.FC<{ event: CpmEventFrame }> = ({ event }) => {
             </li>
           ))}
         </ol>
-      )}
+      ) : <p className="cpm-metric-na">No loop note is linked to this episode.</p>}
       {unlinked.length > 0 && (
-        <div className="cpm-filter-row">
-          <label className="cpm-field cpm-field--compact">
-            <span className="cpm-field__label">Link a loop note</span>
-            <select className="cpm-select" value={pick} onChange={e => setPick(e.target.value)}>
-              <option value="">— choose a note —</option>
-              {unlinked.map(n => <option key={n.refId} value={n.refId}>{fmtInstant(n.createdAt)} · {n.note.slice(0, 60)}</option>)}
-            </select>
-          </label>
+        <div className="cpm-filter-row cpm-events-link">
+          <select className="cpm-select" aria-label="Link a loop note" value={pick} onChange={e => setPick(e.target.value)}>
+            <option value="">Link a loop note…</option>
+            {unlinked.map(n => <option key={n.refId} value={n.refId}>{stamp(n.createdAt)} · {n.note.slice(0, 60)}</option>)}
+          </select>
           <ReasonedButton variant="normal" disabled={!canManage || !pick || link.isPending}
             reason={!canManage ? 'Needs the cpm.manage permission' : null}
             onClick={() => link.mutate({ refId: pick, eventId: event.id }, {
               onSuccess: () => { setPick(''); setReceipt(receiptDone(`Note linked to EVT-${event.id} ${byNow(user)}`)); },
               onError: err => setReceipt(receiptFailed('Linking the note', err)),
             })}>
-            {link.isPending ? 'Linking…' : 'Link to this episode'}
+            {link.isPending ? 'Linking…' : 'Link'}
           </ReasonedButton>
         </div>
       )}

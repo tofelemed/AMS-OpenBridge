@@ -225,13 +225,14 @@ export function diagnosisBand(diagnosis: string | null | undefined): {
   return { label: diagnosisLabel(diagnosis), tone: 'muted' };
 }
 
-/** CPA's dot+label pill. */
-export const TonePill: React.FC<{ tone?: CpmTone; children: React.ReactNode }> = ({
+/** CPA's dot+label pill. CHG-167: `glyph` replaces the dot with the state's glyph (tone + glyph + word). */
+export const TonePill: React.FC<{ tone?: CpmTone; glyph?: string; children: React.ReactNode }> = ({
   tone = 'muted',
+  glyph,
   children,
 }) => (
   <span className={`cpm-pill cpm-pill--${tone}`}>
-    <span className="cpm-pill__dot" aria-hidden />
+    {glyph ? <span className="cpm-pill__glyph" aria-hidden>{glyph}</span> : <span className="cpm-pill__dot" aria-hidden />}
     {children}
   </span>
 );

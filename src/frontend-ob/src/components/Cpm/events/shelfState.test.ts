@@ -2,7 +2,7 @@
 // "Shelved"; an acknowledged episode can still be shelved; unshelving keeps the ack.
 import { describe, it, expect } from 'vitest';
 import type { CpmEventFrame } from '../../../api/cpmApi';
-import { matchesEventFilter, presetsWithin, shelfCountdown, shelfState, stateView } from './shelfState';
+import { ACTION_VIEW, matchesEventFilter, presetsWithin, reviewView, reviewWord, shelfCountdown, shelfState, stateView } from './shelfState';
 
 const NOW = Date.parse('2026-09-20T09:00:00Z');
 const frame = (over: Partial<CpmEventFrame>): CpmEventFrame => ({
@@ -63,5 +63,27 @@ describe('shelfState', () => {
   it('offers only the presets the site limit allows', () => {
     expect(presetsWithin(168).map(p => p.hours)).toEqual([1, 8, 24, 168]);
     expect(presetsWithin(24).map(p => p.hours)).toEqual([1, 8, 24]);
+  });
+});
+
+// CHG-167 (owner review): a review pill is tone + glyph + word; the severity keeps its dot.
+describe('review glyphs (CHG-167)', () => {
+  it('gives each review state the glyph of its state', () => {
+    expect(reviewView(frame({}), NOW)).toEqual({ label: 'Unacknowledged', tone: 'warn', glyph: '!' });
+    expect(reviewView(frame({ ack_state: 'ACKNOWLEDGED' }), NOW)).toEqual({ label: 'Acknowledged', tone: 'good', glyph: '✓' });
+    expect(reviewView(active(), NOW)).toMatchObject({ label: 'Shelved · expires in 3.0 h', tone: 'muted', glyph: '◐' });
+    expect(reviewView(lapsed(), NOW)).toMatchObject({ label: 'Shelf expired · unreviewed', tone: 'warn', glyph: '!' });
+    expect(reviewView(lapsed({ ack_state: 'ACKNOWLEDGED' }), NOW)).toMatchObject({ label: 'Shelf expired', tone: 'muted', glyph: '◐' });
+  });
+
+  it('names the review alone for the panel row, in the words of the list', () => {
+    expect(reviewWord(frame({}))).toEqual({ label: 'Unacknowledged', tone: 'warn', glyph: '!' });
+    expect(reviewWord(active({ ack_state: 'ACKNOWLEDGED' }))).toEqual({ label: 'Acknowledged', tone: 'good', glyph: '✓' });
+  });
+
+  it('gives every history action a glyph', () => {
+    expect(Object.values(ACTION_VIEW).every(v => !!v.glyph)).toBe(true);
+    expect(ACTION_VIEW.ACKNOWLEDGED.glyph).toBe('✓');
+    expect(ACTION_VIEW.SHELVED.glyph).toBe('◐');
   });
 });

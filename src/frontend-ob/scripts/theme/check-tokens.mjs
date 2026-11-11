@@ -24,7 +24,7 @@ const T9_REPLACED_FILES = new Set([
   'components/Cpm/GateMatrix.tsx',
   'components/Cpm/config/EditorView.tsx',
   'components/Cpm/config/GateConfigurationWorkspace.tsx',
-  'components/Cpm/events/ShelvePanel.tsx',
+  'components/Cpm/events/ShelveDialog.tsx',
   'components/Cpm/explorer/LoopTree.tsx',
   'components/Cpm/explorer/LoopWorkspace.tsx',
   'components/Cpm/explorer/summary/LoopSummaryCard.tsx',

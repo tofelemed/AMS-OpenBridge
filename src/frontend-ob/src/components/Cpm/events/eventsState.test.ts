@@ -2,7 +2,7 @@
 // episode is neither "closed" nor "healthy", and a pre-v2.5 row is not assumed observed.
 import { describe, it, expect } from 'vitest';
 import type { CpmEventFrame } from '../../../api/cpmApi';
-import { availabilityCopy, availabilityOf, availabilityPill, conditionOf, matchesEventFilter, supportCopy } from './eventsState';
+import { availabilityCopy, availabilityOf, availabilityPill, conditionOf, conditionView, legacyAvailability, matchesEventFilter, supportCopy } from './eventsState';
 
 const frame = (over: Partial<CpmEventFrame>): CpmEventFrame => ({
   id: 1, loop_id: 'FIC101', window_kind: '24h', family: 'OSCILLATION', opened_at: '2026-09-15T00:00:00Z',
@@ -44,5 +44,21 @@ describe('eventsState', () => {
     expect(supportCopy(frame({}))).toBe('2 non-overlapping window(s) · 2.0 d of qualified support');
     expect(supportCopy(frame({ qualified_support_ms: 5 * 3_600_000, window_count: 1 }))).toBe('1 non-overlapping window(s) · 5.0 h of qualified support');
     expect(supportCopy(frame({ qualified_support_ms: 0, window_count: 3 }))).toBe('3 evaluation window(s)');
+  });
+});
+
+// CHG-167 (owner review): Condition and Availability are one row, in the words of the list's line.
+describe('conditionView (CHG-167)', () => {
+  it('reads an open episode, an unobservable one and a closed one with its reason', () => {
+    expect(conditionView(frame({}))).toEqual({ label: 'Open', tone: 'warn', glyph: '●' });
+    expect(conditionView(frame({ availability_state: 'UNOBSERVABLE' }))).toEqual({ label: 'Open · Unobservable', tone: 'warn', glyph: '⊘' });
+    expect(conditionView(frame({ closed_at: '2026-10-05T07:30:00Z', close_reason: 'RECOVERED' }))).toEqual({ label: 'Closed · recovered', tone: 'muted', glyph: '○' });
+    expect(conditionView(frame({ condition_state: 'CLOSED', close_reason: null }))).toEqual({ label: 'Closed', tone: 'muted', glyph: '○' });
+  });
+
+  it('says availability is unknown only for a row written before v2.5', () => {
+    expect(legacyAvailability(frame({ availability_state: null }))).toEqual({ label: 'Availability unknown', tone: 'muted', glyph: '?' });
+    expect(legacyAvailability(frame({}))).toBeNull();
+    expect(legacyAvailability(frame({ availability_state: 'UNOBSERVABLE' }))).toBeNull();
   });
 });

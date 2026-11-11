@@ -60,6 +60,41 @@ describe('useDialogA11y', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  // CHG-167: Loop Events opens Shelve / Unshelve dialogs from its panel, which is a drawer below 1280 px.
+  it('lets only the top one of two open dialogs take Tab and Escape', () => {
+    const Inner: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+      const ref = useDialogA11y(onClose);
+      return (
+        <div ref={ref} role="dialog" aria-label="Inner" aria-modal="true" tabIndex={-1}>
+          <button>Inner first</button>
+          <button>Inner last</button>
+        </div>
+      );
+    };
+    const Stack: React.FC = () => {
+      const [outer, setOuter] = useState(true);
+      const [inner, setInner] = useState(true);
+      return (
+        <>
+          {outer && <Drawer onClose={() => setOuter(false)} />}
+          {inner && <Inner onClose={() => setInner(false)} />}
+        </>
+      );
+    };
+    render(<Stack />);
+    expect(deepActiveElement()).toBe(screen.getByText('Inner first'));
+    screen.getByText('Inner last').focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(deepActiveElement()).toBe(screen.getByText('Inner first'));
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(deepActiveElement()).toBe(screen.getByText('Inner last'));
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(screen.queryByRole('dialog', { name: 'Inner' })).toBeNull();
+    expect(screen.getByText('First')).toBeTruthy();   // the drawer stays open
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('returns focus to a trigger button inside a shadow root', () => {
     const Harness: React.FC = () => {
       const [open, setOpen] = useState(false);

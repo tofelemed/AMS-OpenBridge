@@ -88,6 +88,8 @@
   white-space: nowrap;
 }
 .cpm-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cpm-tone, var(--traverse-text-secondary)); }
+/* CHG-167: a state's glyph in place of the dot (tone + glyph + word), in the dot's colour */
+.cpm-pill__glyph { color: var(--cpm-tone); font-size: var(--cpm-text-caption); font-weight: 700; line-height: 1; }
 .cpm-pill--good  { --cpm-tone: var(--tone-success); }
 .cpm-pill--warn  { --cpm-tone: var(--tone-warning); }
 .cpm-pill--bad   { --cpm-tone: var(--tone-danger); }

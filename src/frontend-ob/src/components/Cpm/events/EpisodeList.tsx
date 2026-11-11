@@ -1,33 +1,31 @@
 /**
- * CHG-136: the Loop Events list as the reference reads it: Loop / peak diagnosis, Severity, Review, Opened. A row
- * says the tag, the peak diagnosis and "EVT-n · 12h"; one severity word; one review pill with one state line; the
- * time and the date. The latest diagnosis, availability and the loop link live in the detail on the right.
+ * CHG-136: the Loop Events list as the reference reads it: Loop / peak diagnosis, Severity, Review, Opened. A row says the tag,
+ * the peak diagnosis and "EVT-n · 12h"; one severity word; one review pill with one state line; the opening time. CHG-167
+ * (owner review, the approved sample): the list title went (the state dropdown says Open); "Opened · UTC" over "5 Oct 07:45",
+ * the zone once; the review pill is tone + glyph + word (the severity keeps its dot); the column widths fit "Shelf expired ·
+ * unreviewed" (it ran into the date). The rows sit in the list card under its filter row.
  */
 import React from 'react';
 import type { CpmEventFrame } from '../../../api/cpmApi';
-import { PanelHead, TonePill } from '../shared';
-import { fmtWhen } from '../blocks/whenText';
+import { TonePill } from '../shared';
 import { diagnosisLabel } from '../vocabulary';
 import { reviewView, severityWord, stateLine } from './shelfState';
+import { stamp, zoneTag } from './eventTime';
 
 export const EpisodeList: React.FC<{
-  title: string;
   events: CpmEventFrame[];
   selectedId: number | undefined;
   now: number;
   onSelect: (id: number) => void;
   /** Loading, error, empty and off-page notices, above the rows. */
   notices?: React.ReactNode;
-  /** The pager, under the rows. */
-  footer?: React.ReactNode;
-}> = ({ title, events, selectedId, now, onSelect, notices, footer }) => (
-  <section className="cpm-surface cpm-episodes" style={{ padding: 0 }}>
-    <div className="cpm-episodes__title"><PanelHead title={title} /></div>
+}> = ({ events, selectedId, now, onSelect, notices }) => (
+  <>
     <div className="cpm-event-head cpm-events-grid cpm-table-head--sticky">
       <span>Loop / peak diagnosis</span>
       <span>Severity</span>
       <span>Review</span>
-      <span>Opened</span>
+      <span>Opened · {zoneTag()}</span>
     </div>
     {notices}
     {events.map(e => {
@@ -46,15 +44,14 @@ export const EpisodeList: React.FC<{
           </button>
           <span><TonePill tone={sev.tone}>{sev.label}</TonePill></span>
           <span className="cpm-event-row__states">
-            <TonePill tone={review.tone}>{review.label}</TonePill>
+            <TonePill tone={review.tone} glyph={review.glyph}>{review.label}</TonePill>
             <span className="cpm-event-row__sub">{stateLine(e)}</span>
           </span>
-          <span className="cpm-event-row__sub">{fmtWhen(e.opened_at)}</span>
+          <span className="cpm-event-row__sub">{stamp(e.opened_at)}</span>
         </div>
       );
     })}
-    {footer}
-  </section>
+  </>
 );
 
 export default EpisodeList;

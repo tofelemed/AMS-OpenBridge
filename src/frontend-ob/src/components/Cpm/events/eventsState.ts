@@ -9,6 +9,7 @@
  */
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
+import { phrase } from '../vocabulary';
 
 export type ConditionState = 'OPEN' | 'CLOSED';
 export type AvailabilityState = 'OBSERVED' | 'UNOBSERVABLE' | 'LEGACY';
@@ -30,6 +31,23 @@ export function availabilityPill(e: Pick<CpmEventFrame, 'availability_state' | '
   if (a === 'UNOBSERVABLE') return { label: 'Unobservable', tone: 'warn' };
   if (a === 'LEGACY') return { label: 'Availability unknown', tone: 'muted' };
   return null;
+}
+
+/**
+ * CHG-167 (owner review): the panel's one Condition row, in the words of the list's line, as tone + glyph + word. A closed
+ * episode says why it closed; an open one says when its newest window could not be judged.
+ */
+export function conditionView(e: Pick<CpmEventFrame, 'closed_at' | 'condition_state' | 'availability_state' | 'close_reason'>):
+  { label: string; tone: CpmTone; glyph: string } {
+  if (conditionOf(e) === 'CLOSED') return { label: e.close_reason ? `Closed · ${phrase(e.close_reason)}` : 'Closed', tone: 'muted', glyph: '○' };
+  return availabilityOf(e) === 'UNOBSERVABLE'
+    ? { label: 'Open · Unobservable', tone: 'warn', glyph: '⊘' }
+    : { label: 'Open', tone: 'warn', glyph: '●' };
+}
+
+/** A row written before v2.5 has no availability: said beside the condition, never assumed observed. */
+export function legacyAvailability(e: Pick<CpmEventFrame, 'availability_state'>): { label: string; tone: CpmTone; glyph: string } | null {
+  return availabilityOf(e) === 'LEGACY' ? { label: 'Availability unknown', tone: 'muted', glyph: '?' } : null;
 }
 
 /** One line for the detail aside: what the two states mean together. */

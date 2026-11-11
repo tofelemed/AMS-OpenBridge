@@ -51,7 +51,8 @@ export function shelfCountdown(shelveUntil: string | null, now: number): string 
   return ms > 0 ? `expires in ${text}` : `expired ${text} ago`;
 }
 
-export interface StateView { label: string; tone: CpmTone }
+/** CHG-167: a status pill is tone + glyph + word; `glyph` replaces the dot where the state has one. */
+export interface StateView { label: string; tone: CpmTone; glyph?: string }
 
 /**
  * The State column: condition first (a closed episode reads as closed), then the
@@ -74,11 +75,21 @@ export function stateView(e: CpmEventFrame, now: number): StateView {
  * the same words as `stateView`, without the closed condition (that is the state line under it).
  */
 export function reviewView(e: CpmEventFrame, now: number): StateView {
-  const acked = isAcknowledged(e);
   const shelf = shelfState(e, now);
-  if (shelf === 'ACTIVE') return { label: `Shelved · ${shelfCountdown(e.shelve_until, now)}`, tone: 'muted' };
-  if (shelf === 'EXPIRED') return acked ? { label: 'Shelf expired', tone: 'muted' } : { label: 'Shelf expired · unreviewed', tone: 'warn' };
-  return acked ? { label: 'Acknowledged', tone: 'good' } : { label: 'Unacknowledged', tone: 'warn' };
+  if (shelf === 'ACTIVE') return { label: `Shelved · ${shelfCountdown(e.shelve_until, now)}`, tone: 'muted', glyph: '◐' };
+  if (shelf === 'EXPIRED') {
+    return isAcknowledged(e)
+      ? { label: 'Shelf expired', tone: 'muted', glyph: '◐' }
+      : { label: 'Shelf expired · unreviewed', tone: 'warn', glyph: '!' };
+  }
+  return reviewWord(e);
+}
+
+/** CHG-167: the panel's Review row says the acknowledgement alone (the shelf has its own row), in the list's words. */
+export function reviewWord(e: Pick<CpmEventFrame, 'ack_state'>): StateView {
+  return isAcknowledged(e)
+    ? { label: 'Acknowledged', tone: 'good', glyph: '✓' }
+    : { label: 'Unacknowledged', tone: 'warn', glyph: '!' };
 }
 
 /** The one state line under the Review pill: "Open", "Open · Unobservable" or "Closed". */
@@ -135,10 +146,10 @@ export function matchesEventFilter(e: CpmEventFrame, f: EventFilterKey, now: num
 }
 
 /** History rows read as sentences: what happened, by whom, and the expiry when there is one. */
-export const ACTION_VIEW: Record<CpmEventAction['action'], { label: string; tone: CpmTone }> = {
-  ACKNOWLEDGED: { label: 'Acknowledged', tone: 'good' },
-  SHELVED: { label: 'Shelved', tone: 'muted' },
-  SHELVE_UPDATED: { label: 'Shelf updated', tone: 'muted' },
-  UNSHELVED: { label: 'Unshelved', tone: 'good' },
-  SHELVE_EXPIRED: { label: 'Shelf expired', tone: 'warn' },
+export const ACTION_VIEW: Record<CpmEventAction['action'], Required<StateView>> = {
+  ACKNOWLEDGED: { label: 'Acknowledged', tone: 'good', glyph: '✓' },
+  SHELVED: { label: 'Shelved', tone: 'muted', glyph: '◐' },
+  SHELVE_UPDATED: { label: 'Shelf updated', tone: 'muted', glyph: '◐' },
+  UNSHELVED: { label: 'Unshelved', tone: 'good', glyph: '○' },
+  SHELVE_EXPIRED: { label: 'Shelf expired', tone: 'warn', glyph: '!' },
 };

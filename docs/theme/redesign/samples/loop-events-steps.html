@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Loop Events (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov: Open 325, EVT-2231 / EVT-2230 / EVT-829, 300 fast conditions. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Loop Events: the engineer's path</h1>
+  <p class="lead">Today the title carries a <b>?</b> with a two-sentence purpose, the toggle reads Episodes · 325 open | Fast conditions · 26 open, the filter row ends in "325 event(s)", the list has its own title "Open episodes" and the pager says "1–10 of 325 · page 1 of 33": the open count is on screen four times. The episode panel names the episode three times (EVT-2231 · Episode details, the tag ↗, the selected row), says who acknowledged twice (Review row and Activity), splits Condition and Availability into two rows, opens Shelve and Unshelve inline under the buttons and ends in a Technical details disclosure. Fast conditions is 300 rows in one scroll box with no search, "stale · last update 4 days ago" on every row and the condition repeated in its panel. Each view answers one question, which episodes need a response and what this one is, so the page gets no tabs: the header switches the view, the list finds the episode, the panel says what it is and holds the actions, and the foot names it once and leads to Investigation.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">Episodes | Fast conditions</span><span class="chip">How to read</span><span style="color:var(--text2)">·</span><span class="chip">Search</span><span class="chip">Open 325 ▾</span><span class="chip">All severities ▾</span><span class="chip">Triage ▾</span><span class="chip chip--q">All windows ▾ (question 7)</span><span style="color:var(--text2)">·</span><span class="chip">Selected episode</span><span class="chip">Foot: PIC40102 · EVT-2231 · 24h … Investigation →</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header</h2><q>Which list am I looking at, and how do I read its words?</q>
+      <ul><li>Episodes | Fast conditions, top right (<code>?view=</code>)</li><li>How to read beside it: Review, Condition, Rows, Fast conditions in aligned columns</li><li>No <b>?</b> on the title, no counts on the toggle</li></ul></div>
+    <div class="card step"><h2>Find</h2><q>Which episodes need a response?</q>
+      <ul><li>Search first: loop, EVT number, family or diagnosis</li><li>State with its count (Open 325 …), severity, Triage / Newest; the loop chip from a link</li><li>Rows: tag, peak diagnosis, EVT · window; severity; review with the condition under it; opened</li><li>The shared pager, centred</li></ul></div>
+    <div class="card step"><h2>Selected episode</h2><q>What is it, and where does it stand?</q>
+      <ul><li>Heading: the peak diagnosis, with its severity</li><li>Latest (only when it differs), Condition, Review, Shelf, Period</li><li>Peak evidence · qualified support · non-overlap windows</li><li>Record details, Historical ↗, Loop ↗</li></ul></div>
+    <div class="card step"><h2>Respond</h2><q>What do I do about it?</q>
+      <ul><li>Note, Acknowledge, Shelve… / Update shelf…, Unshelve… (with a shelf), Save note</li><li>Shelve and Unshelve open dialogs; the reason under a disabled action</li><li>Activity &amp; notes: who, when and why, newest first; Full history (dialog)</li></ul></div>
+    <div class="card step"><h2>Foot</h2><q>Which episode is this, and where next?</q>
+      <ul><li>PIC40102 · EVT-2231 · 24h, once</li><li>Investigation →: the window the episode opened on</li></ul></div>
+    <div class="card step"><h2>Fast conditions</h2><q>What is held at a limit or frozen, before the next fused window?</q>
+      <ul><li>Search, All / Open / Closed (question 2), pager</li><li>State, loop, condition over its gate, started, duration, close reason</li><li>Panel: gate, started, duration, last update, close reason; Workbench ↗, Window Inspector ↗; foot: loop and Loop Explorer →</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title ? "Investigate diagnosis episodes with operating context and a traceable response history. One row is one episode of one fault family…"</td><td>Removed from the title. The second sentence goes to How to read › Rows; the first goes, as on the pages before</td></tr>
+        <tr><td><span class="n">1</span>Toggle "Episodes · 325 open", "Fast conditions · 26 open"</td><td>"Episodes", "Fast conditions"; each count once, in its state dropdown (Open 325, Open 26). Question 1</td></tr>
+        <tr><td><span class="n">1</span>? About availability (four sentences by state), ? About fast conditions, the stale hover text</td><td>How to read › Condition and › Fast conditions, word for word</td></tr>
+        <tr><td><span class="n">2</span>"325 event(s)", "… for FIC10401", "… matching “zzz”" at the end of the filter row</td><td>Removed: the state dropdown, the loop chip and the search box say them</td></tr>
+        <tr><td><span class="n">2</span>List title "Open episodes"</td><td>Removed: the state dropdown says Open</td></tr>
+        <tr><td><span class="n">2</span>Search fourth in the row; "All severity"</td><td>Search first; "All severities"</td></tr>
+        <tr><td><span class="n">3</span>(nothing today)</td><td>"All windows" / 12h / 24h, dashed: question 7</td></tr>
+        <tr><td><span class="n">4</span>"OPENED", "5 Oct · 07:45"</td><td>"Opened · UTC", "5 Oct 07:45": the zone once, in the heading</td></tr>
+        <tr><td><span class="n">4</span>Review pills with a dot</td><td>The glyph of the state: ! Unacknowledged, ✓ Acknowledged, ◐ Shelved, ! Shelf expired · unreviewed. Severity keeps its dot</td></tr>
+        <tr><td><span class="n">5</span>"← Prev · 1–10 of 325 · page 1 of 33 · Next →"</td><td>The shared pager « ‹ 1 2 3 … 33 Page 1 of 33 › », 32 px, centred, as Performance</td></tr>
+        <tr><td><span class="n">6</span>"EVT-2231 · Episode details", the tag ↗ with the severity, "Peak · Oscillation confirmed"</td><td>Heading = the peak diagnosis with the severity; tag and EVT once, in the foot</td></tr>
+        <tr><td><span class="n">6</span>Condition "OPEN" and Availability "Unobservable" ?, two rows</td><td>One Condition row "⊘ Open · Unobservable", the words of the list's line</td></tr>
+        <tr><td><span class="n">6</span>Review "Not yet reviewed"</td><td>"Unacknowledged", the word of the list and the state dropdown</td></tr>
+        <tr><td><span class="n">6</span>Review "Acknowledged superadmin · 15 Oct · 07:05" and Activity "15 Oct · 07:05 Acknowledged · superadmin"</td><td>Who and when once, in Activity; the row says the state</td></tr>
+        <tr><td><span class="n">6</span>Rows "Review note" and "Shelf reason"</td><td>The Activity line of their action ("Shelved · superadmin · until 11 Nov 21:30 — maintenance planned"). A pre-CHG-032 episode with no action record keeps the row</td></tr>
+        <tr><td><span class="n">6</span>Shelf "Returned shelf by admin expired 50.7 d ago"</td><td>"! Returned", "expired 21 Sept 12:24 · 50.7 d ago"; "by admin" in Activity</td></tr>
+        <tr><td><span class="n">6</span>"Opened 5 Oct · 07:45 · still open"</td><td>Period "5 Oct 07:45 → now"</td></tr>
+        <tr><td><span class="n">7</span>"Episode period ↗", "PIC40102 ↗"</td><td>"Historical ↗", "Loop ↗": named after the page they open, as Window Inspector's links</td></tr>
+        <tr><td><span class="n">7</span>Technical details disclosure: Fault family OSCILLATION, Resolution 24h, Calculation version 3.0.0, Dynamics profile 2.0.0, Support until 2026-10-06T10:00:00Z</td><td>A Record details dialog: Fault family Oscillation, Calculation v3.0.0 · profile v2.0.0, Support until 6 Oct 10:00 UTC (copy stays). Resolution goes: the row and the foot say 24h. Question 5</td></tr>
+        <tr><td><span class="n">8</span>Shelve panel opening under the buttons</td><td>A Shelve dialog: For, Reason, the expiry line, Cancel · Shelve; its sentence stays word for word. Question 4</td></tr>
+        <tr><td><span class="n">8</span>Unshelve panel; on an expired shelf "…and the episode returns to the Unacknowledged queue"</td><td>An Unshelve dialog; "…The episode stays unacknowledged." (open, it is in that queue already; closed, it never is). Question 8</td></tr>
+        <tr><td><span class="n">8</span>"NOTE" label over the field</td><td>Placeholder "Note (optional)"</td></tr>
+        <tr><td><span class="n">9</span>"Full history ↗"; dialog "EVT-829 · Full history"</td><td>"Full history" (a dialog, so no ↗, as Run details); title "Full history"</td></tr>
+        <tr><td><span class="n">9</span>History lines "20/09/2026, 12:24:27 UTC · Shelved admin · until 21/09/2026, 12:24:25 UTC"; "Link to this episode"</td><td>Table Time · UTC, Action, By, Until, Reason: "20 Sept 12:24 · ◐ Shelved · admin · 21 Sept 12:24 · —"; "Link"</td></tr>
+        <tr><td><span class="n">10</span>"Review PIC40102 →", raised, under the peak</td><td>The foot: "PIC40102 · EVT-2231 · 24h" and "Investigation →". Question 3</td></tr>
+        <tr><td><span class="n">11</span>Every dialog</td><td>Titled parts, aligned columns, one-line buttons (Cancel · Shelve), the loop not named in the title: How to read, Shelve, Unshelve, Full history, Record details</td></tr>
+        <tr><td>No match: "No events in this view / No episode matches “zzz” under this filter." and "Select an event / Pick an episode in the list…"</td><td>"No episode matches “zzz”" with Show all events; no panel while the list is empty</td></tr>
+        <tr><td>"EVT-829 is not on this page of the list (filter, search or rank) — its detail is open on the right." / "Event 999999 does not exist (it may have been removed by retention) — showing the first event on this page instead."</td><td>"EVT-829 is not in this list; its details are open." / "EVT-999999 does not exist (retention may have removed it). Showing the first episode." (not drawn)</td></tr>
+        <tr><td><span class="n">12</span>Panel title "Conditions · 26 open ?"</td><td>Removed: the toggle and the state dropdown; the ? is in How to read</td></tr>
+        <tr><td><span class="n">12</span>300 rows in one scroll box</td><td>Pages of 10 with the shared pager; search and All 300 / Open 26 / Closed 274. Question 2</td></tr>
+        <tr><td><span class="n">12</span>"OPEN stale · last update 4 days ago" on each row; Since "4 days ago"</td><td>"◌ Open · stale"; the last update once, in the panel. Started · UTC "7 Nov 10:24"</td></tr>
+        <tr><td><span class="n">12</span>"G10 Limit high"; the tag as a Workbench link inside the row</td><td>"Limit high" over "G10 · Valve / saturation"; the row only selects, Workbench ↗ is in the panel</td></tr>
+        <tr><td><span class="n">13</span>Panel "TIC20607 · G10 Limit high", OPEN, a Condition row repeating the title, the red stale sentence</td><td>Heading "Limit high" with the state; Gate row; "not updated for 10 min or more" under Last update (the cause in How to read); the loop once, in the foot</td></tr>
+        <tr><td><span class="n">13</span>"Review TIC20607 →"</td><td>Foot "Loop Explorer →" (it opens the Loop Explorer Summary at the gate). Question 3</td></tr>
+        <tr><td>Below 1280 px: the panel stacks under ten rows</td><td>A drawer a row opens. Question 6</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>Two views</td><td>Episodes and Fast conditions, <code>?view=</code> and <code>?condition=</code> in the address</td></tr>
+        <tr><td>Links into the page</td><td><code>?filter= ?severity= ?sort= ?loop= ?event=</code>; an episode off the page is still read by id, with its note</td></tr>
+        <tr><td>The list</td><td>Server paging, 10 a page, 30 s refresh; search, state, severity and order asked of the server</td></tr>
+        <tr><td>Filters</td><td>All eight states with their counts; High / Medium / Low; Triage / Newest; the loop chip with ×</td></tr>
+        <tr><td>Columns</td><td>Loop / peak diagnosis (tag, diagnosis, EVT · window), Severity, Review with Open / Open · Unobservable / Closed under it, Opened</td></tr>
+        <tr><td>Episode facts</td><td>Latest, condition, review, shelf, period, peak evidence, qualified support, non-overlap windows, fault family, versions, support until</td></tr>
+        <tr><td>Safety text</td><td>The shelve and unshelve sentences on screen; the ? on Review for a closed, unacknowledged episode</td></tr>
+        <tr><td>Actions</td><td>Acknowledge (with the note), Shelve… / Update shelf…, Unshelve… only with a shelf, Save note, link an earlier loop note; the receipt of the last action beside them; refusals in place</td></tr>
+        <tr><td>Disabled actions</td><td>Each says why: Already acknowledged, A closed episode cannot be shelved, Needs the cpm.manage permission, Write the note first (hover)</td></tr>
+        <tr><td>Shelve rules</td><td>1 hour, 8 hours, 24 hours, 7 days within the site limit (168 h on the lab), Until… in site time, a reason of 3+ characters, the expiry stated before sending, both kept on update</td></tr>
+        <tr><td>History</td><td>Latest three in Activity; every action and every linked note in Full history</td></tr>
+        <tr><td>States</td><td>Loading, error with Retry, empty with Show all events or Current results in Performance</td></tr>
+        <tr><td>Fast conditions</td><td>Every row, open first; stale after 10 min; close reason; the Explorer Summary at the gate; Window Inspector at 15m; the Workbench at 15m</td></tr>
+        <tr><td>Sizes</td><td>Three-line rows and type as today; 40 px filters and buttons; 32 px pager</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Counts off the toggle?</b> <span>The open count is in the state dropdown already (Open 325); the fast-condition count would be in its dropdown (Open 26). Recommended: yes. If the 26 open should show from Episodes, keep "· 26 open" on Fast conditions only.</span></li>
+      <li><b>Search, state and pager on Fast conditions?</b> <span>Today 300 rows sit in one scroll box with no search; this adds a capability. Recommended: yes, as drawn (All 300 / Open 26 / Closed 274, pages of 10).</span></li>
+      <li><b>"Investigation →" and "Loop Explorer →" in the feet?</b> <span>On this page "Review" is the acknowledgement column ("Review: Unacknowledged"), so "Review PIC40102 →" reads as if it records a review; it opens Investigation. Recommended: name the link after the page, as Calculations' "Investigation ↗". The other way round: keep "Review →" and rename the column.</span></li>
+      <li><b>Shelve and Unshelve as dialogs?</b> <span>Today panels open under the buttons and push Activity down. Recommended: dialogs, as Record details on Calculations.</span></li>
+      <li><b>Record details dialog in place of Technical details?</b> <span>Resolution (24h) goes, the row and the foot say it. Recommended: yes.</span></li>
+      <li><b>A drawer below 1280 px?</b> <span>At 1000 px the panel sits under ten rows today. Recommended: a drawer a row opens, as Calculations and the Traverse guide's inspector rule.</span></li>
+      <li><b>A window filter, All windows / 12h / 24h?</b> <span>Each finding is two rows, one per window kind (EVT-2231 · 24h and EVT-2230 · 12h for PIC40102), and every other CPA page has 12h / 24h. Adds a capability and a server parameter. Recommended: yes; drawn dashed.</span></li>
+      <li><b>The unshelve sentence on an expired shelf.</b> <span>"…returns to the Unacknowledged queue" is not true for an expired shelf: open, the episode is in that queue already; closed, it never is. Recommended: "The episode stays unacknowledged.", to be confirmed by the control engineer.</span></li>
+      <li><b>A drill-down for the evidence strip?</b> <span>Peak evidence, Qualified support and Non-overlap windows open nothing. The Window Inspector takes a window end, not a period. Recommended: Non-overlap windows opens the Window Inspector over the episode period (needs from / to on that page). Not drawn.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Found on the way, not part of this proposal</h3>
+    <ul>
+      <li>Today the "Shelf expired · unreviewed" pill runs into the Opened date (EVT-829). The proposal's column widths fit it.</li>
+      <li>All 26 open fast conditions are stale on the lab (last update 7 Nov or earlier), and nine loops hold two open records of the same condition (TIC30501 since 11 Oct and since 7 Nov). Engine side, not the page.</li>
+      <li>The lab has no Medium episode (Low 55, Medium 0 of 500) and no shelved one (Shelved 0); the shelved state is drawn as illustrative.</li>
+      <li>The Traverse guide gives priority and severity no status colour; High is red today. Not changed here.</li>
+      <li>During capture the lab answered HTTP 500 a few times (the conditions read, EVT-829's actions and notes); the next read worked.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
