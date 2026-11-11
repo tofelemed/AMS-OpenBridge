@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Loop Registry (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov: 243 loops, FIC10401 / FIC10302 / FIC10503 / EVAPI_12F4CB / AIC30601. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Loop Registry: the engineer's path</h1>
+  <p class="lead">Today the title carries a <b>?</b> with the readiness sentence; a Configuration limits line holds three counts as links ("234 valve positions expected but not mapped · 239 peer links expected but missing · 241 degraded") and a second <b>?</b>; the list card has its own title "Loop assets", a count note "243 loops", a Show retired box and Find loop last; the pager reads "← Prev · Page 1 of 10 · Next →". A row replaces the list with the loop's own page under the same header: "‹ Loop Registry", a second title FIC10401 with Edit configuration and Retire, three links, then Facts (nine rows), Signal mapping, Readiness and Loop model with Re-project. On that page the missing VP is said three times (Valve position row, Observability pill, Readiness check) and the missing peer links three times. The editor is four steps with an eyebrow, the tag in its title, "Step 1 of 4", five paragraphs of explanation and a closed disclosure; Bulk import names its step twice and counts the same rows three times, and its row status is cut off at the right. The page answers two questions, which loops are set up and ready, and how this one is set up, and holds three tasks: add, import, edit or retire. So the list finds the loop, the panel says how it is set up and whether it is ready and holds its actions, and the editors stay dialogs with tabs, because each is a sequence.</p>
+
+  <div class="card band"><b>Page</b><span class="chip">How to read</span><span class="chip">Bulk import</span><span class="chip">Add loop</span><span style="color:var(--text2)">·</span><span class="chip">Search</span><span class="chip">Not retired 243 ▾</span><span class="chip chip--q">Export CSV (question 9)</span><span style="color:var(--text2)">·</span><span class="chip">Selected loop: rows, Readiness, Signals, actions, links</span><span class="chip">Foot: Loop Explorer →</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Header</h2><q>What is this page, and how do I read its words?</q>
+      <ul><li>Set up · Loop Registry, no <b>?</b>, no sentence under it</li><li>How to read: State, VP, Readiness in aligned columns (the two <b>?</b> of today)</li><li>Bulk import and Add loop top right; without cpm.manage each says why under it</li></ul></div>
+    <div class="card step"><h2>Find</h2><q>Which loop, and which loops are not ready?</q>
+      <ul><li>Search first: loop, service, site, area, unit or type</li><li>One dropdown: Not retired 243 · With retired 243 · VP expected, not mapped 234 · Peer links expected, missing 239 · Degraded 241</li><li>Rows: tag over service, ○ Not monitored or ⊘ Retired only when abnormal; Loop type; VP</li><li>25 a page, the shared pager, centred</li></ul></div>
+    <div class="card step"><h2>Selected loop</h2><q>How is this loop set up?</q>
+      <ul><li>Heading: FIC10401, Flow controller (FCS0101), ! Degraded</li><li>Plant path, Loop type, Criticality, Gate profile, Model</li><li>Record details (dialog): objective · topology · command, acquisition, how the model was set</li></ul></div>
+    <div class="card step"><h2>Readiness and signals</h2><q>Is it ready to be evaluated, and which signals feed it?</q>
+      <ul><li>Valve position (G14) and Peer links (G13), the server's advice behind each <b>?</b></li><li>Any other check not met, by name with its message (Loop type (UNKNOWN), Diagnosis produced …)</li><li>Signals: PV, SP, OP, MODE (VP) with their pen colour, the path under the plant path, Copy; a required role not mapped says so</li></ul></div>
+    <div class="card step"><h2>Change it</h2><q>What do I do about it?</q>
+      <ul><li>Edit configuration: Identity → Classification → Signals → Review, Next: X →; the changes with their effect; the readiness after saving</li><li>Retire (a reason) / Restore; Re-project links &amp; republish evidence with its receipt</li><li>Each disabled action says why</li><li>Workbench ↗, Effective rules ↗, Plant tree ↗; the foot: Loop Explorer →</li></ul></div>
+    <div class="card step"><h2>Bulk import</h2><q>How do I register many loops at once?</q>
+      <ul><li>File: Download template, choose, drop or paste, edit in place</li><li>Review: the counts once; Status before the paths, so the reason a row fails is in view</li><li>Activate: allow unmodelled locations, Activate 2 loops; failures first, Fix and re-import</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>Title ? "A loop is only as good as its signal mappings. The readiness report after save lists exactly what is degraded: without a VP tag mapped, G14 cannot confirm a final-element fault, and missing peer links leaves G13 unevaluated."</td><td>How to read › Readiness: the first sentence and "the readiness lists exactly what is missing"; the G14 / G13 halves are the limits' words already, said once there</td></tr>
+        <tr><td><span class="n">2</span>Configuration limits line "234 valve positions expected but not mapped · 239 peer links expected but missing · 241 degraded" (links to <code>?gap=</code>) and its ?</td><td>Options of the one dropdown with their counts: "VP expected, not mapped 234", "Peer links expected, missing 239", "Degraded 241". The ? words and the plant-facts line go to How to read › Readiness. Question 2</td></tr>
+        <tr><td><span class="n">2</span>Show retired box</td><td>"Not retired 243" / "With retired 243" in the same dropdown (<code>retired=1</code> stays)</td></tr>
+        <tr><td><span class="n">2</span>"Loops with a valve position expected but not mapped." with Clear on a line of its own</td><td>Removed: the dropdown says it; "Not retired" clears it</td></tr>
+        <tr><td><span class="n">2</span>List title "Loop assets"; note "243 loops · 2 retired hidden"</td><td>Removed: the counts are in the dropdown (With retired shows the retired ones in its count)</td></tr>
+        <tr><td><span class="n">2</span>"Find loop" last in the row</td><td>First; "Loop, service, unit or type" (it still matches site and area)</td></tr>
+        <tr><td><span class="n">3</span>Row pills "● Not monitored", "● Retired"</td><td>"○ Not monitored", "⊘ Retired": the glyph of the state, muted</td></tr>
+        <tr><td><span class="n">4</span>"← Prev · Page 1 of 10 · Next →"</td><td>The shared pager « ‹ 1 2 3 4 … 10 Page 3 of 10 › », 32 px, centred</td></tr>
+        <tr><td><span class="n">5</span>The loop's page in place of the list: "‹ Loop Registry", a second title FIC10401, Add loop and Bulk import still above it</td><td>A panel beside the list (a drawer below 1280 px), the tag once in its heading; <code>?loop=</code> stays. Question 1</td></tr>
+        <tr><td><span class="n">5</span>Facts pill "● Degraded"; "Registered" for the loop the list calls "Not monitored"</td><td>The heading's badge: ✓ Active, ! Degraded, ○ Not monitored, ⊘ Retired; one word per state in the list and the panel</td></tr>
+        <tr><td><span class="n">6</span>Facts row "Service · Flow controller (FCS0101)"</td><td>Under the tag in the heading</td></tr>
+        <tr><td><span class="n">6</span>Rows "Acquisition PERIODIC · grid undeclared", "Objective / topology / command TIGHT · SINGLE · OP_TO_VALVE"; the Model ? "Set from the loop type; declare it in the registry to make it explicit."</td><td>Record details dialog: Objective · topology · command, Acquisition, Model set by "The loop type · Declare it in Edit configuration to make it explicit."</td></tr>
+        <tr><td><span class="n">6</span>Section titles "Facts", "Loop model"</td><td>Removed: Model is a row; Re-project joins the actions</td></tr>
+        <tr><td><span class="n">7</span>"Valve position · Expected · not mapped: G14 cannot confirm a final-element fault", Observability "No valve position mapped", Readiness "Signal VP (valve position, G14) · A valve position (VP) is expected here: map its tag…"</td><td>One row "Valve position (G14) ! Expected · not mapped ?", the server's advice behind the ?. On FIC10302: "! Mapped · no samples ?" (VP is mapped but the latest window carried no VP samples)</td></tr>
+        <tr><td><span class="n">7</span>"Peer links · None · expected: G13 not evaluated", Observability "No peer links configured", Readiness "Peer / upstream links (G13) · Add the loop's upstream / peer links…"</td><td>One row "Peer links (G13) ! None · expected ?"; with links "PEER → G13_LOOP_B". Any other observability flag keeps a row of its own</td></tr>
+        <tr><td><span class="n">7</span>Readiness "Nothing missing"</td><td>"✓ Nothing missing" (not drawn: no lab loop has it); loading and error as today</td></tr>
+        <tr><td><span class="n">8</span>Readiness rows "Signal PV · Map the PV role at onboarding." (SP, OP, MODE) with "No signal is mapped." above them</td><td>Signals: each required role "! Not mapped" with the advice behind ? (EVAPI_12F4CB)</td></tr>
+        <tr><td><span class="n">8</span>Table "Role · UNS path" with "hdpe/section_600/u6002_pellet_homogenization_ii_silo_4_5/fic10401.pv"</td><td>"PV …/fic10401.pv" with the PV pen colour; the whole path on hover and in Copy; the plant path once, in its row. Question 3</td></tr>
+        <tr><td><span class="n">9</span>Edit configuration and Retire in the loop page's header; Re-project under Loop model; the receipt under the header</td><td>One actions row: Edit configuration, Retire / Restore, Re-project links &amp; republish evidence; the receipt under them</td></tr>
+        <tr><td><span class="n">10</span>"Open loop →", "Evidence →", "Effective rules ↗"; "Plant tree ↗" inside the Plant path row</td><td>"Record details · Workbench ↗ · Effective rules ↗ · Plant tree ↗"; the main exit "Loop Explorer →" in the foot</td></tr>
+        <tr><td><span class="n">11</span>Two ? (title, limits)</td><td>How to read: State, VP, Readiness, each key once</td></tr>
+        <tr><td><span class="n">12</span>Eyebrow "Governed registry workflow"; title "Edit loop FIC10401" / "Add control loop"</td><td>"Edit configuration" / "Add loop": the button's words; the tag is the first field</td></tr>
+        <tr><td><span class="n">12</span>Step pills "✓ Identity · Classification · Signal mappings · Review", "Step 1 of 4", "Continue ›"</td><td>Tabs Identity · Classification · Signals · Review; "Next: Classification →", Back; the reason under a disabled Next ("Loop tag is required")</td></tr>
+        <tr><td><span class="n">12</span>Upper-case labels "LOOP TAG *"; one grid per step</td><td>"Loop tag *"; titled parts: Loop, Plant location · Ranking, Loop model, Acquisition · Signal paths, Ranges, Optional inputs</td></tr>
+        <tr><td><span class="n">12</span>Paragraphs "Picked from the UNS asset model…", "The tag type only suggests a model. Preset for FIC: FLOW · FAST_SELF_REG · TIGHT · SINGLE · OP_TO_VALVE…", "Optional, and neither is cosmetic…", "Derived from the location and loop tag…", the VP and peer explanations</td><td>Behind the ? of their part, word for word; "Preset for FIC: …" goes (each select's first option says it: "preset (FLOW)"); the VP warning stays on screen</td></tr>
+        <tr><td><span class="n">12</span>Acquisition placeholders "the sample interval the source delive…" (cut); "Classification source PRESET_FROM_LOOP_TYPE — derived from the tag type…"</td><td>Placeholders "undeclared", the four hints behind the Acquisition ?; the source row goes: the badge "◌ Preset from loop type" says it</td></tr>
+        <tr><td><span class="n">12</span>PV minimum, PV maximum, OP minimum, OP maximum, PV unit on Classification</td><td>Signals › Ranges, beside the paths they scale: "PV range [0] – [2500] [kg/h]", "OP range [0] – [100]". Question 4</td></tr>
+        <tr><td><span class="n">12</span>Review: eyebrow, the tag, "READY TO SAVE" / "NO CHANGES", "Changes (0)", disclosure "All settings after saving", "How this loop is evaluated" button and panel</td><td>Changes (edit only; "Nothing has changed. Saving re-submits the loop as it is." stays) and All settings open in two columns; the pipeline windows behind the All settings ?</td></tr>
+        <tr><td><span class="n">12</span>Result: "Activation result", the tag, "READY · DEGRADED", long messages inside pills</td><td>"Readiness ! Ready · degraded"; ✓ OK / ! Missing, the message behind ?</td></tr>
+        <tr><td><span class="n">12</span>Add loop, before a site: "— no areas modelled —", "— no units modelled —"</td><td>"— pick a site first —"</td></tr>
+        <tr><td><span class="n">13</span>Eyebrow "Bulk registry workflow"; "Import loops from CSV — Review &amp; validate"; pills "1. Import file · 2. Review &amp; validate · 3. Activate"</td><td>"Bulk import"; tabs File · Review · Activate; "Next: Review →"</td></tr>
+        <tr><td><span class="n">13</span>Source paragraph (required columns, derivation)</td><td>Behind the Source ?, with the full column list; Download template stays, flat</td></tr>
+        <tr><td><span class="n">13</span>Review: four tiles (Rows detected 3, Ready 2, Need correction 1, Existing (will update) 1), "1 row(s) will be skipped…", foot "2 of 3 row(s) ready"</td><td>One line: "3 rows: ✓ 2 ready (1 updates an existing loop) · ✕ 1 needs correction. Rows that need correction are skipped."</td></tr>
+        <tr><td><span class="n">13</span>Preview: Status last, cut off at the dialog's right edge; four full paths per row</td><td>Status before the paths; "…/fic10499 .pv .sp .op .mode" under the location</td></tr>
+        <tr><td><span class="n">13</span>Activate: "Ready to onboard 2 loop(s)…", four tiles again, "2 row(s) will be activated", a three-line checkbox label, "Submit &amp; activate 2 loop(s)"</td><td>"2 loops to activate: 1 new, 1 updates an existing loop · 1 row skipped ?", "Allow locations that are not in the asset model ?", "Activate 2 loops"</td></tr>
+        <tr><td><span class="n">14</span>"Retire FIC10401", "REASON (REQUIRED)", Retire loop disabled with no reason given</td><td>"Retire loop" (the loop is in the panel heading), "Reason (required)", "Write a reason first" under the button; Restore the same</td></tr>
+        <tr><td>No match: "No loops registered · Onboard the first loop to start producing diagnoses. [Add loop]"</td><td>"No loop matches “zzz”" with Show all loops; "No loops registered" with Add loop only when the registry is empty</td></tr>
+        <tr><td>"‹ Loop Registry · No loop NO-SUCH-LOOP · It was renamed, removed or never onboarded."</td><td>The same words in the panel; the list stays beside it (not drawn)</td></tr>
+        <tr><td>Below 1280 px the loop page is full width</td><td>A drawer a row opens, as Calculations</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>The address</td><td><code>?loop= ?search= ?page= ?retired=1 ?gap=vp|peers|degraded</code>; Back returns to the same list; a new site, area or unit starts at page 1</td></tr>
+        <tr><td>The list</td><td>25 a page, in the registry's order; search over tag, service, site, area, unit and type; the plant scope from the header</td></tr>
+        <tr><td>Columns</td><td>Loop (tag, then the service without the repeated tag), Loop type, VP (Mapped / Not mapped / No VP); a badge only on Not monitored and Retired rows</td></tr>
+        <tr><td>Counts</td><td>VP and peer counts from the fleet summary, Degraded counted from the list, all within the plant scope</td></tr>
+        <tr><td>Loop facts</td><td>Plant path, type, criticality, gate profile, model, objective · topology · command, acquisition, how the model was set, valve position, peer links, other observability flags, a retired loop's open episode, every readiness check not met with its message, signal paths with Copy and Copied / Copy failed</td></tr>
+        <tr><td>Permissions</td><td>Add loop, Bulk import, Edit configuration, Retire / Restore, Re-project need cpm.manage, the reason under each ("Needs the cpm.manage permission", "Restore the loop first"); Effective rules ↗ needs cpm.config.read; Plant tree ↗ the plant tree</td></tr>
+        <tr><td>Receipts</td><td>Retired / Restored / Republished FIC10401 by whom and when, the links and signal assets, or why it failed</td></tr>
+        <tr><td>Editor fields and rules</td><td>Every field and list; the tag rules (duplicate, forbidden characters, historian collision); required service and site; Enter manually and the unmodelled override; the five model selects with their preset; acquisition mode and four numbers; paths derived and overridable, + add VP, path checks (space, control character, dotted root.… form, a stored path kept with a warning); ranges (both bounds or neither, max above min, unit characters); VP and interacting loops; changes with their effect; the window contract; Update loop / Activate loop; the readiness after saving</td></tr>
+        <tr><td>Bulk import</td><td>Template; .csv up to 2 MB; choose, drop or paste and edit in place; quoted cells and # comments; every row check and warning; 100 rows previewed, all validated; 5,000 per import in one request; allow unmodelled locations; failures first; Fix and re-import</td></tr>
+        <tr><td>Retire / Restore</td><td>Reason required up to 500 characters (optional on Restore); the error stays in the dialog with the typed reason; history stays</td></tr>
+        <tr><td>States</td><td>Loading, "Registry unavailable" with Retry, "Configuration limits unavailable" with Retry (beside the dropdown), readiness unavailable with Retry</td></tr>
+        <tr><td>Sizes</td><td>Two-line rows and type as today; 40 px header buttons, editor fields and panel actions; 32 px filter row and pager</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>The loop's page becomes a panel beside the list?</b> <span>Today a row replaces the list with a page of its own under the list's header (two titles, ‹ Loop Registry). Recommended: the panel, as Loop Events and Calculations, a drawer below 1280 px; <code>?loop=</code> stays. No backend change.</span></li>
+      <li><b>One dropdown for Show retired and the three limit counts?</b> <span>The counts leave the always-visible line and live in the dropdown that filters by them (each was on screen twice once chosen: "234 valve positions…" and "234 loops"). Recommended: yes. No backend change.</span></li>
+      <li><b>Signal paths under the plant path ("…/fic10401.pv")?</b> <span>Each full path repeats the 56-character plant path. Recommended: yes, the whole path on hover and in Copy. The other way: full paths on two lines.</span></li>
+      <li><b>Ranges on the Signals tab?</b> <span>PV range and unit scale the PV, OP range normalises the OP; today they sit on Classification with the model. Recommended: yes, beside the paths.</span></li>
+      <li><b>The first loop selected when the address names none?</b> <span>Loop Events and Calculations select the first row (one readiness read); the alternative is "Choose a loop in the list" until a click. Recommended: the first row, as the other pages.</span></li>
+      <li><b>Editor steps as tabs with "Next: X →", titled "Edit configuration" / "Add loop"?</b> <span>Forward still only through Next; back any time. Recommended: yes.</span></li>
+      <li><b>A Monitored switch in the editor?</b> <span>A loop's monitoring cannot be switched anywhere in the UI: the editor sends back what is stored, and only a bulk import of the same tag turns it on. The readiness of a not-monitored loop says "Re-activate with enableMonitoring=true." Adds a capability; the request already carries it, so no backend change. Recommended: yes, under Classification › Ranking; drawn dashed.</span></li>
+      <li><b>Valve position as three choices?</b> <span>The checkbox saves Expected or Not applicable only; Not installed (a valve without positioner feedback: a valve cause is suspected, not confirmed) comes only from a CSV, and an edit keeps it. Recommended: a dropdown Expected / Not installed / Not applicable in place of the checkbox (UI only), and Interacting loops without "Not installed". Not drawn.</span></li>
+      <li><b>Export CSV?</b> <span>There is no export today, only the import template. An export of the list in the import format would let a plant correct many loops and import them back. Adds a capability, client side, no backend change. Recommended: yes; drawn dashed in the filter row.</span></li>
+      <li><b>Keep "Re-project links &amp; republish evidence" long?</b> <span>The server's peer-links advice names it word for word. Recommended: keep it.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Found on the way, not part of this proposal</h3>
+    <ul>
+      <li>A search with no match shows "No loops registered · Onboard the first loop to start producing diagnoses." with Add loop.</li>
+      <li>Bulk import › Review: the Status column (Ready, Updates existing, the problems) is cut off past the dialog's right edge at 1440 px, so the reason a row is red is out of view.</li>
+      <li>Editor › Classification: "OP rangenormalises": the space after the bold "OP range" is lost.</li>
+      <li>The same loop reads "Not monitored" in the list and "Registered" on its page (EVAPI_12F4CB).</li>
+      <li>"Retire loop" is disabled until a reason is typed, with nothing saying so.</li>
+      <li>Add loop: before a site is picked, Area and Unit read "— no areas modelled —" and "— no units modelled —".</li>
+      <li>Editor › Signals: the empty VP field shows the derived path as a grey placeholder that reads as a value, beside "+ add VP as" the same path.</li>
+      <li>The readiness read answered HTTP 500 once (FIC10401); the page then stayed on "Checking readiness…" while it retried. The next read worked.</li>
+      <li>Lab facts: every monitored loop is Degraded (241 of 241: 234 without a VP, 239 without peer links); there is no Active and no retired loop, so those states are illustrative. Loops whose preset has no family read "Model — · —" and "UNSET · UNKNOWN · UNKNOWN" (AIC30601, G13_LOOP_A, EVAPI_*).</li>
+      <li>A readiness message names an engine topic ("No samples have reached traverse.cpa.loop.samples.v1 for this loop yet."); server text, not changed here.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

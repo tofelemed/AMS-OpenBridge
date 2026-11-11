@@ -1,60 +1,57 @@
 'use client';
 
 /**
- * CPLM Phase 7 — U10 Loop Registry: add / edit a control loop, mapping 1:1
- * onto POST /cpm/loops/activate.
- * CPA-prototype IA parity: registry table + profile detail aside + add-loop
- * wizard + bulk CSV import, wired to the real onboarding API.
- * The prototype's "draft" concept maps to our immediate activate + readiness
- * report (the wizard shows readiness as its post-save validation step).
+ * CPLM Phase 7 — U10 Loop Registry: add / edit a control loop, mapping 1:1 onto POST /cpm/loops/activate (an upsert, so saving
+ * an edit with the same loopId updates it); the readiness after saving is the post-save validation (CHG-098: every step blocks
+ * Next with the reason beside the field and beside the button; the review shows an edit's changes with their effect).
  *
- * CHG-098 (SME review 2 #28): four steps, not five — the fixed pipeline windows
- * moved under a help toggle on the review step. Every step blocks Continue with
- * the reason beside the field and beside the button; signal paths use the full
- * row with Copy; the review lists the paths and, for an edit, only what changed
- * with its expected effect. Form model and rules live in registry/wizard/.
+ * CHG-168 (owner review, the approved sample docs/theme/redesign/samples/loop-registry-proposal.html and the answers of 11 Nov):
+ * a dialog titled after the button that opens it, "Add loop" / "Edit configuration", with tabs Identity · Classification ·
+ * Signals · Review and "Next: X →" (forward only through Next, back any time; no "Step 1 of 4", no eyebrow, the tag the first
+ * field); fields under short titled parts, the help behind ?; the ranges on the Signals tab beside the paths they scale; the
+ * review open; a Monitored switch (owner answer 3a) and three valve-position choices (3b). Every field, rule and request stays.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { PanelHead, TonePill, KvRow } from './shared';
+import { Dialog } from '../../ui/Dialog';
+import { Tabs, tabPanelProps } from '../../ui/Tabs';
 import { useActivateLoop, useCpmReadiness, useCpmRegistryContract } from '../../hooks/useCpm';
 import type { CpmLoop } from '../../api/cpmApi';
-import { ClassificationStep, isExplicit, modelOf } from './registry/wizard/ClassificationStep';
-import { useDialogA11y } from '../../hooks/useDialogA11y';
-import { PlantLocationPicker, deriveSignalPath, historianNode, loopIdProblem } from './plantLocation';
-import type { PlantLocation } from './plantLocation';
-import { NO_VP_COPY } from './investigation/confirmationCopy';
-import { OptionalInputFields, hasVpChecked } from './OptionalInputFields';
-import { factStateLabel } from './optionalInputs';
+import { isExplicit, modelOf } from './registry/wizard/ClassificationStep';
+import { historianNode, loopIdProblem, type PlantLocation } from './plantLocation';
 import { ReasonedButton } from './ReasonedButton';
 import { activateRequestOf, firstProblem, initialForm, rangeChecks, signalChecks, withDerivedPaths, type WizardState } from './registry/wizard/wizardForm';
-import { SignalPathField } from './registry/wizard/SignalPathField';
+import { IdentityTab } from './registry/wizard/IdentityTab';
+import { ClassificationTab } from './registry/wizard/ClassificationTab';
+import { PATH_FIELDS, SignalsTab } from './registry/wizard/SignalsTab';
 import { ReviewStep } from './registry/wizard/ReviewStep';
+import { SavedReadiness } from './registry/wizard/SavedReadiness';
 
-const STEPS = ['Identity', 'Classification', 'Signal mappings', 'Review'] as const;
-const REVIEW = STEPS.length - 1;
+const TABS = [
+  { value: 'identity', label: 'Identity' },
+  { value: 'classification', label: 'Classification' },
+  { value: 'signals', label: 'Signals' },
+  { value: 'review', label: 'Review' },
+] as const;
+type Tab = (typeof TABS)[number]['value'];
+const REVIEW = TABS.length - 1;
 
 const RANGE_LABELS: Record<string, string> = { pvMin: 'PV minimum', pvMax: 'PV maximum', opMin: 'OP minimum', opMax: 'OP maximum', pvUnit: 'PV unit' };
-const PATH_FIELDS = [['pv', 'PV · Process variable *'], ['sp', 'SP · Setpoint *'],
-  ['op', 'OP · Controller output *'], ['mode', 'MODE · Controller mode *'],
-  ['vp', 'VP · Valve position · optional']] as const;
 const PATH_LABELS: Record<string, string> = { pv: 'PV path', sp: 'SP path', op: 'OP path', mode: 'MODE path', vp: 'VP path' };
+const FALLBACK_TYPES = ['FIC', 'PIC', 'PIC_GAS', 'PIC_VAPOUR', 'LIC', 'TIC', 'UNKNOWN'];
 
 export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; onClose: () => void }> = ({ existing, editLoop, onClose }) => {
-  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const contract = useCpmRegistryContract();
   const activate = useActivateLoop();
   const isEdit = !!editLoop;
   const [step, setStep] = useState(0);
   const [savedLoopId, setSavedLoopId] = useState<string | null>(null);
-  // Edit mode: prefill from the existing loop. Activate is an upsert, so saving with the same loopId updates it.
   // CHG-098 (SME review 2 #28): the prefilled form is kept as the "before" side of the review diff.
   const [original] = useState<WizardState | undefined>(() => editLoop ? initialForm(editLoop) : undefined);
   const [form, setForm] = useState<WizardState>(() => original ?? initialForm());
   const readiness = useCpmReadiness(savedLoopId ?? undefined);
-  // P5.3: manual location entry (or an empty asset model) means the location is
-  // unchecked client-side; the server enforces G-07, so the activate request
-  // must carry the explicit override in that case.
+  // P5.3: manual location entry (or an empty asset model) means the location is unchecked client-side; the server enforces
+  // G-07, so the activate request must carry the explicit override in that case.
   const [manualLoc, setManualLoc] = useState(false);
 
   const set = (k: keyof WizardState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -62,18 +59,13 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
       const next = { ...f, [k]: k === 'loopId' ? e.target.value.toUpperCase() : e.target.value };
       return k === 'loopId' ? withDerivedPaths(f, next) : next;
     });
+  const setLocation = (loc: PlantLocation) => setForm(f => withDerivedPaths(f, { ...f, ...loc }));
 
-  const setLocation = (loc: PlantLocation) =>
-    setForm(f => withDerivedPaths(f, { ...f, ...loc }));
-
-  // In edit mode the loopId is fixed (it's the identity we're updating), so it is
-  // never a "duplicate" of itself.
+  // In edit mode the loopId is the identity being updated, so it is never a "duplicate" of itself.
   const duplicate = !isEdit && existing.some(l => l.loopId.toUpperCase() === form.loopId.toUpperCase());
-  // Plant tags keep their punctuation (45FIC-109); only characters that break a
-  // URL segment or a job argument are refused — mirrors the server.
+  // Plant tags keep their punctuation (45FIC-109); only characters that break a URL segment or a job argument are refused.
   const loopIdIssue = loopIdProblem(form.loopId);
-  // The real hazard behind the old charset ban: two ids differing only in
-  // punctuation sanitise to ONE historian device and merge their PV/SP/OP.
+  // Two ids differing only in punctuation sanitise to ONE historian device and merge their PV/SP/OP.
   const nodeClash = !isEdit && form.loopId.trim() !== '' && !duplicate
     ? existing.find(l => historianNode(l.loopId) === historianNode(form.loopId))?.loopId ?? null
     : null;
@@ -83,189 +75,58 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     : nodeClash ? `Loop tag collides with “${nodeClash}” in the historian`
     : !form.displayName.trim() ? 'Service / description is required'
     : !form.site.trim() ? 'Site is required' : null;
-  const ranges = rangeChecks(form);
   const modelIssue = isExplicit(form.model) && modelOf(form.model) === null;
-  const classificationProblem = firstProblem(ranges, RANGE_LABELS)
-    ?? (modelIssue ? 'Loop model: complete or clear the explicit classification' : null);
+  const classificationProblem = modelIssue ? 'Loop model: complete or clear the explicit classification' : null;
+  const ranges = rangeChecks(form);
   const paths = signalChecks(form, original);
-  const signalProblem = firstProblem(Object.fromEntries(PATH_FIELDS.map(([k]) => [k, paths[k].error])), PATH_LABELS);
+  const signalProblem = firstProblem(Object.fromEntries(PATH_FIELDS.map(([k]) => [k, paths[k].error])), PATH_LABELS)
+    ?? firstProblem(ranges, RANGE_LABELS);
   const stepProblem = step === 0 ? identityProblem : step === 1 ? classificationProblem : step === 2 ? signalProblem : null;
 
-  const save = () => {
-    activate.mutate(activateRequestOf(form, editLoop, manualLoc), { onSuccess: (loop) => setSavedLoopId(loop.loopId) });
-  };
+  const save = () => activate.mutate(activateRequestOf(form, editLoop, manualLoc), { onSuccess: (loop) => setSavedLoopId(loop.loopId) });
+  const close = () => { if (!activate.isPending) onClose(); };
+  const next = TABS[step + 1];
+  const tab: Tab = TABS[step].value;
 
-  const loopTypes = contract.data?.loopTypes ?? ['FIC', 'PIC', 'PIC_GAS', 'PIC_VAPOUR', 'LIC', 'TIC', 'UNKNOWN'];
+  const footer = savedLoopId
+    ? <ObcButton variant="raised" onClick={onClose}>Close</ObcButton>
+    : (
+      <>
+        <ObcButton variant="flat" disabled={activate.isPending} onClick={onClose}>Cancel</ObcButton>
+        {step > 0 && <ObcButton variant="normal" disabled={activate.isPending} onClick={() => setStep(s => s - 1)}>Back</ObcButton>}
+        {next
+          ? <ReasonedButton variant="raised" disabled={stepProblem !== null} reason={stepProblem} onClick={() => setStep(s => s + 1)}>Next: {next.label} {'→'}</ReasonedButton>
+          : (
+            <ObcButton variant="raised" disabled={activate.isPending} onClick={save}>
+              {activate.isPending ? (isEdit ? 'Updating…' : 'Activating…') : (isEdit ? 'Update loop' : 'Activate loop')}
+            </ObcButton>
+          )}
+      </>
+    );
 
   return (
-    <div className="cpm-modal-backdrop" onClick={e => { if (e.target === e.currentTarget && !activate.isPending) onClose(); }}>
-      <div ref={dialogRef} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label={isEdit ? 'Edit control loop' : 'Add control loop'}>
-        <PanelHead eyebrow="Governed registry workflow" title={isEdit ? `Edit loop ${editLoop!.loopId}` : 'Add control loop'} />
-        <div className="cpm-wizard-steps">
-          {STEPS.map((s, i) => (
-            <button
-              key={s}
-              className={`cpm-wizard-step${i === step ? ' cpm-wizard-step--active' : ''}${i < step ? ' cpm-wizard-step--done' : ''}`}
-              onClick={() => { if (i < step) setStep(i); }}
-              type="button"
-            >
-              {i < step ? '✓ ' : ''}{s}
-            </button>
-          ))}
-        </div>
-
-        {step === 0 && (
-          <div className="cpm-wizard-grid">
-            <label className="cpm-field">
-              <span className="cpm-field__label">Loop tag *</span>
-              <input className={`cpm-input${duplicate || loopIdIssue || nodeClash ? ' cpm-input--error' : ''}`} value={form.loopId} onChange={set('loopId')} placeholder="45FIC-109" disabled={isEdit} title={isEdit ? 'Loop ID is the identity and cannot be changed' : undefined} />
-              {duplicate && <span className="cpm-field__error">This tag already exists</span>}
-              {loopIdIssue && <span className="cpm-field__error">{loopIdIssue}</span>}
-              {nodeClash && (
-                <span className="cpm-field__error">
-                  Collides with “{nodeClash}” in the historian — both become device{' '}
-                  <span className="cpm-mono">{historianNode(form.loopId)}</span>, so their trends
-                  would merge. Use an id that differs by more than punctuation.
-                </span>
-              )}
-            </label>
-            <label className="cpm-field">
-              <span className="cpm-field__label">Service / description *</span>
-              <input className="cpm-input" value={form.displayName} onChange={set('displayName')} placeholder="Natural gas feed flow" />
-            </label>
-            <PlantLocationPicker
-              value={{ site: form.site, area: form.area, unit: form.unit }}
-              onChange={setLocation}
-              onManualModeChange={setManualLoc}
-            />
-            <label className="cpm-field">
-              <span className="cpm-field__label">Loop type *</span>
-              <select className="cpm-select" value={form.loopType} onChange={set('loopType')}>
-                {loopTypes.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </label>
-          </div>
-        )}
-
-        {step === 1 && (
-          <>
-            <div className="cpm-wizard-grid">
-              <label className="cpm-field">
-                <span className="cpm-field__label">Criticality</span>
-                <select className="cpm-select" value={form.criticality} onChange={set('criticality')}>
-                  {['low', 'medium', 'high', 'critical'].map(c => <option key={c}>{c}</option>)}
-                </select>
-              </label>
-              <label className="cpm-field">
-                <span className="cpm-field__label">Gate profile</span>
-                <input className="cpm-input" value={form.thresholdProfileId} onChange={set('thresholdProfileId')} placeholder="default" />
-              </label>
-            </div>
-            <ClassificationStep loopType={form.loopType} contract={contract.data?.model} form={form.model} onChange={m => setForm(f => ({ ...f, model: m }))} />
-
-            <div className="cpm-field__label" style={{ marginTop: 18 }}>Engineering ranges</div>
-            <p className="cpm-copy" style={{ marginBottom: 10 }}>
-              Optional, and neither is cosmetic. <strong>PV range</strong> scales the good-error
-              band G3 and OCE use — undeclared, that band is a fixed ±0.5&nbsp;EU, which no
-              temperature or flow loop in engineering units can meet. <strong>OP range</strong>
-              normalises the output to 0–100 before saturation (G10) and operating-region (G2r)
-              maths. Give both bounds of a range or neither; leave both blank to keep today's behaviour.
-            </p>
-            <div className="cpm-wizard-grid">
-              {([['pvMin', 'PV minimum'], ['pvMax', 'PV maximum'],
-                 ['opMin', 'OP minimum'], ['opMax', 'OP maximum']] as const).map(([k, label]) => (
-                <label key={k} className="cpm-field">
-                  <span className="cpm-field__label">{label}</span>
-                  <input
-                    className={`cpm-input${ranges[k] ? ' cpm-input--error' : ''}`}
-                    value={form[k]} onChange={set(k)} inputMode="decimal" aria-invalid={ranges[k] ? true : undefined}
-                    placeholder={k.startsWith('pv') ? 'e.g. 0 / 250' : 'e.g. 0 / 100'} />
-                  {ranges[k] && <span className="cpm-field__error">{ranges[k]}</span>}
-                </label>
-              ))}
-              <label className="cpm-field">
-                <span className="cpm-field__label">PV unit</span>
-                <input className={`cpm-input${ranges.pvUnit ? ' cpm-input--error' : ''}`}
-                  value={form.pvUnit} onChange={set('pvUnit')} maxLength={24} placeholder="e.g. kg/h, °C, barg" />
-                {ranges.pvUnit && <span className="cpm-field__error">{ranges.pvUnit}</span>}
-              </label>
-            </div>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <p className="cpm-copy" style={{ marginBottom: 12 }}>
-              Derived from the location and loop tag as
-              <code> site/[area/]unit/&lt;loop&gt;.&lt;role&gt;</code> — edit any path to override it.
-            </p>
-            <div className="cpm-path-list">
-              {PATH_FIELDS.map(([k, label]) => {
-                const derived = deriveSignalPath(
-                  { site: form.site, area: form.area, unit: form.unit }, form.loopId, k);
-                return (
-                  <SignalPathField key={k} id={`cpm-wizard-path-${k}`} label={label} value={form[k]}
-                    placeholder={derived || 'site/unit/loop.role'} check={paths[k]} onChange={set(k)}>
-                    {k === 'vp' && form.vp.trim() === '' && derived && (
-                      <button type="button" className="cpm-pill cpm-pill--muted"
-                        style={{ cursor: 'pointer', marginTop: 4, alignSelf: 'flex-start' }}
-                        onClick={() => setForm(f => ({ ...f, vp: derived }))}>
-                        + add VP as {derived}
-                      </button>
-                    )}
-                  </SignalPathField>
-                );
-              })}
-            </div>
-            <OptionalInputFields form={form} onChange={set}
-              onVpChange={v => setForm(f => ({ ...f, vpApplicability: v }))} />
-            {/* CHG-077: the G14 note only where it is true - a VP is declared and none is mapped */}
-            {hasVpChecked(form.vpApplicability) && !form.vp.trim() && (
-              <p className="cpm-copy" style={{ marginTop: 12 }}>{NO_VP_COPY}</p>
+    <Dialog open size="wide" title={isEdit ? 'Edit configuration' : 'Add loop'} onClose={close} footer={footer}>
+      {savedLoopId ? <SavedReadiness readiness={readiness.data} /> : (
+        <div className="cpm-reg-editor">
+          <Tabs idBase="cpm-loop-editor" label={isEdit ? 'Edit configuration' : 'Add loop'} value={tab}
+            options={TABS.map((t, i) => ({ value: t.value, label: t.label, disabled: i > step }))}
+            onChange={v => setStep(TABS.findIndex(t => t.value === v))} />
+          <div className="cpm-reg-editor__panel" {...tabPanelProps('cpm-loop-editor', tab)}>
+            {step === 0 && (
+              <IdentityTab form={form} isEdit={isEdit} issues={{ duplicate, loopIdIssue, nodeClash }} set={set}
+                loopTypes={contract.data?.loopTypes ?? FALLBACK_TYPES} onLocation={setLocation} onManualMode={setManualLoc} />
             )}
-          </>
-        )}
-
-        {step === REVIEW && !savedLoopId && (
-          <ReviewStep form={form} original={original}
-            // ApiError carries the server's problem detail (422 validation, 409 case-collision) — String() prefixed it with "Error:".
-            error={activate.isError ? (activate.error instanceof Error ? activate.error.message : String(activate.error)) : null} />
-        )}
-
-        {step === REVIEW && savedLoopId && (
-          <>
-            <PanelHead
-              eyebrow="Activation result"
-              title={savedLoopId}
-              right={readiness.data
-                ? <TonePill tone={readiness.data.ready ? (readiness.data.degraded ? 'warn' : 'good') : 'bad'}>
-                    {readiness.data.ready ? (readiness.data.degraded ? 'READY · DEGRADED' : 'READY') : 'BLOCKED'}
-                  </TonePill>
-                : <TonePill tone="muted">CHECKING…</TonePill>}
-            />
-            {(readiness.data?.checks ?? []).map(c => (
-              <KvRow key={c.id} label={c.label}>
-                {c.ok && factStateLabel(c.state)
-                  ? <TonePill tone="muted">{factStateLabel(c.state)}</TonePill>
-                  : <TonePill tone={c.ok ? 'good' : 'warn'}>{c.ok ? 'OK' : c.message ?? 'Check'}</TonePill>}
-              </KvRow>
-            ))}
-          </>
-        )}
-
-        <div className="cpm-wizard-footer">
-          <ObcButton variant="normal" onClick={savedLoopId ? onClose : (step === 0 ? onClose : () => setStep(s => s - 1))}>
-            {savedLoopId ? 'Close' : step === 0 ? 'Cancel' : 'Back'}
-          </ObcButton>
-          <span className="cpm-copy">Step {step + 1} of {STEPS.length}</span>
-          {!savedLoopId && (step < REVIEW
-            ? <ReasonedButton variant="raised" disabled={stepProblem !== null} reason={stepProblem} onClick={() => setStep(s => s + 1)}>Continue ›</ReasonedButton>
-            : <ObcButton variant="raised" disabled={activate.isPending} onClick={save}>
-                {activate.isPending ? (isEdit ? 'Updating…' : 'Activating…') : (isEdit ? 'Update loop' : 'Activate loop')}
-              </ObcButton>)}
+            {step === 1 && <ClassificationTab form={form} contract={contract.data?.model} set={set} onForm={setForm} />}
+            {step === 2 && <SignalsTab form={form} original={original} paths={paths} ranges={ranges} set={set} onForm={setForm} />}
+            {step === REVIEW && (
+              <ReviewStep form={form} original={original}
+                // ApiError carries the server's problem detail (422 validation, 409 case-collision) — String() prefixed it with "Error:".
+                error={activate.isError ? (activate.error instanceof Error ? activate.error.message : String(activate.error)) : null} />
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   );
 };
 

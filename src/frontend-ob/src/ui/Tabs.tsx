@@ -10,6 +10,8 @@ export interface TabOption<T extends string> {
   label: string;
   /** A count beside the label. Zero is shown: it answers the question without a click. */
   badge?: number;
+  /** Not reachable yet (a step ahead of the current one): shown, focusable, and not selected by a click or a key. */
+  disabled?: boolean;
 }
 
 const tabId = (base: string, value: string) => `${base}-tab-${value}`;
@@ -41,6 +43,7 @@ export function Tabs<T extends string>({ idBase, label, options, value, onChange
   }, [value]);
 
   const moveTo = (index: number) => {
+    if (options[index].disabled) return;
     onChange(options[index].value);
     listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
   };
@@ -67,10 +70,11 @@ export function Tabs<T extends string>({ idBase, label, options, value, onChange
           role="tab"
           id={tabId(idBase, o.value)}
           aria-selected={o.value === value}
+          aria-disabled={o.disabled || undefined}
           aria-controls={panelId(idBase, o.value)}
           tabIndex={o.value === value ? 0 : -1}
           className="ui-tabs__tab"
-          onClick={() => onChange(o.value)}
+          onClick={() => { if (!o.disabled) onChange(o.value); }}
           onKeyDown={e => onKeyDown(e, i)}
         >
           {o.label}

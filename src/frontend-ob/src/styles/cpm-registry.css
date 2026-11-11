@@ -1,11 +1,102 @@
-/* Loop Registry list (CHG-147): placement only, no new sizes. */
-.cpm-reg-tools { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.cpm-reg-retired { display: inline-flex; align-items: center; gap: 6px; }
-.cpm-reg-count { margin: 0; padding: 0 12px 6px; }
+/* Loop Registry (CHG-147; CHG-168 the owner's approved sample): placement and tone only; every size is the app's own token or class. */
+
+/* ── The list card: the filter row (32 px, the pager's size) at its top, the rows, the shared pager centred ── */
+.cpm-reg-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
+/* search first, taking the room the dropdown and Export CSV leave */
+.cpm-reg-filters .cpm-input { flex: 1 1 12rem; min-width: 0; height: var(--traverse-space-8); padding-block: 0; }
+.cpm-reg-filters .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+.cpm-reg-filters__error { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); }
 .cpm-reg-table { width: 100%; }
 .cpm-reg-table th { text-align: left; }
 .cpm-reg-row { cursor: pointer; }
-.cpm-reg-row:hover { background: var(--container-hover-color, rgba(128,128,128,0.08)); }
+.cpm-reg-row:hover > td { background: var(--traverse-surface-hover); }
+/* the selected loop's row: the selection tint and the edge, as the other lists mark theirs */
+.cpm-reg-row--selected > td { background: var(--cpm-selected-bg); }
+.cpm-reg-row--selected:hover > td { background: var(--cpm-selected-hover-bg); }
+.cpm-reg-row--selected > td:first-child { box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
 .cpm-reg-link { color: var(--element-active-color); text-decoration: none; }
 .cpm-reg-link:hover { text-decoration: underline; }
-.cpm-readiness--line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; }
+
+/* ── The panel ── */
+.cpm-reg-panel__service { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-secondary); }
+/* a pill and its ? stay together at the value's end; a long pill wraps inside the row */
+.cpm-reg-fact { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--traverse-space-1); max-width: 100%; }
+.cpm-registry .cpm-kv__value .cpm-pill + .cpm-pill { margin-inline-start: var(--traverse-space-1); }
+.cpm-reg-nothing { margin: var(--traverse-space-2) 0 0; }
+/* Signals: the role with its pen, the path under the plant path, Copy */
+.cpm-reg-signal {
+  display: grid;
+  grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  min-height: var(--traverse-size-control-min-height);
+  border-bottom: 1px solid var(--border-divider-color);
+}
+.cpm-reg-signal:last-child { border-bottom: 0; }
+.cpm-reg-signal__role { display: inline-flex; align-items: center; gap: var(--traverse-space-2); }
+.cpm-reg-signal__path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpm-reg-signal__copy { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+/* The pen of each role, from the one signal colour source (styles/signal-colours.css); SP dashed and MODE dotted, as the trends draw them */
+.cpm-reg-swatch {
+  --pen: var(--traverse-text-secondary);
+  display: inline-block;
+  flex: none;
+  width: var(--traverse-space-4);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pen);
+}
+.cpm-reg-swatch[data-pen='pv'] { --pen: var(--signal-pv); }
+.cpm-reg-swatch[data-pen='op'] { --pen: var(--signal-op); }
+.cpm-reg-swatch[data-pen='vp'] { --pen: var(--signal-vp); }
+.cpm-reg-swatch[data-pen='sp'] { --pen: var(--signal-sp); background: repeating-linear-gradient(90deg, var(--pen) 0 4px, transparent 4px 7px); }
+.cpm-reg-swatch[data-pen='mode'] { height: 0; background: none; border-top: 2px dotted var(--pen); border-radius: 0; }
+/* the actions wrap; each reason stays under its own button */
+.cpm-reg-actions { align-items: flex-start; margin-top: 0; }
+/* the foot holds the way on, on the page colour, as the list feet do */
+.cpm-reg-foot { display: flex; justify-content: flex-end; }
+.cpm-registry .ui-inspector__foot {
+  background: var(--traverse-surface-page);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+
+/* ── The editor and Bulk import dialogs: tabs, then short titled parts ── */
+.cpm-reg-editor__panel { padding-top: var(--traverse-space-1); }
+.cpm-reg-part { margin-top: var(--traverse-space-4); }
+.cpm-reg-part__head { flex-wrap: wrap; margin-bottom: var(--traverse-space-2); }
+.cpm-reg-part__title { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-key); font-weight: 600; }
+/* a button that belongs to the part (Enter manually, Download template) sits at the title's end */
+.cpm-reg-part__head > obc-button { margin-inline-start: auto; }
+.cpm-reg-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: var(--traverse-space-3); }
+.cpm-reg-form-grid--two { grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+.cpm-reg-field { min-width: 0; }
+.cpm-reg-field .cpm-input, .cpm-reg-field .cpm-select, .cpm-reg-field .cpm-textarea { width: 100%; min-width: 0; }
+.cpm-reg-check { min-height: var(--traverse-size-control-min-height); }
+/* Ranges: "PV range [min] – [max] [unit]", beside the paths they scale */
+.cpm-reg-range {
+  display: grid;
+  grid-template-columns: minmax(0, 6rem) minmax(0, 7rem) max-content minmax(0, 7rem) minmax(0, 13rem);
+  justify-content: start;
+  align-items: center;
+  gap: var(--traverse-space-2);
+  margin-bottom: var(--traverse-space-2);
+}
+/* a reason under a dialog's disabled Next wraps instead of running past the dialog */
+.ui-dialog__foot .cpm-reasoned__why { white-space: normal; }
+/* Bulk import: the counts on one line; the row count at the drop zone's end; Status wide enough to read */
+.cpm-reg-import-line { margin: 0 0 var(--traverse-space-3); }
+.cpm-csv-drop__count { margin-inline-start: auto; }
+.cpm-reg-import-status { min-width: 12rem; }
+.cpm-reg-import-loc { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpm-reg-import-paths { white-space: nowrap; }
+/* a warning that stays on screen (the VP warning, manual entry, an unknown location) reads in the warning colour */
+.cpm-reg-part .cpm-copy.cpm-tone-warn { color: var(--traverse-status-warning-fg); }
+.cpm-reg-import-progress { margin: var(--traverse-space-4) 0; }
+.cpm-reg-import-progress obc-progress-bar { width: 100%; }
+
+@media (max-width: 600px) {
+  .cpm-reg-range { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); justify-content: stretch; }
+  .cpm-reg-range > .ui-field__label { grid-column: 1 / -1; }
+  .cpm-reg-range > [aria-hidden] { display: none; }
+}

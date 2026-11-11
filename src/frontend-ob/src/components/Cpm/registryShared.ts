@@ -17,12 +17,22 @@ export function modelLabel(loop: CpmLoop): string {
   return `${m.serviceFamily ?? '—'} · ${m.dynamicClass ?? '—'}`;
 }
 
-export function stateOf(loop: CpmLoop): { label: string; tone: 'good' | 'warn' | 'muted' } {
-  if (!loop.isActive) return { label: 'Inactive', tone: 'muted' };
-  if (!loop.monitoringEnabled) return { label: 'Registered', tone: 'muted' };
+export interface LoopState {
+  label: 'Active' | 'Degraded' | 'Not monitored' | 'Retired';
+  tone: 'good' | 'warn' | 'muted';
+  glyph: string;
+}
+
+/**
+ * CHG-168 (owner review): one word per state, the same in the list and on the loop's panel (the panel said "Registered" for
+ * the loop the list called "Not monitored"); tone + glyph + word.
+ */
+export function stateOf(loop: CpmLoop): LoopState {
+  if (!loop.isActive) return { label: 'Retired', tone: 'muted', glyph: '⊘' };
+  if (!loop.monitoringEnabled) return { label: 'Not monitored', tone: 'muted', glyph: '○' };
   // CHG-077: only an input the loop declares can degrade it (also on a server that still stamps NO_VP)
   const flags = flagsForLoop(loop.observabilityFlags, inputContextOf(loop));
   if (flags.includes('NO_UPSTREAM_LINKS') || flags.includes('NO_VP'))
-    return { label: 'Degraded', tone: 'warn' };
-  return { label: 'Active', tone: 'good' };
+    return { label: 'Degraded', tone: 'warn', glyph: '!' };
+  return { label: 'Active', tone: 'good', glyph: '✓' };
 }

@@ -69,6 +69,11 @@ describe('signalChecks + diffSettings for an edit', () => {
     expect(changes[1].effect).toMatch(/% of PV span/);
     expect(changes[2].effect).toMatch(/valve cause/);
   });
+  it('lists a valve-position change from Not installed to Not applicable (CHG-168)', () => {
+    const before = { ...initialForm(loop), vpApplicability: 'NOT_INSTALLED' };
+    const changes = diffSettings(before, { ...before, vpApplicability: 'NOT_APPLICABLE' });
+    expect(changes).toMatchObject([{ key: 'vpApplicability', before: 'Valve position not installed', after: 'Valve position not applicable' }]);
+  });
 });
 
 describe('activateRequestOf engineering (B12)', () => {

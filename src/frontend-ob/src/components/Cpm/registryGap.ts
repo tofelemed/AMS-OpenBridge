@@ -6,7 +6,7 @@
  */
 import type { CpmLoop } from '../../api/cpmApi';
 import { inputContextOf } from './optionalInputs';
-import { stateOf } from './registryShared';
+import { stateOf, type LoopState } from './registryShared';
 
 export type RegistryGap = 'vp' | 'peers' | 'degraded';
 
@@ -20,16 +20,11 @@ export function hasGap(loop: CpmLoop, gap: RegistryGap): boolean {
   return loop.monitoringEnabled && (gap === 'vp' ? c.vp === 'EXPECTED' && !c.vpMapped : c.peers === 'EXPECTED' && loop.links.length === 0);
 }
 
-export const GAP_LABEL: Record<RegistryGap, string> = {
-  vp: 'a valve position expected but not mapped',
-  peers: 'peer links expected but missing',
-  degraded: 'a readiness gap (degraded)',
-};
-
-/** Only Not monitored and Retired show on a row: nearly every loop has a readiness gap, so Degraded is a count and a filter, not a pill. */
-export function abnormalPill(loop: CpmLoop): string | null {
+/**
+ * Only Not monitored and Retired show on a row: nearly every loop has a readiness gap, so Degraded is a count and a filter,
+ * not a pill. CHG-168: the state's glyph and word, muted ("○ Not monitored", "⊘ Retired").
+ */
+export function abnormalPill(loop: CpmLoop): LoopState | null {
   const st = stateOf(loop);
-  if (st.label === 'Inactive') return 'Retired';
-  if (st.label === 'Registered') return 'Not monitored';
-  return null;
+  return st.label === 'Retired' || st.label === 'Not monitored' ? st : null;
 }

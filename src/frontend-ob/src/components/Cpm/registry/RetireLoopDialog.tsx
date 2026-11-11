@@ -3,7 +3,8 @@
 /**
  * Retire or restore a loop (CHG-146). Retire keeps the loop's history and can be undone by Restore; it needs a
  * reason (at most 500 characters, as the server refuses more). A failed call stays in the dialog with the typed
- * reason, so nothing has to be written again.
+ * reason, so nothing has to be written again. CHG-168 (owner review): "Retire loop" / "Restore loop" (the loop is named in
+ * the panel heading behind the dialog), and a disabled Retire loop says "Write a reason first" under it.
  */
 import React, { useId, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -12,6 +13,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import type { LoopRetireResult } from '../../../api/cpm/loopRetire';
 import { useRestoreLoop, useRetireLoop } from '../../../hooks/useLoopRetire';
 import { reasonOf } from '../ActionReceipt';
+import ReasonedButton from '../ReasonedButton';
 
 export const REASON_LIMIT = 500;
 
@@ -41,21 +43,22 @@ export const RetireLoopDialog: React.FC<{
     <Dialog
       open
       onClose={() => { if (!pending) onClose(); }}
-      title={`${isRetire ? 'Retire' : 'Restore'} ${loop.loopId}`}
+      title={isRetire ? 'Retire loop' : 'Restore loop'}
       description={isRetire
         ? 'The loop stops being monitored. Its history stays, and Restore brings it back.'
         : 'The loop is monitored again as it was before it was retired.'}
       footer={(
         <>
           <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
-          <ObcButton variant="raised" disabled={pending || (isRetire && trimmed === '')} onClick={confirm}>
+          <ReasonedButton variant="raised" disabled={pending || (isRetire && trimmed === '')}
+            reason={isRetire && trimmed === '' ? 'Write a reason first' : null} onClick={confirm}>
             {isRetire ? 'Retire loop' : 'Restore loop'}
-          </ObcButton>
+          </ReasonedButton>
         </>
       )}
     >
       <div className="cpm-field">
-        <label className="cpm-field__label" htmlFor={id}>Reason ({isRetire ? 'required' : 'optional'})</label>
+        <label className="ui-field__label" htmlFor={id}>Reason ({isRetire ? 'required' : 'optional'})</label>
         <textarea id={id} className="cpm-textarea" rows={3} maxLength={REASON_LIMIT} value={reason}
           onChange={e => setReason(e.target.value)} />
         <span className="cpm-copy">{reason.length} / {REASON_LIMIT}</span>

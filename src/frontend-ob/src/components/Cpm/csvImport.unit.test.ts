@@ -46,3 +46,15 @@ describe('vp_applicability / peer_applicability columns', () => {
     expect(row.engineering).toBeNull();
   });
 });
+
+// CHG-168 (found on the way): the template's sample rows had 17 cells for 20 columns, so a downloaded template failed its own
+// import ("17 cell(s) for 20 column(s)").
+describe('the template', () => {
+  it('imports with no problem', async () => {
+    const { templateCsv, parseCsv: parse } = await import('./csvImport');
+    const parsed = parse(templateCsv(), [], undefined, ['FIC', 'TIC']);
+    expect(parsed.missing).toEqual([]);
+    expect(parsed.rows.length).toBe(2);
+    expect(parsed.rows.map(r => r.problems)).toEqual([[], []]);
+  });
+});

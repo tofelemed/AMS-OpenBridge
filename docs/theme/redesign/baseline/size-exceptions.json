@@ -26,12 +26,12 @@
       "why": "CHG-158: the owner asked for the Calculations tab as in the image of the earlier build: uppercase tier headings (12 px, 12 px above) and compact gate rows (4 px)"
     },
     {
-      "entry": "button.height = 32px on historical, investigation, response, workbench, replay, windows, calculations",
-      "why": "CHG-159..166: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector, System Response, Calculations); those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
+      "entry": "button.height = 32px on historical, investigation, response, workbench, replay, windows, calculations, registry",
+      "why": "CHG-159..166: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector, System Response, Calculations); those pages carry .cpm-compact (32 px, the pager's size); CHG-168: Loop Registry's filter row only (its approved sample: 32 px filter row and pager; the header buttons, editor fields and panel actions keep 40 px); other pages keep 40 px"
     },
     {
-      "entry": "select.height = 32px on historical, investigation, response, workbench, replay, windows, calculations",
-      "why": "CHG-159..166: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector, System Response, Calculations); those pages carry .cpm-compact (32 px, the pager's size); other pages keep 40 px"
+      "entry": "select.height = 32px on historical, investigation, response, workbench, replay, windows, calculations, registry",
+      "why": "CHG-159..166: the owner asked for smaller buttons and fields on Historical, then the next pages in the same pattern (Investigation, Evidence Workbench, Evidence Replay, Window Inspector, System Response, Calculations); those pages carry .cpm-compact (32 px, the pager's size); CHG-168: Loop Registry's filter row only (its approved sample: 32 px filter row and pager; the header buttons, editor fields and panel actions keep 40 px); other pages keep 40 px"
     },
     {
       "entry": "section heading.fontSize = 14px on workbench",

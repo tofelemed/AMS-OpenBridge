@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Loop Registry in the owner's pattern (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. Values from lab :4173 on 11 Nov: 243 loops (page 3 of 10 holds
+     FIC10401), the fleet summary (234 VP expected not mapped, 239 peer links missing, 241 degraded), the readiness of FIC10401,
+     FIC10302, FIC10503, EVAPI_12F4CB and AIC30601, and the editor and import dialogs opened without saving. The lab has no
+     retired loop and no Active one: those states are illustrative and say so. Shell drawn at 1440 px. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC;
+    /* the one signal colour source (styles/signal-colours.css, day) */ --signal-pv:#40c057; --signal-sp:#535353; --signal-op:#fab005; --signal-vp:#e64980; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn[disabled] { background: var(--raised); color: var(--muted); border: 1px solid var(--border); cursor: default; }
+  .btn--sm { height: 32px; }
+  .field { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; font: inherit; color: var(--text); }
+  .field--q { border-style: dashed; color: var(--text2); }
+  .md { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: 16px; align-items: start; }
+  .filters { display: flex; align-items: center; gap: 8px; padding: 16px 16px 12px; }
+  .filters input { flex: 1; min-width: 150px; padding-inline-start: 34px; background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%276.5%27 cy=%276.5%27 r=%275%27 fill=%27none%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3Cpath d=%27M10.5 10.5l4 4%27 stroke=%27%234B5D73%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat 11px center; }
+  .filters select.field { padding: 0 6px; }
+  .thead, .row { display: grid; grid-template-columns: minmax(0, 1fr) 128px 128px; align-items: center; gap: 12px; padding: 0 16px; }
+  .thead { height: 36px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .row { min-height: 52px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row:hover { background: var(--hover); } .row.sel { background: var(--selected); box-shadow: inset 4px 0 0 var(--action); }
+  .row strong { font-weight: 600; } .row small, .sub { display: block; color: var(--text2); font-size: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; vertical-align: 1px; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-bad b { color: var(--bad); } .t-muted b { color: var(--muted); }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 16px; }
+  .pg { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--panel); }
+  .pg.on { background: var(--selected); border-color: var(--action); color: var(--action); font-weight: 600; } .pg.dis { color: var(--muted); border-color: var(--border); }
+  .pgs { color: var(--text2); margin: 0 6px; font-size: 13px; } .gap { color: var(--text2); }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text2); } .empty strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 8px; }
+  .insp { display: flex; flex-direction: column; }
+  .insp__head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 6px; }
+  .insp__head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; }
+  .insp__body { padding: 0 20px 8px; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: center; }
+  .kv > span:first-child { color: var(--text2); } .kv > span:last-child { text-align: end; overflow-wrap: anywhere; }
+  .kv .sub { text-align: end; }
+  .q { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-inline-start: 6px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); cursor: help; vertical-align: 1px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .sect { border-top: 1px solid var(--border); padding: 12px 20px; }
+  .sect h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+  .sig { display: grid; grid-template-columns: 74px minmax(0, 1fr) 32px; gap: 8px; align-items: center; min-height: 40px; border-bottom: 1px solid var(--border); }
+  .sig:last-child { border-bottom: 0; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-inline-end: 8px; vertical-align: 3px; background: var(--text2); }
+  .sw-pv { background: var(--signal-pv); } .sw-op { background: var(--signal-op); } .sw-vp { background: var(--signal-vp); }
+  .sw-sp { background: repeating-linear-gradient(90deg, var(--signal-sp) 0 4px, transparent 4px 7px); } .sw-mode { background: none; border-top: 1px dotted var(--text2); height: 0; }
+  .ib { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); color: var(--text2); cursor: pointer; font-size: 14px; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  .acts > span { display: inline-flex; flex-direction: column; gap: 2px; } .acts small { color: var(--text2); font-size: 12px; max-width: 170px; }
+  .receipt { margin: 8px 0 0; color: var(--text2); font-size: 13px; }
+  .links { display: flex; gap: 2px; flex-wrap: wrap; padding: 4px 20px 8px; } .links .btn { padding: 0 8px; } .links .btn:first-child { padding-inline-start: 0; }
+  .insp__foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--page); border-radius: 0 0 12px 12px; }
+  .illus { margin: 8px 20px 12px; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; overflow: auto; padding: 24px 0; }
+  .scrim.on { display: grid; }
+  .dlg { width: 600px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); }
+  .dlg--wide { width: 820px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; align-items: center; } .dlg h3 > span:last-child { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 4px; } .dlg h4 .btn { margin-inline-start: auto; height: 32px; }
+  .dlg p { margin: 8px 0; } .dlg .kv { grid-template-columns: 170px 1fr; } .dlg .kv > span:last-child { text-align: start; }
+  .dlg .df { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .dlg .df > span { display: inline-flex; flex-direction: column; gap: 2px; align-items: flex-end; } .dlg .df small { color: var(--text2); font-size: 12px; }
+  .key { display: grid; grid-template-columns: 220px 1fr; gap: 6px 16px; align-items: center; }
+  .key > span:nth-child(even) { color: var(--text2); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 8px 0 4px; }
+  .tab { padding: 10px 14px 8px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; }
+  .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); } .tab.later { color: var(--muted); cursor: default; }
+  .fgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .fl { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); min-width: 0; }
+  .in { height: 40px; border: 1px solid var(--strong); border-radius: 6px; padding: 0 10px; font: inherit; color: var(--text); background: var(--panel); width: 100%; min-width: 0; }
+  .in[disabled] { background: var(--raised); color: var(--text2); } .in::placeholder { color: var(--muted); }
+  .in--q { border-style: dashed; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+  .fl small { color: var(--text2); font-size: 12px; } .err { color: var(--bad); font-size: 12px; } .warnl { color: var(--warn); font-size: 13px; }
+  .path { display: grid; grid-template-columns: 200px minmax(0, 1fr) 32px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .path .in { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .rng { display: grid; grid-template-columns: 200px 110px 16px 110px 170px; gap: 8px; align-items: center; margin-bottom: 8px; } .rng > span:nth-child(3) { text-align: center; color: var(--text2); }
+  .chk { display: flex; align-items: center; gap: 8px; height: 40px; }
+  .linkbtn { color: var(--action); font-weight: 600; cursor: pointer; font-size: 13px; }
+  .drop { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed var(--strong); border-radius: 8px; margin-bottom: 10px; }
+  textarea.in { height: 132px; padding: 8px 10px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; resize: vertical; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; white-space: nowrap; }
+  td.mono { white-space: nowrap; } tr.bad td { background: var(--bad-bg); }
+  .rv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; } .rv .kv { grid-template-columns: 110px 1fr; }
+  [data-dlg] { display: none; } [data-dlg].on { display: block; } [data-pane] { display: none; } [data-pane].on { display: block; }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div class="on">Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ?; How to read beside the two page actions, top right -->
+    <div class="head">
+      <div class="ann" data-n="1" style="padding-inline-end:14px"><span class="eyebrow">Set up</span><h1>Loop Registry</h1></div>
+      <span class="grow"></span>
+      <button class="btn" onclick="openDlg('howto')">How to read</button>
+      <button class="btn btn--out" onclick="openEditor('import')">Bulk import</button>
+      <button class="btn btn--raised" onclick="openEditor('add')">Add loop</button>
+    </div>
+
+    <div class="md">
+      <section class="card" id="list">
+        <!-- 2 one filter row: search first, then ONE dropdown that holds Show retired and the three configuration-limit counts -->
+        <div class="filters">
+          <input class="field ann" data-n="2" type="search" id="q" placeholder="Loop, service, unit or type" aria-label="Find loop">
+          <select class="field" id="fst" aria-label="Loops shown">
+            <option value="cur">Not retired 243</option><option value="all">With retired 243</option>
+            <option value="vp">VP expected, not mapped 234</option><option value="peers">Peer links expected, missing 239</option><option value="degraded">Degraded 241</option>
+          </select>
+          <span class="field field--q ann" data-n="Q" title="Owner question 9: no export today">Export CSV</span>
+        </div>
+        <!-- 3 the same three columns; a state badge only on an abnormal row (glyph + word); no "243 loops" note -->
+        <div class="thead"><span class="ann" data-n="3" style="justify-self:start;padding-inline-end:14px">Loop</span><span>Loop type</span><span>VP</span></div>
+        <div id="rows" role="list" aria-label="Loops"></div>
+        <div class="empty hide" id="empty"><strong id="emptyT"></strong><button class="btn btn--out btn--sm" onclick="setState('fic10401')">Show all loops</button></div>
+        <!-- 4 the shared pager: 32 px, centred (was "← Prev · Page 1 of 10 · Next →") -->
+        <div class="pager ann" data-n="4" id="pager"></div>
+      </section>
+
+      <!-- the selected loop: a panel (a drawer below 1280 px); it replaces the separate loop page -->
+      <aside class="card insp" id="panel" aria-label="Selected loop">
+        <!-- 5 the loop once: tag, service under it, its state -->
+        <div class="insp__head ann" data-n="5"><div><h2 id="pTag"></h2><span class="sub" id="pSvc" style="font-size:13px"></span></div><span class="grow"></span><span id="pSt"></span></div>
+        <!-- 6 rows: each fact once; acquisition and objective / topology / command go to Record details -->
+        <div class="insp__body ann" data-n="6" id="pRows"></div>
+        <!-- 7 Readiness: the VP and peer facts, the Observability flags and the readiness checks, merged -->
+        <div class="sect ann" data-n="7"><h3>Readiness</h3><div id="pReady"></div></div>
+        <!-- 8 Signals: role with its pen colour, the path under the plant path, Copy -->
+        <div class="sect ann" data-n="8"><h3>Signals <span class="q" title="Paths sit under the plant path; the whole path is on hover and in Copy.">?</span></h3><div id="pSig"></div></div>
+        <!-- 9 the actions, each disabled one says why -->
+        <div class="sect ann" data-n="9"><div class="acts" id="pActs"></div><p class="receipt hide" id="pRcpt"></p></div>
+        <!-- 10 links named after what they open: a dialog first, then the pages (flat) -->
+        <div class="links ann" data-n="10" style="margin-inline-end:20px">
+          <button class="btn" onclick="openDlg('record')">Record details</button><span class="btn">Workbench ↗</span><span class="btn">Effective rules ↗</span><span class="btn">Plant tree ↗</span>
+        </div>
+        <div class="illus hide" id="pIllus"></div>
+        <div class="insp__foot"><span class="grow"></span><span class="btn btn--raised">Loop Explorer →</span></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<!-- dialogs -->
+<div class="scrim" id="scrim">
+  <!-- 11 How to read: titled parts, aligned columns; the title ? and the limits ? live here -->
+  <div class="card dlg dlg--wide ann" data-n="11" data-dlg="howto">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>State</h4>
+    <div class="key">
+      <span><span class="pill t-ok"><b>✓</b>Active</span></span><span>Monitored, with every input it is expected to have.</span>
+      <span><span class="pill t-warn"><b>!</b>Degraded</span></span><span>Monitored, but an expected input is missing: a VP tag or peer links. Nearly every loop has one, so it is a filter, not a row badge.</span>
+      <span><span class="pill t-muted"><b>○</b>Not monitored</span></span><span>Registered without monitoring: no results are produced.</span>
+      <span><span class="pill t-muted"><b>⊘</b>Retired</span></span><span>The loop stopped being monitored. Its history stays, and Restore brings it back.</span>
+    </div>
+    <h4>VP</h4>
+    <div class="key">
+      <span>Mapped</span><span>A valve-position tag is mapped.</span>
+      <span>Not mapped</span><span>A valve position is expected, and no tag is mapped: a valve cause stops at suspected (G14).</span>
+      <span>No VP</span><span>The loop has no valve position: not installed, or not applicable (a drive or a direct action).</span>
+    </div>
+    <h4>Readiness</h4>
+    <div class="key">
+      <span>A loop is only as good as its signal mappings</span><span>The readiness lists exactly what is missing; Edit configuration shows it again after saving.</span>
+      <span>VP expected, not mapped</span><span>Map the VP tag so non-following evidence can confirm a valve fault (G14).</span>
+      <span>Peer links expected, missing</span><span>Interaction analysis unavailable (G13) until peers are configured.</span>
+      <span>Plant facts, nothing to fix</span><span>1 without a valve (valve diagnosis does not apply).</span>
+    </div>
+  </div>
+
+  <!-- the loop's secondary facts -->
+  <div class="card dlg ann" data-n="6" data-dlg="record">
+    <h3>Record details <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="kv"><span>Objective · topology · command</span><span id="rOtc"></span></div>
+    <div class="kv"><span>Acquisition</span><span id="rAcq"></span></div>
+    <div class="kv"><span>Model set by</span><span>The loop type <span class="sub" style="text-align:start;font-size:13px">Declare it in Edit configuration to make it explicit.</span></span></div>
+    <div class="df"><span class="grow"></span><button class="btn" onclick="closeDlg()">Close</button></div>
+  </div>
+
+  <!-- 12 the loop editor: Add loop and Edit configuration, four tabs in their order, titled parts, help behind ? -->
+  <div class="card dlg dlg--wide ann" data-n="12" data-dlg="editor">
+    <h3 id="eTitle">Edit configuration <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="tabs" role="tablist" id="eTabs"><span class="tab" role="tab" data-t="id">Identity</span><span class="tab" role="tab" data-t="cls">Classification</span><span class="tab" role="tab" data-t="sig">Signals</span><span class="tab" role="tab" data-t="rev">Review</span></div>
+    <div data-pane="id">
+      <h4>Loop</h4>
+      <div class="fgrid">
+        <label class="fl">Loop tag *<input class="in" id="eTag" placeholder="45FIC-109"><small id="eTagWhy">The identity; it cannot change</small><span class="err hide" id="eTagErr">This tag already exists</span></label>
+        <label class="fl">Service / description *<input class="in" id="eSvc" placeholder="Natural gas feed flow"></label>
+        <label class="fl">Loop type *<select class="in"><option>FIC</option><option>PIC</option><option>PIC_GAS</option><option>PIC_VAPOUR</option><option>LIC</option><option>TIC</option><option>UNKNOWN</option></select></label>
+      </div>
+      <h4>Plant location <span class="q" title="Picked from the UNS asset model, so the loop’s signal paths resolve against real assets.">?</span><span class="btn btn--sm">Enter manually</span></h4>
+      <div class="fgrid">
+        <label class="fl">Site *<select class="in" id="eSite"><option>HDPE Plant (hdpe)</option></select></label>
+        <label class="fl">Area<select class="in" id="eArea"><option>Section 600 (section_600)</option></select></label>
+        <label class="fl">Unit<select class="in" id="eUnit"><option>6002-Pellet Homogenization II Silo 4 &amp; 5 (u6002_pellet_homogenization_ii_silo_4_5)</option></select></label>
+      </div>
+    </div>
+    <div data-pane="cls">
+      <h4>Ranking</h4>
+      <div class="fgrid">
+        <label class="fl">Criticality<select class="in"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select></label>
+        <label class="fl">Gate profile<input class="in" placeholder="default"></label>
+        <label class="fl ann" data-n="Q">Monitoring<span class="in in--q" title="Owner question 7: no control today">☑ Monitored</span></label>
+      </div>
+      <h4>Loop model <span class="pill t-muted" style="font-weight:400"><b>◌</b>Preset from loop type</span><span class="q" title="The tag type only suggests a model. Explicit values override the preset and are never overwritten by a later preset; leave a field blank to take the preset.">?</span></h4>
+      <div class="fgrid">
+        <label class="fl">Service family<select class="in"><option>preset (FLOW)</option></select></label>
+        <label class="fl">Dynamic class<select class="in"><option>preset (FAST_SELF_REG)</option></select></label>
+        <label class="fl">Objective<select class="in"><option>preset (TIGHT)</option></select></label>
+        <label class="fl">Topology<select class="in"><option>preset (SINGLE)</option></select></label>
+        <label class="fl">Command path<select class="in"><option>preset (OP_TO_VALVE)</option></select></label>
+      </div>
+      <h4>Acquisition <span class="q" title="What the source delivers bounds what a method can claim: a grid too coarse for the fastest period makes G5/G6/G12 LIMITED (bandwidth), and an RBE source's held values are holds, not process values. Grid: the sample interval the source delivers. Source filter: time constant of any filter before the tag. Timestamp quantisation: timestamp resolution at the source. Declared scan: the controller scan.">?</span></h4>
+      <div class="fgrid">
+        <label class="fl">Mode<select class="in"><option>preset (PERIODIC)</option></select></label>
+        <label class="fl">Grid (s)<input class="in" placeholder="undeclared"></label>
+        <label class="fl">Source filter (s)<input class="in" placeholder="undeclared"></label>
+        <label class="fl">Timestamp quantisation (ms)<input class="in" placeholder="undeclared"></label>
+        <label class="fl">Declared scan (s)<input class="in" placeholder="undeclared"></label>
+      </div>
+    </div>
+    <div data-pane="sig">
+      <h4>Signal paths <span class="q" title="Derived from the location and loop tag as site/[area/]unit/<loop>.<role>: edit any path to override it.">?</span></h4>
+      <div id="ePaths"></div>
+      <h4>Ranges <span class="q" title="Optional, and neither is cosmetic. PV range scales the good-error band G3 and OCE use: undeclared, that band is a fixed ±0.5 EU, which no temperature or flow loop in engineering units can meet. OP range normalises the output to 0–100 before saturation (G10) and operating-region (G2r) maths. Give both bounds of a range or neither; leave both blank to keep today's behaviour.">?</span></h4>
+      <div class="rng"><span>PV range</span><input class="in" aria-label="PV minimum" id="ePvMin" placeholder="min"><span>–</span><input class="in" aria-label="PV maximum" id="ePvMax" placeholder="max"><input class="in" aria-label="PV unit" id="ePvU" placeholder="unit: kg/h, °C, barg"></div>
+      <div class="rng"><span>OP range</span><input class="in" aria-label="OP minimum" id="eOpMin" placeholder="min"><span>–</span><input class="in" aria-label="OP maximum" id="eOpMax" placeholder="max"><span></span></div>
+      <h4>Optional inputs</h4>
+      <div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div class="fl">Valve position<label class="chk" style="color:var(--text)"><input type="checkbox" checked> This loop has a valve position (positioner feedback)<span class="q" title="Untick for a valve without positioner feedback, a drive or a direct action: the loop is then never shown as degraded or “VP not mapped”.">?</span></label></div>
+        <label class="fl">Interacting loops (G13) <select class="in"><option>Derive (expected)</option><option>Expected</option><option>Not installed</option><option>Not applicable</option></select></label>
+      </div>
+      <p class="warnl" id="eNoVp">Without a valve-position (VP) signal, G14 cannot confirm a final-element fault: such a verdict stops at suspected. Oscillation and effort verdicts are unaffected.</p>
+    </div>
+    <div data-pane="rev">
+      <div id="eChgWrap"><h4>Changes</h4><div id="eChg"></div></div>
+      <h4>All settings <span class="q" title="How this loop is evaluated. Short features (G0–G4): 1 min tumbling · 5 min / 1 min slide · 10 min / 2 min slide · 15 min / 5 min slide · 30 min / 5 min slide · 60 min / 5 min slide. Long diagnostics (G5–G11): 4h / 12h / 24h slices · 15 min cadence. Fusion (G12–G15): fires on 12h and 24h long records. Windows are fixed by the deployed pipeline and are not set per loop. First fused verdict needs ≥ 12 h of samples, and any slice with fewer than 32 samples is not evaluated at all. Paths resolve through the binding resolver; the readiness after saving flags any signal that falls back to path-pattern resolution instead of the asset model.">?</span></h4>
+      <div class="rv" id="eAll"></div>
+    </div>
+    <div data-pane="done">
+      <h4>Readiness <span id="dSt"></span></h4>
+      <div class="rv" id="dChecks"></div>
+      <div class="illus" style="margin:10px 0 0">Illustrative: nothing was saved on the lab. The checks are FIC10401's real readiness of 11 Nov.</div>
+    </div>
+    <div class="df" id="eFoot"></div>
+  </div>
+
+  <!-- 13 Bulk import: three tabs, each count once, the row status before the paths -->
+  <div class="card dlg dlg--wide ann" data-n="13" data-dlg="import">
+    <h3>Bulk import <span onclick="closeDlg()">&#x2715;</span></h3>
+    <div class="tabs" role="tablist" id="iTabs"><span class="tab" role="tab" data-t="file">File</span><span class="tab" role="tab" data-t="check">Review</span><span class="tab" role="tab" data-t="go">Activate</span></div>
+    <div data-pane="file">
+      <h4>Source <span class="q" title="Upload the registry export or paste it below. Required columns: tag, service, site, loop_type. Leave the signal columns blank to derive site/[area/]unit/<tag>.<role>; VP is only mapped when given explicitly. All columns: tag, service, site, area, unit, loop_type, criticality, pv_tag, sp_tag, op_tag, mode_tag, vp_tag, profile, pv_min, pv_max, op_min, op_max, pv_unit, vp_applicability, peer_applicability.">?</span><span class="btn btn--sm">Download template</span></h4>
+      <div class="drop"><span class="btn btn--raised btn--sm">Choose CSV file</span><span style="color:var(--text2)">or drop a .csv here, or paste below</span><span class="grow"></span><span class="sub" id="iRows" style="font-size:13px">3 rows</span></div>
+      <label class="fl">CSV content<textarea class="in" id="iCsv" spellcheck="false">tag,service,site,area,unit,loop_type,criticality,pv_tag,sp_tag,op_tag,mode_tag,vp_tag,profile,pv_min,pv_max,op_min,op_max,pv_unit,vp_applicability,peer_applicability
+FIC10499,Illustrative flow loop,hdpe,section_600,u6002_pellet_homogenization_ii_silo_4_5,FIC,medium,,,,,,,0,2500,0,100,kg/h,,
+FIC10401,Flow controller FIC10401 (FCS0101),hdpe,section_600,u6002_pellet_homogenization_ii_silo_4_5,FIC,medium,,,,,,,0,2500,0,100,kg/h,,
+TIC 999,,hdpe,,,XIC,urgent,,,,,,,abc,,,,,,</textarea></label>
+    </div>
+    <div data-pane="check">
+      <p><b>3 rows:</b> <span class="pill t-ok"><b>✓</b>2 ready</span> (1 updates an existing loop) · <span class="pill t-bad"><b>✕</b>1 needs correction</span> &nbsp;<span style="color:var(--text2)">Rows that need correction are skipped.</span></p>
+      <table>
+        <thead><tr><th>Loop</th><th>Location</th><th>Type</th><th>Status</th><th>PV / SP / OP / MODE / VP</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">FIC10499</td><td>hdpe / section_600 / u6002_…</td><td>FIC</td><td><span class="pill t-ok"><b>✓</b>Ready</span><span class="sub">signal paths derived from location</span></td><td class="mono">…/fic10499 .pv .sp .op .mode</td></tr>
+          <tr><td class="mono">FIC10401</td><td>hdpe / section_600 / u6002_…</td><td>FIC</td><td><span class="pill t-warn"><b>↻</b>Updates existing</span><span class="sub">signal paths derived from location</span></td><td class="mono">…/fic10401 .pv .sp .op .mode</td></tr>
+          <tr class="bad"><td class="mono">TIC 999</td><td>hdpe</td><td>XIC</td><td style="white-space:normal;max-width:300px"><span class="pill t-bad"><b>✕</b>Needs correction</span><span class="sub">missing service; loop tag "TIC 999": any plant tag, except spaces and / \ ? # % &amp; ; | $ " ' &lt; &gt; ` { } [ ]; loop_type "XIC" is not one of FIC, PIC, PIC_GAS, PIC_VAPOUR, LIC, TIC, UNKNOWN; criticality "urgent" must be low, medium, high or critical; pv_min 'abc' is not a number</span></td><td class="mono">hdpe/tic 999 .pv .sp .op .mode</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div data-pane="go">
+      <p id="iGoLine"><b>2 loops to activate:</b> 1 new, 1 updates an existing loop · 1 row skipped <span class="q" title="Each one gets its role mappings and a UNS signal asset per stored role, so its PV/SP/OP resolve and trend immediately.">?</span></p>
+      <label class="chk"><input type="checkbox"> Allow locations that are not in the asset model <span class="q" title="Rows whose site/area/unit is unmodelled are otherwise rejected: their signals would sit outside the plant tree and resolve against nothing.">?</span></label>
+      <div id="iResult" class="hide"><p><span class="pill t-warn"><b>!</b>1 activated, 1 failed</span> <span style="color:var(--text2)">Completed in 1.2 s.</span></p>
+        <table><thead><tr><th>Loop</th><th>Why it failed</th></tr></thead><tbody><tr class="bad"><td class="mono">FIC10499</td><td>Location hdpe / section_600 / u6002_… is not in the asset model.</td></tr></tbody></table>
+        <div class="illus" style="margin:10px 0 0">Illustrative: nothing was imported on the lab.</div></div>
+    </div>
+    <div class="df" id="iFoot"></div>
+  </div>
+
+  <!-- 14 Retire: the loop is not named again; the disabled confirm says why -->
+  <div class="card dlg ann" data-n="14" data-dlg="retire">
+    <h3 id="rtT">Retire loop <span onclick="closeDlg()">&#x2715;</span></h3>
+    <p id="rtP">The loop stops being monitored. Its history stays, and Restore brings it back.</p>
+    <label class="fl"><span id="rtL">Reason (required)</span><textarea class="in" id="rtR" style="height:84px;font-family:inherit;font-size:14px" maxlength="500"></textarea><small id="rtC">0 / 500</small></label>
+    <div class="df"><span class="grow" style="align-items:stretch"></span><button class="btn" onclick="closeDlg()">Cancel</button><span><button class="btn btn--raised" id="rtB" disabled>Retire loop</button><small id="rtW">Write a reason first</small></span></div>
+  </div>
+</div>
+
+<div class="sample">Sample only, not part of the page:
+  <button class="btn btn--out btn--sm" onclick="setState('fic10401')">FIC10401 · degraded</button>
+  <button class="btn btn--out btn--sm" onclick="setState('fic10302')">FIC10302 · VP mapped</button>
+  <button class="btn btn--out btn--sm" onclick="setState('fic10503')">FIC10503 · no VP</button>
+  <button class="btn btn--out btn--sm" onclick="setState('evapi')">EVAPI_12F4CB · not monitored</button>
+  <button class="btn btn--out btn--sm" onclick="setState('retired')">Retired (illustrative)</button>
+  <button class="btn btn--out btn--sm" onclick="setState('first')">Page 1 · first loop</button>
+  <button class="btn btn--out btn--sm" onclick="setState('degraded')">Degraded 241</button>
+  <button class="btn btn--out btn--sm" onclick="setState('empty')">No match</button>
+  <span>· dialogs:</span>
+  <button class="btn btn--out btn--sm" onclick="openEditor('edit')">Edit configuration</button>
+  <button class="btn btn--out btn--sm" onclick="reviewChange()">Review with a change</button>
+  <button class="btn btn--out btn--sm" onclick="openEditor('add')">Add loop</button>
+  <button class="btn btn--out btn--sm" onclick="openEditor('import')">Bulk import</button>
+  <button class="btn btn--out btn--sm" onclick="openRetire()">Retire</button>
+</div>
+
+<script>
+  // Lab :4173, 11 Nov. Page 3 of 10 (API order) holds FIC10401; page 1 opens on AIC30601. [tag, service, type, VP, abnormal]
+  const P3 = [['DEMO-TIC-040','Reboiler steam flow','TIC','Mapped'],['DEMO-TIC-044','Separator interface level','TIC','Not mapped'],['DEMO-TIC-048','Column overhead pressure','TIC','Not mapped'],
+    ['EVAPI_12F4CB','evidence api probe','FIC','Not mapped','nm'],['EVAPI_6E7E80','evidence api probe','FIC','Not mapped','nm'],['FC10711','Flow controller','FIC','Not mapped'],['FC10712','Flow controller','FIC','Not mapped'],
+    ['FIC00701','Flow controller (FCS0102)','FIC','Not mapped'],['FIC10301','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10302','Reactor feed flow','FIC','Mapped'],['FIC10303A','Flow controller (FCS0101)','FIC','Not mapped'],
+    ['FIC10303B','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10401','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10402','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10403','Flow controller (FCS0101)','FIC','Not mapped'],
+    ['FIC10404','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10405','Hexane feed flow','FIC','Not mapped'],['FIC10406','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10409','Flow controller (FCS0101)','FIC','Not mapped'],
+    ['FIC10501','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10502','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10503','Flow controller (FCS0101)','FIC','No VP'],['FIC10504','Flow controller (FCS0101)','FIC','Not mapped'],
+    ['FIC10505','Flow controller (FCS0101)','FIC','Not mapped'],['FIC10506','Flow controller (FCS0101)','FIC','Not mapped']];
+  const P1 = [['AIC30601','Analyser controller','UNKNOWN'],['B2_027PIC','B2 027 Pressure Control','PIC'],['DEMO-BAD-006','Unmodelled location','FIC'],['DEMO-FIC-001','Feed flow control','FIC'],['DEMO-FIC-005','Bed inlet temperature','FIC'],
+    ['DEMO-FIC-009','Recycle compressor suction pressure','FIC'],['DEMO-FIC-013','Reboiler steam flow','FIC'],['DEMO-FIC-017','Separator interface level','FIC'],['DEMO-FIC-021','Column overhead pressure, train 2','FIC'],['DEMO-FIC-025','Fuel gas pressure','FIC'],
+    ['DEMO-FIC-029','Reflux drum level','FIC'],['DEMO-FIC-033','Condenser outlet temperature','FIC'],['DEMO-FIC-037','Feed flow control','FIC'],['DEMO-FIC-041','Bed inlet temperature','FIC'],['DEMO-FIC-045','Recycle compressor suction pressure','FIC'],
+    ['DEMO-FIC-049','Reboiler steam flow, train 2','FIC'],['DEMO-LIC-003','Column overhead pressure','LIC'],['DEMO-LIC-007','Fuel gas pressure, train 2','LIC'],['DEMO-LIC-011','Reflux drum level','LIC'],['DEMO-LIC-015','Condenser outlet temperature','LIC'],
+    ['DEMO-LIC-019','Feed flow control','LIC'],['DEMO-LIC-023','Bed inlet temperature','LIC'],['DEMO-LIC-027','Recycle compressor suction pressure','LIC'],['DEMO-LIC-031','Reboiler steam flow','LIC'],['DEMO-LIC-035','Separator interface level, train 2','LIC']].map(r => [...r, 'Not mapped']);
+  const P105 = ['FIC10501', 'FIC10502', 'FIC10503', 'FIC10504', 'FIC10505', 'FIC10506', 'FIC10509', 'FIC10513'].map(t => [t, 'Flow controller (FCS0101)', 'FIC', t === 'FIC10503' ? 'No VP' : 'Not mapped']);
+  const VPX = 'A valve position (VP) is expected here: map its tag so a valve (stiction) cause can be confirmed (G14).';
+  const PEERX = 'Add the loop\'s upstream / peer links in the asset model, then use "Re-project links & republish evidence" on this loop in the Loop Registry.';
+  const DIAG = 'Fusion needs a 12h/24h window; verdicts appear once the long job\'s timers pass the window end.';
+  const DEG = ['warn', '!', 'Degraded'], VPEXP = ['warn', '!', 'Expected · not mapped', VPX], PEEREXP = ['warn', '!', 'None · expected', PEERX];
+  const paths = (pre, id, roles = ['pv', 'sp', 'op', 'mode']) => roles.map(r => [r, `${pre}/${id.toLowerCase()}.${r}`]);
+  const H6 = 'hdpe/section_600/u6002_pellet_homogenization_ii_silo_4_5';
+  const L = {
+    FIC10401: { svc: 'Flow controller (FCS0101)', st: DEG, plant: 'hdpe / section_600 / u6002_pellet_homogenization_ii_silo_4_5', type: 'FIC', crit: 'medium', model: 'FLOW · FAST_SELF_REG', otc: 'TIGHT · SINGLE · OP_TO_VALVE', vp: VPEXP, peer: PEEREXP, other: [], sig: paths(H6, 'FIC10401'), miss: [] },
+    FIC10302: { svc: 'Reactor feed flow', st: DEG, plant: 'hdpe / section_100 / u1001_polymerization_reactor_1', type: 'FIC', crit: 'high', model: 'FLOW · FAST_SELF_REG', otc: 'TIGHT · SINGLE · OP_TO_VALVE',
+      vp: ['warn', '!', 'Mapped · no samples', 'VP is mapped but the latest window carried no VP samples — check the positioner signal.'], peer: PEEREXP, other: [], sig: paths('hdpe/section_100/u1001_polymerization_reactor_1', 'FIC10302', ['pv', 'sp', 'op', 'mode', 'vp']), miss: [] },
+    FIC10503: { svc: 'Flow controller (FCS0101)', st: DEG, plant: 'hdpe / section_100 / u1005_catalyst_dosage', type: 'FIC', crit: 'medium', model: 'FLOW · FAST_SELF_REG', otc: 'TIGHT · SINGLE · OP_TO_VALVE',
+      vp: ['muted', '—', 'Not applicable'], peer: PEEREXP, other: [], sig: paths('hdpe/section_100/u1005_catalyst_dosage', 'FIC10503'), miss: [] },
+    EVAPI_12F4CB: { svc: 'evidence api probe', st: ['muted', '○', 'Not monitored'], plant: 'hdpe / section_100 / u1001', type: 'FIC', crit: 'medium', model: '— · —', otc: 'UNSET · UNKNOWN · UNKNOWN', vp: VPEXP, peer: PEEREXP,
+      other: [['Monitoring enabled', 'Re-activate with enableMonitoring=true.'], ['Diagnosis produced', DIAG]], sig: [], miss: ['pv', 'sp', 'op', 'mode'] },
+    AIC30601: { svc: 'Analyser controller', st: DEG, plant: 'site1 / B2 / B2', type: 'UNKNOWN', crit: 'medium', model: '— · —', otc: 'UNSET · UNKNOWN · UNKNOWN', vp: VPEXP, peer: PEEREXP,
+      other: [['Loop type (UNKNOWN)', 'Set a concrete loopType; UNKNOWN disables geometry diagnosis (prior 0.0).'], ['Short features produced', 'No samples have reached traverse.cpa.loop.samples.v1 for this loop yet.'], ['Diagnosis produced', DIAG]], sig: paths('site1/B2/B2', 'AIC30601'), miss: [] },
+  };
+  L.RETIRED = Object.assign({}, L.FIC10401, { st: ['muted', '⊘', 'Retired'], open: 'Oscillation · open since 5 Oct 07:45', retired: true });
+  const STATES = {
+    fic10401: { rows: P3, q: 'FIC104', pages: 1, sel: 'FIC10401' }, fic10302: { rows: P3, page: 3, sel: 'FIC10302' }, fic10503: { rows: P105, q: 'FIC105', pages: 1, sel: 'FIC10503' },
+    evapi: { rows: P3, page: 3, sel: 'EVAPI_12F4CB' }, retired: { rows: P3, page: 3, sel: 'FIC10401', as: 'RETIRED', f: 'all' }, first: { rows: P1, page: 1, sel: 'AIC30601' },
+    degraded: { rows: P1, page: 1, sel: 'AIC30601', f: 'degraded', pages: 10 }, empty: { rows: [], q: 'zzz' },
+  };
+  const ROLE = { pv: 'PV', sp: 'SP', op: 'OP', mode: 'MODE', vp: 'VP' };
+  let state = 'fic10401';
+  const $ = id => document.getElementById(id);
+  const pill = (t, g, w) => `<span class="pill t-${t}"><b>${g}</b>${w}</span>`;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  const q = t => t ? `<span class="q" title="${t.replace(/"/g, '&quot;')}">?</span>` : '';
+  const pager = (cur, n) => { const ps = [1, 2, 3, 4, null, n].filter((p, i, a) => p == null || a.indexOf(p) === i);
+    return `<span class="pg${cur === 1 ? ' dis' : ''}">«</span><span class="pg${cur === 1 ? ' dis' : ''}">‹</span>` + ps.map(p => p == null ? '<span class="gap">…</span>' : `<span class="pg${p === cur ? ' on' : ''}">${p}</span>`).join('')
+      + `<span class="pgs">Page ${cur} of ${n}</span><span class="pg${cur === n ? ' dis' : ''}">›</span><span class="pg${cur === n ? ' dis' : ''}">»</span>`; };
+  function render() {
+    const S = STATES[state], qv = $('q').value.trim().toLowerCase();
+    const vis = S.rows.filter(r => !qv || (r[0] + ' ' + r[1] + ' ' + r[2]).toLowerCase().includes(qv));
+    const retiredRow = id => S.as === 'RETIRED' && id === 'FIC10401';
+    $('rows').innerHTML = vis.map(r => `<div role="listitem" class="row${r[0] === S.sel ? ' sel' : ''}" onclick="pick('${r[0]}')"><span><strong>${r[0]}</strong>${r[4] === 'nm' ? ' ' + pill('muted', '○', 'Not monitored') : ''}${retiredRow(r[0]) ? ' ' + pill('muted', '⊘', 'Retired') : ''}<small>${r[1]}</small></span><span>${r[2]}</span><span>${r[3]}</span></div>`).join('');
+    $('empty').classList.toggle('hide', vis.length > 0); $('emptyT').textContent = `No loop matches “${$('q').value.trim()}”`;
+    $('pager').classList.toggle('hide', vis.length === 0 || S.pages === 1); $('pager').innerHTML = pager(S.page ?? 1, S.pages ?? 10);
+    const id = vis.find(r => r[0] === S.sel)?.[0];
+    $('panel').style.visibility = id ? '' : 'hidden';
+    if (!id) return;
+    const l = L[S.as && id === 'FIC10401' ? S.as : id] ?? L.FIC10401, pre = l.plant.replace(/ \/ /g, '/') + '/';
+    $('pTag').textContent = id; $('pSvc').textContent = l.svc; $('pSt').innerHTML = pill(...l.st);
+    $('pRows').innerHTML = kv('Plant path', l.plant) + kv('Loop type', l.type) + kv('Criticality', l.crit) + kv('Gate profile', 'default') + kv('Model', l.model)
+      + (l.open ? kv('Open episode', l.open) : '');
+    const vpRow = kv('Valve position (G14)', pill(l.vp[0], l.vp[1], l.vp[2]) + q(l.vp[3]));
+    const peerRow = kv('Peer links (G13)', pill(l.peer[0], l.peer[1], l.peer[2]) + q(l.peer[3]));
+    $('pReady').innerHTML = vpRow + peerRow + l.other.map(([k, m]) => `<div class="kv"><span>${k}</span><span style="font-size:13px;text-align:start">${m}</span></div>`).join('');
+    $('pSig').innerHTML = l.sig.length || l.miss.length ? l.sig.map(([r, p]) => `<div class="sig"><span><i class="sw sw-${r}"></i>${ROLE[r]}</span><span class="mono" title="${p}">${p.startsWith(pre) ? '…/' + p.slice(pre.length) : p}</span><button class="ib" title="Copy ${ROLE[r]} path">⧉</button></div>`).join('')
+      + l.miss.map(r => `<div class="sig"><span><i class="sw sw-${r}"></i>${ROLE[r]}</span><span>${pill('warn', '!', 'Not mapped')}${q(`Map the ${ROLE[r]} role at onboarding.`)}</span><span></span></div>`).join('') : '<p class="sub" style="font-size:14px;margin:6px 0">No signal is mapped.</p>';
+    $('pActs').innerHTML = l.retired
+      ? `<span><button class="btn btn--raised" disabled>Edit configuration</button><small>Restore the loop first</small></span><span><button class="btn btn--out" onclick="openRetire(true)">Restore</button></span><span><button class="btn btn--out">Re-project links &amp; republish evidence</button></span>`
+      : `<span><button class="btn btn--raised" onclick="openEditor('edit')">Edit configuration</button></span><span><button class="btn btn--out" onclick="openRetire()">Retire</button></span><span><button class="btn btn--out">Re-project links &amp; republish evidence</button></span>`;
+    $('pIllus').classList.toggle('hide', !l.retired); $('pIllus').textContent = 'Illustrative: the lab has no retired loop (With retired 243 = Not retired 243). Values drawn on FIC10401; the open episode is invented.';
+    $('rOtc').textContent = l.otc; $('rAcq').textContent = 'PERIODIC · grid undeclared';
+  }
+  window.pick = id => { STATES[state].sel = id; render(); };
+  window.setState = s => { state = s; const S = STATES[s]; $('q').value = S.q ?? ''; $('fst').value = S.f ?? 'cur'; render(); };
+  window.openDlg = d => { $('scrim').classList.add('on'); document.querySelectorAll('[data-dlg]').forEach(x => x.classList.toggle('on', x.dataset.dlg === d)); };
+  window.closeDlg = () => $('scrim').classList.remove('on');
+  $('scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeDlg(); });
+  $('q').addEventListener('input', render);
+
+  // ---- the editor (Edit configuration / Add loop) ----
+  const ORDER = ['id', 'cls', 'sig', 'rev'], NAMES = { id: 'Identity', cls: 'Classification', sig: 'Signals', rev: 'Review' };
+  let mode = 'edit', tab = 'id', change = false;
+  const CHECKS = [['Registered', 1], ['Monitoring enabled', 1], ['Loop type (FIC)', 1], ['Signal PV', 1], ['Signal SP', 1], ['Signal OP', 1], ['Signal MODE', 1], ['Signal VP (valve position, G14)', 0],
+    ['Peer / upstream links (G13)', 0], ['Signal bindings resolve via asset-model', 1], ['Short features produced', 1], ['Diagnosis produced', 1], ['CPLM Flink jobs running', 1]];
+  window.openEditor = (m, t) => {
+    if (m === 'import') { itab = t ?? 'file'; showImport(); openDlg('import'); return; }
+    mode = m; tab = t ?? 'id'; const add = m === 'add';
+    $('eTitle').firstChild.textContent = add ? 'Add loop ' : 'Edit configuration ';
+    $('eTag').value = add ? '' : 'FIC10401'; $('eTag').disabled = !add; $('eTagWhy').classList.toggle('hide', add); $('eTagErr').classList.add('hide');
+    $('eSvc').value = add ? '' : 'Flow controller FIC10401 (FCS0101)';
+    $('eSite').innerHTML = add ? '<option>— select site —</option><option>Dallas Terminal (dallas)</option><option>HDPE Plant (hdpe)</option><option>Houston Refinery (houston)</option>' : '<option>HDPE Plant (hdpe)</option>';
+    $('eArea').innerHTML = add ? '<option>— pick a site first —</option>' : '<option>Section 600 (section_600)</option>';
+    $('eUnit').innerHTML = add ? '<option>— pick a site first —</option>' : '<option>6002-Pellet Homogenization II Silo 4 &amp; 5 (u6002_pellet_homogenization_ii_silo_4_5)</option>';
+    [['ePvMin', '0'], ['ePvMax', '2500'], ['ePvU', 'kg/h'], ['eOpMin', '0'], ['eOpMax', '100']].forEach(([i, v]) => { $(i).value = add ? '' : v; });
+    $('ePaths').innerHTML = ['pv', 'sp', 'op', 'mode', 'vp'].map(r => { const lab = { pv: 'PV · Process variable *', sp: 'SP · Setpoint *', op: 'OP · Controller output *', mode: 'MODE · Controller mode *', vp: 'VP · Valve position' }[r];
+      const v = add || r === 'vp' ? '' : `${H6}/fic10401.${r}`;
+      return `<div class="path"><span><i class="sw sw-${r}"></i>${lab}</span><input class="in" value="${v}" placeholder="${add ? 'site/unit/loop.' + r : r === 'vp' ? 'not mapped' : ''}" spellcheck="false"><button class="ib" title="Copy">⧉</button></div>`
+        + (r === 'vp' && !add ? `<div style="margin:-4px 0 8px 208px"><span class="linkbtn">+ add VP as …/fic10401.vp</span></div>` : ''); }).join('');
+    showTab(tab); openDlg('editor');
+  };
+  window.showTab = t => {
+    tab = t; const add = mode === 'add', done = t === 'done';
+    document.querySelectorAll('#eTabs .tab').forEach(x => { x.setAttribute('aria-selected', String(x.dataset.t === t)); x.classList.toggle('later', add && ORDER.indexOf(x.dataset.t) > ORDER.indexOf(t)); });
+    $('eTabs').classList.toggle('hide', done);
+    document.querySelectorAll('[data-dlg="editor"] [data-pane]').forEach(x => x.classList.toggle('on', x.dataset.pane === t));
+    const i = ORDER.indexOf(t), next = ORDER[i + 1];
+    const why = add && t === 'id' ? 'Loop tag is required' : null;
+    $('eFoot').innerHTML = done ? '<span class="grow"></span><button class="btn btn--raised" onclick="closeDlg()">Close</button>'
+      : `<button class="btn" onclick="closeDlg()">Cancel</button><span class="grow"></span>${i > 0 ? `<button class="btn btn--out" onclick="showTab('${ORDER[i - 1]}')">Back</button>` : ''}`
+      + (next ? `<span><button class="btn btn--raised"${why ? ' disabled' : ''} onclick="showTab('${next}')">Next: ${NAMES[next]} →</button>${why ? `<small>${why}</small>` : ''}</span>`
+        : `<span><button class="btn btn--raised" onclick="showTab('done')">${add ? 'Activate loop' : 'Update loop'}</button></span>`);
+    $('eChgWrap').classList.toggle('hide', add);
+    $('eChg').innerHTML = change
+      ? '<table><thead><tr><th>Setting</th><th>Before → after</th><th>Effect</th></tr></thead><tbody><tr><td>PV range</td><td style="white-space:nowrap">0–2500 kg/h → <b>0–3000 kg/h</b></td><td style="color:var(--text2)">Error as % of PV span and the good-error band (G3) use the new range from the next window.</td></tr></tbody></table><div class="illus" style="margin:8px 0 0">Illustrative change: PV maximum 2500 → 3000.</div>'
+      : '<p style="color:var(--text2)">Nothing has changed. Saving re-submits the loop as it is.</p>';
+    const all = add ? [['Loop tag', '45FIC-109'], ['Service', 'Natural gas feed flow'], ['Location', 'hdpe / section_600 / u6002_…'], ['Type · criticality', 'FIC · medium'], ['Loop model', 'preset from loop type FIC'], ['Gate profile', 'default']]
+      : [['Service', 'Flow controller FIC10401 (FCS0101)'], ['Location', 'hdpe / section_600 / u6002_pellet_homogenization_ii_silo_4_5'], ['Type · criticality', 'FIC · medium'], ['Loop model', 'preset from loop type FIC'], ['Gate profile', 'default']];
+    const tail = [['PV path', '…/fic10401.pv'], ['SP path', '…/fic10401.sp'], ['OP path', '…/fic10401.op'], ['MODE path', '…/fic10401.mode'], ['VP path', 'not mapped'], ['PV range', change ? '0–3000 kg/h' : '0–2500 kg/h'], ['OP range', '0–100'], ['Optional inputs', 'Valve position yes · peers derived'], ['Monitoring', 'Enabled on save']];
+    $('eAll').innerHTML = [...all, ...tail].map(([k, v]) => kv(k, k.endsWith('path') && v !== 'not mapped' ? `<span class="mono" title="${H6}/${v.slice(2)}">${v}</span>` : v)).join('')
+      + (add ? '<div class="illus" style="grid-column:1/-1;margin:8px 0 0">Illustrative values: the lab form was left empty.</div>' : '');
+    $('dSt').innerHTML = pill('warn', '!', 'Ready · degraded');
+    $('dChecks').innerHTML = CHECKS.map(([k, ok, m]) => kv(k, ok ? pill('ok', '✓', 'OK') : pill('warn', '!', 'Missing') + q(k.startsWith('Signal VP') ? VPX : PEERX))).join('');
+  };
+  document.querySelectorAll('#eTabs .tab').forEach(x => x.addEventListener('click', () => { if (!x.classList.contains('later')) showTab(x.dataset.t); }));
+  window.reviewChange = () => { change = true; openEditor('edit', 'rev'); };
+
+  // ---- Bulk import ----
+  const IORDER = ['file', 'check', 'go'], INAMES = { file: 'File', check: 'Review', go: 'Activate' };
+  let itab = 'file', idone = false;
+  window.showImport = () => {
+    document.querySelectorAll('#iTabs .tab').forEach(x => x.setAttribute('aria-selected', String(x.dataset.t === itab)));
+    document.querySelectorAll('[data-dlg="import"] [data-pane]').forEach(x => x.classList.toggle('on', x.dataset.pane === itab));
+    $('iResult').classList.toggle('hide', !idone); $('iGoLine').classList.toggle('hide', idone);
+    const i = IORDER.indexOf(itab), next = IORDER[i + 1];
+    $('iFoot').innerHTML = idone ? '<button class="btn btn--out" onclick="idone=false;itab=\'file\';showImport()">Fix and re-import</button><span class="grow"></span><button class="btn btn--raised" onclick="closeDlg()">Close</button>'
+      : `<button class="btn" onclick="closeDlg()">Cancel</button><span class="grow"></span>${i > 0 ? `<button class="btn btn--out" onclick="itab='${IORDER[i - 1]}';showImport()">Back</button>` : ''}`
+      + (next ? `<button class="btn btn--raised" onclick="itab='${next}';showImport()">Next: ${INAMES[next]} →</button>` : '<button class="btn btn--raised" onclick="idone=true;showImport()">Activate 2 loops</button>');
+  };
+  document.querySelectorAll('#iTabs .tab').forEach(x => x.addEventListener('click', () => { if (!idone) { itab = x.dataset.t; showImport(); } }));
+
+  // ---- Retire / Restore ----
+  window.openRetire = restore => {
+    $('rtT').firstChild.textContent = restore ? 'Restore loop ' : 'Retire loop ';
+    $('rtP').textContent = restore ? 'The loop is monitored again as it was before it was retired.' : 'The loop stops being monitored. Its history stays, and Restore brings it back.';
+    $('rtL').textContent = restore ? 'Reason (optional)' : 'Reason (required)'; $('rtR').value = ''; $('rtC').textContent = '0 / 500';
+    $('rtB').textContent = restore ? 'Restore loop' : 'Retire loop'; $('rtB').disabled = !restore; $('rtW').classList.toggle('hide', !!restore); openDlg('retire');
+  };
+  $('rtR').addEventListener('input', e => { const n = e.target.value.trim().length; $('rtC').textContent = `${e.target.value.length} / 500`; if ($('rtB').textContent === 'Retire loop') { $('rtB').disabled = n === 0; $('rtW').classList.toggle('hide', n > 0); } });
+  setState('fic10401');
+</script>
+</body>
+</html>

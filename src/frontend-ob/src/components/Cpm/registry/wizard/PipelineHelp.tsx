@@ -1,11 +1,12 @@
 /**
  * CHG-098 (SME review 2 #28): the fixed pipeline windows used to be a wizard step of their own ("Windows &
- * profile") with nothing to edit. They now sit behind a "How this loop is evaluated" help toggle on the review step.
- * The content is unchanged: read from the served window contract rather than restated, since the hardcoded copies
- * had drifted into claiming every short window was tumbling.
+ * profile") with nothing to edit. The content is unchanged: read from the served window contract rather than restated, since
+ * the hardcoded copies had drifted into claiming every short window was tumbling.
+ * CHG-168 (owner review): they sit behind the ? of the review's All settings ("How this loop is evaluated"); a Toggletip renders
+ * its content only while open, so the window contract is still fetched only when someone asks for it.
  */
-import React, { useMemo, useState } from 'react';
-import { ObiHelp } from '@oicl/openbridge-webcomponents-react/icons/icon-help';
+import React, { useMemo } from 'react';
+import { Toggletip } from '../../../../ui/Toggletip';
 import { KvRow, fmtDuration, fmtWindowShape, windowSpecsOf } from '../../shared';
 import { useCpmResolutions } from '../../../../hooks/useCpm';
 import './wizard.css';
@@ -28,7 +29,7 @@ const PipelineFacts: React.FC = () => {
       <KvRow label="Fusion (G12–G15)">
         {resolutions.data?.fusion ? `Fires on ${resolutions.data.fusion.firesOn.join(' and ')} long records` : '—'}
       </KvRow>
-      <p className="cpm-copy" style={{ marginTop: 8 }}>
+      <p>
         Windows are fixed by the deployed pipeline and are not set per loop. First fused verdict needs ≥ 12 h of samples
         {minSamples != null ? `, and any slice with fewer than ${minSamples} samples is not evaluated at all` : ''}.
         Paths resolve through the binding resolver; the readiness report after saving flags any signal that falls
@@ -38,19 +39,8 @@ const PipelineFacts: React.FC = () => {
   );
 };
 
-export const PipelineHelp: React.FC = () => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="cpm-review-help">
-      <button type="button" className="cpm-help-toggle" aria-expanded={open} aria-controls="cpm-wizard-pipeline-help"
-        onClick={() => setOpen(v => !v)}>
-        <ObiHelp aria-hidden />
-        How this loop is evaluated
-      </button>
-      {/* Rendered only while open, so the window contract is fetched only when someone asks for it. */}
-      {open && <div id="cpm-wizard-pipeline-help" className="cpm-review-help__body"><PipelineFacts /></div>}
-    </div>
-  );
-};
+export const PipelineHelp: React.FC = () => (
+  <Toggletip variant="how-to" label="How this loop is evaluated"><PipelineFacts /></Toggletip>
+);
 
 export default PipelineHelp;

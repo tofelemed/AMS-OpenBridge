@@ -102,9 +102,11 @@ export function factStateLabel(state: string | undefined): string | null {
   return state === 'NOT_APPLICABLE' ? 'Not applicable' : state === 'NOT_INSTALLED' ? 'Not installed' : null;
 }
 
-/** Wizard review line for the declared applicability; blank selects read "derived". */
+/**
+ * Wizard review line for the declared applicability; blank selects read "derived". CHG-168 (owner answer 3b): the valve
+ * position by its choice's name (expected / not installed / not applicable), so a change between the last two is listed.
+ */
 export function applicabilitySummary(vp: string, peers: string): string {
   const word = (v: string) => APPLICABILITY_OPTIONS.find(o => o.value === v && v)?.label.toLowerCase() ?? 'derived';
-  const vpWord = !vp ? 'derived' : vp === 'EXPECTED' ? 'yes' : 'none on this loop';
-  return `Valve position ${vpWord} · peers ${word(peers)}`;
+  return `Valve position ${word(vp)} · peers ${word(peers)}`;
 }

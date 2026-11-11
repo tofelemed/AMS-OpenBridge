@@ -31,12 +31,24 @@ beforeEach(() => { retire.mockReset(); restore.mockReset(); onClose.mockReset();
 afterEach(cleanup);
 
 describe('RetireLoopDialog', () => {
-  it('needs a reason to retire and sends it trimmed', () => {
+  // CHG-168 (owner review): the loop is named in the panel heading, so the dialog is "Retire loop"; a disabled Retire loop says why
+  it('is titled Retire loop or Restore loop, the tag not repeated', () => {
+    open();
+    expect(screen.getByRole('dialog', { name: 'Retire loop' })).toBeTruthy();
+    cleanup();
+    open('restore');
+    expect(screen.getByRole('dialog', { name: 'Restore loop' })).toBeTruthy();
+    expect(screen.queryByText('Write a reason first')).toBeNull();
+  });
+
+  it('needs a reason to retire, says so under the button, and sends it trimmed', () => {
     open();
     expect(confirm().disabled).toBe(true);
+    expect(screen.getByText('Write a reason first')).toBeTruthy();
     fireEvent.change(reasonBox(), { target: { value: '   ' } });
     expect(confirm().disabled).toBe(true);
     fireEvent.change(reasonBox(), { target: { value: ' Transmitter removed ' } });
+    expect(screen.queryByText('Write a reason first')).toBeNull();
     fireEvent.click(confirm());
     expect(retire).toHaveBeenCalledWith({ loopId: 'FIC1', reason: 'Transmitter removed' }, expect.anything());
   });

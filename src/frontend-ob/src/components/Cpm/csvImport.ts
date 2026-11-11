@@ -39,13 +39,19 @@ export const MAX_CSV_BYTES = 2 * 1024 * 1024;
 /** Rows rendered in the preview; past this the table itself is the slow part. */
 export const PREVIEW_LIMIT = 100;
 
-/** Source → Review → Activate. Validation is entirely client-side, so review is
- *  a real gate rather than a formality: nothing is sent until the last step. */
-export const IMPORT_STEPS = [
-  { title: 'Import file' },
-  { title: 'Review & validate' },
-  { title: 'Activate' },
-] as const;
+/**
+ * The Download template file. Two rows on purpose: the first leaves the signal columns blank (paths are derived from
+ * site/area/unit + tag) and declares only a PV range; the second spells the paths out and declares both ranges.
+ * CHG-168: each row has a cell per column (they had 17 for 20, so the template failed its own import).
+ */
+export function templateCsv(): string {
+  const pad = (cells: string) => { const n = splitCsvLine(cells).length; return cells + ','.repeat(Math.max(0, CSV_HEADERS.length - n)); };
+  return [
+    CSV_HEADERS.join(','),
+    pad('45FIC-109,Hydrogen recycle flow,houston,,crude1,FIC,high,,,,,,,0,1200,,'),
+    pad('TIC20501,Reactor bed temperature,houston,,crude1,TIC,medium,houston/crude1/tic20501.pv,houston/crude1/tic20501.sp,houston/crude1/tic20501.op,houston/crude1/tic20501.mode,houston/crude1/tic20501.vp,,0,250,0,100'),
+  ].join('\n');
+}
 /**
  * Server-side ceiling for one bulk import (cplm-api MaxBulkLoops). The whole file
  * goes in ONE request, so the gateway's 120-mutations-per-minute window no longer

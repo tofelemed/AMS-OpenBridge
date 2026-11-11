@@ -1,52 +1,59 @@
 'use client';
 
 /**
- * Loop Registry list (CHG-147): Loop, Loop type and VP. A row opens the loop's page (`?loop=`); search,
- * page and the retired switch stay in the URL so Back returns to the same list. Retired loops are hidden
- * unless asked for.
+ * Loop Registry (CHG-147): Loop, Loop type and VP; search, page, the retired switch and the limit filter stay in the URL so
+ * Back returns to the same list; retired loops are hidden unless asked for.
+ *
+ * CHG-168 (owner review, the approved sample docs/theme/redesign/samples/loop-registry-proposal.html and the owner's answers of
+ * 11 Nov 2026): the header is the eyebrow and the title, no ?; top right How to read (a dialog in three titled parts: State, VP,
+ * Readiness, holding what the two ? said), Bulk import and Add loop. One filter row inside the list card: search first, ONE
+ * dropdown that merged Show retired and the three configuration-limit counts, Export CSV; the shared 32 px pager, centred.
+ * The loop opens in a panel beside the list (a drawer below 1280 px) instead of replacing it; `?loop=` still names it. With no
+ * loop in the address the panel says "Choose a loop" and nothing is read for a loop until a row is picked (owner answer 2).
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, PanelHead, QueryError, TonePill, WorkspaceHeader } from './shared';
+import { EmptyState, QueryError, WorkspaceHeader } from './shared';
 import { useCpmLoops, useFleetSummary } from '../../hooks/useCpm';
 import { useAuthStore } from '../../store/authStore';
 import { useCpmScope, loopMatchesQuery } from './plantScope';
 import { registryHref } from './cpaHref';
-import { serviceName } from './loopName';
-import LoopDetail from './registry/LoopDetail';
+import { Inspector } from '../../ui/Inspector';
+import { Pagination } from '../../ui/forms/Pagination';
+import { downloadTextFile } from '../../utils/csv';
+import LoopPanel from './registry/LoopPanel';
 import AddLoopWizard from './AddLoopWizard';
 import BulkImportDialog from './BulkImportDialog';
 import ReasonedButton from './ReasonedButton';
-import ReadinessStrip from './overview/ReadinessStrip';
-import { vpCellLabel } from './optionalInputs';
-import { abnormalPill, GAP_LABEL, hasGap, parseGap, type RegistryGap } from './registryGap';
+import RegistryFilters from './registry/RegistryFilters';
+import RegistryList from './registry/RegistryList';
+import RegistryHowToRead from './registry/RegistryHowToRead';
+import { inView, setView, viewCounts, viewOf, type RegistryView } from './registry/registryView';
+import { exportFileName, registryCsv } from './registry/registryExport';
 
 const PAGE_SIZE = 25;
 const NEEDS_MANAGE = 'Needs the cpm.manage permission';
-const HELP = 'A loop is only as good as its signal mappings. The readiness report after save lists exactly what is degraded: without a VP tag mapped, G14 cannot confirm a final-element fault, and missing peer links leaves G13 unevaluated.';
+const noop = () => undefined;
 
 export const LoopRegistry: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get('loop') ?? '';
   const search = params.get('search') ?? '';
-  const showRetired = params.get('retired') === '1';
-  const gap = parseGap(params.get('gap'));
+  const view = viewOf(params);
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [guide, setGuide] = useState(false);
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
 
   const { data, isLoading, isError, error, refetch } = useCpmLoops();
   const loops = useMemo(() => data?.loops ?? [], [data]);
   const scope = useCpmScope();
   const summary = useFleetSummary(scope.params);
-  const inScope = useMemo(() => loops.filter(l => scope.matches(l) && loopMatchesQuery(l, search)), [loops, search, scope]);
-  const degraded = useMemo(() => loops.filter(l => scope.matches(l) && hasGap(l, 'degraded')).length, [loops, scope]);
-  const retiredHidden = showRetired || gap ? 0 : inScope.filter(l => !l.isActive).length;
-  const filtered = useMemo(
-    () => inScope.filter(l => gap ? hasGap(l, gap) : showRetired || l.isActive),
-    [inScope, gap, showRetired]);
+  const scoped = useMemo(() => loops.filter(l => scope.matches(l)), [loops, scope]);
+  const counts = useMemo(() => viewCounts(scoped, summary.data), [scoped, summary.data]);
+  const filtered = useMemo(() => scoped.filter(l => loopMatchesQuery(l, search) && inView(l, view)), [scoped, search, view]);
 
   // A new Site, Area or Unit starts the list at page 1 (not on first render, so Back keeps its page).
   const scopeKey = `${scope.site}|${scope.area}|${scope.unit}`;
@@ -57,92 +64,78 @@ export const LoopRegistry: React.FC = () => {
     setParams(p => { p.delete('page'); return p; }, { replace: true });
   }, [scopeKey, setParams]);
 
-  // Search, page, the retired switch and the gap filter live in the URL, so Back from a loop returns to the same list.
-  const set = (k: string, v: string | null) => setParams(p => {
-    if (v) p.set(k, v); else p.delete(k);
-    if (k !== 'page' && k !== 'loop') p.delete('page');
+  // Search, page, the dropdown and the loop live in the URL; any change but the page and the loop starts at page 1.
+  const edit = (change: (p: URLSearchParams) => void, keepPage = false) => setParams(p => {
+    change(p);
+    if (!keepPage) p.delete('page');
     return p;
   }, { replace: true });
-  const onSearch = (v: string) => set('search', v);
-  const gapHref = (g: RegistryGap) => { const q = new URLSearchParams(params); q.set('gap', g); q.delete('page'); q.delete('loop'); return `${registryHref()}?${q}`; };
+  const onSearch = (v: string) => edit(p => { if (v) p.set('search', v); else p.delete('search'); });
+  const onView = (v: RegistryView) => edit(p => setView(p, v));
+  const showAll = () => edit(p => { p.delete('search'); setView(p, 'current'); });
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(params.get('page')) || 1), pageCount);
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const goPage = (n: number) => set('page', n > 1 ? String(n) : null);
+  const goPage = (n: number) => edit(p => { if (n > 1) p.set('page', String(n)); else p.delete('page'); }, true);
   const hrefFor = (id: string) => { const q = new URLSearchParams(params); q.set('loop', id); return `${registryHref()}?${q}`; };
 
-  return (
-    <div className="cpm-screen">
-      <WorkspaceHeader
-        page="/cpm/registry"
-        title="Loop Registry"
-        copy={HELP}
-        actions={
-          <>
-            <ReasonedButton variant="normal" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setImportOpen(true)}>Bulk import</ReasonedButton>
-            <ReasonedButton variant="raised" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setWizardOpen(true)}>Add loop</ReasonedButton>
-          </>
-        }
-      />
-      {selectedId ? (
-        <LoopDetail loopId={selectedId} onBack={() => set('loop', null)} />
-      ) : (
-        <>
-          <ReadinessStrip summary={summary.data} isError={summary.isError} error={summary.error} retry={() => void summary.refetch()} gapHref={gapHref} degraded={degraded} />
-          <section className="cpm-surface">
-            <PanelHead
-              title="Loop assets"
-              right={
-                <span className="cpm-reg-tools">
-                  <span className="cpm-event-row__sub">{filtered.length} {filtered.length === 1 ? 'loop' : 'loops'}{retiredHidden > 0 ? ` · ${retiredHidden} retired hidden` : ''}</span>
-                  <label className="cpm-reg-retired">
-                    <input type="checkbox" checked={showRetired} onChange={e => set('retired', e.target.checked ? '1' : null)} />
-                    Show retired
-                  </label>
-                  <input className="cpm-input" aria-label="Find loop" placeholder="Find loop" value={search} onChange={e => onSearch(e.target.value)} />
-                </span>
-              }
-            />
-            {gap && (
-              <p className="cpm-event-row__sub cpm-reg-count">
-                Loops with {GAP_LABEL[gap]}. <ObcButton variant="flat" onClick={() => set('gap', null)}>Clear</ObcButton>
-              </p>
-            )}
-            {isLoading && <EmptyState title="Loading registry…" />}
-            {isError && <QueryError title="Registry unavailable" error={error} retry={() => void refetch()} />}
-            {!isLoading && !isError && filtered.length === 0 && (
-              <EmptyState title="No loops registered" copy="Onboard the first loop to start producing diagnoses."
-                action={canManage ? { label: 'Add loop', onClick: () => setWizardOpen(true) } : undefined} />
-            )}
-            {rows.length > 0 && (
-              <table className="cpm-table cpm-reg-table">
-                <thead><tr><th>Loop</th><th>Loop type</th><th>VP</th></tr></thead>
-                <tbody>
-                  {rows.map(loop => (
-                    <tr key={loop.loopId} className="cpm-reg-row" onClick={() => navigate(hrefFor(loop.loopId))}>
-                      <td>
-                        <Link to={hrefFor(loop.loopId)} className="cpm-reg-link" onClick={e => e.stopPropagation()}><strong>{loop.loopId}</strong></Link>
-                        {abnormalPill(loop) && <> <TonePill tone={loop.isActive && loop.monitoringEnabled ? 'warn' : 'muted'}>{abnormalPill(loop)}</TonePill></>}
-                        <div className="cpm-event-row__sub">{serviceName(loop)}</div>
-                      </td>
-                      <td>{loop.loopType}</td>
-                      <td>{vpCellLabel(loop)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {pageCount > 1 && (
-              <div className="cpm-pager">
-                <span title={page === 1 ? 'Already on the first page' : undefined}><ObcButton variant="flat" onClick={() => goPage(page - 1)} disabled={page === 1}>← Prev</ObcButton></span>
-                <span className="cpm-event-row__sub">Page {page} of {pageCount}</span>
-                <span title={page >= pageCount ? 'Already on the last page' : undefined}><ObcButton variant="flat" onClick={() => goPage(page + 1)} disabled={page >= pageCount}>Next →</ObcButton></span>
-              </div>
-            )}
-          </section>
-        </>
-      )}
+  // A loop named from outside the list (a link, the search palette, Back) opens the list at the page that holds it, once per
+  // loop named; a row picked on the page leaves the page as it is.
+  const placed = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data || !selectedId || placed.current === selectedId) return;
+    placed.current = selectedId;
+    const same = (l: { loopId: string }) => l.loopId.toLowerCase() === selectedId.toLowerCase();
+    if (rows.some(same)) return;
+    const at = filtered.findIndex(same);
+    if (at >= 0) goPage(Math.floor(at / PAGE_SIZE) + 1);
+  });
 
+  // Below 1280 px the panel is a drawer: a row or a link that names a loop opens it, once per loop named (Close stays closed).
+  const [drawer, setDrawer] = useState(() => params.has('loop'));
+  const seen = useRef(selectedId);
+  useEffect(() => {
+    if (selectedId && selectedId !== seen.current) { seen.current = selectedId; setDrawer(true); }
+  }, [selectedId]);
+  const openLoop = (id: string) => { navigate(hrefFor(id)); setDrawer(true); };
+
+  const narrowed = !!search || view !== 'current';
+  return (
+    <div className="cpm-screen cpm-registry">
+      <WorkspaceHeader page="/cpm/registry" title="Loop Registry" copy=""
+        actions={<>
+          <ObcButton variant="flat" onClick={() => setGuide(true)}>How to read</ObcButton>
+          <ReasonedButton variant="normal" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setImportOpen(true)}>Bulk import</ReasonedButton>
+          <ReasonedButton variant="raised" disabled={!canManage} reason={NEEDS_MANAGE} onClick={() => setWizardOpen(true)}>Add loop</ReasonedButton>
+        </>} />
+      <div className="cpm-master-detail">
+        <section className="cpm-surface cpm-reg-list" aria-label="Loops">
+          <RegistryFilters search={search} onSearch={onSearch} view={view} onView={onView} counts={counts}
+            limitsError={summary.isError && !summary.data ? { retry: () => void summary.refetch() } : null}
+            onExport={() => downloadTextFile(exportFileName(), registryCsv(filtered))} />
+          {isLoading && <EmptyState title="Loading registry…" />}
+          {isError && <QueryError title="Registry unavailable" error={error} retry={() => void refetch()} />}
+          {!isLoading && !isError && loops.length === 0 && (
+            <EmptyState title="No loops registered" copy="Onboard the first loop to start producing diagnoses."
+              action={canManage ? { label: 'Add loop', onClick: () => setWizardOpen(true) } : undefined} />
+          )}
+          {loops.length > 0 && filtered.length === 0 && (
+            <EmptyState title={search ? `No loop matches “${search}”` : 'No loop matches this filter and plant scope'}
+              action={narrowed ? { label: 'Show all loops', onClick: showAll } : undefined} />
+          )}
+          {rows.length > 0 && <RegistryList rows={rows} selectedId={selectedId} hrefFor={hrefFor} onOpen={openLoop} />}
+          {pageCount > 1 && (
+            <div className="cpm-events-pager">
+              <Pagination page={page} pageCount={pageCount} onChange={goPage} label="Loop pages" />
+            </div>
+          )}
+        </section>
+        {selectedId
+          ? <LoopPanel loopId={selectedId} open={drawer} onClose={() => setDrawer(false)} />
+          : <Inspector title="Choose a loop" open={false} onClose={noop}>{null}</Inspector>}
+      </div>
+
+      <RegistryHowToRead open={guide} onClose={() => setGuide(false)} summary={summary.data} />
       {wizardOpen && <AddLoopWizard existing={loops} onClose={() => setWizardOpen(false)} />}
       {importOpen && <BulkImportDialog existing={loops} onClose={() => setImportOpen(false)} />}
     </div>

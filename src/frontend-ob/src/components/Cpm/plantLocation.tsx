@@ -15,7 +15,10 @@
  * loops are onboarded — but it is an explicit opt-in, and unmodelled locations
  * are flagged rather than silently accepted.
  */
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { Toggletip } from '../../ui/Toggletip';
+import { Field, Grid, Part } from './registry/wizard/editorParts';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../api/apiFetch';
 
@@ -202,10 +205,14 @@ export function isResolvablePath(path: string): boolean {
 
 // ── the picker ─────────────────────────────────────────────────────────────
 
+/**
+ * CHG-168 (owner review): a titled part, "Plant location", its help behind the ? and Enter manually (or Pick from asset model)
+ * at the title's end. Before a site is picked, Area and Unit say "— choose a site first —" (they said nothing was modelled).
+ * The manual-entry and unknown-location sentences are warnings, so they stay on screen.
+ */
 export const PlantLocationPicker: React.FC<{
   value: PlantLocation;
   onChange: (next: PlantLocation) => void;
-  /** Render as a compact row of fields inside an existing grid. */
   disabled?: boolean;
   /** P5.3: manual entry means the location is NOT checked against the asset
    *  model — the wizard forwards that as allowUnmodelledLocation, because the
@@ -218,6 +225,7 @@ export const PlantLocationPicker: React.FC<{
   const areas = useAreaFilters(value.site);
   const units = useUnitFilters(value.site, value.area);
   const [manual, setManual] = useState(false);
+  const id = useId();
 
   const siteOptions = sites.data ?? [];
   const areaOptions = areas.data ?? [];
@@ -252,99 +260,89 @@ export const PlantLocationPicker: React.FC<{
 
   const label = (o: FilterNode) =>
     o.name === o.segment ? o.name : `${o.name} (${o.segment})`;
+  const noSite = !value.site;
 
   return (
-    <>
-      <label className="cpm-field">
-        <span className="cpm-field__label">Site *</span>
-        {useManual ? (
-          <input className="cpm-input" value={value.site} disabled={disabled}
-            onChange={e => setField('site')(e.target.value)} placeholder="hdpe" />
-        ) : (
-          <select className="cpm-select" value={value.site} disabled={disabled}
-            onChange={e => setField('site')(e.target.value)}>
-            <option value="">— select site —</option>
-            {withCurrent(siteOptions, value.site).map(s => (
-              <option key={s.segment} value={s.segment}>
-                {label(s)}{siteUnknown && s.segment === value.site ? '  (not in UNS)' : ''}
-              </option>
-            ))}
-          </select>
-        )}
-      </label>
-
-      <label className="cpm-field">
-        <span className="cpm-field__label">Area</span>
-        {useManual ? (
-          <input className="cpm-input" value={value.area} disabled={disabled}
-            onChange={e => setField('area')(e.target.value)} placeholder="optional" />
-        ) : (
-          <select className="cpm-select" value={value.area}
-            disabled={disabled || !value.site || (areaOptions.length === 0 && !value.area)}
-            onChange={e => setField('area')(e.target.value)}>
-            <option value="">{areaOptions.length ? '— none —' : '— no areas modelled —'}</option>
-            {withCurrent(areaOptions, value.area).map(a => (
-              <option key={a.segment} value={a.segment}>{label(a)}</option>
-            ))}
-          </select>
-        )}
-      </label>
-
-      <label className="cpm-field">
-        <span className="cpm-field__label">Unit</span>
-        {useManual ? (
-          <input className="cpm-input" value={value.unit} disabled={disabled}
-            onChange={e => setField('unit')(e.target.value)} placeholder="u1001_polymerization_reactor_1" />
-        ) : (
-          <select className="cpm-select" value={value.unit}
-            disabled={disabled || !value.site}
-            onChange={e => setField('unit')(e.target.value)}>
-            <option value="">{unitOptions.length ? '— select unit —' : '— no units modelled —'}</option>
-            {withCurrent(unitOptions, value.unit).map(u => (
-              <option key={u.segment} value={u.segment}>
-                {label(u)}{unitUnknown && u.segment === value.unit ? '  (not in UNS)' : ''}
-              </option>
-            ))}
-          </select>
-        )}
-      </label>
-
-      <div className="cpm-field" style={{ gridColumn: '1 / -1' }}>
-        {sites.isError && (
-          <span className="cpm-field__error">
-            Could not read the asset model — enter the location manually and verify it later.
-          </span>
-        )}
-        {modelEmpty && !sites.isError && (
-          <span className="cpm-copy">
-            No sites exist in the asset model yet, so the location is entered manually. Load the UNS
-            hierarchy to pick from a list and to have loop signals resolve against real assets.
-          </span>
-        )}
-        {!modelEmpty && (
-          <span className="cpm-copy">
-            {useManual
-              ? 'Manual entry — the value is not checked against the asset model, and activation will need the "allow unmodelled location" override. '
-              : 'Picked from the UNS asset model, so the loop’s signal paths resolve against real assets. '}
-            {!sites.isError && (
-              <button type="button" className="cpm-pill cpm-pill--muted"
-                style={{ cursor: 'pointer', marginLeft: 6 }}
-                onClick={() => setManual(!useManual)} disabled={disabled}>
-                {useManual ? 'Pick from asset model' : 'Enter manually'}
-              </button>
-            )}
-          </span>
-        )}
-        {(siteUnknown || unitUnknown) && (
-          <span className="cpm-copy cpm-tone-warn">
-            {siteUnknown && `Site “${value.site}” `}{siteUnknown && unitUnknown && 'and '}
-            {unitUnknown && `unit “${value.unit}” `}
-            {siteUnknown && unitUnknown ? 'do' : 'does'} not exist in the asset model. Activation
-            will reject this location unless “allow unmodelled location” is set — the signals would
-            sit outside the plant tree.
-          </span>
-        )}
-      </div>
-    </>
+    <Part title="Plant location"
+      help={<Toggletip variant="how-to" label="Plant location"><p>Picked from the UNS asset model, so the loop’s signal paths resolve against real assets.</p></Toggletip>}
+      end={!modelEmpty && !sites.isError
+        ? <ObcButton variant="flat" disabled={disabled} onClick={() => setManual(!useManual)}>{useManual ? 'Pick from asset model' : 'Enter manually'}</ObcButton>
+        : undefined}>
+      <Grid>
+        <Field id={`${id}-site`} label="Site *">
+          {useManual ? (
+            <input id={`${id}-site`} className="cpm-input" value={value.site} disabled={disabled}
+              onChange={e => setField('site')(e.target.value)} placeholder="hdpe" />
+          ) : (
+            <select id={`${id}-site`} className="cpm-select" value={value.site} disabled={disabled}
+              onChange={e => setField('site')(e.target.value)}>
+              <option value="">— select site —</option>
+              {withCurrent(siteOptions, value.site).map(s => (
+                <option key={s.segment} value={s.segment}>
+                  {label(s)}{siteUnknown && s.segment === value.site ? '  (not in UNS)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field id={`${id}-area`} label="Area">
+          {useManual ? (
+            <input id={`${id}-area`} className="cpm-input" value={value.area} disabled={disabled}
+              onChange={e => setField('area')(e.target.value)} placeholder="optional" />
+          ) : (
+            <select id={`${id}-area`} className="cpm-select" value={value.area}
+              disabled={disabled || noSite || (areaOptions.length === 0 && !value.area)}
+              onChange={e => setField('area')(e.target.value)}>
+              <option value="">{noSite ? CHOOSE_SITE : areaOptions.length ? '— none —' : '— no areas modelled —'}</option>
+              {withCurrent(areaOptions, value.area).map(a => (
+                <option key={a.segment} value={a.segment}>{label(a)}</option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field id={`${id}-unit`} label="Unit">
+          {useManual ? (
+            <input id={`${id}-unit`} className="cpm-input" value={value.unit} disabled={disabled}
+              onChange={e => setField('unit')(e.target.value)} placeholder="u1001_polymerization_reactor_1" />
+          ) : (
+            <select id={`${id}-unit`} className="cpm-select" value={value.unit}
+              disabled={disabled || noSite}
+              onChange={e => setField('unit')(e.target.value)}>
+              <option value="">{noSite ? CHOOSE_SITE : unitOptions.length ? '— select unit —' : '— no units modelled —'}</option>
+              {withCurrent(unitOptions, value.unit).map(u => (
+                <option key={u.segment} value={u.segment}>
+                  {label(u)}{unitUnknown && u.segment === value.unit ? '  (not in UNS)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+      </Grid>
+      {sites.isError && (
+        <p className="cpm-field__error">Could not read the asset model — enter the location manually and verify it later.</p>
+      )}
+      {modelEmpty && !sites.isError && (
+        <p className="cpm-copy">
+          No sites exist in the asset model yet, so the location is entered manually. Load the UNS
+          hierarchy to pick from a list and to have loop signals resolve against real assets.
+        </p>
+      )}
+      {useManual && !modelEmpty && (
+        <p className="cpm-copy cpm-tone-warn">
+          Manual entry — the value is not checked against the asset model, and activation will need the &quot;allow unmodelled location&quot; override.
+        </p>
+      )}
+      {(siteUnknown || unitUnknown) && (
+        <p className="cpm-copy cpm-tone-warn">
+          {siteUnknown && `Site “${value.site}” `}{siteUnknown && unitUnknown && 'and '}
+          {unitUnknown && `unit “${value.unit}” `}
+          {siteUnknown && unitUnknown ? 'do' : 'does'} not exist in the asset model. Activation
+          will reject this location unless “allow unmodelled location” is set — the signals would
+          sit outside the plant tree.
+        </p>
+      )}
+    </Part>
   );
 };
+
+const CHOOSE_SITE = '— choose a site first —';

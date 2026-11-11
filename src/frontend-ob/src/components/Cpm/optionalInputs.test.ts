@@ -54,8 +54,10 @@ describe('wizard labels', () => {
     expect(factStateLabel('NOT_APPLICABLE')).toBe('Not applicable');
     expect(factStateLabel('AVAILABLE')).toBeNull();
     expect(applicabilitySummary('', 'NOT_APPLICABLE')).toBe('Valve position derived · peers not applicable');
-    expect(applicabilitySummary('EXPECTED', '')).toBe('Valve position yes · peers derived');
-    expect(applicabilitySummary('NOT_APPLICABLE', '')).toBe('Valve position none on this loop · peers derived');
+    // CHG-168 (owner answer 3b): the three valve-position choices by name, so a change between the last two shows
+    expect(applicabilitySummary('EXPECTED', '')).toBe('Valve position expected · peers derived');
+    expect(applicabilitySummary('NOT_APPLICABLE', '')).toBe('Valve position not applicable · peers derived');
+    expect(applicabilitySummary('NOT_INSTALLED', '')).toBe('Valve position not installed · peers derived');
   });
 });
 
