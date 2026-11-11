@@ -43,4 +43,8 @@ describe('penSpecsOf', () => {
   it('limits the pens to the roles asked for', () => {
     expect(penSpecsOf(loopPens({ tags }, ['PV', 'OP'])).map(s => s.label)).toEqual(['PV', 'OP']);
   });
+
+  it('marks every loop pen as needing a binding from the asset model (CHG-175)', () => {
+    expect(penSpecsOf(loopPens({ tags })).every(s => s.needsModelBinding === true)).toBe(true);
+  });
 });

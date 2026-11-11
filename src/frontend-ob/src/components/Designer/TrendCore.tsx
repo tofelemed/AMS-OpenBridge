@@ -9,24 +9,41 @@
 // 2026-09-20 (cpa-ui-fix-plan Phase 5): split into ./trend/* (support, option, legend, time bar)
 // and given rectangle zoom. While "Zoom area" is on, the cursor readout and the live tick hold
 // still, because each of them re-applies the option and would cancel the drag in progress.
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+//
+// CHG-175: the option keeps its identity until its inputs change, so a cursor move no longer
+// re-applies it (that cleared the tooltip about 30 ms after the pointer stopped); every time is in
+// one zone (the page's site zone, else the display zone); lines break where nothing was stored. The
+// Trend page draws the engine in its frame: one head row and a foot strip (`frame`).
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import type { ECharts } from 'echarts';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
-import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 import { chartPalette, penStyle, resolveColorLiteral, useChartTheme } from '../../charts/chartTheme';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
-import {
-  AXIS_OPTS, CLOCK_OPTS, FETCH_FAILED, splitIoTPath, unitFor,
-  type Pen, type PenSpec, type TrendPoint,
-} from './trend/trendSupport';
+import { CLOCK_OPTS, splitIoTPath, unitFor, type Pen, type PenSpec } from './trend/trendSupport';
 import { buildTrendOption } from './trend/trendOption';
 import { TrendLegend } from './trend/TrendLegend';
 import { TrendTimeBar } from './trend/TrendTimeBar';
+import { TrendFoot, type TrendState } from './trend/TrendFoot';
+import { useTrendHistory } from './trend/useTrendHistory';
+import { useStickyTip } from './trend/useStickyTip';
+import { zoneOf } from './trend/trendTime';
 import { ChartZoomBar } from '../charts/ChartZoomBar';
 
 export type { PenSpec } from './trend/trendSupport';
+export type { TrendState } from './trend/TrendFoot';
 export { RANGES } from './trend/trendSupport';
+
+/** CHG-175: the Trend page's frame around the plot. */
+export interface TrendFrame {
+  /** Controls in the head row after the legend, before the zoom tools (Signals ▾). */
+  headTools?: React.ReactNode;
+  /** The state the foot strip names; null shows no foot. */
+  state: TrendState | null;
+  /** The zone's short name for "times in …". */
+  zoneName: string;
+}
 
 interface TrendCoreProps {
   pens: PenSpec[];
@@ -53,16 +70,24 @@ interface TrendCoreProps {
   stepped?: boolean;
   // Phase 8 (E1.12) — overlay a per-trace linear regression line.
   regression?: boolean;
-  /** Read-only: how old the newest sample is against the window end (null when there is none), and the live range. */
+  /** Read-only: how old the newest sample is against the window end (null when there is none), and the window's span. */
   onSampleAge?: (ageMs: number | null, rangeMs: number) => void;
   /** The page's verdict on the newest sample; the time bar reads LIVE only with it. Absent: the bar keeps its old rule. */
   sampleFresh?: boolean;
   /** Replaces the legend text shown with no pens; the default keeps the old words. */
   emptyLegendText?: string;
+  /** CHG-175: every time on the chart in this zone (IANA or UTC). Absent: the display time bar's zone (the Designer). */
+  timeZone?: string;
+  /** CHG-175: the Trend page's head row and foot strip; replaces the time bar and the zoom bar. */
+  frame?: TrendFrame;
+  /** CHG-175: a new value resets the zoom (the page's new range, step, Custom or Now). */
+  zoomResetKey?: string | number;
+  /** CHG-175: shown in place of the plot while there are no pens. */
+  emptyContent?: React.ReactNode;
 }
 
 // Test marker: lets automated checks confirm which build of this module the page actually loaded.
-(globalThis as unknown as { __trendCoreBuild?: string }).__trendCoreBuild = 'J1';
+(globalThis as unknown as { __trendCoreBuild?: string }).__trendCoreBuild = 'J2';
 
 export const TrendCore: React.FC<TrendCoreProps> = ({
   pens: penSpecs,
@@ -79,6 +104,10 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   onSampleAge,
   sampleFresh,
   emptyLegendText,
+  timeZone,
+  frame,
+  zoomResetKey,
+  emptyContent,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
@@ -87,14 +116,19 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     const resolved = (batch?.bindings ?? []) as Array<Record<string, unknown>>;
     return penSpecs.map((spec, i) => {
       const b = resolved[i] as
-        | { live?: { sparkplugDevice?: string; sparkplugMetric?: string }; history?: { ioTDbPath?: string } }
+        | { resolved?: boolean; provenance?: string; live?: { sparkplugDevice?: string; sparkplugMetric?: string }; history?: { ioTDbPath?: string } }
         | undefined;
+      const label = spec.label ?? spec.path.split('/').pop() ?? spec.path;
+      // CHG-175: a loop's signal is never read from a binding the resolver only derived from the path, or could not make.
+      if (spec.needsModelBinding && b && (b.resolved === false || b.provenance === 'fallback')) {
+        return { ...spec, label, unit: spec.unitOverride || '', unread: true };
+      }
       const { series, measurement } = splitIoTPath(b?.history?.ioTDbPath);
       const dev = b?.live?.sparkplugDevice;
       const met = b?.live?.sparkplugMetric ?? measurement;
       return {
         ...spec,
-        label: spec.label ?? spec.path.split('/').pop() ?? spec.path,
+        label,
         // Prefer the authoritative unit (asset catalog / UOM override); the name guess is a last resort.
         unit: spec.unitOverride || unitFor(met ?? measurement),
         iotSeries: series,
@@ -121,42 +155,28 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     return next;
   });
 
-  // Display timezone (K18/M15) — reformats the clock labels AND the echarts time axis, so the trend
-  // agrees with the time bar / time-series table instead of always showing the client's local zone.
+  // Display timezone (K18/M15) for the Designer; CHG-175: the page's site zone wins. One zone for every time shown.
   const tz = useDisplayTimeStore(s => s.tz);
-  const fmtClock = React.useCallback((ms: number) => formatInZone(ms, tz, CLOCK_OPTS), [tz]);
-  const fmtAxis = React.useCallback((ms: number) => formatInZone(ms, tz, AXIS_OPTS), [tz]);
+  const zone = zoneOf(timeZone ?? tz);
+  const fmtClock = React.useCallback((ms: number) => formatInZone(ms, timeZone ?? tz, CLOCK_OPTS), [timeZone, tz]);
 
   const [rangeMs, setRangeMs] = useState(initialRangeMs);
   const [live, setLive] = useState(true);
   const [playing, setPlaying] = useState(true);
   const [endTs, setEndTs] = useState(() => 0); // 0 = "now"; set when paused/scrubbed
   const [cursorTs, setCursorTs] = useState<number | null>(null);
-  // FE-04: the axis-pointer event fires per mousemove; each setCursorTs re-render
-  // rebuilds the option object and re-applies it with setOption(notMerge). Coalesce
-  // cursor updates to one per animation frame (last position wins).
+  // FE-04: the axis-pointer event fires per mousemove. Coalesce cursor updates to one per animation frame.
   const cursorFrameRef = useRef(0);
   const pendingCursorTsRef = useRef<number | null>(null);
   // Rectangle / slider / wheel zoom, carried in the option (see ./trend/trendOption).
   const box = useBoxZoom({ hasY: true });
-  // "Now" for the live window. It only moves on the 2s tick (below) — deriving it from Date.now() in
-  // the render body made the window jump on every mousemove.
+  // "Now" for the live window. It only moves on the 2s tick (below).
   const [nowTs, setNowTs] = useState(() => Date.now());
-  const [, forceTick] = useState(0);
-
-  const fetchTrend = useMqttStore(s => s.fetchTrend);
-  const connect = useMqttStore(s => s.connect);
-  const histRef = useRef<Record<string, TrendPoint[]>>({});
-  /** P2-23 - pens whose history fetch failed this cycle (shown as a warning). */
-  const failedPensRef = useRef<string[]>([]);
-  // Plot pixel width → historian decimation is sized to it (U9). Kept in a ref so a resize doesn't
-  // trigger a refetch; the next window-change fetch simply uses the current width.
+  const [tick, setTick] = useState(0);
+  // Plot pixel width → historian decimation is sized to it (U9). Kept in a ref so a resize doesn't refetch.
   const canvasRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(500);
 
-  useEffect(() => { connect(); }, [connect]);
-
-  // Track the plot's pixel width for decimation.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -167,75 +187,40 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  // The window end must only advance on a LIVE TICK — not on every render (a mousemove over the
-  // chart, a zoom event, the 2s tick all produce a new option, which <ReactECharts notMerge>
-  // re-applies). Follow "now" only while live AND playing; otherwise the window is pinned.
+  // CHG-175: while a zoom rectangle is drawn, a driven live window holds still (a moved window re-applies the option
+  // and would cancel the drag), as the internal live tick already did.
+  const heldRef = useRef(controlledWindow ?? null);
+  if (!(box.selecting && controlledWindow?.live && heldRef.current)) heldRef.current = controlledWindow ?? null;
+  const cw = heldRef.current;
+
+  // The window end only advances on a LIVE TICK — follow "now" only while live AND playing; otherwise pinned.
   // When an external window is supplied it wins; otherwise the internal live/paused logic applies.
-  const isControlled = !!controlledWindow;
-  const controlledLive = controlledWindow?.live ?? false;
-  const windowEnd = controlledWindow
-    ? controlledWindow.end
-    : ((live && playing) ? nowTs : (endTs || nowTs));
-  const windowStart = controlledWindow ? controlledWindow.start : windowEnd - rangeMs;
+  const isControlled = !!cw;
+  const controlledLive = cw?.live ?? false;
+  const windowEnd = cw ? cw.end : ((live && playing) ? nowTs : (endTs || nowTs));
+  const windowStart = cw ? cw.start : windowEnd - rangeMs;
   // History refetch key. In live mode the END advances continually and the ring-buffer tail fills the
   // leading edge, so we refetch only when the SPAN changes; in fixed mode either bound triggers it.
-  const fetchKey = controlledWindow
-    ? (controlledLive ? `cspan:${controlledWindow.end - controlledWindow.start}` : `cfix:${controlledWindow.start}:${controlledWindow.end}`)
+  const fetchKey = cw
+    ? (controlledLive ? `cspan:${cw.end - cw.start}` : `cfix:${cw.start}:${cw.end}`)
     : (live ? `live:${rangeMs}` : `fix:${rangeMs}:${endTs}`);
-  // CHG-080: a newly pinned window is a new range — a zoom selected on the previous one no longer means anything
-  // (the internal range buttons already reset it the same way).
+  // CHG-080: a newly pinned window is a new range — a zoom selected on the previous one no longer means anything.
+  // CHG-175: a caller with a reset key says itself when the period changed (pausing, for one, keeps the zoom).
   const { reset: resetZoom } = box;
-  useEffect(() => { if (isControlled && !controlledLive) resetZoom(); }, [fetchKey, isControlled, controlledLive, resetZoom]);
-
-  // Historical fetch per pen, on window/pen change (identical to Phase C).
   useEffect(() => {
-    if (pens.length === 0) return;
-    let cancelled = false;
-    const start = new Date(windowStart);
-    const end = new Date(windowEnd);
-    Promise.all(pens.map(async pen => {
-      if (!pen.iotSeries || !pen.measurement) return [];
-      try {
-        const pts = await fetchTrend(pen.iotSeries, start, end, widthRef.current, pen.measurement);
-        // The historian returns `null` for buckets with no samples. Number(null) === 0 (and 0 is
-        // finite), so a plain Number() cast plotted every gap as a zero — drop empty buckets first.
-        return pts
-          .map(p => ({ ts: Number(p.ts), raw: (p as Record<string, unknown>)[pen.measurement!] }))
-          .filter(p => p.raw !== null && p.raw !== undefined && p.raw !== '')
-          .map(p => ({ ts: p.ts, value: Number(p.raw) }))
-          .filter(p => Number.isFinite(p.value));
-      } catch {
-        // P2-23 - swallowing this made a failed pen render as an empty series,
-        // indistinguishable from "no data": one pen silently vanished while its
-        // siblings plotted. Mark it so the chart can say so.
-        return FETCH_FAILED;
-      }
-    })).then(results => {
-      if (cancelled) return;
-      const map: Record<string, TrendPoint[]> = {};
-      const failed: string[] = [];
-      pens.forEach((pen, i) => {
-        if (results[i] === FETCH_FAILED) {
-          map[pen.path] = [];
-          failed.push(pen.label || pen.measurement || pen.path);
-        } else {
-          map[pen.path] = results[i] as TrendPoint[];
-        }
-      });
-      histRef.current = map;
-      failedPensRef.current = failed;
-      forceTick(t => t + 1);
-    });
-    return () => { cancelled = true; };
-    // re-fetch when the window span/bounds change (fetchKey), the pens change, or fetchTrend changes
-  }, [pens, fetchKey, fetchTrend]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (zoomResetKey === undefined && isControlled && !controlledLive) resetZoom();
+  }, [fetchKey, isControlled, controlledLive, resetZoom, zoomResetKey]);
+  useEffect(() => { if (zoomResetKey !== undefined) resetZoom(); }, [zoomResetKey, resetZoom]);
 
-  // Live tick — advance the window and pull fresh samples from the MQTT ring-buffer.
-  // Skipped when an external window drives the chart, and while a zoom rectangle is being drawn
-  // (the re-applied option would cancel the drag).
+  // Tail while live: internally live, or externally live when a window is driving us.
+  const tailing = isControlled ? controlledLive : live;
+  const { penData, failed } = useTrendHistory({ pens, windowStart, windowEnd, fetchKey, tailing, tick, widthRef });
+
+  // Live tick — advance the window and pull fresh samples from the MQTT ring-buffer. Skipped when an external window
+  // drives the chart, and while a zoom rectangle is being drawn (the re-applied option would cancel the drag).
   useEffect(() => {
     if (isControlled || !live || !playing || box.selecting) return;
-    const id = setInterval(() => { setNowTs(Date.now()); forceTick(t => t + 1); }, 2000);
+    const id = setInterval(() => { setNowTs(Date.now()); setTick(t => t + 1); }, 2000);
     return () => clearInterval(id);
   }, [isControlled, live, playing, box.selecting]);
 
@@ -244,19 +229,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
   const palette = useMemo(() => chartPalette(), [theme]);
 
-  // Merged (history + live tail) data per pen — also what the legend reads at the cursor.
-  // Tail while live: internally live, or externally live when a window is driving us.
-  const tailing = isControlled ? controlledLive : live;
-  const penData = pens.map(pen => {
-    const hist = histRef.current[pen.path] ?? [];
-    const lastHistTs = hist.length ? hist[hist.length - 1].ts : 0;
-    const liveTail = tailing && pen.liveKey
-      ? getLiveSeries(pen.liveKey, windowStart).filter(p => p.ts > lastHistTs).map(p => ({ ts: p.ts, value: p.v }))
-      : [];
-    return hist.concat(liveTail);
-  });
-
-  // Report the newest sample's age to a page that shows LIVE; only when it changes by a second or more.
+  // Report the newest sample's age to a page that shows the state; only when it changes by a second or more.
   const newestTs = penData.reduce((m, d) => (d.length ? Math.max(m, d[d.length - 1].ts) : m), 0);
   const sampleAge = newestTs ? Math.max(0, windowEnd - newestTs) : null;
   const reportedAge = useRef<number | null | undefined>(undefined);
@@ -265,31 +238,34 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     const key = sampleAge == null ? null : Math.round(sampleAge / 1000);
     if (reportedAge.current === key) return;
     reportedAge.current = key;
-    onSampleAge(sampleAge, rangeMs);
+    onSampleAge(sampleAge, isControlled ? windowEnd - windowStart : rangeMs);
   });
 
-  // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned pen.
-  const penColor = (i: number) => {
+  // Effective per-pen colour: an explicit per-trace colour (E1.2) wins over the auto-assigned pen. The palette changes
+  // with the theme, so a var() colour is resolved again then.
+  const penColor = useCallback((i: number) => {
     const c = pens[i]?.color;
     return c ? resolveColorLiteral(c) : penStyle(palette, i).color;
-  };
+  }, [pens, palette]);
 
   // Per-pen Y-axis (PI Vision) when units differ, unless explicitly overridden.
-  const distinctUnits = new Set(pens.map(p => p.unit));
-  const perAxis = multiAxis ?? (pens.length > 1 && distinctUnits.size > 1);
-  const manualScale = scale && scale.auto === false ? { min: scale.min, max: scale.max } : null;
+  const perAxis = multiAxis ?? (pens.length > 1 && new Set(pens.map(p => p.unit)).size > 1);
+  const manual = !!scale && scale.auto === false;
+  const scaleMin = manual ? scale?.min : undefined;
+  const scaleMax = manual ? scale?.max : undefined;
 
-  const option = buildTrendOption({
-    pens, penData, hiddenPens, penColor, palette, perAxis, manualScale,
-    stepped, regression, windowStart, windowEnd, fmtAxis, zoom: box.zoom,
-  });
+  const option = useMemo(() => buildTrendOption({
+    pens, penData, hiddenPens, penColor, palette, perAxis, manualScale: manual ? { min: scaleMin, max: scaleMax } : null,
+    stepped, regression, windowStart, windowEnd, zone, zoom: box.zoom,
+  }), [pens, penData, hiddenPens, penColor, palette, perAxis, manual, scaleMin, scaleMax, stepped, regression, windowStart, windowEnd, zone, box.zoom]);
   useKeepSelecting(box, option);
+  const attachTip = useStickyTip(option, box.selecting);
   const hasData = penData.some(d => d.length > 0);
 
   /** value of a pen at the cursor timestamp (nearest sample), else its latest sample */
   const valueAt = (i: number): number | undefined => {
     const data = penData[i];
-    if (!data.length) return undefined;
+    if (!data?.length) return undefined;
     if (cursorTs == null) return data[data.length - 1].value;
     let best = data[0], bestD = Math.abs(data[0].ts - cursorTs);
     for (const p of data) {
@@ -315,10 +291,53 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     });
   };
 
+  // Stable handlers: echarts-for-react rebinds its events whenever the object changes.
+  const selectingRef = useRef(false);
+  selectingRef.current = box.selecting;
+  const { onChartReady: boxReady, onDataZoom } = box;
+  const onEvents = useMemo(() => ({
+    updateAxisPointer: (e: { axesInfo?: Array<{ axisDim?: string; value?: number }> }) => {
+      // A cursor re-render would re-apply the option and cancel a zoom rectangle in progress.
+      if (selectingRef.current) return;
+      const t = e.axesInfo?.find(a => a.axisDim === 'x')?.value;
+      if (typeof t !== 'number') return;
+      pendingCursorTsRef.current = t;
+      if (!cursorFrameRef.current) {
+        cursorFrameRef.current = requestAnimationFrame(() => {
+          cursorFrameRef.current = 0;
+          if (pendingCursorTsRef.current != null) setCursorTs(pendingCursorTsRef.current);
+        });
+      }
+    },
+    // E1.13/E1.14 — the cursor is RETAINED when the pointer leaves the plot; double-click clears it.
+    datazoom: onDataZoom,
+  }), [onDataZoom]);
+  const onChartReady = useCallback((inst: unknown) => {
+    // Debug/test hook (mirrors window.__designer): lets automated checks read the live chart option.
+    (window as unknown as { __trend?: unknown }).__trend = inst;
+    boxReady(inst as ECharts);
+    attachTip(inst as ECharts);
+  }, [boxReady, attachTip]);
+
+  const legend = (
+    <TrendLegend emptyText={emptyLegendText} pens={pens} hiddenPens={hiddenPens} penColor={penColor} valueAt={valueAt}
+      onToggle={toggleHidden} onRemovePen={onRemovePen} />
+  );
+  const showEmpty = pens.length === 0 && emptyContent !== undefined;
+
   return (
-    <div className={`trend-core ${className}`} data-testid="trend-core">
-      <TrendLegend emptyText={emptyLegendText} pens={pens} hiddenPens={hiddenPens} penColor={penColor} valueAt={valueAt}
-        onToggle={toggleHidden} onRemovePen={onRemovePen} />
+    <div className={`trend-core ${frame ? 'trend-core--framed ' : ''}${className}`} data-testid="trend-core">
+      {frame ? (
+        // CHG-175 (owner's design): the legend exactly as before, the page's tools, the zoom tools at the right end.
+        <div className="trend-core__head" data-testid="trend-head">
+          {legend}
+          <div className="trend-core__head-end">
+            {frame.headTools}
+            {frame.headTools && <span className="cpm-hist-sep" aria-hidden="true" />}
+            <ChartZoomBar box={box} hasData={hasData} />
+          </div>
+        </div>
+      ) : legend}
 
       <div
         ref={canvasRef}
@@ -329,7 +348,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         // Double-click clears a retained cursor and returns the legend to the latest sample.
         onDoubleClick={() => setCursorTs(null)}
       >
-        {failedPensRef.current.length > 0 && (
+        {!frame && failed.length > 0 && (
           <div style={{
             color: 'var(--alert-caution-color)',
             fontSize: '0.75rem',
@@ -337,51 +356,35 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
           }}>
             {/* P2-23 - a failed history fetch used to render as an empty series,
                 indistinguishable from real emptiness. */}
-            {failedPensRef.current.length} pen(s) failed to load:{' '}
-            {failedPensRef.current.join(', ')} - values shown may be incomplete
+            {failed.length} pen(s) failed to load:{' '}
+            {failed.join(', ')} - values shown may be incomplete
           </div>
         )}
-        <ReactECharts
-          option={option}
-          style={{ width: '100%', height: '100%' }}
-          notMerge
-          lazyUpdate
-          // Debug/test hook (mirrors window.__designer): lets automated checks read the live chart
-          // option — axis count, dataZoom window — without reaching into echarts internals.
-          onChartReady={(inst: unknown) => {
-            (window as unknown as { __trend?: unknown }).__trend = inst;
-            box.onChartReady(inst as Parameters<typeof box.onChartReady>[0]);
-          }}
-          onEvents={{
-            updateAxisPointer: (e: { axesInfo?: Array<{ axisDim?: string; value?: number }> }) => {
-              // A cursor re-render would re-apply the option and cancel a zoom rectangle in progress.
-              if (box.selecting) return;
-              const t = e.axesInfo?.find(a => a.axisDim === 'x')?.value;
-              if (typeof t !== 'number') return;
-              // rAF-throttled (see cursorFrameRef note above).
-              pendingCursorTsRef.current = t;
-              if (!cursorFrameRef.current) {
-                cursorFrameRef.current = requestAnimationFrame(() => {
-                  cursorFrameRef.current = 0;
-                  if (pendingCursorTsRef.current != null) setCursorTs(pendingCursorTsRef.current);
-                });
-              }
-            },
-            // E1.13/E1.14 — the cursor is RETAINED when the pointer leaves the plot; double-click
-            // clears it (above) to return to "latest".
-            datazoom: box.onDataZoom,
-          }}
-        />
+        {showEmpty ? (
+          <div className="trend-core__empty">{emptyContent}</div>
+        ) : (
+          <ReactECharts
+            option={option}
+            style={{ width: '100%', height: '100%' }}
+            notMerge
+            lazyUpdate
+            onChartReady={onChartReady}
+            onEvents={onEvents}
+          />
+        )}
       </div>
 
-      {!showTimeBar && showZoomBar && (
+      {frame?.state && (
+        <TrendFoot state={frame.state} zoneName={frame.zoneName} zoomed={box.zoomed} failed={failed} />
+      )}
+      {!frame && !showTimeBar && showZoomBar && (
         <div className="trend-core__bar" data-testid="trend-zoombar">
           <span className="trend-core__clock">{fmtClock(windowStart)}</span>
           <ChartZoomBar box={box} hasData={hasData} live={controlledLive} />
           <span className="trend-core__clock">{fmtClock(windowEnd)}</span>
         </div>
       )}
-      {showTimeBar && (
+      {!frame && showTimeBar && (
         <TrendTimeBar
           windowStart={windowStart} windowEnd={windowEnd} fmtClock={fmtClock}
           rangeMs={rangeMs} live={live} playing={playing}

@@ -74,9 +74,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  * too on a span of days, because ECharts places ticks by the browser's midnight, which need not be the site's.
  */
 export function siteAxisTick(spanMs: number): (ms: number) => string {
+  return zoneAxisTick(spanMs);
+}
+
+/** CHG-175: the same tick in a zone the caller names (the Designer's trend keeps its display zone); none, the site's. */
+export function zoneAxisTick(spanMs: number, zone?: string): (ms: number) => string {
   const short = spanMs < 600_000;
   return ms => {
-    const s = formatInZone(ms, siteZone());
+    const s = formatInZone(ms, zone ?? siteZone());
     const day = `${+s.slice(8, 10)} ${MONTHS[+s.slice(5, 7) - 1]}`;
     if (!short && s.slice(11, 16) === '00:00') return day;
     const clock = s.slice(11, short ? 19 : 16);

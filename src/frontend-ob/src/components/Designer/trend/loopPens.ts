@@ -32,12 +32,16 @@ export function rolesOf(param: string | null): PenRole[] {
   return roles.length > 0 ? roles : [...PEN_ROLES];
 }
 
-/** Pen specs for the trend engine: coloured by role, setpoint dashed, labelled by the role. */
+/**
+ * Pen specs for the trend engine: coloured by role, setpoint dashed, labelled by the role. CHG-175: a loop's signal is
+ * read only through a binding from the asset model (see PenSpec.needsModelBinding).
+ */
 export function penSpecsOf(pens: LoopPen[]): PenSpec[] {
   return pens.map(p => ({
     path: p.tag,
     label: p.role,
     color: `var(--signal-${p.role.toLowerCase()})`,
     ...(p.role === 'SP' ? { lineStyle: 'dashed' as const } : {}),
+    needsModelBinding: true,
   }));
 }

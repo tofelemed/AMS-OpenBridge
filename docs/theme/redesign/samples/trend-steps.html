@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: the engineer's path through Trend (sample)</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab :4173, 11 Nov 17:30-18:00 UTC; site zone UTC, browser zone
+     Asia/Dubai. Screenshots named before-NN-… and facts-*.json are in the agent's scratchpad trend-agent/before/. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 16px; color: var(--text2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .band b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-inline-end: 6px; }
+  .chip { padding: 2px 10px; border: 1px solid var(--strong); border-radius: 6px; } .chip--q { border-style: dashed; color: var(--text2); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { padding: 12px; position: relative; display: flex; flex-direction: column; }
+  .step:not(:nth-child(3n))::after { content: "→"; position: absolute; right: -15px; top: 22px; color: var(--action); font-size: 16px; font-weight: 700; }
+  .step h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--action); }
+  .step q { display: block; margin: 4px 0 8px; font-weight: 600; quotes: none; font-size: 13px; }
+  .step ul { margin: 0; padding-inline-start: 16px; color: var(--text2); font-size: 13px; } .step li { margin: 2px 0; }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+  .lower .card { padding: 14px; } .lower h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { width: 46%; font-weight: 600; padding-inline-end: 10px; } td:last-child { color: var(--text2); }
+  tr:last-child td { border: 0; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .qs { margin-top: 14px; padding: 14px; } .qs h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .qs ol { margin: 0; padding-inline-start: 20px; } .qs li { margin: 6px 0; } .qs li span { color: var(--text2); }
+  .found { margin-top: 14px; padding: 14px; } .found h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; } .found h4 { margin: 10px 0 4px; font-size: 14px; font-weight: 600; }
+  .found ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } .found li { margin: 3px 0; } .found li b { color: var(--text); font-weight: 600; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Trend: the engineer's path</h1>
+  <p class="lead">Today the page is the title (Engineering · Trend, no <b>?</b>), a grey band and a chart that fills the rest of the screen. The band holds the loop search field, From and To date fields (always shown; empty "dd/mm/yyyy --:-- --" while live), Apply window, and Open loop ↗ at its far end. Once a window is applied, Apply window stays highlighted, Live › and PINNED WINDOW join it, and Open loop ↗ drops to a second row at 1440 px. The chart has the legend above the plot (PV 77.87 × · SP 77.78 × · OP 26.59 ×: the value at the cursor, a click hides a pen, × removes it), the plot (one axis, no units), the slider, and under it a time bar: start clock, 15m 1h 8h 1d 1w, ◀ ⏸ ▶▶ Now, end clock, Zoom area · Undo · Reset, and the mode in green capitals (LIVE, PAUSED, HISTORICAL, NO NEW SAMPLES). With a window applied the time bar goes and a zoom bar takes its place: start clock, Zoom area · Undo · Reset, end clock. There is no dialog, no export and no saved view; the address carries loop, roles, tags, range, from and to. On a fixed window the period is said three times (the inputs, the two clocks, PINNED WINDOW) in two time zones: the inputs read 10:45 → 22:45 (the site zone, UTC), the chart 14:45 → 02:45 (the browser's). Proposed: the Historical pattern. One band card (loop · range · ‹ dates › · Pause · Now … Loop Explorer ↗), one head row over the chart (legend … Zoom area · Undo · Reset), the plot exactly as today, and a foot strip that says the state and the zone once.</p>
+
+  <div class="card band"><b>Every state</b><span class="chip">Loop search ▾</span><span class="chip">15m · 1h · 8h · 24h · 7d · Custom ▾</span><span class="chip">‹ 6 Nov 10:45 → 22:45 ›</span><span class="chip">Pause · Now</span><span style="color:var(--text2)">…</span><span class="chip">Loop Explorer ↗</span><span class="chip chip--q">Historical ↗ (Q6)</span><span class="chip">Custom: From · To · Apply</span><span class="chip">Head: legend … <span style="border:1px dashed var(--strong);padding:0 4px;border-radius:4px">Signals ▾ (Q5)</span> · Zoom area · Undo · Reset</span><span class="chip">Foot: state · times in UTC</span></div>
+
+  <div class="steps">
+    <div class="card step"><h2>Pick the loop</h2><q>Which loop do I want to see?</q>
+      <ul><li>The search field first in the band: one list, flat by tag, in the header scope (CHG-160, as today)</li><li>From Historical (Open in Trend ↗), Loop Explorer (Trend ↗, Signals), Window Inspector (Trend ↗) or the Designer: the loop, its roles and the period come with the link</li><li>A link with tags: the field reads "4 tags from a link" (Q8)</li></ul></div>
+    <div class="card step"><h2>Choose the period</h2><q>Over what time?</q>
+      <ul><li>Range drop-down named by its options: 15m · 1h · 8h · 24h · 7d (Q2) · Custom</li><li>‹ › move half a period, as today; › stops at now; a fixed period steps too (Q3)</li><li>Pause (Resume) while live; Now back to live</li><li>Custom, or a click on the dates: From · To · Apply under the band</li></ul></div>
+    <div class="card step"><h2>Read the trend</h2><q>What did the signals do?</q>
+      <ul><li>Legend: PV, SP, OP, VP with the value at the cursor (the latest without one) and its unit (Q1)</li><li>A click hides a pen, × removes it, Signals ▾ brings it back (Q5)</li><li>The cursor and its tooltip stay where the pointer rests (bug 6); a double-click clears it</li></ul></div>
+    <div class="card step"><h2>Look closer</h2><q>What happened here?</q>
+      <ul><li>Zoom area · Undo · Reset at the end of the head row, live or fixed</li><li>The slider, the wheel and drag-to-pan as today</li><li>Live and zoomed: "Zoomed · Reset to follow live" in the foot</li></ul></div>
+    <div class="card step"><h2>Know what is on screen</h2><q>Is it live, and in which zone?</q>
+      <ul><li>Foot: ● Live · ◐ No new samples · ‖ Paused · ○ Fixed period</li><li>"times in UTC" once; every time on the page in the site zone; ticks "11:00", a new day "5 Nov" (Q10)</li><li>A pen not read: "◐ OP not read · the values shown may be incomplete"</li></ul></div>
+    <div class="card step"><h2>Go on</h2><q>Where next?</q>
+      <ul><li>Loop Explorer ↗ (outlined): the loop's summary, gates and signals</li><li>Historical ↗ (Q6): the KPI overlay, the results and Export on the same period</li><li>The address reopens what is drawn (Q4)</li></ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="card"><h3>What goes</h3>
+      <table>
+        <tr><td><span class="n">1</span>The band as a grey strip: loop field, From, To, Apply window, then Live ›, PINNED WINDOW and Open loop ↗ on a second row at 1440 px when a window is applied (before-07)</td><td>A card, as Historical: the loop field first, then only this page's controls, the links at the far end; one row at 1440 px, two at 1000 px with the links at the right (proposal-20)</td></tr>
+        <tr><td><span class="n">2</span>Five range buttons in the time bar under the chart (15m 1h 8h 1d 1w), gone while a window is applied</td><td>One drop-down in the band, no visible label, named by its options: 15m · 1h · 8h · 24h · 7d · Custom; shown live and fixed. "1d" and "1w" read "24h" and "7d" as on Historical and Loop Explorer: question 2</td></tr>
+        <tr><td><span class="n">3</span>Two clocks "11/11, 21:32:28" either side of the time bar, ◀ "Step back", ▶▶ "Step forward"; when fixed, two more clocks around the zoom tools</td><td>One stepper "‹ 6 Nov 10:45 → 22:45 ›": half a period per step as today, › stops at now (bug 3), a click on the dates opens Custom; a fixed period steps too (question 3)</td></tr>
+        <tr><td><span class="n">4</span>⏸ / ▶ "Play/Pause" and Now "Jump to live" in the time bar, and Live › in the band when fixed (the same action under two names)</td><td>Pause (Resume while paused) and Now, in the band; Pause only on a live range, disabled when stepped back as today</td></tr>
+        <tr><td><span class="n">5</span>"Open loop ↗" flat, offered also for a loop not in the registry and for a link whose tags are other loops'</td><td>"Loop Explorer ↗" outlined at the band's far end (Historical's word); not offered when there is no one loop. Historical ↗ flat beside it, dashed: question 6</td></tr>
+        <tr><td><span class="n">6</span>From and To always in the band, 12-hour "06/11/2026 10:45 AM", the first digit cut at 1440 px; "Apply window" stays highlighted once applied</td><td>Behind Custom (or a click on the dates): a second row in the band card, From · To · Apply, in the site zone; "Enter both dates." and '"To" must be after "From".' unchanged</td></tr>
+        <tr><td><span class="n">7</span>The legend alone above the plot; Zoom area · Undo · Reset in the time bar (live) or in a separate zoom bar between two clocks (fixed)</td><td>One head row: the legend on the left exactly as today, Zoom area · Undo · Reset at its right end in both modes. Signals ▾ dashed: question 5. Units dashed: question 1</td></tr>
+        <tr><td><span class="n">8</span>LIVE / PAUSED / HISTORICAL / NO NEW SAMPLES in green capitals at the bar's end; PINNED WINDOW in grey capitals in the band; "live · viewport held while zoomed, Reset to follow"; "1 pen(s) failed to load: OP - values shown may be incomplete" above the plot</td><td>The foot strip: ● Live, ◐ No new samples (caution), ‖ Paused, ○ Fixed period (HISTORICAL and PINNED WINDOW are both a fixed period); "times in UTC" once; at the right "Zoomed · Reset to follow live" or "◐ OP not read · the values shown may be incomplete"</td></tr>
+        <tr><td><span class="n">9</span>Inputs in the site zone (UTC), clocks, axis and tooltip in the browser's (Asia/Dubai), no zone named; ticks "15:00:00"; seven ticks "00:00:00" on 7 d</td><td>Every time in the site zone, named once in the foot (bug 1); ticks "11:00"; a tick where a day starts reads "5 Nov" (question 10)</td></tr>
+        <tr><td><span class="n">10</span>"Loop not found" in the chart under the band's "FIC99999 is not in the loop registry."; the empty page draws axes, slider and time bar and says nothing</td><td>The band's line only; with no loop the chart says "Select a loop" (Historical's words, question 11); "KDEMO_EFF has no signal tags mapped." unchanged</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>The address and access</td><td><code>/trend</code>, historian.view; the loop field with analytics.view (without it: the band without the field, the rest the same); <code>?loop=</code>, <code>?roles=</code>, <code>?tags=</code> (tags win), <code>?range=</code>, <code>?from=</code>/<code>?to=</code>; the sidebar link keeps the plant scope and the loop</td></tr>
+        <tr><td>The trend</td><td>The chart engine as is: pen colours from <code>--signal-pv/sp/op/vp</code> (tag pens the chart palette), SP dashed, one axis per unit when units differ, the slider, wheel zoom and drag-to-pan, Zoom area · Undo · Reset ("Zoom area · on", Escape leaves), the cursor kept after the pointer leaves, double-click clears it</td></tr>
+        <tr><td>The legend</td><td>Swatch, name, value at the cursor (latest without one, two decimals, "--" with none), × removes (the last one leaves the chart empty, <code>roles=none</code>), a click hides and strikes through; hover shows the tag's path</td></tr>
+        <tr><td>Data</td><td>History per pen sized to the plot width, gaps dropped (never zero); live tail every 2 s while live and not zooming; a pen that fails is named; MODE is not trended</td></tr>
+        <tr><td>Ranges and steps</td><td>15m (default), 1h, 8h, 24 h, 7 d; a step moves half the range; Pause freezes the window end; Now returns to live and resets the zoom; a new range resets the zoom; "No new samples" when the newest sample is older than a tenth of the range (at least 1 min)</td></tr>
+        <tr><td>Custom</td><td>From and To in the site zone, Apply, the two error lines; a newly fixed window resets the zoom</td></tr>
+        <tr><td>Loop field</td><td>CHG-160 search field, Retired pill, "… is outside the plant scope in the header. It stays selected until you pick another.", "… is not in the loop registry."; choosing a loop replaces the pens and keeps the period</td></tr>
+        <tr><td>Sizes</td><td>32 px band controls (cpm-compact, as Historical); the chart fills the rest of the page; legend and axis type sizes as today</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card qs"><h3>For the owner to decide</h3>
+    <ol>
+      <li><b>Give the chart the loop's units?</b> <span>PV and SP take the registry's pvUnit ("unit not set" when it has none, as Historical), OP and VP "%". The legend then reads "PV 77.87 kg/h", and the chart's own rule (one axis per unit) puts OP on its own axis, as Historical's "PV / SP (kg/h)" and "OP / VP (%)". Today PV 73-79 kg/h and OP 22-38 % share one 20-80 axis with no unit (before-07); with OP missing, PV fills the axis and its cycling reads at once (before-28). This changes what the axes show, which is why it is a question. Only 11 of 243 lab loops have a pvUnit. Recommended: yes. No backend change. Drawn dashed in the legend.</span></li>
+      <li><b>Range words "24h" and "7d" instead of "1d" and "1w"?</b> <span>Historical offers 24h · 7d · 30d · 90d, Loop Explorer 8h · 24h · 7d · 30d. Same spans, words only. Recommended: yes. Drawn in the range list.</span></li>
+      <li><b>‹ › also step a fixed period?</b> <span>Today a fixed window hides every range and step control; to see the next 12 h you edit both dates or press Live › and start again. Stepping writes the new from/to, half the span at a time, and › stops at now. Recommended: yes. Client side. Drawn (the stepper is active on a fixed period).</span></li>
+      <li><b>The address follows the screen?</b> <span>A range choice writes <code>?range=</code>, a step writes <code>?from=</code>/<code>?to=</code>, so Back / Forward and a copied link reopen what is drawn (bug 2). Today the address keeps <code>range=1w</code> while the chart shows 1d. Recommended: yes. Client side. Not drawn.</span></li>
+      <li><b>Signals ▾ in the head row, to bring a removed pen back?</b> <span>PV, SP, OP, VP ticks (VP "unmapped" when the registry has none, as Historical's chip), writing the same <code>roles=</code> the × writes. Today a removed pen comes back only by choosing the same loop again, and the menu calls the page "Any tags on one chart". Adds a control. Recommended: yes. Client side. Drawn dashed.</span></li>
+      <li><b>Historical ↗ in the band, beside Loop Explorer ↗?</b> <span>Same loop and period; Historical already links here with Open in Trend ↗, and it holds the KPI overlay, the results and Export. Adds a link. Recommended: yes. Client side. Drawn dashed.</span></li>
+      <li><b>An export on Trend?</b> <span>None today. A browser-built "Signal samples (CSV)" of what is drawn (nothing sent) would add a capability; Historical's Export already gives the same signals at the loop's sample period for the same range, one click away with question 6. Recommended: no. Not drawn.</span></li>
+      <li><b>Links that carry tags: say so in the band, and name each pen by its loop?</b> <span>A Designer link (or <code>?loop=FIC10401&amp;tags=…</code>) draws other loops' tags while the band shows FIC10401 and Open loop ↗ opens FIC10401 (before-24). Proposed: the field reads "4 tags from a link" (choosing a loop replaces them, as today), pens read "FIC10302 VP" when the registry knows the tag, else the path's last part as today ("fic10302.vp"); no Loop Explorer ↗. Recommended: yes. Client side. Drawn dashed.</span></li>
+      <li><b>Break the line where nothing was stored?</b> <span>FIC10401 stored nothing from about 5 Nov 08:00 to 6 Nov 07:30; the chart joins the two blocks with a straight line, which reads as data (before-15). Historical leaves the gap empty. This changes how a series is drawn, which the owner keeps; the sample draws today's line. Recommended: yes. Client side. Not drawn.</span></li>
+      <li><b>Ticks without seconds, and a date where a day starts?</b> <span>Today every tick carries seconds ("15:00:00") and never a date, so a 7 d window shows seven "00:00:00" (before-15, before-19) and a 12 h window across midnight cannot say which day. The app already has a tick format that does this (<code>siteAxisTick</code>, <code>cpa/siteTime.ts:76</code>). Recommended: yes. Client side. Drawn on 7 d.</span></li>
+      <li><b>"Select a loop" on the empty page?</b> <span>Today the empty page draws empty axes, the slider and the whole time bar and says nothing (before-01). Historical's words, one line, no sentence. Recommended: yes. Client side. Drawn dashed.</span></li>
+    </ol>
+  </div>
+
+  <div class="card found"><h3>Audit findings</h3>
+    <h4>Bugs</h4>
+    <ul>
+      <li><b>1 · One window, two time zones, no zone named.</b> The From / To inputs use the site zone (UTC on the lab: 10:45 → 22:45), the clocks, axis and tooltip the browser's (Asia/Dubai here: 06/11 14:45 → 07/11 02:45). Historical and Loop Explorer say 10:45 → 22:45 for the same window. <code>TrendPage.tsx:33</code> (<code>toSiteInput</code>) vs <code>TrendCore.tsx:126-128</code> (display zone, default <code>'local'</code>, <code>timeStore.ts:65</code>). before-07, ref-historical-same-window-viewport.png, facts-main.json "07".</li>
+      <li><b>2 · The address does not follow the range.</b> After 1w then 1d the address still reads <code>?loop=FIC10401</code> with no range; a <code>?range=1w</code> link opened while already on Trend draws 8 h, because the range is read only when the chart mounts (<code>TrendCore.tsx:130</code>, <code>TrendPage.tsx:69-72</code>); steps never reach the address. facts-main.json 15-22; explore2 run ("in-page range=1w span h 8").</li>
+      <li><b>3 · ▶▶ steps into the future.</b> Three steps forward from 7 d show 11 Nov → 18 Nov, empty, reading HISTORICAL (<code>TrendCore.tsx:302-306</code>, no clamp). before-19.</li>
+      <li><b>4 · No units, so one axis for everything.</b> FIC10401's registry has pvUnit kg/h and OP 0-100; the legend shows "PV 77.87 · SP 77.78 · OP 26.59" with no unit and one 20-80 axis. Loop pens carry no unit (<code>loopPens.ts:36-42</code>), the unit is guessed from the measurement name ("pv" → none, <code>trendSupport.ts:57-68</code>), so the one-axis-per-unit rule never fires (<code>TrendCore.tsx:277-279</code>). before-07, before-23, before-28.</li>
+      <li><b>5 · A 7 d axis reads "00:00:00" seven times.</b> The axis format has hours, minutes and seconds and no date (<code>trendSupport.ts:80</code>; its comment says "terser when the window is under a day", nothing switches it). before-15, before-19; on 12 h across midnight "00:00:00" has no date (before-07).</li>
+      <li><b>6 · The cursor tooltip vanishes.</b> With the pointer held still it shows for about 30 ms and is gone by 630 ms; only the legend keeps following. Each cursor move re-renders and re-applies the whole option (<code>TrendCore.tsx:134-139</code>, <code>344-348</code> <code>notMerge</code>). probe-cursor.txt. Its time is a third format, "2026-11-06 20:32:41", in the browser zone.</li>
+      <li><b>7 · "NO NEW SAMPLES" in the run colour.</b> Green capitals (<code>Designer.css:2634</code> <code>var(--ams-run)</code>) on a chart with nothing in it. before-02.</li>
+      <li><b>8 · A gap is drawn as data.</b> Empty buckets are dropped before plotting (<code>TrendCore.tsx:202-206</code>), so the line joins 5 Nov 08:00 to 6 Nov 07:30 (before-15). Question 9.</li>
+      <li><b>9 · Tags from a link contradict the band.</b> <code>?loop=FIC10401&amp;tags=…</code>: the band shows FIC10401, the chart FIC10401, FIC10302 and FIC10509 tags, Open loop ↗ opens FIC10401 (<code>TrendPage.tsx:59-67</code>). The same tag is green as a loop pen and red as a tag pen (before-24 vs before-07). Question 8.</li>
+    </ul>
+    <h4>Controls that do nothing, unclear or doubled</h4>
+    <ul>
+      <li>"Live ›" (band, fixed) and "Now" (time bar, live) do the same: back to the live rolling window (<code>TrendPage.tsx:159</code>, <code>TrendTimeBar.tsx:55</code>).</li>
+      <li>"Apply window" stays highlighted once applied (<code>TrendPage.tsx:155</code>), so the applied state looks like a pending action (before-07).</li>
+      <li>While fixed, every range and step control is gone (<code>TrendPage.tsx:194</code>); 8 h after a fixed window needs Live › first (before-07, before-14).</li>
+      <li>Glyph-only buttons: ◀ "Step back", ⏸ "Play/Pause", ▶▶ "Step forward" (<code>TrendTimeBar.tsx:46-50</code>); ▶ (resume) and ▶▶ (step) look alike; ◀ moves half a period, Historical's ‹ a whole one ("One period earlier").</li>
+      <li>From and To always on screen, empty while live (before-02); 12-hour "AM/PM" there, 24-hour everywhere else; the first digit cut at 1440 px (before-07).</li>
+      <li>"Open loop ↗" offered for FIC99999, which is not in the registry (before-26), and for a tags link whose pens are other loops' (before-24).</li>
+      <li>The menu calls the page "Any tags on one chart" (<code>destinations.ts:119</code>), but the page offers only one loop's four roles; other tags come only through a Designer link; a removed pen returns only by choosing the same loop again.</li>
+      <li>The loop list offers 13 loops with no signal tags (EVAPI_…, KDEMO_…) that draw nothing (before-03, before-27).</li>
+      <li>The empty page draws a full chart frame and time bar and says nothing; the code comment says "the band says Choose a loop" (<code>TrendPage.tsx:199</code>), the band says "Search loops" (before-01).</li>
+    </ul>
+    <h4>Words and formats</h4>
+    <ul>
+      <li>Four time formats on one screen: clocks "06/11, 14:45:00", ticks "15:00:00", tooltip "2026-11-06 20:32:41", inputs "06/11/2026 10:45 AM"; none is "6 Nov 14:45"; the zone is never named.</li>
+      <li>Capitals: PINNED WINDOW, NO NEW SAMPLES, HISTORICAL, PAUSED, LIVE.</li>
+      <li>"1 pen(s) failed to load: OP - values shown may be incomplete" (<code>TrendCore.tsx:340-341</code>; before-28); "live · viewport held while zoomed, Reset to follow" (<code>ChartZoomBar.tsx:41</code>; before-17).</li>
+      <li>"1d" / "1w" here, "24h" / "7d" on Historical and Loop Explorer; "Open loop ↗" here, "Loop Explorer ↗" on Historical.</li>
+      <li>The legend's hover text is the full path: "hdpe/section_100/u1001_polymerization_reactor_1/fic10302.pv — click to hide" (<code>TrendLegend.tsx:31</code>; titles-pinned.json).</li>
+      <li>Tag pens are named by the path's end in lower case ("fic10302.vp", before-25).</li>
+    </ul>
+    <h4>Repeated</h4>
+    <ul>
+      <li>A fixed window is said three times: the inputs, the two clocks of the zoom bar, PINNED WINDOW; live, the two clocks repeat the axis's ends.</li>
+      <li>"Loop not found" in the chart under "FIC99999 is not in the loop registry." in the band (<code>TrendPage.tsx:185</code>, <code>LoopBand.tsx:46</code>; before-26).</li>
+      <li>Live › and Now.</li>
+    </ul>
+    <h4>Found on the way, not part of this proposal</h4>
+    <ul>
+      <li>FIC10401's PV is read from another historian series than its SP and OP: the resolver answers <code>root.hdpe.section_600.u6002_….fic10401.pv</code> (provenance "fallback") for PV and <code>root.hdpev2.cpm.FIC10401.sp</code> / <code>.op</code> (asset model) for SP and OP (resolve.json).</li>
+      <li>In the preview, Historical finds no PV / SP / OP for FIC10401 on 6 Nov 10:45 → 22:45 while Trend draws 1,168 points per pen for the same window: two data paths (the CPM series vs the binding resolver); the preview's historian prefix is the known artefact (ref-historical-same-window-viewport.png).</li>
+      <li>On the lab the newest FIC10401 sample is 7 Nov 11:51 UTC; every loop reads NO NEW SAMPLES live, so the LIVE word is not reachable there.</li>
+      <li>The tooltip vanishing (bug 6) and the axis and zone formats (bugs 1, 5) live in the chart engine shared with the Designer's trend dialog and canvas trend symbol; a fix reaches them too.</li>
+    </ul>
+    <h4>Not verified on the lab</h4>
+    <ul>
+      <li>The page without analytics.view (no loop field, From / To in a plain head): no such user; from code (<code>TrendPage.tsx:180-182</code>).</li>
+      <li>A live tail from MQTT and the LIVE word: no samples arrive on the lab since 7 Nov; from code.</li>
+      <li>The batch binding resolve is a POST; in every capture it was answered in the browser from one <code>GET /api/bindings/resolve</code> per path (the same answer), so the chart could draw. Nothing was sent or written.</li>
+      <li>"A pen not read" was simulated by aborting the OP history read in the browser (before-28).</li>
+      <li>Night theme seen once (before-31); keyboard use of the legend and zoom tools not checked; the Designer's link into Trend not opened.</li>
+      <li>The sample's chart lines are illustrative, drawn from the lab's ranges; the values, times, words and states are the lab's or the code's.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

@@ -8,6 +8,8 @@
 import { axisChrome, penStyle, plainOption, zoomChrome, type ChartPalette } from '../../../charts/chartTheme';
 import { boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { regressionLine, type Pen, type TrendPoint } from './trendSupport';
+import { withGaps } from './trendGaps';
+import { axisTickIn, cursorTime, ticksInUtc } from './trendTime';
 
 export interface TrendOptionInput {
   pens: Pen[];
@@ -23,12 +25,16 @@ export interface TrendOptionInput {
   regression?: boolean;
   windowStart: number;
   windowEnd: number;
-  fmtAxis: (ms: number) => string;
+  /** CHG-175: the one zone of every time on the chart (ticks, cursor); an IANA name or UTC. */
+  zone: string;
   zoom: ZoomState;
 }
 
 export function buildTrendOption(i: TrendOptionInput) {
-  const { pens, penData, hiddenPens, penColor, palette, perAxis, manualScale, stepped, regression, zoom } = i;
+  const { pens, penData, hiddenPens, penColor, palette, perAxis, manualScale, stepped, regression, zoom, zone } = i;
+  // CHG-175: ticks and the cursor follow the span on screen (a zoom into 7 days reads clock times, not dates).
+  const shown = Math.max(1, (i.windowEnd - i.windowStart) * (zoom.x.end - zoom.x.start) / 100);
+  const tick = axisTickIn(shown, zone);
   const base = plainOption(palette);
   const axis = axisChrome(palette);
   const slider = zoomChrome(palette);
@@ -65,7 +71,8 @@ export function buildTrendOption(i: TrendOptionInput) {
     color: penColor(k),
     yAxisIndex: perAxis ? k : 0,
     // Clickable-legend hide (E1.17): a hidden pen draws nothing but keeps its legend row.
-    data: hiddenPens.has(pen.path) ? [] : penData[k].map(p => [p.ts, p.value]),
+    // CHG-175: where nothing was stored the line breaks (see ./trendGaps for the threshold).
+    data: hiddenPens.has(pen.path) ? [] : withGaps(penData[k]),
   }));
 
   // Phase 8 (E1.12) — one dashed least-squares regression line per visible pen.
@@ -92,6 +99,8 @@ export function buildTrendOption(i: TrendOptionInput) {
   return {
     ...base,
     animation: false,
+    // CHG-175: ECharts places time ticks on the browser clock; off the browser zone they go on UTC's (see ./trendTime).
+    useUTC: ticksInUtc(zone),
     grid: { left: perAxis ? 30 + pens.length * 44 : 52, right: 14, top: 12, bottom: 48 },
     tooltip: {
       ...base.tooltip,
@@ -104,9 +113,13 @@ export function buildTrendOption(i: TrendOptionInput) {
       type: 'time', min: i.windowStart, max: i.windowEnd,
       axisLabel: {
         ...axis.axisLabel, fontSize: 10,
-        // Render ticks in the display timezone (echarts defaults to the client's local zone).
-        formatter: (value: number) => i.fmtAxis(value),
+        // CHG-175: ticks in the chart's zone, no seconds above ten minutes, a date where a day starts; on a narrow chart
+        // a label that would overlap its neighbour is dropped (they ran together at 390 px), as on Evidence Replay.
+        formatter: (value: number) => tick(value),
+        hideOverlap: true,
       },
+      // CHG-175: the x pointer's label is also the tooltip's head; it read "2026-11-06 20:32:41" in the browser zone.
+      axisPointer: { label: { formatter: (p: { value: number }) => cursorTime(Number(p.value), shown, zone) } },
     },
     yAxis,
     toolbox: box.toolbox,

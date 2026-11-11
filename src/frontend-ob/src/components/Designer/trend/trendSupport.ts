@@ -19,6 +19,12 @@ export interface PenSpec {
   hidden?: boolean;                                 // initial hidden state (clickable legend, E1.17)
   /** Authoritative unit from the asset catalog / per-item UOM override; falls back to the name guess. */
   unitOverride?: string;
+  /**
+   * CHG-175: a registry loop's signal. Its binding must come from the asset model: a binding the resolver only derived
+   * from the path string (provenance "fallback") or could not resolve points where loop signals never live, so the pen
+   * is not read. Tag pens and the Designer's pens leave this off (a path-derived binding can be right for them).
+   */
+  needsModelBinding?: boolean;
 }
 
 export interface Pen extends PenSpec {
@@ -27,6 +33,8 @@ export interface Pen extends PenSpec {
   iotSeries?: string;    // root.<site>.<unit>.<device>
   measurement?: string;  // metric
   liveKey?: string;      // device/metric (matches the mqtt ring-buffer key)
+  /** CHG-175: a loop pen without a binding from the asset model; nothing is read for it. */
+  unread?: boolean;
 }
 
 export interface TrendPoint { ts: number; value: number }
@@ -75,6 +83,5 @@ export function splitIoTPath(iotDbPath?: string): { series?: string; measurement
   return { series: iotDbPath.slice(0, dot), measurement: iotDbPath.slice(dot + 1) };
 }
 
+/** The Designer time bar's two clocks. CHG-175: axis ticks and the cursor are formatted in ./trendTime. */
 export const CLOCK_OPTS: Intl.DateTimeFormatOptions = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-// Axis ticks are terser (no date) when the visible window is under a day.
-export const AXIS_OPTS: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };

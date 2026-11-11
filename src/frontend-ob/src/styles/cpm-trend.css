@@ -1,7 +1,48 @@
 /* Task 26: the Trend page sits in the same screen frame as the other CPA pages; the chart takes the rest of the height. */
 .cpm-screen.trend-page { padding: var(--cpa-screen-pad); gap: 16px; }
-.trend-page__chart { position: relative; }
-.trend-page__empty {
-  position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
-  margin: 0; pointer-events: none; color: var(--traverse-text-secondary);
+.trend-page__chart { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+
+/* CHG-175 (owner's design, the Historical CHG-159 pattern): From · To · Apply and its error line open under the whole
+   band row, so Loop Explorer ↗ and Historical ↗ stay on it. */
+.trend-page .cpm-band__row > .trend-page__custom { order: 1; flex-basis: 100%; }
+/* Without the loop field the band starts with the range: no divider before it. */
+.trend-page__band--plain .cpm-band__row > .cpm-range-bar { padding-inline-start: 0; border-inline-start: 0; }
+
+/* The chart's head row: the legend exactly as before, then Signals ▾ and the zoom tools at the right end. */
+.trend-core__head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3);
+  padding: var(--traverse-space-1) var(--traverse-space-3) var(--traverse-space-1) var(--traverse-space-4);
+  border-bottom: 1px solid var(--traverse-border-subtle);
+}
+.trend-core__head .trend-core__legend { padding: 0; border-bottom: 0; }
+.trend-core__head-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); margin-inline-start: auto; }
+.trend-core__head-end .chart-zoombar { gap: var(--traverse-space-1); }
+
+/* The foot strip: the state as tone, glyph and word; the zone once; the notes at the right. */
+.trend-core__foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2);
+  padding: var(--traverse-space-2) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle);
+  background: var(--traverse-surface-page); color: var(--traverse-text-secondary); font-size: var(--traverse-type-body);
+}
+.trend-core__state { font-weight: 600; color: var(--traverse-text-primary); }
+.trend-core__state--ok { color: var(--traverse-status-success-fg); }
+.trend-core__state--warn { color: var(--traverse-status-warning-fg); }
+.trend-core__foot-end { display: flex; flex-wrap: wrap; gap: var(--traverse-space-1) var(--traverse-space-4); margin-inline-start: auto; }
+
+/* With no pens the chart says one line where the plot would be: no empty axes, slider or time bar. */
+.trend-core__empty {
+  display: flex; align-items: center; justify-content: center; height: 100%; padding: var(--traverse-space-4);
+  color: var(--traverse-text-secondary); text-align: center;
+}
+.trend-core__empty strong { color: var(--traverse-text-primary); font-weight: 600; }
+
+/* Signals ▾: the loop's roles, each with its pen's swatch. */
+.trend-signals { display: grid; gap: var(--traverse-space-2); }
+.trend-signals__row { display: flex; align-items: center; gap: var(--traverse-space-2); }
+.trend-signals__note { color: var(--traverse-text-secondary); }
+.trend-signals__row:has(input:disabled) { color: var(--traverse-text-secondary); }
+
+@media (max-width: 640px) {
+  .trend-core__head-end, .trend-core__foot-end { margin-inline-start: 0; }
 }
