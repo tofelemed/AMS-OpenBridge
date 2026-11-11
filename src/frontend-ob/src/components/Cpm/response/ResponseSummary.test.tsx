@@ -63,20 +63,18 @@ describe('ResponseTiles', () => {
     expect(screen.getByText('Validated')).toBeTruthy();
   });
 
-  it('names its basis and links each tile to its source', () => {
-    document.body.innerHTML = '';
-    render(<><ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} /><div id="response-events" tabIndex={-1} /><div id="response-models" tabIndex={-1} /></>);
+  it('names its basis once; the model tile opens the Models tab (CHG-165), the event tiles sit above their table', () => {
+    const onModels = vi.fn();
+    render(<ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} onModels={onModels} />);
     expect(screen.getAllByText('4 censored not counted')).toHaveLength(1);
-    expect(screen.getByText('Accepted events').closest('a')!.textContent).not.toMatch(/censored/);
-    fireEvent.click(screen.getByText('System model').closest('a')!);
-    expect(document.activeElement?.id).toBe('response-models');
-    fireEvent.click(screen.getByText('Response events').closest('a')!);
-    expect(document.activeElement?.id).toBe('response-events');
+    expect(screen.getByText('Accepted events').closest('a, button')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /System model/ }));
+    expect(onModels).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves a tile without a source unlinked', () => {
-    render(<ResponseTiles events={[]} hasMore={false} models={[]} />);
-    expect(screen.getByText('System model').closest('a')).toBeNull();
+  it('leaves the model tile plain without a model', () => {
+    render(<ResponseTiles events={[]} hasMore={false} models={[]} onModels={() => {}} />);
+    expect(screen.getByText('System model').closest('a, button')).toBeNull();
   });
 });
 

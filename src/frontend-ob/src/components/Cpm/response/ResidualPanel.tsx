@@ -1,6 +1,7 @@
 /**
  * v2.5 Task 2E.5 (spec §2.7): residuals over time (PV EU) and their autocorrelation by lag in
  * samples - the kernel's arrays. Whiteness / bias verdicts come from subgate E, stated as text.
+ * CHG-165 (owner review): the Fit quality tab: the residuals and their autocorrelation side by side.
  */
 import React from 'react';
 import { Toggletip } from '../../../ui/Toggletip';
@@ -16,7 +17,7 @@ import { readable } from '../evidence/format';
 export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined; loading?: boolean }> = ({ residuals, acf, timeZone, validation, loading }) => {
   if (!residuals && !acf && loading) return <ArtifactSkeleton kinds={['residuals', 'residual_acf']} />;
   if (!residuals && !acf) {
-    return <EmptyState title="No residuals for this event" copy="No model was fitted to this event (it was rejected or censored before a fit, or estimation did not run), so there is nothing to draw. Steps A–H in the event details say where it stopped." />;
+    return <EmptyState title="No residuals for this event" copy="No model was fitted to this event (it was rejected or censored before a fit, or estimation did not run), so there is nothing to draw. Steps & data says where it stopped." />;
   }
   const outputs = validation?.outputs ?? {};
   const text = (k: string) => { const v = outputs[k]; return v == null ? '—' : typeof v === 'number' ? readable(v) : String(v); };
@@ -30,6 +31,7 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
           {['verdict', 'free_run_rmse', 'prediction_rmse', 'fit_improvement', 'residual_bias', 'whiteness', 'input_residual_correlation'].filter(k => k in outputs).map(k => <KvRow key={k} label={k}>{text(k)}</KvRow>)}
         </div>
       )}
+      <div className="cpm-response-pair">
       {residuals && (
         <CpmChart title="Residuals" xKind="time" timeZone={timeZone} height={200}
           series={[{ id: 'residual', label: 'residual (y − ŷ)', unit: residuals.units.y ?? residuals.meta.y.unit ?? '', x: epochMs(residuals), y: Array.from(residuals.columns.y), pen: 'overlay' }]} />
@@ -38,6 +40,7 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
         <CpmChart title="Residual autocorrelation" xKind="value" xLabel="lag" xUnit={acf.units.x ?? acf.meta.x.unit ?? 'samples'} height={200}
           series={[{ id: 'acf', label: 'residual ACF', unit: acf.units.y ?? 'dimensionless', x: acf.columns.x, y: Array.from(acf.columns.y), pen: 'neutral', markers: true }]} />
       )}
+      </div>
     </section>
   );
 };

@@ -2,6 +2,7 @@
  * v2.5 Task 2E.5 (spec §2.5-2.6): the candidate models as the estimator ranked them, the
  * delay-objective curve of the best candidate (flat curve = unidentifiable delay), the parameter
  * standard errors, and every rejection reason. Rows are the kernel's text; nothing is refit.
+ * CHG-165 (owner review): on the Fit quality tab the candidates sit beside the delay curve of the best one.
  */
 import React from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
@@ -17,11 +18,12 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
   const names = provList(intervals, 'parameters');
   const reasons = provList(rejections, 'reasons');
   if (!table && reasons.length === 0) {
-    return <EmptyState title="No candidate models" copy="No model was estimated for this event. Steps A–H in the event details say where it stopped and why." />;
+    return <EmptyState title="No candidate models" copy="No model was estimated for this event. Steps & data says where it stopped and why." />;
   }
   return (
     <section className="cpm-surface">
       <PanelHead eyebrow="Subgate D" title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{prov(table, 'state') ?? '—'}</TonePill> : undefined} />
+      <div className="cpm-response-pair cpm-response-pair--wide-left">
       {rows.length > 0 && (
         <div className="cpm-table-wrap"><table className="cpm-table" data-table="candidates">
           <thead><tr><th>#</th><th>family</th><th>path</th><th>parameters</th><th>objective ({table?.units.y ?? 'PV_EU^2'})</th><th>identifiability</th></tr></thead>
@@ -49,6 +51,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
           series={[{ id: 'objective', label: 'objective J(θ)', unit: delayCurve.units.y ?? 'PV_EU^2', x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
       )}
       {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay profile was recorded for the best candidate.</p>}
+      </div>
       {intervals && (
         <>
           <PanelHead eyebrow="Subgate D" title="Parameter uncertainty" right={<TonePill tone="muted">{prov(intervals, 'method') ?? '—'}</TonePill>} />

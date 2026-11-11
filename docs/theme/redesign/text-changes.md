@@ -1424,3 +1424,25 @@ The pattern of Historical, Investigation and the Workbench, applied while the ow
 | Selected window | Received 146 · Nominal 180 · Ratio 81% · Difference −34 samples | Samples 146 of 180 · 81% −34 samples |
 | Selected window links | View record details ↗ · Feature flags ↗ · Sample density ↗ · Engine & timing ↗ · Open range in Historical ↗ · Open in Trend ↗ | Record details · Feature flags · Sample density · Engine & timing (dialogs, no ↗) · then Historical ↗ · Trend ↗ |
 | Compare across sizes | METRIC label over the dropdown | the dropdown in the head row, named by its options |
+
+## CHG-165 owner review: System Response
+
+Built on the approved sample `samples/system-response-proposal.html` (owner: "System response proposal accepted", 11 Nov).
+
+| Where | Was | Now |
+|---|---|---|
+| Header | Site zone UTC. Every event is listed with its state and reason; the selection is explicit and never "latest". | removed (the zone is named on the times) |
+| Layout | three columns: event list · result, charts, model history · event details | the band (loop, Response event, ‹ ›, Workbench ↗, Open loop ↗) and six tabs: Events, Response, Fit quality, Frequency, Steps & data, Models; Next: X → in the foot |
+| Event list | Response events (36) · Show 35 censored candidates · rows of time, state, INPUT_TEST · OP_TO_PV, finding · model candidate | Events tab: table Time · Type · Path · State · Finding · Model ("Input test", "OP → PV", "FOPDT · K 0.21 · θ 0.00 s · τ 0.50 s"); censored choice "Hide censored (35)" / "Show censored (35)" |
+| Tiles | above the columns, linked to the list and the model history | on Events only; System model opens the Models tab |
+| Event choice | a row in the left list | the band's "Response event" (7 Oct 05:43 · Input test · OP → PV · Candidate) and ‹ ›, or a row on Events |
+| Result | RESULT · FOPDT model · candidate · EVALUATED, tiles, Validation: …, Estimated by … the candidate table below carries … | one row: FOPDT model · Validation: Waiting · no independent event yet · K, θ, τ · Candidate (once) |
+| Units | 0.21 PV_EU/input_EU | 0.21 m3/h/% OP (the loop's PV unit and the input, as on the model history; "PV unit" when none is registered) |
+| No arrays | four "nothing to draw" panels | one note per tab: Arrays not kept for this run · The result and every value stand. · Reconstruct in the Workbench ↗ |
+| Key results | 16 rows in the right column, most "not applicable" | Response: Reported quantities (the ones the result row does not say) · 12 of 52 reported |
+| Catalogue | All 52 quantities › (12 reported) → a card in the centre | Steps & data: All quantities with "Reported (12)" / "All (52)", reported first |
+| Frequency | Frequency response not available panel; seven rows "not applicable (model domain unavailable)" | Frequency response not drawn · Model domain unavailable. It needs … · margins "not claimed" |
+| Steps | Subgates · Steps A–H list in the right column | Steps & data: A–H as cards |
+| Event identity | Window from / Window to / Duration · run · bundle · purpose | Steps & data: Event · Window 7 Oct 05:43 → 7 Oct 05:47 UTC · Run · Bundle · Purpose |
+| Workbench exit | Open in Evidence Workbench → (right column) | Workbench ↗ in the band |
+| Model history | charts one under another; legend Interval upper — … · Interval lower — … | Models tab: trends side by side; one legend entry Interval — …; Export models CSV; path OP → PV |

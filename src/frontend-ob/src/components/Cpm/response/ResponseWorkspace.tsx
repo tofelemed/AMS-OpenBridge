@@ -1,19 +1,17 @@
 /**
- * v2.5 Task 2E.5 (spec §2, §3.1; NR-034, NR-035): the System Response workspace. Route
- * /cpm/response?loop=&event= (or &methodRun= from the G12 evidence view). Left: the loop's events,
- * newest first (censored candidates on request). Centre: the result card, then the event's response
- * chart, residuals, candidate models, frequency response - all from the kernel's artifacts - then
- * the model history. Right: the event's steps and quantities.
- * 2026-09-17 audit F5/F19/F20: lands like every loop page (the loop band, the plant scope in the header), every centre
- * panel keeps its height as a skeleton while it loads, the censored candidates are counted not listed.
- * 2026-09-20 (cpa-ui-fix-plan Phase 7): a panel waits only for artifact kinds the manifest actually
- * declares (a censored event no longer shows a permanent "Decoding…"), the wide tables (model history,
- * the quantity catalogue) live in the centre column, and the exits are OpenBridge buttons with context.
+ * v2.5 Task 2E.5 (spec §2, §3.1; NR-034, NR-035): the System Response workspace. Route /cpm/response?loop=&event=&tab= (or
+ * &methodRun= from the G12 evidence view). Everything shown is the kernel's: events, result, response chart, residuals,
+ * candidate models, frequency response, steps and quantities, the loop's model history.
+ * CHG-165 (owner review, the approved sample docs/theme/redesign/samples/system-response-proposal.html): one band chooses the
+ * loop and the event (‹ › step through the events; Workbench ↗ opens the event's G12 run, Open loop ↗ the Loop Explorer), and
+ * six tabs each answer one question (see ResponseTabs). The three columns, the right column and the catalogue card are gone;
+ * the result, steps and quantities are each said once; a run whose arrays were not kept says so once per tab.
  */
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, WorkspaceHeader } from '../shared';
-import { ResponseEmpty, ResponseTiles } from './ResponseSummary';
+import { ReasonedButton } from '../ReasonedButton';
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
@@ -21,20 +19,17 @@ import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/respons
 import { useEvidenceManifest, useMethodRun } from '../evidence/useEvidence';
 import { useGateArtifacts } from '../evidence/useGateArtifacts';
 import { siteZoneOf } from '../evidence/timezone';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { workbenchHref } from '../evidence/selection';
 import { explorerHref } from '../cpaHref';
-import { EventList } from './EventList';
-import { ResultCard } from './ResultCard';
-import { EventAside } from './EventAside';
-import { ResponseChart } from './ResponseChart';
-import { ResidualPanel } from './ResidualPanel';
-import { CandidateModelsTable } from './CandidateModelsTable';
-import { BodePanel } from './BodePanel';
-import { ModelHistoryBody } from './ModelHistory';
+import { ResponseEmpty } from './ResponseSummary';
 import { ModelReviewDialog } from './ModelReviewDialog';
+import { ModelHistoryBody } from './ModelHistory';
 import { useModels, useResponseEvent, useResponseEvents, useReviewModel } from './useResponse';
-
-const QuantityCatalogue = React.lazy(() => import('./QuantityCatalogue'));
+import { EventSelect } from './EventSelect';
+import { EventsTab } from './EventsTab';
+import { ResponseTabs, needsEvent, tabOf, type ResponseTab } from './ResponseTabs';
+import { EventPanes } from './EventPanes';
+import { eventFoot } from './responseLabels';
 
 export { responseHref } from '../cpaHref';
 
@@ -44,6 +39,7 @@ export const ResponseWorkspace: React.FC = () => {
   const loopId = params.get('loop')?.trim() || undefined;
   const eventParam = params.get('event')?.trim() || undefined;
   const methodRunParam = params.get('methodRun')?.trim() || undefined;
+  const tab = tabOf(params);
 
   const loops = useCpmLoops();
   const loopList = useMemo(() => loops.data?.loops ?? [], [loops.data]);
@@ -72,113 +68,94 @@ export const ResponseWorkspace: React.FC = () => {
     if (eventParam && !selected && !showCensored && events.isSuccess && censoredCount > 0 && detail.data?.result.capture_state === 'CENSORED') setShowCensored(true);
   }, [eventParam, selected, showCensored, events.isSuccess, censoredCount, detail.data]);
 
-  const methodRunId = selected?.methodRunId ?? (detail.data?.result.method_run_id as string | undefined);
+  const result = detail.data?.result;
+  const methodRunId = selected?.methodRunId ?? (result?.method_run_id as string | undefined);
   const manifest = useEvidenceManifest(methodRunId, 15_000);
   const arts = useGateArtifacts(manifest.data, 'G12');
   const models = useModels(loopId);
   const review = useReviewModel(loopId);
   const [reviewing, setReviewing] = useState<SystemModel | null>(null);
   useEffect(() => { if (review.isSuccess) setReviewing(null); }, [review.isSuccess]);
-  const [catalogueOpen, setCatalogueOpen] = useState(false);
-  useEffect(() => { setCatalogueOpen(false); }, [eventParam]);
+
+  const setTab = (t: ResponseTab) => setParams(p => { p.set('tab', t); return p; });
+  /** An explicit choice; from the Events tab it opens the event on Response. */
+  const choose = (e: ResponseEventSummary) => setParams(p => {
+    p.set('event', e.eventId); p.delete('methodRun');
+    if (tab === 'events') p.set('tab', 'response');
+    return p;
+  });
 
   const band = (
-    <LoopBand loopId={loopId}
-      onLoop={id => setParams(p => { p.set('loop', id); p.delete('event'); p.delete('methodRun'); return p; })}>
-      {loopId && <ObcButton variant="flat" title={`Open ${loopId} in the Loop Explorer`} onClick={() => navigate(explorerHref(loopId))}>Open loop {'↗'}</ObcButton>}
+    <LoopBand card loopId={loopId}
+      onLoop={id => setParams(p => { p.set('loop', id); ['event', 'methodRun', 'tab'].forEach(k => p.delete(k)); return p; })}
+      end={loopId && (
+        <>
+          <ReasonedButton variant="normal" disabled={!methodRunId} reason={!methodRunId ? (eventParam ? 'This event has no stored analysis run' : 'Choose an event first') : null}
+            onClick={() => { if (methodRunId) navigate(workbenchHref(loopId, methodRunId, 'G12')); }}>
+            Workbench ↗
+          </ReasonedButton>
+          <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton>
+        </>
+      )}>
+      {loopId && (flat.length > 0 || eventParam) && (
+        <EventSelect events={flat} selectedId={eventParam} timeZone={timeZone} hasMore={!!events.hasNextPage}
+          loading={events.isLoading || events.isFetchingNextPage} onSelect={choose} onMore={() => void events.fetchNextPage()} />
+      )}
     </LoopBand>
   );
+  const header = <WorkspaceHeader eyebrow="Understand the cause" title="System Response" copy="" />;
 
   if (!loopId) {
     return (
-      <div className="cpm-screen">
-        <WorkspaceHeader page="/cpm/response" title="System Response" />
+      <div className="cpm-screen cpm-compact">
+        {header}
         {band}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
-        <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the left, newest first; select one to read the model and the evidence behind it." />
+        <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the Events tab; choose one to read the model and the evidence behind it." />
       </div>
     );
   }
 
-  const result = detail.data?.result;
-  const t0Ms = selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0;
-  const healthExclusions = Array.isArray(result?.health_exclusions) ? (result!.health_exclusions as string[]) : [];
-  const one = (k: string) => arts.byKind[k]?.[0];
-  const eventLoading = !!eventParam && (detail.isLoading || (manifest.isLoading && !manifest.data));
-  // Phase 7: a panel is "decoding" only while a kind the manifest DECLARES is still loading; a kind the
-  // run never produced (censored / no model) is an absence to state, not a skeleton to keep.
-  const declared = new Set((manifest.data?.artifacts ?? []).filter(a => a.gate === 'G12' && a.readiness === 'COMPLETE').map(a => a.kind));
-  const decoding = (...kinds: string[]) => arts.loading && kinds.some(k => declared.has(k));
-
-  // CHG-130: nothing at all to show: one explanation, not one per panel. Censored events keep the list, which can show them.
+  // CHG-130: nothing at all to show: one explanation, not one per tab. Censored events keep the list, which can show them.
   const nothingYet = noEvents && censoredCount === 0 && !eventParam && !methodRunParam && models.isSuccess && (models.data?.models ?? []).length === 0;
+  const footEvent = selected ?? (result && typeof result.window_start_ms === 'number'
+    ? { eventType: String(result.event_type ?? ''), pathId: result.path_id, t0Ms: result.window_start_ms, tEndMs: (result.window_end_ms as number | null) ?? null, methodRunId: methodRunId ?? '' }
+    : undefined);
+
+  let body: React.ReactNode;
+  if (tab === 'events') {
+    body = (
+      <>
+        {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
+        <EventsTab events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage} hasMore={!!events.hasNextPage}
+          models={models.data?.models} modelsStatus={models.isError ? 'error' : models.isSuccess ? 'ready' : 'loading'}
+          censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored}
+          onMore={() => void events.fetchNextPage()} onSelect={choose} onModels={() => setTab('models')} />
+      </>
+    );
+  } else if (tab === 'models') {
+    const list = models.data?.models ?? [];
+    body = models.isError ? <QueryError error={models.error} retry={() => void models.refetch()} />
+      : list.length === 0 ? <EmptyState title={models.isSuccess ? 'No system model yet' : 'Loading the models…'} copy={models.isSuccess ? 'A model is estimated from an accepted response event.' : undefined} />
+        : <ModelHistoryBody models={list} timeZone={timeZone} pvUnit={loop?.engineering?.pvUnit} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />;
+  } else if (needsEvent(tab) && !eventParam) {
+    body = methodRunParam
+      ? (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)
+      : <EmptyState title="No event selected" copy="Choose an event in the band above or on the Events tab." />;
+  } else {
+    body = (
+      <EventPanes tab={tab} loopId={loopId} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
+        methodRunId={methodRunId} t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0} resultRevision={selected?.resultRevision}
+        pvUnit={loop?.engineering?.pvUnit} />
+    );
+  }
 
   return (
-    <div className="cpm-screen cpm-response-workspace">
-      <WorkspaceHeader eyebrow="Understand the cause" title="System Response"
-        copy={`Site zone ${timeZone}. Every event is listed with its state and reason; the selection is explicit and never "latest".`} />
+    <div className="cpm-screen cpm-compact cpm-response-workspace">
+      {header}
       {band}
-      {events.isSuccess && (
-        <ResponseTiles events={flat} hasMore={!!events.hasNextPage} models={models.data?.models} censoredHidden={showCensored ? 0 : censoredCount}
-          modelsStatus={models.isError ? 'error' : models.isSuccess ? 'ready' : 'loading'} />
-      )}
-      {nothingYet ? (
-        <ResponseEmpty loopId={loopId} canConfig={canConfig} />
-      ) : (
-      <div className={`cpm-response-columns${!eventParam && !methodRunParam && noEvents ? ' cpm-response-columns--empty' : ''}`}>
-        <EventList events={flat} selectedId={eventParam} timeZone={timeZone} loading={events.isLoading || events.isFetchingNextPage}
-          hasMore={!!events.hasNextPage} onMore={() => void events.fetchNextPage()} onSelect={e => setParams(p => { p.set('event', e.eventId); p.delete('methodRun'); return p; })}
-          censoredCount={censoredCount} showCensored={showCensored} onToggleCensored={setShowCensored} />
-
-        <div className="cpm-response-centre" aria-busy={eventLoading || arts.loading || undefined}>
-          {events.isError && <QueryError error={events.error} retry={() => void events.refetch()} />}
-          {!eventParam && !methodRunParam && (noEvents ? (
-            <ResponseEmpty loopId={loopId} canConfig={canConfig} />
-          ) : <EmptyState title="No event selected" copy="Choose an event in the list on the left to see its result, response chart, fit residuals, candidate models and frequency response." />)}
-          {!eventParam && methodRunParam && (runLookup.isError ? <QueryError title="Method run not found" error={runLookup.error} retry={() => void runLookup.refetch()} /> : <EmptyState title="Resolving the method run to its event…" />)}
-          {eventParam && detail.isError && <QueryError error={detail.error} retry={() => void detail.refetch()} />}
-          {eventParam && !detail.isError && <ResultCard result={result} metrics={detail.data?.metrics} loading={detail.isLoading} />}
-          {eventParam && manifest.isError && <QueryError title="Evidence manifest unavailable" error={manifest.error} retry={() => void manifest.refetch()} />}
-          {eventParam && !manifest.isError && !manifest.data && (
-            <div className="cpm-surface cpm-skeleton cpm-skeleton--evidence" role="status" aria-busy="true" aria-label="Loading the evidence manifest">
-              <span className="cpm-skeleton__label">Loading the evidence manifest…</span>
-            </div>
-          )}
-          {eventParam && manifest.data && (
-            <>
-              <ResponseChart arts={arts} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} />
-              <ResidualPanel residuals={one('residuals')} acf={one('residual_acf')} timeZone={timeZone} validation={result?.subgates?.E} loading={decoding('residuals', 'residual_acf')} />
-              <CandidateModelsTable table={one('candidate_models')} delayCurve={one('delay_objective_curve')} intervals={one('parameter_intervals')} rejections={one('rejection_reasons')} loading={decoding('candidate_models', 'rejection_reasons')} />
-              <BodePanel bode={one('bode')} metrics={detail.data?.metrics} controller={result?.subgates?.F} loading={decoding('bode')} />
-            </>
-          )}
-          {eventParam && manifest.data && manifest.data.readiness !== 'COMPLETE' && (
-            <p className="cpm-copy" role="status">Evidence readiness: {manifest.data.readiness} ({manifest.data.count} artifact(s)). The manifest refreshes while artifacts arrive.</p>
-          )}
-          {catalogueOpen && detail.data && (
-            <Suspense fallback={<EmptyState title="Loading the catalogue…" />}>
-              <QuantityCatalogue metrics={detail.data.metrics} onClose={() => setCatalogueOpen(false)} />
-            </Suspense>
-          )}
-          {models.isError ? <QueryError error={models.error} retry={() => void models.refetch()} /> : (
-            <ModelHistoryBody models={models.data?.models ?? []} timeZone={timeZone} pvUnit={loop?.engineering?.pvUnit} canReview={canReview} onReview={m => { review.reset(); setReviewing(m); }} />
-          )}
-        </div>
-
-        <aside className="cpm-response-detail" aria-label="Selected response event">
-          {eventParam && result && (
-            <EventAside result={result} metrics={detail.data?.metrics} timeZone={timeZone} methodRunId={methodRunId} loopId={loopId}
-              resultRevision={selected?.resultRevision} eventType={selected?.eventType}
-              catalogueOpen={catalogueOpen} onToggleCatalogue={() => setCatalogueOpen(v => !v)} />
-          )}
-          {eventParam && !result && !detail.isError && (
-            <div className="cpm-surface cpm-skeleton cpm-skeleton--result" role="status" aria-busy="true" aria-label="Loading the event">
-              <span className="cpm-skeleton__label">Loading the event…</span>
-            </div>
-          )}
-          {!eventParam && !noEvents && <EmptyState title="Event details" copy="The steps, identity and key results of the selected event appear here." />}
-        </aside>
-      </div>
+      {nothingYet ? <ResponseEmpty loopId={loopId} canConfig={canConfig} /> : (
+        <ResponseTabs tab={tab} onTab={setTab} foot={footEvent ? eventFoot(footEvent, timeZone) : undefined}>{body}</ResponseTabs>
       )}
       {reviewing && <ModelReviewDialog model={reviewing} pending={review.isPending} error={review.error} onClose={() => setReviewing(null)} onSubmit={args => review.mutate(args)} />}
     </div>

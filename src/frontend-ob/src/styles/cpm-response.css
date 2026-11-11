@@ -1,4 +1,4 @@
-/* Task 21: System Response summary tiles, empty panel and steps. Placement only; sizes come from the app's own classes. */
+/* Task 21: System Response summary tiles, empty panel and steps; CHG-165: the tabs. Placement only; sizes come from the app's own classes. */
 .cpm-response-tiles { margin-bottom: var(--traverse-space-3); }
 .cpm-response-empty__actions { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin: var(--traverse-space-2) 0; }
 .cpm-response-steps { list-style: none; margin: var(--traverse-space-3) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--traverse-space-2); }
@@ -8,10 +8,40 @@
 .cpm-response-states dt { font-weight: 600; }
 .cpm-response-states dd { margin: 0; }
 .cpm-table__group th { text-align: left; font-weight: 600; }
-.cpm-response-tile { color: inherit; text-decoration: none; }
 
-/* No event to show: the third column is empty, so the analysis panel takes the free width (wide screens only; narrower grids already stack). */
-.cpm-response-columns--empty > .cpm-response-detail { display: none; }
-@media (min-width: 1401px) {
-  .cpm-response-columns.cpm-response-columns--empty > .cpm-response-centre { grid-column: 2 / -1; }
+/* CHG-165 (owner review): System Response as six tabs, the approved sample. Each tab uses the full width; panels inside a tab
+   sit side by side where they answer one question together (residuals and their autocorrelation, candidates and the delay
+   curve, magnitude and phase, the three parameter trends) and stack on narrower screens. Tokens and existing classes only. */
+.cpm-response-tabs .cpm-tabpanel > .cpm-surface,
+.cpm-response-tabs .cpm-response-pair > .cpm-surface { box-shadow: none; }
+.cpm-response-tabs__foot { justify-content: space-between; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); }
+.cpm-compact .cpm-band .cpm-response-event-select { max-width: 380px; }
+button.cpm-response-tile { width: 100%; font: inherit; color: inherit; text-align: start; cursor: pointer; }
+button.cpm-response-tile:hover { border-color: var(--instrument-enhanced-primary-color); }
+button.cpm-response-tile:focus-visible { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 2px; }
+.cpm-table tr.cpm-row--selected > td { background: var(--cpm-selected-bg); }
+
+/* the result in one row: what came out (family, validation), its parameters, its state */
+.cpm-response-result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-3) var(--traverse-space-8); }
+.cpm-response-result__head { display: flex; flex-direction: column; gap: var(--traverse-space-1); min-width: 0; margin-inline-end: auto; }
+.cpm-response-result__head .cpm-panel-title { margin: 0; }
+.cpm-response-param { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--traverse-space-1); }
+.cpm-response-result__state { align-self: center; }
+
+.cpm-response-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--traverse-space-4); align-items: start; }
+.cpm-response-pair--wide-left { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.cpm-response-pair--wide-right { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+/* the model trends side by side as far as each keeps its tools and legend readable: three from about 1800 px, two at 1440 */
+.cpm-response-trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--traverse-space-4); }
+.cpm-response-quantities--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cpm-response-step-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--traverse-space-3); }
+.cpm-response-step-card { display: flex; flex-direction: column; gap: var(--traverse-space-1); border-left: 3px solid var(--cpm-tone, var(--border-divider-color)); min-width: 0; }
+.cpm-response-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
+@media (max-width: 1100px) {
+  .cpm-response-pair, .cpm-response-pair--wide-left, .cpm-response-pair--wide-right { grid-template-columns: minmax(0, 1fr); }
+  .cpm-response-step-cards, .cpm-response-quantities--three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 736px) {
+  .cpm-response-step-cards, .cpm-response-quantities--three { grid-template-columns: minmax(0, 1fr); }
+  .cpm-compact .cpm-band .cpm-response-event-select { max-width: 100%; }
 }

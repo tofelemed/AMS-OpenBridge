@@ -3,13 +3,15 @@
 // the kernel never estimated.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { ModelHistoryBody } from './ModelHistory';
 import type { SystemModel } from '../../../api/cpm/response';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: Record<string, unknown>) => React.createElement('button', { disabled: p.disabled as boolean, 'aria-describedby': p['aria-describedby'] as string, onClick: p.onClick as () => void }, p.children as React.ReactNode),
 }));
+const download = vi.hoisted(() => vi.fn());
+vi.mock('../../../utils/csv', () => ({ downloadTextFile: download }));
 const captured: unknown[] = [];
 vi.mock('echarts-for-react', () => ({ default: (props: { option: unknown }) => { captured.push(props.option); return React.createElement('div', { 'data-testid': 'echarts' }); } }));
 afterEach(() => { cleanup(); captured.length = 0; });
@@ -38,10 +40,13 @@ describe('ModelHistory', () => {
     const gain = captured[0] as { series: Array<{ name: string; data: Array<[number, number | null]> }>; yAxis: Array<{ name: string }> };
     expect(gain.yAxis[0].name).toBe('m3/h/pp');   // CHG-097 (SME 2 #15): the loop's PV unit, not the kernel placeholder
     expect(gain.series.find(s => s.name === 'Process gain')!.data.map(d => d[1])).toEqual([3.0, 3.2]);
-    const upper = gain.series.find(s => /upper/.test(s.name))!.data.map(d => d[1] as number);
-    const lower = gain.series.find(s => /lower/.test(s.name))!.data.map(d => d[1] as number);
-    expect(upper[0]).toBeCloseTo(3.02, 9); expect(upper[1]).toBeCloseTo(3.3, 9);
-    expect(lower[0]).toBeCloseTo(2.98, 9); expect(lower[1]).toBeCloseTo(3.1, 9);
+    // CHG-165: the caps above and below each estimate are one legend entry, its meaning said once
+    const caps = gain.series.filter(s => /^Interval/.test(s.name));
+    expect(caps).toHaveLength(1);
+    expect(caps[0].name).toBe('Interval — ± 1 standard error of the estimate');
+    const ys = caps[0].data.map(d => d[1] as number);
+    expect(ys[0]).toBeCloseTo(3.02, 9); expect(ys[1]).toBeCloseTo(2.98, 9);   // model a: upper, lower
+    expect(ys[2]).toBeCloseTo(3.3, 9); expect(ys[3]).toBeCloseTo(3.1, 9);     // model b
     const tc = captured[2] as { series: Array<{ name: string; data: Array<[number, number | null]> }> };
     expect(tc.series.find(s => s.name === 'Time constant')!.data.map(d => d[1])).toEqual([20]); // a null parameter is not a point
     expect(screen.getByText('Validated')).toBeTruthy();
@@ -68,5 +73,17 @@ describe('ModelHistory', () => {
     const buttons = document.querySelectorAll('[aria-describedby]');
     expect(buttons).toHaveLength(2);
     buttons.forEach(b => { expect(b.getAttribute('aria-describedby')).toBe(why.id); expect((b as HTMLButtonElement).disabled).toBe(true); });
+  });
+
+  it('exports the models table as CSV, the loop in the file name (CHG-165)', () => {
+    render(<ModelHistoryBody models={[model({ modelId: 'm1', parameters: { process_gain: { value: 0.21, unit: 'PV_EU/input_EU', uncertainty: 0.02, method: 'MODEL_FOPDT', reason: null } } })]}
+      timeZone="UTC" canReview={false} onReview={() => {}} />);
+    fireEvent.click(screen.getByText('Export models CSV'));
+    expect(download).toHaveBeenCalledTimes(1);
+    const [name, body] = download.mock.calls[0] as [string, string];
+    expect(name).toMatch(/^FIC10302-models-/);
+    const lines = body.split(/\r?\n/);
+    expect(lines[0]).toBe('created_utc,family,path,estimator,state,revision,reviewed_by,process_gain,process_gain_uncertainty,model_id');
+    expect(lines[1]).toMatch(/^2026-09-16T12:00:00Z,FOPDT,OP_TO_PV,OUTPUT_ERROR_LM,CANDIDATE,1,,0.21,0.02,m1$/);
   });
 });

@@ -12,22 +12,27 @@ import { phrase } from '../vocabulary';
 export const humanise = (code: string | null | undefined): string => (code ?? '').trim() ? phrase(code) : '';
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-export interface EventRowView { censored: boolean; state: string; tone: CpmTone; finding: string }
+/** `finding` is the row's one line; `reason` is the same without the state it repeats (CHG-165, the Events table's column). */
+export interface EventRowView { censored: boolean; state: string; tone: CpmTone; finding: string; reason: string }
 
 /** One state per row: the model outcome when there is one, else what stopped the event. */
 export function eventRowView(e: ResponseEventSummary): EventRowView {
   if (e.captureState === 'CENSORED') {
-    return { censored: true, state: 'CENSORED', tone: 'muted', finding: `Candidate censored · ${humanise(e.censorReason) || 'no reason recorded'}` };
+    const reason = sentence(humanise(e.censorReason)) || 'No reason recorded';
+    return { censored: true, state: 'CENSORED', tone: 'muted', finding: `Candidate censored · ${humanise(e.censorReason) || 'no reason recorded'}`, reason };
   }
-  if (e.eligibility === 'INELIGIBLE') return { censored: false, state: 'INELIGIBLE', tone: 'bad', finding: `Ineligible · ${humanise(e.finding) || 'no reason recorded'}` };
+  if (e.eligibility === 'INELIGIBLE') {
+    return { censored: false, state: 'INELIGIBLE', tone: 'bad', finding: `Ineligible · ${humanise(e.finding) || 'no reason recorded'}`, reason: sentence(humanise(e.finding)) || 'No reason recorded' };
+  }
   if (e.captureState === 'REJECTED' || e.evaluationState === 'REJECTED') {
-    return { censored: false, state: 'REJECTED', tone: 'bad', finding: `Rejected · ${humanise(e.censorReason || e.finding) || 'no reason recorded'}` };
+    const why = humanise(e.censorReason || e.finding);
+    return { censored: false, state: 'REJECTED', tone: 'bad', finding: `Rejected · ${why || 'no reason recorded'}`, reason: sentence(why) || 'No reason recorded' };
   }
   const model = (e.modelState || 'NONE').toUpperCase();
   const finding = sentence(humanise(e.finding)) || 'No finding recorded';
-  if (model !== 'NONE') return { censored: false, state: model, tone: stateTone(model), finding: `${finding} · model ${humanise(model)}` };
+  if (model !== 'NONE') return { censored: false, state: model, tone: stateTone(model), finding: `${finding} · model ${humanise(model)}`, reason: finding };
   const state = e.evaluationState || e.captureState;
-  return { censored: false, state, tone: stateTone(state), finding };
+  return { censored: false, state, tone: stateTone(state), finding, reason: finding };
 }
 
 /** The key results in catalogue order; the rest of the 52 live in the collapsed table. */
@@ -39,14 +44,14 @@ export const KEY_RESULT_IDS: Array<[string, string]> = [
 ];
 const MODEL_PARAMETER_IDS = new Set(['process_gain', 'integrating_gain', 'dead_time', 'time_constant', 'time_constant_2', 'damping_ratio', 'natural_frequency']);
 
-export interface KeyResult { id: string; label: string; text: string; applicable: boolean; method: string }
+export interface KeyResult { id: string; label: string; text: string; applicable: boolean; method: string; pathId: string }
 
 export function keyResults(metrics: ResponseQuantity[] | undefined): KeyResult[] {
   const out: KeyResult[] = [];
   for (const [id, label] of KEY_RESULT_IDS) {
     const q = metricOf(metrics, id);
     if (!q) continue;
-    out.push({ id, label, text: quantityText(q), applicable: q.value != null, method: q.method });
+    out.push({ id, label, text: quantityText(q), applicable: q.value != null, method: q.method, pathId: q.pathId });
   }
   return out;
 }
@@ -78,17 +83,15 @@ export function resultSummary(result: ResponseEventDetail['result'], metrics: Re
   const eReason = humanise(e?.outputs?.reason as string | undefined);
   const eVerdict = humanise(e?.outputs?.verdict as string | undefined);
   const validation = { state: e?.state ?? 'NOT_RUN', text: [sentence(humanise(e?.state ?? 'NOT_RUN')), eVerdict || eReason].filter(Boolean).join(' · ') };
-  let identifiability: string;
-  if (family && d?.state === 'ESTIMATED') {
-    const legality = humanise(d.outputs?.legality as string | undefined);
-    identifiability = `Estimated by ${String(d.outputs?.method_id ?? 'the kernel')}${legality ? ` (legality ${legality})` : ''}; the candidate table below carries the delay profile, the standard errors and the identifiability flags.`;
-  } else {
+  // CHG-165: with a model, the result row says it once (family, parameters, state pill); the estimator is on Steps & data
+  let identifiability = '';
+  if (!(family && d?.state === 'ESTIMATED')) {
     const reason = humanise((d?.outputs?.reason as string | undefined) || result.finding);
     identifiability = `No model was estimated${reason ? `: ${reason}` : ''}. The observed quantities, if any, are reported without a fit.`;
   }
   return {
     family, modelState,
-    headline: family ? `${family} model · ${humanise(modelState)}` : 'No model estimated',
+    headline: family ? `${family} model` : 'No model estimated',
     parameters, validation, identifiability,
   };
 }

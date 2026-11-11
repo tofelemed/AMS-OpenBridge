@@ -4,11 +4,8 @@
 // the key results first; the 52-row catalogue opens as a wide centre card (Phase 7), not-applicable rows greyed.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { cleanup, render, screen } from '@testing-library/react';
 import { ResultCard } from './ResultCard';
-import { EventAside } from './EventAside';
-import { QuantityCatalogue } from './QuantityCatalogue';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -47,46 +44,22 @@ describe('ResultCard', () => {
     const { rerender } = render(<ResultCard result={undefined} metrics={undefined} loading={true} />);
     expect(screen.getByRole('region', { name: 'Result' }).getAttribute('aria-busy')).toBe('true');
     rerender(<ResultCard result={result} metrics={metrics} loading={false} />);
-    expect(screen.getByText('FOPDT model · candidate')).toBeTruthy();
-    expect(screen.getByText(/-76\.55 PV_EU\/input_EU ± 22\.22/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'FOPDT model' })).toBeTruthy();
+    expect(screen.getByText('Candidate')).toBeTruthy();                                  // CHG-165: the state once, as the pill
+    expect(screen.getByText(/-76\.55 PV unit\/% OP ± 22\.22/)).toBeTruthy();         // no PV unit registered: said so, as on Models
     expect(screen.getByText(/Waiting · no independent event yet/)).toBeTruthy();
-    expect(screen.getByText(/Estimated by OE_LM_DELAY_PROFILE/)).toBeTruthy();
-  });
-});
-
-describe('EventAside', () => {
-  // cpa-ui-fix-plan Phase 7: the 52-row catalogue is a wide centre card opened from the aside (it
-  // overflowed the 284 px column); the Workbench exit is a button that navigates with the run.
-  it('steps the subgates with their reason, lists the key results, offers the catalogue and routes to the workbench run', () => {
-    const toggle = vi.fn();
-    const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="location">{l.pathname}{l.search}</div>; };
-    render(
-      <MemoryRouter initialEntries={['/cpm/response?loop=FIC10302&event=e1']}>
-        <Routes><Route path="*" element={<>
-          <EventAside result={result} metrics={metrics} timeZone="UTC" methodRunId="r1" loopId="FIC10302" resultRevision={1}
-            catalogueOpen={false} onToggleCatalogue={toggle} />
-          <Probe />
-        </>} /></Routes>
-      </MemoryRouter>);
-    const steps = screen.getAllByRole('listitem').filter(li => li.getAttribute('data-subgate'));
-    expect(steps).toHaveLength(8);
-    expect(steps[4].textContent).toMatch(/E Validation/);
-    expect(steps[4].textContent).toMatch(/Waiting/);
-    expect(steps[4].textContent).toMatch(/no independent event yet/);
-    expect(screen.getByText('Key results')).toBeTruthy();
-    expect(screen.getByText(/Window from/).parentElement!.textContent).toMatch(/2026-09-17/);
-    fireEvent.click(screen.getByRole('button', { name: /All 6 quantities/ }));
-    expect(toggle).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: /Open in Evidence Workbench/ }));
-    expect(screen.getByTestId('location').textContent).toContain('methodRun=r1');
-    expect(screen.getByTestId('location').textContent).toContain('gate=G12');
+    expect(screen.queryByText(/candidate table below/)).toBeNull();
   });
 
-  it('QuantityCatalogue lists every quantity with not-applicable rows greyed, never as 0', () => {
-    render(<QuantityCatalogue metrics={metrics} onClose={() => {}} />);
-    const rows = document.querySelectorAll('tbody tr');
-    expect(rows).toHaveLength(6);
-    expect(document.querySelectorAll('tbody tr[data-applicable="false"]')).toHaveLength(2);   // integrating_gain, baseline_pv
-    expect(screen.getByText(/not applicable \(no valid baseline\)/)).toBeTruthy();
+  it("says the units in the loop's PV unit and the input the model came from, not the kernel placeholders", () => {
+    render(<ResultCard result={result} metrics={metrics} loading={false} pvUnit="m3/h" />);
+    expect(screen.getByText('-76.55 m3/h/% OP ± 22.22')).toBeTruthy();
+    expect(screen.queryByText(/PV_EU/)).toBeNull();
+  });
+
+  it('says why when no model was estimated', () => {
+    render(<ResultCard result={{ ...result, model_state: 'NONE', subgates: { D: { state: 'NOT_RUN', outputs: { reason: 'CENSORED' } } } }} metrics={[]} loading={false} />);
+    expect(screen.getByRole('heading', { name: 'No model estimated' })).toBeTruthy();
+    expect(screen.getByText(/No model was estimated: censored/)).toBeTruthy();
   });
 });

@@ -48,10 +48,10 @@ describe('resultSummary', () => {
   it('names the model family from the kernel method, its parameters with ± and units, and the validation verdict', () => {
     const s = resultSummary(result, metrics);
     expect(s.family).toBe('FOPDT');
-    expect(s.headline).toBe('FOPDT model · candidate');
+    expect(s.headline).toBe('FOPDT model');                                        // CHG-165: the state is the pill beside it, said once
     expect(s.parameters.map(p => `${p.label}: ${p.text}`)).toEqual(['Process gain K: -76.55 PV_EU/input_EU ± 22.22', 'Dead time θ: 71.97 s', 'Time constant τ: 2253.49 s ± 688.20']);
     expect(s.validation).toEqual({ state: 'WAITING', text: 'Waiting · no independent event yet' });
-    expect(s.identifiability).toMatch(/estimated by OE_LM_DELAY_PROFILE/i);
+    expect(s.identifiability).toBe('');                                            // CHG-165: the estimator is on Steps & data and Models
   });
   it('states no model when estimation did not run', () => {
     const s = resultSummary({ ...result, model_state: 'NONE', finding: 'SOURCE_GAP', subgates: { D: { state: 'NOT_RUN', outputs: { reason: 'CENSORED' } } } }, []);

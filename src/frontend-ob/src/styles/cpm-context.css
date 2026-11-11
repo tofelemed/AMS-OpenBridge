@@ -22,14 +22,6 @@
   font-size: var(--cpm-text-small);
 }
 
-/* Panels that stick inside the same scroller stop below the band. The band sits
-   at the scroller's edge (top = -padding) and a panel's `top` is measured from
-   the padded content edge, so `top: <band height>` leaves a padding-sized gap
-   under the band. Without a band the variable is unset and the fallback is the
-   panels' own 16px. */
-.cpm-screen .cpm-response-events { top: var(--cpm-context-h, 16px); }
-.cpm-screen .cpm-response-events { max-height: calc(100vh - 32px - var(--cpm-context-h, 0px)); }
-
 /* CHG-128: the loop band. The control sits first; a tab adds only what it needs. */
 .cpm-band { display: block; padding-block: var(--traverse-space-2); }
 .cpm-band__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); min-width: 0; }

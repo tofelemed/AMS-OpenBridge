@@ -1,32 +1,8 @@
 /* v2.5 Phase 2E — Gate Evidence Workbench and System Response workspaces.
    Layout only; every colour, border and text token is OpenBridge's (see styles/cpm.css for the
    base .cpm-* vocabulary these extend). The workbench (redesigned 2026-09-17) is loop band → header
-   facts → evidence basis → reading column + collapsible explain column; the response workspace keeps
-   its three columns. Columns collapse to one below 1200px. */
-
-/* ── Response workspace shell ── */
-.cpm-response-columns {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.6fr) minmax(280px, 1.2fr);
-  gap: 16px;
-  align-items: start;
-}
-@media (max-width: 1200px) {
-  .cpm-response-columns { grid-template-columns: 1fr; }
-}
-.cpm-response-centre,
-.cpm-response-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-.cpm-response-events {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-}
+   facts → evidence basis → reading column + collapsible explain column. CHG-165: System Response is six tabs
+   (styles/cpm-response.css); its three columns and event list are gone. */
 
 /* skeletons reserve the height a panel will take (no layout shift while artifacts decode) */
 .cpm-skeleton { min-height: 120px; border-radius: 8px; background: var(--container-backdrop-color); opacity: 0.6; animation: cpm-skeleton-pulse 1.4s ease-in-out infinite; }
@@ -36,38 +12,6 @@
 @media (prefers-reduced-motion: reduce) { .cpm-skeleton { animation: none; } }
 /* CHG-162: a labelled box says what it waits for; it does not pulse or dim, so its words keep their contrast */
 .cpm-skeleton:has(> .cpm-skeleton__label) { opacity: 1; animation: none; }
-
-/* ── Event list (System Response; buttons styled as rows; selection uses the active-state tokens) ── */
-.cpm-response-events__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.cpm-response-event {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--element-active-color);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.cpm-response-event:hover {
-  background: var(--flat-hover-background-color);
-}
-.cpm-response-event--selected {
-  background: var(--cpm-selected-bg);   /* CHG-100 */
-  border-color: var(--selected-enabled-border-color, var(--instrument-enhanced-primary-color));
-}
 
 /* ── Evidence controls in the loop band: the evaluated window dropdown and, under More, the jump to a date ── */
 .cpm-evidence-toolbar__window { flex: 1 1 360px; min-width: 260px; }
@@ -183,16 +127,9 @@
 /* 2026-09-17 audit F5/F19/F20: compact event rows, one state each; censored rows dimmed; skeletons that
    say what they wait for; the subgates as steps; the catalogue behind a disclosure with its
    not-applicable rows greyed. Tokens only. */
-.cpm-response-event__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
-.cpm-response-event__what { font-weight: 600; }
-.cpm-response-event--censored { opacity: 0.7; }
-.cpm-response-events__censored { align-self: flex-start; margin-bottom: 8px; }
 .cpm-skeleton--result { min-height: 160px; }
 .cpm-skeleton { display: flex; align-items: center; justify-content: center; }
 .cpm-skeleton__label { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
-.cpm-response-aside__ids { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 12px; }
-.cpm-response-aside__all { margin-top: 8px; }
-.cpm-response-aside__all > summary { cursor: pointer; color: var(--element-active-color); padding: 8px 0; }
 .cpm-row--muted td { color: var(--traverse-text-secondary); }
 .cpm-steps { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cpm-step { border-left: 3px solid var(--cpm-tone, var(--border-divider-color)); padding: 4px 0 4px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -342,22 +279,7 @@
 .cpm-config-deployment__matrix > summary { cursor: pointer; padding: 6px 0; }
 .cpm-config-deployment__partial { color: var(--tone-warning); font-weight: 600; }
 
-/* ── 2026-09-20 cpa-ui-fix-plan Phase 7: System Response containment ──
-   Three columns that give the centre the width; the context column stacks under
-   the centre before it gets too narrow to hold a value; nothing escapes its box. */
-.cpm-response-columns {
-  grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr) minmax(320px, 1.4fr);
-}
-@media (max-width: 1400px) {
-  .cpm-response-columns { grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr); }
-  .cpm-response-detail { grid-column: 2; }
-}
-@media (max-width: 1200px) {
-  .cpm-response-columns { grid-template-columns: 1fr; }
-  .cpm-response-detail { grid-column: auto; }
-}
-.cpm-response-event__time { white-space: nowrap; }
-.cpm-response-events__censored { align-self: stretch; }
+/* ── 2026-09-20 cpa-ui-fix-plan Phase 7: nothing escapes its box ── */
 .cpm-table-wrap { max-width: 100%; overflow-x: auto; }
 .cpm-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .cpm-nowrap { white-space: nowrap; }
@@ -367,7 +289,6 @@
 .cpm-response-aside .cpm-kv__value { min-width: 0; overflow-wrap: anywhere; }
 .cpm-step__outputs .cpm-kv { flex-direction: column; align-items: flex-start; gap: 2px; }
 .cpm-step__outputs .cpm-kv__value { text-align: left; max-width: 100%; }
-.cpm-response-quantities { grid-template-columns: 1fr; }
 .cpm-table td .cpm-mono { overflow-wrap: anywhere; }
 
 /* CHG-102 5c: "Evaluate a window from the historian" (EvaluateWindow.tsx) */

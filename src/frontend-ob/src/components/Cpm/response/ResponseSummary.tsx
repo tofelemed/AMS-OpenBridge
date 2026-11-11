@@ -12,9 +12,6 @@ import { codeLabel } from '../vocabulary';
 import { eventRowView } from './responseCopy';
 import { ResponseSteps } from './ResponseSteps';
 
-export const EVENTS_ID = 'response-events';
-export const MODELS_ID = 'response-models';
-
 export interface ResponseFacts { events: string; accepted: string; model: string }
 export type ModelsStatus = 'loading' | 'error' | 'ready';
 
@@ -42,23 +39,16 @@ export function responseFacts(events: ResponseEventSummary[], hasMore: boolean, 
   };
 }
 
-const jump = (id: string) => (ev: React.MouseEvent) => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  ev.preventDefault();
-  el.scrollIntoView?.({ block: 'start' });
-  el.focus();
-};
-
-const Tile: React.FC<{ caption: string; value: string; sub?: string; to?: string }> = ({ caption, value, sub, to }) => {
+/** CHG-165: the event tiles sit above their table on the Events tab; the model tile opens the Models tab. */
+const Tile: React.FC<{ caption: string; value: string; sub?: string; onOpen?: () => void }> = ({ caption, value, sub, onOpen }) => {
   const body = (
     <>
       <span className="cpm-kpi__caption">{caption}</span><span className="cpm-kpi__value">{value}</span>
       {sub && <span className="cpm-kpi__sub">{sub}</span>}
     </>
   );
-  return to
-    ? <a className="cpm-kpi cpm-response-tile" href={`#${to}`} onClick={jump(to)}>{body}</a>
+  return onOpen
+    ? <button type="button" className="cpm-kpi cpm-response-tile" onClick={onOpen}>{body}</button>
     : <div className="cpm-kpi">{body}</div>;
 };
 
@@ -66,15 +56,15 @@ export const ResponseTiles: React.FC<{
   events: ResponseEventSummary[]; hasMore: boolean; models: SystemModel[] | undefined; modelsStatus?: ModelsStatus;
   /** Censored candidates the list leaves out: the counts say what they exclude. */
   censoredHidden?: number;
-}> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0 }) => {
+  onModels?: () => void;
+}> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0, onModels }) => {
   const f = responseFacts(events, hasMore, models ?? [], modelsStatus);
   const basis = censoredHidden > 0 ? `${censoredHidden} censored not counted` : undefined;
-  const eventsTo = events.length > 0 ? EVENTS_ID : undefined;
   return (
     <div className="cpm-kpi-row cpm-response-tiles">
-      <Tile caption="Response events" value={f.events} sub={basis} to={eventsTo} />
-      <Tile caption="Accepted events" value={f.accepted} to={eventsTo} />
-      <Tile caption="System model" value={f.model} to={(models ?? []).length > 0 ? MODELS_ID : undefined} />
+      <Tile caption="Response events" value={f.events} sub={basis} />
+      <Tile caption="Accepted events" value={f.accepted} />
+      <Tile caption="System model" value={f.model} onOpen={(models ?? []).length > 0 ? onModels : undefined} />
     </div>
   );
 };

@@ -6203,3 +6203,19 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
 
 **Tests.** 2035/2037 in the full run; the two EventDetail shelve tests time out under full-suite load and pass alone (36/36): a timing flake in a page CHG-160..164 did not change.
+
+## CHG-165 — CPA owner review: System Response in six tabs (2026-11-11, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner accepted the proposal `docs/theme/redesign/samples/system-response-proposal.html` (+ `system-response-steps.html`): the page is data- and trend-rich, and its three columns said the result, steps and quantities twice.
+
+**Changed (`/cpm/response`).**
+- **Band (a card):** loop, Response event (time · type · path · state; censored ones only when shown), ‹ › newer / older (past the oldest loaded, › loads older) … Workbench ↗ (the event's G12 run), Open loop ↗. No header `?` or site-zone sentence.
+- **Six tabs in `?tab=`** (a link with an event or a G12 run opens Response): Events (the three counts once; the events as a table with the model each produced, from the loop's models already loaded; censored on request), Response (the result in one row, the response chart full width, the reported quantities), Fit quality (residuals beside their autocorrelation; candidates beside the delay curve), Frequency (magnitude beside phase; margins always listed, "not claimed" when the reason is given once), Steps & data (A–H as cards, the event's identity, every quantity with Reported / All), Models (the trends side by side, the table, Export models CSV, Review unchanged). Next: X → and the event once in the foot.
+- **Once:** the arrays not kept → one note per tab with Reconstruct in the Workbench ↗ (was four empty panels); units in the loop's PV unit and the input (as the model history already did); one legend entry per interval.
+- Removed components: EventList, EventAside, QuantityCatalogue (their content is on Events and Steps & data).
+
+**Rulings (to confirm at review).** The model trends sit three in a row only from about 1800 px (two plus one at 1440): three CPA charts with their tools and legends do not fit a third of a 1440 px screen. The table export is named "Export models CSV" because every chart has its own "Export CSV".
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+**Tests.** vitest 2057/2057, lint and lint:theme clean, build clean. Browser gates on dist: redirects 0, a11y serious 0, geometry 0, edge 0, links 0, size 0 (after recording the 32 px controls on response), controls only the known data-dependent items. Checked at 1440, 1000 and 390 px and in night: no sideways overflow.
