@@ -8,6 +8,11 @@
  *
  * The loop's unit and range come from the registry list every CPM page already loads
  * (`useCpmLoops`, one cached query). The chart keeps the rectangle zoom of every CPM trend.
+ *
+ * CHG-177 (owner review, Overview v2): with no signal values the trend says one line, "No PV, SP or OP values in this range"
+ * (`rangeText` names the range where the caller knows it), on every page that draws it; the guess "the feed may have stopped"
+ * went (Signal quality says it). `tools={false}` is the Overview's trend: no Zoom area / Undo / Reset, no wheel zoom and no ?
+ * (the Overview's How to read holds the band note); the chart, its pens, axes, legend and the scale toggle stay.
  */
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
@@ -19,7 +24,6 @@ import { useCpmLoops } from '../../../hooks/useCpm';
 import { boxZoomOption } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
-import { EmptyState } from '../shared';
 import { BAND_NOTE, hasPvRange, hasSignalValues, signalTrendOption, type TrendScale } from './trendOption';
 
 const NO_RANGE = 'No PV engineering range is registered for this loop (Loop Registry)';
@@ -42,7 +46,11 @@ export const SignalTrend: React.FC<{
   /** The zoom bar's Reset word, and links that belong in that row. */
   resetLabel?: string;
   foot?: React.ReactNode;
-}> = ({ loopId, points, hasVp, height = 240, live = false, caption, help, xRange, evaluated, yBounds, resetLabel, foot }) => {
+  /** CHG-177: false on the Overview — no zoom bar, no wheel zoom and no ? (the foot rides on the zoom bar, so it goes too). */
+  tools?: boolean;
+  /** CHG-177: the range the empty line names, e.g. "in the last 8 h". */
+  rangeText?: string;
+}> = ({ loopId, points, hasVp, height = 240, live = false, caption, help, xRange, evaluated, yBounds, resetLabel, foot, tools = true, rangeText = 'in this range' }) => {
   const loops = useCpmLoops();
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === loopId.toLowerCase());
   const range = loop?.engineering ?? null;
@@ -56,31 +64,33 @@ export const SignalTrend: React.FC<{
   const option = useMemo(
     () => signalTrendOption({
       points, palette: chartPalette(), hasVp, pvUnit, scale, range, xRange, evaluated, yBounds,
-      zoom: boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom),
+      zoom: tools ? boxZoomOption({ xAxisIndex: 0, yAxisIndex: [0, 1] }, box.zoom) : {},
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
-    [points, hasVp, pvUnit, scale, range, xRange, evaluated, yBounds, theme, box.zoom],
+    [points, hasVp, pvUnit, scale, range, xRange, evaluated, yBounds, theme, box.zoom, tools],
   );
   useKeepSelecting(box, option);
 
   // A stalled feed answers with time buckets that hold no values: an empty frame explains nothing.
   if (!hasSignalValues(points)) {
-    return (
-      <EmptyState title={`${caption ? `${caption}: ` : ''}no signal values in this trend range`}
-        copy="The historian returned the time range but no PV, SP or OP samples in it — the feed may have stopped. The live values above show when the last sample arrived." />
-    );
+    const what = `PV, SP or OP values ${rangeText}`;
+    return <p className="cpm-empty-line"><strong>{caption ? `${caption}: no ${what}` : `No ${what}`}</strong></p>;
   }
 
   return (
     <div className="cpm-signal-trend">
       <div className="cpm-signal-trend__bar">
-        <span className="cpm-title-row cpm-signal-trend__caption">
-          {caption && <span className="cpm-eyebrow">{caption}</span>}
-          <Toggletip variant="how-to" label="How to read this trend">
-            <p>{BAND_NOTE}</p>
-            {help && <p>{help}</p>}
-          </Toggletip>
-        </span>
+        {(caption || tools) && (
+          <span className="cpm-title-row cpm-signal-trend__caption">
+            {caption && <span className="cpm-eyebrow">{caption}</span>}
+            {tools && (
+              <Toggletip variant="how-to" label="How to read this trend">
+                <p>{BAND_NOTE}</p>
+                {help && <p>{help}</p>}
+              </Toggletip>
+            )}
+          </span>
+        )}
         <SegmentedControl label="Trend scale" ignoreReselect value={scale} onChange={setChosen}
           options={[
             { value: 'fit', label: <span title="Scale each axis to the plotted data: shows the shape of the signals">Fit to data</span> },
@@ -92,9 +102,13 @@ export const SignalTrend: React.FC<{
             },
           ]} />
       </div>
-      <ReactECharts option={option} style={{ height }} notMerge
-        onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
-      <ChartZoomBar box={box} hasData={points.length > 0} live={live} resetLabel={resetLabel}>{foot}</ChartZoomBar>
+      {tools ? (
+        <>
+          <ReactECharts option={option} style={{ height }} notMerge
+            onChartReady={box.onChartReady} onEvents={{ datazoom: box.onDataZoom }} />
+          <ChartZoomBar box={box} hasData={points.length > 0} live={live} resetLabel={resetLabel}>{foot}</ChartZoomBar>
+        </>
+      ) : <ReactECharts option={option} style={{ height }} notMerge />}
     </div>
   );
 };

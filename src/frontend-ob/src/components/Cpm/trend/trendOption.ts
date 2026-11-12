@@ -24,8 +24,10 @@ import { siteAxisTick } from '../../../cpa/siteTime';
 export type TrendScale = 'fit' | 'range';
 
 export const BAND_LABEL = 'PV min–max per point';
-export const BAND_NOTE =
-  'Shaded band: the lowest-to-highest PV inside each plotted point. Each point averages many samples; the band shows the swing the average hides.';
+/** What the shaded band is; the Overview's How to read says it under "Shaded band" (CHG-177). */
+export const BAND_MEANING =
+  'The lowest-to-highest PV inside each plotted point. Each point averages many samples; the band shows the swing the average hides.';
+export const BAND_NOTE = `Shaded band: ${BAND_MEANING[0].toLowerCase()}${BAND_MEANING.slice(1)}`;
 const BAND_BASE = 'pv-band-base';
 
 export const pvAxisName = (pvUnit: string | null | undefined) => `PV / SP (${pvUnit?.trim() || 'unit not set'})`;

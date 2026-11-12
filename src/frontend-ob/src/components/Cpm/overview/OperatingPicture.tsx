@@ -7,6 +7,9 @@
  * - CHG-089: counted on the page's fused window (12h default, 24h on request); every link carries it.
  * - CHG-155 (owner review): the monitored count is a small note above the cards, with no ?; no change since 24 h ago and no
  *   loop state breakdown bar.
+ * - CHG-177 (owner review, Overview v2): no card around the note and the cards; they sit on the page's five-column grid, the
+ *   same columns as the panels below (five to a row down to 960 px, two below). A failure or "No monitored loops" keeps
+ *   its panel.
  */
 import React from 'react';
 import type { CpmFleetScope } from '../../../api/cpmApi';
@@ -38,15 +41,15 @@ export const OperatingPicture: React.FC<{ scope?: CpmFleetScope; windowKind?: st
   const coverage = pick(KPI_GROUPS[2].keys);
 
   return (
-    <section className="cpm-surface cpm-op" aria-label="Operating picture">
+    <section className="cpm-op" aria-label="Operating picture">
       <p className="cpm-op__count">{k ? `${k.monitored} ${k.monitored === 1 ? 'loop' : 'loops'} monitored` : 'Loading…'}</p>
-      {q.isError && <QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} />}
+      {q.isError && <div className="cpm-surface"><QueryError title="Operating picture unavailable" error={q.error} retry={() => void q.refetch()} /></div>}
       {/* CHG-098 (SME review 2 #29): widen the scope or enable monitoring. */}
-      {k && k.monitored === 0 && <EmptyState title="No monitored loops"
+      {k && k.monitored === 0 && <div className="cpm-surface"><EmptyState title="No monitored loops"
         copy="No loop in this plant scope has monitoring enabled. Widen the plant scope above, or onboard and enable loops in the Loop Registry."
-        next={[{ label: 'Loop Registry', to: registryHref() }]} />}
+        next={[{ label: 'Loop Registry', to: registryHref() }]} /></div>}
       {k && k.monitored > 0 && (
-        <div className="cpm-kpicards cpm-kpicards--5" role="list" aria-label="Loop KPIs">
+        <div className="cpm-kpicards cpm-kpicards--5 cpm-ov-cards" role="list" aria-label="Loop KPIs">
           {performance.map(f => <div role="listitem" key={f.key}><Card f={f} scope={scope} /></div>)}
           {coverage.map(f => (
             <div role="listitem" key={f.key}>

@@ -19,11 +19,3 @@
 }
 
 .cpm-gate-dialog__name { margin: 0 0 var(--traverse-space-3); font-weight: 600; }
-
-.cpm-page-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--traverse-space-4);
-  margin-top: var(--traverse-space-4);
-}

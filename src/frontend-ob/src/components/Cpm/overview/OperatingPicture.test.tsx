@@ -52,4 +52,13 @@ describe('OperatingPicture', () => {
     expect(screen.getAllByRole('link').map(l => new URLSearchParams(l.getAttribute('href')!.split('?')[1]).get('review')))
       .toEqual(['stale', 'never-evaluated']);
   });
+
+  // CHG-177 (owner review, Overview v2): the note and the cards sit on the page grid, with no card around them.
+  it('has no card around the note and the cards', () => {
+    const { container } = show();
+    expect(container.querySelector('.cpm-surface')).toBeNull();
+    const cards = container.querySelector('[role="list"][aria-label="Loop KPIs"]')!;
+    expect(cards.className).toContain('cpm-ov-cards');
+    expect(container.querySelector('.cpm-op__count')!.nextElementSibling).toBe(cards);
+  });
 });

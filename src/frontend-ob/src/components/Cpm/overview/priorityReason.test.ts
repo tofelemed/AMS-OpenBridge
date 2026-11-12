@@ -53,9 +53,19 @@ describe('priorityReasons', () => {
 
 describe('priorityBadge', () => {
   it('maps the three levels to the alert tones, unknown to neutral', () => {
-    expect(priorityBadge('HIGH')).toEqual({ label: 'High priority', tone: 'bad' });
+    expect(priorityBadge('HIGH')).toMatchObject({ label: 'High priority', tone: 'bad' });
     expect(priorityBadge('MEDIUM').tone).toBe('warn');
     expect(priorityBadge('LOW').tone).toBe('muted');
     expect(priorityBadge(null).label).toBe('Not prioritised');
+  });
+});
+
+// CHG-177 (owner review, Overview v2): the queue row says the level; the word "priority" is said once, in the heading line
+describe('priorityBadge level (CHG-177)', () => {
+  it('gives the level beside the full label', () => {
+    expect(priorityBadge('HIGH')).toEqual({ label: 'High priority', level: 'High', tone: 'bad' });
+    expect(priorityBadge('MEDIUM')).toEqual({ label: 'Medium priority', level: 'Medium', tone: 'warn' });
+    expect(priorityBadge('LOW')).toEqual({ label: 'Low priority', level: 'Low', tone: 'muted' });
+    expect(priorityBadge(null)).toEqual({ label: 'Not prioritised', level: 'Not prioritised', tone: 'muted' });
   });
 });

@@ -30,8 +30,9 @@ export const GoodErrorBar: React.FC<{ pct: number | null; mae: number | null }> 
         <span className={`cpm-goodbar__fill cpm-goodbar__fill--${tone}`}
           style={{ width: `${clamped}%` }} />
       </span>
-      {/* SME #8 (CHG-046): "good N%" shared its word with signal quality's "Good". */}
-      <span className="cpm-event-row__sub cpm-goodbar__value">{scaled.toFixed(0)}% in band</span>
+      {/* SME #8 (CHG-046): "good N%" shared its word with signal quality's "Good". CHG-177: "in band" is said once, in the
+          queue's heading line; on a phone (no heading) it comes back here. */}
+      <span className="cpm-event-row__sub cpm-goodbar__value">{scaled.toFixed(0)}%<span className="cpm-ov-word"> in band</span></span>
     </div>
   );
 };

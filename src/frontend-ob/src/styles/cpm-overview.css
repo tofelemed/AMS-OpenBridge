@@ -1,20 +1,82 @@
-/* Overview bottom row: the top finding is one link, recent events are plain rows. Placement only, no new sizes. */
-.cpm-topfinding {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--traverse-space-2) var(--traverse-space-3);
-  color: inherit;
-  text-decoration: none;
+/* CHG-177 (owner review, Overview v2, the approved sample): placement only; every size is the app's own token or class
+   (94 px cards, 40 px buttons, the app's text and pill sizes). */
+
+/* One grid for the page: five columns with the panel gap; the KPI cards and the panels share its columns. */
+.cpm-ov .cpm-op { gap: var(--traverse-space-2); }
+.cpm-ov-cards.cpm-kpicards--5,
+.cpm-ov-work {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--traverse-space-4);
 }
-.cpm-topfinding:hover .cpm-topfinding__what { text-decoration: underline; }
-.cpm-topfinding__what { font-weight: 600; }
-.cpm-topfinding__go { margin-left: auto; }
+.cpm-ov-work { align-items: stretch; }
+.cpm-ov-work > .cpm-ov-queue { grid-column: 1 / span 3; }
+.cpm-ov-work > .cpm-ov-focus { grid-column: 4 / span 2; }
+/* No rows: the queue is one line and a loop chosen in the address takes the full width under it. */
+.cpm-ov-work--solo > .cpm-ov-queue,
+.cpm-ov-work--solo > .cpm-ov-focus { grid-column: 1 / -1; }
+
+/* A one-line empty or missing state: the shared loop trend's "No PV, SP or OP values …" and the Overview's own lines. */
+.cpm-empty-line {
+  margin: 0;
+  padding: var(--traverse-space-2) var(--traverse-space-3);
+  border-radius: var(--traverse-radius-control);
+  background: var(--traverse-surface-page);
+  color: var(--traverse-text-secondary);
+}
+.cpm-empty-line strong { color: var(--traverse-text-primary); font-weight: 600; }
+
+/* A panel's title and its link or button share one line (the queue, the chosen loop, Recent events). */
+.cpm-ov .cpm-panel-head { align-items: center; }
+
+/* ── Loops requiring review: the title, its state when there are no rows, View all → ── */
+.cpm-ov-head { min-height: var(--traverse-size-control-min-height); }
+.cpm-ov-queue--line .cpm-ov-head { margin-bottom: 0; }
+.cpm-ov-head__state { color: var(--traverse-text-secondary); }
+
+/* One column grid for the heading line and every row (each row a subgrid): Priority and Loop as wide as their widest entry,
+   Diagnosis (the state and the diagnosis) takes the rest, then In band and the row's ?. The heading carries the rows' 3 px
+   edge and padding, so each word sits over its column. */
+.cpm-ov-queue__list {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) 6rem var(--traverse-space-6);
+  column-gap: var(--traverse-space-2);
+}
+.cpm-ov-queue__list > .cpm-ov-queue__grid { grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: var(--traverse-space-2); }
+.cpm-event-head.cpm-ov-queue__grid { border-left: 3px solid transparent; }
+/* "Loop" over the tag's text, which starts inside its flat button */
+.cpm-event-head.cpm-ov-queue__grid > :nth-child(2) { padding-inline-start: var(--traverse-space-4); }
+.cpm-ov-queue__dx { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); min-width: 0; }
+.cpm-ov-queue__dx .cpm-pill { white-space: normal; }
+.cpm-ov-queue__why { display: inline-flex; justify-content: center; }
+.cpm-ov-queue .cpm-goodbar { margin-top: 0; max-width: none; }
+/* the % beside its bar: room for "100%" */
+.cpm-ov-queue .cpm-goodbar__value { min-width: 2.25rem; }
+
+/* The column words on a row ("priority", "Diagnosis", "in band") are for a phone, where the heading line is hidden; on a
+   wider screen a screen reader still reads them. */
+.cpm-ov-word,
+.cpm-ov-queue__grid .cpm-facet__caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── The chosen loop ── */
+.cpm-ov-focus__chips { margin-bottom: var(--traverse-space-2); }
+
+/* ── Recent events: last, full width; "Opened · UTC" once, as the column heading ── */
+.cpm-ov-events__grid {
+  grid-template-columns: minmax(0, 8rem) minmax(0, 8rem) minmax(0, 1fr);
+  gap: var(--traverse-space-3);
+}
+.cpm-event-head.cpm-ov-events__grid { padding-inline: 0; }
 
 .cpm-recent-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  gap: var(--traverse-space-3);
   align-items: center;
   padding: var(--traverse-space-1) 0;
   border-bottom: 1px solid var(--border-divider-color);
@@ -24,4 +86,22 @@
 .cpm-recent-row:last-of-type { border-bottom: none; }
 .cpm-recent-row:hover { text-decoration: underline; }
 
-.cpm-overview-foot { align-items: center; }
+/* Below 1100 px the panels stack (the sidebar has folded); the cards stay five to a row down to 960 px. */
+@media (max-width: 1100px) {
+  .cpm-ov-work > .cpm-ov-queue,
+  .cpm-ov-work > .cpm-ov-focus { grid-column: 1 / -1; }
+}
+/* Two to a row below that, so no card is left alone on a row. */
+@media (max-width: 959.98px) {
+  .cpm-ov-cards.cpm-kpicards--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--traverse-space-3); }
+}
+/* A phone: the heading line goes and its words come back on each row, which wraps. */
+@media (max-width: 600px) {
+  .cpm-event-head.cpm-ov-queue__grid { display: none; }
+  .cpm-ov-queue__list { display: block; }
+  .cpm-queue-row.cpm-ov-queue__grid { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); }
+  .cpm-queue-row .cpm-queue-row__preview { flex: 1 1 9rem; width: auto; }
+  .cpm-ov-word,
+  .cpm-ov-queue__grid .cpm-facet__caption { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+  .cpm-ov-events__grid { grid-template-columns: minmax(0, 6rem) minmax(0, 5.25rem) minmax(0, 1fr); gap: var(--traverse-space-2); }
+}

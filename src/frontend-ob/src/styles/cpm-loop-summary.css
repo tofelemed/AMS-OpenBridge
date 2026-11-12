@@ -64,14 +64,7 @@
 /* CHG-155: the monitored count is a note, smaller than the card labels */
 .cpm-op__count { margin: 0; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
 
-/* ── Overview priority queue (SME review #7, CHG-045) ──
-   One row = head (priority badge · loop route · condition) over the preview (description, the
-   ranking reason, the good-error bar). Stacked rather than columned so it reflows at any width. */
-.cpm-queue-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-.cpm-queue-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
-.cpm-queue-row__diag { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.cpm-queue-row__reason { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
-.cpm-queue-row__why { flex: 1 1 260px; font-size: var(--cpm-text-small); color: var(--element-active-color); overflow-wrap: anywhere; }
+/* CHG-177: the Overview priority queue's one-line rows are in cpm-overview.css. */
 
 /* ── Facet pills (SME review #8, CHG-046) ──
    Every loop facet is captioned with its fixed name (Signal quality / Instrument health /

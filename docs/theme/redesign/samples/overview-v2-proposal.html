@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Overview, reorganised (sample)</title>
+<style>
+  /* Traverse tokens. A PROPOSAL ONLY: nothing here is built. The owner's request of 12 Nov: a well organised Overview, no
+     extra space, no useless text, the two page-foot buttons gone; the KPI drill-downs stay exactly as they are.
+     LAB values (read-only, 12 Nov 09:16 UTC): 243 loops, 241 monitored, Stale 165, Never evaluated 76, every other card 0, no current
+     finding, the newest 12h episodes opened 5 Oct 07:45. ILLUSTRATIVE (marked on the page): the busy-plant state's card
+     numbers, queue rows, live values, trend and events. Sizes are the app's: 94 px KPI cards, 40 px buttons, 14 px text. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --ok-bg:#E5F5ED; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --bad-bg:#FDECEE; --info:#1764C0; --info-bg:#E9F1FC;
+    --signal-pv:#40C057; --signal-sp:#535353; --signal-op:#FAB005; --grid:#E3E9F1; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .topi { display: none; width: 40px; height: 40px; place-items: center; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 12px 8px; color: var(--text2); font-size: 13px; }
+  .side h6 { margin: 12px 12px 4px; font-size: 12px; font-weight: 400; } .side h6:first-child { margin-top: 4px; font-weight: 600; color: var(--text); }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px 24px 32px; min-width: 0; }
+  .grow { flex: 1; }
+  /* header: eyebrow + title; How to read and 12h | 24h top right */
+  .head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; min-height: 64px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; }
+  .seg { display: inline-flex; height: 40px; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; background: var(--panel); color: var(--text2); padding: 0 14px; cursor: pointer; }
+  .seg button + button { border-inline-start: 1px solid var(--strong); }
+  .seg button[aria-pressed="true"] { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 0 -2px 0 var(--action); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--action); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; background: none; border: 0; }
+  .btn--out { border: 1px solid var(--strong); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); }
+  .btn--sm { height: 32px; }
+  .q { outline: 1px dashed var(--strong); outline-offset: 3px; }
+  /* one grid for the whole page: five columns, 16 px gutter; the KPI cards and the panels share it */
+  .note { margin: 0 0 8px; font-size: 12px; color: var(--text2); }
+  .cards, .work { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+  .work { margin-top: 16px; align-items: stretch; }
+  .work > .queue { grid-column: 1 / span 3; } .work > .focus { grid-column: 4 / span 2; }
+  .work.solo > * { grid-column: 1 / -1; }
+  .kpi { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 94px; padding: 12px 14px 10px; background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 12px; cursor: pointer; min-width: 0; }
+  .kpi.t-warn { border-left-color: var(--warn); } .kpi.t-good { border-left-color: var(--ok); }
+  .kpi .kh { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-weight: 600; line-height: 1.35; min-height: 40px; }
+  .ic { flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--raised); color: var(--text2); }
+  .ic svg { width: 20px; height: 20px; } .ic.i-warn { background: var(--warn-bg); color: var(--warn); } .ic.i-mode { background: var(--info-bg); color: var(--info); } .ic.i-good { background: var(--ok-bg); color: var(--ok); }
+  .kv { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  /* panels: no minimum height, each as tall as its content */
+  .panel { padding: 16px; display: flex; flex-direction: column; min-width: 0; }
+  .ph { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-height: 40px; }
+  .ph h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .state { color: var(--text2); margin-inline-start: 8px; }
+  .help { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--strong); display: inline-grid; place-items: center; font-size: 10px; color: var(--muted); flex: none; }
+  .hit { width: 40px; height: 40px; display: inline-grid; place-items: center; cursor: pointer; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; }
+  .pill b { font-size: 12px; } .t-ok > b { color: var(--ok); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--muted); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); } .dot.ok { background: var(--ok); }
+  .facet { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); border-inline-end: 1px solid var(--border); padding-inline-end: 6px; }
+  /* queue rows: one line each on one column grid; "priority", "diagnosis" and "in band" said once, in the heading */
+  .qhead, .qrow { display: grid; grid-template-columns: 92px 100px minmax(0, 1fr) 92px 40px; align-items: center; column-gap: 8px; }
+  .qhead { margin-top: 4px; padding: 0 4px 0 13px; min-height: 28px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+  .qhead span:nth-child(2) { padding-inline-start: 6px; }
+  .qrows { display: flex; flex-direction: column; gap: 6px; }
+  .qrow { border: 1px solid var(--border); border-radius: 8px; padding: 6px 4px 6px 12px; min-height: 46px; cursor: pointer; }
+  .qrow.p-bad { box-shadow: inset 3px 0 0 var(--bad); } .qrow.p-warn { box-shadow: inset 3px 0 0 var(--warn); } .qrow.p-low { box-shadow: inset 3px 0 0 var(--strong); }
+  .qrow.sel { background: var(--selected); } .qrow > .pill { justify-self: start; }
+  .qrow .tag { height: 32px; padding: 0 6px; justify-self: start; }
+  .qrow .dg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+  .qrow .ib { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; }
+  .bar { flex: 1; min-width: 48px; height: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; } .bar span { display: block; height: 100%; }
+  .bar .f-bad { background: var(--bad); } .bar .f-warn { background: var(--warn); } .bar .f-ok { background: var(--ok); }
+  .pw { display: none; }
+  .illus { margin: 16px 0 0; padding: 6px 10px; border: 1px dashed var(--strong); border-radius: 6px; color: var(--text2); font-size: 12px; }
+  /* the chosen loop */
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
+  .line { margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--page); color: var(--text2); }
+  .line b { color: var(--text); font-weight: 600; }
+  .tbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .tseg { display: inline-flex; height: 32px; border: 1px solid var(--strong); border-radius: 6px; overflow: hidden; font-size: 13px; }
+  .tseg span { padding: 0 10px; display: grid; place-items: center; color: var(--text2); } .tseg span + span { border-inline-start: 1px solid var(--strong); }
+  .tseg span.on { background: var(--selected); color: var(--action); font-weight: 600; }
+  .trend svg { display: block; width: 100%; }
+  /* recent events: a small table, the zone once in its heading */
+  .events { margin-top: 16px; }
+  .ev { display: grid; grid-template-columns: 120px 120px minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .ev:hover span { text-decoration: underline; } .ev:last-child { border-bottom: 0; }
+  .ev small { color: var(--text2); font-size: 13px; font-variant-numeric: tabular-nums; } .ev .t { font-weight: 600; }
+  .evh { display: grid; grid-template-columns: 120px 120px minmax(0, 1fr); gap: 12px; font-size: 12px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); margin-top: 4px; }
+  /* How to read */
+  .scrim { position: fixed; inset: 0; background: rgba(21, 34, 56, .35); display: none; place-items: center; z-index: 5; }
+  .scrim.on { display: grid; }
+  .dlg { width: 680px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .18); }
+  .dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; display: flex; } .dlg h3 span { margin-inline-start: auto; color: var(--text2); font-weight: 400; cursor: pointer; }
+  .dlg h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; }
+  .key { display: grid; grid-template-columns: 170px 1fr; gap: 6px 16px; } .key > span:nth-child(even) { color: var(--text2); }
+  .ann { position: relative; } .ann::after { content: attr(data-n); position: absolute; top: -9px; inset-inline-end: -9px; width: 20px; height: 20px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; z-index: 3; }
+  .pad { padding-inline-end: 14px; }
+  .gone { width: 1440px; padding: 10px 24px 10px 244px; color: var(--text2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  .gone s { color: var(--muted); } .gone em { font-style: normal; font-weight: 600; color: var(--text); }
+  .sample { width: 1440px; padding: 12px 24px; border-top: 2px dashed var(--strong); color: var(--text2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shot .sample { display: none; } .hide { display: none !important; }
+  /* below 1280 px the sidebar folds (as today); the cards stay five to a row, the panels stack */
+  .narrow .shell, .narrow .gone, .narrow .sample { width: 1000px; } .narrow .shell { grid-template-columns: 1fr; }
+  .narrow .side, .narrow .topf, .narrow .who { display: none; } .narrow .topi { display: inline-grid; } .narrow .gone { padding-inline-start: 24px; }
+  .narrow .work > * { grid-column: 1 / -1; }
+  .phone .shell, .phone .gone, .phone .sample { width: 390px; } .phone main { padding: 24px 16px 32px; }
+  .phone .top b { margin-inline-end: 4px; } .phone .top b i { display: none; }
+  .phone .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .phone .kpi { height: auto; min-height: 94px; }
+  .phone .head { flex-wrap: wrap; } .phone .gone { padding: 10px 16px; }
+  .phone .ev, .phone .evh { grid-template-columns: 96px 84px minmax(0, 1fr); gap: 8px; }
+  .phone .state { flex-basis: 100%; margin: 0; order: 3; }
+  .phone .qhead { display: none; } .phone .qrow { display: flex; flex-wrap: wrap; gap: 6px 8px; } .phone .pw { display: inline; } .phone .qrow .ib { flex: 1 1 150px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><span class="topi">&#9776;</span><b><i style="font-style:normal">Traverse </i><span>CPA</span></b><span class="topi">&#8962;</span><span class="topi">&#x1F50D;&#xFE0E;</span><span class="topf" style="width:206px">&#8962; All sites · 243 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:420px">&#x1F50D;&#xFE0E; Search loops, tags and records<span class="grow"></span><small>Ctrl K</small></span><span class="grow"></span><span class="who" style="color:var(--text2)">Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>CPA</h6><h6>Find problems</h6><div class="on">Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Set up</h6><div>Loop Registry</div><div>Gate Configuration</div><h6>Engineering</h6><div>Trend</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+  <main>
+    <!-- 1 header: eyebrow + title, no ? and no sentence; How to read beside 12h | 24h (owner question 1) -->
+    <div class="head">
+      <div><span class="eyebrow">Find problems</span><h1>Overview</h1></div>
+      <span class="grow"></span>
+      <button class="btn ann q" data-n="1" onclick="openDlg()">How to read</button>
+      <div class="seg" role="group" aria-label="Window"><button aria-pressed="true">12h</button><button aria-pressed="false">24h</button></div>
+    </div>
+
+    <!-- 2 the state of the fleet: the count once, the ten cards on the page grid (no wrapper card) -->
+    <p class="note"><span class="ann pad" data-n="2" id="mon">241 loops monitored</span></p>
+    <div class="cards" id="cards" role="list" aria-label="Loop KPIs"></div>
+
+    <!-- what needs attention, then the chosen loop beside it (columns 4-5) or under it (full width) -->
+    <div class="work" id="work">
+      <section class="card panel queue" id="queue" aria-label="Loops requiring review"></section>
+      <section class="card panel focus" id="focus" aria-label="Chosen loop"></section>
+    </div>
+
+    <div class="illus hide" id="busyNote">Illustrative state: the lab has no current finding. The card numbers, the queue rows (lab tags; priorities, diagnoses and shares invented), FIC10301's live values and trend, and the three events are invented.</div>
+
+    <!-- 9 recent events, last; the zone once in the heading; one row per episode of the page's window (owner question 3) -->
+    <section class="card panel events" id="events" aria-label="Recent events"></section>
+  </main>
+</div>
+
+<!-- what left the page, keyed to the badges (sample annotation, not part of the page) -->
+<div class="gone" id="gone">Gone from the page:
+  <span><em>5</em> the empty "Select a loop" panel</span>
+  <span><em>6</em> the loop's name on the chosen loop; name and section in every row</span>
+  <span><em>7</em> the live · feed · time line; <s>Zoom area · Undo · Reset</s>; the trend's ?</span>
+  <span class="ann pad" data-n="8"><em>8</em> <s>Top-priority finding</s> (owner question 2)</span>
+  <span class="ann pad" data-n="10"><em>10</em> page foot: <s>Calculation basis</s> → How to read · <s>Configuration &amp; coverage →</s></span>
+</div>
+
+<div class="scrim" id="scrim" onclick="if (event.target === this) closeDlg()">
+  <!-- 1 How to read: today's Calculation basis sentence as rows, and the queue's "How this is ordered" -->
+  <div class="card dlg">
+    <h3>How to read <span onclick="closeDlg()">&#x2715;</span></h3>
+    <h4>The cards</h4>
+    <div class="key">
+      <span>Each monitored loop</span><span>Counted once, from its newest 12h result (24h when chosen), at most 60 min old.</span>
+      <span>In auto mode</span><span>AUTO / CASCADE ≥ 95 % of the window.</span>
+      <span>Saturated / at limit</span><span>OP fully open or closed &gt; 10 % of the window.</span>
+      <span>Findings</span><span>Suspected or confirmed.</span>
+    </div>
+    <h4>Loops requiring review</h4>
+    <div class="key">
+      <span>Order</span><span>Priority (loop criticality × finding severity), then time outside the good-error band, then how long the condition has persisted, then evidence score.</span>
+      <span>Shelved loops</span><span>Left out; listed in Loop Events.</span>
+    </div>
+    <h4>The trend</h4>
+    <div class="key">
+      <span>Shaded band</span><span>The lowest-to-highest PV inside each plotted point. Each point averages many samples; the band shows the swing the average hides.</span>
+    </div>
+  </div>
+</div>
+
+<div class="sample">Sample state:
+  <button class="btn btn--sm btn--out" onclick="sample('lab')">Lab now</button>
+  <button class="btn btn--sm btn--out" onclick="sample('loop')">Lab, FIC10301 chosen</button>
+  <button class="btn btn--sm btn--out" onclick="sample('busy')">Busy plant (illustrative)</button>
+  <button class="btn btn--sm btn--out" onclick="openDlg()">How to read</button>
+  <span class="grow"></span>
+  <button class="btn btn--sm" onclick="width(1440)">1440</button><button class="btn btn--sm" onclick="width(1000)">1000</button><button class="btn btn--sm" onclick="width(390)">390</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const S = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
+  const ICON = {
+    good: S + '<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l3-5"/></svg>', auto: S + '<path d="M6 20L12 4l6 16M8.5 14h7"/></svg>',
+    manual: S + '<path d="M5 20V5l7 9 7-9v15"/></svg>', wave: S + '<path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg>',
+    valve: S + '<path d="M4 7l16 10V7L4 17z"/></svg>', bolt: S + '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>',
+    limit: S + '<path d="M3 6h18M12 20V9M8 13l4-4 4 4"/></svg>', fail: S + '<path d="M12 8v4M12 16h.01"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
+    stale: S + '<path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4h4M12 8v4l3 2"/></svg>', pend: S + '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>'
+  };
+  // today's ten cards, today's order and icon colours; [label, icon, icon tone, lab value, busy value (illustrative)]
+  const CARDS = [
+    ['Performing acceptably', 'good', '', '0', '161'], ['In auto mode', 'auto', 'i-mode', '0', '203'], ['In manual mode', 'manual', 'i-mode', '0', '14'],
+    ['Oscillating', 'wave', 'i-warn', '0', '9'], ['Suspected valve problem', 'valve', 'i-warn', '0', '4'], ['Excessive actuator effort', 'bolt', 'i-warn', '0', '3'],
+    ['Saturated / at limit', 'limit', 'i-warn', '0', '6'], ['Not assessable', 'fail', '', '0', '12'], ['Stale', 'stale', 'i-warn', '165', '0'], ['Never evaluated', 'pend', '', '76', '5']];
+  const renderCards = busy => {
+    $('cards').innerHTML = CARDS.map(c => {
+      const v = busy ? c[4] : c[3];
+      const good = c[0] === 'Performing acceptably' && v !== '0';
+      const edge = good ? ' t-good' : (c[2] === 'i-warn' && v !== '0') ? ' t-warn' : '';
+      const tone = good ? 'i-good' : c[2];
+      return `<div class="kpi${edge}" role="listitem" title="Opens the loops behind this number"><span class="kh">${c[0]}<span class="ic ${tone}">${ICON[c[1]]}</span></span><span class="kv">${v}</span></div>`;
+    }).join('');
+  };
+
+  // the queue: empty = one line; rows = one line each (badge 11): priority, tag, state, diagnosis, in band, ?
+  const QUEUE_EMPTY = `<div class="ph"><h2>Loops requiring review</h2><span class="state ann pad" data-n="3">No current findings</span><span class="grow"></span>
+      <button class="btn ann" data-n="4">View all →</button></div>`;
+  // [tag, priority, tone, diagnosis, diagnosis tone, % in band, acknowledged]
+  const ROWS = [
+    ['FIC10301', 'High', 'bad', 'Oscillation confirmed', 'bad', 41, true],
+    ['PIC40102', 'High', 'bad', 'Valve nonlinearity (stiction) suspected', 'warn', 48, false],
+    ['LIC20402', 'Medium', 'warn', 'Oscillation suspected', 'warn', 62, false],
+    ['FIC10406', 'Medium', 'warn', 'Excessive effort suspected', 'warn', 71, false],
+    ['PIC30325', 'Low', 'low', 'Oscillation suspected', 'warn', 77, false],
+    ['TIC50211', 'Low', 'low', 'Oscillation suspected', 'warn', 83, false]];
+  const QUEUE_ROWS = () => `<div class="ph"><h2>Loops requiring review</h2><span class="grow"></span><button class="btn">2 shelved ↗</button><button class="btn ann" data-n="4">View all →</button></div>
+    <div class="qhead ann" data-n="11"><span>Priority</span><span>Loop</span><span>Diagnosis</span><span>In band</span><span></span></div>
+    <div class="qrows">${ROWS.map((r, i) => `<div class="qrow p-${r[2]}${i === 0 ? ' sel ann q' : ''}"${i === 0 ? ' data-n="8"' : ''}>
+      <span class="pill"><span class="dot ${r[2] === 'low' ? '' : r[2]}"></span>${r[1]}<span class="pw">priority</span></span><span class="btn tag">${r[0]} →</span>
+      <span class="dg">${r[6] ? '<span class="pill t-ok"><b>✓</b>Acknowledged</span>' : ''}<span class="pill"><span class="dot ${r[4]}"></span>${r[3]}</span></span>
+      <span class="ib"><span class="bar"><span class="f-${r[5] >= 80 ? 'ok' : r[5] >= 50 ? 'warn' : 'bad'}" style="width:${r[5]}%"></span></span>${r[5]}%<span class="pw">in band</span></span>
+      <span class="hit"><span class="help">?</span></span></div>`).join('')}</div>`;
+
+  // the chosen loop, named by its tag (badge 6); Review → opens Investigation
+  const focusHead = () => `<div class="ph"><h2 class="ann pad" data-n="6">FIC10301</h2><span class="grow"></span><button class="btn btn--raised">Review →</button></div>`;
+  // lab: nothing live, so Signal quality alone says it (question 5); the empty trend in one line (question 4)
+  const FOCUS_LAB = () => `${focusHead()}
+    <div class="chips"><span class="pill ann pad q" data-n="12"><span class="facet">Signal quality</span><span class="dot"></span>No signal</span></div>
+    <p class="line ann q" data-n="7" id="emptyTrend"><b>No PV, SP or OP values in the last 8 h</b></p>`;
+  // busy: the pills, then the chart with its scale toggle; no time line, no zoom tools, no ? (badge 7)
+  const FOCUS_BUSY = () => `${focusHead()}
+    <div class="chips"><span class="pill"><span class="dot"></span>PV 41.6</span><span class="pill"><span class="dot"></span>SP 40.0</span><span class="pill"><span class="dot"></span>OP 63.2</span><span class="pill"><span class="dot"></span>MODE AUTO</span><span class="pill"><span class="facet">Signal quality</span><span class="dot ok"></span>Good</span></div>
+    <div class="trend"><div class="tbar"><span class="ann" data-n="7" style="width:14px;height:20px"></span><span class="grow"></span><span class="tseg"><span class="on">Fit to data</span><span>Engineering range</span></span></div>
+      <svg id="plot" height="260" role="img" aria-label="FIC10301 PV, SP and OP, last 8 h (illustrative)"></svg></div>`;
+
+  // recent events: [time, tag, event]; lab rows as the page's 12h window would list them (question 3: third row)
+  const EV_LAB = [['5 Oct 07:45', 'PIC40102', 'Oscillation confirmed'], ['5 Oct 07:45', 'PIC30325', 'Oscillation confirmed'], ['5 Oct 07:45', 'LIC20402', 'Oscillation confirmed', true]];
+  const EV_BUSY = [['12 Nov 07:45', 'FIC10301', 'Oscillation confirmed'], ['12 Nov 05:30', 'PIC40102', 'Valve nonlinearity (stiction) suspected'], ['12 Nov 02:15', 'TIC50211', 'Oscillation suspected']];
+  const renderEvents = busy => {
+    const rows = busy ? EV_BUSY : EV_LAB;
+    $('events').innerHTML = `<div class="ph"><h2 class="ann pad" data-n="9">Recent events</h2><span class="grow"></span><button class="btn">All events →</button></div>
+      <div class="evh"><span>Opened · UTC</span><span>Loop</span><span>Event</span></div>
+      ${rows.map(e => `<div class="ev${e[3] ? ' q' : ''}"><small>${e[0]}</small><span class="t">${e[1]}</span><span>${e[2]}</span></div>`).join('')}
+`;
+  };
+
+  // the trend, drawn as SignalTrend draws it: PV / SP left axis, OP right axis (%), legend under the time axis
+  function drawTrend() {
+    const svg = $('plot'); if (!svg) return;
+    const W = svg.clientWidth || 420, H = 260, L = 52, R = 52, T = 36, B = 56, pw = W - L - R, ph = H - T - B;
+    const n = 97, xs = i => L + pw * i / (n - 1);
+    const pv = i => 40 + 2.6 * Math.sin(i / 2.3) + 0.4 * Math.sin(i / 0.7);
+    const op = i => 63 + 6 * Math.sin(i / 2.3 - 1.1);
+    const yP = v => T + ph * (1 - (v - 36) / 8), yO = v => T + ph * (1 - (v - 50) / 25);
+    const path = (f, y) => Array.from({ length: n }, (_, i) => `${xs(i).toFixed(1)},${y(f(i)).toFixed(1)}`).join(' ');
+    const band = Array.from({ length: n }, (_, i) => `${xs(i).toFixed(1)},${yP(pv(i) + 0.7).toFixed(1)}`).join(' ') + ' ' + Array.from({ length: n }, (_, k) => { const i = n - 1 - k; return `${xs(i).toFixed(1)},${yP(pv(i) - 0.7).toFixed(1)}`; }).join(' ');
+    let h = '';
+    for (let k = 0; k <= 4; k++) { const y = T + ph * k / 4; h += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--grid)"/>`;
+      h += `<text x="${L - 6}" y="${y + 4}" font-size="12" text-anchor="end" fill="var(--signal-pv)">${44 - 2 * k}</text><text x="${W - R + 6}" y="${y + 4}" font-size="12" fill="#B07C00">${75 - 6.25 * k}</text>`; }
+    h += `<line x1="${L}" x2="${L}" y1="${T}" y2="${T + ph}" stroke="var(--signal-pv)"/><line x1="${W - R}" x2="${W - R}" y1="${T}" y2="${T + ph}" stroke="var(--signal-op)"/>`;
+    h += `<text x="${L}" y="${T - 14}" font-size="12" fill="var(--signal-pv)">PV / SP (m³/h)</text><text x="${W - R}" y="${T - 14}" font-size="12" text-anchor="end" fill="#B07C00">OP (%)</text>`;
+    ['02:00', '04:00', '06:00', '08:00'].forEach((t, k) => { const x = L + pw * (k * 2 + 0.73) / 8; h += `<text x="${x}" y="${T + ph + 18}" font-size="12" text-anchor="middle" fill="var(--text2)">${t}</text>`; });
+    h += `<polygon points="${band}" fill="var(--signal-pv)" opacity=".18"/>`;
+    h += `<polyline points="${path(() => 40, yP)}" fill="none" stroke="var(--signal-sp)" stroke-width="1" stroke-dasharray="6 4"/>`;
+    h += `<polyline points="${path(op, yO)}" fill="none" stroke="var(--signal-op)" stroke-width="1.5"/><polyline points="${path(pv, yP)}" fill="none" stroke="var(--signal-pv)" stroke-width="2"/>`;
+    const lg = [['PV', 'var(--signal-pv)', 0], ['PV min–max per point', 'var(--signal-pv)', 2], ['SP', 'var(--signal-sp)', 1], ['OP', 'var(--signal-op)', 0]];
+    let x = W / 2 - 150; lg.forEach(([t, c, k]) => { h += k === 2 ? `<rect x="${x}" y="${H - 15}" width="18" height="8" fill="${c}" opacity=".3"/>` : `<line x1="${x}" x2="${x + 18}" y1="${H - 11}" y2="${H - 11}" stroke="${c}" stroke-width="2" ${k ? 'stroke-dasharray="4 3"' : ''}/>`;
+      h += `<text x="${x + 22}" y="${H - 7}" font-size="12" fill="var(--text2)">${t}</text>`; x += 34 + t.length * 6.6; });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = h;
+  }
+
+  let state = 'lab';
+  function sample(s) {
+    state = s; closeDlg();
+    const busy = s === 'busy', chosen = s !== 'lab';
+    renderCards(busy);
+    $('queue').innerHTML = busy ? QUEUE_ROWS() : QUEUE_EMPTY;
+    $('focus').classList.toggle('hide', !chosen);
+    $('focus').innerHTML = busy ? FOCUS_BUSY() : chosen ? FOCUS_LAB() : '';
+    // 5 the chosen loop sits beside the queue rows; with no rows the queue is one line and the loop takes the full width under it
+    $('work').classList.toggle('solo', !busy);
+    $('focus').classList.toggle('ann', chosen); $('focus').dataset.n = '5';
+    renderEvents(busy);
+    $('busyNote').classList.toggle('hide', !busy);
+    requestAnimationFrame(drawTrend);
+  }
+  function width(w) {
+    document.body.classList.toggle('narrow', w <= 1000); document.body.classList.toggle('phone', w <= 390);
+    requestAnimationFrame(drawTrend);
+  }
+  function openDlg() { $('scrim').classList.add('on'); }
+  function closeDlg() { $('scrim').classList.remove('on'); }
+  Object.assign(window, { sample, width, openDlg, closeDlg });
+  sample('lab');
+</script>
+</body>
+</html>

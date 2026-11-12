@@ -5,7 +5,7 @@ import { diagnosisBand, toneFor } from './shared';
 import { ageText } from './verdictAge';
 import { ageText as summaryAge } from './explorer/summary/summaryText';
 import { stageLabels } from './replay/stageLabels';
-import { PRIORITY_RULE } from './overview/priorityReason';
+import { PRIORITY_ORDER } from './overview/priorityReason';
 
 describe('display consistency (CHG-065)', () => {
   it('the Historical verdict lane names a confirmed finding as confirmed, and an unjudged window in grey', () => {
@@ -32,6 +32,6 @@ describe('display consistency (CHG-065)', () => {
     expect(stageLabels(5.1)[1]).toBe('Normalize (5.1 s grid)');
   });
   it('the queue rule names all four ranking keys', () => {
-    expect(PRIORITY_RULE).toMatch(/then evidence score/);
+    expect(PRIORITY_ORDER).toMatch(/^Priority .*then time outside the good-error band.*then how long the condition has persisted.*then evidence score\.$/);
   });
 });

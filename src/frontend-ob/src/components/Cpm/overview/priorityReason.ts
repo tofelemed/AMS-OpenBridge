@@ -10,15 +10,18 @@ import type { CpmRankedLoop } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
 import { ageText } from '../explorer/summary/summaryText';
 
-export const PRIORITY_RULE =
-  'Ordered by priority (loop criticality × finding severity), then time outside the good-error band, then how long the condition has persisted, then evidence score. Shelved loops are listed in Loop Events.';
+/** CHG-177 (owner answer 3): the queue's order rule and where shelved loops are, as How to read's "Loops requiring review". */
+export const PRIORITY_ORDER =
+  'Priority (loop criticality × finding severity), then time outside the good-error band, then how long the condition has persisted, then evidence score.';
+export const SHELVED_RULE = 'Left out; listed in Loop Events.';
 
-export function priorityBadge(priority: CpmRankedLoop['priority']): { label: string; tone: CpmTone } {
+/** `level` is what a queue row shows: the word "priority" is said once, in the queue's heading line (CHG-177). */
+export function priorityBadge(priority: CpmRankedLoop['priority']): { label: string; level: string; tone: CpmTone } {
   switch (priority) {
-    case 'HIGH': return { label: 'High priority', tone: 'bad' };
-    case 'MEDIUM': return { label: 'Medium priority', tone: 'warn' };
-    case 'LOW': return { label: 'Low priority', tone: 'muted' };
-    default: return { label: 'Not prioritised', tone: 'muted' };
+    case 'HIGH': return { label: 'High priority', level: 'High', tone: 'bad' };
+    case 'MEDIUM': return { label: 'Medium priority', level: 'Medium', tone: 'warn' };
+    case 'LOW': return { label: 'Low priority', level: 'Low', tone: 'muted' };
+    default: return { label: 'Not prioritised', level: 'Not prioritised', tone: 'muted' };
   }
 }
 

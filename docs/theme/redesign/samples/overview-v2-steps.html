@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal: Overview, reorganised: path, what goes, what stays</title>
+<style>
+  /* Traverse tokens. A proposal only: nothing here is built. Lab read-only on 12 Nov 09:16 UTC (every non-GET /api/ call
+     outside the login blocked; three token refreshes were blocked, nothing else attempted). Screenshots: scratchpad
+     overview-v2-agent\before\ and \proposal\. The sample: overview-v2-proposal.html. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --action:#006B83; --info-bg:#E9F1FC; --warn-bg:#FFF3D6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1240px; padding: 20px 24px 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; } .lead { margin: 0 0 4px; color: var(--text2); max-width: 1100px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-top: 14px; }
+  .card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; } th { text-align: start; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; } td:first-child { white-space: nowrap; font-weight: 600; }
+  tr:last-child td { border: 0; } td.ev { color: var(--text2); font-size: 13px; } td.num { font-variant-numeric: tabular-nums; }
+  .n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 4px; border-radius: 50%; background: #B42332; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .k { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px; white-space: nowrap; border: 1px solid var(--border); background: var(--info-bg); }
+  .k-q { border-style: dashed; border-color: var(--strong); background: var(--warn-bg); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .two .card { margin-top: 14px; }
+  ol { margin: 0; padding-inline-start: 22px; } ol li { margin: 8px 0; } ol li span { color: var(--text2); }
+  ul { margin: 0; padding-inline-start: 18px; color: var(--text2); } ul li { margin: 3px 0; } ul li b { color: var(--text); font-weight: 600; }
+  q { color: var(--text2); } s { color: var(--text2); } code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Overview, reorganised</h1>
+  <p class="lead">Your request (12 Nov): a well organised Overview with no extra space and no useless text, and without the two page-foot buttons. Your review of the first sample (12 Nov): "looks good, but remove extra useless data". This revision removes the chosen loop's zoom tools, its live/feed/time line and the loop's name, and the name and section from every queue row, so each row is one line. This changes the Overview only. The ten KPI drill-downs stay exactly as they are. The app's sizes stay as they are: 94 px KPI cards, 40 px buttons, 14 px text, the app's pill sizes and the 260 px trend. Lab today: 241 of 243 loops monitored, Stale 165, Never evaluated 76, every other card 0, and no current finding. The busy-plant state in the sample is illustrative.</p>
+
+  <div class="card"><h3>The reader's path, top to bottom</h3>
+    <ol>
+      <li><b>How is the fleet?</b> <span>The ten cards, with "241 loops monitored" said once above them. The second row ends with the cards that say how far the numbers can be trusted (Not assessable, Stale and Never evaluated), and Stale keeps its amber edge.</span></li>
+      <li><b>What needs me?</b> <span>Loops requiring review: up to six rows in priority order, one line each (priority, tag, state, diagnosis, in band). When there are none, it is one line: "No current findings".</span></li>
+      <li><b>The chosen loop.</b> <span>Named by its tag, with its live values and 8 h trend, beside the rows. The top row is chosen by default. Review → opens Investigation.</span></li>
+      <li><b>What happened lately?</b> <span>Recent events: the three newest episodes. All events → opens the full list.</span></li>
+      <li><b>How is it counted?</b> <span>How to read, top right, opened when needed.</span></li>
+    </ol>
+  </div>
+
+  <div class="card"><h3>Today and proposed, at 1440 px (measured)</h3>
+    <table>
+      <tr><th>Region</th><th>Today, lab</th><th>Proposed, lab</th><th>Proposed, busy plant</th></tr>
+      <tr><td>Cards</td><td class="num">264 px card around them, cards inset 16 px</td><td class="num">18 px note + 204 px cards, on the page grid</td><td class="num">same</td></tr>
+      <tr><td>Loops requiring review</td><td class="num">271 px (empty)</td><td class="num">74 px (one line)</td><td class="num">460 px: heading + 6 one-line rows, columns 1–3 (first sample 575 px)</td></tr>
+      <tr><td>Select a loop / chosen loop</td><td class="num">271 px (empty)</td><td class="num">not drawn (161 px with FIC10301 chosen)</td><td class="num">460 px, columns 4–5, the whole trend in view</td></tr>
+      <tr><td>Top-priority finding</td><td class="num">175 px</td><td class="num">removed (question 2)</td><td class="num">removed</td></tr>
+      <tr><td>Recent events</td><td class="num">175 px, 385 px wide</td><td class="num">206 px, full width</td><td class="num">206 px</td></tr>
+      <tr><td>Page foot</td><td class="num">40 px</td><td class="num">removed</td><td class="num">removed</td></tr>
+      <tr><td>Page ends at</td><td class="num">1003 px (1165 px with a loop chosen)</td><td class="num">734 px (911 px with a loop chosen)</td><td class="num">about 1120 px; queue and chosen loop end at 866 px, inside 1440 × 900 (first sample about 1235 px)</td></tr>
+    </table>
+  </div>
+
+  <div class="card"><h3>What goes, keyed to the badges</h3>
+    <table>
+      <tr><th>Badge</th><th>Today</th><th>Proposed, and where the content went</th><th>Kind</th></tr>
+      <tr><td><span class="n">1</span>How to read</td><td>"Calculation basis" in the page foot opens one sentence joined with "·"</td><td>How to read, top right beside 12h / 24h, as on every page redesigned since CHG-156. It has two titled parts. <b>The cards</b> holds today's sentence as four rows (each monitored loop: once, from its newest 12h result, at most 60 min old; In auto mode: AUTO / CASCADE ≥ 95 %; Saturated / at limit: &gt; 10 %; findings: suspected or confirmed). <b>Loops requiring review</b> holds the order rule, which is today the queue's "How this is ordered" <b>?</b>.</td><td><span class="k k-q">question 1</span></td></tr>
+      <tr><td><span class="n">2</span>Cards</td><td>A card around the ten cards (its own border, 16 px padding) with "241 loops monitored" inside. At 1000 px the cards go four to a row, so Stale and Never evaluated sit alone on a third row.</td><td>The cards sit on the page grid: five columns with a 16 px gutter, the same columns as the panels below. "241 loops monitored" is said once, as the small note. Cards are five to a row down to 1000 px (labels wrap to two lines inside the 94 px card) and two to a row at 390 px, so no card is left alone on a row.</td><td><span class="k">layout</span></td></tr>
+      <tr><td><span class="n">3</span>Queue, empty</td><td>A 271 px block: "No current findings", the sentence "No loop has a current confirmed or suspected finding. The operating picture above shows the rest of the fleet.", and a "View all loops" button</td><td>One line: "Loops requiring review · No current findings · View all →". The sentence repeats the words above it, and "operating picture" is no longer a name on the page. "View all loops" opened the same page as View all →. When every finding is shelved, the line reads "Every current finding is shelved" and the head's "n shelved ↗" opens them (today's "Review shelved loops" button opens the same list). "Loading…" also takes one line.</td><td><span class="k">empty state</span></td></tr>
+      <tr><td><span class="n">4</span>Queue head</td><td>"View all →" outlined; the "How this is ordered" <b>?</b> beside the title</td><td>"View all →" becomes a flat link, like "All events →", so every panel-head link has one style. The order rule moves into How to read (question 1). Each row's "Why FIC10301 is here" <b>?</b> stays on its row.</td><td><span class="k">consistency</span> <span class="k k-q">? part of question 1</span></td></tr>
+      <tr><td><span class="n">5</span>Chosen loop</td><td>A 271 px "Select a loop" panel with "Pick a loop in the priority queue to see its live signals and trend here." and "All loops in Performance →"</td><td>Not drawn. It only showed while the queue was empty, because with rows the top row is chosen by default, so it asked you to pick from an empty list. "All loops in Performance →" opened Performance on Needs attention, the same page as View all →. The chosen loop takes columns 4–5 beside the rows. When the loop comes from the address (<code>?loop=</code>) and the queue is empty, it takes the full width under the one-line queue. A loop that does not exist gives one line, "No loop ZZZ999", instead of a block with two sentences and an Open Performance button.</td><td><span class="k">empty state</span> <span class="k">layout</span></td></tr>
+      <tr><td><span class="n">6</span>Chosen loop, head</td><td>Eyebrow "FLOW CONTROLLER FIC10301 (FCS0101)", title "FIC10301", button "Review FIC10301 →": the tag three times</td><td>Title "FIC10301" and "Review →", on one line. The name ("Flow controller (FCS0101)") goes, as you asked: it was said on the panel and again in the rows. It stays on Loop Explorer, Performance and the Loop Registry.</td><td><span class="k">removal (asked)</span></td></tr>
+      <tr><td><span class="n">7</span>Chosen loop, time line, zoom tools, empty trend</td><td>"no live publisher for this loop · envelope 12/11/2026, 1:16:00 UTC → 12/11/2026, 9:16:00 UTC" (with live data: "live · source … · feed … · envelope …"). Under the chart: Zoom area · Undo · Reset. Above it: the trend's <b>?</b>. With no values: a 130 px block "no signal values in this trend range" and two sentences.</td><td>The time line goes in both states, as you asked. The live source and feed times stay on Loop Explorer, where each signal shows its source under the value. The 8 h range is on the chart's time axis. Zoom area · Undo · Reset go, as you asked; the full trend tools stay on Trend, Historical and Loop Explorer. The chart itself (pens, colours, axes, legend) and Fit to data | Engineering range stay as they are. The trend's <b>?</b> (what the shaded band is) moves into How to read (question 1). With no values: one line, "No PV, SP or OP values in the last 8 h". The guess "the feed may have stopped" goes, because Signal quality already says No signal. The case with no stored samples at all is also one line: "No PV, SP or OP samples stored in the last 8 h · Signal mapping ↗ · Pipeline Health ↗", without the historian path.</td><td><span class="k">removal (asked)</span> <span class="k k-q">? part of question 1</span> <span class="k k-q">shared text: question 4</span></td></tr>
+      <tr><td><span class="n">8</span>Top-priority finding</td><td>A 175 px panel. With findings it repeats the queue's first row (same loop, condition, priority and link), and that row is also the loop the chosen-loop panel shows by default. When empty it reads "No loop has a current finding. Verdicts appear once a loop completes an evaluation window."</td><td>Removed. The queue's first row is the top-priority finding, highlighted and shown beside it.</td><td><span class="k k-q">question 2</span></td></tr>
+      <tr><td><span class="n">9</span>Recent events</td><td>A 385 px column with times like "5 Oct · 07:45" and no zone. The lab shows two identical rows "5 Oct 07:45 PIC40102 Oscillation confirmed" (its 12h and 24h episodes).</td><td>Last on the page and full width. "Opened · UTC" is said once, as the column heading, and times read "5 Oct 07:45". Only the page's window is listed, so the third row becomes LIC20402 (dashed in the sample).</td><td><span class="k">consistency</span> <span class="k k-q">rows: question 3</span></td></tr>
+      <tr><td><span class="n">10</span>Page foot</td><td>"Calculation basis" and "Configuration &amp; coverage →"</td><td>Both go. Calculation basis becomes How to read (badge 1). "Configuration &amp; coverage →" opened the Loop Registry list, but no page or section has had that name since CHG-168. The Loop Registry stays one click away in the sidebar (Set up).</td><td><span class="k">removal (asked)</span></td></tr>
+      <tr><td><span class="n">11</span>Queue rows</td><td>Two lines per row: "High priority", "FIC10301 →", "Acknowledged", "DIAGNOSIS | Oscillation confirmed", <b>?</b>, then "Flow controller FIC10301 (FCS0101) · Section 400" and the bar with "41% in band"</td><td>One line per row at 1440 px and 1000 px: <b>priority</b> (High / Medium / Low), <b>tag →</b>, <b>✓ Acknowledged</b> where present (tone, glyph and word, as on Loop Events since CHG-167), <b>diagnosis</b>, <b>in-band bar and %</b>, and the row's <b>?</b>. The name and section go, as you asked. The words "priority", "Diagnosis" and "in band" were printed on every row (18 times for six rows), so they are said once in a heading line above the rows. At 390 px the heading is hidden, so the words come back on the row and the row wraps. The pill, text and <b>?</b> sizes stay the app's (46–54 px rows). The longest diagnosis with Acknowledged would wrap inside its cell.</td><td><span class="k">removal (asked)</span> <span class="k">text</span></td></tr>
+      <tr><td><span class="n">12</span>Chosen loop, nothing live</td><td>Four pills "PV —", "SP —", "OP —", "MODE —" and "SIGNAL QUALITY · No signal": one fact said five times</td><td>Only "Signal quality · No signal". The four pills come back as soon as any live value arrives.</td><td><span class="k k-q">question 5</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card"><h3>Your review of 12 Nov: what was removed</h3>
+    <table>
+      <tr><th>Removed</th><th>Where it stays</th><th>Kind</th></tr>
+      <tr><td>Zoom area · Undo · Reset under the Overview's chart</td><td class="ev">Trend, Historical and Loop Explorer keep the full trend tools. The chart, its pens, axes, legend and Fit to data | Engineering range stay here.</td><td><span class="k">asked</span></td></tr>
+      <tr><td>"Live · source 09:15:52 · feed 09:15:53 · 12 Nov 01:16 → 09:16 UTC" (lab: "No live publisher · …")</td><td class="ev">Signal quality says live or not; the chart's time axis shows the 8 h; source and feed times are on Loop Explorer.</td><td><span class="k">asked</span></td></tr>
+      <tr><td>"Flow controller (FCS0101)" on the chosen loop and the name in every row</td><td class="ev">Loop Explorer, Performance, the Loop Registry. The tag names the loop here.</td><td><span class="k">asked</span></td></tr>
+      <tr><td>"Section 400" etc. in every row</td><td class="ev">The header's plant scope, the Loop Registry.</td><td><span class="k">asked</span></td></tr>
+    </table>
+    <h3 style="margin-top:14px">Also removed, on the same "each fact once" check</h3>
+    <table>
+      <tr><th>Removed</th><th>Why, and where it stays</th><th>Kind</th></tr>
+      <tr><td>"priority", "DIAGNOSIS" and "in band" printed on every row</td><td class="ev">Said once, in the heading line above the rows. The word comes back on the row at 390 px, where the heading is hidden. The "DIAGNOSIS" caption came from SME #8 (CHG-046), so that a green quality "Good" is never read as a verdict; queue rows carry no quality pill.</td><td><span class="k">text only</span></td></tr>
+      <tr><td>The chart's <b>?</b> (what the shaded band is)</td><td class="ev">How to read, part "The trend". The legend still names the band "PV min–max per point".</td><td><span class="k k-q">question 1</span></td></tr>
+      <tr><td>"the feed may have stopped" after the empty-trend line</td><td class="ev">A guess; Signal quality says No signal on the same panel.</td><td><span class="k">text only</span> (question 4's line)</td></tr>
+      <tr><td>The four "—" pills when nothing live arrives</td><td class="ev">Signal quality · No signal says it once; the pills return with the first value.</td><td><span class="k k-q">question 5</span></td></tr>
+    </table>
+  </div>
+
+  <div class="two">
+    <div class="card"><h3>What stays exactly</h3>
+      <table>
+        <tr><td>Header</td><td class="ev">Eyebrow Find problems, title Overview, no <b>?</b>, no sentence. 12h / 24h stays top right, is kept in <code>?window=</code> and is carried by every link. The plant scope comes from the header (site, area, unit) and narrows the cards, the queue and the events.</td></tr>
+        <tr><td>Ten KPI cards</td><td class="ev">Today's labels, order and coloured icons; 94 px tall; green edge on Performing acceptably above 0, amber on a problem card above 0. Share and rule on hover. Each card opens its drill-down <code>/cpm?review=&lt;kpi&gt;&amp;window=…</code>. The drill-downs do not change.</td></tr>
+        <tr><td>Loops requiring review</td><td class="ev">The server's priority order and up to six rows. Each row keeps its priority, the tag → Investigation, ✓ Acknowledged where present, the diagnosis, the "Why X is here" <b>?</b> and the in-band bar with its %. Clicking a row previews the loop, and the top row is chosen by default. "n shelved ↗" opens Loop Events (shelved) and View all → opens Performance (Needs attention).</td></tr>
+        <tr><td>Chosen loop</td><td class="ev">The tag as its title and Review → to Investigation. The live PV, SP, OP and MODE pills and Signal quality. The rolling 8 h chart keeps its design: PV, SP and OP pens from <code>--signal-*</code>, the PV band, both axes, the legend, Fit to data | Engineering range, 260 px. The signal-mapping and Pipeline Health links stay when nothing is stored.</td></tr>
+        <tr><td>Recent events</td><td class="ev">The three newest episodes in the plant scope. A row opens Investigation at the episode's opening window. All events → opens Loop Events, narrowed to a loop you chose.</td></tr>
+        <tr><td>Behaviour</td><td class="ev">Every number, denominator and server rule; polling every 60 s; the "No monitored loops" warning with its Loop Registry link; error boxes with Retry.</td></tr>
+        <tr><td>Not proposed again</td><td class="ev">The stale notice and "—" on cards where nothing was measured. You left them as they are on 11 Nov, so the cards still read 0.</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>Every action, still reachable</h3>
+      <ul>
+        <li><b>Each KPI drill-down:</b> its card, unchanged.</li>
+        <li><b>Loops needing attention in Performance:</b> View all → (today also "View all loops" and "All loops in Performance →", which opened the same page).</li>
+        <li><b>Shelved loops:</b> "n shelved ↗" in the queue head.</li>
+        <li><b>A loop's Investigation:</b> the row's tag, Review →, or an event row.</li>
+        <li><b>A loop's live signals and trend:</b> click a row, or open <code>?loop=</code>. To zoom, or to see source and feed times, name and section: Trend, Historical and Loop Explorer.</li>
+        <li><b>All events:</b> All events →.</li>
+        <li><b>Pipeline Health and signal mapping:</b> the chosen loop's empty-trend line, as today.</li>
+        <li><b>Loop Registry:</b> the sidebar (the page-foot link goes).</li>
+        <li><b>The calculation rules and the trend's band note:</b> How to read (question 1). Each card's rule on hover and each drill-down's <b>?</b> stay.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card"><h3>For you to decide</h3>
+    <ol>
+      <li><b>Where does Calculation basis go?</b> <span>(a) How to read, top right beside 12h / 24h, in three parts: "The cards" (today's sentence as four rows), "Loops requiring review" (the order rule, so the queue's head loses its <b>?</b>) and "The trend" (the shaded-band note, so the chart loses its <b>?</b> on the Overview). (b) Nowhere new: every card's hover already states its own rule, including "newest 12h result ≤ 60 min old", and every drill-down's <b>?</b> has the rule, formula and threshold, so the sentence just goes. Recommended: (a), because every other redesigned page has How to read in that place, and a touch screen has no hover. No backend change.</span></li>
+      <li><b>Remove the Top-priority finding?</b> <span>It is the queue's first row a second time, and with rows that loop is also the one the chosen-loop panel shows. When empty, it repeats the queue's "nothing to show". Recommended: remove it. No backend change.</span></li>
+      <li><b>Recent events: only the page's window?</b> <span>Every lab episode exists as a 12h and a 24h copy, so today the 12h page shows PIC40102 twice. (a) Client only: read the 12 newest episodes and show the first three of the page's window. (b) A window filter on GET events/page, which is exact but a small cplm-api change. (c) Leave it as it is. Recommended: (a), with no backend change. All events → keeps opening both kinds.</span></li>
+      <li><b>The shorter empty-trend line: everywhere?</b> <span>The trend is shared with Loop Explorer and Investigation, which show the same "no signal values in this trend range" block. (a) The one line, "No PV, SP or OP values in the last 8 h" (or "in this range"), everywhere. (b) On the Overview only. Recommended: (a), so the three pages say it the same way. No backend change.</span></li>
+      <li><b>When nothing live arrives, show only Signal quality?</b> <span>Today four "—" pills sit beside "Signal quality · No signal" (badge 12). Recommended: yes, show only Signal quality, with the four pills back as soon as a value arrives. Overview only, no backend change.</span></li>
+    </ol>
+    <p style="margin:12px 0 0;color:var(--text2)">With the recommended answers, nothing changes in a backend or service: it is ams-frontend only.</p>
+  </div>
+
+  <div class="card"><h3>Not verified</h3>
+    <ul>
+      <li>The lab has no current finding and no live publisher, so the queue rows, FIC10301's live values and trend, and the busy-plant events are illustrative. The rows keep today's row parts and sizes (pills, tag link, <b>?</b>, in-band bar) on a column grid, and the trend follows SignalTrend's layout (axis names on top, legend under the time axis). One-line rows were measured in the sample at 1440 and 1000 px, and the wrap at 390 px; in the app the widths depend on the real labels.</li>
+      <li>The sample's KPI icons are drawn stand-ins for the app's OpenBridge icons. The colours follow the app's icon tones.</li>
+      <li>Only the day theme is drawn. The sample has no sideways scroll at 390 px. At 1000 px, the five-to-a-row cards were checked in the sample only.</li>
+      <li>The preview on :4173 was not running, so today's captures came from the same <code>dist</code> served read-only on :4174. :4173 was not touched.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

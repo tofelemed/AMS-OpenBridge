@@ -54,10 +54,16 @@ export const reasonLabel = (r: string | null | undefined): string => (r ? REASON
 export const reasonsText = (k: FleetKpis): string =>
   k.notAssessableByReason.map(r => `${reasonLabel(r.reason)} ${r.count}`).join(' · ');
 
-/** "newest 24h result, ≤ 60 min old · normal mode ≥ 95 % · at limit > 10 %" */
-export function basisText(k: FleetKpis): string {
+/**
+ * CHG-177 (owner answer 3): the Calculation basis as How to read's "The cards", one row per rule, in the served thresholds and
+ * the server's own words for each KPI's rule (cplm-api FleetKpiClassifier).
+ */
+export function basisRows(k: FleetKpis): Array<[term: string, meaning: string]> {
   const b = k.basis;
-  return `Each monitored loop counted once from its newest ${b.windowKind} result, at most ${Math.round(b.freshSeconds / 60)} min old`
-    + ` · normal mode ≥ ${Math.round(b.normalModeMin * 100)} % · at limit > ${Math.round(b.saturationMax * 100)} %`
-    + ' · findings = suspected or confirmed';
+  return [
+    ['Each monitored loop', `Counted once, from its newest ${b.windowKind} result, at most ${Math.round(b.freshSeconds / 60)} min old.`],
+    ['In auto mode', `AUTO / CASCADE ≥ ${Math.round(b.normalModeMin * 100)} % of the window.`],
+    ['Saturated / at limit', `OP fully open or closed > ${Math.round(b.saturationMax * 100)} % of the window.`],
+    ['Findings', 'Suspected or confirmed.'],
+  ];
 }

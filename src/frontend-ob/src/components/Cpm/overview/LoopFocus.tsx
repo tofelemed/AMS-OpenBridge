@@ -2,30 +2,32 @@
 
 /**
  * Loop focus panel: the live signal row and an 8h rolling PV/SP/OP envelope
- * for the selected loop. Phase 5 (cpa-ui-fix-plan): rectangle zoom on the
- * already loaded window; the rolling refetch keeps the zoom (it lives in the
- * option) and the bar says the viewport is held while zoomed.
+ * for the selected loop.
+ *
+ * CHG-177 (owner review, Overview v2, the approved sample and the answers of 12 Nov 2026): headed by the tag alone with
+ * Review → (the name went: it was said in the rows too); no "live · source · feed · envelope" line (Signal quality says
+ * live or not, the 8 h are on the chart's time axis, source and feed times are on Loop Explorer); the trend without
+ * Zoom area / Undo / Reset and its ? (How to read holds the band note); an empty read says one line.
+ * Owner, 12 Nov (after the build): the PV / SP / OP / MODE pills always show (— until a value arrives) and the Signal
+ * quality pill leaves the Overview (Loop Explorer keeps it).
  */
-import { pipelineStep, usePipelineAccess } from '../access';
+import { pipelineHref, registryHref, investigationHref } from '../cpaHref';
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EmptyState, PanelHead, TonePill, fmtDateTime, QueryError, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
+import { PanelHead, TonePill, QueryError, useRollingWindow, TREND_SPAN_MS, TREND_TICK_MS } from '../shared';
+import { usePipelineAccess } from '../access';
 import { useCpmTrend } from '../../../hooks/useCpm';
-import { useLoopLive, liveQuality } from '../../../hooks/useLoopLive';
-import { FacetPill, liveSignalQuality } from '../FacetPill';
+import { useLoopLive } from '../../../hooks/useLoopLive';
 import { loopSeries } from '../../../utils/loopSeries';
 import SignalTrend from '../trend/SignalTrend';
-import { investigationHref, pipelineHref, registryHref } from '../cpaHref';
-import { activeZone } from '../../../cpa/activeZone';
 
-// ── loop focus panel (signal row + envelope trend) ─────────────────────────
+const RANGE = 'in the last 8 h';
 
 export const LoopFocus: React.FC<{
   loopId: string;
-  displayName: string;
   windowKind?: string;
-}> = ({ loopId, displayName, windowKind }) => {
+}> = ({ loopId, windowKind }) => {
   const navigate = useNavigate();
   const canPipeline = usePipelineAccess();
   // The historian device for a loop follows the Phase 3 convention.
@@ -39,53 +41,36 @@ export const LoopFocus: React.FC<{
   const points = useMemo(() => trend.data?.points ?? [], [trend.data]);
   // F0.5 — live plane: RBE deltas + snapshot-on-open for this loop's device.
   const live = useLoopLive(loopId);
-  const q = liveQuality(live);
-  const sq = liveSignalQuality(q, live.lastSourceTs);
   const fmtLive = (m: { value: number | string | boolean } | undefined, digits = 1) =>
     m == null ? '—' : typeof m.value === 'number' ? m.value.toFixed(digits) : String(m.value);
 
-
   return (
-    <section className="cpm-surface">
-      <PanelHead eyebrow={displayName} title={loopId}
-        right={<ObcButton variant="raised" onClick={() => navigate(investigationHref(loopId, { kind: windowKind }))}>
-          Review {loopId} →
-        </ObcButton>} />
-      <div className="cpm-filter-row" style={{ marginBottom: 8 }}>
+    <section className="cpm-surface cpm-ov-focus" aria-label={`Chosen loop ${loopId}`}>
+      <PanelHead title={loopId}
+        right={<ObcButton variant="raised" onClick={() => navigate(investigationHref(loopId, { kind: windowKind }))}>Review →</ObcButton>} />
+      <div className="cpm-filter-row cpm-ov-focus__chips">
         {/* Live signal row (F0.5): RBE means "no update" ≠ 0 — absent renders as —.
-            SME #8 (CHG-046): the values are neutral (alert colours mean a state, never a pen) and
-            quality is its own captioned facet, so a green "Good" is never read as a verdict. */}
+            SME #8 (CHG-046): the values are neutral (alert colours mean a state, never a pen). */}
         <TonePill tone="muted">PV {fmtLive(live.pv)}</TonePill>
         <TonePill tone="muted">SP {fmtLive(live.sp)}</TonePill>
         <TonePill tone="muted">OP {fmtLive(live.op)}</TonePill>
         <TonePill tone="muted">MODE {fmtLive(live.mode)}</TonePill>
-        <FacetPill facet="signal" tone={sq.tone}>{sq.text}</FacetPill>
-        <span className="cpm-filter-count">
-          {live.hasData && live.lastSourceTs
-            ? `live · source ${new Date(live.lastSourceTs).toLocaleTimeString(undefined, { timeZone: activeZone() })}`
-              + (live.lastEmissionTs ? ` · feed ${new Date(live.lastEmissionTs).toLocaleTimeString(undefined, { timeZone: activeZone() })}` : '')
-            : 'no live publisher for this loop'}
-          {/* State the window: it rolls, and a rolling window that has silently
-              stopped advancing looks identical to a live one otherwise. */}
-          {' · '}envelope {fmtDateTime(start.getTime())} → {fmtDateTime(end.getTime())}
-        </span>
       </div>
-      {trend.isLoading && <EmptyState title="Loading trend…" />}
+      {trend.isLoading && <p className="cpm-empty-line">Loading trend…</p>}
       {/* A 403/500 from the historian is not an empty historian — claiming "no
           samples stored" for a failed read sends the reader to debug IoTDB. */}
       {trend.isError && (
         <QueryError title="Trend unavailable" error={trend.error} retry={() => void trend.refetch()} />
       )}
       {!trend.isLoading && !trend.isError && points.length === 0 && (
-        // CHG-098 (SME review 2 #29): plain cause first, the historian series last; routes to the mapping and the engine.
-        <EmptyState title="No historian data for this loop"
-          copy={`No PV / SP / OP samples were stored for this loop in the last 8 h. Check its signal mapping in the Loop Registry; if every loop is empty, check Pipeline Health. (Historian series: ${series})`}
-          next={[
-            { label: 'Signal mapping in the Loop Registry', to: registryHref(loopId) },
-            ...pipelineStep(canPipeline, pipelineHref()),
-          ]} />
+        // CHG-098 (SME review 2 #29): routes to the mapping and the engine. CHG-177: one line, without the historian path.
+        <p className="cpm-empty-line">
+          <strong>No PV, SP or OP samples stored {RANGE}</strong>
+          {' · '}<Link className="cpm-link" to={registryHref(loopId)}>Signal mapping ↗</Link>
+          {canPipeline && <>{' · '}<Link className="cpm-link" to={pipelineHref()}>Pipeline Health ↗</Link></>}
+        </p>
       )}
-      {points.length > 0 && <SignalTrend loopId={loopId} points={points} height={260} live />}
+      {points.length > 0 && <SignalTrend loopId={loopId} points={points} height={260} live tools={false} rangeText={RANGE} />}
     </section>
   );
 };

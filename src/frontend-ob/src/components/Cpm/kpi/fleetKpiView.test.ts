@@ -2,7 +2,7 @@
 // it means something. CHG-155: the state bar is gone, and with it the segment helper.
 import { describe, expect, it } from 'vitest';
 import type { FleetKpiFigure, FleetKpis } from '../../../api/cpm/fleetKpis';
-import { KPI_GROUPS, basisText, denominatorText, kpiTone, pct, reasonLabel, reasonsText } from './fleetKpiView';
+import { KPI_GROUPS, basisRows, denominatorText, kpiTone, pct, reasonLabel, reasonsText } from './fleetKpiView';
 
 const fig = (key: FleetKpiFigure['key'], count: number, denominator = 100): FleetKpiFigure =>
   ({ key, label: key, count, denominator, denominatorLabel: 'assessed loops', rule: 'r' });
@@ -35,7 +35,18 @@ describe('fleet KPI view (CHG-082)', () => {
     expect(pct(1, 0)).toBe(0);
     expect(reasonsText(K)).toBe('incomplete data 3 · manual mode 1');
     expect(reasonLabel('SOMETHING_ELSE')).toBe('something else');
-    expect(basisText(K)).toMatch(/at most 60 min old · normal mode ≥ 95 % · at limit > 10 %/);
+  });
+
+  // CHG-177 (owner review, Overview v2, answer 3): the Calculation basis sentence, as four rows of How to read's "The cards"
+  it('states the basis as four rows, from the served thresholds', () => {
+    expect(basisRows(K)).toEqual([
+      ['Each monitored loop', 'Counted once, from its newest 24h result, at most 60 min old.'],
+      ['In auto mode', 'AUTO / CASCADE ≥ 95 % of the window.'],
+      ['Saturated / at limit', 'OP fully open or closed > 10 % of the window.'],
+      ['Findings', 'Suspected or confirmed.'],
+    ]);
+    expect(basisRows({ ...K, basis: { ...K.basis, windowKind: '12h', freshSeconds: 1800, normalModeMin: 0.9, saturationMax: 0.2 } }).map(r => r[1]).slice(0, 3))
+      .toEqual(['Counted once, from its newest 12h result, at most 30 min old.', 'AUTO / CASCADE ≥ 90 % of the window.', 'OP fully open or closed > 20 % of the window.']);
   });
 
   it('groups cover every Overview figure once', () => {
