@@ -71,6 +71,14 @@ export function axisBounds(scale: TrendScale, r: CpmEngineeringRange | null | un
 
 const fmtVal = (v: number | null, unit: string) => (v == null ? '—' : `${Number(v.toFixed(2))} ${unit}`.trim());
 
+// CHG-181: ECharts' legend defaults (25 px icon + 5 px to its text, 10 px between items and rows, 14 px rows,
+// 5 px padding) and a 7 px character at the 12 px label font: wider than the real glyphs, so the room comes first.
+const LEGEND = { item: 30, gap: 10, row: 14, pad: 5, char: 7 };
+const GRID_BOTTOM = 56;
+/** The legend's estimated one-row width; a narrower chart wraps it to a second row. */
+const legendWidth = (labels: string[]) =>
+  labels.reduce((w, l) => w + LEGEND.item + l.length * LEGEND.char, 0) + LEGEND.gap * (labels.length - 1) + 2 * LEGEND.pad;
+
 export function signalTrendOption(i: SignalTrendInput) {
   const { points, palette, hasVp, pvUnit, scale, range, zoom, xRange, evaluated, yBounds } = i;
   const { pv, sp, op, vp, tick } = palette;
@@ -93,22 +101,31 @@ export function signalTrendOption(i: SignalTrendInput) {
   } : undefined;
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));
-  const axisStyle = (colour: string) => ({
+  // CHG-181: each name starts (left axis) or ends (right axis) at its axis line and reads into the plot; centred on
+  // the line, a long one ("PV / SP (unit not set)") spilled past the chart edge and lost its first letter.
+  const axisStyle = (colour: string, align: 'left' | 'right') => ({
     ...axis,
-    nameTextStyle: { color: colour, fontSize: 12 },
+    nameTextStyle: { color: colour, fontSize: 12, align },
     axisLine: { show: true, lineStyle: { color: colour } },
   });
+  const legendData = ['PV', BAND_LABEL, 'SP', 'OP', ...(hasVp ? ['VP'] : [])];
 
   return {
     ...base,
     animation: false,
     // The legend sits under the time axis so the two axis titles own the top edge (on the right, "OP (%)"
     // and a top-right legend overlapped).
-    grid: { left: 52, right: 52, top: 36, bottom: 56 },
+    grid: { left: 52, right: 52, top: 36, bottom: GRID_BOTTOM },
+    // CHG-181: on a chart narrower than its one row the legend wraps; the grid gives that second row so it never
+    // touches the time labels. The query-less entry restores the room when the chart widens (ECharts keeps it otherwise).
+    media: [
+      { option: { grid: { bottom: GRID_BOTTOM } } },
+      { query: { maxWidth: legendWidth(legendData) }, option: { grid: { bottom: GRID_BOTTOM + LEGEND.row + LEGEND.gap } } },
+    ],
     ...zoom,
     legend: {
       ...base.legend,
-      data: ['PV', BAND_LABEL, 'SP', 'OP', ...(hasVp ? ['VP'] : [])],
+      data: legendData,
       bottom: 0, left: 'center',
     },
     tooltip: {
@@ -132,9 +149,9 @@ export function signalTrendOption(i: SignalTrendInput) {
       axisLabel: { ...axis.axisLabel, hideOverlap: true,
         formatter: siteAxisTick(xRange ? xRange.toMs - xRange.fromMs : points.length > 1 ? points[points.length - 1].ts - points[0].ts : 3_600_000) } },
     yAxis: [
-      { type: 'value', name: pvAxisName(pvUnit), position: 'left', ...bounds.pv, ...axisStyle(pv),
+      { type: 'value', name: pvAxisName(pvUnit), position: 'left', ...bounds.pv, ...axisStyle(pv, 'left'),
         splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
-      { type: 'value', name: hasVp ? 'OP / VP (%)' : 'OP (%)', position: 'right', ...bounds.op, ...axisStyle(op),
+      { type: 'value', name: hasVp ? 'OP / VP (%)' : 'OP (%)', position: 'right', ...bounds.op, ...axisStyle(op, 'right'),
         splitLine: { show: false } },
     ],
     series: [

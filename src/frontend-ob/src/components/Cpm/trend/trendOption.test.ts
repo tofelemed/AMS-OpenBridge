@@ -90,6 +90,52 @@ describe('tooltip safety', () => {
   });
 });
 
+describe('axis names and legend never clip (CHG-181)', () => {
+  // 12 px canvas text, 7 px a character: wider than the real glyphs, so a pass here is a pass on screen.
+  const est = (s: string) => s.length * 7;
+  type Media = { query?: { maxWidth: number }; option: { grid: { bottom: number } } };
+  /** grid.bottom ECharts applies at a chart width: the matching query, else the query-less default. */
+  const bottomAt = (o: { media: Media[] }, width: number) =>
+    (o.media.find(m => m.query && width <= m.query.maxWidth) ?? o.media.find(m => !m.query))!.option.grid.bottom;
+
+  it('keeps "PV / SP (unit not set)" whole on the 459 px Overview panel and at 390 px', () => {
+    const o = signalTrendOption({ points, palette, pvUnit: null, scale: 'fit', zoom: {} });
+    const [pvAxis, opAxis] = o.yAxis;
+    expect(pvAxis.name).toBe('PV / SP (unit not set)');
+    // Each name starts (left) or ends (right) at its own axis line, so it reads into the plot instead of
+    // centring on the line and spilling past the chart edge ("V / SP (unit not set)").
+    expect(pvAxis.nameTextStyle).toMatchObject({ align: 'left' });
+    expect(opAxis.nameTextStyle).toMatchObject({ align: 'right' });
+    for (const width of [459, 390]) {
+      const pvEnd = o.grid.left + est(pvAxis.name);
+      const opStart = width - o.grid.right - est(opAxis.name);
+      expect(o.grid.left).toBeGreaterThanOrEqual(0);
+      expect(pvEnd).toBeLessThan(opStart);
+    }
+  });
+
+  it('keeps the pen colour and size on the names', () => {
+    const o = signalTrendOption({ points, palette, scale: 'fit', zoom: {} });
+    expect(o.yAxis[0].nameTextStyle).toMatchObject({ color: 'g', fontSize: 12 });
+    expect(o.yAxis[1].nameTextStyle).toMatchObject({ color: 'a', fontSize: 12 });
+  });
+
+  it('gives the legend a second row under the time labels at 390 px, and none on a wide chart', () => {
+    // The legend's real one-row width (Arial 12 px, ECharts' icon, gaps and padding): 328 px, 384 px with VP.
+    // A 390 px screen leaves the chart about 326 px (16 px gutters, 16 px panel padding), so it wraps there.
+    for (const [hasVp, wraps] of [[false, 328], [true, 384]] as const) {
+      const o = signalTrendOption({ points, palette, hasVp, scale: 'fit', zoom: {} });
+      expect(o.grid.bottom).toBe(56);
+      expect(bottomAt(o, 1200)).toBe(56);
+      // ECharts' legend: 14 px rows 10 px apart; a wrapped legend is one row taller.
+      expect(bottomAt(o, wraps)).toBe(56 + 14 + 10);
+      expect(bottomAt(o, 326)).toBe(56 + 14 + 10);
+    }
+    // The Overview's 459 px panel draws its legend in one row: its layout is unchanged.
+    expect(bottomAt(signalTrendOption({ points, palette, scale: 'fit', zoom: {} }), 459 - 32)).toBe(56);
+  });
+});
+
 describe('evaluated window and compare (CHG-067)', () => {
   it('draws the evaluated window as a labelled band on the PV series and spans the plotted range', () => {
     const o = signalTrendOption({ points, palette, scale: 'fit', zoom: {},

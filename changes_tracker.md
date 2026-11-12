@@ -6617,3 +6617,50 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Services updated:** `ams-frontend`, shipped with `cplm-api` (CHG-179 backend). **No migration, no config.** **Plant:** not deployed. **Lab:** not rebuilt.
 
 **Tests.** `useBindingResolver.test.tsx` +5 (a `display.view`-only operator gets the loop exception from the new endpoint and never calls `GET /loops`; that operator's plain-tag fallback reads Uncertain; 404 + `analytics.view` falls back to `GET /loops`; 404 without it gives rule 1; no request without a fallback); `bindingTrust.test.ts` +1; `trustFixtures.ts` fakes the new endpoint (ok / fail / 404); the BarChart, SymbolRenderer and DisplayViewer trust tests fail the new read. Full suite: see the go-live note under CHG-182.
+
+## CHG-178 — System Response: charts-not-kept note and event times (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** The note on a System Response event whose arrays were not stored offered "Reconstruct in the Workbench ↗". That link did not work: the engine refuses to reconstruct an event-keyed G12 run, so a response event's charts can never be rebuilt. The Events tab also still showed the old time format ("2026-10-07 05:43:24") while the band's event options read "7 Oct 05:43".
+
+**Changed.**
+- `src/frontend-ob/src/components/Cpm/response/ResponseNotes.tsx`: `ArraysNote` drops the Workbench button, its `useNavigate`, and the `loopId`/`methodRunId` props. Headings now say "Charts" instead of "Arrays": "Charts not kept" (was "Arrays not kept for this run"), "Charts removed by retention", "Charts failed verification". The line reads "The result and every value stand. Charts are kept {A} for accepted events and {C} for censored candidates; they cannot be rebuilt." {A} is `retention.acceptedDays` ("30 days", "1 day", or "for ever" when null) and {C} is `retention.censoredChartHours` ("6 h"). When the answer has no `retention` (today's cplm-api), the line reads "The result and every value stand. Charts are not stored for this event and cannot be rebuilt." The look is unchanged (`cpm-gate-state cpm-gate-state--note`, role="note").
+- `src/frontend-ob/src/api/cpm/response.ts`: new `ResponseRetention` type, and an optional `retention` field on `ResponseEventPage` (the answer of `GET /api/v1/cpm/loops/{loopId}/response-events`; the cplm-api side is being added on another branch).
+- `src/frontend-ob/src/components/Cpm/response/ResponseWorkspace.tsx` reads `retention` from the first page of `useResponseEvents`. `EventPanes.tsx` passes it on to `ArraysNote`. `EventPanes` drops its now-unused `loopId` prop.
+- `src/frontend-ob/src/components/Cpm/response/EventsTab.tsx`: the Time column uses `fmtInstantBare` in the loop's site zone ("7 Oct 05:43"). The heading names the zone once, as "Time · UTC", using `zoneAbbr`, the short name the Loop Events headings use.
+
+**Services updated:** ams-frontend only. No migration. No backend change. The frontend works without the new field, and the full sentence appears once cplm-api sends `retention`.
+
+**Plant:** not deployed. **Lab:** not rebuilt.
+
+**Tests:** `ResponseNotes.test.tsx` (the note has 4 cases: retention in days, for ever, field absent, removed/failed headings; it checks that no button or Workbench text is shown) and `EventsTab.test.tsx` (checks the time "7 Oct 05:43" and the "Time · UTC" heading). `npx vitest run src/components/Cpm/response`: 13 files, 59 tests pass. ESLint on the touched files is clean (--max-warnings 0), and `tsc --noEmit` is clean.
+
+## CHG-179 (frontend) — Designer displays read the loop-signal paths (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** CHG-176 knew the loop signals only from `GET /loops`, which needs `analytics.view`; operators usually lack it, so for them a fallback on a CPLM loop signal showed the wrong derived value marked Uncertain instead of not reading it. The CHG-179 backend added `GET /api/v1/cpm/loops/signal-paths` for `display.view` OR `analytics.view`.
+
+**Changed.**
+- New `src/api/cpm/loopSignalPaths.ts` (`getLoopSignalPaths`).
+- `src/hooks/useBindingTrust.ts`: the lookup reads the new endpoint (query `['cpm','loop-signal-paths']`, quiet meta, 30 s stale). Still lazy: no observer and no request until a fallback binding appears; asset-model bindings untouched. Asked only with `display.view` OR `analytics.view` (neither: rule 1, no request). An older cplm-api answering 404: with `analytics.view` the CHG-176 `GET /loops` read is used, inside the same query (no retry wait); without it, or on any other failure, rule 1 (value shown, Uncertain).
+- `src/utils/bindingTrust.ts`: `signalPathSet` (paths trimmed and lower-cased, as before). `src/hooks/useCpm.ts`: comment only.
+
+**Services updated:** `ams-frontend`, shipped with `cplm-api` (CHG-179 backend). **No migration, no config.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+**Tests.** `useBindingResolver.test.tsx` +5 (a `display.view`-only operator gets the loop exception from the new endpoint and never calls `GET /loops`; that operator's plain-tag fallback reads Uncertain; 404 + `analytics.view` falls back to `GET /loops`; 404 without it gives rule 1; no request without a fallback); `bindingTrust.test.ts` +1; `trustFixtures.ts` fakes the new endpoint (ok / fail / 404); the BarChart, SymbolRenderer and DisplayViewer trust tests fail the new read. Full suite: see the go-live note under CHG-182.
+
+## CHG-181 — Loop trend: axis names and legend never clip (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** The shared CPA loop trend (Overview chosen-loop panel, Loop Explorer, Investigation) centred each y-axis name on its axis line. Inside the fixed 52 px side margin a long name spilled past the chart edge: on the 459 px Overview panel a loop with no PV unit read "V / SP (unit not set)" instead of "PV / SP (unit not set)". At 390 px the legend under the time axis wraps to a second row, and that row touched the time-axis labels.
+
+**Changed.**
+- `src/frontend-ob/src/components/Cpm/trend/trendOption.ts`
+  - Axis names: `nameTextStyle.align` is `'left'` on the PV / SP axis and `'right'` on the OP (/ VP) axis. Each name now starts or ends at its own axis line and reads into the plot, so it never crosses the chart edge, whatever the unit's length. Pens, colours, the 12 px size, axes, ticks and the grid margins are unchanged.
+  - Legend room: an ECharts `media` rule. Below the legend's estimated one-row width (ECharts legend defaults, 7 px per character: 342 px, or 396 px with VP), `grid.bottom` grows from 56 to 80 px, one legend row. A rule with no query puts 56 back when the chart gets wider again. The chart height, legend style and position are unchanged. Wide charts, including the 459 px Overview panel, keep the old layout.
+- `src/frontend-ob/src/components/Cpm/trend/trendOption.test.ts`: 3 new tests under "axis names and legend never clip (CHG-181)".
+- Not affected: the CHG-175 Trend page and the Designer trend (`components/Designer/trend/trendOption.ts`, their own builder). `historical/chartOption.ts` and `replay/ReplayChart.tsx` only import `pvAxisName`, which is unchanged.
+
+**Services updated:** ams-frontend.
+**Migration:** none.
+**Plant:** not deployed.
+**Lab:** not rebuilt.
+
+**Tests.** `npx vitest run src/components/Cpm/trend src/components/Cpm/overview src/components/Cpm/explorer`: 30 files, 191 tests passed. The 3 new tests failed before the fix (2 failed; the pen-colour guard passed). `investigation/WindowTrend.test.tsx`: 5/5 passed. `npx eslint` on the touched files with `--max-warnings 0`: clean. `npx tsc --noEmit -p tsconfig.json`: clean. Visual check on the built app (Loop Explorer, FIC10401, 2 to 4 Nov, read-only): at 390 px both axis names are whole and the legend wraps to a second row clear of the time labels; at 560 and 1440 px the legend stays on one row.
