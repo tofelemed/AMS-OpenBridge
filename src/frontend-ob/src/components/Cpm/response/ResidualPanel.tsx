@@ -14,8 +14,11 @@ import { EmptyState } from '../shared';
 import { epochMs } from './responseSupport';
 import { readable } from '../evidence/format';
 
-export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined; loading?: boolean }> = ({ residuals, acf, timeZone, validation, loading }) => {
+export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; acf: DecodedArtifact | undefined; timeZone: string; validation: ResponseSubgate | undefined; loading?: boolean;
+  /** CHG-105: the event's charts are not stored (the Response panel above says why); never claim "no model was fitted". */
+  notStored?: boolean }> = ({ residuals, acf, timeZone, validation, loading, notStored }) => {
   if (!residuals && !acf && loading) return <ArtifactSkeleton kinds={['residuals', 'residual_acf']} />;
+  if (!residuals && !acf && notStored) return <EmptyState title="Residuals not stored" />;
   if (!residuals && !acf) {
     return <EmptyState title="No residuals for this event" copy="No model was fitted to this event (it was rejected or censored before a fit, or estimation did not run), so there is nothing to draw. Steps & data says where it stopped." />;
   }

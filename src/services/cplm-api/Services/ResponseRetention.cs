@@ -11,8 +11,9 @@ namespace Traverse.CplmApi.Services;
 /// </summary>
 public static class ResponseRetention
 {
-    /// <summary>Deletes events older than <paramref name="days"/> and their metrics (keyed by method_run_id), except events a system
-    /// model was created from; <paramref name="censoredOnly"/> limits it to CENSORED captures; returns events deleted.</summary>
+    /// <summary>Deletes events older than <paramref name="days"/> with their metrics and (CHG-105) their RESPONSE-class charts, all
+    /// keyed by method_run_id, except events a system model was created from; <paramref name="censoredOnly"/> limits it to CENSORED
+    /// captures; returns events deleted.</summary>
     public static async Task<int> PurgeAsync(NpgsqlDataSource db, int days, int batch, CancellationToken ct, bool censoredOnly = false)
     {
         var total = 0;
@@ -31,8 +32,14 @@ public static class ResponseRetention
                 RETURNING method_run_id
                 """, new { days, batch, censoredOnly }, tx, 600, cancellationToken: ct))).ToArray();
             if (runs.Length > 0)
+            {
                 await conn.ExecuteAsync(new CommandDefinition("DELETE FROM analytics.response_metric WHERE method_run_id = ANY(@runs)",
                     new { runs }, tx, 600, cancellationToken: ct));
+                // CHG-105: the event's charts go with it (chunks cascade); a pinned chart is class PINNED and stays
+                await conn.ExecuteAsync(new CommandDefinition(
+                    "DELETE FROM analytics.evidence_manifest WHERE method_run_id = ANY(@runs) AND retention_class = 'RESPONSE' AND pinned = FALSE",
+                    new { runs }, tx, 600, cancellationToken: ct));
+            }
             await tx.CommitAsync(ct);
             total += runs.Length;
             if (runs.Length < batch) return total;

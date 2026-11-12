@@ -11,8 +11,11 @@ import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { candidateRows, fmt, prov, provList } from './responseSupport';
 
-export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined; delayCurve: DecodedArtifact | undefined; intervals: DecodedArtifact | undefined; rejections: DecodedArtifact | undefined; loading?: boolean }> = ({ table, delayCurve, intervals, rejections, loading }) => {
+export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined; delayCurve: DecodedArtifact | undefined; intervals: DecodedArtifact | undefined; rejections: DecodedArtifact | undefined; loading?: boolean;
+  /** CHG-105: the event's charts are not stored (the Response panel above says why); never claim "no model was estimated". */
+  notStored?: boolean }> = ({ table, delayCurve, intervals, rejections, loading, notStored }) => {
   if (!table && !rejections && loading) return <ArtifactSkeleton kinds={['candidate_models', 'rejection_reasons']} />;
+  if (!table && !rejections && notStored) return <EmptyState title="Candidate models not stored" />;
   const rows = candidateRows(prov(table, 'rows'));
   const objective = table?.columns.y;
   const names = provList(intervals, 'parameters');

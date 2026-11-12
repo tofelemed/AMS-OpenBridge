@@ -6,7 +6,7 @@ namespace Traverse.CplmApi.Services;
 
 /// <summary>What one sweep did; every count is rows.</summary>
 public sealed record SweepResult(int Promoted, int TransientPurged, int Expired, int ChunksDeleted, int Purged, int ResponsePurged,
-    int ResponseModelsPurged = 0);
+    int ResponseModelsPurged = 0, int ResponseChartsKept = 0, int ResponseChartsDeleted = 0);
 
 /// <summary>
 /// v2.5 Task 1G.5 (spec v6 §1.6 retention; NR-060) + CHG-033: evidence is retained by RECORD CLASS.
@@ -16,7 +16,9 @@ public sealed record SweepResult(int Promoted, int TransientPurged, int Expired,
 ///              after the episode CLOSED, never while it is open; then purged after the grace like STANDARD;
 ///   STANDARD   reconstructions / replays: retention_policy days, then EXPIRED for Cplm:EvidenceExpiredGraceDays,
 ///              then purged;
-///   PINNED     an investigation reference: never touched.
+///   PINNED     an investigation reference: never touched;
+///   RESPONSE   CHG-105: the G12 charts of an accepted response event, moved out of TRANSIENT each sweep; they live and
+///              die with the event (row RESPONSE, see ResponseEvidenceRetention), capped by the row's max_bytes.
 /// The sweep runs every Cplm:EvidenceSweepIntervalMinutes (15): it must run several times inside the TRANSIENT
 /// lifetime, because it also promotes the captured manifests that arrived after their verdict. The v1 result
 /// rows are NOT swept here (FeaturePartitionMaintenance owns those).
@@ -55,9 +57,9 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             try
             {
                 var r = await SweepOnceAsync(_db, stoppingToken, _expiredGraceDays, 20_000, _transientHours, _transientBudgetBytes);
-                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged + r.ResponsePurged + r.ResponseModelsPurged > 0)
-                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged, {Response} response event(s) and {Models} unreviewed model(s) purged",
-                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged, r.ResponsePurged, r.ResponseModelsPurged);
+                if (r.Promoted + r.TransientPurged + r.Expired + r.Purged + r.ResponsePurged + r.ResponseModelsPurged + r.ResponseChartsKept + r.ResponseChartsDeleted > 0)
+                    _logger.LogInformation("Evidence retention: {Promoted} promoted to EPISODE, {Transient} TRANSIENT deleted, {Expired} expired, {Chunks} chunk(s) deleted, {Purged} purged, {Response} response event(s) and {Models} unreviewed model(s) purged, {ChartsKept} response chart(s) kept, {ChartsDeleted} orphaned or over-cap response chart(s) deleted",
+                        r.Promoted, r.TransientPurged, r.Expired, r.ChunksDeleted, r.Purged, r.ResponsePurged, r.ResponseModelsPurged, r.ResponseChartsKept, r.ResponseChartsDeleted);
             }
             catch (Exception ex) { _logger.LogWarning(ex, "Evidence retention sweep failed; will retry next interval"); }
             try { await Task.Delay(_interval, stoppingToken); } catch (OperationCanceledException) { return; }
@@ -74,6 +76,8 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
         var size = Math.Max(1, batchSize);
         // 1. captures whose artifacts arrived after the verdict (lookback = the transient lifetime + 1 h)
         var promoted = await EpisodeCaptureStore.PromoteCapturedAsync(db, transientHours + 1, ct);
+        // 1b. CHG-105: the G12 charts of accepted response events leave TRANSIENT before its purge (same lookback)
+        var chartsKept = await ResponseEvidenceRetention.PromoteAsync(db, transientHours + 1, ct);
         // 2. TRANSIENT by age, then by budget (DELETE cascades the chunks: smaller batches)
         var transient = await EvidenceRetentionTiers.PurgeTransientByAgeAsync(db, transientHours, Math.Min(size, 5_000), ct);
         transient += await EvidenceRetentionTiers.PurgeTransientOverBudgetAsync(db, transientHours, transientBudgetBytes, Math.Min(size, 2_000), ct);
@@ -94,19 +98,24 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
         }
         // 4. CHG-049: response_event / response_metric; no RESPONSE row (or null days) = keep forever.
         //    CHG-091: unreviewed models first (that unpins their events), then the events, then CENSORED by its own row.
-        int responsePurged = 0, modelsPurged = 0;
+        //    CHG-105: the event purge takes its RESPONSE charts with it; then orphans, then the class's byte cap.
+        int responsePurged = 0, modelsPurged = 0, chartsDeleted = 0;
         int? responseDays, censoredDays;
+        long? responseMaxBytes;
         await using (var conn = await db.OpenConnectionAsync(ct))
         {
-            responseDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
+            (responseDays, responseMaxBytes) = await conn.QueryFirstOrDefaultAsync<(int?, long?)>(
+                "SELECT days, max_bytes FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
             censoredDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED'");
         }
         if (responseDays is { } rd)
         {
             modelsPurged = await ResponseRetention.PurgeModelsAsync(db, rd, 2_000, ct);
             responsePurged = await ResponseRetention.PurgeAsync(db, rd, 5_000, ct);
+            chartsDeleted = await ResponseEvidenceRetention.PurgeOrphansAsync(db, rd, 5_000, ct);
         }
         if (censoredDays is { } cd) responsePurged += await ResponseRetention.PurgeAsync(db, cd, 5_000, ct, censoredOnly: true);
-        return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged, modelsPurged);
+        if (responseMaxBytes is { } cap) chartsDeleted += await ResponseEvidenceRetention.TrimOverBudgetAsync(db, cap, 2_000, ct);
+        return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged, modelsPurged, chartsKept, chartsDeleted);
     }
 }

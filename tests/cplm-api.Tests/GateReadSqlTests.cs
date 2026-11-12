@@ -27,7 +27,8 @@ public sealed class GateReadSqlTests : IAsyncLifetime
         SELECT loop_id, window_kind, window_start, window_end, sample_count,
                diagnosis, severity, confidence, payload::text AS payload, created_at
         FROM analytics.cplm_gate_results
-        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind
+        -- CHG-102 5c: EVALUATE rows (on-demand evaluations) never count as the loop's latest verdict
+        WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
         ORDER BY (diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA') DESC,
                  window_end DESC NULLS LAST, created_at DESC
         LIMIT 1

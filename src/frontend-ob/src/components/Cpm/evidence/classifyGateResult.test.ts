@@ -44,6 +44,13 @@ describe('classifyGateResult', () => {
     expect(classifyGateResult(base({ manifest: { readiness: 'PENDING', count: 2 } })).kind).toBe('EVIDENCE_PENDING');
     expect(classifyGateResult(base({ manifest: { readiness: 'PARTIAL', count: 2 } })).kind).toBe('EVIDENCE_PENDING');
   });
+  it('CHG-105: a G12 run with no charts never offers a reconstruction (event-keyed charts cannot be rebuilt)', () => {
+    const g12 = classifyGateResult(base({ gate: 'G12', manifest: { readiness: 'NONE', count: 0 } }));
+    expect(g12.kind).toBe('NOT_RETAINED');
+    expect(g12.action).toBe('NONE');
+    expect(g12.detail).toMatch(/cannot be rebuilt/);
+    expect(g12.detail).not.toMatch(/Reconstruct/);
+  });
   // audit F8: G1-G4 opened on a fused (24h) row read "NOT_EVALUATED - no reason recorded - this is a verdict";
   // the truth is that short-tier gates are judged on the 1m-60m windows, and the fused row carries no
   // verdict for them - the state says so and points at the short windows of the same loop.

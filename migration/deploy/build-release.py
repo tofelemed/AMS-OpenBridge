@@ -86,6 +86,8 @@ OPS_FILES = [
     "scripts/cpm-20-on-demand-evaluation.rollback.sql",  # CHG-102 - rollback: EVALUATE runs + their gate rows deleted, CHECK back to 3 purposes
     "scripts/cpm-20b-evidence-archive-keep.sql",   # CHG-102     - evidence_archive_kept: pinned / episode sets outlive their day; EVIDENCE_ARCHIVE_EPISODE 30 d / 4 GiB (online, BEFORE the swap)
     "scripts/cpm-20b-evidence-archive-keep.rollback.sql",  # CHG-102 - rollback: keep table, kept column and row dropped (kept sets lost)
+    "scripts/cpm-21-response-charts.sql",          # CHG-105     - RESPONSE 30 d + 2 GiB chart cap: System Response charts kept with their event (online, BEFORE the swap)
+    "scripts/cpm-21-response-charts.rollback.sql", # CHG-105     - rollback: 14 d, kept charts back to TRANSIENT (deleted by the next sweep)
     "infra/docker/zookeeper/zk-start-guard.sh",    # CHG-068     - ZooKeeper start guard (quarantines zero-byte txn logs); lands in ops/, copied next to Instrumental's compose
     "migration/instrumental/zookeeper-start-guard.override.yml",  # CHG-068 - compose override: guard mount + command for Instrumental's zookeeper
     "scripts/set-quality-protocol.py",             # v2.5       - declare quality_protocol on every MQTT_LOOP_SAMPLES source

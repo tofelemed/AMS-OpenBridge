@@ -56,6 +56,8 @@ public sealed class CpmReadinessController : ControllerBase
         ("AMS - CPLM Condition Engine",       "cplm"),
         ("AMS - CPLM Instrument Context Engine", "cplm"),
         ("AMS - CPLM Response Engine",        "cplm"),
+        // CHG-102 5c: the always-running job behind the Workbench "Evaluate a window" (submitted by the supervisor since 7087cfea)
+        ("AMS - CPLM On-Demand Evaluation",   "cplm"),
         ("AMS - Analysis Execution Engine",   "platform"),
         ("AMS - Alarm KPI Engine",            "platform"),
         ("AMS Alarm State Export Engine",     "platform")

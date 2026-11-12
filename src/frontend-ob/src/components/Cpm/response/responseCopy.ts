@@ -96,7 +96,24 @@ export function resultSummary(result: ResponseEventDetail['result'], metrics: Re
   };
 }
 
-export const SUBGATE_NAMES: Array<[string, string]> = [['A', 'Eligibility'], ['B', 'Event capture'], ['C', 'Observed metrics'], ['D', 'Estimation'], ['E', 'Validation'], ['F', 'Controller / frequency'], ['G', 'Model comparison'], ['H', 'Advisory']];
+/** CHG-105: how long the list's events and their charts are kept (null days = for ever); absent on an older cplm-api. */
+export interface ResponseRetention { acceptedDays: number | null; censoredDays: number | null; censoredChartHours: number }
+
+const keptFor = (days: number | null) => (days == null ? 'while the event is kept' : `${days} day${days === 1 ? '' : 's'}`);
+
+/**
+ * CHG-105: the one statement shown when an event's charts are not stored. G12 charts are event-keyed and cannot be
+ * rebuilt, so it never offers a reconstruction; the result and quantities stay valid.
+ */
+export function chartsAbsentCopy(captureState: string | undefined, retention: ResponseRetention | undefined): string {
+  if (!retention) return 'This event\'s charts are no longer stored and cannot be rebuilt; its result and quantities are complete.';
+  if (captureState === 'CENSORED') {
+    return `Censored candidates keep their charts ${retention.censoredChartHours} hours and their result and quantities ${keptFor(retention.censoredDays)}.`;
+  }
+  return `Accepted events keep their charts ${keptFor(retention.acceptedDays)}. This event's are not stored (older than that, or recorded before charts were kept) and cannot be rebuilt; its result and quantities are complete.`;
+}
+
+export const SUBGATE_NAMES: Array<[string, string]> =[['A', 'Eligibility'], ['B', 'Event capture'], ['C', 'Observed metrics'], ['D', 'Estimation'], ['E', 'Validation'], ['F', 'Controller / frequency'], ['G', 'Model comparison'], ['H', 'Advisory']];
 
 export interface SubgateStep { key: string; name: string; state: string; tone: CpmTone; reason: string; outputs: Array<[string, unknown]> }
 

@@ -6641,3 +6641,84 @@ The owner chose to go live with CHG-160..182 and to leave these for a future rel
 | 8 | Administration plant CSV import refuses files that carry only aliases | Found in the Administration review; a change to the import rule, not to the page | Build in a later release |
 | 9 | Split `components/Designer/SymbolRenderer.tsx` (about 1,018 lines) below the 500-line rule | Pure refactor with no visible change; risky the day of a release | Build in a later release |
 | — | Housekeeping: leftover `investigation-flow.html`, `components/Cpm/_body.txt`, the `overview-review-*` samples, stale page names in `docs/theme/tools/lib/journey-steps.mjs` and `src/help/registry.json` | Not shipped code; tidy with item 9 | Build in a later release |
+
+## CHG-104 — Signal quality no longer read from the PV value (2026-11-05, frontend only, unreleased)
+
+**Why.** With no quality metric, `qualityLabel(live.quality ?? live.pv)` passed the PV sample in, and its value was read as an OPC quality code. A PV of 45 showed BAD, 100 showed UNCERTAIN and 250 showed GOOD, whatever the signal was doing. Seen on Loop Explorer (Signal quality) and the Overview loop focus panel.
+
+**Fixed.** New `liveQuality(live)` uses the quality metric, else the PV sample's own quality field, and otherwise says UNKNOWN. A loop that was showing a wrong quality now shows its real one, or Unknown.
+
+**Tests.** `hooks/useLoopLive.test.ts`.
+
+**Services updated:** `ams-frontend` only. **No migration, no config.**
+
+**Script to run:** release v2.8.0.2, built from the plant source (43d1948e) plus this fix on branch `release/v2.8.0.2`, not from this branch: its head also carries the undeployed v2.9.0 frontend. `python migration/deploy/build-release.py --release v2.8.0.2 --skip-jar`, then the generated VM steps (integrity, rollback image list, load the frontend image, `deploy.sh --prod`). Users: Ctrl+F5 once. v2.9.0 gets the fix through this branch.
+
+**Built, not deployed:** `release-out/v2.8.0.2-20261104` (src-2ef184bb, 28/28 checksums, 34 MB). Checked on the plant source: tsc 0, lint 0, 530 tests.
+
+**Build trap.** `build-prod-images.py` wants the Flink jar on disk even for a frontend-only release, and a fresh worktree has none, so copy `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` and `migration/.env` in first. The jar is not shipped.
+
+## CHG-105 — System Response charts kept with their event: 30 days (2026-11-12, unreleased, for v2.9.0)
+
+**Why.** The System Response charts (response chart, residuals, candidate models, delay curve, parameter uncertainty, Bode)
+are G12 evidence arrays. They arrived as live evidence (`TRANSIENT`) and were deleted after 6 h, while the event stayed listed
+for 14 days. Marun 2026-11-12: only 563 of 17,773 accepted events still had charts. Every older event opened with empty chart
+panels that said "reconstruct the evidence", but nothing can rebuild G12 (it is event-keyed), and the Workbench pointed at a
+System Response rebuild that does not exist. The CHG-102 archive (boundary windows) and episode capture never covered G12.
+
+**Decision (user, 2026-11-12):** keep 30 days; censored candidates keep their quantities (the trim was offered and declined).
+Cost measured at the plant: ~4.9 KB of charts per accepted event (~13 KB on disk), ~21 KB per event for the event row and its
+52 quantities, ~1,250 accepted events a day (1,800-2,000 recently): about +0.9 GB at 30 days (+1.5 GB at the recent rate).
+Plant disk 194 GB, 81 GB free.
+
+**What changed:**
+- **cplm-api** `Services/ResponseEvidenceRetention.cs` (new): every 15-min sweep moves the `TRANSIENT` G12 manifests of accepted
+  events (`capture_state` other than `CENSORED`) to class **`RESPONSE`**; deletes `RESPONSE` charts whose event is gone; trims the
+  class to row `RESPONSE` `max_bytes` (oldest first, never the charts of a reviewed / baseline / newest / newest VALIDATED model).
+- **cplm-api** `ResponseRetention.PurgeAsync`: the event purge deletes the event's `RESPONSE` charts in the same transaction, so an
+  event a model was built from keeps its charts while it is kept. `EvidenceRetentionSweeper` calls the new steps and logs
+  "N response chart(s) kept, M orphaned or over-cap response chart(s) deleted".
+- **cplm-api** `GET /api/v1/cpm/loops/{loopId}/response-events` returns `retention: { acceptedDays, censoredDays,
+  censoredChartHours }` from `retention_policy` (null = for ever) and `Cplm:EvidenceTransientHours`.
+- **ams-frontend** System Response: when an event has no charts, the Response panel says once how long charts are kept, that
+  they cannot be rebuilt and that the result and quantities are complete; residuals / candidate models / frequency response say
+  "not stored" instead of "no model was fitted". Workbench G12: "Charts not stored for this response event", no Reconstruct, and
+  the refusal text and the Explain panel no longer point at a rebuild; the "Evidence readiness: NONE ... refreshes while
+  artifacts arrive" line is hidden when nothing is stored. Layout unchanged.
+- **Ops:** `migration/daily-check.sh` section 7 gains a `RESPONSE charts` line (within the cap / no cap set / above the cap);
+  evidence-tables thresholds 1536 / 3072 -> **2560 / 4096 MB** (the disk doubled; the kept charts add up to ~0.8 GB).
+  `migration/MARUN-DAILY-CHECK.md` 7 (the class, the thresholds, the truncate lever now also drops the kept charts).
+
+**Services updated:** `cplm-api` (image), `ams-frontend` (image). No Flink change, no jar.
+
+**Migration (online, BEFORE the cplm-api swap, release PRE_SWAP step 4i, directive `!chg105-cpm21`):**
+`docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < ops/cpm-21-response-charts.sql`
+(last line `cpm-21 OK | RESPONSE=30d/2GiB`). Rollback: roll cplm-api back first, then `ops/cpm-21-response-charts.rollback.sql`
+(14 d again; the kept charts return to `TRANSIENT` and the next sweep deletes them). Fresh installs: `database/scripts/69_cplm_response_charts.sql`
+and `migration/schema/03-traverse_cplm.sql` (both move only the shipped 14 d / no-cap default).
+
+**After the swap (within ~20 min):** `docker logs --since 30m traverse-cplm-api 2>&1 | grep 'Evidence retention:'` shows
+"N response chart(s) kept"; `select count(distinct method_run_id), pg_size_pretty(sum(total_bytes)) from analytics.evidence_manifest
+where retention_class = 'RESPONSE'` grows by ~1,250 events a day and levels off after 30 days.
+
+**Tests:** cplm-api `ResponseChartRetentionTests` (5: promote accepted-only and lookback, delete with the event + chunk cascade +
+model event kept, orphans, byte cap never trims a kept model) + `ResponseEventsListTests` retention block, with the existing
+Response / sweeper / evidence-class suites: 19/19 on the lab database; frontend 166 (response + evidence), tsc 0, lint 0;
+release tests 64. Browser (lab data, frontend from this branch on Vite 5174 against the lab's running cplm-api): an accepted
+event without charts reads "Charts not stored for this event" + "not stored" panels (the older API has no `retention`, so the
+generic sentence shows); FIC10302's stored charts still draw (8 charts); Workbench G12 shows "Charts not stored for this
+response event" with no Reconstruct; day / night, 1440 / 1000 px. The lab containers were NOT swapped: they run the CPA
+redesign branch's builds; this branch's images are tagged `docker-cplm-api:chg105` / `docker-ams-frontend:chg105`.
+
+**Full cplm-api suite (lab, 2026-11-12): 533/534.** It also found two CHG-102 gaps, fixed here (same cplm-api image):
+- `CpmReadinessController.RequiredJobs` lacked "AMS - CPLM On-Demand Evaluation", so Pipeline Health never flagged that job
+  missing (the supervisor submits it since 7087cfea). Added with role `cplm`.
+- The legacy reference queries in `GateReadSqlTests` / `FleetLatestSqlTests` did not filter `purpose = 'LIVE'`, so they picked up
+  the lab's FIC10401 EVALUATE rows that the production reads correctly ignore. Test-only.
+The one remaining failure, `FleetPrioritySqlTests` ("the lab carries current findings"), is lab state: the lab pipeline has produced
+no fresh window since ~7 Nov (Overview: 165 loops stale, 76 never evaluated).
+
+**Release:** added to the draft `migration/deploy/releases/v2.9.0.txt` (`!chg105-cpm21`; cplm-api and ams-frontend are already in it).
+
+**Not built (proposed later phases, not yet approved):** key response parameters (K, θ, τ, overshoot, settling, IAE, margins) per event in
+IoTDB for 3 years with long Model history ranges; "Rebuild this event" from IoTDB through the On-Demand Evaluation job (90 days of raw).

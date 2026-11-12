@@ -91,14 +91,17 @@ for g in traverse-cpa-cplm-results traverse-cpa-cplm-results-frames traverse-cpa
   m=$(kf kafka-consumer-groups --bootstrap-server kafka-1:9092 --describe --group $g --members | grep -c -- '-sole'); [ "$m" -eq 1 ] && ok "$g: 1 member" || act "$g: $m members (must be exactly 1 - CLAUDE.md consumer rule)"
 done
 
-echo "== 7. evidence (bounds: TRANSIENT <= 2 GB and oldest <= 6 h; EPISODE levels off ~2 GB; STANDARD 3 d)"
+echo "== 7. evidence (bounds: TRANSIENT <= 2 GB and oldest <= 6 h; EPISODE levels off ~2 GB; STANDARD 3 d; RESPONSE <= its cap)"
 pg "select retention_class||' '||count(*)||' manifests '||pg_size_pretty(sum(total_bytes))||' oldest '||to_char(min(created_at) at time zone 'utc','MM-DD HH24:MI') from analytics.evidence_manifest group by 1 order by 1" | sed 's/^/      /'
 tb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='TRANSIENT'"); [ "${tb:-0}" -le 2400000000 ] && ok "TRANSIENT payload within budget" || act "TRANSIENT payload above 2.4 GB: the sweep is not bounding - MARUN-DAILY-CHECK.md 7"
 eb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='EPISODE'"); [ "${eb:-0}" -le 3500000000 ] && ok "EPISODE payload within bound" || act "EPISODE payload above 3.5 GB: truncate lever: MARUN-DAILY-CHECK.md 7"
+# CHG-105: System Response charts kept with their event; the sweeper trims the class to retention_policy RESPONSE max_bytes (2 GiB)
+rb=$(pg "select coalesce(sum(total_bytes),0) from analytics.evidence_manifest where retention_class='RESPONSE'"); rcap=$(pg "select coalesce(max_bytes,0) from analytics.retention_policy where record_class='RESPONSE'")
+if [ "${rcap:-0}" -eq 0 ]; then warn "RESPONSE charts: no cap set (cpm-21 not run?) - $(( ${rb:-0} / 1048576 )) MB"; elif [ "${rb:-0}" -le $(( rcap + rcap / 10 )) ]; then ok "RESPONSE charts $(( ${rb:-0} / 1048576 )) MB within the $(( rcap / 1048576 )) MB cap"; else act "RESPONSE charts above their cap: the sweeper is not trimming - MARUN-DAILY-CHECK.md 7"; fi
 ep=$(pg "select count(*) filter (where opened_at > now()-interval '24 hours')||' opened / '||count(*) filter (where closed_at > now()-interval '24 hours')||' closed / '||count(*) filter (where closed_at is null)||' open now' from analytics.cplm_event_frames"); echo "      episodes 24 h: $ep"
 # CHG-049: the files, not the payload sum - DELETE never shrinks them (2026-10-06: 1.9 GB payload "within budget", 3.7 GB on disk)
 evmb=$(pg "select (pg_total_relation_size('analytics.evidence_chunk')+pg_total_relation_size('analytics.evidence_manifest'))/1048576")
-if [ "${evmb:-0}" -gt 3072 ]; then act "evidence tables ${evmb} MB on disk - MARUN-DAILY-CHECK.md 7"; elif [ "${evmb:-0}" -gt 1536 ]; then warn "evidence tables ${evmb} MB on disk"; else ok "evidence tables ${evmb} MB on disk"; fi
+if [ "${evmb:-0}" -gt 4096 ]; then act "evidence tables ${evmb} MB on disk - MARUN-DAILY-CHECK.md 7"; elif [ "${evmb:-0}" -gt 2560 ]; then warn "evidence tables ${evmb} MB on disk"; else ok "evidence tables ${evmb} MB on disk"; fi
 
 echo "== 7b. CHG-102: evidence archive, on-demand evaluation, KPI history, IoTDB backup"
 if [ "$(pg "select to_regclass('analytics.evidence_archive_run') is not null")" != "t" ]; then warn "evidence archive not installed (cpm-19) - boundary evidence ages out with the live rows"

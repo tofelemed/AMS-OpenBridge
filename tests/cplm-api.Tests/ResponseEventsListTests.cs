@@ -5,6 +5,7 @@ using Dapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Npgsql;
 using Traverse.CplmApi.Controllers;
 using Xunit;
@@ -49,7 +50,8 @@ public sealed class ResponseEventsListTests : IAsyncLifetime
 
     private CpmResponseController Controller()
     {
-        var c = new CpmResponseController(_db) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Cplm:EvidenceTransientHours"] = "8" }).Build();
+        var c = new CpmResponseController(_db, config) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
         return c;
     }
 
@@ -66,4 +68,23 @@ public sealed class ResponseEventsListTests : IAsyncLifetime
         real.GetProperty("events")[0].GetProperty("captureState").GetString().Should().Be("COMPLETE");
         real.GetProperty("nextCursor").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
     }
+
+    [Fact]
+    public async Task CHG105_the_list_says_how_long_events_and_their_charts_are_kept_from_the_policy_rows()
+    {
+        int? accepted, censored;
+        await using (var conn = await _db.OpenConnectionAsync())
+        {
+            accepted = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
+            var hasCensoredRow = await conn.ExecuteScalarAsync<bool>("SELECT EXISTS (SELECT 1 FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED')");
+            censored = hasCensoredRow ? await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED'") : accepted;
+        }
+        var page = System.Text.Json.JsonSerializer.SerializeToElement(((OkObjectResult)await Controller().List(_loop, null, null, null, 50, "LIVE", false, CancellationToken.None)).Value);
+        var r = page.GetProperty("retention");
+        Days(r.GetProperty("acceptedDays")).Should().Be(accepted);
+        Days(r.GetProperty("censoredDays")).Should().Be(censored, "no RESPONSE_CENSORED row = like RESPONSE");
+        r.GetProperty("censoredChartHours").GetInt32().Should().Be(8, "the sweeper's Cplm:EvidenceTransientHours");
+    }
+
+    private static int? Days(System.Text.Json.JsonElement e) => e.ValueKind == System.Text.Json.JsonValueKind.Null ? null : e.GetInt32();
 }

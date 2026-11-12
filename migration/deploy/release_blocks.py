@@ -8,7 +8,7 @@ deploy.sh --prod already recreates every changed service.
 from __future__ import annotations
 
 DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18",
-              "chg102-cpm19", "chg102-cpm20"}
+              "chg102-cpm19", "chg102-cpm20", "chg105-cpm21"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -145,10 +145,27 @@ docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select
 """
 
 
+def chg105_cpm21(release: str) -> str:
+    # CHG-105: one retention row; the old image reads only its days, the new one also moves the G12 charts and caps them.
+    return f"""
+# 4i. CHG-105 System Response charts kept with their event (RESPONSE = 30 d, charts capped at 2 GiB) - BEFORE the cplm-api
+#     swap (step 6 deploy.sh). Online, re-runnable (lock_timeout 10 s: if it fires, re-run); cplm-api may be running or stopped.
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-21-response-charts.sql
+#     last line: cpm-21 OK | RESPONSE=30d/2GiB
+#     After the swap, within ~20 min (first sweep 5 min after start, then every 15) the accepted events' charts leave TRANSIENT:
+#       docker logs --since 30m traverse-cplm-api 2>&1 | grep 'Evidence retention:' | tail -2   # "... N response chart(s) kept ..."
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select count(distinct method_run_id)||' events, '||pg_size_pretty(sum(total_bytes)) from analytics.evidence_manifest where retention_class = 'RESPONSE'"
+#     expected: a few hundred events at first (the last 6 h), ~1,250 more a day, levelling off after 30 days (~0.5-0.8 GB).
+#     Rollback (online; roll the cplm-api image back first - the kept charts are deleted by the next sweep):
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-21-response-charts.rollback.sql
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
           "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
-          "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19, "chg102-cpm20": chg102_cpm20}
-PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20"}
+          "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19, "chg102-cpm20": chg102_cpm20,
+          "chg105-cpm21": chg105_cpm21}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20", "chg105-cpm21"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:
