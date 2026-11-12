@@ -4,9 +4,12 @@
 import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useAssetSearch } from '../../hooks/useAssetSearch';
 import { useMqttStore } from '../../store/mqttStore';
 import { getValueColor, OBC } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 interface Source { slot: string; path: string; label: string; }
 
@@ -34,6 +37,9 @@ export const BarChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
   const paths = useMemo(() => (mode === 'preview' ? sources.map(s => s.path) : []), [sources, mode]);
   const { data: batch } = useBatchBindingResolver(paths, 'live');
   const metrics = useMqttStore(s => s.metrics);
+  // CHG-176: a fallback value draws, Uncertain (the symbol's badge); a loop signal's fallback draws nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (mode !== 'preview') {
     return (
@@ -54,10 +60,10 @@ export const BarChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
   const bars = sources.map((src, i) => {
     const b = resolved[i];
     const dev = b?.live?.sparkplugDevice, met = b?.live?.sparkplugMetric;
-    const key = dev && met ? `${dev}/${met}` : undefined;
+    const key = dev && met && trust.trust[i] !== 'loop-unread' ? `${dev}/${met}` : undefined;
     const raw = key ? metrics.get(key)?.value : undefined;
     const value = typeof raw === 'number' ? raw : Number(raw);
-    return { ...src, value: Number.isFinite(value) ? value : NaN };
+    return { ...src, value: Number.isFinite(value) ? value : NaN, reason: trustReason(trust.trust[i] ?? 'asset-model') };
   });
 
   const finite = bars.map(b => (Number.isFinite(b.value) ? b.value : 0));
@@ -72,7 +78,7 @@ export const BarChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
           const h = Number.isFinite(b.value) ? Math.max(2, ((b.value - min) / span) * 100) : 0;
           const color = Number.isFinite(b.value) ? getValueColor(b.value, item.alarmLimits) : OBC.textInactive;
           return (
-            <div key={i} className="symbol-barchart__col" title={`${b.label}: ${Number.isFinite(b.value) ? b.value : '--'}`}>
+            <div key={i} className="symbol-barchart__col" title={`${b.label}: ${Number.isFinite(b.value) ? b.value : '--'}${b.reason ? ` · ${b.reason}` : ''}`}>
               <div className="symbol-barchart__bar" style={{ height: `${h}%`, background: color }} />
               <span className="symbol-barchart__value">{Number.isFinite(b.value) ? b.value.toFixed(1) : '--'}</span>
               <span className="symbol-barchart__label">{b.label}</span>

@@ -4,8 +4,11 @@
 import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
 import { getValueColor, OBC } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 const MAX_POINTS = 80;
 
@@ -16,6 +19,9 @@ export const Sparkline: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' 
   // Re-render as new live samples land.
   const metrics = useMqttStore(s => s.metrics);
   void metrics;
+  // CHG-176: a fallback value draws, Uncertain (the symbol's badge); a loop signal's fallback draws nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (!path) {
     return <div className="symbol symbol-sparkline symbol-sparkline--empty">〰️ bind a tag</div>;
@@ -34,8 +40,9 @@ export const Sparkline: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' 
 
   const resolved = (batch?.bindings ?? []) as Array<{ live?: { sparkplugDevice?: string; sparkplugMetric?: string } }>;
   const dev = resolved[0]?.live?.sparkplugDevice, met = resolved[0]?.live?.sparkplugMetric;
-  const key = dev && met ? `${dev}/${met}` : undefined;
+  const key = dev && met && trust.trust[0] !== 'loop-unread' ? `${dev}/${met}` : undefined;
   const pts = (key ? getLiveSeries(key) : []).slice(-MAX_POINTS);
+  const reason = trustReason(trust.trust[0] ?? 'asset-model');
 
   if (pts.length < 2) {
     return <div className="symbol symbol-sparkline symbol-sparkline--empty">〰️ waiting…</div>;
@@ -53,7 +60,7 @@ export const Sparkline: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' 
   }).join(' ');
 
   return (
-    <div className="symbol symbol-sparkline" title={`${path.split('/').pop()}: ${last}`}>
+    <div className="symbol symbol-sparkline" title={`${path.split('/').pop()}: ${last}${reason ? ` · ${reason}` : ''}`}>
       <svg viewBox="0 0 100 30" preserveAspectRatio="none" width="100%" height="100%">
         <polyline points={poly} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>

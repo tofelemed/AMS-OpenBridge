@@ -4,9 +4,11 @@
 import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
 import { useMqttStore } from '../../store/mqttStore';
 import { getCustomSymbol, renderTemplate } from './customSymbolRegistry';
 import { formatValue } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 export const CustomSymbolInstance: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = ({ item, mode }) => {
   const def = getCustomSymbol(item.type);
@@ -24,6 +26,9 @@ export const CustomSymbolInstance: React.FC<{ item: CanvasItem; mode: 'design' |
   const paths = useMemo(() => (mode === 'preview' ? bound.map(b => b.path) : []), [bound, mode]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
   const metrics = useMqttStore(s => s.metrics);
+  // CHG-176: a fallback slot shows its value, Uncertain (the symbol's badge); a loop signal's fallback slot reads nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (!def) {
     return <div className="symbol symbol-custom symbol-custom--missing">⚠ Unknown custom symbol</div>;
@@ -33,7 +38,7 @@ export const CustomSymbolInstance: React.FC<{ item: CanvasItem; mode: 'design' |
   const values: Record<string, string | number | undefined> = {};
   bound.forEach((b, i) => {
     const dev = resolved[i]?.live?.sparkplugDevice, met = resolved[i]?.live?.sparkplugMetric;
-    const key = dev && met ? `${dev}/${met}` : undefined;
+    const key = dev && met && trust.trust[i] !== 'loop-unread' ? `${dev}/${met}` : undefined;
     const raw = mode === 'preview' && key ? metrics.get(key)?.value : undefined;
     values[b.slot] = typeof raw === 'number'
       ? Number(formatValue(raw, item.formatting?.decimals ?? 1))

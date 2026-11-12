@@ -6,6 +6,11 @@
 // /trend route in a NEW TAB, so the designer's unsaved canvas state can't be lost by a route change.
 import React, { useEffect, useState } from 'react';
 import TrendCore, { type PenSpec } from './TrendCore';
+import { qualityInfo } from '../../utils/quality';
+import { QualityBadge } from './SymbolFxWrap';
+
+/** CHG-176: a pen whose binding is not trusted carries the NE107 Uncertain badge after its legend value. */
+const uncertainMark = (reason: string) => <QualityBadge inline quality={{ ...qualityInfo('uncertain'), reason }} />;
 
 interface TrendDialogProps {
   pens: PenSpec[];
@@ -48,6 +53,8 @@ export const TrendDialog: React.FC<TrendDialogProps> = ({ pens: initialPens, not
           <TrendCore
             pens={pens}
             onRemovePen={path => setPens(ps => ps.filter(p => p.path !== path))}
+            flagFallback
+            penMark={uncertainMark}
           />
         </div>
       </div>

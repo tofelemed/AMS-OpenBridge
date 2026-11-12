@@ -17,7 +17,12 @@ export const TrendLegend: React.FC<{
   onRemovePen?: (path: string) => void;
   /** Shown with no pens. */
   emptyText?: string;
-}> = ({ pens, hiddenPens, penColor, valueAt, onToggle, onRemovePen, emptyText = 'No tags selected' }) => (
+  /**
+   * CHG-176: drawn after the value of a pen whose binding is not trusted (the ad-hoc dialog's NE107 badge; on a display
+   * the symbol's own badge marks it). The pen's tooltip names the reason either way.
+   */
+  penMark?: (reason: string) => React.ReactNode;
+}> = ({ pens, hiddenPens, penColor, valueAt, onToggle, onRemovePen, emptyText = 'No tags selected', penMark }) => (
   <div className="trend-core__legend" data-testid="trend-legend">
     {pens.map((pen, i) => {
       const v = valueAt(i);
@@ -28,7 +33,7 @@ export const TrendLegend: React.FC<{
           className="trend-core__pen"
           data-pen={pen.path}
           data-hidden={isHidden || undefined}
-          title={`${pen.path} — click to ${isHidden ? 'show' : 'hide'}`}
+          title={`${pen.path} — click to ${isHidden ? 'show' : 'hide'}${pen.trustReason ? ` · ${pen.trustReason}` : ''}`}
           onClick={() => onToggle(pen.path)}
           style={{ cursor: 'pointer', opacity: isHidden ? 0.4 : 1 }}
         >
@@ -37,6 +42,7 @@ export const TrendLegend: React.FC<{
           <span className="trend-core__pen-value" data-testid="pen-value">
             {v === undefined ? '--' : v.toFixed(2)}
           </span>
+          {penMark && pen.trustReason && penMark(pen.trustReason)}
           <span className="trend-core__pen-unit">{pen.unit}</span>
           {onRemovePen && (
             <button className="trend-core__pen-x" onClick={(e) => { e.stopPropagation(); onRemovePen(pen.path); }} title="Remove pen">×</button>

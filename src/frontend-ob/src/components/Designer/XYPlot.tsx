@@ -4,8 +4,10 @@
 import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
 import { useMqttStore, getLiveSeries } from '../../store/mqttStore';
 import { OBC } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 const MAX_POINTS = 60;
 
@@ -25,6 +27,9 @@ export const XYPlot: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> 
   // Re-render as new live samples land.
   const metrics = useMqttStore(s => s.metrics);
   void metrics;
+  // CHG-176: a fallback axis plots, Uncertain (the symbol's badge); a loop signal's fallback axis plots nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (!xPath || !yPath) {
     return <div className="symbol-xyplot symbol-xyplot--empty">📉 XY plot — bind X and Y tags</div>;
@@ -39,8 +44,8 @@ export const XYPlot: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> 
   }
 
   const resolved = (batch?.bindings ?? []) as Array<{ live?: { sparkplugDevice?: string; sparkplugMetric?: string } }>;
-  const xKey = liveKeyOf(resolved[0]);
-  const yKey = liveKeyOf(resolved[1]);
+  const xKey = trust.trust[0] === 'loop-unread' ? undefined : liveKeyOf(resolved[0]);
+  const yKey = trust.trust[1] === 'loop-unread' ? undefined : liveKeyOf(resolved[1]);
   const xs = xKey ? getLiveSeries(xKey) : [];
   const ys = yKey ? getLiveSeries(yKey) : [];
   const n = Math.min(xs.length, ys.length);

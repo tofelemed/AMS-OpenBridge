@@ -2,6 +2,7 @@
 // (192 = GOOD) that until now was ignored: symbols only ever reflected *staleness*. This maps the code
 // (plus staleness) to the ISA-18.2 / NAMUR NE107 quality states the platform standardises on, so a
 // display shows a bad/uncertain/maintenance tag distinctly from a merely stale one.
+import { TRUST_REASON, type BindingTrust } from './bindingTrust';
 
 export type QualityState = 'good' | 'uncertain' | 'bad' | 'maintenance' | 'outOfService';
 
@@ -14,6 +15,8 @@ export interface QualityInfo {
   /** OpenBridge alert token (colour reserved for abnormal — 'good' returns null: no colour). */
   color: string | null;
   label: string;
+  /** CHG-176: why the value is not trusted (a fallback binding), shown once in the badge's tooltip. */
+  reason?: string;
 }
 
 const INFO: Record<QualityState, Omit<QualityInfo, 'state'>> = {
@@ -55,4 +58,15 @@ export function qualityInfo(state: QualityState): QualityInfo {
 /** Convenience: full info straight from a code + staleness. */
 export function qualityFrom(code: number | undefined, stale: boolean): QualityInfo {
   return qualityInfo(qualityFromCode(code, stale));
+}
+
+/**
+ * CHG-176: the quality to show for a value under its binding's trust (see ./bindingTrust). Trusted: the quality itself
+ * (same object). Otherwise Good, or no quality yet, becomes Uncertain; Bad, Maintenance, Out of service and Uncertain
+ * stay (never upgraded). The reason rides along for the badge's tooltip.
+ */
+export function qualityWithTrust(q: QualityInfo | null, trust: BindingTrust): QualityInfo | null {
+  if (trust === 'asset-model') return q;
+  const base = !q || q.state === 'good' ? qualityInfo('uncertain') : q;
+  return { ...base, reason: TRUST_REASON[trust] };
 }

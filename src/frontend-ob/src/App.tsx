@@ -73,6 +73,8 @@ const queryClient = new QueryClient({
   },
   queryCache: new QueryCache({
     onError: (error, query) => {
+      // CHG-176: a read that handles its own failure quietly (the Designer's lazy loop-registry check) logs nothing.
+      if (query.meta?.quietOnError) return;
       console.error('[query]', query.queryKey, error);
       reportApiError(error);
     },

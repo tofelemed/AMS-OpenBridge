@@ -4,9 +4,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useMqttStore, type TrendPoint } from '../../store/mqttStore';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 import { formatValue } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 interface Col { slot: string; path: string; label: string; }
 
@@ -47,6 +50,9 @@ export const TimeSeriesTable: React.FC<{ item: CanvasItem; mode: 'design' | 'pre
 
   const resolved = (batch?.bindings ?? []) as Array<{ history?: { ioTDbPath?: string } }>;
   const [series, setSeries] = useState<Record<string, TrendPoint[]>>({});
+  // CHG-176: a fallback column reads its history, Uncertain; a loop signal's fallback column reads nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   useEffect(() => {
     if (mode !== 'preview' || cols.length === 0 || !batch) return;
@@ -54,13 +60,13 @@ export const TimeSeriesTable: React.FC<{ item: CanvasItem; mode: 'design' | 'pre
     const start = new Date(tStart), end = new Date(tEnd);
     Promise.all(cols.map(async (c, i) => {
       const { series: s, measurement } = splitIoT(resolved[i]?.history?.ioTDbPath);
-      if (!s) return [c.path, [] as TrendPoint[]] as const;
+      if (!s || trust.trust[i] === 'loop-unread') return [c.path, [] as TrendPoint[]] as const;
       const pts = await fetchTrend(s, start, end, rowCount * 4, measurement);
       return [c.path, pts] as const;
     })).then(entries => { if (!cancelled) setSeries(Object.fromEntries(entries)); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, batch, tStart, tEnd, cols.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trust.key is stable while every binding is trusted
+  }, [mode, batch, tStart, tEnd, cols.length, trust.key]);
 
   if (cols.length === 0) {
     return <div className="symbol-table symbol-table--empty">🕑 Time-series table — bind tag(s)</div>;
@@ -87,7 +93,7 @@ export const TimeSeriesTable: React.FC<{ item: CanvasItem; mode: 'design' | 'pre
         <thead>
           <tr>
             <th>Time</th>
-            {cols.map(c => <th key={c.slot}>{c.label}</th>)}
+            {cols.map((c, i) => <th key={c.slot} title={trustReason(trust.trust[i] ?? 'asset-model')}>{c.label}</th>)}
           </tr>
         </thead>
         <tbody>

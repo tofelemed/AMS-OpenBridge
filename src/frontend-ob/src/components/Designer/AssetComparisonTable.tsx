@@ -5,8 +5,11 @@ import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useAssetSearch } from '../../hooks/useAssetSearch';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useMqttStore } from '../../store/mqttStore';
 import { formatValue } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 export const AssetComparisonTable: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }> = ({ item, mode }) => {
   const cfg = item.comparison;
@@ -20,6 +23,9 @@ export const AssetComparisonTable: React.FC<{ item: CanvasItem; mode: 'design' |
   );
   const { data: batch } = useBatchBindingResolver(paths, 'live');
   const metrics = useMqttStore(s => s.metrics);
+  // CHG-176: a fallback cell shows its value, Uncertain; a loop signal's fallback cell reads nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (!cfg || attributes.length === 0) {
     return <div className="symbol-table symbol-table--empty">▦ Asset comparison — set criteria + attributes</div>;
@@ -37,9 +43,11 @@ export const AssetComparisonTable: React.FC<{ item: CanvasItem; mode: 'design' |
   const cellValue = (rowIdx: number, attrIdx: number): unknown => {
     const b = resolved[rowIdx * attributes.length + attrIdx];
     const dev = b?.live?.sparkplugDevice, met = b?.live?.sparkplugMetric;
-    const key = dev && met ? `${dev}/${met}` : undefined;
+    const unread = trust.trust[rowIdx * attributes.length + attrIdx] === 'loop-unread';
+    const key = dev && met && !unread ? `${dev}/${met}` : undefined;
     return key ? metrics.get(key)?.value : undefined;
   };
+  const cellReason = (rowIdx: number, attrIdx: number) => trustReason(trust.trust[rowIdx * attributes.length + attrIdx] ?? 'asset-model');
 
   return (
     <div className="symbol-table">
@@ -56,7 +64,7 @@ export const AssetComparisonTable: React.FC<{ item: CanvasItem; mode: 'design' |
               <td title={asset.contextualPath}>{asset.name}</td>
               {attributes.map((attr, ai) => {
                 const v = cellValue(ri, ai);
-                return <td key={attr} className="symbol-table__val">{v === undefined ? '--' : formatValue(v, 1)}</td>;
+                return <td key={attr} className="symbol-table__val" title={cellReason(ri, ai)}>{v === undefined ? '--' : formatValue(v, 1)}</td>;
               })}
             </tr>
           ))}

@@ -5,10 +5,13 @@
 import React, { useMemo } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useMqttStore } from '../../store/mqttStore';
 import { OBC } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
-interface Slice { label: string; value: number; }
+interface Slice { label: string; value: number; reason?: string; }
 
 function sourcesFromItem(item: CanvasItem): { slot: string; path: string; label: string }[] {
   return Object.entries(item.bindings ?? {})
@@ -30,6 +33,9 @@ export const PieChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
   const paths = useMemo(() => (mode === 'preview' ? sources.map(s => s.path) : []), [sources, mode]);
   const { data: batch } = useBatchBindingResolver(paths, 'live');
   const metrics = useMqttStore(s => s.metrics);
+  // CHG-176: a fallback value draws, Uncertain (the symbol's badge); a loop signal's fallback draws nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
 
   if (mode !== 'preview') {
     return (
@@ -47,10 +53,10 @@ export const PieChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
   const slices: Slice[] = sources.map((src, i) => {
     const b = resolved[i];
     const dev = b?.live?.sparkplugDevice, met = b?.live?.sparkplugMetric;
-    const key = dev && met ? `${dev}/${met}` : undefined;
+    const key = dev && met && trust.trust[i] !== 'loop-unread' ? `${dev}/${met}` : undefined;
     const raw = key ? metrics.get(key)?.value : undefined;
     const v = typeof raw === 'number' ? raw : Number(raw);
-    return { label: src.label, value: Number.isFinite(v) && v > 0 ? v : 0 };
+    return { label: src.label, value: Number.isFinite(v) && v > 0 ? v : 0, reason: trustReason(trust.trust[i] ?? 'asset-model') };
   });
 
   const total = slices.reduce((s, x) => s + x.value, 0);
@@ -65,7 +71,7 @@ export const PieChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
     a = a1;
     // Single-hue opacity ramp — distinguishes slices without introducing alarm colour.
     const opacity = 0.35 + 0.6 * (slices.length > 1 ? i / (slices.length - 1) : 1);
-    return { d: wedgePath(a0, a1), opacity, pct: Math.round(frac * 100), label: s.label };
+    return { d: wedgePath(a0, a1), opacity, pct: Math.round(frac * 100), label: s.label, reason: s.reason };
   });
 
   return (
@@ -73,7 +79,7 @@ export const PieChart: React.FC<{ item: CanvasItem; mode: 'design' | 'preview' }
       <svg viewBox="0 0 100 100" width="100%" height="100%">
         {wedges.map((w, i) => (
           <path key={i} d={w.d} fill={OBC.advisory} fillOpacity={w.opacity} stroke={OBC.bg} strokeWidth="0.8">
-            <title>{`${w.label}: ${w.pct}%`}</title>
+            <title>{`${w.label}: ${w.pct}%${w.reason ? ` · ${w.reason}` : ''}`}</title>
           </path>
         ))}
       </svg>

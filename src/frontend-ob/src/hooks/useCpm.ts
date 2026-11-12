@@ -25,8 +25,11 @@ const KEYS = {
   pipeline: ['cpm', 'pipeline-status'] as const,
 };
 
+/** The loop registry read, one definition for useCpmLoops and the Designer's lazy loop-signal check (CHG-176). */
+export const cpmLoopsQuery = { queryKey: KEYS.loops, queryFn: cpm.getLoops, staleTime: 30_000 };
+
 export function useCpmLoops() {
-  return useQuery({ queryKey: KEYS.loops, queryFn: cpm.getLoops, staleTime: 30_000 });
+  return useQuery(cpmLoopsQuery);
 }
 
 export function useCpmLoop(loopId: string | undefined) {

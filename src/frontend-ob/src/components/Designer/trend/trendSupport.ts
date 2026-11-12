@@ -22,7 +22,8 @@ export interface PenSpec {
   /**
    * CHG-175: a registry loop's signal. Its binding must come from the asset model: a binding the resolver only derived
    * from the path string (provenance "fallback") or could not resolve points where loop signals never live, so the pen
-   * is not read. Tag pens and the Designer's pens leave this off (a path-derived binding can be right for them).
+   * is not read. Tag pens and the Designer's pens leave this off (a path-derived binding can be right for them; the
+   * Designer flags them instead, CHG-176: TrendCore's `flagFallback`).
    */
   needsModelBinding?: boolean;
 }
@@ -35,6 +36,8 @@ export interface Pen extends PenSpec {
   liveKey?: string;      // device/metric (matches the mqtt ring-buffer key)
   /** CHG-175: a loop pen without a binding from the asset model; nothing is read for it. */
   unread?: boolean;
+  /** CHG-176: why the pen's binding is not trusted (a Designer fallback pen); the legend names it, NE107 Uncertain. */
+  trustReason?: string;
 }
 
 export interface TrendPoint { ts: number; value: number }

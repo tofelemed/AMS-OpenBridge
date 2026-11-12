@@ -84,6 +84,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({ item, mode }) => {
       scale={item.trendScale}
       stepped={item.steppedLines}
       regression={item.showRegression}
+      flagFallback
     />
   );
 };

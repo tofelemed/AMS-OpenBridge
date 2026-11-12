@@ -18,6 +18,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react';
 import type { ECharts } from 'echarts';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
+import { useReportTrust } from './trustReport';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
 import { chartPalette, penStyle, resolveColorLiteral, useChartTheme } from '../../charts/chartTheme';
 import { useBoxZoom, useKeepSelecting } from '../charts/useBoxZoom';
@@ -84,7 +87,16 @@ interface TrendCoreProps {
   zoomResetKey?: string | number;
   /** CHG-175: shown in place of the plot while there are no pens. */
   emptyContent?: React.ReactNode;
+  /**
+   * CHG-176 (the Designer's dialog and canvas symbol): a pen whose binding is a fallback on a registered loop's signal
+   * is not read; any other fallback pen is read and flagged Uncertain. Off (the Trend page): today's behaviour.
+   */
+  flagFallback?: boolean;
+  /** CHG-176: the mark after a flagged pen's value in the legend (the dialog's NE107 badge; a symbol uses its own). */
+  penMark?: (reason: string) => React.ReactNode;
 }
+
+const NO_PATHS: string[] = [];
 
 // Test marker: lets automated checks confirm which build of this module the page actually loaded.
 (globalThis as unknown as { __trendCoreBuild?: string }).__trendCoreBuild = 'J2';
@@ -108,9 +120,14 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
   frame,
   zoomResetKey,
   emptyContent,
+  flagFallback = false,
+  penMark,
 }) => {
   const paths = useMemo(() => penSpecs.map(p => p.path), [penSpecs]);
   const { data: batch } = useBatchBindingResolver(paths, 'all');
+  // CHG-176: off on the Trend page (no lookup, no registry read); the Designer's pens get each binding's trust.
+  const trust = useBatchBindingTrust(flagFallback ? paths : NO_PATHS, flagFallback ? batch?.bindings : undefined);
+  useReportTrust(trust.worst);
 
   const pens: Pen[] = useMemo(() => {
     const resolved = (batch?.bindings ?? []) as Array<Record<string, unknown>>;
@@ -123,6 +140,9 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
       if (spec.needsModelBinding && b && (b.resolved === false || b.provenance === 'fallback')) {
         return { ...spec, label, unit: spec.unitOverride || '', unread: true };
       }
+      // CHG-176: the same for a Designer pen on a registered loop's signal; any other fallback pen is read, flagged.
+      const t = trust.trust[i] ?? 'asset-model';
+      if (t === 'loop-unread') return { ...spec, label, unit: spec.unitOverride || '', unread: true, trustReason: trustReason(t) };
       const { series, measurement } = splitIoTPath(b?.history?.ioTDbPath);
       const dev = b?.live?.sparkplugDevice;
       const met = b?.live?.sparkplugMetric ?? measurement;
@@ -134,9 +154,10 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         iotSeries: series,
         measurement,
         liveKey: dev && met ? `${dev}/${met}` : undefined,
+        ...(t === 'fallback' ? { trustReason: trustReason(t) } : {}),
       };
     });
-  }, [batch, penSpecs]);
+  }, [batch, penSpecs, trust]);
 
   // Clickable-legend hide/show (E1.17) — runtime interaction, seeded from each pen's default hidden flag.
   // Re-seed ONLY when the set of pen paths changes (add/remove pen), not on every penSpecs identity change
@@ -321,7 +342,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
 
   const legend = (
     <TrendLegend emptyText={emptyLegendText} pens={pens} hiddenPens={hiddenPens} penColor={penColor} valueAt={valueAt}
-      onToggle={toggleHidden} onRemovePen={onRemovePen} />
+      onToggle={toggleHidden} onRemovePen={onRemovePen} penMark={penMark} />
   );
   const showEmpty = pens.length === 0 && emptyContent !== undefined;
 

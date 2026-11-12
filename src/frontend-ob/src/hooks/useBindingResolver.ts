@@ -2,13 +2,21 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMqttStore } from '../store/mqttStore';
 import React, { useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
+import { bindingTrust, isFallbackBinding } from '../utils/bindingTrust';
+import { useLoopSignalLookup } from './useBindingTrust';
 
 const BINDING_RESOLVER_URL = import.meta.env.VITE_BINDING_RESOLVER_URL || '/api/bindings';
 
 
-interface BindingResolution {
+export interface BindingResolution {
   contextualPath: string;
   resolved: boolean;
+  /**
+   * CHG-176: "asset-model" (registered; authoritative) or "fallback" (derived from the path string because the asset
+   * model was slow, down or did not know the path). A fallback still says `resolved: true` - see utils/bindingTrust.
+   */
+  provenance?: string;
+  error?: string;
   live?: {
     sparkplugTopic: string;
     sparkplugGroup: string;
@@ -106,13 +114,19 @@ export function useBindingResolver(
     staleTime: 60_000
   });
 
+  // CHG-176: a fallback binding on a registered loop's signal (or one whose loop check has not answered) is not read:
+  // no subscription, no value. The loop registry is consulted only once a fallback has appeared.
+  const lookup = useLoopSignalLookup(isFallbackBinding(binding));
+  const trust = bindingTrust(path, binding, lookup);
+  const unread = trust === 'loop-unread';
+
   // FE-04: subscribe to THIS slot's metric key only — not the whole metrics Map.
   // A dense display mounts hundreds of bound slot-hooks; with the Map-level
   // subscription every one re-rendered on EVERY device's update. The per-key
   // selector re-renders a slot only when its own metric object changes (unchanged
   // keys keep object identity across the coalesced store flush). A rebind to a new
   // asset naturally yields undefined until fresh data arrives (asset-swap safe).
-  const live = binding?.live;
+  const live = unread ? undefined : binding?.live;
   const metricKey = live?.sparkplugDevice && live.sparkplugMetric
     ? `${live.sparkplugDevice}/${live.sparkplugMetric}`
     : undefined;
@@ -120,7 +134,7 @@ export function useBindingResolver(
 
   // Subscribe to MQTT for live data
   useEffect(() => {
-    if (!binding?.live || role === 'history') return;
+    if (unread || !binding?.live || role === 'history') return;
 
     const { sparkplugTopic, sparkplugGroup, sparkplugEdgeNode, sparkplugDevice } = binding.live;
     if (!sparkplugDevice) return;
@@ -134,14 +148,18 @@ export function useBindingResolver(
     return () => {
       unsubscribeScreen([topic]);
     };
-  }, [binding, role, subscribeScreen, unsubscribeScreen]);
+  }, [binding, unread, role, subscribeScreen, unsubscribeScreen]);
 
   return {
     data: liveValue?.value,
     metric: liveValue,
     binding,
     isLoading: isResolving,
-    isResolved: binding?.resolved ?? false
+    isResolved: binding?.resolved ?? false,
+    /** CHG-176: where the binding came from ("asset-model" / "fallback"); undefined until it is resolved. */
+    provenance: binding?.provenance,
+    /** CHG-176: asset-model (as before), fallback (read, Uncertain) or loop-unread (not read, Uncertain). */
+    trust,
   };
 }
 

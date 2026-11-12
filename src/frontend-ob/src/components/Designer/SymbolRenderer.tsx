@@ -12,7 +12,10 @@ import { evaluateRules, evaluateMultiState } from './ruleEngine';
 import { useAssetMetadata } from '../../hooks/useAssetMetadata';
 import { convert, canonicalUnit } from '../../utils/uom';
 import { useDisplayTimeStore, formatInZone } from '../../store/timeStore';
-import { qualityFrom, type QualityInfo } from '../../utils/quality';
+import { qualityFrom, qualityWithTrust, type QualityInfo } from '../../utils/quality';
+import { worstTrust, type BindingTrust } from '../../utils/bindingTrust';
+import { QualityBadge, SymbolFxWrap } from './SymbolFxWrap';
+import { TrustReportContext } from './trustReport';
 import { CustomSymbolInstance } from './CustomSymbolInstance';
 import { TimeSeriesTable } from './TimeSeriesTable';
 import { isLazyObcType } from './lazyCategoryRegistry';
@@ -88,16 +91,21 @@ const PRIMARY_VALUE_SLOTS = [
   'temperature', 'current', 'flow', 'setpoint', 'sp',
 ] as const;
 
-/** Resolve live metrics for every declared slot. Fixed-length loop keeps hook order stable. */
-function useSlotMetrics(item: CanvasItem, mode: 'design' | 'preview'): Record<string, LiveMetric | undefined> {
+/**
+ * Resolve live metrics for every declared slot. Fixed-length loop keeps hook order stable. CHG-176: also the least
+ * trusted of the slots' bindings (a loop signal's fallback slot carries no metric).
+ */
+function useSlotMetrics(item: CanvasItem, mode: 'design' | 'preview'): { slots: Record<string, LiveMetric | undefined>; trust: BindingTrust } {
   const enabled = mode === 'preview';
   const out: Record<string, LiveMetric | undefined> = {};
+  const trusts: BindingTrust[] = [];
   for (const slot of KNOWN_SLOTS) {
     // eslint-disable-next-line react-hooks/rules-of-hooks -- constant-length loop; hook order is stable
-    const { metric } = useBindingResolver(enabled ? item.bindings?.[slot] : undefined, 'live');
+    const { metric, trust } = useBindingResolver(enabled ? item.bindings?.[slot] : undefined, 'live');
     out[slot] = metric;
+    trusts.push(trust);
   }
-  return out;
+  return { slots: out, trust: worstTrust(trusts) };
 }
 
 /** Phase F: live alarm state for a symbol bound to an alarm sourceName (from alarmStore). */
@@ -270,61 +278,16 @@ function textStyle(s?: import('./types').ItemStyle): React.CSSProperties {
   return out;
 }
 
-/** Combined FX wrapper: NE107 quality/staleness + rule-engine (hidden / blink / rotate / color outline). */
-const SymbolFxWrap: React.FC<{
-  stale: boolean; hidden: boolean; blink: boolean; outlineColor?: string; rotateDeg?: number;
-  /** Design mode, symbol takes a tag, nothing bound → dashed outline. Makes a forgotten binding
-      visible at a glance across a display with hundreds of symbols. */
-  unbound?: boolean;
-  /** Phase 6 — ISA-18.2/NE107 quality of the primary slot; a badge shows for any non-good state. */
-  quality?: QualityInfo | null;
-  showQuality?: boolean;
-  /** Author conditional-format / multi-state colour. Sets the CONTENT colour (`currentColor`), so every
-      equipment SVG that draws with `currentColor` (pump/valve/motor/tank outline + reading) recolours
-      with the state — instead of a box being drawn around it. */
-  contentColor?: string;
-  children: React.ReactNode;
-}> = ({ stale, hidden, blink, outlineColor, rotateDeg, unbound, quality, showQuality, contentColor, children }) => {
-  if (hidden) return null;
-  const style: React.CSSProperties = { position: 'relative', width: '100%', height: '100%' };
-  if (contentColor) style.color = contentColor;
-  if (stale) { style.filter = 'grayscale(1)'; style.opacity = 0.5; }
-  if (rotateDeg !== undefined) style.transform = `rotate(${rotateDeg}deg)`;
-  if (outlineColor) { style.outline = `3px solid ${outlineColor}`; style.outlineOffset = '1px'; style.borderRadius = '4px'; }
-  const cls = `symbol-fx${blink ? ' symbol-fx--blink' : ''}${stale ? ' symbol-quality-stale' : ''}${unbound ? ' symbol-unbound' : ''}`;
-  // Show the NE107 badge for any abnormal quality. Bad/Uncertain are safety-relevant and surface
-  // ALWAYS (even without the per-symbol opt-in) so a failed/frozen tag can never be silently hidden;
-  // the informational states (maintenance / out-of-service) stay behind `showQuality`. Falls back to
-  // the legacy stale ⚠ for symbols that don't render quality at all.
-  const safetyState = !!quality && (quality.state === 'bad' || quality.state === 'uncertain');
-  const showBadge = !!quality && quality.state !== 'good' && (!!showQuality || safetyState);
-  return (
-    <div className={cls} style={style}>
-      {children}
-      {showBadge ? (
-        <span aria-label={`quality: ${quality!.label}`} title={`${quality!.label} — NE107: ${quality!.ne107}`} style={{
-          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
-          background: quality!.color ?? 'var(--element-disabled-color, #535353)',
-          color: 'var(--container-background-color, #1f1f1f)', filter: 'grayscale(0)', opacity: 1, fontWeight: 700,
-        }}>{quality!.glyph}</span>
-      ) : stale && (
-        <span aria-label="stale" style={{
-          position: 'absolute', top: 0, right: 0, fontSize: 10, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
-          background: 'var(--element-disabled-color, #535353)', color: 'var(--container-background-color, #1f1f1f)',
-          filter: 'grayscale(0)', opacity: 1,
-        }}>⚠</span>
-      )}
-    </div>
-  );
-};
-
 // FE-04: memoised — `item` is identity-stable in preview mode and `mode` is a string,
 // so the default shallow compare stops parent re-renders (canvas pan/zoom, sibling
 // updates) from re-rendering every symbol. Live-value updates still re-render the
 // affected symbol through its own per-key store subscriptions in useSlotMetrics.
 const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
   // Generic multi-slot live binding — resolve every declared slot, not only value/status/pv/sp.
-  const slots = useSlotMetrics(item, mode);
+  const { slots, trust: slotTrust } = useSlotMetrics(item, mode);
+  // CHG-176: an inner chart or table reports the least trusted of its own bindings (it resolves its slots itself).
+  const [innerTrust, setInnerTrust] = React.useState<BindingTrust>('asset-model');
+  const symbolTrust = worstTrust([slotTrust, innerTrust]);
 
   const statusMetric = slots.status ?? slots.state ?? slots.running;
   const statusValue = statusMetric?.value;
@@ -397,6 +360,8 @@ const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
   const quality: QualityInfo | null = (mode === 'preview' && primaryMetric)
     ? qualityFrom(typeof primaryMetric.quality === 'number' ? primaryMetric.quality : undefined, stale)
     : null;
+  // CHG-176: a fallback binding shows at best Uncertain (a worse quality stays), with the reason; trusted: unchanged.
+  const shownQuality = qualityWithTrust(quality, symbolTrust);
 
   const displayValue = mode === 'preview' && liveValue !== undefined
     ? (mappedState ? mappedState.label : fmtValue(convertedValue, decimals, shownUnit))
@@ -1003,17 +968,22 @@ const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
   if (item.type === 'collection.container') {
     return <CollectionRenderer item={item} mode={mode} />;
   }
+  // CHG-176: inner charts and tables report their bindings' trust here; the symbol's NE107 badge shows it.
+  const reports = (node: React.ReactNode) => <TrustReportContext.Provider value={setInnerTrust}>{node}</TrustReportContext.Provider>;
+  // The two tables drawn without the wrapper get the same badge beside them, only while a binding is not trusted.
+  const looseBadge = symbolTrust !== 'asset-model' && shownQuality ? <QualityBadge quality={shownQuality} /> : null;
   if (item.type === 'table.compare') {
-    return <AssetComparisonTable item={item} mode={mode} />;
+    return reports(<><AssetComparisonTable item={item} mode={mode} />{looseBadge}</>);
   }
   if (item.type === 'table.timeseries') {
-    return <TimeSeriesTable item={item} mode={mode} />;
+    return reports(<><TimeSeriesTable item={item} mode={mode} />{looseBadge}</>);
   }
   // Phase 7 — user-defined custom symbols (registered via the custom-symbol framework).
   if (item.type.startsWith('custom:')) {
     return (
-      <SymbolFxWrap stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}>
-        <CustomSymbolInstance item={item} mode={mode} />
+      <SymbolFxWrap stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}
+        quality={qualityWithTrust(null, symbolTrust)}>
+        {reports(<CustomSymbolInstance item={item} mode={mode} />)}
       </SymbolFxWrap>
     );
   }
@@ -1035,10 +1005,10 @@ const SymbolRendererImpl: React.FC<SymbolRendererProps> = ({ item, mode }) => {
     <SymbolFxWrap
       stale={stale} hidden={fxHidden} blink={fxBlink} outlineColor={fxOutline} rotateDeg={fxRotate}
       contentColor={stateColor}
-      quality={quality} showQuality={item.showQuality ?? false}
+      quality={shownQuality} showQuality={item.showQuality ?? false}
       unbound={mode === 'design' && !isBound && (findSymbolDefinition(item.type)?.bindingSlots?.length ?? 0) > 0}
     >
-      {renderInner()}
+      {reports(renderInner())}
     </SymbolFxWrap>
   );
 };

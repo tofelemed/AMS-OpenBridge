@@ -3,11 +3,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CanvasItem } from './types';
 import { useBatchBindingResolver } from '../../hooks/useBindingResolver';
+import { useBatchBindingTrust } from '../../hooks/useBindingTrust';
+import { trustReason } from '../../utils/bindingTrust';
 import { useMqttStore, type TrendSummary } from '../../store/mqttStore';
 import { useDisplayTimeStore } from '../../store/timeStore';
 import { useAssetMetadataBatch } from '../../hooks/useAssetMetadata';
 import { convert, canonicalUnit } from '../../utils/uom';
 import { formatValue } from './openBridgeTheme';
+import { useReportTrust } from './trustReport';
 
 interface Row { slot: string; path: string; label: string; }
 
@@ -55,6 +58,10 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
     live?: { sparkplugDevice?: string; sparkplugMetric?: string };
     history?: { ioTDbPath?: string };
   }>;
+  // CHG-176: a fallback row shows its value (and summary), Uncertain; a loop signal's fallback row reads nothing.
+  const trust = useBatchBindingTrust(paths, batch?.bindings);
+  useReportTrust(trust.worst);
+  const unread = (i: number) => trust.trust[i] === 'loop-unread';
 
   const [summaries, setSummaries] = useState<Record<string, TrendSummary | null>>({});
   useEffect(() => {
@@ -63,12 +70,12 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
     const start = new Date(tStart), end = new Date(tEnd);
     Promise.all(sources.map(async (src, i) => {
       const { series, measurement } = splitIoT(resolved[i]?.history?.ioTDbPath);
-      if (!series || !measurement) return [src.path, null] as const;
+      if (!series || !measurement || unread(i)) return [src.path, null] as const;
       return [src.path, await fetchSummary(series, start, end, measurement)] as const;
     })).then(entries => { if (!cancelled) setSummaries(Object.fromEntries(entries)); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, summaryCols.length, batch, tStart, tEnd]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trust.key is stable while every binding is trusted
+  }, [mode, summaryCols.length, batch, tStart, tEnd, trust.key]);
 
   if (sources.length === 0) {
     return <div className="symbol-table symbol-table--empty">▦ Table — bind tag(s)</div>;
@@ -85,9 +92,9 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
   const rows = sources.map((src, i) => {
     const b = resolved[i];
     const dev = b?.live?.sparkplugDevice, met = b?.live?.sparkplugMetric;
-    const key = dev && met ? `${dev}/${met}` : undefined;
+    const key = dev && met && !unread(i) ? `${dev}/${met}` : undefined;
     const value = key ? metrics.get(key)?.value : undefined;
-    return { ...src, value };
+    return { ...src, value, reason: trustReason(trust.trust[i] ?? 'asset-model') };
   });
 
   const summaryVal = (path: string, col: 'min' | 'max' | 'avg'): number | null => {
@@ -123,7 +130,7 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
             {attrRows.map((ar, ri) => (
               <tr key={ri}>
                 <td>{ar.label}</td>
-                {rows.map((r, i) => <td key={i} className="symbol-table__val">{ar.get(r)}</td>)}
+                {rows.map((r, i) => <td key={i} className="symbol-table__val" title={ri === 0 ? r.reason : undefined}>{ar.get(r)}</td>)}
               </tr>
             ))}
           </tbody>
@@ -147,7 +154,7 @@ export const TableSymbol: React.FC<{ item: CanvasItem; mode: 'design' | 'preview
           {rows.map((r, i) => (
             <tr key={i}>
               <td>{r.label}</td>
-              <td className="symbol-table__val">{fmtValueCell(r.path, r.value)}</td>
+              <td className="symbol-table__val" title={r.reason}>{fmtValueCell(r.path, r.value)}</td>
               {showUnit && <td>{unitInfo(r.path).shownUnit}</td>}
               {summaryCols.map(c => {
                 const v = summaryVal(r.path, c);
