@@ -100,7 +100,7 @@ describe('a readout bound through a fallback', () => {
 
   it('keeps the value, Uncertain, when the loop registry cannot be read', async () => {
     api.fallback = [LOOP_PV];
-    api.loops = 'fail';
+    api.signalPaths = 'fail';
     show(readout(LOOP_PV));
     await screen.findByText(String(DERIVED_VALUE));
     await waitFor(() => expect(badge()?.getAttribute('title')).toContain(REASON_FALLBACK));

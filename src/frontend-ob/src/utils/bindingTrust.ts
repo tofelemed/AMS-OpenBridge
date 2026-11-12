@@ -39,6 +39,13 @@ export function loopSignalSet(loops: ReadonlyArray<{ tags?: Record<string, strin
   return out;
 }
 
+/** CHG-179: the signal-paths read's list as a lookup set, normalised again here (a near miss must not unhide). */
+export function signalPathSet(paths: readonly string[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of paths) if (p && normPath(p)) out.add(normPath(p));
+  return out;
+}
+
 export const isFallbackBinding = (b: { provenance?: string } | null | undefined): boolean => b?.provenance === 'fallback';
 
 /** The trust of one bound path, from the resolver's answer and the loop registry. */

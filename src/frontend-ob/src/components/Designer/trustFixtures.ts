@@ -15,6 +15,9 @@ export const TAG2 = 'hdpe/section_100/u1001_feed/tt10002.pv';
 
 export const LOOPS_URL = '/api/v1/cpm/loops';
 export const LOOPS = { count: 1, loops: [{ loopId: 'FIC10401', tags: { PV: LOOP_PV, SP: LOOP_SP, OP: LOOP_OP } }] };
+/** CHG-179: the loop signals for display.view (trimmed, lower-cased, de-duplicated, sorted by the server). */
+export const SIGNAL_PATHS_URL = '/api/v1/cpm/loops/signal-paths';
+export const SIGNAL_PATHS = { paths: [LOOP_OP, LOOP_PV, LOOP_SP].map(p => p.toLowerCase()).sort(), count: 3, generatedAt: '2026-11-12T00:00:00Z' };
 
 /** The value each answer's device publishes. */
 export const MODEL_VALUE = 12.3;
@@ -51,15 +54,17 @@ export function resolverAnswer(path: string, provenance: Provenance) {
 export interface FakeApi {
   /** Paths the resolver answers with provenance "fallback". */
   fallback: string[];
-  /** How the loop registry answers. */
+  /** How the loop registry (GET /loops) answers. */
   loops: 'ok' | 'fail';
+  /** How the signal-paths read answers; "missing" = 404, an older cplm-api without it. */
+  signalPaths: 'ok' | 'fail' | 'missing';
   /** A display's published content, for the viewer. */
   content?: unknown;
   /** Every read, as "METHOD url". */
   calls: string[];
 }
 
-export const fakeApi = (over: Partial<FakeApi> = {}): FakeApi => ({ fallback: [], loops: 'ok', calls: [], ...over });
+export const fakeApi = (over: Partial<FakeApi> = {}): FakeApi => ({ fallback: [], loops: 'ok', signalPaths: 'ok', calls: [], ...over });
 
 /** Answers the Designer's reads: binding resolve (GET one, POST batch), the loop registry, a display's content. */
 export function fakeAnswer(api: FakeApi, url: string, init?: RequestInit): { status: number; body: unknown } {
@@ -74,6 +79,10 @@ export function fakeAnswer(api: FakeApi, url: string, init?: RequestInit): { sta
     return { status: 200, body: resolverAnswer(path, prov(path)) };
   }
   if (url.endsWith(LOOPS_URL)) return api.loops === 'ok' ? { status: 200, body: LOOPS } : { status: 503, body: { error: 'down' } };
+  if (url.endsWith(SIGNAL_PATHS_URL)) {
+    if (api.signalPaths === 'ok') return { status: 200, body: SIGNAL_PATHS };
+    return api.signalPaths === 'missing' ? { status: 404, body: null } : { status: 503, body: { error: 'down' } };
+  }
   if (url.includes('/content?stage=published')) return { status: 200, body: api.content };
   return { status: 404, body: null };
 }
@@ -94,4 +103,7 @@ export function liveFor(paths: string[], quality = 192): Map<string, LiveMetric>
   return m;
 }
 
-export const loopReads = (api: FakeApi) => api.calls.filter(c => c.endsWith(LOOPS_URL)).length;
+/** Reads of one URL. */
+export const readsOf = (api: FakeApi, url: string) => api.calls.filter(c => c.endsWith(url)).length;
+/** Every loop-signal read, of either kind (the signal-paths read, or GET /loops on an older cplm-api). */
+export const loopReads = (api: FakeApi) => readsOf(api, SIGNAL_PATHS_URL) + readsOf(api, LOOPS_URL);

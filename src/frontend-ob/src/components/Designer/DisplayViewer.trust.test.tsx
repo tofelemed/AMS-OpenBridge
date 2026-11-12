@@ -14,7 +14,7 @@ import * as fetchMod from '../../api/apiFetch';
 import { useAuthStore } from '../../store/authStore';
 import type { CanvasItem } from './types';
 import {
-  DERIVED_VALUE, LOOPS_URL, LOOP_PV, MODEL_VALUE, REASON_FALLBACK, REASON_LOOP, TAG, TAG2, fakeAnswer, fakeApi,
+  DERIVED_VALUE, LOOP_PV, MODEL_VALUE, REASON_FALLBACK, REASON_LOOP, SIGNAL_PATHS_URL, TAG, TAG2, fakeAnswer, fakeApi,
   fakeResponse, liveFor, loopReads, topicOf, type FakeApi,
 } from './trustFixtures';
 
@@ -101,7 +101,7 @@ describe('a display whose batch answers fallback', () => {
     expect(badgeOf(TAG2)).toBeNull();
 
     const batchAt = api.calls.findIndex(c => c.includes('/resolve/batch'));
-    const loopsAt = api.calls.findIndex(c => c.endsWith(LOOPS_URL));
+    const loopsAt = api.calls.findIndex(c => c.endsWith(SIGNAL_PATHS_URL));
     expect(loopReads(api)).toBe(1);
     expect(loopsAt).toBeGreaterThan(batchAt);
   });

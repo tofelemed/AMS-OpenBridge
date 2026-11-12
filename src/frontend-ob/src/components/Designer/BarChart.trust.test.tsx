@@ -83,7 +83,7 @@ describe('bar chart', () => {
 
   it('draws the loop signal\'s fallback value, Uncertain, when the registry cannot be read', async () => {
     api.fallback = [LOOP_PV];
-    api.loops = 'fail';
+    api.signalPaths = 'fail';
     show(item('chart.bar', { value2: LOOP_PV, value3: TAG2 }));
     await waitFor(() => expect(col('fic10401.pv')?.textContent).toContain(String(DERIVED_VALUE)));
     expect(col('fic10401.pv').getAttribute('title')).toContain(REASON_FALLBACK);

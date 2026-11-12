@@ -5,7 +5,7 @@
  * check has not answered yet; a registry that cannot be read leaves the value shown, Uncertain.
  */
 import { describe, expect, it } from 'vitest';
-import { bindingTrust, loopSignalSet, TRUST_REASON, worstTrust, type LoopSignalLookup } from './bindingTrust';
+import { bindingTrust, loopSignalSet, signalPathSet, TRUST_REASON, worstTrust, type LoopSignalLookup } from './bindingTrust';
 import { qualityInfo, qualityWithTrust } from './quality';
 
 const LOOP_PV = 'hdpe/section_600/u6002/fic10401.pv';
@@ -46,6 +46,14 @@ describe('loopSignalSet', () => {
       { tags: undefined as unknown as Record<string, string> },
     ]);
     expect([...s].sort()).toEqual(['a/b.mode', 'a/b.op', 'a/b.pv', 'a/b.sp', 'a/b.vp']);
+  });
+});
+
+describe('signalPathSet (CHG-179)', () => {
+  it('holds the signal-paths list trimmed and case-blind, without blanks', () => {
+    const s = signalPathSet([' A/B.PV ', 'a/b.pv', 'a/b.sp', '', '  ']);
+    expect([...s].sort()).toEqual(['a/b.pv', 'a/b.sp']);
+    expect(bindingTrust(' A/B.SP', { provenance: 'fallback' }, ready([...s]))).toBe('loop-unread');
   });
 });
 

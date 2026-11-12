@@ -12,7 +12,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../api/apiFetch';
 import { useAuthStore } from '../store/authStore';
 import {
-  DERIVED_VALUE, LOOP_PV, MODEL_VALUE, TAG, fakeAnswer, fakeApi, fakeResponse, liveFor, loopReads, topicOf, type FakeApi,
+  DERIVED_VALUE, LOOPS_URL, LOOP_PV, MODEL_VALUE, SIGNAL_PATHS_URL, TAG, fakeAnswer, fakeApi, fakeResponse, liveFor, loopReads,
+  readsOf, topicOf, type FakeApi,
 } from '../components/Designer/trustFixtures';
 
 const mq = vi.hoisted(() => ({ subscribeScreen: vi.fn(), unsubscribeScreen: vi.fn(), metrics: new Map<string, unknown>() }));
@@ -80,23 +81,72 @@ describe('a fallback binding', () => {
     expect(mq.subscribeScreen).not.toHaveBeenCalled();
   });
 
-  it('reads the derived path, Uncertain, when the loop registry cannot be read', async () => {
+  it('reads the derived path, Uncertain, when the loop signals cannot be read', async () => {
     api.fallback = [LOOP_PV];
-    api.loops = 'fail';
+    api.signalPaths = 'fail';
     const { result } = hook(LOOP_PV);
     await waitFor(() => expect(result.current.metric?.value).toBe(DERIVED_VALUE));
     expect(result.current.trust).toBe('fallback');
     expect(loopReads(api)).toBe(1);
     // Quiet: the shared query is marked so the app's global error log skips it.
-    expect(client.getQueryCache().find({ queryKey: ['cpm', 'loops'] })?.meta).toMatchObject({ quietOnError: true });
+    expect(client.getQueryCache().find({ queryKey: ['cpm', 'loop-signal-paths'] })?.meta).toMatchObject({ quietOnError: true });
   });
 
-  it('does not ask the registry without the right to read it, and reads the derived path', async () => {
+  it('does not ask without display.view or analytics.view, and reads the derived path', async () => {
     asUser([]);
     api.fallback = [LOOP_PV];
     const { result } = hook(LOOP_PV);
     await waitFor(() => expect(result.current.metric?.value).toBe(DERIVED_VALUE));
     expect(result.current.trust).toBe('fallback');
+    expect(loopReads(api)).toBe(0);
+  });
+});
+
+describe('CHG-179: the loop signals come from the signal-paths read', () => {
+  it('gives an operator with only display.view the loop exception, without the loop registry', async () => {
+    asUser(['display.view']);
+    api.fallback = [LOOP_PV];
+    const { result } = hook(LOOP_PV);
+    await waitFor(() => expect(result.current.trust).toBe('loop-unread'));
+    expect(result.current.metric).toBeUndefined();
+    expect(mq.subscribeScreen).not.toHaveBeenCalled();
+    expect(readsOf(api, SIGNAL_PATHS_URL)).toBe(1);
+    expect(readsOf(api, LOOPS_URL)).toBe(0);
+  });
+
+  it('reads a plain tag\'s fallback for that operator, Uncertain', async () => {
+    asUser(['display.view']);
+    api.fallback = [TAG];
+    const { result } = hook(TAG);
+    await waitFor(() => expect(result.current.metric?.value).toBe(DERIVED_VALUE));
+    expect(result.current.trust).toBe('fallback');
+  });
+
+  it('falls back to GET /loops on an older cplm-api (404) for a user with analytics.view', async () => {
+    api.signalPaths = 'missing';
+    api.fallback = [LOOP_PV];
+    const { result } = hook(LOOP_PV);
+    await waitFor(() => expect(result.current.trust).toBe('loop-unread'));
+    expect(mq.subscribeScreen).not.toHaveBeenCalled();
+    expect(readsOf(api, SIGNAL_PATHS_URL)).toBe(1);
+    expect(readsOf(api, LOOPS_URL)).toBe(1);
+  });
+
+  it('reads the derived path, Uncertain, on an older cplm-api (404) without analytics.view', async () => {
+    asUser(['display.view']);
+    api.signalPaths = 'missing';
+    api.fallback = [LOOP_PV];
+    const { result } = hook(LOOP_PV);
+    await waitFor(() => expect(result.current.metric?.value).toBe(DERIVED_VALUE));
+    expect(result.current.trust).toBe('fallback');
+    expect(readsOf(api, LOOPS_URL)).toBe(0);
+  });
+
+  it('sends no loop-signal read for an operator while no fallback appears', async () => {
+    asUser(['display.view']);
+    const { result } = hook(LOOP_PV);
+    await waitFor(() => expect(result.current.metric?.value).toBe(MODEL_VALUE));
+    expect(result.current.trust).toBe('asset-model');
     expect(loopReads(api)).toBe(0);
   });
 });
