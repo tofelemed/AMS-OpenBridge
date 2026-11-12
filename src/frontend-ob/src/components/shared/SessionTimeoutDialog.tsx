@@ -3,20 +3,16 @@
 // Session-policy end-of-session dialog (dual-clock: sliding idle + absolute max).
 // Shown after endSession('inactivity' | 'expired') — including on the login page,
 // because the reason survives the logout state change until dismissed.
+// Owner, 12 Nov 2026: the Traverse dialog (neutral chrome) instead of the old warning modal — amber is reserved for
+// process alarms and a session ending is not one; one short sentence per reason; the button says what comes next.
 import React from 'react';
-import { Modal } from './Modal';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { Dialog } from '../../ui/Dialog';
 import { useAuthStore } from '../../store/authStore';
 
 const WORDING = {
-  inactivity: {
-    title: 'Signed out due to inactivity',
-    body: 'Your session ended because there was no activity for the configured idle period. Sign in again to continue.',
-  },
-  expired: {
-    title: 'Session length limit reached',
-    body: 'Your session reached its maximum allowed duration and was closed. Sign in again to continue.',
-  },
+  inactivity: { title: 'Signed out', body: 'No activity for the idle period. Sign in to continue.' },
+  expired: { title: 'Session ended', body: 'The session reached its time limit. Sign in to continue.' },
 } as const;
 
 export const SessionTimeoutDialog: React.FC = () => {
@@ -27,20 +23,10 @@ export const SessionTimeoutDialog: React.FC = () => {
   const { title, body } = WORDING[reason];
 
   return (
-    <Modal
-      isOpen
-      onClose={clear}
-      title={title}
-      variant="warning"
-      width="420px"
-      footer={
-        <ObcButton variant="raised" onClick={clear}>
-          OK
-        </ObcButton>
-      }
-    >
-      <p style={{ margin: 0 }}>{body}</p>
-    </Modal>
+    <Dialog open onClose={clear} title={title}
+      footer={<ObcButton variant="raised" onClick={clear}>Sign in</ObcButton>}>
+      <p className="cpm-copy">{body}</p>
+    </Dialog>
   );
 };
 

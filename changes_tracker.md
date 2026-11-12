@@ -6564,3 +6564,11 @@ built); D5 (whether backups carry the archive); the release build itself.
 **No migration, no config change.** **Script to run:** none. **Plant:** not deployed. **Lab:** not rebuilt.
 
 **CHG-177 owner follow-up (12 Nov, after the build).** The chosen-loop panel shows the PV · SP · OP · MODE pills always (— until a value arrives) and no longer shows the Signal quality pill (Loop Explorer keeps it). `overview/LoopFocus.tsx` + its test.
+
+## CHG-180 — Session-ended dialog on the Traverse dialog (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** The owner: the session-expired dialog's colour was wrong; redesign it, to the point. It used the old shared warning modal (amber accent bar and warning icon); amber is reserved for process alarms and a session ending is not one.
+
+**Changed.** `components/shared/SessionTimeoutDialog.tsx` now uses `ui/Dialog` (the neutral Traverse dialog every redesigned page uses): "Signed out" / "Session ended", one short sentence each, and a "Sign in" button (was "OK"). Same trigger, same dismissal (`clearSessionEndReason`), shown on the login page as before. New `SessionTimeoutDialog.test.tsx` (3 tests).
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.

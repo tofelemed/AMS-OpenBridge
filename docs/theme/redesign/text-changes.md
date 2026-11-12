@@ -1716,3 +1716,10 @@ Removed on the owner's instruction (12 Nov): Calculation basis (page foot; its s
 | Page foot | Calculation basis · Configuration & coverage → | removed |
 | Loop Explorer and Investigation trend › no values (shared trend, answer 5) | "Trend: no signal values in this trend range · The historian returned the time range but no PV, SP or OP samples in it — the feed may have stopped. The live values above show when the last sample arrived." | one line: "Trend: no PV, SP or OP values in this range" (each chart's caption in front, as before; with none, "No PV, SP or OP values in this range"); their zoom tools and `?` unchanged |
 | Chosen loop › signal row (owner, 12 Nov, after the build) | nothing live: "Signal quality · No signal" alone; pills only once a value arrived | PV · SP · OP · MODE pills always (— until a value arrives); no Signal quality pill on the Overview (Loop Explorer keeps it) |
+
+## CHG-180 Session-ended dialog
+
+| Where | Was | Now |
+|---|---|---|
+| Session ended (idle) | warning modal (amber bar and icon) "Signed out due to inactivity" · "Your session ended because there was no activity for the configured idle period. Sign in again to continue." · OK | Traverse dialog "Signed out" · "No activity for the idle period. Sign in to continue." · Sign in |
+| Session ended (time limit) | warning modal "Session length limit reached" · "Your session reached its maximum allowed duration and was closed. Sign in again to continue." · OK | Traverse dialog "Session ended" · "The session reached its time limit. Sign in to continue." · Sign in |
