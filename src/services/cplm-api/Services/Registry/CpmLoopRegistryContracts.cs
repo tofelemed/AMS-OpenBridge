@@ -14,6 +14,11 @@ public interface ICpmLoopRegistryService
 {
     Task<IReadOnlyList<CpmLoopDto>> GetAllAsync(CancellationToken ct);
     Task<CpmLoopDto?> GetAsync(string loopId, CancellationToken ct);
+    /// <summary>
+    /// CHG-179: the stored path of every active tag-map row of every registered loop, retired loops included, as stored
+    /// (GET /loops/signal-paths normalises them). One query; paths only, no loop data.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetSignalPathsAsync(CancellationToken ct);
     Task<CpmLoopDto> ActivateAsync(CpmLoopActivateRequest request, CancellationToken ct);
     /// <summary>
     /// Onboards a whole batch in ONE round trip. Per-row outcomes are preserved

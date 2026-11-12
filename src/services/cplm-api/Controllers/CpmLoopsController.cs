@@ -1,9 +1,12 @@
 // Extraction Phase 3 COPY of AMS.Api Controllers/V1/CpmLoopsController.cs — mechanical transforms only
 // (namespace, literal v1 routes, no Asp.Versioning). The AMS.Api original keeps
 // serving until Phase 6 deletes it; behavior changes are forbidden in either copy.
+using Traverse.CplmApi.Auth;
+using Traverse.CplmApi.Data;
 using Traverse.CplmApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 
 namespace Traverse.CplmApi.Controllers;
 
@@ -47,6 +50,28 @@ public sealed class CpmLoopsController : ControllerBase
     {
         var loops = await _registry.GetAllAsync(ct);
         return Ok(new { loops, count = loops.Count });
+    }
+
+    /// <summary>
+    /// CHG-179: every signal path of every registered loop (retired ones too), trimmed, lower-cased, de-duplicated and
+    /// sorted, and nothing else, for any HMI display user (display.view OR analytics.view, Auth/CplmPolicies.cs): a display
+    /// shows a fallback binding on a loop signal as not read (frontend utils/bindingTrust.ts). One registry query per
+    /// Cpm:FleetCacheSeconds, single-flight (every display asks at once when the asset model goes down); weak ETag -> 304.
+    /// </summary>
+    [HttpGet("signal-paths")]
+    [Authorize(Policy = CplmPolicies.DisplayOrAnalyticsView)]
+    public async Task<IActionResult> GetSignalPaths(
+        [FromServices] FleetReadCache cache, [FromServices] IConfiguration config, CancellationToken ct)
+    {
+        var ttl = TimeSpan.FromSeconds(config.GetValue("Cpm:FleetCacheSeconds", 15));
+        var (set, hit) = await cache.GetOrCreateAsync("loop-signal-paths", ttl,
+            async token => LoopSignalPaths.From(await _registry.GetSignalPathsAsync(token), DateTime.UtcNow), ct);
+        Response.Headers["X-Cpm-Cache"] = hit ? "HIT" : "MISS";
+        Response.Headers[HeaderNames.ETag] = set.ETag;
+        Response.Headers[HeaderNames.CacheControl] = "private, no-cache";
+        return LoopSignalPaths.IfNoneMatchHits(Request.Headers[HeaderNames.IfNoneMatch], set.ETag)
+            ? StatusCode(StatusCodes.Status304NotModified)
+            : Ok(set.ToResponse());
     }
 
     /// <summary>One loop, including observability flags that explain gate degradations.</summary>

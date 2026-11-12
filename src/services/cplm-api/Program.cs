@@ -206,6 +206,9 @@ builder.Services.AddHostedService<Traverse.CplmApi.BackgroundServices.CplmShelfE
 // analytics.view / cpm.manage / system.manage ride Perms.All in the shared
 // TraverseAuth module (synced by scripts/sync-auth-module.ps1).
 builder.AddTraverseAuth();
+// CHG-179: cplm-api's own any-of policies (display.view OR analytics.view for GET /loops/signal-paths). The shared
+// module above registers one policy per key and stays byte-identical across services, so they live in Auth/CplmPolicies.cs.
+Traverse.CplmApi.Auth.CplmPolicies.Register(builder.Services);
 
 var app = builder.Build();
 
