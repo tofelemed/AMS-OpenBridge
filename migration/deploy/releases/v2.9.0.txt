@@ -1,6 +1,7 @@
-# Release v2.9.0 (DRAFT, name and scope pending the user) - CHG-102 historian-first storage, on top of plant v2.8.0.1
-# (43d1948e, deployed 2026-10-16). ams-open-cf's CHG-101 (IoTDB tree move, tool + runbook) and CHG-103 (ingestion) are NOT in
-# this list; add traverse-ingestion-service here if CHG-103 ships with it.
+# Release v2.9.0 - CHG-101..105 + the CPA redesign, on top of plant v2.8.0.1 (43d1948e, deployed 2026-10-16).
+# Owner 2026-11-12: CHG-101 IoTDB tree move IS in this release (build box migration/.env LOOP_ROOT_PREFIX=root.hdpe.cpm, the
+# frontend bakes it; VM steps in migration/IOTDB-LOOP-TREE-MOVE.md) and CHG-103 ingestion IS in (traverse-ingestion-service).
+# Defaults kept: no gate-status backfill, On-Demand Evaluation parallelism 1.
 # Consumed by: python migration/deploy/build-release.py --release v2.9.0        (the jar IS rebuilt: no --skip-jar)
 #
 #   flink-jobmanager   (the TaskManager uses the same image) CHG-102 5a plant-boundary evidence (12 h at local 00:00 / 12:00,
@@ -14,6 +15,7 @@
 #                      "Evaluate a window from the historian".
 #                      CHG-105: System Response / Workbench say how long G12 charts are kept (they cannot be rebuilt).
 #   ams-api            CHG-102 phase 1 raw writer (aligned / templated; behaviour changes only with IOTDB_LAYOUT=v2).
+#   traverse-ingestion-service  CHG-103 the loop registry refresh survives a timed-out cplm-api answer (retried, not dropped).
 #
 # CPA redesign (feat/cpa-redesign CHG-110..182, merged with this list on 2026-11-12; build from that branch):
 #   ams-frontend       every CPA page redesigned (CHG-110..182; see changes_tracker.md); HMI displays mark fallback
@@ -42,3 +44,4 @@ ams-api
 traverse-auth-service
 audit-service
 asset-model
+traverse-ingestion-service
