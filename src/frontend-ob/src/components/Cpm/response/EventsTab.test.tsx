@@ -1,5 +1,6 @@
 // CHG-165: the Events tab: the three counts once, then the loop's events as a table (time, type, path, state, finding, model);
-// censored rows on request; choosing an event hands it to the page.
+// censored rows on request; choosing an event hands it to the page. CHG-178: the time reads "7 Oct 05:43" in the site zone,
+// the zone named once in the heading.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -33,6 +34,8 @@ describe('EventsTab', () => {
     expect(within(rows[0]).getByText('FOPDT · K 0.21')).toBeTruthy();
     expect(within(rows[1]).getAllByText('—').length).toBeGreaterThan(0);
     expect(within(rows[0]).getByRole('button').getAttribute('aria-current')).toBe('true');
+    expect(within(rows[0]).getByRole('button').textContent).toBe('7 Oct 05:43');
+    expect(screen.getByRole('columnheader', { name: 'Time · UTC' })).toBeTruthy();
     fireEvent.click(within(rows[1]).getByRole('button'));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'e2' }));
   });

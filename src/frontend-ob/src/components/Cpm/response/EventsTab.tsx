@@ -2,13 +2,15 @@
  * CHG-165 (owner review): the Events tab. The three counts once, then the loop's response events, newest first, as a table:
  * time, type, path, one state, the finding, and the model the event produced (from the loop's models already loaded, so no
  * request per row). Censored candidates stay out until asked for (audit F20); the choice carries their count. Choosing an
- * event is explicit, never "latest", and opens it on the Response tab.
+ * event is explicit, never "latest", and opens it on the Response tab. CHG-178: the time reads "7 Oct 05:43" in the loop's
+ * site zone, as the band's options do; the zone is named once, in the heading ("Time · UTC").
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { PanelHead, TonePill } from '../shared';
 import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/response';
-import { formatInZone } from '../evidence/timezone';
+import { zoneAbbr } from '../../../cpa/siteTime';
+import { fmtInstantBare } from '../context/LoopContextBar';
 import { codeLabel } from '../vocabulary';
 import { eventRowView } from './responseCopy';
 import { modelBrief, modelOfEvent, pathLabel, typeLabel } from './responseLabels';
@@ -49,7 +51,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       ) : (
         <div className="cpm-table-wrap">
           <table className="cpm-table" data-table="response-events">
-            <thead><tr><th>Time</th><th>Type</th><th>Path</th><th>State</th><th>Finding</th><th>Model</th></tr></thead>
+            <thead><tr><th>Time · {zoneAbbr(timeZone, events[0].t0Ms)}</th><th>Type</th><th>Path</th><th>State</th><th>Finding</th><th>Model</th></tr></thead>
             <tbody>
               {events.map(e => {
                 const v = eventRowView(e);
@@ -59,7 +61,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   <tr key={e.eventId} className={`${selected ? 'cpm-row--selected' : ''}${v.censored ? ' cpm-row--muted' : ''}`.trim() || undefined}>
                     <td className="cpm-nowrap">
                       <button type="button" className="ui-link cpm-mono" aria-current={selected ? 'true' : undefined} onClick={() => onSelect(e)}>
-                        {formatInZone(e.t0Ms, timeZone)}
+                        {fmtInstantBare(e.t0Ms, timeZone)}
                       </button>
                     </td>
                     <td>{typeLabel(e.eventType)}</td>

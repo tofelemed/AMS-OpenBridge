@@ -1723,3 +1723,15 @@ Removed on the owner's instruction (12 Nov): Calculation basis (page foot; its s
 |---|---|---|
 | Session ended (idle) | warning modal (amber bar and icon) "Signed out due to inactivity" · "Your session ended because there was no activity for the configured idle period. Sign in again to continue." · OK | Traverse dialog "Signed out" · "No activity for the idle period. Sign in to continue." · Sign in |
 | Session ended (time limit) | warning modal "Session length limit reached" · "Your session reached its maximum allowed duration and was closed. Sign in again to continue." · OK | Traverse dialog "Session ended" · "The session reached its time limit. Sign in to continue." · Sign in |
+
+## CHG-178 System Response notes and event times
+
+| Where | Was | Now |
+|---|---|---|
+| System Response › Response / Fit quality / Frequency tabs, note (not kept) | Arrays not kept for this run | Charts not kept |
+| System Response › same note (removed by retention) | Arrays removed by retention | Charts removed by retention |
+| System Response › same note (failed verification) | Arrays failed verification | Charts failed verification |
+| System Response › same note, line | The result and every value stand. | The result and every value stand. Charts are kept {30 days / for ever} for accepted events and {6 h} for censored candidates; they cannot be rebuilt. (Older server with no retention: "The result and every value stand. Charts are not stored for this event and cannot be rebuilt.") |
+| System Response › same note, button | Reconstruct in the Workbench ↗ | (removed: a response event cannot be reconstructed) |
+| System Response › Events tab, Time column heading | Time | Time · UTC (the site zone's short name) |
+| System Response › Events tab, Time cell | 2026-10-07 05:43:24 | 7 Oct 05:43 |

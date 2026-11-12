@@ -12,8 +12,14 @@ export interface ResponseEventSummary {
   purpose: string; bundleHash: string; resultRevision: number; emittedAtMs: number | null;
 }
 
+/** CHG-178: how long a response event's charts are kept. `null` days = kept for ever. Absent from older cplm-api answers. */
+export interface ResponseRetention { acceptedDays: number | null; censoredDays: number | null; censoredChartHours: number }
+
 /** 2026-09-17 audit F19/F20: `censoredCount` is the range's censored candidates, listed only with includeCensored. */
-export interface ResponseEventPage { loopId: string; purpose: string; count: number; censoredCount?: number; includeCensored?: boolean; nextCursor: number | null; events: ResponseEventSummary[] }
+export interface ResponseEventPage {
+  loopId: string; purpose: string; count: number; censoredCount?: number; includeCensored?: boolean; nextCursor: number | null; events: ResponseEventSummary[];
+  retention?: ResponseRetention;
+}
 
 export interface ResponseQuantity {
   quantityId: string; value: number | null; unit: string; pathId: string; uncertainty: number | null; method: string;

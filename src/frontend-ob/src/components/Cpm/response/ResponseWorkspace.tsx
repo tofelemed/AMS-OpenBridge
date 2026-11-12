@@ -53,6 +53,7 @@ export const ResponseWorkspace: React.FC = () => {
   const events = useResponseEvents(loopId, 'LIVE', showCensored);
   const flat = useMemo(() => events.data?.pages.flatMap(p => p.events) ?? [], [events.data]);
   const censoredCount = events.data?.pages[0]?.censoredCount ?? 0;
+  const retention = events.data?.pages[0]?.retention;
   // a G12 view links by method run: resolve it to its event once, then navigate to the event id
   const runLookup = useMethodRun(!eventParam && methodRunParam ? methodRunParam : undefined);
   useEffect(() => {
@@ -144,9 +145,9 @@ export const ResponseWorkspace: React.FC = () => {
       : <EmptyState title="No event selected" copy="Choose an event in the band above or on the Events tab." />;
   } else {
     body = (
-      <EventPanes tab={tab} loopId={loopId} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
+      <EventPanes tab={tab} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
         methodRunId={methodRunId} t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0} resultRevision={selected?.resultRevision}
-        pvUnit={loop?.engineering?.pvUnit} />
+        pvUnit={loop?.engineering?.pvUnit} retention={retention} />
     );
   }
 

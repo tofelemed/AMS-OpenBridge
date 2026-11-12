@@ -1,22 +1,18 @@
-// CHG-165: one note per tab when a run's arrays were not kept (with the way to rebuild them), and the reported quantities
-// of the Response tab: the ones the result row does not already say.
+// CHG-165: one note per tab when a run's arrays were not kept, and the reported quantities of the Response tab: the ones the
+// result row does not already say. CHG-178: the note says the charts are not kept and how long charts are kept (from the
+// events answer's retention), with no rebuild link: a G12 response event cannot be reconstructed.
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
 import type { ResponseQuantity } from '../../../api/cpm/response';
 import { ArraysNote, arraysState, ReportedQuantities } from './ResponseNotes';
 
-vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
-}));
 afterEach(cleanup);
 const manifest = (readiness: string, gates: string[] = []) => ({ methodRunId: 'r1', readiness, count: gates.length, artifacts: gates.map(g => ({ gate: g, kind: 'x', readiness: 'COMPLETE' })) }) as unknown as EvidenceManifest;
 const q = (over: Partial<ResponseQuantity> & { quantityId: string }): ResponseQuantity => ({
   value: null, unit: '', pathId: 'OP_TO_PV', uncertainty: null, method: '', supportFromMs: null, supportToMs: null, configHash: 'b', reasonIfNull: '', ...over,
 });
-const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 
 describe('arraysState', () => {
   it('says not kept, removed or failed only when the run holds no G12 arrays', () => {
@@ -30,12 +26,29 @@ describe('arraysState', () => {
 });
 
 describe('ArraysNote', () => {
-  it('says the values stand and opens the run in the Workbench to rebuild the arrays', () => {
-    render(<MemoryRouter><ArraysNote state="NOT_KEPT" loopId="FIC1" methodRunId="r1" /><Where /></MemoryRouter>);
-    expect(screen.getByRole('note').textContent).toMatch(/^Arrays not kept for this runThe result and every value stand\./);
-    fireEvent.click(screen.getByText('Reconstruct in the Workbench ↗'));
-    expect(screen.getByTestId('where').textContent).toMatch(/methodRun=r1/);
-    expect(screen.getByTestId('where').textContent).toMatch(/gate=G12/);
+  it('says the values stand, how long charts are kept, and offers no rebuild', () => {
+    render(<ArraysNote state="NOT_KEPT" retention={{ acceptedDays: 30, censoredDays: 7, censoredChartHours: 6 }} />);
+    expect(screen.getByRole('note').textContent).toBe(
+      'Charts not keptThe result and every value stand. Charts are kept 30 days for accepted events and 6 h for censored candidates; they cannot be rebuilt.');
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/Workbench/)).toBeNull();
+  });
+
+  it('says for ever when accepted charts are never removed', () => {
+    render(<ArraysNote state="NOT_KEPT" retention={{ acceptedDays: null, censoredDays: null, censoredChartHours: 6 }} />);
+    expect(screen.getByRole('note').textContent).toMatch(/Charts are kept for ever for accepted events and 6 h for censored candidates;/);
+  });
+
+  it('says the charts are not stored when the answer carries no retention', () => {
+    render(<ArraysNote state="NOT_KEPT" />);
+    expect(screen.getByRole('note').textContent).toBe(
+      'Charts not keptThe result and every value stand. Charts are not stored for this event and cannot be rebuilt.');
+  });
+
+  it('keeps the removed and failed headings in chart words', () => {
+    render(<><ArraysNote state="EXPIRED" /><ArraysNote state="FAILED" /></>);
+    expect(screen.getByText('Charts removed by retention')).toBeTruthy();
+    expect(screen.getByText('Charts failed verification')).toBeTruthy();
   });
 });
 

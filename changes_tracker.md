@@ -6572,3 +6572,19 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Changed.** `components/shared/SessionTimeoutDialog.tsx` now uses `ui/Dialog` (the neutral Traverse dialog every redesigned page uses): "Signed out" / "Session ended", one short sentence each, and a "Sign in" button (was "OK"). Same trigger, same dismissal (`clearSessionEndReason`), shown on the login page as before. New `SessionTimeoutDialog.test.tsx` (3 tests).
 
 **Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+## CHG-178 — System Response: charts-not-kept note and event times (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** The note on a System Response event whose arrays were not stored offered "Reconstruct in the Workbench ↗". That link did not work: the engine refuses to reconstruct an event-keyed G12 run, so a response event's charts can never be rebuilt. The Events tab also still showed the old time format ("2026-10-07 05:43:24") while the band's event options read "7 Oct 05:43".
+
+**Changed.**
+- `src/frontend-ob/src/components/Cpm/response/ResponseNotes.tsx`: `ArraysNote` drops the Workbench button, its `useNavigate`, and the `loopId`/`methodRunId` props. Headings now say "Charts" instead of "Arrays": "Charts not kept" (was "Arrays not kept for this run"), "Charts removed by retention", "Charts failed verification". The line reads "The result and every value stand. Charts are kept {A} for accepted events and {C} for censored candidates; they cannot be rebuilt." {A} is `retention.acceptedDays` ("30 days", "1 day", or "for ever" when null) and {C} is `retention.censoredChartHours` ("6 h"). When the answer has no `retention` (today's cplm-api), the line reads "The result and every value stand. Charts are not stored for this event and cannot be rebuilt." The look is unchanged (`cpm-gate-state cpm-gate-state--note`, role="note").
+- `src/frontend-ob/src/api/cpm/response.ts`: new `ResponseRetention` type, and an optional `retention` field on `ResponseEventPage` (the answer of `GET /api/v1/cpm/loops/{loopId}/response-events`; the cplm-api side is being added on another branch).
+- `src/frontend-ob/src/components/Cpm/response/ResponseWorkspace.tsx` reads `retention` from the first page of `useResponseEvents`. `EventPanes.tsx` passes it on to `ArraysNote`. `EventPanes` drops its now-unused `loopId` prop.
+- `src/frontend-ob/src/components/Cpm/response/EventsTab.tsx`: the Time column uses `fmtInstantBare` in the loop's site zone ("7 Oct 05:43"). The heading names the zone once, as "Time · UTC", using `zoneAbbr`, the short name the Loop Events headings use.
+
+**Services updated:** ams-frontend only. No migration. No backend change. The frontend works without the new field, and the full sentence appears once cplm-api sends `retention`.
+
+**Plant:** not deployed. **Lab:** not rebuilt.
+
+**Tests:** `ResponseNotes.test.tsx` (the note has 4 cases: retention in days, for ever, field absent, removed/failed headings; it checks that no button or Workbench text is shown) and `EventsTab.test.tsx` (checks the time "7 Oct 05:43" and the "Time · UTC" heading). `npx vitest run src/components/Cpm/response`: 13 files, 59 tests pass. ESLint on the touched files is clean (--max-warnings 0), and `tsc --noEmit` is clean.
