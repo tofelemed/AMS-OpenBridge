@@ -2,6 +2,7 @@
  * CHG-172 (owner review, the approved sample, badges 10 and 11): Add custom role as a small dialog (it was an inline form under a
  * button that turned into Cancel), and Delete role picking the role its users move to from a list (it was free text, where a
  * typo was refused by the server). The words are kept; each dialog ends with the button that names its action.
+ * Owner, 12 Nov 2026 (CHG-182): the Delete sentence now matches the list (the old one asked to type a role or leave it blank).
  */
 import React, { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -69,7 +70,7 @@ export const DeleteRoleDialog: React.FC<{
         <ObcButton variant="raised" disabled={busy} onClick={() => onDelete(target)}>Delete role</ObcButton>
       </>}>
       <div className="cpm-admin-confirm">
-        <p className="cpm-copy">If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users).</p>
+        <p className="cpm-copy">Users who hold this role move to the role you pick.</p>
         <Field id={`${id}-to`} label="Reassign users to">
           <select id={`${id}-to`} className="cpm-select" value={target} onChange={e => setTarget(e.target.value)}>
             {targets.map(t => <option key={t} value={t}>{t}</option>)}

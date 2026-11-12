@@ -154,7 +154,9 @@ describe('the selected role', () => {
     expect(within(panel()).queryByRole('button', { name: 'Reset to default' })).toBeNull();
     fireEvent.click(within(panel()).getByRole('button', { name: 'Delete role' }));
     const dialog = screen.getByRole('dialog', { name: 'Delete role "Supervisor"' });
-    expect(within(dialog).getByText('If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users).')).toBeTruthy();
+    // Owner, 12 Nov (item 5): the sentence matches the list picker (no free text, nothing to leave blank)
+    expect(within(dialog).getByText('Users who hold this role move to the role you pick.')).toBeTruthy();
+    expect(dialog.textContent).not.toMatch(/leave blank|enter a role/);
     const target = within(dialog).getByRole('combobox', { name: 'Reassign users to' }) as HTMLSelectElement;
     expect([...target.options].map(o => o.value)).toEqual(['Viewer', 'Engineer']);
     expect(target.value).toBe('Viewer');

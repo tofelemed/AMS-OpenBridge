@@ -6589,51 +6589,6 @@ built); D5 (whether backups carry the archive); the release build itself.
 
 **Tests:** `ResponseNotes.test.tsx` (the note has 4 cases: retention in days, for ever, field absent, removed/failed headings; it checks that no button or Workbench text is shown) and `EventsTab.test.tsx` (checks the time "7 Oct 05:43" and the "Time · UTC" heading). `npx vitest run src/components/Cpm/response`: 13 files, 59 tests pass. ESLint on the touched files is clean (--max-warnings 0), and `tsc --noEmit` is clean.
 
-## CHG-178 — System Response: charts-not-kept note and event times (2026-11-12, branch feat/cpa-redesign, unreleased)
-
-**Why.** The note on a System Response event whose arrays were not stored offered "Reconstruct in the Workbench ↗". That link did not work: the engine refuses to reconstruct an event-keyed G12 run, so a response event's charts can never be rebuilt. The Events tab also still showed the old time format ("2026-10-07 05:43:24") while the band's event options read "7 Oct 05:43".
-
-**Changed.**
-- `src/frontend-ob/src/components/Cpm/response/ResponseNotes.tsx`: `ArraysNote` drops the Workbench button, its `useNavigate`, and the `loopId`/`methodRunId` props. Headings now say "Charts" instead of "Arrays": "Charts not kept" (was "Arrays not kept for this run"), "Charts removed by retention", "Charts failed verification". The line reads "The result and every value stand. Charts are kept {A} for accepted events and {C} for censored candidates; they cannot be rebuilt." {A} is `retention.acceptedDays` ("30 days", "1 day", or "for ever" when null) and {C} is `retention.censoredChartHours` ("6 h"). When the answer has no `retention` (today's cplm-api), the line reads "The result and every value stand. Charts are not stored for this event and cannot be rebuilt." The look is unchanged (`cpm-gate-state cpm-gate-state--note`, role="note").
-- `src/frontend-ob/src/api/cpm/response.ts`: new `ResponseRetention` type, and an optional `retention` field on `ResponseEventPage` (the answer of `GET /api/v1/cpm/loops/{loopId}/response-events`; the cplm-api side is being added on another branch).
-- `src/frontend-ob/src/components/Cpm/response/ResponseWorkspace.tsx` reads `retention` from the first page of `useResponseEvents`. `EventPanes.tsx` passes it on to `ArraysNote`. `EventPanes` drops its now-unused `loopId` prop.
-- `src/frontend-ob/src/components/Cpm/response/EventsTab.tsx`: the Time column uses `fmtInstantBare` in the loop's site zone ("7 Oct 05:43"). The heading names the zone once, as "Time · UTC", using `zoneAbbr`, the short name the Loop Events headings use.
-
-**Services updated:** ams-frontend only. No migration. No backend change. The frontend works without the new field, and the full sentence appears once cplm-api sends `retention`.
-
-**Plant:** not deployed. **Lab:** not rebuilt.
-
-**Tests:** `ResponseNotes.test.tsx` (the note has 4 cases: retention in days, for ever, field absent, removed/failed headings; it checks that no button or Workbench text is shown) and `EventsTab.test.tsx` (checks the time "7 Oct 05:43" and the "Time · UTC" heading). `npx vitest run src/components/Cpm/response`: 13 files, 59 tests pass. ESLint on the touched files is clean (--max-warnings 0), and `tsc --noEmit` is clean.
-
-## CHG-179 (frontend) — Designer displays read the loop-signal paths (2026-11-12, branch feat/cpa-redesign, unreleased)
-
-**Why.** CHG-176 knew the loop signals only from `GET /loops`, which needs `analytics.view`; operators usually lack it, so for them a fallback on a CPLM loop signal showed the wrong derived value marked Uncertain instead of not reading it. The CHG-179 backend added `GET /api/v1/cpm/loops/signal-paths` for `display.view` OR `analytics.view`.
-
-**Changed.**
-- New `src/api/cpm/loopSignalPaths.ts` (`getLoopSignalPaths`).
-- `src/hooks/useBindingTrust.ts`: the lookup reads the new endpoint (query `['cpm','loop-signal-paths']`, quiet meta, 30 s stale). Still lazy: no observer and no request until a fallback binding appears; asset-model bindings untouched. Asked only with `display.view` OR `analytics.view` (neither: rule 1, no request). An older cplm-api answering 404: with `analytics.view` the CHG-176 `GET /loops` read is used, inside the same query (no retry wait); without it, or on any other failure, rule 1 (value shown, Uncertain).
-- `src/utils/bindingTrust.ts`: `signalPathSet` (paths trimmed and lower-cased, as before). `src/hooks/useCpm.ts`: comment only.
-
-**Services updated:** `ams-frontend`, shipped with `cplm-api` (CHG-179 backend). **No migration, no config.** **Plant:** not deployed. **Lab:** not rebuilt.
-
-**Tests.** `useBindingResolver.test.tsx` +5 (a `display.view`-only operator gets the loop exception from the new endpoint and never calls `GET /loops`; that operator's plain-tag fallback reads Uncertain; 404 + `analytics.view` falls back to `GET /loops`; 404 without it gives rule 1; no request without a fallback); `bindingTrust.test.ts` +1; `trustFixtures.ts` fakes the new endpoint (ok / fail / 404); the BarChart, SymbolRenderer and DisplayViewer trust tests fail the new read. Full suite: see the go-live note under CHG-182.
-
-## CHG-178 — System Response: charts-not-kept note and event times (2026-11-12, branch feat/cpa-redesign, unreleased)
-
-**Why.** The note on a System Response event whose arrays were not stored offered "Reconstruct in the Workbench ↗". That link did not work: the engine refuses to reconstruct an event-keyed G12 run, so a response event's charts can never be rebuilt. The Events tab also still showed the old time format ("2026-10-07 05:43:24") while the band's event options read "7 Oct 05:43".
-
-**Changed.**
-- `src/frontend-ob/src/components/Cpm/response/ResponseNotes.tsx`: `ArraysNote` drops the Workbench button, its `useNavigate`, and the `loopId`/`methodRunId` props. Headings now say "Charts" instead of "Arrays": "Charts not kept" (was "Arrays not kept for this run"), "Charts removed by retention", "Charts failed verification". The line reads "The result and every value stand. Charts are kept {A} for accepted events and {C} for censored candidates; they cannot be rebuilt." {A} is `retention.acceptedDays` ("30 days", "1 day", or "for ever" when null) and {C} is `retention.censoredChartHours` ("6 h"). When the answer has no `retention` (today's cplm-api), the line reads "The result and every value stand. Charts are not stored for this event and cannot be rebuilt." The look is unchanged (`cpm-gate-state cpm-gate-state--note`, role="note").
-- `src/frontend-ob/src/api/cpm/response.ts`: new `ResponseRetention` type, and an optional `retention` field on `ResponseEventPage` (the answer of `GET /api/v1/cpm/loops/{loopId}/response-events`; the cplm-api side is being added on another branch).
-- `src/frontend-ob/src/components/Cpm/response/ResponseWorkspace.tsx` reads `retention` from the first page of `useResponseEvents`. `EventPanes.tsx` passes it on to `ArraysNote`. `EventPanes` drops its now-unused `loopId` prop.
-- `src/frontend-ob/src/components/Cpm/response/EventsTab.tsx`: the Time column uses `fmtInstantBare` in the loop's site zone ("7 Oct 05:43"). The heading names the zone once, as "Time · UTC", using `zoneAbbr`, the short name the Loop Events headings use.
-
-**Services updated:** ams-frontend only. No migration. No backend change. The frontend works without the new field, and the full sentence appears once cplm-api sends `retention`.
-
-**Plant:** not deployed. **Lab:** not rebuilt.
-
-**Tests:** `ResponseNotes.test.tsx` (the note has 4 cases: retention in days, for ever, field absent, removed/failed headings; it checks that no button or Workbench text is shown) and `EventsTab.test.tsx` (checks the time "7 Oct 05:43" and the "Time · UTC" heading). `npx vitest run src/components/Cpm/response`: 13 files, 59 tests pass. ESLint on the touched files is clean (--max-warnings 0), and `tsc --noEmit` is clean.
-
 ## CHG-179 (frontend) — Designer displays read the loop-signal paths (2026-11-12, branch feat/cpa-redesign, unreleased)
 
 **Why.** CHG-176 knew the loop signals only from `GET /loops`, which needs `analytics.view`; operators usually lack it, so for them a fallback on a CPLM loop signal showed the wrong derived value marked Uncertain instead of not reading it. The CHG-179 backend added `GET /api/v1/cpm/loops/signal-paths` for `display.view` OR `analytics.view`.
@@ -6664,3 +6619,25 @@ built); D5 (whether backups carry the archive); the release build itself.
 **Lab:** not rebuilt.
 
 **Tests.** `npx vitest run src/components/Cpm/trend src/components/Cpm/overview src/components/Cpm/explorer`: 30 files, 191 tests passed. The 3 new tests failed before the fix (2 failed; the pen-colour guard passed). `investigation/WindowTrend.test.tsx`: 5/5 passed. `npx eslint` on the touched files with `--max-warnings 0`: clean. `npx tsc --noEmit -p tsconfig.json`: clean. Visual check on the built app (Loop Explorer, FIC10401, 2 to 4 Nov, read-only): at 390 px both axis names are whole and the legend wraps to a second row clear of the time labels; at 560 and 1440 px the legend stays on one row.
+
+## CHG-182 — Delete-role sentence matches the list (2026-11-12, branch feat/cpa-redesign, unreleased)
+
+**Why.** Owner list item 5: CHG-172 replaced the free-text "reassign to" box with a list of roles but kept the old sentence ("enter a role … leave blank to cancel"), which no longer described the dialog.
+
+**Changed.** `components/Administration/roles/RoleDialogs.tsx`: the Delete role dialog says "Users who hold this role move to the role you pick." Nothing else changed (same list, same default Viewer, same server call). `RolesConfig.test.tsx` asserts the new sentence and that the old words are gone.
+
+**Services updated:** `ams-frontend`. **No migration, no config, no backend change.** **Plant:** not deployed. **Lab:** not rebuilt.
+
+**Go-live check for CHG-178..182 (one pass, 2026-11-12).** `npm run build` clean (tsc + vite); `npm run lint` clean; `lint:theme` 0 matches; full vitest 2622/2623: the one failure, `Designer/TrendCore.trust.test.tsx`, passed 4/4 alone and the Designer folder passed 124/124 three runs in a row (a `waitFor` timing flake under full-suite load, not a defect). Browser gates on the build: redirects 0 failures, a11y 0 critical or serious, geometry 0 failing, edge 0 off-screen, links 0 problems, size 0 differences; controls lists only the data-dependent "replay cursor position".
+
+## Deferred to a later deployment (owner, 2026-11-12)
+
+The owner chose to go live with CHG-160..182 and to leave these for a future release. None blocks the release; none is built.
+
+| # | Item | Why it waits | Who |
+|---|---|---|---|
+| 3 | A ControlAuthority role / permission for control actions | Needs the control engineer to define who may act on the DCS | Control engineer, then build |
+| 4 | Run `database/optional/69_auth_restore_seeded_role_defaults.sql` on the production auth database | Restores the seeded roles' default permissions; changes live access, so it needs the owner's approval before ops run it | Ops, after owner approval |
+| 8 | Administration plant CSV import refuses files that carry only aliases | Found in the Administration review; a change to the import rule, not to the page | Build in a later release |
+| 9 | Split `components/Designer/SymbolRenderer.tsx` (about 1,018 lines) below the 500-line rule | Pure refactor with no visible change; risky the day of a release | Build in a later release |
+| — | Housekeeping: leftover `investigation-flow.html`, `components/Cpm/_body.txt`, the `overview-review-*` samples, stale page names in `docs/theme/tools/lib/journey-steps.mjs` and `src/help/registry.json` | Not shipped code; tidy with item 9 | Build in a later release |

@@ -1736,26 +1736,8 @@ Removed on the owner's instruction (12 Nov): Calculation basis (page foot; its s
 | System Response › Events tab, Time column heading | Time | Time · UTC (the site zone's short name) |
 | System Response › Events tab, Time cell | 2026-10-07 05:43:24 | 7 Oct 05:43 |
 
-## CHG-178 System Response notes and event times
+## CHG-182 Delete role
 
 | Where | Was | Now |
 |---|---|---|
-| System Response › Response / Fit quality / Frequency tabs, note (not kept) | Arrays not kept for this run | Charts not kept |
-| System Response › same note (removed by retention) | Arrays removed by retention | Charts removed by retention |
-| System Response › same note (failed verification) | Arrays failed verification | Charts failed verification |
-| System Response › same note, line | The result and every value stand. | The result and every value stand. Charts are kept {30 days / for ever} for accepted events and {6 h} for censored candidates; they cannot be rebuilt. (Older server with no retention: "The result and every value stand. Charts are not stored for this event and cannot be rebuilt.") |
-| System Response › same note, button | Reconstruct in the Workbench ↗ | (removed: a response event cannot be reconstructed) |
-| System Response › Events tab, Time column heading | Time | Time · UTC (the site zone's short name) |
-| System Response › Events tab, Time cell | 2026-10-07 05:43:24 | 7 Oct 05:43 |
-
-## CHG-178 System Response notes and event times
-
-| Where | Was | Now |
-|---|---|---|
-| System Response › Response / Fit quality / Frequency tabs, note (not kept) | Arrays not kept for this run | Charts not kept |
-| System Response › same note (removed by retention) | Arrays removed by retention | Charts removed by retention |
-| System Response › same note (failed verification) | Arrays failed verification | Charts failed verification |
-| System Response › same note, line | The result and every value stand. | The result and every value stand. Charts are kept {30 days / for ever} for accepted events and {6 h} for censored candidates; they cannot be rebuilt. (Older server with no retention: "The result and every value stand. Charts are not stored for this event and cannot be rebuilt.") |
-| System Response › same note, button | Reconstruct in the Workbench ↗ | (removed: a response event cannot be reconstructed) |
-| System Response › Events tab, Time column heading | Time | Time · UTC (the site zone's short name) |
-| System Response › Events tab, Time cell | 2026-10-07 05:43:24 | 7 Oct 05:43 |
+| Administration · Delete role dialog | "If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users)." | "Users who hold this role move to the role you pick." |
