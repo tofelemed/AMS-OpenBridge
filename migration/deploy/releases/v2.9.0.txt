@@ -15,6 +15,17 @@
 #                      CHG-105: System Response / Workbench say how long G12 charts are kept (they cannot be rebuilt).
 #   ams-api            CHG-102 phase 1 raw writer (aligned / templated; behaviour changes only with IOTDB_LAYOUT=v2).
 #
+# CPA redesign (feat/cpa-redesign CHG-110..182, merged with this list on 2026-11-12; build from that branch):
+#   ams-frontend       every CPA page redesigned (CHG-110..182; see changes_tracker.md); HMI displays mark fallback
+#                      bindings Uncertain (CHG-176) and read the loop-signal paths (CHG-179).
+#   cplm-api           Overview state bar + fleet KPIs (CHG-127/153/154), retire / restore a loop (CHG-146/147),
+#                      Pipeline Health newestResultAt + otherJobs (CHG-170), GET /loops/signal-paths (CHG-179).
+#   traverse-auth-service  CHG-171 security guards (own account / last admin, role escalation, real seeded defaults,
+#                      deleted user's session ends, USER_* audit events); CHG-172 is_active on create, username search.
+#   audit-service      CHG-173 rechain needs system.manage and is audited; CHG-174 server-side paging (offset).
+#   asset-model        CHG-172 case-insensitive tag-alias search.
+#   No migration for the redesign. OPTIONAL, owner approval only: database/optional/69_auth_restore_seeded_role_defaults.sql.
+#
 # Schema (all online, BEFORE the swaps): ops/cpm-17 (4e, stops cplm-api itself), cpm-18 (4f), cpm-19 (4g), cpm-20 + cpm-20b (4h),
 # cpm-21 (4i, CHG-105).
 # Topics: traverse.cpa.clpm.evaluation.requests.v1 / .status.v1 (04-create-kafka-topics.sh).
@@ -28,3 +39,6 @@ flink-jobmanager
 cplm-api
 ams-frontend
 ams-api
+traverse-auth-service
+audit-service
+asset-model

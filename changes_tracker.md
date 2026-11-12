@@ -6722,3 +6722,36 @@ no fresh window since ~7 Nov (Overview: 165 loops stale, 76 never evaluated).
 
 **Not built (proposed later phases, not yet approved):** key response parameters (K, θ, τ, overshoot, settling, IAE, margins) per event in
 IoTDB for 3 years with long Model history ranges; "Rebuild this event" from IoTDB through the On-Demand Evaluation job (90 days of raw).
+
+## Release v2.9.0 + CPA redesign — what ships to the plant (2026-11-12, DRAFT, name pending the owner)
+
+**Scope.** Everything since the plant's v2.8.0.1 (src 43d1948e, deployed 2026-10-16): v2.9.0 from `feat/v25-next-release` (CHG-101..105) and the CPA redesign (CHG-110..182), merged on `feat/cpa-redesign` (merge 1d4a3c2f). The redesign frontend already needs v2.9.0's cplm-api and schema, so the two cannot ship apart. **Build from `feat/cpa-redesign`**, manifest `migration/deploy/releases/v2.9.0.txt`.
+
+**Images (7, one optional).**
+
+| Service | Why it changes |
+|---|---|
+| `ams-frontend` | Every CPA page redesigned (CHG-110..182); HMI displays mark fallback bindings Uncertain and read the loop-signal paths (CHG-176/179); KPI history 14 d / 90 d / 1 y / 3 y and "Evaluate a window" (CHG-102); System Response charts note (CHG-105/178); signal quality fix (CHG-104); historian prefix `root.hdpe.cpm` baked in (CHG-101) |
+| `cplm-api` | CHG-102 (IoTDB tiered reads, hourly short partitions, 3-year KPI history, evidence archive, on-demand EVALUATE); CHG-105 (charts kept with their event); Overview state bar + fleet KPIs (CHG-127/153/154); retire / restore a loop (CHG-146/147); Pipeline Health `newestResultAt` + `otherJobs` (CHG-170); `GET /loops/signal-paths` (CHG-179) |
+| `flink-jobmanager` (TaskManager same image, jar rebuilt) | CHG-102: plant-day boundary evidence, flapping fix, NEW job "AMS - CPLM On-Demand Evaluation" (full swap: 8 RUNNING) |
+| `ams-api` | CHG-102 raw writer (changes behaviour only with `IOTDB_LAYOUT=v2`) |
+| `traverse-auth-service` | CHG-171 security guards (own account / last admin, role escalation, real seeded defaults, deleted user's session ends, USER_* audit events); CHG-172 Active on create, username search |
+| `audit-service` | CHG-173 rechain needs `system.manage` and is audited; CHG-174 server-side paging |
+| `asset-model` | CHG-172 case-insensitive tag-alias search |
+| `traverse-ingestion-service` (**optional**) | CHG-103 registry refresh survives a timeout; add a manifest line only if the owner says yes |
+
+**Database scripts** (Postgres `traverse_cplm`, `ops/`, all online, all BEFORE the swaps, each with a `.rollback.sql`): `cpm-17-hot-window-partitions` (stops cplm-api until the new image starts), `cpm-18-kpi-daily`, `cpm-19-evidence-archive`, `cpm-20-on-demand-evaluation`, `cpm-20b-evidence-archive-keep`, `cpm-21-response-charts`. The redesign adds none. **Optional, owner approval only:** `database/optional/69_auth_restore_seeded_role_defaults.sql` (deferred).
+
+**Kafka topics:** `traverse.cpa.clpm.evaluation.requests.v1`, `traverse.cpa.clpm.evaluation.status.v1` (`04-create-kafka-topics.sh`).
+
+**Plant `migration/.env` (add before the swaps):** `PLANT_TIME_ZONE=IR`, `LOOP_ROOT_PREFIX=root.hdpe.cpm`, `IOTDB_LOOP_DB=root.hdpe.cpm`, `IOTDB_LAYOUT=v2`. Build box `migration/.env`: `LOOP_ROOT_PREFIX=root.hdpe.cpm` (the frontend bakes it).
+
+**Run order:** day before: IoTDB move pre-steps (`migration/IOTDB-LOOP-TREE-MOVE.md` 0-2, copy, `VERIFY OK`). Window: schema 4e-4i → topics → Flink full swap → cplm-api, ams-api, ams-frontend, traverse-auth-service, audit-service, asset-model → IoTDB switch. After: cron `cpa-iotdb-backup`, next-morning daily check 7b. The generated `VM-STEPS.md` holds the exact commands.
+
+**Roles:** every display role needs `display.view` (CHG-179 loop-signal paths).
+
+**Carry to the plant:** the `release-out/v2.9.0-<date>` folder from `python migration/deploy/build-release.py --release v2.9.0` (images, jar, source archive, ops scripts, `VM-STEPS.md`, checksums), this file, `prod_decision.md`, and `docs/next-release/v2.9.0-PROD-CHECKLIST.md` (in the AMS-open checkout, not committed).
+
+**Lab (2026-11-12):** runs this release candidate: `ams-frontend` + `cplm-api` built from 1d4a3c2f, `traverse-auth-service` / `audit-service` / `asset-model` from 0d0262b3 (identical for these services); `cpm-21` applied (RESPONSE 30 d / 2 GiB); cpm-17..20b were already there. Rollback tag `pre-golive` on all five images. The lab keeps its own prefix `root.hdpev2.cpm`.
+
+**Deferred (not in this release):** see "Deferred to a later deployment" above.
