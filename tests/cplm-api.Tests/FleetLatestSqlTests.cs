@@ -37,7 +37,7 @@ public sealed class FleetLatestSqlTests : IAsyncLifetime
                    g.confidence, g.effort_ratio, g.triangularity, g.horch_oddness,
                    g.acf_period_s, g.good_error_pct, g.mae, g.payload::text AS payload
             FROM analytics.cplm_gate_results g
-            WHERE g.window_kind = @windowKind
+            WHERE g.window_kind = @windowKind AND g.purpose = 'LIVE'   -- CHG-102 5c: EVALUATE rows are never the fleet's latest
             ORDER BY g.loop_id,
                      (g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA') DESC,
                      g.window_end DESC NULLS LAST, g.created_at DESC
@@ -92,7 +92,7 @@ public sealed class FleetLatestSqlTests : IAsyncLifetime
             SELECT DISTINCT ON (g.loop_id) g.loop_id, g.diagnosis
             FROM analytics.cplm_gate_results g
             JOIN cpm.loop_registry r ON lower(r.loop_id) = lower(g.loop_id)
-            WHERE g.window_kind = @windowKind
+            WHERE g.window_kind = @windowKind AND g.purpose = 'LIVE'   -- CHG-102 5c: EVALUATE rows never count
               AND g.diagnosis IS DISTINCT FROM 'INSUFFICIENT_DATA'
               AND (@site::text IS NULL OR r.site = @site)
               AND (@area::text IS NULL OR r.area = @area)

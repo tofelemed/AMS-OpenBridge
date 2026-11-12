@@ -2,7 +2,7 @@
 // finding, a result card that names the model with its parameters and the validation verdict, key
 // results separated from the 52-row catalogue (not-applicable rows stated, greyed, never 0).
 import { describe, expect, it } from 'vitest';
-import { eventRowView, humanise, keyResults, resultSummary, subgateSteps } from './responseCopy';
+import { chartsAbsentCopy, eventRowView, humanise, keyResults, resultSummary, subgateSteps } from './responseCopy';
 import type { ResponseEventSummary, ResponseQuantity } from '../../../api/cpm/response';
 
 const ev = (over: Partial<ResponseEventSummary>): ResponseEventSummary => ({
@@ -71,5 +71,23 @@ describe('resultSummary', () => {
     expect(steps[3]).toMatchObject({ key: 'D', name: 'Estimation', state: 'ESTIMATED', reason: '' });
     expect(steps[4]).toMatchObject({ key: 'E', name: 'Validation', state: 'WAITING', reason: 'no independent event yet' });
     expect(steps[0]).toMatchObject({ key: 'A', state: 'NOT_RUN' });
+  });
+});
+
+// CHG-105: the one statement when an event's charts are not stored, from the API's retention; never a reconstruction
+describe('chartsAbsentCopy', () => {
+  const retention = { acceptedDays: 30, censoredDays: 3, censoredChartHours: 6 };
+  it('an accepted event names the days its charts are kept and that they cannot be rebuilt', () => {
+    const t = chartsAbsentCopy('COMPLETE', retention);
+    expect(t).toMatch(/keep their charts 30 days/);
+    expect(t).toMatch(/cannot be rebuilt/);
+    expect(t).not.toMatch(/[Rr]econstruct/);
+  });
+  it('a censored candidate names its chart hours and event days', () => {
+    expect(chartsAbsentCopy('CENSORED', retention)).toBe('Censored candidates keep their charts 6 hours and their result and quantities 3 days.');
+  });
+  it('no retention row reads as kept with the event; an older cplm-api gets the generic sentence', () => {
+    expect(chartsAbsentCopy('COMPLETE', { acceptedDays: null, censoredDays: null, censoredChartHours: 6 })).toMatch(/while the event is kept/);
+    expect(chartsAbsentCopy('COMPLETE', undefined)).toMatch(/no longer stored and cannot be rebuilt/);
   });
 });

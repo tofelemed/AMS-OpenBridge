@@ -34,6 +34,7 @@ import { BodePanel } from './BodePanel';
 import { ModelHistoryBody } from './ModelHistory';
 import { ModelReviewDialog } from './ModelReviewDialog';
 import { useModels, useResponseEvent, useResponseEvents, useReviewModel } from './useResponse';
+import { chartsAbsentCopy } from './responseCopy';
 
 const QuantityCatalogue = React.lazy(() => import('./QuantityCatalogue'));
 
@@ -115,6 +116,9 @@ export const ResponseWorkspace: React.FC = () => {
   // run never produced (censored / no model) is an absence to state, not a skeleton to keep.
   const declared = new Set((manifest.data?.artifacts ?? []).filter(a => a.gate === 'G12' && a.readiness === 'COMPLETE').map(a => a.kind));
   const decoding = (...kinds: string[]) => arts.loading && kinds.some(k => declared.has(k));
+  // CHG-105: the run stores no G12 chart at all (aged out, censored past its hours, or older than the rule) - said once, above
+  const notStored = !!manifest.data && !(manifest.data.artifacts ?? []).some(a => a.gate === 'G12');
+  const absentCopy = notStored ? chartsAbsentCopy(selected?.captureState ?? (result?.capture_state as string | undefined), events.data?.pages[0]?.retention) : undefined;
 
   return (
     <div className="cpm-screen cpm-response-workspace">
@@ -155,13 +159,14 @@ export const ResponseWorkspace: React.FC = () => {
           )}
           {eventParam && manifest.data && (
             <>
-              <ResponseChart arts={arts} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} />
-              <ResidualPanel residuals={one('residuals')} acf={one('residual_acf')} timeZone={timeZone} validation={result?.subgates?.E} loading={decoding('residuals', 'residual_acf')} />
-              <CandidateModelsTable table={one('candidate_models')} delayCurve={one('delay_objective_curve')} intervals={one('parameter_intervals')} rejections={one('rejection_reasons')} loading={decoding('candidate_models', 'rejection_reasons')} />
-              <BodePanel bode={one('bode')} metrics={detail.data?.metrics} controller={result?.subgates?.F} loading={decoding('bode')} />
+              <ResponseChart arts={arts} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} absentCopy={absentCopy} />
+              <ResidualPanel residuals={one('residuals')} acf={one('residual_acf')} timeZone={timeZone} validation={result?.subgates?.E} loading={decoding('residuals', 'residual_acf')} notStored={notStored} />
+              <CandidateModelsTable table={one('candidate_models')} delayCurve={one('delay_objective_curve')} intervals={one('parameter_intervals')} rejections={one('rejection_reasons')} loading={decoding('candidate_models', 'rejection_reasons')} notStored={notStored} />
+              <BodePanel bode={one('bode')} metrics={detail.data?.metrics} controller={result?.subgates?.F} loading={decoding('bode')} notStored={notStored} />
             </>
           )}
-          {eventParam && manifest.data && manifest.data.readiness !== 'COMPLETE' && (
+          {/* CHG-105: not when nothing is stored - no artifact is on its way, and the Response panel already says why */}
+          {eventParam && manifest.data && manifest.data.readiness !== 'COMPLETE' && !notStored && (
             <p className="cpm-copy" role="status">Evidence readiness: {manifest.data.readiness} ({manifest.data.count} artifact(s)). The manifest refreshes while artifacts arrive.</p>
           )}
           {catalogueOpen && detail.data && (

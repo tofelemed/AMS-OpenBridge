@@ -60,8 +60,9 @@ export const ResponseChartBody: React.FC<{
   );
 };
 
-export const ResponseChart: React.FC<{ arts: GateArtifacts; timeZone: string; t0Ms: number; healthExclusions: string[] }> = ({ arts, timeZone, t0Ms, healthExclusions }) => (
-  <RequireKinds arts={arts} kinds={['accepted_samples']} skeleton="evidence">
+/** CHG-105: `absentCopy` = why this event's charts are not stored (they cannot be rebuilt); set only when none are. */
+export const ResponseChart: React.FC<{ arts: GateArtifacts; timeZone: string; t0Ms: number; healthExclusions: string[]; absentCopy?: string }> = ({ arts, timeZone, t0Ms, healthExclusions, absentCopy }) => (
+  <RequireKinds arts={arts} kinds={['accepted_samples']} skeleton="evidence" absent={absentCopy ? { title: 'Charts not stored for this event', copy: absentCopy } : undefined}>
     <ResponseChartBody byKind={arts.byKind} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} />
   </RequireKinds>
 );

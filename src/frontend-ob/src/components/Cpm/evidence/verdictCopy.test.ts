@@ -42,4 +42,11 @@ describe('verdict copy', () => {
     const q = whyParagraphs({ gate: 'G5', name: 'Oscillation (ACF)', status: 'NOT_EVALUATED', reason: 'G0_FAIL', state: notEval });
     expect(q[q.length - 1]).toMatch(/Meet the prerequisite/);
   });
+
+  it('CHG-105: a not-retained G12 run is not told to reconstruct (its charts cannot be rebuilt)', () => {
+    const g12: GateState = { kind: 'NOT_RETAINED', title: 't', detail: 'd', stillValid: 's', action: 'NONE', tone: 'muted' };
+    expect(whyParagraphs({ gate: 'G12', name: 'System response', status: null, reason: null, state: g12 }).join(' ')).not.toMatch(/Reconstruct/);
+    const g5: GateState = { ...g12, action: 'RECONSTRUCT' };
+    expect(whyParagraphs({ gate: 'G5', name: 'Oscillation', status: 'PASS', reason: null, state: g5 }).join(' ')).toMatch(/Reconstruct the evidence/);
+  });
 });

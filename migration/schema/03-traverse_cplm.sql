@@ -1198,3 +1198,8 @@ BEGIN
         GRANT ALL ON analytics.evidence_archive_kept TO ams_user;
     END IF;
 END $$;
+
+-- CHG-105: the System Response (G12) charts of an accepted event live as long as the event (database/scripts/69_; plant:
+-- scripts/cpm-21). cplm-api's evidence sweeper moves them from TRANSIENT to class RESPONSE (row RESPONSE: days, max_bytes cap).
+UPDATE analytics.retention_policy SET days = 30, max_bytes = 2147483648
+WHERE record_class = 'RESPONSE' AND days = 14 AND max_bytes IS NULL;

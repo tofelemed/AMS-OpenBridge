@@ -9,17 +9,21 @@
 #   cplm-api           CHG-102 phases 2-6, 8: tiered KPI / verdict reads from IoTDB, hourly short partitions (6 h by DROP),
 #                      3-year fleet KPI history, evidence boundary archive (+ trace references with layout v2), on-demand
 #                      EVALUATE runs + status consumer, episode / pin-kept archive sets.
+#                      CHG-105: System Response charts of accepted events kept with their event (30 d, 2 GiB cap).
 #   ams-frontend       KPI history ranges 14 d / 90 d / 1 y / 3 y with plant-day labels, Workbench
 #                      "Evaluate a window from the historian".
+#                      CHG-105: System Response / Workbench say how long G12 charts are kept (they cannot be rebuilt).
 #   ams-api            CHG-102 phase 1 raw writer (aligned / templated; behaviour changes only with IOTDB_LAYOUT=v2).
 #
-# Schema (all online, BEFORE the swaps): ops/cpm-17 (4e, stops cplm-api itself), cpm-18 (4f), cpm-19 (4g), cpm-20 + cpm-20b (4h).
+# Schema (all online, BEFORE the swaps): ops/cpm-17 (4e, stops cplm-api itself), cpm-18 (4f), cpm-19 (4g), cpm-20 + cpm-20b (4h),
+# cpm-21 (4i, CHG-105).
 # Topics: traverse.cpa.clpm.evaluation.requests.v1 / .status.v1 (04-create-kafka-topics.sh).
 # After: install migration/cron.d/cpa-iotdb-backup (mkdir -p /var/backups/ams/iotdb); next morning daily check 7b.
 !chg102-cpm17
 !chg102-cpm18
 !chg102-cpm19
 !chg102-cpm20
+!chg105-cpm21
 flink-jobmanager
 cplm-api
 ams-frontend

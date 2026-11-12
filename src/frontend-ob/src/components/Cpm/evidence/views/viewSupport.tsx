@@ -17,7 +17,9 @@ export const ArtifactSkeleton: React.FC<{ kinds: string[]; size?: 'lanes' | 'evi
   </div>
 );
 
-export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skeleton?: 'lanes' | 'evidence' | 'result'; children: React.ReactNode }> = ({ arts, kinds, skeleton, children }) => {
+export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skeleton?: 'lanes' | 'evidence' | 'result'; children: React.ReactNode;
+  /** CHG-105: what to say when the run declares none of the kinds (e.g. G12 charts, which cannot be rebuilt). */
+  absent?: { title: string; copy: string } }> = ({ arts, kinds, skeleton, children, absent }) => {
   const missing = kinds.filter(k => !arts.byKind[k] || arts.byKind[k].length === 0);
   if (arts.loading && missing.length > 0) return <ArtifactSkeleton kinds={missing} size={skeleton ?? 'evidence'} />;
   if (arts.errors.length > 0) {
@@ -30,6 +32,7 @@ export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skel
   }
   if (missing.length > 0) {
     const declared = arts.unavailable.filter(u => missing.includes(u.kind));
+    if (declared.length === 0 && absent) return <EmptyState title={absent.title} copy={absent.copy} />;
     return (
       <EmptyState title={`Artifact${missing.length > 1 ? 's' : ''} not available: ${missing.join(', ')}`}
         copy={declared.length > 0

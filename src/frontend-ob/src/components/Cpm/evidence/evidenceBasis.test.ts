@@ -50,7 +50,8 @@ describe('evidence basis (SME review 2 #18)', () => {
   });
 
   it('a refused reconstruction names why', () => {
-    expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).toMatch(/System Response workspace/);
+    expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).toMatch(/cannot be rebuilt/);
+    expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).not.toMatch(/rebuild it from/);   // CHG-105: no page rebuilds G12
   });
 });
 

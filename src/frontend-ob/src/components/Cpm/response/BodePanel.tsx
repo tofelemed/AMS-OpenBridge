@@ -5,7 +5,7 @@
  * quantities with their null reasons. Captioned as a model-domain estimate.
  */
 import React from 'react';
-import { KvRow, PanelHead, TonePill } from '../shared';
+import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
 import type { ResponseQuantity } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
@@ -17,9 +17,12 @@ import { phrase } from '../vocabulary';
 // audit F19: catalogue ids - the *_hz / peak_complementary ids never existed, so those rows never rendered
 const MARGINS: Array<[string, string]> = [['gain_margin', 'Gain margin'], ['phase_margin', 'Phase margin'], ['gain_crossover', 'Gain crossover'], ['phase_crossover', 'Phase crossover'], ['peak_sensitivity', 'Peak |S|'], ['peak_complementary_sensitivity', 'Peak |T|'], ['closed_loop_bandwidth', 'Closed-loop bandwidth']];
 
-export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: ResponseQuantity[] | undefined; controller: { state: string; outputs: Record<string, unknown> } | undefined; loading?: boolean }> = ({ bode, metrics, controller, loading }) => {
+export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: ResponseQuantity[] | undefined; controller: { state: string; outputs: Record<string, unknown> } | undefined; loading?: boolean;
+  /** CHG-105: the event's charts are not stored (the Response panel above says why); the margins stay in the quantities. */
+  notStored?: boolean }> = ({ bode, metrics, controller, loading, notStored }) => {
   const gm = metricOf(metrics, 'gain_margin');
   if (!bode && loading) return <ArtifactSkeleton kinds={['bode']} size="result" />;
+  if (!bode && notStored) return <EmptyState title="Frequency response not stored" />;
   if (!bode) {
     const reason = gm?.reasonIfNull || (controller?.outputs?.reason as string | undefined) || 'NO_FREQUENCY_RESULT';
     return (

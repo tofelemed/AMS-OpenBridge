@@ -13,7 +13,9 @@ export interface ResponseEventSummary {
 }
 
 /** 2026-09-17 audit F19/F20: `censoredCount` is the range's censored candidates, listed only with includeCensored. */
-export interface ResponseEventPage { loopId: string; purpose: string; count: number; censoredCount?: number; includeCensored?: boolean; nextCursor: number | null; events: ResponseEventSummary[] }
+/** CHG-105: `retention` = how long events and their charts are kept (absent on an older cplm-api). */
+export interface ResponseEventPage { loopId: string; purpose: string; count: number; censoredCount?: number; includeCensored?: boolean; nextCursor: number | null; events: ResponseEventSummary[];
+  retention?: { acceptedDays: number | null; censoredDays: number | null; censoredChartHours: number } }
 
 export interface ResponseQuantity {
   quantityId: string; value: number | null; unit: string; pathId: string; uncertainty: number | null; method: string;

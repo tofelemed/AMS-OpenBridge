@@ -17,13 +17,21 @@ namespace Traverse.CplmApi.Controllers;
 public sealed class CpmResponseController : ControllerBase
 {
     private readonly NpgsqlDataSource _db;
+    private readonly int _transientHours;
 
-    public CpmResponseController([FromKeyedServices("cplm")] NpgsqlDataSource db) => _db = db;
+    public CpmResponseController([FromKeyedServices("cplm")] NpgsqlDataSource db, IConfiguration config)
+    {
+        _db = db;
+        _transientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));   // the sweeper's TRANSIENT lifetime
+    }
 
     /// <summary>
     /// 2026-09-17 audit F19/F20: <c>includeCensored=false</c> leaves the censored candidates (superseded, source
     /// gap - on the lab 321 of 328 events) out of the page; <c>censoredCount</c> always says how many the range
     /// holds so the reader knows they exist and can ask for them.
+    /// CHG-105: <c>retention</c> says how long what the page shows is kept, from retention_policy (null = for ever):
+    /// <c>acceptedDays</c> an accepted event, its quantities and its charts; <c>censoredDays</c> a censored candidate
+    /// (no RESPONSE_CENSORED row = like RESPONSE); <c>censoredChartHours</c> the charts of a censored candidate (TRANSIENT).
     /// </summary>
     [HttpGet("loops/{loopId}/response-events")]
     public async Task<IActionResult> List(string loopId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to,
@@ -56,7 +64,17 @@ public sealed class CpmResponseController : ControllerBase
             modelState = (string)r.model_state, purpose = (string)r.purpose, bundleHash = (string)r.bundle_hash,
             resultRevision = (int)r.result_revision, emittedAtMs = (long?)r.emitted_at_ms,
         }).ToList();
-        return Ok(new { loopId, purpose, count = events.Count, censoredCount, includeCensored, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, events });
+        var policy = (await conn.QueryAsync<(string recordClass, int? days)>(
+            "SELECT record_class, days FROM analytics.retention_policy WHERE record_class IN ('RESPONSE', 'RESPONSE_CENSORED')"))
+            .ToDictionary(p => p.recordClass, p => p.days);
+        var acceptedDays = policy.GetValueOrDefault("RESPONSE");
+        var retention = new
+        {
+            acceptedDays,
+            censoredDays = policy.TryGetValue("RESPONSE_CENSORED", out var cd) ? cd : acceptedDays,
+            censoredChartHours = _transientHours,
+        };
+        return Ok(new { loopId, purpose, count = events.Count, censoredCount, includeCensored, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, retention, events });
     }
 
     /// <summary>One event in full: subgates, the 52 quantities, identity. Immutable for its method_run_id.</summary>

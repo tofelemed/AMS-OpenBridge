@@ -138,13 +138,14 @@ half the data (the rule in `CLAUDE.md`); find it with
 
 ## 7. Evidence
 
-Three classes, each with its bound:
+Four classes, each with its bound:
 
 | Class | Bound | Why |
 |---|---|---|
 | `TRANSIENT` | at most about 2 GB of payload, oldest at most 6 hours | every live artifact of the long tier and fusion, swept every 15 minutes |
 | `EPISODE` | levels off near 2 GB; oldest at most about 2 days after an episode closed | what an episode's open / escalate / close captured; `retention_policy` row `EPISODE` = 2 days |
 | `STANDARD` | 3 days | rebuilt on request from the workbench |
+| `RESPONSE` | at most its cap (`retention_policy` row `RESPONSE`, `max_bytes` = 2 GiB; ~0.5-0.8 GB expected at 30 days) | CHG-105: the System Response charts of accepted events, kept as long as the event (30 days); censored candidates stay `TRANSIENT` |
 
 The plant logs at level Error, so the sweeper never prints; these numbers are its proof. `episodes
 24 h`: a healthy fleet opens tens of episodes a day; hundreds mean verdicts flipping fault family
@@ -153,14 +154,18 @@ window to window (seen 2 October: 580 a day), which is what inflates `EPISODE`; 
 
 Physical size line (CHG-049): `evidence tables N MB on disk` is `pg_total_relation_size` of the chunk and
 manifest tables, the files and not the payload sum, because DELETE never shrinks them (2026-10-06: 1.9 GB
-of payload "within budget" while 3.7 GB sat on disk). `WARN` above 1536 MB, `ACT` above 3072 MB. What to do:
+of payload "within budget" while 3.7 GB sat on disk). `WARN` above 2560 MB, `ACT` above 4096 MB (CHG-105: was 1536 / 3072 on the
+96 GB disk; the disk is 194 GB now and the kept System Response charts add up to ~0.8 GB). A `RESPONSE charts above their cap` ACT
+means the cplm-api sweeper is not running or failing: `docker logs --since 1h traverse-cplm-api 2>&1 | grep 'Evidence retention'`.
+What to do:
 1. Once the CHG-049 release is deployed, `ops/cpm-12b` (cplm-api stopped, after at least 1 hour of the new
    build running) rewrites both tables and returns the space; this is the normal reclaim.
 2. Emergency, disk under 10 GB: the TRUNCATE lever below (check `pinned` = 0 first).
 3. Never switch evidence off as the first move: truncate first (the first lever below); emission stays on.
 
-Emergency lever 1, truncate only (emission stays on; this is what the plant did on 2026-10-06), when an evidence class
-breaks its bound or the evidence tables are above 3072 MB and the disk is under 10 GB:
+Emergency lever 1, truncate only (emission stays on; this is what the plant did on 2026-10-06). Since CHG-105 it also deletes the
+kept System Response charts (30 days of them; they cannot be rebuilt, the events and quantities stay). Use it when an evidence class
+breaks its bound or the evidence tables are above 4096 MB and the disk is under 10 GB:
 ```
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "select count(*) from analytics.evidence_manifest where pinned"   # must be 0 before the next line
 docker exec instrumental-postgres psql -U postgres -d traverse_cplm -c "TRUNCATE analytics.evidence_chunk, analytics.evidence_manifest"

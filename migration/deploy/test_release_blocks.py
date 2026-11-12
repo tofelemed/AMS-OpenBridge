@@ -176,3 +176,26 @@ def test_chg102_cpm20b_archive_keep_ships_runs_in_the_4h_block_and_is_mirrored()
     assert "ONLINE" in sql and "\\c " not in sql and "ON CONFLICT (record_class) DO NOTHING" in sql
     for mirror in ("database/scripts/68b_cplm_evidence_archive_keep.sql", "migration/schema/03-traverse_cplm.sql"):
         assert "evidence_archive_kept" in (root / mirror).read_text(encoding="utf-8"), mirror
+
+
+# ── CHG-105: System Response charts kept with their event (cpm-21) ──────────
+def test_chg105_cpm21_ships_runs_online_before_the_swap_and_is_mirrored():
+    root = HERE.parent.parent
+    for rel in ("scripts/cpm-21-response-charts.sql", "scripts/cpm-21-response-charts.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (root / rel).is_file()
+    assert "chg105-cpm21" in br.release_blocks.DIRECTIVES and "chg105-cpm21" in br.release_blocks.PRE_SWAP
+    assert "cpm-21-response-charts.sql" not in chg102_steps(set())
+    s = chg102_steps({"chg102-cpm19", "chg102-cpm20", "chg105-cpm21"})
+    blk = s[s.index("# 4i. CHG-105"):s.index("\n# 4. load")]
+    assert s.index("# 4h. CHG-102") < s.index("# 4i. CHG-105") < s.index("\n# 4. load") < s.index("deploy.sh --prod")
+    assert "< /tmp/v0.0.0-test/ops/cpm-21-response-charts.sql" in blk and "cpm-21 OK | RESPONSE=30d/2GiB" in blk
+    assert "cpm-21-response-charts.rollback.sql" in blk
+    assert not any(l.startswith(("docker stop", "docker start")) for l in blk.splitlines())
+    sql = (root / "scripts/cpm-21-response-charts.sql").read_text(encoding="utf-8")
+    assert "ONLINE" in sql and "\\c " not in sql and "('RESPONSE', 30, 2147483648)" in sql and "DO UPDATE" in sql
+    rb = (root / "scripts/cpm-21-response-charts.rollback.sql").read_text(encoding="utf-8")
+    assert "SET retention_class = 'TRANSIENT' WHERE retention_class = 'RESPONSE'" in rb and "days = 14" in rb and "\\c " not in rb
+    for mirror in ("database/scripts/69_cplm_response_charts.sql", "migration/schema/03-traverse_cplm.sql"):
+        m = (root / mirror).read_text(encoding="utf-8")
+        assert "days = 30, max_bytes = 2147483648" in m and "days = 14 AND max_bytes IS NULL" in m, mirror
