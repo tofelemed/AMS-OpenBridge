@@ -315,7 +315,19 @@ but nothing uses it.
       (`04-loop-kpis.png`), the Workbench says "8,641 of 10,725 samples at 4 s" (`09-workbench.webp`).
       Find which expected count is right before either page is touched.
 
-## Questions for the owner (before we start)
+## Owner decisions (2026-11-15) — these override the items above
+
+- Q1 **yes**: remove technical details on Pipeline Health and Administration too.
+- Q2 **one grid**: the 9 Loop KPI cards in one grid, the group name as a small line on each card.
+- Q3 **yes**: neutral when normal, amber + word when off-setpoint / at limit / not a normal mode; no green; red only with plant alarm limits.
+- Q4 **no**: "↗" links stay links (link style: action colour, underlined), not buttons.
+- Q5 **separate**: time zone is NOT in this batch (owner researching). Leave every time as it is today; ignore the "plant time" bullets above.
+- Q6 **remove**: "Record details" goes everywhere (Loop Events, Window Inspector, Calculations, any other panel).
+- Q7 **recommended**: "Compare window sizes" button + wide dialog.
+- Buttons: **Secondary A** (neutral tint + border). Dialogs: **solid cyan header** (Look 1). Sample: `17-buttons-SAMPLE.png`.
+- "start building": no further sample round; each phase is shown to the owner when it is built.
+
+## Questions for the owner (answered above)
 
 - **Q1 (item 0):** Pipeline Health and Administration are for engineers. Remove the technical details there too,
   or keep them inside a closed "Technical details" section on those two pages only?

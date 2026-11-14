@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Button standard sample</title>
+<!-- Sample for owner approval (review 2026-11-14, items 2 and 17). Colours come only from the app's live token file. -->
+<link rel="stylesheet" href="../../../../src/frontend-ob/src/styles/traverse-tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--traverse-surface-page); color: var(--traverse-text-primary);
+         font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .wrap { width: 1440px; padding: 24px; }
+  h1 { margin: 0; font-size: 24px; font-weight: 600; }
+  .lead { margin: 4px 0 20px; color: var(--traverse-text-secondary); }
+  h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+  .row2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+  .theme { background: var(--traverse-surface-page); color: var(--traverse-text-primary); border-radius: 12px; padding: 16px; }
+  .panel { background: var(--traverse-surface-panel); border: 1px solid var(--traverse-border-subtle); border-radius: 12px; padding: 16px 20px; }
+  .tag { font-size: 12px; color: var(--traverse-text-secondary); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+
+  /* state grid */
+  .grid { display: grid; grid-template-columns: 128px repeat(5, minmax(0,1fr)); align-items: center; row-gap: 14px; column-gap: 8px; }
+  .grid .h { font-size: 12px; color: var(--traverse-text-secondary); }
+  .lvl b { display: block; font-weight: 600; } .lvl span { font-size: 12px; color: var(--traverse-text-secondary); line-height: 1.3; display: block; }
+  .sep { grid-column: 1 / -1; height: 1px; background: var(--traverse-border-subtle); }
+
+  /* buttons */
+  .b { height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid transparent; display: inline-flex; align-items: center;
+       gap: 6px; font: 600 14px/1 inherit; font-family: inherit; white-space: nowrap; cursor: pointer; }
+  .b.focus { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
+  .b.off { background: var(--traverse-surface-raised); color: var(--traverse-text-muted); border-color: var(--traverse-border-subtle); cursor: not-allowed; }
+
+  .pri { background: var(--traverse-action-primary); color: var(--traverse-action-on); }
+  .pri.hover { background: var(--traverse-action-hover); }
+  .pri.pressed { background: var(--traverse-action-active); }
+
+  .secA { background: var(--traverse-surface-raised); border-color: var(--traverse-border-strong); color: var(--traverse-text-primary); }
+  .secA.hover { border-color: var(--traverse-action-primary); color: var(--traverse-action-primary); }
+  .secA.pressed { background: var(--traverse-surface-selected); border-color: var(--traverse-action-active); color: var(--traverse-action-active); }
+
+  .secB { background: var(--traverse-surface-selected); color: var(--traverse-action-primary);
+          border-color: color-mix(in srgb, var(--traverse-action-primary) 35%, transparent); }
+  .secB.hover { background: color-mix(in srgb, var(--traverse-action-primary) 18%, var(--traverse-surface-panel)); }
+  .secB.pressed { background: color-mix(in srgb, var(--traverse-action-primary) 28%, var(--traverse-surface-panel)); color: var(--traverse-action-active); }
+
+  .dan { background: var(--traverse-status-danger-fg); color: var(--traverse-action-on); }
+  .dan.hover { background: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, var(--traverse-text-primary)); }
+  .dan.pressed { background: color-mix(in srgb, var(--traverse-status-danger-fg) 72%, var(--traverse-text-primary)); }
+
+  .lnk { color: var(--traverse-action-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .lnk.hover { text-decoration-thickness: 2px; color: var(--traverse-action-hover); }
+  .lnk.pressed { color: var(--traverse-action-active); }
+  .lnk.focus { outline: 2px solid var(--traverse-focus); outline-offset: 3px; border-radius: 2px; }
+  .lnk.off { color: var(--traverse-text-muted); text-decoration: none; cursor: not-allowed; }
+  .why { display: block; font-size: 12px; color: var(--traverse-text-muted); margin-top: 4px; font-weight: 400; }
+
+  /* in context */
+  .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .field { height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid var(--traverse-border-strong);
+           border-radius: 6px; background: var(--traverse-surface-panel); color: var(--traverse-text-primary); }
+  .grow { flex: 1; }
+  .ctx-title { font-weight: 600; margin: 14px 0 8px; font-size: 14px; }
+  .dlg { background: var(--traverse-surface-panel); border: 1px solid var(--traverse-border-subtle); border-radius: 12px; overflow: hidden;
+         box-shadow: 0 8px 24px color-mix(in srgb, var(--traverse-text-primary) 18%, transparent); }
+  .dh { display: flex; align-items: center; gap: 12px; padding: 14px 20px; }
+  .dh .t { font-size: 18px; font-weight: 600; line-height: 1.2; } .dh .s { font-size: 13px; opacity: .9; }
+  .dh .x { margin-inline-start: auto; font-size: 20px; line-height: 1; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; }
+  .dhA { background: var(--traverse-action-primary); color: var(--traverse-action-on); }
+  .dhB { background: var(--traverse-surface-selected); color: var(--traverse-text-primary);
+         border-top: 3px solid var(--traverse-action-primary); border-bottom: 1px solid var(--traverse-border-subtle); }
+  .dhB .s { color: var(--traverse-text-secondary); opacity: 1; }
+  .db { padding: 16px 20px; display: grid; gap: 12px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
+  .kv label { color: var(--traverse-text-secondary); }
+  .seg { display: inline-flex; border: 1px solid var(--traverse-border-strong); border-radius: 6px; overflow: hidden; width: max-content; }
+  .seg span { height: 30px; padding: 0 16px; display: inline-flex; align-items: center; }
+  .seg span + span { border-inline-start: 1px solid var(--traverse-border-subtle); }
+  .seg .on { background: var(--traverse-surface-selected); color: var(--traverse-action-primary); font-weight: 600; }
+  .df { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; background: var(--traverse-surface-page);
+        border-top: 1px solid var(--traverse-border-subtle); }
+  .opt { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+  .opt span { font-weight: 400; color: var(--traverse-text-secondary); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Button standard (sample for approval)</h1>
+  <p class="lead">Item 17 (and the item 2 dialog header). Sizes stay as today; only the look changes. Colours come from the app's own Traverse tokens.</p>
+
+  <h2>1 · Button levels and states</h2>
+  <div class="row2">
+    <!-- the same grid, day then night -->
+    <section class="theme" data-theme="day" id="g-day"></section>
+    <section class="theme" data-theme="night" id="g-night"></section>
+  </div>
+
+  <h2 style="margin-top:24px">2 · In use: two complete looks to choose from (they can also be mixed)</h2>
+  <div class="row2">
+    <section class="theme" data-theme="day" id="c1-day"></section>
+    <section class="theme" data-theme="night" id="c1-night"></section>
+  </div>
+  <div class="row2" style="margin-top:16px">
+    <section class="theme" data-theme="day" id="c2-day"></section>
+    <section class="theme" data-theme="night" id="c2-night"></section>
+  </div>
+</div>
+
+<script>
+  const LEVELS = [
+    ['pri', 'Primary', 'The one main action of a panel or dialog', 'Evaluate'],
+    ['secA', 'Secondary A', 'Neutral tint + border. Every other action', 'Cancel'],
+    ['secB', 'Secondary B', 'Cyan tint. Every other action', 'Cancel'],
+    ['dan', 'Destructive', 'Only to confirm delete / retire', 'Retire'],
+  ];
+  const STATES = [['', 'Default'], ['hover', 'Hover'], ['pressed', 'Pressed'], ['focus', 'Keyboard focus'], ['off', 'Disabled']];
+  function grid(theme) {
+    let h = `<div class="panel"><div class="tag">${theme}</div><div class="grid"><div></div>` + STATES.map(s => `<div class="h">${s[1]}</div>`).join('');
+    LEVELS.forEach(([c, name, use, label], i) => {
+      h += `<div class="lvl"><b>${name}</b><span>${use}</span></div>`;
+      h += STATES.map(([s]) => `<div><button class="b ${s === 'off' ? 'off' : c + ' ' + s}">${label}</button>${s === 'off' && i === 0 ? '<span class="why">says why: “Needs Edit permission”</span>' : ''}</div>`).join('');
+      h += `<div class="sep"></div>`;
+    });
+    h += `<div class="lvl"><b>Link</b><span>Only inside a sentence</span></div>` +
+         STATES.map(([s]) => `<div><a class="lnk ${s}">Loop Events</a></div>`).join('');
+    return h + `</div></div>`;
+  }
+  function look(theme, n) {
+    const sec = n === 1 ? 'secA' : 'secB', head = n === 1 ? 'dhA' : 'dhB';
+    const title = n === 1 ? 'Look 1 · solid cyan header, Secondary A' : 'Look 2 · tinted header, Secondary B';
+    return `<p class="opt">${title} <span>(${theme})</span></p>
+      <div class="panel">
+        <div class="tag">Workbench toolbar</div>
+        <div class="bar">
+          <span class="field">FIC10401 · Flow controller</span>
+          <button class="b ${sec}">‹</button><button class="b ${sec}">›</button>
+          <button class="b ${sec}">Newest</button><button class="b ${sec}">Go to date</button>
+          <span class="grow"></span><button class="b ${sec}">Investigation ↗</button>
+        </div>
+        <div class="ctx-title">A dialog</div>
+        <div class="dlg">
+          <div class="dh ${head}"><div><div class="t">Evaluate a window</div><div class="s">FIC10401 · Flow controller</div></div><span class="x">✕</span></div>
+          <div class="db">
+            <div class="kv"><label>Length</label><span class="seg"><span class="on">12h</span><span>24h</span></span></div>
+            <div class="kv"><label>Ending at</label><span class="field" style="width:220px">Now</span></div>
+            <div class="kv"><label>Window</label><span>14 Nov 08:00 → 20:00</span></div>
+          </div>
+          <div class="df"><button class="b ${sec}">Cancel</button><button class="b pri">Evaluate</button></div>
+        </div>
+        <div class="ctx-title">A confirmation, and a link in a sentence</div>
+        <div class="bar"><button class="b ${sec}">Cancel</button><button class="b dan">Retire loop</button>
+          <span class="grow"></span><span>12 episodes in <a class="lnk">Loop Events</a>.</span></div>
+      </div>`;
+  }
+  document.getElementById('g-day').innerHTML = grid('Day');
+  document.getElementById('g-night').innerHTML = grid('Night');
+  document.getElementById('c1-day').innerHTML = look('Day', 1);
+  document.getElementById('c1-night').innerHTML = look('Night', 1);
+  document.getElementById('c2-day').innerHTML = look('Day', 2);
+  document.getElementById('c2-night').innerHTML = look('Night', 2);
+</script>
+</body>
+</html>
