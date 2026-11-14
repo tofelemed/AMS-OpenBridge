@@ -3,14 +3,11 @@
  * then the jobs the required list does not name (owner answer 3d), with their state. Job, State (tone + glyph + word), Uptime,
  * Checkpoint age, OK / failed, numbers right-aligned under a heading that stays in view. A job the engine does not list says
  * "Not listed by the engine" once on its row (it read "Not exposed" three times). A required job's row selects it; a job off
- * the list carries no numbers and opens nothing. The foot holds Engine details: the JobManager address and the jobs off the
- * list (today's Technical details; "JobManager answering" went, the Required jobs tile says it).
+ * the list carries no numbers and opens nothing. CHG-184 (owner review Q1): the foot's Engine details (the JobManager address and
+ * the jobs off the list, which the list already shows) went.
  */
-import React, { useState } from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import React from 'react';
 import { TonePill } from '../shared';
-import { DetailsDialog } from '../config/DetailsDialog';
-import { CopyableId } from '../evidence/CopyableId';
 import { groupRows, jobLabel, stateView } from './jobState';
 import { NOT_READ, fmtAge, fmtCheckpoints, fmtUptime, type JobRow } from './mergeJobs';
 
@@ -43,9 +40,7 @@ export const JobList: React.FC<{
   showRows: boolean;
   /** That state, in place of the rows. */
   notices?: React.ReactNode;
-  engine: { jobManagerUrl: string; unexpectedJobs: string[] } | undefined;
-}> = ({ rows, selected, onSelect, showRows, notices, engine }) => {
-  const [details, setDetails] = useState(false);
+}> = ({ rows, selected, onSelect, showRows, notices }) => {
   return (
     <section id={LIST_ID} tabIndex={-1} className="cpm-surface cpm-pipeline-list" aria-label="Jobs">
       {showRows && (
@@ -81,14 +76,6 @@ export const JobList: React.FC<{
           </div>
         </div>
       ))}
-      <div className="cpm-pipeline-foot">
-        <ObcButton variant="flat" onClick={() => setDetails(true)}>Engine details</ObcButton>
-      </div>
-      <DetailsDialog title="Engine details" open={details} onClose={() => setDetails(false)} rows={[
-        // an address reads whole (CopyableId shortens ids to 8 characters by default)
-        { label: 'JobManager address', value: <CopyableId label="JobManager address" value={engine?.jobManagerUrl} chars={engine?.jobManagerUrl.length} /> },
-        { label: 'Jobs the engine runs that are not required', value: engine ? (engine.unexpectedJobs.join(', ') || 'None') : NOT_READ },
-      ]} />
     </section>
   );
 };

@@ -84,7 +84,7 @@ export function basisOf(m: EvidenceManifest | undefined, view: string | null | u
   }
   if (r) {
     return { kind: 'RECONSTRUCTION', label: 'Reconstructed evidence', tone: 'warn',
-      detail: `${reconstructionSummary(r, timeZone)}. Built by ${r.sourceCommit ? `commit ${r.sourceCommit.slice(0, 8)}` : 'an unrecorded build'}; the retained proof is unchanged.` };
+      detail: `${reconstructionSummary(r, timeZone)}. The retained proof is unchanged.` };   // CHG-184: no build commit
   }
   // rows rebuilt in place before CHG-099 (CHG-076) carry the reconstruction's run id in the run's own set
   if (m.artifacts.some(a => a.basis === 'RECONSTRUCTED')) {

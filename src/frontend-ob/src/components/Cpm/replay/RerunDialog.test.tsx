@@ -120,14 +120,15 @@ describe('RerunCard and dialog', () => {
     renderCard();
     open();
     expect((screen.getByLabelText(/Current configuration/) as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByText('Not available in this release.')).toBeTruthy();
+    expect(screen.getByText('Not available yet.')).toBeTruthy();   // CHG-184: no release wording
   });
 
   it('does not promise exact reproduction, nor claim a bundle that may not be held', () => {
     renderCard();
     open();
-    expect(screen.getByText(/today.s engine build.*can differ from the original/i)).toBeTruthy();
-    expect(screen.getByText(/or the engine default if none are held/)).toBeTruthy();
+    expect(screen.getByText(/today.s calculation.*can differ from the original/i)).toBeTruthy();
+    expect(screen.queryByText(/engine build/)).toBeNull();   // CHG-184: no build wording
+    expect(screen.getByText(/or the default if none are held/)).toBeTruthy();
     expect(screen.queryByText(/reproduc|governed/i)).toBeNull();
   });
 

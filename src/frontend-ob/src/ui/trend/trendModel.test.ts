@@ -209,7 +209,7 @@ describe('describeTrend', () => {
       lanes, noSample: [{ from: 10, to: 100 }], plotWindow: { from: 0, to: 110 },
     });
     expect(describeTrend(model, 'FIC101 signals', 'Plotted: x to y GST')).toBe(
-      'Trend chart: FIC101 signals. Signals: PV in bar, OP, unit not set. Plotted: x to y GST. 1 interval with no sample. Verdict lane with 1 segment.',
+      'Trend chart: FIC101 signals. Signals: PV in bar, OP. Plotted: x to y GST. 1 interval with no sample. Verdict lane with 1 segment.',
     );
   });
 });

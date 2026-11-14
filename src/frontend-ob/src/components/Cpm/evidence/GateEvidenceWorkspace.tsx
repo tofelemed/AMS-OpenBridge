@@ -4,8 +4,8 @@
  * IMMUTABLE method run named in the URL; "Newest" is an explicit navigation within the loaded window list, never a
  * "latest" read. CHG-162 (owner review, approved sample workbench-proposal.html): header → band card (loop, window kind,
  * window, ‹ ›, Newest, Go to date … the way back) → [gate rail | one panel: gate head with the run's actions → evidence basis →
- * four tabs (Proof, Rules & parameters, Signal context, Identity & raw; ?sub=, kept by goTo) → foot strip with the window, its
- * samples and Evidence Replay]. There is no right column, and no More.
+ * three tabs (Proof, Rules & parameters, Signal context; ?sub=, kept by goTo) → foot strip with the window, its samples and
+ * Evidence Replay]. There is no right column, and no More. CHG-184 (owner review item 0, 11.3): no Identity & raw tab, no run id.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -31,7 +31,6 @@ import { parseSelection, tabOf, type WorkbenchTab } from './selection';
 import { ProofTab } from './tabs/ProofTab';
 import { RulesTab } from './tabs/RulesTab';
 import { SignalTab } from './tabs/SignalTab';
-import { IdentityTab } from './tabs/IdentityTab';
 import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
 import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
 import { EvidenceBasisBar } from './EvidenceBasisBar';
@@ -55,8 +54,7 @@ import { effectiveInputFlags } from '../inputLimits';
 
 const DEFAULT_KIND = '12h';   // CHG-089
 const TABS: Array<TabOption<WorkbenchTab>> = [
-  { value: 'proof', label: 'Proof' }, { value: 'rules', label: 'Rules & parameters' },
-  { value: 'signal', label: 'Signal context' }, { value: 'identity', label: 'Identity & raw' },
+  { value: 'proof', label: 'Proof' }, { value: 'rules', label: 'Rules & parameters' }, { value: 'signal', label: 'Signal context' },
 ];
 
 export const GateEvidenceWorkspace: React.FC = () => {
@@ -180,8 +178,6 @@ export const GateEvidenceWorkspace: React.FC = () => {
   }), [run.data, currentOption, catalogue.data, inputFlags, analysisRunParam]);
 
   const fusedRow = useFusedRow(run.data?.loopId, run.data);
-  const md = fusedRow.row?.metadata;
-  const versions = md ? `Calculation v${md.calculationVersion ?? '—'} · profile v${md.dynamicsProfileVersion ?? '—'}` : null;
   const reconstructReason = !run.data ? undefined
     : !canReconstruct ? 'Reconstructing evidence needs the cpm.analysis.create permission'
     : !run.data.reconstruction.supported ? reconstructRefusal(run.data.reconstruction.reason) : undefined;
@@ -257,7 +253,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
           <EmptyState level={2} title={`No ${kind} windows for ${loopId} yet`} copy="Choose another window kind, or wait for the next evaluation." />
         )}
         {loopId && !windows.isLoading && windows.options.length > 0 && !windows.options.some(w => w.hasRunIds) && (
-          <EmptyState level={2} title="No window of this loop carries run identity" copy="The listed windows predate v2.5; they cannot be opened in the workbench. Load older windows or pick another kind." />
+          <EmptyState level={2} title="No window of this loop carries run identity" copy="The listed windows were stored before runs were kept; they cannot be opened in the workbench. Load older windows or pick another kind." />
         )}
       </div>
     );
@@ -281,7 +277,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <section className="cpm-surface cpm-workbench__main">
       <WorkbenchHead gate={selection.gate} name={entry?.name ?? selection.gate} tier={gateTier} status={status} inputFlags={inputFlags}
         actions={(
-          <RunSummaryBar run={run.data} selection={selection} readiness={manifest.data?.readiness}
+          <RunSummaryBar run={run.data} readiness={manifest.data?.readiness}
             reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct}>
             {evaluate && <ObcButton variant="flat" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>{evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}</ObcButton>}
           </RunSummaryBar>
@@ -294,7 +290,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       </div>
       {reconstruct.isSuccess && (
         <p className="cpm-copy" role="status">
-          Reconstruction accepted (run {reconstruct.data.analysisRunId}){runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
+          Reconstruction accepted{runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
           It is stored beside the retained proof, never over it; this page lists it above when it arrives.
           <ObcButton variant="flat" onClick={() => void rawManifest.refetch()}>Refresh</ObcButton>
         </p>
@@ -312,7 +308,6 @@ export const GateEvidenceWorkspace: React.FC = () => {
         )}
         {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={rawManifest.data} manifestLoading={rawManifest.isLoading} manifestError={rawManifest.error} timeZone={timeZone} />}
         {tab === 'signal' && <SignalTab run={run.data} timeZone={timeZone} timeFmt={timeFmt} />}
-        {tab === 'identity' && <IdentityTab run={run.data} manifest={manifest.data} flags={currentOption?.flags} inputs={inputContextOf(loop)} versions={versions} />}
       </div>
       {run.data && (
         <div className="cpm-workbench__foot">
@@ -323,7 +318,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       )}
       </section>
       </div>
-      <ReconstructDialog open={reconOpen} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText} runId={selection.methodRunId}
+      <ReconstructDialog open={reconOpen} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText}
         state={reconstruct.isPending ? 'pending' : reconstruct.isError ? 'error' : 'idle'} error={reconstruct.isError ? (reconstruct.error as Error).message : undefined}
         onConfirm={() => reconstruct.mutate()} onClose={() => setReconOpen(false)} />
     </div>

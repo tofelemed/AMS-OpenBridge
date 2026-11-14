@@ -19,7 +19,7 @@ const REASONS: Record<string, string> = {
   INSUFFICIENT_DATA: 'too few qualified samples in the window',
   QUALITY_UNKNOWN: 'the source quality is unknown for the window',
   HEALTH_NOT_CONFIGURED: 'no transmitter health source is configured',
-  LEGACY_FLAG_ONLY: 'the result predates v2.5 and carries a flag, not an analysis',
+  LEGACY_FLAG_ONLY: 'an older result that carries a flag, not an analysis',
   INTERACTION_NOT_ANALYSED_BY_LONG_TIER: 'the long tier did not analyse peer interaction',
   NO_POSITIVE_EVIDENCE: 'no positive non-following evidence exists',
   VP_TRACKING_HEALTHY: 'the valve position tracks its command',

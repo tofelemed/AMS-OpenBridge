@@ -146,7 +146,7 @@ export const ResponseWorkspace: React.FC = () => {
   } else {
     body = (
       <EventPanes tab={tab} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
-        methodRunId={methodRunId} t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0} resultRevision={selected?.resultRevision}
+        t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0}
         pvUnit={loop?.engineering?.pvUnit} retention={retention} />
     );
   }

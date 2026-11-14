@@ -109,8 +109,8 @@ export const EvidenceBody: React.FC<{
               : !cell
                 ? { disabled: true, title: `${gateKey} is not part of this loop's latest ${windowKind} result` }
                 : !runId
-                  ? { disabled: true, title: 'This result was stored before analysis runs were kept (before v2.5); use Replay or the Window Inspector instead' }
-                  : { disabled: false, title: `Open method run ${runId}` };
+                  ? { disabled: true, title: 'This result was stored before analysis runs were kept; use Replay or the Window Inspector instead' }
+                  : { disabled: false, title: `Open the ${gateKey} run of this window in the Evidence Workbench` };   // CHG-184: no run id
         const replay = replayHref(loopId, { gate: gateKey, window: matrix?.windowEnd, kind: windowKind });
         // CHG-157 (owner review): the ways on are the app's flat links with short names, like the dialog's foot
         return (

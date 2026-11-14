@@ -97,7 +97,7 @@ export function cpmSeriesToPane(id: string, series: CpmSeries[], height?: number
 export interface TrendPen {
   id: string;
   label: string;
-  /** Asset-catalog unit. Blank renders "unit not set"; a name guess is not passed in. */
+  /** Asset-catalog unit. Blank renders no unit (CHG-184); a name guess is not passed in. */
   unit?: string | null;
   points: TrendPoint[];
   setpoint?: boolean;

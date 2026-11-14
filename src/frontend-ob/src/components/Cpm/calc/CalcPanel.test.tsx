@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 // Task 20: the selected calculation in the right column; the proof opens the exact run, or says why it cannot.
-// CHG-166 (owner review, the approved sample): the id beside the title; Value, Unit (the loop's unit, merged with the signal
-// engineering unit), Gate with a ? that tells its result from the window verdict, Method; then Record details (a dialog),
-// Rules & parameters and Identity & raw (the Workbench tabs they open); Open G3 proof stays the primary.
+// CHG-166 (owner review, the approved sample): Value, Unit (the loop's unit, merged with the signal engineering unit), Gate with
+// a ? that tells its result from the window verdict, Method; then Rules & parameters (the Workbench tab it opens); Open G3 proof
+// stays the primary. CHG-184 (owner review items 0, 14, Q6): no metric code beside the title, no Record details, no Identity &
+// raw link, no versions in the stale warning.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { METRICS } from '../calcCatalogue';
 import type { MetricView } from './calcView';
@@ -27,8 +28,7 @@ const Where: React.FC = () => <output data-testid="where">{useLocation().pathnam
 const mount = (v: MetricView, o: Partial<React.ComponentProps<typeof CalcPanel>> = {}) => render(
   <MemoryRouter>
     <CalcPanel view={v} loopId="FIC10401" runId="run-g3" pvUnit="kg/h"
-      stamped="3.0.0" deployed="3.0.0" record={[['Window qualification', 'Qualified'], ['Stored in', 'cplm_long_feature_results']]}
-      open onClose={() => undefined} {...o} />
+      stamped="3.0.0" deployed="3.0.0" open onClose={() => undefined} {...o} />
     <Where />
   </MemoryRouter>);
 // a label is its first text node: the Gate label also holds its ? button
@@ -38,10 +38,11 @@ const valueOf = (label: string) => [...document.querySelectorAll('.ui-inspector_
 const where = () => screen.getByTestId('where').textContent ?? '';
 
 describe('CalcPanel', () => {
-  it('names the metric with its id beside the title, and no Id row', () => {
+  it('names the metric by its name only: no metric code beside the title, no Id row (CHG-184)', () => {
     mount(view('CPLM-010'));
     const heading = screen.getByRole('heading', { name: 'Mean absolute error' });
-    expect(heading.parentElement?.textContent).toContain('CPLM-010');
+    expect(heading.parentElement?.textContent).not.toContain('CPLM-010');
+    expect(screen.queryByText('CPLM-010')).toBeNull();
     expect(screen.queryByText('Id')).toBeNull();
   });
 
@@ -91,32 +92,20 @@ describe('CalcPanel', () => {
     expect(screen.getByText(/verdict is in the band/)).toBeTruthy();
   });
 
-  it('opens the proof of the exact run, and the Rules and Identity tabs of the same run', () => {
+  it('opens the proof of the exact run, and the Rules tab of the same run; no Identity & raw link (CHG-184)', () => {
     mount(view('CPLM-010'));
     fireEvent.click(screen.getByText(/Open G3 proof/));
     expect(where()).toBe('/cpm/evidence?loop=FIC10401&methodRun=run-g3&gate=G3&mode=FIXED');
     fireEvent.click(screen.getByText('Rules & parameters ↗'));
     expect(where()).toContain('sub=rules');
-    fireEvent.click(screen.getByText('Identity & raw ↗'));
-    expect(where()).toContain('sub=identity');
+    expect(screen.queryByText(/Identity & raw/)).toBeNull();
     for (const gone of [/Inspect parameters/, /Retained value & identity/, /Original configuration/]) expect(screen.queryByText(gone)).toBeNull();
   });
 
-  it('puts Record details first, then the two Workbench tabs', () => {
+  it('has no Record details (CHG-184, owner review Q6)', () => {
     mount(view('CPLM-010'));
-    const order = ['Record details', 'Rules & parameters ↗', 'Identity & raw ↗'].map(t => screen.getByText(t));
-    expect(order[0].compareDocumentPosition(order[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(order[1].compareDocumentPosition(order[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('opens Record details as a dialog, not a disclosure', () => {
-    mount(view('CPLM-010'));
+    expect(screen.queryByText('Record details')).toBeNull();
     expect(document.querySelector('details')).toBeNull();
-    expect(screen.queryByText('Window qualification')).toBeNull();
-    fireEvent.click(screen.getByText('Record details'));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).getByText('Window qualification').nextSibling?.textContent).toBe('Qualified');
-    fireEvent.click(within(dialog).getByText('Close'));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
@@ -127,9 +116,10 @@ describe('CalcPanel', () => {
     expect(screen.getAllByText(/no run is stored/i).length).toBeGreaterThan(0);
   });
 
-  it('warns when the value was written by another calculation version', () => {
+  it('warns when the value was written by an earlier calculation, naming no version (CHG-184)', () => {
     mount(view('CPLM-010'), { stamped: '2.9.0', deployed: '3.0.0' });
-    expect(screen.getByText(/written by v2\.9\.0/)).toBeTruthy();
+    expect(screen.getByText(/written by an earlier calculation/)).toBeTruthy();
+    expect(screen.queryByText(/2\.9\.0|3\.0\.0/)).toBeNull();
   });
 
   it('shows a gate result with no value muted and not as a pass', () => {
@@ -139,6 +129,6 @@ describe('CalcPanel', () => {
 
   it('says nothing about versions when they match', () => {
     mount(view('CPLM-010'));
-    expect(screen.queryByText(/written by v/)).toBeNull();
+    expect(screen.queryByText(/written by/)).toBeNull();
   });
 });

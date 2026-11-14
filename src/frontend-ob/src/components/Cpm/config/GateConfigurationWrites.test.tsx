@@ -168,6 +168,9 @@ describe('Gate Configuration write paths', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Approval/ }));
     await screen.findByText('Approved by admin');
     expect(screen.getByText('Expired')).toBeTruthy();                                    // muted: it ran out after activation
+    // CHG-184: the Content column names the content in words, never its hash
+    expect(within(screen.getByRole('table', { name: 'Approvals' })).getByText('Current content')).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Approvals' }).textContent).not.toMatch(/f9153b00/);
     expect(screen.getAllByText('This version is Active (verified) - create a new version to change it.')).toHaveLength(1);
   });
 });

@@ -53,7 +53,7 @@
 
 /* a second pill on a row (Availability unknown beside the condition) keeps its distance */
 .cpm-events .cpm-kv__value .cpm-pill + .cpm-pill { margin-inline-start: var(--traverse-space-1); }
-/* Record details · Historical ↗ · Loop ↗, flat, on one line */
+/* Historical ↗ · Loop ↗, flat, on one line */
 .cpm-events-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1); margin: var(--traverse-space-2) 0; }
 /* the note and the actions, then Activity & notes: sections edge to edge of the panel */
 .cpm-events-panel__sect {
@@ -98,7 +98,7 @@
 .cpm-events-form__value { min-width: 0; }
 /* the For options keep their own width and wrap inside the dialog on a phone (the dialog sits outside .cpm-screen) */
 .cpm-events-form__value .ui-segmented { flex-wrap: wrap; max-width: 100%; }
-/* Record details: the copy control beside its value, the label on the same line */
+/* Governance's Record details (the audit record): the copy control beside its value, the label on the same line */
 .cpm-events-record .cpm-kv { align-items: center; }
 .cpm-events-copy { margin-inline-start: var(--traverse-space-1); vertical-align: middle; }
 /* Full history: the link control on one line under the notes */

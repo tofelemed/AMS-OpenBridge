@@ -32,7 +32,7 @@ const fmtS = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 
  */
 export function confirmationProse(c: CpmConfirmation | null | undefined, legacy = false, vpAbsentOnLoop = false): string {
   if (legacy || !c || c.state === 'LEGACY_FLAG_ONLY') {
-    return 'This result predates v2.5: G14 was a VP-presence flag, not a confirmation.';
+    return 'This is an older result: G14 was a VP-presence flag, not a confirmation.';
   }
   switch (c.state) {
     case 'CONFIRMED':

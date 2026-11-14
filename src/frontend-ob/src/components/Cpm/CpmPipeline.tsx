@@ -114,7 +114,7 @@ export const CpmPipeline: React.FC = () => {
     const l = loops?.find(x => x.loopId.toLowerCase() === id.toLowerCase());
     return l ? serviceName(l) : '';
   };
-  const { submit, status: replayStatus, analysisRunId, reset } = useRecompute(loopId);
+  const { submit, status: replayStatus, reset } = useRecompute(loopId);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   // PH2: elapsed is FROZEN when the replay finishes, so a finished round trip never reads like a running one.
   const [elapsedS, setElapsedS] = useState<number | null>(null);
@@ -155,7 +155,6 @@ export const CpmPipeline: React.FC = () => {
       {view === 'jobs' ? (
         <div className="cpm-master-detail cpm-pipeline-md">
           <JobList rows={rows} selected={selected?.name ?? null} onSelect={select} showRows={showRows}
-            engine={status.data ? { jobManagerUrl: status.data.jobManagerUrl, unexpectedJobs: status.data.unexpectedJobs } : undefined}
             notices={<>
               {metrics.isLoading && <EmptyState title="Reading the analysis engine's job metrics…" />}
               {/* A failed read is stated as a failure, never as an empty list. */}
@@ -176,7 +175,7 @@ export const CpmPipeline: React.FC = () => {
               pending={submit.isPending}
               onRecheck={() => void qc.invalidateQueries({ queryKey: ['cpm', 'replay-status'] })} onLoop={setChosen} canManage={canManage} busy={busy}
               error={submit.isError ? ((submit.error as Error)?.message ?? 'unknown') : null}
-              status={replayStatus} analysisRunId={analysisRunId} elapsedS={elapsedS}
+              status={replayStatus} elapsedS={elapsedS}
               onRun={() => { reset(); setRunLoop(loopId ?? null); setStartedAt(Date.now()); setElapsedS(null); submit.mutate(); }} />
           </div>
         </div>

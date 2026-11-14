@@ -36,7 +36,8 @@ describe('eventsState', () => {
     const legacy = frame({ availability_state: undefined as unknown as string, condition_state: undefined as unknown as string });
     expect(availabilityOf(legacy)).toBe('LEGACY');
     expect(availabilityPill(legacy)).toEqual({ label: 'Availability unknown', tone: 'muted' });
-    expect(availabilityCopy(legacy)).toContain('before v2.5');
+    expect(availabilityCopy(legacy)).toContain('An older record');
+    expect(availabilityCopy(legacy)).not.toMatch(/v2.5/);   // CHG-184: no version
     expect(matchesEventFilter(legacy, 'unobservable')).toBe(false);
   });
 

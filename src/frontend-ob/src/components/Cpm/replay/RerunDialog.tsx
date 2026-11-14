@@ -1,6 +1,6 @@
 /**
  * Task 18 (spec section 12, decision 3): confirm a re-run of the open window. The window and the settings it ran under are
- * fixed; the current configuration is not offered (listed under Not in this release). No promise of an identical result.
+ * fixed; the current configuration is not offered (said as not available yet). No promise of an identical result.
  * A finished run opens in the Workbench; the original stays on Replay.
  */
 import React from 'react';
@@ -27,7 +27,7 @@ export const RerunDialog: React.FC<{
     : null;
   return (
     <Dialog open={open} onClose={onClose} title="Re-run this window"
-      description="It uses the settings the window ran under, or the engine default if none are held, and today's engine build. The result can differ from the original."
+      description="It uses the settings the window ran under, or the default if none are held, and today's calculation. The result can differ from the original."
       footer={<>
         <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>
         {(unreadable || stillRunning || noResult) && <ObcButton variant="normal" onClick={checkAgain}>Check again</ObcButton>}
@@ -43,7 +43,7 @@ export const RerunDialog: React.FC<{
         <label className="cpm-check">
           <input type="radio" name="rerun-config" disabled /> Current configuration
         </label>
-        <span className="cpm-reasoned__why">Not available in this release.</span>
+        <span className="cpm-reasoned__why">Not available yet.</span>
       </fieldset>
       {refusal && <p role="alert"><TonePill tone="bad">Not started</TonePill> {refusal}</p>}
       {line && <p role={line.tone === 'bad' ? 'alert' : 'status'}><TonePill tone={line.tone}>{line.pill}</TonePill> {line.text}</p>}

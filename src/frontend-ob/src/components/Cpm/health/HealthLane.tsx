@@ -25,7 +25,7 @@ export function healthSegments(rows: HealthHistoryRow[], from: Date, to: Date, r
       return {
         startMs, endMs,
         tone: eligibilityTone(r.eligibility) as CpmTone,
-        label: `${role} ${codeLabel(r.eligibility)} · ${flags} · ${r.deviceId || 'no device'}${r.revision > 1 ? ` · rev ${r.revision}` : ''}`,
+        label: `${role} ${codeLabel(r.eligibility)} · ${flags} · ${r.deviceId || 'no device'}`,   // CHG-184: no revision
       };
     })
     .filter(s => s.endMs > s.startMs)

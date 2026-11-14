@@ -17,14 +17,6 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-/* the list card's foot strip (Engine details), edge to edge on the page colour, as the other list feet */
-.cpm-pipeline-list { padding-bottom: 0; }
-.cpm-pipeline-foot {
-  display: flex; justify-content: flex-end;
-  margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0; padding: var(--traverse-space-1) var(--traverse-space-4);
-  border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
-  border-end-start-radius: inherit; border-end-end-radius: inherit;
-}
 
 /* the right column: the selected job's panel, the verification under it */
 .cpm-pipeline-col { display: grid; gap: var(--traverse-size-panel-gap); align-content: start; min-width: 0; }
@@ -32,7 +24,6 @@
   display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--traverse-space-2);
   background: var(--traverse-surface-page); border-end-start-radius: inherit; border-end-end-radius: inherit;
 }
-.cpm-pipeline-panel-foot { display: flex; justify-content: flex-end; width: 100%; }
 .cpm-pipeline-ver__foot > .cpm-reasoned { margin-inline-start: auto; }
 .cpm-pipeline-ver .ui-inspector__body { flex: none; }
 /* the panel's values are short numbers: a label such as "Last checkpoint duration" keeps one line (the app caps labels at 45 %) */

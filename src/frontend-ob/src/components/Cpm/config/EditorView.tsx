@@ -1,6 +1,6 @@
 /**
  * One bundle (2026-09-17 audit F18, extracted from the shell on 2026-09-18). The shell owns the URL (bundle, gate, tab) and the
- * loop context; the band above names the bundle and holds its Record details.
+ * loop context; the band above names the bundle (CHG-184: no Record details).
  * CHG-169 (owner review, the approved sample docs/theme/redesign/samples/gate-configuration-proposal.html): five tabs in
  * lifecycle order - Properties · Diff & impact · Shadow · Approval · Deployments (`?tab=`) - with ✓ done / ● current from the
  * state (they replace the six-step strip) and "Next: X →" at each foot. Each lifecycle action sits on its step's tab (Validate on

@@ -1,7 +1,7 @@
 /* Gate Configuration. CHG-169 (owner review, the approved sample docs/theme/redesign/samples/gate-configuration-proposal.html):
    placement and tone only; every size is the app's own token or class. Table cells keep the shared .cpm-table sizes. */
 
-/* ── The band: the loop, the open bundle with its state and Record details; 32 px, as the sample draws it ── */
+/* ── The band: the loop, the open bundle with its state; 32 px, as the sample draws it ── */
 .cpm-config-band {
   display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2);
   padding-inline-start: var(--traverse-space-3); border-inline-start: 1px solid var(--traverse-border-subtle);

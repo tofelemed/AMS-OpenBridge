@@ -6,7 +6,7 @@
  * beside the list, a drawer below 1280 px (the shared Inspector, as on Calculations and Loop Events). The heading is the tag,
  * the service under it and the state badge in the list's word (✓ Active, ! Degraded, ○ Not monitored, ⊘ Retired); rows: plant
  * path, type, criticality, gate profile, model (a retired loop's open episode marked, UI-131); Readiness; Signals; the actions;
- * Record details (a dialog) · Workbench ↗ · Effective rules ↗ · Plant tree ↗; the foot's Loop Explorer →.
+ * Workbench ↗ · Effective rules ↗ · Plant tree ↗; the foot's Loop Explorer →. CHG-184 (owner review Q6): no Record details.
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -26,8 +26,7 @@ import { RetireLoopDialog } from './RetireLoopDialog';
 import { SignalMapping } from './SignalMapping';
 import { LoopReadiness } from './LoopReadiness';
 import { LoopActions } from './LoopActions';
-import { LoopRecordDialog } from './LoopRecordDialog';
-import { panelRows, recordRows } from './loopPanelFacts';
+import { panelRows } from './loopPanelFacts';
 
 export const LoopPanel: React.FC<{ loopId: string; open: boolean; onClose: () => void }> = ({ loopId, open, onClose }) => {
   const navigate = useNavigate();
@@ -48,7 +47,6 @@ export const LoopPanel: React.FC<{ loopId: string; open: boolean; onClose: () =>
   const user = useReceiptUser();
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<'retire' | 'restore' | null>(null);
-  const [record, setRecord] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   if (!loop) {
@@ -98,7 +96,6 @@ export const LoopPanel: React.FC<{ loopId: string; open: boolean; onClose: () =>
         <LoopActions loop={loop} canManage={canManage} receipt={receipt?.key === loop.loopId ? receipt : null} onReceipt={setReceipt}
           onEdit={() => setEditing(true)} onRetire={setDialog} />
         <div className="cpm-events-links">
-          <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
           <ObcButton className="ui-link" variant="flat" onClick={() => navigate(evidenceHref(loop.loopId))}>Workbench {'↗'}</ObcButton>
           {canReadConfig && <ObcButton className="ui-link" variant="flat" onClick={() => navigate(configHref({ loop: loop.loopId }))}>Effective rules {'↗'}</ObcButton>}
           {canSeeTree && (
@@ -108,7 +105,6 @@ export const LoopPanel: React.FC<{ loopId: string; open: boolean; onClose: () =>
           )}
         </div>
       </Inspector>
-      <LoopRecordDialog open={record} onClose={() => setRecord(false)} rows={recordRows(loop)} />
       {editing && <AddLoopWizard existing={loops} editLoop={loop} onClose={() => setEditing(false)} />}
       {dialog && <RetireLoopDialog loop={loop} mode={dialog} onClose={() => setDialog(null)} onDone={done} />}
     </>

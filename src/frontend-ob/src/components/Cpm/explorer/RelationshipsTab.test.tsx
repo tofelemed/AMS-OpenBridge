@@ -49,4 +49,11 @@ describe('RelationshipsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Loop Registry →' }));
     expect(String(nav.mock.calls[0][0])).toContain('/cpm/registry');
   });
+
+  it('names no engine and no calculation version in the lineage (CHG-184)', () => {
+    const { container } = tab(loop([]));
+    const d = container.querySelector('details')!;
+    expect(d.textContent).toContain('1 gates (1 observed)');
+    expect(d.textContent).not.toMatch(/Flink|calc 2\.9/);
+  });
 });

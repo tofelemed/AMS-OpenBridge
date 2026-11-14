@@ -1,5 +1,5 @@
 // CHG-169 (owner review, the approved sample): Bundles is one list grouped LOOP / PROFILE / SITE, newest first, beside the
-// selected version's panel (class, created, effective from, validation errors, content hash; "Open v6 →" at its foot). With
+// selected version's panel (class, created, effective from, validation errors; CHG-184: no content hash; "Open v6 →" at its foot). With
 // no loop it lists the bundles in progress. Prepare bundle draft sits at the list's head, gated by the draft permission; a
 // draft starts from the level's active version (owner answer 2b). States read as words with their glyph.
 import React from 'react';
@@ -45,7 +45,7 @@ describe('BundlesView', () => {
     expect(screen.getByRole('heading', { name: 'LOOP v2' })).toBeTruthy();
     expect(panel().textContent).toMatch(/Change class.*Policy/);
     expect(panel().textContent).toMatch(/Validation errors.*0/);
-    expect(panel().textContent).toMatch(/Content hash.*f9153b00/);
+    expect(panel().textContent).not.toMatch(/Content hash|f9153b00/);   // CHG-184
     fireEvent.click(within(panel()).getByRole('button', { name: 'Open v2 →' }));
     expect(onOpen).toHaveBeenCalledWith('l2');
   });

@@ -54,6 +54,13 @@ describe('TransmitterHealthPanel', () => {
     expect(screen.getByText('FAILURE')).toBeTruthy();
   });
 
+  it('shows no NE107 mapping version and no interval revision (CHG-184)', () => {
+    render(<TransmitterHealthPanel health={health([role({ intervalRevision: 3, interpretationVersion: 2 })])} />);
+    expect(screen.queryByText('Mapping version')).toBeNull();
+    expect(screen.queryByText(/interpretation v2|rev 3/)).toBeNull();
+    expect(screen.getByText('Eligibility since')).toBeTruthy();
+  });
+
   it('summarises worst-of across roles and keeps stale collection visible', () => {
     expect(loopHealthSummary(health([role({}), role({ role: 'VP', eligibility: 'LIMITED' })])).label).toBe('INSTRUMENT LIMITED');
     expect(loopHealthSummary(undefined).label).toBe('HEALTH UNKNOWN');

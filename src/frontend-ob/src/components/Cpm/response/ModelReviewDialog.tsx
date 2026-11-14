@@ -1,7 +1,8 @@
 /**
  * v2.5 Task 2E.5 (spec §2.8, §6.5): the server-owned model review. The decision is bound to the
  * model id and its revision (If-Match); a stale revision is a 409 the reviewer must reload past.
- * Permission `cpm.model.review` gates the action; the dialog never changes state locally.
+ * Permission `cpm.model.review` gates the action; the dialog never changes state locally. CHG-184 (owner review item 0): the
+ * model id and the id of the event it was created from are not shown (the revision stays: the decision is bound to it).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -34,13 +35,11 @@ export const ModelReviewDialog: React.FC<{
       <div ref={ref} className="cpm-modal" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Review system model">
         <PanelHead eyebrow="Model review" title={`${model.family} · ${model.pathId}`} right={<TonePill tone={stateTone(model.modelState)}>{model.modelState}</TonePill>} />
         <div className="cpm-response-quantities">
-          <KvRow label="model">{model.modelId}</KvRow>
           <KvRow label="revision">{model.revision}</KvRow>
           <KvRow label="estimator / uncertainty">{model.estimator || '—'} / {model.uncertaintyMethod || '—'}</KvRow>
           {Object.entries(model.parameters ?? {}).map(([k, p]) => (
             <KvRow key={k} label={k}>{quantityText({ quantityId: k, value: p.value, unit: p.unit, uncertainty: p.uncertainty, method: p.method, pathId: model.pathId, supportFromMs: null, supportToMs: null, configHash: model.bundleHash, reasonIfNull: p.reason ?? '' })}</KvRow>
           ))}
-          <KvRow label="created from event">{model.createdFromEvent ?? '—'}</KvRow>
         </div>
         <div className="cpm-field">
           <span className="cpm-field__label">Decision</span>

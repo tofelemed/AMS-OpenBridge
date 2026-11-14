@@ -9,7 +9,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
 import { GateEvidenceWorkspace } from './GateEvidenceWorkspace';
-import { parseSelection, selectionSearch } from './selection';
+import { parseSelection, selectionSearch, tabOf } from './selection';
 import { useAuthStore } from '../../../store/authStore';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
@@ -108,8 +108,6 @@ describe('GateEvidenceWorkspace', () => {
     expect(await screen.findByText(/^5 min window · .* · 61 samples$/)).toBeTruthy();
     expect(screen.queryByText(/pinned run/)).toBeNull();
     expect(screen.queryByText(/FIXED/)).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Identity & raw' }));
-    expect(screen.getAllByText(/profile:ef9abb/).length).toBeGreaterThan(0);
     expect(urls().some(u => u.includes('/gates/latest'))).toBe(false);
     expect(urls().some(u => u.includes('/fleet/'))).toBe(false);
     expect(urls().some(u => u.endsWith(`/method-runs/${RUN}`))).toBe(true);
@@ -136,11 +134,12 @@ describe('GateEvidenceWorkspace', () => {
     const d = await screen.findByRole('dialog', { name: 'Reconstruct evidence' });
     expect(d.textContent).toContain('FIC10302');
     expect(d.textContent).toContain('G3 Base performance');
-    expect(d.textContent).toContain(RUN);
+    expect(d.textContent).not.toContain(RUN);   // CHG-184: no run id row
     expect(posts()).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Reconstruct' }));
     await waitFor(() => expect(posts()).toHaveLength(1));
     await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/\(run /)).toBeNull();   // CHG-184: the accepted line names no run id
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
@@ -249,6 +248,19 @@ describe('GateEvidenceWorkspace', () => {
     renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15&sub=nonsense`);
     await screen.findByRole('navigation', { name: 'Gates of this window' });
     expect(screen.getByRole('tab', { name: 'Proof' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  // CHG-184 (owner review item 11.3): the Identity & raw tab went; an old link that names it lands on Proof
+  it('has three tabs, and an old link to Identity & raw lands on Proof', async () => {
+    for (const old of ['sub=identity', 'tab=identity']) {
+      renderAt(`?loop=FIC10302&methodRun=g15-run&gate=G15&${old}`);
+      await screen.findByRole('navigation', { name: 'Gates of this window' });
+      expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Proof', 'Rules & parameters', 'Signal context']);
+      expect(screen.getByRole('tab', { name: 'Proof' }).getAttribute('aria-selected')).toBe('true');
+      expect(screen.queryByRole('tab', { name: /Identity/ })).toBeNull();
+      cleanup();
+    }
+    expect(tabOf('identity')).toBe('proof');
   });
 
   it('has no Explain column, no repeated verdict strip, and says what the gate asks once, on Rules & parameters', async () => {

@@ -17,7 +17,7 @@ afterEach(cleanup);
 const win: HistoryWindow = {
   windowStart: '2026-11-04T12:00:00Z', windowEnd: '2026-11-05T00:00:00Z', diagnosis: 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY',
   confidence: 0.89, sampleCount: 8640, insufficientEvidenceReason: null, methodRunIds: { G15: 'run-1' }, gates: [],
-  metrics: { good_error_pct: 0.62, auto_pct: 1, mae: 0.5, saturation_pct: 0.04 }, calculation: 'v7 · profile v3',
+  metrics: { good_error_pct: 0.62, auto_pct: 1, mae: 0.5, saturation_pct: 0.04 },
 };
 const base = { loopId: 'FIC10302', window: win, fellBack: false, noWindows: false, onWiden: () => {}, onFit: () => {}, onReplay: () => {}, onPackage: () => {}, packageReady: true };
 const show = (over = {}) => render(<MemoryRouter><SelectedWindowPanel {...base} {...over} /></MemoryRouter>);
@@ -54,18 +54,22 @@ describe('SelectedWindowPanel', () => {
     expect(screen.getAllByText('Not stored').length).toBe(2);            // Time in normal mode and MAE were not
   });
 
-  it('puts samples and calculation behind technical details, and says what the score is behind a ?', () => {
+  it('shows Samples as a row with no Technical details or calculation version, and says what the score is behind a ? (CHG-184)', () => {
     show();
     expect(screen.getByText('Evidence score')).toBeTruthy();
     expect(screen.getByText('89')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'About score' })).toBeTruthy();
-    expect(document.querySelector('details')?.textContent).toContain('8640');
+    expect(screen.getByText('Samples').parentElement?.textContent).toBe('Samples8640');
+    expect(document.querySelector('details')).toBeNull();
+    expect(screen.queryByText('Technical details')).toBeNull();
+    expect(screen.queryByText(/profile v/)).toBeNull();
   });
 
   it('gives the reason when a window has no run to review', () => {
     show({ window: { ...win, methodRunIds: {} } });
     expect((screen.getByRole('button', { name: 'Review this window →' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(document.body.textContent).toContain('before v2.5');
+    expect(document.body.textContent).toContain('Stored before analysis runs were kept');
+    expect(document.body.textContent).not.toMatch(/v2.5/);   // CHG-184: no version
   });
 
   it('names the cap, not the 14 days, for a recent window with only a summary (B1)', () => {

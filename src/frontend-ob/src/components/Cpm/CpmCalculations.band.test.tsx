@@ -167,28 +167,27 @@ describe('Calculations foot strip and dialogs', () => {
     expect(band().queryByText(/12 h window/)).toBeNull();
   });
 
-  it('names a re-run in the foot', () => {
+  it('names a re-run in the foot, without its id (CHG-184)', () => {
     state.row = kpiRow(PAST);
     state.at = atResult(matrix(PAST, { metadata: { calculationVersion: '3.0.0', dynamicsProfileVersion: '2.0.0', computedAt: PAST, replayId: 'abc123' } as never }));
     mount(`?loop=FIC10401&window=${encodeURIComponent(PAST)}`);
-    expect((document.querySelector('.cpm-calc-foot') as HTMLElement).textContent).toContain('Re-run abc123');
+    expect((document.querySelector('.cpm-calc-foot') as HTMLElement).textContent).toContain('Re-run');
+    expect((document.querySelector('.cpm-calc-foot') as HTMLElement).textContent).not.toContain('abc123');
   });
 
-  it('opens Run details from the foot, with the tally and the versions', () => {
+  it('opens Run details from the foot, with the tally and no versions, run id, bundle or build (CHG-184)', () => {
     mount();
     const foot = document.querySelector('.cpm-calc-foot') as HTMLElement;
     fireEvent.click(within(foot).getByText('Run details'));
     const dialog = screen.getByRole('dialog', { name: 'Run details' });
     expect(within(dialog).getByText('Gates')).toBeTruthy();
-    expect(within(dialog).getByText('v3.0.0 · profile v2.0.0')).toBeTruthy();
+    expect(within(dialog).queryByText(/v3.0.0/)).toBeNull();
+    for (const gone of ['Calculation', 'Bundle', 'Engine build', 'Decision run (G15)']) expect(within(dialog).queryByText(gone)).toBeNull();
     expect(within(dialog).queryByText('Samples')).toBeNull();
   });
 
-  it('opens Record details as a dialog from the panel', () => {
+  it('has no Record details in the panel (CHG-184, owner review Q6)', () => {
     mount('?loop=FIC10401&metric=CPLM-010');
-    fireEvent.click(screen.getByText('Record details'));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).getByText('Window qualification').nextSibling?.textContent).toBe('Qualified');
-    expect(within(dialog).queryByText('Engine')).toBeNull();
+    expect(screen.queryByText('Record details')).toBeNull();
   });
 });

@@ -1,9 +1,9 @@
-// Task 16: the Proof tab. The window, the inputs with their metric ids, the run's artifacts or the state that says why
+// Task 16: the Proof tab. The window, the inputs (CHG-184: no metric code column), the run's artifacts or the state that says why
 // there are none, what remains open, and the two ways on (rules, signal context). The window's expected sample count is
 // not served, so the page calls the window divided by the sample period nominal.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProofTab, type ProofTabProps } from './ProofTab';
@@ -32,10 +32,11 @@ function show(over: Partial<ProofTabProps> = {}) {
 }
 
 describe('ProofTab', () => {
-  it('tabulates the measured input with its metric id, value and unit', () => {
+  it('tabulates the measured input with its value and unit, and no metric code column (CHG-184)', () => {
     show();
     const row = screen.getByRole('row', { name: /Mean absolute error/ });
-    expect(row.textContent).toContain('CPLM-010');
+    expect(row.textContent).not.toContain('CPLM-010');
+    expect(within(screen.getByRole('table', { name: /^Inputs of/ })).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Input', 'Value', 'Unit']);
     expect(row.textContent).toContain('0.7103');
     expect(row.textContent).toContain('PV units');
   });

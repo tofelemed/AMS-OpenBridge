@@ -1,7 +1,7 @@
 // CHG-169 (owner review, the approved sample and the answers of 11 Nov 2026): the address machine and what each view reads.
 // No loop: Effective lists every loop (one fleet read, no per-loop read); Bundles lists the bundles in progress. ?loop= alone is
 // replaced with view=effective; ?gate= opens that gate (it opened on G0); a bundle opens under Bundles as five tabs; the band
-// names it with its state and Record details; a missing bundle reads "Bundle not found"; How to read holds the gate roles.
+// names it with its state (CHG-184: no Record details); a missing bundle reads "Bundle not found"; How to read holds the gate roles.
 import React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -97,15 +97,14 @@ describe('GateConfigurationWorkspace', () => {
     expect(screen.getByRole('complementary').textContent).toMatch(/SourceLOOP · bundle v6/);
   });
 
-  it('the foot says the workers in one line and opens Workers with the build identifiers', async () => {
+  it('the foot says the workers in one line and opens Workers, with no build identifiers (CHG-184)', async () => {
     renderAt('?loop=FIC10302&view=effective');
     await screen.findByRole('list', { name: 'Layers' });
     expect(screen.getByText('2 of 2 applied')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Workers' }));
     const dialog = screen.getByRole('dialog', { name: 'Workers' });
     expect(within(dialog).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['AMS - CPLM Short Feature Engine✓ACK', 'AMS - CPLM Gate Fusion Engine✓ACK']);
-    expect(dialog.textContent).toMatch(/Bundle hashf9153b00/);
-    expect(dialog.textContent).toMatch(/Worker jardabe1862/);
+    expect(dialog.textContent).not.toMatch(/f9153b00|dabe1862|Bundle hash|Worker jar|Catalogue hash/);
   });
 
   it('Bundles reads the three levels on demand; a row selects, the panel opens the version; the toggle goes back', async () => {
@@ -133,21 +132,16 @@ describe('GateConfigurationWorkspace', () => {
     await waitFor(() => expect(loc()).toBe('/cpm/config?view=editor&bundle=d1'));
   });
 
-  it('a bundle: the band names it with its state; Record details holds its identifiers, short and copyable; five tabs with marks', async () => {
+  it('a bundle: the band names it with its state, with no Record details (CHG-184); five tabs with marks', async () => {
     renderAt('?loop=FIC10302&view=editor&bundle=l6&tab=deployments');
     await screen.findByText('LOOP v6');
     const band = screen.getByRole('region', { name: 'Loop and its controls' });
-    expect(band.textContent).toMatch(/LOOP v6✓Active \(verified\)Record details/);
+    expect(band.textContent).toMatch(/LOOP v6✓Active \(verified\)/);
+    expect(within(band).queryByRole('button', { name: 'Record details' })).toBeNull();
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Properties ✓', 'Diff & impact ✓', 'Shadow ✓', 'Approval ✓', 'Deployments ✓']);
     expect(screen.getByRole('tab', { name: 'Deployments ✓' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getAllByText('This version is Active (verified) - create a new version to change it.')).toHaveLength(1);
-    fireEvent.click(within(band).getByRole('button', { name: 'Record details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(dialog.textContent).toMatch(/Content hashf9153b00/);
-    expect(dialog.textContent).toMatch(/Etag6c8eae20025f98e6/);
-    expect(dialog.textContent).toMatch(/Created.*e2e_cfg_engineer · 25 Sept 18:36 UTC/);
-    expect(dialog.textContent).toMatch(/Noteslice-3 e2e/);
-    expect(within(dialog).getByRole('button', { name: 'Copy content hash' })).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/f9153b00|6c8eae20025f98e6/);
   });
 
   it('Next moves to the next tab and the tab is in the address', async () => {

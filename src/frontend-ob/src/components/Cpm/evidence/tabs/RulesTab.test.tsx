@@ -1,8 +1,8 @@
 // Task 16: the Rules & parameters tab. What the gate asks, the method, the parameters THIS run used (its own artifacts'
-// provenance, never today's defaults), the configuration it ran under, and one note that the run is pinned.
+// provenance, never today's defaults) and one note that the run is pinned. CHG-184: no Configuration section, no versions.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RulesTab } from './RulesTab';
@@ -14,7 +14,6 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
 vi.mock('../../../../api/cpm/config', () => ({ getEffectiveConfig: vi.fn(async () => ({ profileId: 'standard', bundle: { version: 4 }, properties: {} })) }));
-vi.mock('../../config/EffectiveConfigDrawer', () => ({ EffectiveConfigDrawer: () => <div data-testid="config-drawer" /> }));
 afterEach(cleanup);
 
 const entry = {
@@ -31,11 +30,15 @@ const show = (m: ReturnType<typeof manifest> | null = manifest(), extra: { manif
 );
 
 describe('RulesTab', () => {
-  it('says what the gate asks and which method ran', () => {
+  it('says what the gate asks and which method ran, with no version, tier, capability or configuration section (CHG-184)', () => {
     asUser([]);
     show();
     expect(screen.getByText('Error against the objective')).toBeTruthy();
-    expect(screen.getByTitle('G3.OBJECTIVE_ERROR').textContent).toMatch(/ v3\.0\.0$/);
+    expect(screen.getByText('Control error vs objective')).toBeTruthy();
+    expect(screen.queryByText(/v3\.0\.0/)).toBeNull();
+    expect(screen.queryByTitle('G3.OBJECTIVE_ERROR')).toBeNull();
+    for (const gone of ['Tier', 'Capability', 'Configuration', 'Bundle']) expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull();
   });
 
   it('uses the run\'s own parameters', () => {
@@ -51,16 +54,16 @@ describe('RulesTab', () => {
     expect(screen.getByText(/No parameter was retained for this run/)).toBeTruthy();
   });
 
-  it('offers the configuration the run used only to a user who may read it, with the thresholds line', async () => {
+  it('shows the thresholds line, without the bundle version, only to a user who may read the configuration', async () => {
     asUser([]);
     show();
-    expect(screen.queryByRole('button', { name: /Configuration used by this run/ })).toBeNull();
+    expect(screen.queryByText(/Thresholds:/)).toBeNull();
     cleanup();
     asUser(['cpm.config.read']);
     show();
-    expect(await screen.findByText(/Thresholds: standard profile · bundle v4/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Configuration used by this run ↗' }));
-    expect(screen.getByTestId('config-drawer')).toBeTruthy();
+    expect(await screen.findByText(/Thresholds: standard profile, as in force at/)).toBeTruthy();
+    expect(screen.queryByText(/bundle v4/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Configuration used by this run/ })).toBeNull();
   });
 
   it('states once that the run is pinned', () => {

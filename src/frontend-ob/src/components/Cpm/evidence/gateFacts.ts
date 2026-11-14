@@ -1,7 +1,7 @@
 /**
  * v2.5 workbench: the facts of one run that several panels read - the gate's status and reason
  * (the fused row's cell, else the tier row's payload), the parameters the run used (its artifacts'
- * provenance, labelled and formatted; raw kept), and the identity block. Pure; no derivation.
+ * provenance, labelled and formatted; raw kept). Pure; no derivation. CHG-184: the identity block went with Identity & raw.
  */
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
 import { fmtQuantity, labelForKey, unitForKey } from './format';
@@ -40,10 +40,14 @@ export function gateReasonOf(run: MethodRun | undefined, gate: string): string |
   return typeof v === 'string' && v ? v : null;
 }
 
-/** Provenance keys that are window identity or transport, never a parameter the reader wants. */
+/**
+ * Provenance keys that are window identity or transport, never a parameter the reader wants. CHG-184 (owner review item 0): the
+ * method code, its version and the build's capability are not parameters either.
+ */
 const IDENTITY_KEYS = new Set([
   'loop_id', 'window_kind', 'window_start_ms', 'window_end_ms', 'bundle_hash', 'dataset_hash', 'column_units', 'legends', 'mask',
   'analysis_run_id', 'purpose', 'reconstructs', 'result_revision', 'context_revision', 'source_commit', 'jar_sha256', 'role', 'accepted_mask',
+  'method_id', 'method_version', 'capability_state', 'capability_reason',
 ]);
 
 export interface RunParameter { key: string; kind: string; raw: string; label: string; text: string }
@@ -66,18 +70,4 @@ export function parametersOf(manifest: EvidenceManifest | undefined, gate: strin
     }
   }
   return Array.from(out.values()).sort((x, y) => x.kind.localeCompare(y.kind) || x.label.localeCompare(y.label));
-}
-
-export function identityOf(run: MethodRun): Array<{ label: string; value: string | null }> {
-  const id = run.identity;
-  return [
-    { label: 'Run', value: run.methodRunId },
-    { label: 'Build commit', value: id.sourceCommit },
-    { label: 'Jar', value: id.jarSha256 },
-    { label: 'Bundle', value: id.bundleHash },
-    { label: 'Dataset', value: id.datasetHash },
-    { label: 'Source', value: id.source },
-    { label: 'Purpose', value: id.purpose },
-    { label: 'Revisions', value: `context r${id.contextRevision} · result r${id.resultRevision}` },
-  ];
 }

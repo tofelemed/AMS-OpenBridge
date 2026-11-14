@@ -41,16 +41,16 @@ describe('windowOf', () => {
 });
 
 describe('units', () => {
-  it('names an axis with its unit, or says the unit is not set', () => {
+  it('names an axis with its unit, or the label alone when none is set (CHG-184: never "unit not set")', () => {
     expect(axisName({ id: 'a', label: 'PV / SP', unit: 'kg/h' })).toBe('PV / SP (kg/h)');
-    expect(axisName({ id: 'a', label: 'PV / SP' })).toBe('PV / SP (unit not set)');
-    expect(axisName({ id: 'a', label: 'PV / SP', unit: '   ' })).toBe('PV / SP (unit not set)');
+    expect(axisName({ id: 'a', label: 'PV / SP' })).toBe('PV / SP');
+    expect(axisName({ id: 'a', label: 'PV / SP', unit: '   ' })).toBe('PV / SP');
   });
 
   it('says % on an output axis only when a range is declared', () => {
     expect(axisUnit({ id: 'o', label: 'Output', output: true })).toBeNull();
-    expect(axisName({ id: 'o', label: 'Output', output: true })).toBe('Output (unit not set)');
-    expect(axisName({ id: 'o', label: 'Output', output: true, unit: '%' })).toBe('Output (unit not set)');
+    expect(axisName({ id: 'o', label: 'Output', output: true })).toBe('Output');
+    expect(axisName({ id: 'o', label: 'Output', output: true, unit: '%' })).toBe('Output');
     expect(axisName({ id: 'o', label: 'Output', output: true, range: { min: 0, max: 100 } })).toBe('Output (%)');
   });
 
@@ -65,7 +65,7 @@ describe('units', () => {
 
   it('writes a reading with its unit, and a gap as words', () => {
     expect(valueText(12.3, 'kg/h')).toBe('12.3 kg/h');
-    expect(valueText(12.3, null)).toBe('12.3 (unit not set)');
+    expect(valueText(12.3, null)).toBe('12.3');
     expect(valueText(null, 'kg/h')).toBe('No sample');
     expect(valueText(0, 'kg/h')).toBe('0 kg/h');
   });

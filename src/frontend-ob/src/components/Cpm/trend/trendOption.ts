@@ -5,7 +5,7 @@
  * Before, each drew PV, SP, OP and the PV band on ONE unnamed value axis: a flow loop at PV ≈ 800
  * with OP ≈ 29 plotted both on a 0–800 scale, so its confirmed oscillation looked flat, and loops
  * whose PV and OP happened to share a magnitude looked "reasonable" with mixed units. Now:
- *  - left axis  = PV and SP, in the loop's PV unit ("unit not set" until the registry has one);
+ *  - left axis  = PV and SP, in the loop's PV unit (just "PV / SP" until the registry has one; CHG-184);
  *  - right axis = OP (and VP), in %;
  *  - each axis is named, and its name and line are drawn in its signal's pen colour;
  *  - the shaded band has a legend entry (BAND_LABEL) and the chart a ? holding its note (BAND_NOTE);
@@ -30,7 +30,8 @@ export const BAND_MEANING =
 export const BAND_NOTE = `Shaded band: ${BAND_MEANING[0].toLowerCase()}${BAND_MEANING.slice(1)}`;
 const BAND_BASE = 'pv-band-base';
 
-export const pvAxisName = (pvUnit: string | null | undefined) => `PV / SP (${pvUnit?.trim() || 'unit not set'})`;
+/** CHG-184 (owner review item 12): with no unit the axis says just "PV / SP", never "unit not set". */
+export const pvAxisName = (pvUnit: string | null | undefined) => (pvUnit?.trim() ? `PV / SP (${pvUnit.trim()})` : 'PV / SP');
 
 export interface SignalTrendInput {
   points: CpmTrendPoint[];
@@ -102,7 +103,7 @@ export function signalTrendOption(i: SignalTrendInput) {
   const at = (p: CpmTrendPoint, ...keys: string[]) => keys.map(k => num(p[k])).find(v => v != null) ?? null;
   const byTs = new Map(points.map(p => [p.ts, p]));
   // CHG-181: each name starts (left axis) or ends (right axis) at its axis line and reads into the plot; centred on
-  // the line, a long one ("PV / SP (unit not set)") spilled past the chart edge and lost its first letter.
+  // the line, a long one ("PV / SP (kg/h)") spilled past the chart edge and lost its first letter.
   const axisStyle = (colour: string, align: 'left' | 'right') => ({
     ...axis,
     nameTextStyle: { color: colour, fontSize: 12, align },

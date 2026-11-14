@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { CpmLoop, CpmReadiness } from '../../../api/cpmApi';
 import { stateOf } from '../registryShared';
 import { abnormalPill } from '../registryGap';
-import { otherChecks, otherFlags, panelRows, peerFact, recordRows, shortPath, signalRows, vpFact } from './loopPanelFacts';
+import { otherChecks, otherFlags, panelRows, peerFact, shortPath, signalRows, vpFact } from './loopPanelFacts';
 
 const P = 'hdpe/section_600/u6002';
 const loop = (over: Partial<CpmLoop> = {}): CpmLoop => ({
@@ -37,19 +37,6 @@ describe('panel rows', () => {
       ['Plant path', 'hdpe / section_600 / u6002'], ['Loop type', 'FIC'], ['Criticality', 'medium'], ['Gate profile', 'default'],
       ['Model', 'FLOW · FAST_SELF_REG'],
     ]);
-  });
-
-  it('put objective, acquisition and how the model was set in Record details', () => {
-    expect(recordRows(loop())).toEqual([
-      { label: 'Objective · topology · command', value: 'TIGHT · SINGLE · OP_TO_VALVE' },
-      { label: 'Acquisition', value: 'PERIODIC · grid undeclared' },
-      { label: 'Model set by', value: 'The loop type', sub: 'Declare it in Edit configuration to make it explicit.' },
-    ]);
-    const explicit = loop({ model: { ...loop().model!, classificationSource: 'EXPLICIT', acquisition: { mode: 'RBE', gridSeconds: 5 } } });
-    expect(recordRows(explicit).slice(1)).toEqual([
-      { label: 'Acquisition', value: 'RBE · 5 s grid' }, { label: 'Model set by', value: 'Declared in the registry' },
-    ]);
-    expect(recordRows(loop({ model: null }))).toEqual([{ label: 'Acquisition', value: 'Not served' }]);
   });
 });
 

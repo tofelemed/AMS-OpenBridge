@@ -1,14 +1,13 @@
 /**
  * CHG-169 (owner review, the approved sample): the version selected on Bundles, in the panel beside the list (a drawer below
  * 1280 px, the shared Inspector). Its heading names it once ("LOOP v6") with its state; the rows are the summary facts the
- * version buttons carried (change class, created, effective from, validation errors, the content hash short and copyable);
+ * version buttons carried (change class, created, effective from, validation errors; CHG-184: no content hash);
  * the foot opens it ("Open v6 →"). Choosing a row only selects; opening is the panel's one action.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Inspector } from '../../../ui/Inspector';
 import { KvRow } from '../shared';
-import { CopyableId } from '../evidence/CopyableId';
 import type { BundleSummary } from '../../../api/cpm/config';
 import { stampZoned } from './configWords';
 import { BundleStatePill, ClassWord } from './configBits';
@@ -34,7 +33,6 @@ export const BundleVersionPanel: React.FC<{
     <KvRow label="Created">{stampZoned(b.createdAt)}</KvRow>
     {b.effectiveFrom && <KvRow label="Effective from">{stampZoned(b.effectiveFrom)}</KvRow>}
     <KvRow label="Validation errors">{b.validationErrors}</KvRow>
-    <KvRow label="Content hash"><CopyableId label="content hash" value={b.contentHash} /></KvRow>
   </Inspector>
 );
 

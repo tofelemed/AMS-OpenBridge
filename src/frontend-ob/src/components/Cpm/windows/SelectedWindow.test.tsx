@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Task 19: the selected window in the right column: counts, tag, stored time, three links and their dialogs.
+// Task 19: the selected window in the right column: counts, tag, stored time, the links and their dialogs (CHG-184: no Record details).
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -74,11 +74,9 @@ describe('SelectedWindow', () => {
     expect(within(g2r).queryByText('Pass')).toBeNull();
   });
 
-  it('opens record details and engine & timing in dialogs', () => {
+  it('opens engine & timing in a dialog, and has no Record details (CHG-184, owner review Q6)', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
-    expect(screen.getByRole('dialog', { name: 'Record details' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('button', { name: 'Record details' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Engine & timing' }));
     expect(screen.getByRole('dialog', { name: 'Engine & timing' })).toBeTruthy();
   });
@@ -105,12 +103,8 @@ describe('SelectedWindow', () => {
     expect(where).toContain('from=2026-11-04T13:35:00.000Z');
   });
 
-  it('opens Historical on the window range from the panel, and Record details no longer carries either link (B9)', () => {
+  it('opens Historical on the window range from the panel (B9)', () => {
     mount(row());
-    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).queryByRole('button', { name: /Historical ↗|Trend ↗/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByRole('button', { name: 'Historical ↗' }));
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
     expect(where).toContain('/historical?loop=FIC10401');

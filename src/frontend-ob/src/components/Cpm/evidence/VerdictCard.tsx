@@ -1,17 +1,15 @@
 /**
  * v2.5 workbench: the answer first. The verdict card opens the reading column with the gate's
- * status, one plain sentence and the key numbers as tiles; the flags card closes it with the
- * window's observability flags, family disqualifiers and the insufficient-evidence reason.
+ * status, one plain sentence and the key numbers as tiles. CHG-184: the window's flags card went with
+ * Identity & raw (the flags are on Investigation, Performance and Replay).
  */
 import React from 'react';
-import { KpiTile, PanelHead, TonePill } from '../shared';
+import { KpiTile, PanelHead } from '../shared';
 import { gateTone } from '../gateStatus';
 import { GateBadge } from '../../../ui/GateBadge';
 import type { GateState } from './GateResultState';
 import type { Headline } from './views/headlines';
 import { codeLabel } from '../vocabulary';
-import { CodeLabel } from '../CodeLabel';
-import { flagsForLoop, type InputContext } from '../optionalInputs';
 
 export interface VerdictCardProps {
   gate: string;
@@ -63,36 +61,6 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, st
             <KpiTile key={h.label} caption={h.label} tone={h.tone}
               value={<span title={h.raw && h.raw !== h.value ? h.raw : undefined}>{h.unit ? `${h.value} ${h.unit}` : h.value}</span>} />
           ))}
-        </div>
-      )}
-    </section>
-  );
-};
-
-export interface WindowFlagsRow {
-  observabilityFlags?: string[] | null;
-  familyDisqualifiers?: string[] | null;
-  insufficientEvidenceReason?: string | null;
-}
-
-export const WindowFlags: React.FC<{ row: WindowFlagsRow | undefined; inputs?: InputContext }> = ({ row, inputs }) => {
-  // CHG-077: no NO_VP pill on a loop that has no valve position
-  const flags = flagsForLoop(row?.observabilityFlags, inputs);
-  const disq = row?.familyDisqualifiers ?? [];
-  const insufficient = row?.insufficientEvidenceReason ?? null;
-  const empty = flags.length === 0 && disq.length === 0 && !insufficient;
-  return (
-    <section className="cpm-surface">
-      <PanelHead eyebrow="Observability" title="Flags on this window" />
-      {!row ? (
-        <p className="cpm-copy">This run's window is not among the loaded windows, so its flags are not shown here.</p>
-      ) : empty ? (
-        <p className="cpm-copy">No flags on this window.</p>
-      ) : (
-        <div className="cpm-flag-row">
-          {flags.map(f => <TonePill key={f} tone={f.startsWith('HAS_') ? 'good' : 'warn'}><CodeLabel code={f} /></TonePill>)}
-          {disq.map(d => <TonePill key={d} tone="muted"><CodeLabel code={d} /></TonePill>)}
-          {insufficient && <TonePill tone="warn"><CodeLabel code={insufficient} /></TonePill>}
         </div>
       )}
     </section>

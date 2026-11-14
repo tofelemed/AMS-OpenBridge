@@ -54,7 +54,7 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({ bundle, entries, g
         {foot}
       </section>
       {selected && (
-        <Inspector title={selected.property} meta={<span className="cpm-mono">{selected.id}</span>} open={drawer} onClose={() => setDrawer(false)}>
+        <Inspector title={selected.property} open={drawer} onClose={() => setDrawer(false)}>
           <PropertyForm key={selected.property} entry={selected} layers={bundle.layers} scopeKind={bundle.scopeKind}
             effective={bundle.resolved.properties[selected.property]} source={bundle.resolved.sources[selected.property]}
             errors={errorsFor(errors, selected.property)} editable={editable} pending={pending} onOp={onOp} />

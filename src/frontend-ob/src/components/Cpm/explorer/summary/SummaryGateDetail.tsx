@@ -72,7 +72,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
           </ObcButton>
           {/* CHG-098: the reason it is disabled is on screen. */}
           <ReasonedButton variant="raised" disabled={!runId}
-            reason="Stored before analysis runs were kept (before v2.5), so there is no run to open"
+            reason="Stored before analysis runs were kept, so there is no run to open"
             onClick={() => { if (runId) navigate(workbenchHref(loop.loopId, runId, gate)); }}>
             Evidence Workbench →
           </ReasonedButton>

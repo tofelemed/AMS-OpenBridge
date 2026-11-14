@@ -59,7 +59,8 @@ describe('SummaryGateDetail', () => {
   it('says why the Workbench is unavailable when the row carries no run', () => {
     show('G4');
     expect((screen.getByRole('button', { name: 'Evidence Workbench →' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByRole('dialog').textContent).toMatch(/before v2\.5/);
+    expect(screen.getByRole('dialog').textContent).toMatch(/Stored before analysis runs were kept/);
+    expect(screen.getByRole('dialog').textContent).not.toMatch(/v2\.5/);   // CHG-184: no version
   });
 
   it('offers the Workbench once: at the foot, not again under More about this gate (CHG-157)', () => {

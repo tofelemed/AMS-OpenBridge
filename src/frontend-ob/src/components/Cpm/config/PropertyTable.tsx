@@ -1,6 +1,6 @@
 /**
  * The properties of one gate as a table (2026-09-17 audit F18): name, the effective value with the layer it comes from, the
- * change class and the flags (commissioning required, not read by this build, invalid).
+ * change class and the flags (commissioning required, not used, invalid). CHG-184: no build wording.
  * CHG-169 (owner review, the approved sample): a row no longer expands into the editor - it selects the property, and its
  * editor is the panel beside the list (a drawer below 1280 px). The name reads short within its gate (the full key while a
  * search crosses gates, and in the panel); the class in words under it; the value with its unit, "No value" when unset.
@@ -53,7 +53,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, s
                   table cell and loses the row's height, highlight and line (CHG-169 review). */}
               <div className="cpm-config-table__flags">
                 {commissioning && <span title="Commissioning required: the catalogue has no starting value"><TonePill tone="bad">commissioning</TonePill></span>}
-                {p.notReadByBuild != null && <span title={`Not read by this build: ${p.notReadByBuild}`}><TonePill tone="muted">unread by build</TonePill></span>}
+                {p.notReadByBuild != null && <span title={`Not used: ${p.notReadByBuild}`}><TonePill tone="muted">not used</TonePill></span>}
                 {errors.length > 0 && <span title={errors.join(' · ')}><TonePill tone="bad">invalid</TonePill></span>}
               </div>
             </td>

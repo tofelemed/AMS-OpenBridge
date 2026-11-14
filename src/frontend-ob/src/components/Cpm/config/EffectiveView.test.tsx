@@ -1,6 +1,6 @@
 // 2026-09-18 Gate Configuration redesign: the effective configuration is READ, not dumped - the layer
 // stack says where values come from, the gate dropdown counts the overrides, one gate's table shows at
-// a time, a search crosses gates, the workers fold to one line; a run's bundle mismatch is still an alert.
+// a time, a search crosses gates, the workers fold to one line. CHG-184: no hash or jar.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -56,13 +56,11 @@ describe('EffectiveView', () => {
     expect(gateOptions()).toEqual(['All matching gates', 'G12']);   // the rows span gates, so the list says so
   });
 
-  it('a run computed under another bundle is said as an alert; the same bundle as a note', () => {
-    render(<EffectiveView eff={eff} runBundleHash="deadbeefdeadbeef" />);
-    expect(screen.getByRole('alert').textContent).toMatch(/NOT the configuration active for this loop today/);
-    cleanup();
-    render(<EffectiveView eff={eff} runBundleHash="f9153b00aaf3ba1a3b19" />);
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByText(/computed under this configuration/)).toBeTruthy();
+  it('names each worker and what it applied, with no jar, catalogue or bundle hash (CHG-184)', () => {
+    render(<EffectiveView eff={eff} />);
+    const box = screen.getByText('APPLY acknowledgements').closest('details')!;
+    expect(within(box).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['job', 'applied']);
+    expect(box.textContent).not.toMatch(/f9153b00|4ea1da78|8bbcbbbb/);
   });
 
   it('the factory layer reads as such', () => {
@@ -81,14 +79,14 @@ describe('EffectiveView', () => {
     expect(within(table).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Property', 'Value', 'Source']);
     const row = within(table).getAllByRole('row')[1];
     expect(row.textContent).toMatch(/G0\.coverage_min.*POLICY.*0\.95.*PROFILE/);   // class sits under the name
-    expect(row.textContent).not.toMatch(/CFG-002|fraction/);                          // id and unit are in the dialog
+    expect(row.textContent).not.toMatch(/CFG-002|fraction/);                          // the unit is in the dialog
   });
 
   it('opens a property in a dialog', () => {
     render(<EffectiveView eff={eff} catalogue={cat} />);
     fireEvent.click(screen.getByRole('button', { name: /G0\.coverage_min/ }));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('CFG-002')).toBeTruthy();
+    expect(within(dialog).queryByText('CFG-002')).toBeNull();   // CHG-184: no catalogue id
     expect(within(dialog).getByText('fraction')).toBeTruthy();
     expect(within(dialog).getByText(/Share of samples a window needs/)).toBeTruthy();
     expect(within(dialog).getByText('PROFILE')).toBeTruthy();

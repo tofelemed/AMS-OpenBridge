@@ -312,7 +312,7 @@ describe('axes (item 8)', () => {
 
   it('does not say % on an output axis with no declared range', () => {
     const pane: TrendPane = { ...signals, axes: [signals.axes[0], { id: 'output', label: 'Controller output', output: true }] };
-    expect(option({ panes: [pane] }).option.yAxis[1].name).toBe('Controller output (unit not set)');
+    expect(option({ panes: [pane] }).option.yAxis[1].name).toBe('Controller output');
   });
 
   it('fits the data by default and takes the range on request', () => {

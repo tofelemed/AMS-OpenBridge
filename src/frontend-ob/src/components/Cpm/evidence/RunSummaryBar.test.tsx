@@ -23,13 +23,12 @@ const run: MethodRun = {
   cell: { key: 'G5', name: 'Oscillation (ACF)', tier: 'long', status: 'WARN', reason: 'BANDWIDTH' }, verdictV2: null, result: null, methodRunIds: {},
   reconstruction: { supported: true, reason: '' }, computedAt: '2026-09-17T08:00:00Z',
 };
-const selection = { loopId: 'FIC10405', methodRunId: run.methodRunId, gate: 'G5', mode: 'FIXED' as const };
 const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="loc">{l.pathname + l.search}</div>; };
 
 const bar = (over: Partial<React.ComponentProps<typeof RunSummaryBar>> = {}) => render(
   <MemoryRouter initialEntries={['/cpm/evidence']}>
     <Routes><Route path="*" element={<>
-      <RunSummaryBar run={run} selection={selection} readiness="COMPLETE" onReconstruct={() => {}} {...over} />
+      <RunSummaryBar run={run} readiness="COMPLETE" onReconstruct={() => {}} {...over} />
       <Probe />
     </>} /></Routes>
   </MemoryRouter>,
@@ -44,7 +43,9 @@ describe('RunSummaryBar', () => {
     expect(text).not.toMatch(/Loop result|pinned run|samples/);
     expect(text).not.toMatch(/3535c78aa45a|Calc version/);
     expect(text).not.toMatch(/MODE|FIXED|Mode/);
-    expect(screen.getByTitle(run.methodRunId)).toBeTruthy();
+    // CHG-184 (owner review item 9): no run id and no copy button
+    expect(screen.queryByTitle(run.methodRunId)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Copy run id/ })).toBeNull();
   });
 
   it('words a failed or expired proof as the reconstruction state, not as "Proof retained" (B6)', () => {
@@ -64,7 +65,7 @@ describe('RunSummaryBar', () => {
     expect(screen.getByRole('list', { name: 'Run summary' }).textContent).not.toMatch(/Proof retained|NONE/i);
   });
 
-  it('names a non-live purpose, and has no Run id link (Identity & raw is a tab)', () => {
+  it('names a non-live purpose, and has no Run id link', () => {
     bar({ run: { ...run, identity: { ...run.identity, purpose: 'SHADOW' } } });
     expect(screen.getByText('SHADOW')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Run id/ })).toBeNull();
@@ -96,7 +97,7 @@ describe('RunSummaryBar', () => {
 });
 
 describe('RunSummaryBar versions', () => {
-  it('leaves the versions to Identity & raw', () => {
+  it('shows no versions', () => {
     const text = bar().container.textContent ?? '';
     expect(text).not.toMatch(/Calculation v|3535c78aa45a/);
   });

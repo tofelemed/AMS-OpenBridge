@@ -1,4 +1,4 @@
-// Task 18: Run details names the run, the bundle and the engine build, and does not equate retention with sufficiency.
+// Task 18: Run details does not equate retention with sufficiency. CHG-184 (owner review item 0): no run id, bundle, versions or build.
 // CHG-166 (owner review, question 3): shared by Replay and Calculations; each page's foot strip says the window, the result
 // and the samples, so the dialog does not, and Computed reads as a time with its zone named.
 import React from 'react';
@@ -18,10 +18,11 @@ const mount = (r: ReturnType<typeof row>, timeZone = 'UTC') =>
   render(<QueryClientProvider client={new QueryClient()}><RunDetailsDialog open onClose={() => {}} row={r} timeZone={timeZone} /></QueryClientProvider>);
 
 describe('RunDetailsDialog', () => {
-  it('shows the run identity, and says complete retention is not sufficiency', () => {
+  it('shows no run id, bundle hash, versions or engine build, and says complete retention is not sufficiency (CHG-184)', () => {
     mount(row('2026-10-05T12:30:00Z', { bundleHash: 'abcdef0123456789', methodRunIds: { G15: 'run-g15' }, replayId: 'aaaabbbbcccc' }));
-    expect(screen.getByText('run-g15')).toBeTruthy();
-    expect(screen.getByText('abcdef012345')).toBeTruthy();
+    expect(screen.queryByText('run-g15')).toBeNull();
+    expect(screen.queryByText('abcdef012345')).toBeNull();
+    for (const gone of ['Decision run (G15)', 'Bundle', 'Calculation', 'Engine build']) expect(screen.queryByText(gone)).toBeNull();
     expect(screen.getByText('COMPLETE')).toBeTruthy();
     expect(screen.getByText(/not that it was sufficient/)).toBeTruthy();
   });

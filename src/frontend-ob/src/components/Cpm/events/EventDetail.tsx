@@ -3,12 +3,12 @@
 /**
  * Loop Events › the selected episode. CHG-167 (owner review, the approved sample docs/theme/redesign/samples/loop-events-
  * proposal.html and the owner's answers of 11 Nov): the heading is the peak diagnosis with its severity; the facts (Latest only
- * when it differs, Condition, Review, Shelf, Period); the evidence strip as before; Record details (a dialog, it replaced
- * Technical details) · Historical ↗ · Loop ↗, named after what they open; the note and the actions (EpisodeActions); Activity &
+ * when it differs, Condition, Review, Shelf, Period); the evidence strip as before; Historical ↗ · Loop ↗, named after what they
+ * open (CHG-184, owner review item 1: no Record details); the note and the actions (EpisodeActions); Activity &
  * notes, the one place for who, when and why. The foot names the episode once ("PIC40102 · EVT-2231 · 24h") beside
  * Investigation → (it was "Review PIC40102 →" under the peak). Below 1280 px the panel is a drawer a row opens.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame, CpmShelvePolicy } from '../../../api/cpmApi';
@@ -25,7 +25,6 @@ import type { Receipt } from '../ActionReceipt';
 import { EpisodeActivity } from './EpisodeActivity';
 import { EpisodeActions } from './EpisodeActions';
 import { EpisodeFacts } from './EpisodeFacts';
-import { EventRecordDialog } from './EventRecordDialog';
 
 /**
  * The episode's peak, in the engine's own bands (CHG-092, SME review 2 #6/#20): the engine's severity when it wrote one,
@@ -59,7 +58,6 @@ export interface EventDetailProps {
 
 export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, policy, receipt, onReceipt, open = true, onClose = () => undefined }) => {
   const navigate = useNavigate();
-  const [record, setRecord] = useState(false);
   // the same query Activity & notes reads, so this costs no extra request
   const history = useEventActions(event.id, true);
   const sev = severityWord(event);
@@ -92,7 +90,6 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           </span>
         </div>
         <div className="cpm-events-links">
-          <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
           {/* CHG-097 (SME review 2 #26): the finding opens the period it covers, not only the loop */}
           <ObcButton className="ui-link" variant="flat" title="PV, SP, OP and mode over this episode in Historical, with the peak window shaded"
             onClick={() => navigate(historicalHref(event.loop_id, {
@@ -109,7 +106,6 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
         <EpisodeActions event={event} canManage={canManage} policy={policy} receipt={receipt} onReceipt={onReceipt} />
         <EpisodeActivity event={event} />
       </Inspector>
-      <EventRecordDialog event={event} open={record} onClose={() => setRecord(false)} />
     </>
   );
 };

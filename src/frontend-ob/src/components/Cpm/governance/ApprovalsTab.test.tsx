@@ -108,14 +108,11 @@ describe('approvals', () => {
     expect(go).toHaveBeenCalledWith('/cpm/config?loop=PIC30102&view=editor&bundle=b-2&tab=deployments');
   });
 
-  it('Record details hold the bundle id and the content hash, each copyable', async () => {
+  it('has no Record details: no bundle id or content hash (CHG-184)', async () => {
     mount();
     const panel = await screen.findByRole('complementary');
-    fireEvent.click(within(panel).getByText('Record details'));
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('b-1')).toBeTruthy();
-    expect(within(dialog).getByText('9e2b41f0aa11…')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Copy content hash' })).toBeTruthy();
+    expect(within(panel).queryByText('Record details')).toBeNull();
+    expect(screen.queryByText(/9e2b41f0/)).toBeNull();
   });
 
   it('nothing waiting reads the two sentences word for word', async () => {

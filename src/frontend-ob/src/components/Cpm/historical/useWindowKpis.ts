@@ -37,26 +37,22 @@ export interface HistoryWindow {
   gates: CpmWindowSummary['gates'];
   /** Only what the window stored; a missing key is not zero. */
   metrics?: Record<string, number>;
-  /** "v7 · profile v3" when the row carries it (full rows only). */
-  calculation?: string | null;
 }
 
 export function fromFullRow(m: CpmGateMatrix): HistoryWindow | null {
   if (!m.windowEnd) return null;
-  const v = m.metadata?.calculationVersion;
   return {
     windowStart: m.windowStart, windowEnd: m.windowEnd, diagnosis: m.diagnosis, confidence: m.confidence,
     sampleCount: m.sampleCount, insufficientEvidenceReason: m.insufficientEvidenceReason,
     methodRunIds: m.methodRunIds ?? {}, metrics: m.metrics,
     gates: m.gates.map(g => ({ key: g.key, status: g.status, reason: g.reason, methodRunId: g.methodRunId ?? null })),
-    calculation: v != null ? `v${v} · profile v${m.metadata.dynamicsProfileVersion ?? '—'}` : null,
   };
 }
 
 export const fromSummary = (s: CpmWindowSummary): HistoryWindow => ({
   windowStart: s.windowStart, windowEnd: s.windowEnd, diagnosis: s.diagnosis, confidence: s.confidence,
   sampleCount: s.sampleCount, insufficientEvidenceReason: s.insufficientEvidenceReason,
-  methodRunIds: s.methodRunIds ?? {}, gates: s.gates, metrics: s.metrics ?? {}, calculation: null,
+  methodRunIds: s.methodRunIds ?? {}, gates: s.gates, metrics: s.metrics ?? {},
 });
 
 /** Oldest first, full rows winning over a summary of the same window. */

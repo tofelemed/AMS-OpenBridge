@@ -67,9 +67,9 @@ describe('scale modes', () => {
 });
 
 describe('pvAxisName', () => {
-  it('says when the unit is not set rather than inventing one', () => {
-    expect(pvAxisName(null)).toBe('PV / SP (unit not set)');
-    expect(pvAxisName(' ')).toBe('PV / SP (unit not set)');
+  it('says just PV / SP when the unit is not set, never inventing one or saying "unit not set" (CHG-184)', () => {
+    expect(pvAxisName(null)).toBe('PV / SP');
+    expect(pvAxisName(' ')).toBe('PV / SP');
     expect(pvAxisName('°C')).toBe('PV / SP (°C)');
   });
 });
@@ -98,12 +98,12 @@ describe('axis names and legend never clip (CHG-181)', () => {
   const bottomAt = (o: { media: Media[] }, width: number) =>
     (o.media.find(m => m.query && width <= m.query.maxWidth) ?? o.media.find(m => !m.query))!.option.grid.bottom;
 
-  it('keeps "PV / SP (unit not set)" whole on the 459 px Overview panel and at 390 px', () => {
-    const o = signalTrendOption({ points, palette, pvUnit: null, scale: 'fit', zoom: {} });
+  it('keeps a long PV axis name ("PV / SP (Nm3/h total)") whole on the 459 px Overview panel and at 390 px', () => {
+    const o = signalTrendOption({ points, palette, pvUnit: 'Nm3/h total', scale: 'fit', zoom: {} });
     const [pvAxis, opAxis] = o.yAxis;
-    expect(pvAxis.name).toBe('PV / SP (unit not set)');
+    expect(pvAxis.name).toBe('PV / SP (Nm3/h total)');
     // Each name starts (left) or ends (right) at its own axis line, so it reads into the plot instead of
-    // centring on the line and spilling past the chart edge ("V / SP (unit not set)").
+    // centring on the line and spilling past the chart edge ("V / SP (…)").
     expect(pvAxis.nameTextStyle).toMatchObject({ align: 'left' });
     expect(opAxis.nameTextStyle).toMatchObject({ align: 'right' });
     for (const width of [459, 390]) {

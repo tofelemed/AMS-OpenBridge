@@ -56,7 +56,7 @@ held as a percentage of the window, and the label stays true either way.
 | `cursorAt`, `onCursorChange` | A controlled cursor (the replay slider). Leave `cursorAt` undefined for the panel to own it. |
 
 **Axes.** `{ id, label, unit, output, range, bounds, log }`. The unit is appended to the label, and a
-blank unit prints "unit not set". An `output` axis says "%" only when `range` is declared. A series
+blank unit prints the label alone (CHG-184). An `output` axis says "%" only when `range` is declared. A series
 naming an axis its pane lacks throws, because reading in the wrong unit is worse than an error.
 
 **Series.** `{ id, label, role, axis, x, y, ... }`. `x` and `y` are array-likes, so typed arrays pass

@@ -38,7 +38,7 @@ export const GateProofDialog: React.FC<{
         <>
           <ObcButton className="ui-link" variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Replay ↗</ObcButton>
           <ReasonedButton className="ui-link" variant="flat" disabled={!runId}
-            reason="Stored before analysis runs were kept (before v2.5), so there is no run to open"
+            reason="Stored before analysis runs were kept, so there is no run to open"
             onClick={() => { if (runId) navigate(workbenchHref(loopId, runId, gate)); }}>Workbench ↗</ReasonedButton>
         </>
       )}

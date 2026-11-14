@@ -1,4 +1,4 @@
-// Task 15: Reconstruct evidence asks first. The dialog names the loop, gate, window and run it will rebuild; the
+// Task 15: Reconstruct evidence asks first. The dialog names the loop, gate and window it will rebuild (CHG-184: no run id); the
 // request is sent only on confirm, and the dialog shows the real request state - requesting, or the refusal.
 // It never says "accepted": that line belongs to the page, after the service acknowledged.
 import React from 'react';
@@ -11,14 +11,15 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 }));
 afterEach(cleanup);
 
-const base = { open: true, loopId: 'FIC10405', gate: 'G5 Oscillation (ACF)', windowText: '12h · 2026-09-16 07:45 → 2026-09-17 07:45 · GST', runId: '4ccaf304-0e8d-54df-94ef-83f4130ee28d' };
+const base = { open: true, loopId: 'FIC10405', gate: 'G5 Oscillation (ACF)', windowText: '12h · 2026-09-16 07:45 → 2026-09-17 07:45 · GST' };
 
 describe('ReconstructDialog', () => {
   it('states what will be rebuilt and sends nothing until confirmed', () => {
     const onConfirm = vi.fn();
     render(<ReconstructDialog {...base} state="idle" onConfirm={onConfirm} onClose={() => {}} />);
     const d = screen.getByRole('dialog', { name: 'Reconstruct evidence' });
-    for (const t of [base.loopId, base.gate, base.windowText, base.runId]) expect(within(d).getByText(t)).toBeTruthy();
+    for (const t of [base.loopId, base.gate, base.windowText]) expect(within(d).getByText(t)).toBeTruthy();
+    expect(within(d).queryByText('Run')).toBeNull();
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.click(within(d).getByRole('button', { name: 'Reconstruct' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);

@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { SegmentedControl } from '../SegmentedControl';
-import { UNIT_NOT_SET, axisUnit, xFormat } from './trendFormat';
+import { axisUnit, withUnit, xFormat } from './trendFormat';
 import { lowerBound, snapshotAt, windowTimes, type TrendModel } from './trendModel';
 import type { Interval } from './trendTypes';
 
@@ -22,8 +22,8 @@ const SCOPES = [
 export function tableColumns(model: TrendModel, plotted: Interval, zone: string): string[] {
   return [
     xFormat(model.x, zone).name(plotted),
-    ...model.series.map(s => `${s.source.label} (${axisUnit(s.axis.axis) ?? UNIT_NOT_SET})`),
-    ...model.panes.flatMap(p => p.bands.map(b => `${b.source.label} (${axisUnit(b.axis.axis) ?? UNIT_NOT_SET})`)),
+    ...model.series.map(s => withUnit(s.source.label, axisUnit(s.axis.axis))),
+    ...model.panes.flatMap(p => p.bands.map(b => withUnit(b.source.label, axisUnit(b.axis.axis)))),
     ...model.lanes.map(l => l.label),
   ];
 }

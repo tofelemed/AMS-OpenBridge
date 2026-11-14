@@ -42,12 +42,12 @@ const bodyRows = () => within(screen.getByRole('table')).getAllByRole('row').sli
 describe('columns and cells', () => {
   it('states the unit in each heading, and the zone on the time column', () => {
     const { model, plotted } = setup(3);
-    expect(tableColumns(model, plotted, 'Asia/Dubai')).toEqual(['Time (GST)', 'PV (kg/h)', 'OP (unit not set)', 'PV span (kg/h)', 'Mode']);
+    expect(tableColumns(model, plotted, 'Asia/Dubai')).toEqual(['Time (GST)', 'PV (kg/h)', 'OP', 'PV span (kg/h)', 'Mode']);
   });
 
   it('writes a gap as words, never as a blank or a zero', () => {
     const { model, x } = setup(3);
-    expect(tableCells(model, x[1], 'Asia/Dubai')).toEqual(['3 Nov 2026, 12:01:00 GST', 'No sample', '40 (unit not set)', '1 to 2 kg/h', 'AUTO']);
+    expect(tableCells(model, x[1], 'Asia/Dubai')).toEqual(['3 Nov 2026, 12:01:00 GST', 'No sample', '40', '1 to 2 kg/h', 'AUTO']);
   });
 });
 

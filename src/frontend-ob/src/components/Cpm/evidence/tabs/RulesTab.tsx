@@ -1,20 +1,18 @@
 /**
  * Task 16: the Workbench's Rules & parameters tab. What the gate asks, the method that ran, the parameters this run used
- * (its own artifacts' provenance), the thresholds and configuration it ran under. The run is pinned: nothing here is
- * today's configuration, and the one note says so.
+ * (its own artifacts' provenance), the thresholds it ran under. The run is pinned: nothing here is today's configuration, and
+ * the one note says so. CHG-184 (owner review items 0, 11.3): no Configuration section (bundle id, copy, "Configuration used by
+ * this run"), no method version, Tier or capability row, no bundle version, no build wording.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { EvidenceManifest, MethodRun } from '../../../../api/cpm/evidence';
 import type { GateCatalogueEntry } from '../../../../api/cpm/catalogue';
 import { getEffectiveConfig } from '../../../../api/cpm/config';
 import { useAuthStore } from '../../../../store/authStore';
 import { KvRow } from '../../shared';
-import { EffectiveConfigDrawer } from '../../config/EffectiveConfigDrawer';
 import { fmtInstant } from '../../context/LoopContextBar';
 import { methodLabel } from '../../vocabulary';
-import { CopyableId } from '../CopyableId';
 import { parametersOf } from '../gateFacts';
 
 export const RulesTab: React.FC<{
@@ -27,7 +25,6 @@ export const RulesTab: React.FC<{
   manifestError?: unknown;
   timeZone: string;
 }> = ({ gate, run, entry, manifest, manifestLoading, manifestError, timeZone }) => {
-  const [showConfig, setShowConfig] = useState(false);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
   // the query ExplainWhy used for the thresholds: only for whoever may read the configuration (CHG-081)
@@ -41,16 +38,14 @@ export const RulesTab: React.FC<{
     <div className="cpm-workbench__tab">
       <section className="cpm-surface">
         <h3 className="cpm-eyebrow">What this gate asks</h3>
-        <p className="cpm-copy">{entry?.definition ?? 'No catalogue definition for this gate in this build.'}</p>
+        <p className="cpm-copy">{entry?.definition ?? 'No definition for this gate.'}</p>
         {entry?.preconditions && <KvRow label="Needs">{entry.preconditions}</KvRow>}
         <KvRow label="Role">{entry?.role ?? '—'}</KvRow>
       </section>
 
       <section className="cpm-surface">
         <h3 className="cpm-eyebrow">Method</h3>
-        <KvRow label="Method">{entry ? <span title={entry.method.id}>{`${methodLabel(entry.method.id)} v${entry.method.version}`}</span> : '—'}</KvRow>
-        <KvRow label="Tier">{run?.tier ?? entry?.tier ?? '—'}</KvRow>
-        {entry && entry.capabilityState !== 'INSTALLED' && <KvRow label="Capability">{entry.capabilityState}{entry.capabilityReason ? ` · ${entry.capabilityReason}` : ''}</KvRow>}
+        <KvRow label="Method">{entry ? methodLabel(entry.method.id) : '—'}</KvRow>
       </section>
 
       <section className="cpm-surface">
@@ -72,20 +67,9 @@ export const RulesTab: React.FC<{
           </dl>
         )}
         {cfg.data && (
-          <p className="cpm-why__source">Thresholds: {cfg.data.profileId} profile{cfg.data.bundle ? ` · bundle v${cfg.data.bundle.version}` : ' · factory / profile layers'}, as in force at {fmtInstant(run?.support.toMs, timeZone)}.</p>
+          <p className="cpm-why__source">Thresholds: {cfg.data.profileId} profile, as in force at {fmtInstant(run?.support.toMs, timeZone)}.</p>
         )}
         <p className="cpm-copy">This run is pinned: these are the parameters and configuration it ran under, not those in force now.</p>
-      </section>
-
-      <section className="cpm-surface">
-        <h3 className="cpm-eyebrow">Configuration</h3>
-        {run ? (
-          <>
-            <KvRow label="Bundle"><CopyableId label="Bundle hash" value={run.identity.bundleHash} chars={16} /></KvRow>
-            {canReadConfig && <ObcButton variant="flat" onClick={() => setShowConfig(v => !v)}>{showConfig ? 'Hide configuration used' : 'Configuration used by this run ↗'}</ObcButton>}
-            {canReadConfig && showConfig && <EffectiveConfigDrawer loopId={run.loopId} at={endIso} runBundleHash={run.identity.bundleHash} gateFilter={gate} onClose={() => setShowConfig(false)} />}
-          </>
-        ) : <p className="cpm-copy">—</p>}
       </section>
     </div>
   );

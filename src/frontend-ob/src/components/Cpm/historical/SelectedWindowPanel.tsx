@@ -3,8 +3,8 @@
 /**
  * CHG-139: the selected window, beside the list of evaluated windows. Result, period, four KPIs, then Review this window →
  * (the Evidence Workbench on this window's run), Replay, Fit to this window, Evidence package, and the evidence score with
- * its ?. Samples and the calculation version sit behind Technical details. A KPI the window never stored reads
- * "Not stored", never 0; a window without a run says why it cannot be reviewed.
+ * its ?, then Samples. A KPI the window never stored reads "Not stored", never 0; a window without a run says why it cannot be
+ * reviewed. CHG-184 (owner review item 0): no Technical details (the calculation version went; Samples is a row), no run id.
  */
 import { conditionOf, isJudged } from '../explorer/summary/summaryText';
 import React from 'react';
@@ -16,7 +16,6 @@ import { workbenchHref } from '../evidence/selection';
 import { fmtWhen } from '../blocks/whenText';
 import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
 import { Toggletip } from '../../../ui/Toggletip';
-import { TechnicalDetails } from '../../../ui/TechnicalDetails';
 import { NotStored, pctOf } from './EvaluatedWindows';
 import { packageReason, type HistoryWindow } from './useWindowKpis';
 
@@ -96,9 +95,9 @@ export const SelectedWindowPanel: React.FC<{
           {win.insufficientEvidenceReason && <p className="cpm-copy">{win.insufficientEvidenceReason}</p>}
 
           <div className="cpm-hist-selected__actions">
-            <span title={run && loopId ? `Open the ${run.gate} run ${run.methodRunId} of this window in the Evidence Workbench` : undefined}>
+            <span title={run && loopId ? `Open the ${run.gate} run of this window in the Evidence Workbench` : undefined}>
               <ReasonedButton variant="raised" fullWidth disabled={!run || !loopId}
-                reason="Stored before analysis runs were kept (before v2.5), so there is no run to open — use Replay"
+                reason="Stored before analysis runs were kept, so there is no run to open — use Replay"
                 onClick={() => { if (run && loopId) navigate(workbenchHref(loopId, run.methodRunId, run.gate)); }}>
                 Review this window →
               </ReasonedButton>
@@ -118,10 +117,7 @@ export const SelectedWindowPanel: React.FC<{
             <Toggletip variant="how-to" label="About score"><p>{EVIDENCE_SCORE_HELP}</p></Toggletip>
           </KvRow>
 
-          <TechnicalDetails items={[
-            { label: 'Samples', value: win.sampleCount, mono: false },
-            { label: 'Calculation', value: win.calculation ?? null, mono: false },
-          ]} />
+          <KvRow label="Samples">{win.sampleCount ?? <span className="cpm-hist-missing">Not stored</span>}</KvRow>
         </>
       )}
     </section>

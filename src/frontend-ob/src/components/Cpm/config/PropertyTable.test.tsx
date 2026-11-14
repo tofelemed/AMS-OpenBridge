@@ -36,7 +36,7 @@ describe('PropertyTable', () => {
     expect(rows[0].getAttribute('aria-current')).toBe('true');
     expect(rows[1].textContent).toMatch(/max_gap_s.*◆ State boundary.*45 s.*from LOOP.*invalid/);
     expect(rows[1].getAttribute('data-invalid')).toBe('true');
-    expect(rows[2].textContent).toMatch(/No value.*unset - no layer sets it.*commissioning.*unread by build/);
+    expect(rows[2].textContent).toMatch(/No value.*unset - no layer sets it.*commissioning.*not used/);
     expect(screen.queryAllByTestId('property-form')).toHaveLength(0);              // the editor is the panel, not an expanding row
     fireEvent.click(screen.getByRole('button', { name: /max_gap_s/ }));
     expect(onSelect).toHaveBeenCalledWith('G0.max_gap_s');

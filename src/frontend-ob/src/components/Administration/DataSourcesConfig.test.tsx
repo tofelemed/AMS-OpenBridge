@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // CHG-172 (owner review, the approved sample, badges 12-13): Data sources is one list (name, profile under it, ✓ Active / ○ Off)
 // with the selected source in a panel: profile, name and state once; the connection rows (every topic filter, times in the site
-// zone named once); Loop ingest; Test · Edit · Turn off / Turn on · Delete (asking first); the ids in Record details. Add data
+// zone named once); Loop ingest; Test · Edit · Turn off / Turn on · Delete (asking first); no Record details (CHG-184). Add data
 // source sits in the page header. Every request keeps its endpoint.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -149,13 +149,10 @@ describe('the selected source', () => {
     expect(screen.getByRole('dialog', { name: 'editor' }).textContent).toBe('edit alpha');
   });
 
-  it('keeps the ids in Record details', async () => {
+  it('has no Record details: the configuration id, client id and version are not shown (CHG-184)', async () => {
     await show();
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Record details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).getByText('Configuration id')).toBeTruthy();
-    expect(within(dialog).getByText('Client id')).toBeTruthy();
-    expect(within(dialog).getByText('Version').nextSibling?.textContent).toBe('3');
+    expect(within(panel()).queryByRole('button', { name: 'Record details' })).toBeNull();
+    expect(within(panel()).queryByText('Configuration id')).toBeNull();
   });
 
   it('shows a failed action as the server words it', async () => {

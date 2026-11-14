@@ -1,7 +1,8 @@
 /**
- * Task 18: Run details for the open window (Replay and Calculations): which run wrote the result, under which bundle and engine
- * build, and whether its proof is retained. Retained is not sufficient. CHG-166 (owner review): the window, the result (original
- * or re-run) and the samples are not repeated here, each page's foot strip says them; Computed reads as a time with its zone.
+ * Task 18: Run details for the open window (Replay and Calculations): the gate tally, when the result was computed, and whether
+ * its proof is retained. Retained is not sufficient. CHG-166 (owner review): the window, the result (original or re-run) and the
+ * samples are not repeated here, each page's foot strip says them; Computed reads as a time with its zone. CHG-184 (owner review
+ * item 0): no decision run id, bundle hash, calculation and profile versions or engine build.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -11,9 +12,6 @@ import { KvRow, TonePill } from '../shared';
 import { fmtInstant } from '../context/LoopContextBar';
 import { gateTally } from '../calc/calcView';
 import { useEvidenceManifest } from '../evidence/useEvidence';
-
-const dash = (v: string | number | null | undefined) => (v == null || v === '' ? 'Not reported' : String(v));
-const short = (v: string | null | undefined) => (v ? v.slice(0, 12) : null);
 
 export const RunDetailsDialog: React.FC<{
   open: boolean; onClose: () => void; row: CpmGateMatrix; timeZone: string;
@@ -28,11 +26,7 @@ export const RunDetailsDialog: React.FC<{
       {tally.total > 0 && (
         <KvRow label="Gates">{`${tally.total} gates · ${tally.review} need review · ${tally.notJudged} not judged`}</KvRow>
       )}
-      <KvRow label="Decision run (G15)">{dash(row.methodRunIds?.G15)}</KvRow>
-      <KvRow label="Bundle">{dash(short(row.bundleHash))}</KvRow>
-      <KvRow label="Calculation">{`v${dash(m.calculationVersion)} · profile v${dash(m.dynamicsProfileVersion)}`}</KvRow>
-      <KvRow label="Engine build">{dash(short(m.sourceCommit) ?? short(m.jarSha256))}</KvRow>
-      <KvRow label="Computed">{m.computedAt ? fmtInstant(m.computedAt, timeZone) : dash(null)}</KvRow>
+      <KvRow label="Computed">{m.computedAt ? fmtInstant(m.computedAt, timeZone) : 'Not reported'}</KvRow>
       <KvRow label="Proof retained">
         {readiness && readiness !== 'NONE' ? <TonePill tone={readiness === 'COMPLETE' ? 'good' : readiness === 'FAILED' ? 'bad' : 'muted'}>{readiness}</TonePill> : 'Not held'}
       </KvRow>

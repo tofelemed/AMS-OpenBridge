@@ -1,7 +1,7 @@
 /**
- * Task 19: the three dialogs behind the selected window's links. Feature flags names the six short-tier
- * flags (it replaced the unexplained string of ticks), Record details holds the metric values, Engine & timing
- * the contract the window ran under. Each sits on the page body through a portal.
+ * Task 19: the dialogs behind the selected window's links. Feature flags names the six short-tier flags (it replaced the
+ * unexplained string of ticks), Engine & timing the contract the window ran under. Each sits on the page body through a portal.
+ * CHG-184 (owner review Q6): Record details (the metric values) went.
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -12,8 +12,7 @@ import { GateBadge } from '../../../ui/GateBadge';
 import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
 import { gateName } from '../gateStatus';
-import { fmtInstant } from '../context/LoopContextBar';
-import { SHORT_GATES, WindowResults } from './WindowResults';
+import { SHORT_GATES } from './WindowResults';
 
 interface DialogProps { open: boolean; onClose: () => void }
 
@@ -39,17 +38,6 @@ export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declin
           <span className="cpm-kv__value"><GateBadge status={flagStatus(row, g.key, g.field, declined)} gate={g.key} /></span>
         </div>
       ))}
-    </Dialog>, document.body);
-};
-
-export const RecordDetailsDialog: React.FC<DialogProps & {
-  row: CpmKpiRow; tier: 'short' | 'long'; timeZone: string;
-}> = ({ open, onClose, row, tier, timeZone }) => {
-  if (!open) return null;
-  return createPortal(
-    <Dialog open onClose={onClose} title="Record details" size="wide" footer={<Close onClose={onClose} />}>
-      <KvRow label="Window">{fmtInstant(row.window_start, timeZone)} {'→'} {fmtInstant(row.window_end, timeZone)}</KvRow>
-      <WindowResults row={row} tier={tier} />
     </Dialog>, document.body);
 };
 

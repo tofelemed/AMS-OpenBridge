@@ -1,7 +1,7 @@
 /**
  * v2.5 Task 3D.1 (spec §5.7): what the draft changes and what it touches - the resolved diff, each property's change class from
  * the catalogue, the bundle's effective change class (promoted through dependants by the server), the loops the scope covers,
- * and the validation report. A DEPLOYMENT class is stated as needing a build, not a bundle.
+ * and the validation report. A DEPLOYMENT class is stated as needing a software release, not a bundle. CHG-184: no build wording.
  * CHG-169 (owner review): the Diff & impact tab. A version with a parent is compared with that parent, as before; a version
  * without one is compared with the layers BELOW its own level (owner answer 2d), the values the loop would run without it -
  * before, the factory layer alone, so v6 (one value set) read "36 properties differ" and an empty draft read the same. Validate
@@ -40,9 +40,9 @@ export const DiffImpactPanel: React.FC<{
       <PanelHead title={`${diff.length} ${diff.length === 1 ? 'property differs' : 'properties differ'} from ${parent ? `v${parent.version}` : 'the layers below'}`}
         right={<ClassWord changeClass={bundle.changeClass} />} />
       <KvRow label="Affects">{affected}</KvRow>
-      <KvRow label="Rollout">the whole scope switches at the effective time in one deployment; a phased rollout with stop criteria is not part of this build</KvRow>
+      <KvRow label="Rollout">the whole scope switches at the effective time in one deployment</KvRow>
       {bundle.changeClass === 'STATE_BOUNDARY' && <p className="cpm-copy">A STATE_BOUNDARY change opens a new epoch: windows whose support began before the effective time report WAITING (warm-up) instead of a mixed result.</p>}
-      {bundle.changeClass === 'DEPLOYMENT' && <p className="cpm-field__error" role="alert">A DEPLOYMENT-class change ships in a build; the workers refuse it as a bundle.</p>}
+      {bundle.changeClass === 'DEPLOYMENT' && <p className="cpm-field__error" role="alert">A DEPLOYMENT-class change ships in a software release; the workers refuse it as a bundle.</p>}
       {diff.length > 0 && (
         <div className="cpm-config-table__wrap">
           <table className="cpm-table cpm-config-diff" data-table="diff">
@@ -67,7 +67,7 @@ export const DiffImpactPanel: React.FC<{
           {v.errors.map(e => <p key={e} className="cpm-field__error" role="alert">{e}</p>)}
           {v.warnings.map(w => <p key={w} className="cpm-copy">{w}</p>)}
           {notRead > 0 && (
-            <p className="cpm-copy">{notRead} propert{notRead === 1 ? 'y' : 'ies'} in this bundle are read by no running job (declared by the build); they are accepted and stated, not applied.</p>
+            <p className="cpm-copy">{notRead} propert{notRead === 1 ? 'y' : 'ies'} in this bundle are read by no running job; they are accepted and stated, not applied.</p>
           )}
         </>
       ) : (

@@ -3,7 +3,8 @@
  * for each bound signal role: the device as-of, its NAMUR NE107 flags with the text label always
  * visible, native status, collection freshness, the eligibility Flink decided, and the device's
  * own diagnostics (cause / remedy shown as text, never interpreted). Absence of a binding is
- * "not configured" — an unavailable state, never OK (NR-044: M-only is context only).
+ * "not configured" — an unavailable state, never OK (NR-044: M-only is context only). CHG-184 (owner review item 0): no NE107
+ * mapping version and no interval revision.
  */
 import React from 'react';
 import type { HealthEligibility, LoopInstrumentHealth, RoleHealth } from '../../../api/cpm/health';
@@ -104,9 +105,8 @@ const RoleCard: React.FC<{ r: RoleHealth; sourceState: string | null }> = ({ r, 
           <KvRow label="Measurement impact">{r.measurementImpact}</KvRow>
           <KvRow label="Observed">{r.lastObservedAt ? `${fmtDateTime(r.lastObservedAt)} (${fmtAge(r.observedAgeS)})` : 'never'}</KvRow>
           <KvRow label="Verified">{r.lastVerifiedAt ? `${fmtDateTime(r.lastVerifiedAt)} (${fmtAge(r.verifiedAgeS)})` : 'never'}</KvRow>
-          <KvRow label="Eligibility since">{r.intervalFrom ? `${fmtDateTime(r.intervalFrom)} · rev ${r.intervalRevision}` : '—'}</KvRow>
+          <KvRow label="Eligibility since">{r.intervalFrom ? fmtDateTime(r.intervalFrom) : '—'}</KvRow>
           <KvRow label="Reason">{r.reason || '—'}</KvRow>
-          <KvRow label="Mapping version">{r.interpretationVersion != null ? `NE107 interpretation v${r.interpretationVersion}` : '—'}</KvRow>
           {r.diagnostics.length > 0 && (
             <table className="cpm-health-diag">
               <thead>

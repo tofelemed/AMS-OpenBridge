@@ -1,10 +1,10 @@
 /**
  * CHG-168 (owner review, the approved sample docs/theme/redesign/samples/loop-registry-proposal.html): the pure rules for what
- * the selected loop's panel states, each fact once. Rows: plant path, type, criticality, gate profile, model; Record details:
- * objective · topology · command, acquisition, how the model was set. Readiness: the valve position (G14) and the peer links
- * (G13) in one row each, the server's advice behind a ?, then every other check not met (it merged the Valve position and
- * Peer links facts, the Observability flags and the readiness list, which said each gap three times). Signals: each required
- * role, a missing one with its advice; the path under the plant path as "…/fic10401.pv".
+ * the selected loop's panel states, each fact once. Rows: plant path, type, criticality, gate profile, model (CHG-184: Record
+ * details went; objective, acquisition and the model are on the Loop Explorer's model card). Readiness: the valve position (G14)
+ * and the peer links (G13) in one row each, the server's advice behind a ?, then every other check not met (it merged the Valve
+ * position and Peer links facts, the Observability flags and the readiness list, which said each gap three times). Signals:
+ * each required role, a missing one with its advice; the path under the plant path as "…/fic10401.pv".
  */
 import type { CpmLoop, CpmReadiness } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
@@ -20,27 +20,6 @@ export function panelRows(loop: CpmLoop): Array<[label: string, value: string]> 
     ['Criticality', loop.criticality],
     ['Gate profile', loop.thresholdProfileId ?? 'default'],
     ['Model', modelLabel(loop)],
-  ];
-}
-
-export function acquisitionText(loop: CpmLoop): string {
-  const a = loop.model?.acquisition;
-  if (!a) return 'Not served';
-  return `${a.mode}${a.gridSeconds != null ? ` · ${a.gridSeconds} s grid` : ' · grid undeclared'}`;
-}
-
-export interface RecordRow { label: string; value: string; sub?: string }
-
-/** The Record details dialog: the loop's secondary facts. */
-export function recordRows(loop: CpmLoop): RecordRow[] {
-  const m = loop.model;
-  if (!m) return [{ label: 'Acquisition', value: acquisitionText(loop) }];
-  return [
-    { label: 'Objective · topology · command', value: `${m.objectiveType} · ${m.topology} · ${m.commandPath}` },
-    { label: 'Acquisition', value: acquisitionText(loop) },
-    m.classificationSource === 'EXPLICIT'
-      ? { label: 'Model set by', value: 'Declared in the registry' }
-      : { label: 'Model set by', value: 'The loop type', sub: 'Declare it in Edit configuration to make it explicit.' },
   ];
 }
 

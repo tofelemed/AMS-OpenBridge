@@ -59,6 +59,7 @@ describe('DiffImpactPanel', () => {
     expect(screen.getByText(/No errors\./)).toBeTruthy();
     expect(screen.getByText('✓')).toBeTruthy();
     expect(screen.getByText(/1 property in this bundle are read by no running job/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/build/);   // CHG-184: no build wording
     expect((screen.getByRole('button', { name: 'Validate' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Already validated; edit the draft to validate again.')).toBeTruthy();
     rerender(<DiffImpactPanel bundle={bundle({ state: 'DRAFT' })} parent={undefined} catalogue={catalogue} siteLoopCount={undefined} validate={{ ...idle, enabled: true, onValidate }} />);

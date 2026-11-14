@@ -1,7 +1,7 @@
 // Task 24 / CHG-168 (owner review, the approved sample): the selected loop in the panel beside the list. The heading is the tag,
 // the service under it and the state badge; rows; Readiness (VP and peer links once each, the server's advice behind ?, any
-// other unmet check); Signals (pen colour, the path under the plant path, Copy); the actions; Record details · Workbench ↗ ·
-// Effective rules ↗ · Plant tree ↗; the foot's Loop Explorer →.
+// other unmet check); Signals (pen colour, the path under the plant path, Copy); the actions; Workbench ↗ ·
+// Effective rules ↗ · Plant tree ↗ (CHG-184: no Record details); the foot's Loop Explorer →.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -243,14 +243,10 @@ describe('LoopPanel actions and links', () => {
     expect(screen.getByText(/could not be read/)).toBeTruthy();
   });
 
-  it('opens Record details as a dialog with objective, acquisition and how the model was set', () => {
+  it('has no Record details (CHG-184, owner review Q6)', () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
-    const dlg = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dlg).getByText('TIGHT · SINGLE · OP_TO_VALVE')).toBeTruthy();
-    expect(within(dlg).getByText('PERIODIC · 5 s grid')).toBeTruthy();
-    expect(within(dlg).getByText('The loop type')).toBeTruthy();
-    expect(within(dlg).getByText('Declare it in Edit configuration to make it explicit.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Record details' })).toBeNull();
+    expect(screen.queryByText('TIGHT · SINGLE · OP_TO_VALVE')).toBeNull();
   });
 
   it('opens the Workbench and, from the foot, the Loop Explorer', () => {

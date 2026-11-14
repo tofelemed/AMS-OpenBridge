@@ -5,19 +5,17 @@
  * first, no label ("Loop, service, profile or unit"), then one dropdown "All loops 243 · Governed bundle 1 · Factory layer 242"
  * (owner answer 2c: client side, counted from the fleet read) in place of the count sentence; rows Loop (the service under the
  * tag, the tag said once), Profile in words, Runs under ("✓ Active (verified)" over "LOOP v6", or "○ Factory layer"), Effective
- * from; 20 a page, governed first then by loop id, the shared pager; a row opens the loop. The foot holds Build details (the
- * Technical details disclosure, as a dialog).
+ * from; 20 a page, governed first then by loop id, the shared pager; a row opens the loop. CHG-184 (owner review item 0): the foot's
+ * Build details (catalogue hash and counts) went.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError, TonePill } from '../shared';
 import { Pagination } from '../../../ui/forms/Pagination';
 import { codeLabel, locationLabel } from '../vocabulary';
 import { serviceName } from '../loopName';
 import { stamp, zoneTag } from '../events/eventTime';
-import type { ConfigCatalogue, EffectiveSummaryLoop } from '../../../api/cpm/config';
+import type { EffectiveSummaryLoop } from '../../../api/cpm/config';
 import { BundleStatePill } from './configBits';
-import { DetailsDialog, buildRows } from './DetailsDialog';
 
 const PAGE = 20;
 type Shown = 'all' | 'governed' | 'factory';
@@ -27,18 +25,16 @@ export interface EffectiveLoopsProps {
   loading: boolean;
   error: unknown;
   onRetry: () => void;
-  catalogue: ConfigCatalogue | undefined;
   onOpenLoop: (loopId: string) => void;
 }
 
 const matches = (l: EffectiveSummaryLoop, q: string) =>
   !q || l.loopId.toLowerCase().includes(q) || l.displayName.toLowerCase().includes(q) || l.profileId.toLowerCase().includes(q) || (l.unit ?? '').toLowerCase().includes(q);
 
-export const EffectiveLoops: React.FC<EffectiveLoopsProps> = ({ loops, loading, error, onRetry, catalogue, onOpenLoop }) => {
+export const EffectiveLoops: React.FC<EffectiveLoopsProps> = ({ loops, loading, error, onRetry, onOpenLoop }) => {
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState<Shown>('all');
   const [page, setPage] = useState(1);
-  const [build, setBuild] = useState(false);
   useEffect(() => { setPage(1); }, [query, shown]);
   const q = query.trim().toLowerCase();
   const governed = useMemo(() => loops.filter(l => l.bundle).length, [loops]);
@@ -89,10 +85,6 @@ export const EffectiveLoops: React.FC<EffectiveLoopsProps> = ({ loops, loading, 
         <EmptyState title={q ? `No loop matches “${query.trim()}”` : 'No loop matches this filter'} action={{ label: 'Show all loops', onClick: showAll }} />
       )}
       {pageCount > 1 && <div className="cpm-events-pager"><Pagination page={current} pageCount={pageCount} onChange={setPage} label="Loop pages" /></div>}
-      <div className="cpm-config-foot">
-        <ObcButton variant="flat" onClick={() => setBuild(true)}>Build details</ObcButton>
-      </div>
-      <DetailsDialog title="Build details" open={build} onClose={() => setBuild(false)} rows={buildRows(catalogue)} />
     </section>
   );
 };

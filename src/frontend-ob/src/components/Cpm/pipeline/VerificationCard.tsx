@@ -1,8 +1,8 @@
 /**
  * CHG-170 (owner review, Pipeline Health): end-to-end verification, under the job panel. Its state once in the head (○ Not run /
- * ◐ Running / ✓ Verified / ✕ Failed, in words); the run's Loop (tag and name), Round trip and Results; Record details (the
- * analysis run, replay and engine job ids, short and copyable; they were Technical details) and Run end-to-end verification in
- * the foot. The setup dialog in titled parts: Loop (our loop control) and What it does (the ? sentence, "an A8" dropped).
+ * ◐ Running / ✓ Verified / ✕ Failed, in words); the run's Loop (tag and name), Round trip and Results; Run end-to-end verification
+ * in the foot. The setup dialog in titled parts: Loop (our loop control) and What it does (the ? sentence, "an A8" dropped).
+ * CHG-184 (owner review Q1, Q6): no Record details (analysis run, replay and engine job ids); no storage names in the wording.
  * Owner answer 3a: Verified only when the run wrote results. Unchanged: the start needs cpm.manage and says why when disabled;
  * "Verifying…" blocks a second start until the run reports finished; Check again when the state cannot be read.
  */
@@ -12,13 +12,11 @@ import { Dialog } from '../../../ui/Dialog';
 import { KvRow, TonePill } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
 import { LoopBand } from '../context/LoopBand';
-import { DetailsDialog } from '../config/DetailsDialog';
-import { CopyableId } from '../evidence/CopyableId';
 import { resultsText, verificationHead, type ReplayState } from './verificationState';
 
 export type { ReplayState } from './verificationState';
 
-export const WHAT_IT_DOES = 'Submits a recompute on this loop and waits for the batch verdict: historian read, normalise, gates, fused result in Postgres.';
+export const WHAT_IT_DOES = 'Submits a recompute on this loop and waits for the batch verdict: historian read, normalise, gates, fused result stored.';
 
 export const VerificationCard: React.FC<{
   loopId: string | undefined;
@@ -38,12 +36,10 @@ export const VerificationCard: React.FC<{
   busy: boolean;
   error: string | null;
   status: ReplayState | null | undefined;
-  analysisRunId: string | null;
   elapsedS: number | null;
   onRun: () => void;
-}> = ({ loopId, loopReason, runLoopId, nameOf, started, pending, onRecheck, onLoop, canManage, busy, error, status, analysisRunId, elapsedS, onRun }) => {
+}> = ({ loopId, loopReason, runLoopId, nameOf, started, pending, onRecheck, onLoop, canManage, busy, error, status, elapsedS, onRun }) => {
   const [setup, setSetup] = useState(false);
-  const [record, setRecord] = useState(false);
   const head = verificationHead({ started, pending, status });
   const results = resultsText(status);
   const reason = !canManage ? 'Needs the cpm.manage permission' : !loopId ? loopReason : null;
@@ -69,7 +65,6 @@ export const VerificationCard: React.FC<{
         </div>
       )}
       <div className="ui-inspector__foot cpm-pipeline-ver__foot">
-        {started && <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>}
         <ReasonedButton variant="raised" disabled={!loopId || !canManage || busy} reason={reason} onClick={() => setSetup(true)}>
           {busy ? 'Verifying…' : 'Run end-to-end verification'}
         </ReasonedButton>
@@ -92,11 +87,6 @@ export const VerificationCard: React.FC<{
           </section>
         </div>
       </Dialog>
-      <DetailsDialog title="Record details" open={record} onClose={() => setRecord(false)} rows={[
-        { label: 'Analysis run', value: analysisRunId ? <CopyableId label="analysis run id" value={analysisRunId} /> : 'Run id not returned' },
-        { label: 'Replay id', value: <CopyableId label="replay id" value={status?.replayId} chars={status?.replayId.length} /> },
-        { label: 'Engine job id', copy: status?.jobId ?? null },
-      ]} />
     </section>
   );
 };

@@ -1741,3 +1741,79 @@ Removed on the owner's instruction (12 Nov): Calculation basis (page foot; its s
 | Where | Was | Now |
 |---|---|---|
 | Administration · Delete role dialog | "If any users hold this role, enter a role to reassign them to (leave blank to cancel if there are users)." | "Users who hold this role move to the role you pick." |
+
+## CHG-184 Remove ids, versions, Record details and Identity & raw (owner review items 0, 1, 9, 11.3, 12, 15; Q1, Q6)
+
+| Where | Was | Now |
+|---|---|---|
+| Evidence Workbench · tabs | Proof · Rules & parameters · Signal context · Identity & raw | Proof · Rules & parameters · Signal context (an old `sub=identity` link opens Proof) |
+| Evidence Workbench · Identity & raw tab | Identity rows (Calculation, Run, Build commit, Jar, Bundle, Dataset, Source, Purpose, Revisions), Copy run ID, Copy identity record, Flags on this window, Artifacts, Raw record | (removed) |
+| Evidence Workbench · gate head | Run 4ccaf304 ⧉ | (removed) |
+| Evidence Workbench · accepted line | Reconstruction accepted (run <id>) · <state>. | Reconstruction accepted · <state>. |
+| Evidence Workbench · no window with a run | The listed windows predate v2.5; they cannot be opened in the workbench. … | The listed windows were stored before runs were kept; they cannot be opened in the workbench. … |
+| Evidence Workbench · Rules & parameters · What this gate asks | No catalogue definition for this gate in this build. | No definition for this gate. |
+| Evidence Workbench · Rules & parameters · Method | Control error vs objective v3.0.0 (method code on hover) · Tier · Capability | Control error vs objective; Tier and Capability (removed) |
+| Evidence Workbench · Rules & parameters · thresholds line | Thresholds: <profile> profile · bundle v4, as in force at … / · factory / profile layers | Thresholds: <profile> profile, as in force at … |
+| Evidence Workbench · Rules & parameters · Parameters used | Method / Capability / Capability reason / method version rows (from the run's provenance) | (removed) |
+| Evidence Workbench · Rules & parameters · CONFIGURATION | Bundle <hash> ⧉ · Configuration used by this run ↗ / Hide configuration used | (removed) |
+| Evidence Workbench · Proof · inputs table | Input · Metric (CPLM-010) · Value · Unit | Input · Value · Unit |
+| Evidence Workbench · gate state | Method not installed in this build · <method id> (<state>); <reason>. | Method not available · Reason: <reason in words>. (or No reason recorded.) |
+| Evidence Workbench · gate state (no result) | The method run id does not resolve to any stored evaluation. | No stored evaluation matches this run. |
+| Evidence Workbench · reconstruction basis | … Built by commit abcdef12 / an unrecorded build; the retained proof is unchanged. | … The retained proof is unchanged. |
+| Evidence Workbench · Evaluate a window errors | … check the "CPLM On-Demand Evaluation" Flink job. · … handed to the evaluation job (Kafka). Try again. | … check the "CPLM On-Demand Evaluation" job. · … handed to the evaluation job. Try again. |
+| Gate reason LEGACY_FLAG_ONLY | the result predates v2.5 and carries a flag, not an analysis | an older result that carries a flag, not an analysis |
+| Reconstruct evidence dialog | Run <uuid> | (removed) |
+| Calculations · list row | Mean absolute error / CPLM-010 · G3 | Mean absolute error / G3 |
+| Calculations · panel | CPLM-010 beside the title; Record details; Identity & raw ↗ | (removed) |
+| Calculations · Record details dialog | Window qualification · Evidence-score band · Gate G3 in stored results · Stored in cplm_long_feature_results | (removed) |
+| Calculations · stale warning | This value was written by v2.9.0; the calculation deployed now is v3.0.0. Recompute the window before citing it. | This value was written by an earlier calculation. Recompute the window before citing it. |
+| Calculations · foot | … · Re-run <id> | … · Re-run |
+| Run details dialog (Calculations, Replay) | Decision run (G15) <id> · Bundle <hash> · Calculation v3.0.0 · profile v2.0.0 · Engine build <commit> | (removed); Gates, Computed, Proof retained stay |
+| Evidence Replay · foot | Re-run <id> | Re-run |
+| Evidence Replay · result of this window | Re-run <id> | Re-run (several: Re-run 1, Re-run 2 …, in the order computed) |
+| Evidence Replay · Re-run this window dialog | It uses the settings the window ran under, or the engine default if none are held, and today's engine build. The result can differ from the original. | It uses the settings the window ran under, or the default if none are held, and today's calculation. The result can differ from the original. |
+| Evidence Replay · Re-run this window · Current configuration | Not available in this release. | Not available yet. |
+| Evidence Replay · phase plane axis | PV (unit not set) | PV |
+| Trends · PV axis (Overview, Loop Explorer, Investigation, Replay) | PV / SP (unit not set) | PV / SP |
+| Shared trend panel (design gallery) | <label> (unit not set) · 12.3 (unit not set) · "PV, unit not set" in the chart description | <label> · 12.3 · "PV" |
+| Loop Events · episode panel | Record details | (removed) |
+| Loop Events · Record details dialog | Fault family · Calculation v3.0.0 · profile v2.0.0 · Support until, each with ⧉ | (removed) |
+| Loop Events · How to read · Availability unknown | Recorded before v2.5. | An older record: availability was not tracked. |
+| Loop Events · availability line | Recorded before v2.5: availability was not tracked separately from the condition. | An older record: availability was not tracked separately from the condition. |
+| Window Inspector · selected window | Record details (and its dialog: the window and its metric values) | (removed) |
+| Loop Registry · selected loop | Record details (and its dialog: Objective · topology · command, Acquisition, Model set by) | (removed) |
+| Historical · selected window | Technical details (Samples, Calculation v7 · profile v3) | Samples (a row) |
+| Historical · Review this window → tooltip | Open the G15 run <id> of this window in the Evidence Workbench | Open the G15 run of this window in the Evidence Workbench |
+| Historical, Loop Explorer gate detail, Investigation gate proof · disabled reason | Stored before analysis runs were kept (before v2.5), so there is no run to open … | Stored before analysis runs were kept, so there is no run to open … |
+| Performance / Loop Explorer · More about this gate · Workbench tooltip | This result was stored before analysis runs were kept (before v2.5); … · Open method run <id> | This result was stored before analysis runs were kept; … · Open the <gate> run of this window in the Evidence Workbench |
+| Investigation · older result | This result predates v2.5: it carries family scores … · This result predates v2.5: G14 was a VP-presence flag, not a confirmation. | This is an older result: it carries family scores … · This is an older result: G14 was a VP-presence flag, not a confirmation. |
+| Loop Explorer · Relationships · Lineage | CPLM pack: 17 gates (15 observed) · Flink · Evidence: Gate results · event frames · KPI series · calc 3.0.0 | CPLM pack: 17 gates (15 observed) · Evidence: Gate results · event frames · KPI series |
+| Loop Explorer · transmitter health | Eligibility since <time> · rev 1 · Mapping version: NE107 interpretation v1 | Eligibility since <time>; Mapping version (removed) |
+| Health lane (Historical, Investigation) | PV Eligible · no flags · TT-101 · rev 2 | PV Eligible · no flags · TT-101 |
+| Loop Explorer · effective configuration drawer | Effective configuration / Configuration this run used · LOOP v2 · f9153b00; APPLY acknowledgements job · jar · catalogue · applied, ACK <hash> | Effective configuration · LOOP v2; job · applied, ACK (for another bundle) |
+| System Response · Steps & data · Event | Method G12.SYSTEM_RESPONSE <version> · Run <id> ⧉ · Bundle <hash> ⧉ · Purpose LIVE · rev 1 | Purpose LIVE; Method, Run, Bundle (removed) |
+| System Response · model review dialog | model <id> · created from event <id> | (removed) |
+| Gate Configuration · bundle band | LOOP v6 ✓ Active (verified) Record details | LOOP v6 ✓ Active (verified) |
+| Gate Configuration · Record details dialog | Content hash · Etag · Created · Updated · Note · Catalogue hash | (removed) |
+| Gate Configuration · Effective list foot | Build details (Catalogue hash, Catalogue properties, Workers announced) | (removed) |
+| Gate Configuration · Bundles · version panel | Content hash f9153b00 ⧉ | (removed) |
+| Gate Configuration · Effective · Workers foot line | 2 of 2 applied · one jar · catalogue matches / N different jars | 2 of 2 applied · catalogue matches / N different software releases |
+| Gate Configuration · Workers dialog | Job · (Jar) · (Catalogue) · Applied; ACK <hash>; Build (Bundle, Bundle hash, Catalogue hash, Catalogue properties, Workers announced, Worker jar) | Job · Applied; ACK for another bundle; Build (removed) |
+| Gate Configuration · property panel / dialog | CFG-077 beside the title · Id CFG-077 · The catalogue is not loaded, so class, id and unit are not shown. · Not read by this build | (removed) · (removed) · The catalogue is not loaded, so class and unit are not shown. · Not used |
+| Gate Configuration · Properties table flag | unread by build (hover: Not read by this build: <reason>) | not used (hover: Not used: <reason>) |
+| Gate Configuration · property form | not read by this build · Read by flink:short · Read-only in this build: <reason> | not used · (removed) · Read-only: <reason> |
+| Gate Configuration · Diff & impact | Rollout: the whole scope switches at the effective time in one deployment; a phased rollout with stop criteria is not part of this build · A DEPLOYMENT-class change ships in a build; … · … read by no running job (declared by the build); … | Rollout: the whole scope switches at the effective time in one deployment · A DEPLOYMENT-class change ships in a software release; … · … read by no running job; … |
+| Gate Configuration · How to read | ✕ Deployment: … ships in a build; … · unread by build: Not read by this build; the reason is in the property's panel. | ✕ Deployment: … ships in a software release; … · not used: No running job reads it; the reason is in the property's panel. |
+| Gate Configuration · Approval table · Content | f9153b00 / <hash> (previous content) | Current content / Previous content |
+| Gate Configuration · Shadow | Run 7c1e04a2 on FIC10301 | Run on FIC10301 |
+| Gate Configuration · deployment panel | Rolls back 617f2e13 ⧉ · Probe: N result(s) pinned to this hash · Workers answered from N different jars - … · APPLY · jar dabe1862 · per cell "jar <hash>" · ACK (other hash) · Active bundle on this job: <hash> | (removed) · Probe: N result(s) pinned to this bundle · Workers answered from N different software releases - … · APPLY · (removed) · ACK (other bundle) · this bundle / another bundle |
+| Pipeline Health · job panel | Record details (Engine job name, Engine job id, Started) | (removed) |
+| Pipeline Health · job list foot | Engine details (JobManager address, Jobs the engine runs that are not required) | (removed) |
+| Pipeline Health · End-to-end verification | Record details (Analysis run, Replay id, Engine job id) | (removed) |
+| Pipeline Health · verification · What it does | … gates, fused result in Postgres. | … gates, fused result stored. |
+| Pipeline Health · How to read · Job state | RUNNING: the engine runs the job. · INITIALIZING, CREATED, RESTARTING, RECONCILING: the engine is bringing the job up. · Failed, Failing, Cancelled, Cancelling, Finished, Suspended: the job has stopped or is stopping. | The engine runs the job. · The engine is bringing the job up. · The job has stopped or is stopping. |
+| Pipeline Health · How to read · Not exposed | Watermark lag · Kafka consumer lag · Latency · Backpressure · Parallelism: The engine's metrics read does not carry these, and they are not estimated. | (removed) |
+| Pipeline Health · How to read · Where a sample becomes a verdict | DCS / edge to Kafka, then Flink compute, then Postgres and IoTDB. Job lifecycle is owned by the supervisor; this page never starts or stops a job. … | From the DCS / edge to the analysis engine, then to the database and the historian. This page never starts or stops a job. … |
+| Pipeline Health · How to read · End-to-end verification | … fused result in Postgres. ✓ Verified only when the run wrote results. | … fused result stored. ✓ Verified only when the run wrote results. |
+| Governance · approval queue panel | Record details (Bundle id, Content hash) | (removed) |
+| Administration · Data sources · source panel | Record details (Configuration id, Client id, Version) | (removed) |

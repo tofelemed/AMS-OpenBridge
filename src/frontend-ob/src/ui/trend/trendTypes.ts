@@ -23,7 +23,7 @@ export interface TrendAxis {
   id: string;
   /** "PV / SP", "Controller output". The unit is appended by the panel. */
   label: string;
-  /** Registry unit. Blank renders "unit not set", never a guess. */
+  /** Registry unit. Blank renders no unit (CHG-184), never a guess. */
   unit?: string | null;
   /** Controller output: it says "%" only when `range` is declared. */
   output?: boolean;

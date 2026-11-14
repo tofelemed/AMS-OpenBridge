@@ -48,14 +48,15 @@ export function classifyGateResult(i: GateStateInput): GateState {
     const msg = i.error instanceof Error ? i.error.message : String(i.error);
     return { kind: 'FAILED_REQUEST', title: 'The request failed', detail: msg, stillValid: 'Nothing on this view is current until the request succeeds.', action: 'RETRY', tone: 'bad' };
   }
-  if (!i.methodRun && !i.cell) return { kind: 'NO_RESULT', title: 'No result carries this run', detail: 'The method run id does not resolve to any stored evaluation.', stillValid: '', action: 'GO_TO_LATEST', tone: 'muted' };
+  if (!i.methodRun && !i.cell) return { kind: 'NO_RESULT', title: 'No result carries this run', detail: 'No stored evaluation matches this run.', stillValid: '', action: 'GO_TO_LATEST', tone: 'muted' };
   if (i.methodRun && i.methodRun.purpose !== 'LIVE') {
     return { kind: 'SHADOW', title: `${i.methodRun.purpose} evaluation`, detail: 'This run was produced by a bounded evaluation, not the live timeline; it never opened or closed an episode.',
       stillValid: 'The verdict and evidence are exact for that run and configuration.', action: 'NONE', tone: 'warn' };
   }
   if (i.catalogue && i.catalogue.capabilityState !== 'INSTALLED') {
-    return { kind: 'UNSUPPORTED_METHOD', title: 'Method not installed in this build',
-      detail: `${i.catalogue.method.id} (${i.catalogue.method.state}); ${i.catalogue.capabilityReason ?? 'no capability reason given'}.`,
+    // CHG-184 (owner review item 0): no build wording, no method code or state
+    return { kind: 'UNSUPPORTED_METHOD', title: 'Method not available',
+      detail: i.catalogue.capabilityReason ? `Reason: ${phrase(i.catalogue.capabilityReason)}.` : 'No reason recorded.',
       stillValid: 'Other gates of the same run are unaffected. A flag-only gate carries no evidence view.', action: 'NONE', tone: 'muted' };
   }
   const status = i.cell?.status ?? '';

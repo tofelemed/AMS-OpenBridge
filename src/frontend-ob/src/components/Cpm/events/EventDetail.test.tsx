@@ -1,6 +1,6 @@
 // CHG-032: the acknowledgement and the shelf are two facts; Unshelve is offered exactly when there is a shelf to end.
 // CHG-167 (owner review, the approved sample): the heading is the peak diagnosis with its severity; Latest only when it
-// differs; one Condition row; Review; Shelf; Period; the evidence strip; Record details (a dialog) · Historical ↗ · Loop ↗;
+// differs; one Condition row; Review; Shelf; Period; the evidence strip; Historical ↗ · Loop ↗ (CHG-184: no Record details);
 // the note and the actions; the foot names the episode once beside Investigation →. The panel's facts are covered here; its
 // actions and dialogs in EpisodeActions.test.tsx.
 import React from 'react';
@@ -164,24 +164,11 @@ describe('EventDetail facts (CHG-167)', () => {
 });
 
 describe('EventDetail links (CHG-167)', () => {
-  it('opens Record details as a dialog: the family, the calculation and profile, support until; no resolution', () => {
+  it('has no Record details: no versions, family or support-until dialog (CHG-184, owner review item 1)', () => {
     mount(frame({ calculation_version: '3.0.0', dynamics_profile_version: '2.0.0', support_until: '2026-10-06T10:00:00Z' }));
     expect(screen.queryByText('Technical details')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    const rows = [...dialog.querySelectorAll('.cpm-kv')].map(r => [r.querySelector('.cpm-kv__label')?.textContent, r.querySelector('.cpm-kv__value')?.firstChild?.textContent]);
-    expect(rows).toEqual([['Fault family', 'Oscillation'], ['Calculation', 'v3.0.0 · profile v2.0.0'], ['Support until', `${stamp('2026-10-06T10:00:00Z')} UTC`]]);
-    expect(within(dialog).queryByText('Resolution')).toBeNull();
-    expect(within(dialog).getByRole('button', { name: 'Copy Support until' })).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('says Not recorded for a version or an end of support the record lacks', () => {
-    mount(frame({}));
-    fireEvent.click(screen.getByRole('button', { name: 'Record details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).getAllByText('Not recorded')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Record details' })).toBeNull();
+    expect(screen.queryByText(/v3\.0\.0/)).toBeNull();
   });
 
   it('opens the episode period in Historical and the loop in the Loop Explorer, named after the pages', () => {

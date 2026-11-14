@@ -1,9 +1,9 @@
 // v2.5 workbench: the status / reason of a gate come from the fused row's cell when the run is a fusion
 // run, and from the tier row's payload (gateN_status) otherwise; the parameters a run used are its
-// artifacts' provenance with labels and formatted values; the identity block is one list, not prose.
+// artifacts' provenance with labels and formatted values.
 import { describe, expect, it } from 'vitest';
 import type { EvidenceManifest, MethodRun } from '../../../api/cpm/evidence';
-import { chipCells, gateReasonOf, gateStatusOf, identityOf, parametersOf } from './gateFacts';
+import { chipCells, gateReasonOf, gateStatusOf, parametersOf } from './gateFacts';
 
 const run = (over: Partial<MethodRun>): MethodRun => ({
   methodRunId: 'r', tier: 'short', gate: 'G3', loopId: 'FIC10302', site: 'hdpe', windowKind: '5m', gateResultId: null,
@@ -42,11 +42,11 @@ describe('gate facts', () => {
     expect(parametersOf(perCycle, 'G9')).toEqual([]);
   });
 
-  it('names the identity of a run as labelled values', () => {
-    const rows = identityOf(run({}));
-    expect(rows.map(r => r.label)).toEqual(['Run', 'Build commit', 'Jar', 'Bundle', 'Dataset', 'Source', 'Purpose', 'Revisions']);
-    expect(rows[0].value).toBe('r');
-    expect(rows[7].value).toBe('context r0 · result r1');
+  it('leaves the method code, its version and the capability out of the parameters (CHG-184, owner review item 0)', () => {
+    const manifest = { artifacts: [
+      { gate: 'G8', kind: 'lag_structure', provenance: { method_id: 'XCORR_ASYMMETRY_V1', method_version: '1.0.0', capability_state: 'NOT_INSTALLED', capability_reason: 'BICOHERENCE_NOT_BUILT', lag_s: '4' } },
+    ] } as unknown as EvidenceManifest;
+    expect(parametersOf(manifest, 'G8').map(x => x.label)).toEqual(['Lag']);
   });
 });
 

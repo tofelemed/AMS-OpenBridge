@@ -4,6 +4,7 @@
  * what the lifecycle column sent ({ note, validityHours }); four eyes, an expired approval and a stale hash are the server's
  * refusals, shown as "Refused:" / "Conflict:". An approval that ran out after the version was activated no longer reads as a
  * warning: its expiry only matters while the version still waits to be activated.
+ * CHG-184 (owner review item 0): the Content column says Current or Previous content, never the hash.
  */
 import React, { useState } from 'react';
 import { TonePill } from '../shared';
@@ -11,7 +12,6 @@ import { Toggletip } from '../../../ui/Toggletip';
 import { ReasonedButton } from '../ReasonedButton';
 import { stamp, zoneTag } from '../events/eventTime';
 import type { Bundle } from '../../../api/cpm/config';
-import { shortHash } from './configSupport';
 import { errorText, type LifecycleAction } from './lifecycle';
 
 /** The states in which an expired approval still blocks something (approving again, activating again). */
@@ -56,7 +56,7 @@ export const ApprovalTab: React.FC<{
                     ? <TonePill tone={a.bindsCurrentContent ? 'good' : 'muted'} glyph="✓">Approved</TonePill>
                     : <TonePill tone="bad" glyph="✕">Rejected</TonePill>}</td>
                   <td>{a.approver} ({a.role})</td>
-                  <td className="cpm-mono" title={a.contentHash}>{shortHash(a.contentHash, 8)}{a.bindsCurrentContent ? '' : ' (previous content)'}</td>
+                  <td>{a.bindsCurrentContent ? 'Current content' : 'Previous content'}</td>
                   <td>{a.expiresAt ? stamp(a.expiresAt) : 'never expires'}</td>
                   <td>{a.note ?? '—'}</td>
                 </tr>

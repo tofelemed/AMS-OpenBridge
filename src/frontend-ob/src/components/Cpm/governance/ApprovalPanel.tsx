@@ -1,11 +1,11 @@
 /**
  * CHG-174 (owner review, badge 10, answer 1): the selected bundle of the approval queue in the panel beside the list (a drawer
  * below 1280 px): the bundle once with its state; Site, Scope, Change class, Author, Updated, Waits for; the loop ↗ for a loop
- * bundle; Record details (bundle id, content hash) and the exit on the Gate Configuration tab that step needs: Open approval →
+ * bundle; the exit on the Gate Configuration tab that step needs (CHG-184, owner review Q6: no Record details): Open approval →
  * (Approval) for a bundle waiting for an approver, Open deployments → (Deployments) for one waiting for activation. Approving,
  * activating and rolling back stay on Gate Configuration with every rule and refusal.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { BundleSummary } from '../../../api/cpm/config';
@@ -14,7 +14,6 @@ import { configHref, registryHref } from '../cpaHref';
 import { bundleStateWord, classWord } from '../config/configWords';
 import { KvRow, TonePill } from '../shared';
 import { stamp, zoneTag } from './auditTime';
-import { RecordDialog, shortHash12 } from './RecordDialog';
 import { bundleName } from './useConfigNames';
 
 const TO_APPROVE = new Set(['VALIDATED', 'SHADOW_EVALUATED']);
@@ -42,15 +41,13 @@ export const ClassMark: React.FC<{ changeClass: string }> = ({ changeClass }) =>
 
 export const ApprovalPanel: React.FC<{ bundle: BundleSummary; open: boolean; onClose: () => void }> = ({ bundle: b, open, onClose }) => {
   const navigate = useNavigate();
-  const [record, setRecord] = useState(false);
   const next = waitsFor(b.state);
   const ref = b.scopeKind === 'SITE' ? undefined : b.scopeRef ?? undefined;
   return (
     <>
       <Inspector eyebrow="Gate configuration bundle" title={bundleName(b)} meta={<BundleState state={b.state} />} open={open} onClose={onClose}
         primaryAction={
-          <div className="cpm-admin-foot">
-            <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
+          <div className="cpm-admin-foot cpm-admin-foot--end">
             <ObcButton variant="raised" onClick={() => navigate(configHref({ site: b.site, scope: b.scopeKind, ref, bundle: b.bundleId, tab: next.tab }))}>
               {next.exit}
             </ObcButton>
@@ -68,10 +65,6 @@ export const ApprovalPanel: React.FC<{ bundle: BundleSummary; open: boolean; onC
           </div>
         )}
       </Inspector>
-      <RecordDialog title="Record details" open={record} onClose={() => setRecord(false)} parts={[{ rows: [
-        { label: 'Bundle id', shown: b.bundleId, copy: b.bundleId },
-        { label: 'Content hash', shown: shortHash12(b.contentHash), copy: b.contentHash },
-      ] }]} />
     </>
   );
 };

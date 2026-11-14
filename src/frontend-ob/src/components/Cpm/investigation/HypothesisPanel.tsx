@@ -59,7 +59,7 @@ export const HypothesisPanel: React.FC<{
         <PanelHead title="Family and detector scores"
           right={<TonePill tone="muted">Older result</TonePill>} />
         <p className="cpm-copy">
-          This result predates v2.5: it carries family scores but no observations, hypotheses or
+          This is an older result: it carries family scores but no observations, hypotheses or
           fault-scoped confirmation. {confirmationProse(undefined, true)}
         </p>
         {rows.length === 0 && (

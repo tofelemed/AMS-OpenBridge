@@ -27,9 +27,7 @@ export interface EventPanesProps {
   detail: ReturnType<typeof useResponseEvent>;
   manifest: ReturnType<typeof useEvidenceManifest>;
   arts: GateArtifacts;
-  methodRunId: string | undefined;
   t0Ms: number;
-  resultRevision: number | undefined;
   pvUnit?: string | null;
   /** CHG-178: how long charts are kept, from the events answer; absent on older servers. */
   retention?: ResponseRetention;
@@ -41,11 +39,11 @@ const Loading: React.FC<{ what: string }> = ({ what }) => (
   </div>
 );
 
-export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, methodRunId, t0Ms, resultRevision, pvUnit, retention }) => {
+export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit, retention }) => {
   if (detail.isError) return <QueryError error={detail.error} retry={() => void detail.refetch()} />;
   const result = detail.data?.result;
   const metrics = detail.data?.metrics;
-  if (tab === 'steps') return result ? <StepsDataTab result={result} metrics={metrics} timeZone={timeZone} methodRunId={methodRunId} resultRevision={resultRevision} pvUnit={pvUnit} /> : <Loading what="the event" />;
+  if (tab === 'steps') return result ? <StepsDataTab result={result} metrics={metrics} timeZone={timeZone} pvUnit={pvUnit} /> : <Loading what="the event" />;
 
   const notKept = arraysState(manifest.data);
   const note = notKept && <ArraysNote state={notKept} retention={retention} />;

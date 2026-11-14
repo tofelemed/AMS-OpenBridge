@@ -5,9 +5,10 @@
  * from the catalogue; an array is replaced whole; Reset removes this scope's override. Nothing here decides: every op goes to
  * the server as a requested change and the recorded draft renders back.
  * CHG-169 (owner review, the approved sample): the body of the selected property's panel (it was the row that expanded into
- * the editor). The panel's heading names the property and its id, so the form opens on its class and flags; values carry their
+ * the editor). The panel's heading names the property, so the form opens on its class and flags; values carry their
  * unit and "No value" when unset (the catalogue start read NO_VALUE when the catalogue has none); Set and Reset to inherited
- * say why under each when disabled.
+ * say why under each when disabled. CHG-184 (owner review item 0): the heading names the property only (no catalogue id); no
+ * "Read by" row (engine job codes) and no build wording ("not used", "Read-only").
  */
 import React, { useMemo, useState } from 'react';
 import { KvRow, TonePill } from '../shared';
@@ -70,7 +71,7 @@ export const PropertyForm: React.FC<{
       <div className="cpm-config-property__head">
         <ClassWord changeClass={entry.changeClass} />
         {commissioning && <TonePill tone="bad">Commissioning required</TonePill>}
-        {locked && <TonePill tone="muted">not read by this build</TonePill>}
+        {locked && <TonePill tone="muted">not used</TonePill>}
       </div>
       <p className="cpm-copy">{entry.effect}</p>
       <KvRow label="Effective">
@@ -85,9 +86,8 @@ export const PropertyForm: React.FC<{
         <KvRow label="Bounds"><span className="cpm-mono">{bounds.minimum !== undefined ? `≥ ${valueText(bounds.minimum)}` : ''} {bounds.maximum !== undefined ? `≤ ${valueText(bounds.maximum)}` : ''}</span></KvRow>
       )}
       {entry.dependencies.length > 0 && <KvRow label="Depends on"><span className="cpm-mono">{entry.dependencies.join(', ')}</span></KvRow>}
-      <KvRow label="Read by"><span className="cpm-mono">{entry.consumers.join(', ')}</span></KvRow>
       <KvRow label="Type · unit">{entry.type} · {entry.unit || 'unitless'}</KvRow>
-      {locked && <p className="cpm-copy" data-testid="locked-reason">Read-only in this build: {entry.notReadByBuild}</p>}
+      {locked && <p className="cpm-copy" data-testid="locked-reason">Read-only: {entry.notReadByBuild}</p>}
       {errors.map(e => <p key={e} className="cpm-field__error" role="alert">{e}</p>)}
       {editable && !locked && (
         <div className="cpm-config-property__edit">

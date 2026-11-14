@@ -38,7 +38,7 @@ export const CalcList: React.FC<{
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}>
               <span>
                 <span className="cpm-event-row__title">{metric.name}</span>
-                <div className="cpm-event-row__sub">{`${metric.id} · ${metric.gate}`}</div>
+                <div className="cpm-event-row__sub">{metric.gate}</div>
               </span>
               <span>
                 {na ? (

@@ -1,9 +1,9 @@
 // v2.5 workbench: the reading column opens with the answer - the gate's status, one plain sentence,
-// the key numbers as tiles - and closes with the window's flags, each a fact with a tone.
+// the key numbers as tiles.
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { VerdictCard, WindowFlags } from './VerdictCard';
+import { VerdictCard } from './VerdictCard';
 import type { GateState } from './GateResultState';
 
 afterEach(cleanup);
@@ -28,20 +28,5 @@ describe('VerdictCard', () => {
     expect(screen.getByText('G3 Base performance: PASS.')).toBeTruthy();
     expect(screen.queryByText('MAE')).toBeNull();
     expect(screen.queryByText('Evidence not retained for this run')).toBeNull();
-  });
-});
-
-describe('WindowFlags', () => {
-  it('lists observability flags, disqualifiers and the insufficient-evidence reason with tones', () => {
-    render(<WindowFlags row={{ observabilityFlags: ['HAS_VP', 'NO_STEP_TEST'], familyDisqualifiers: ['stiction:FAMILY_DISQUALIFIED'], insufficientEvidenceReason: 'INSUFFICIENT_SAMPLES' }} />);
-    expect(screen.getByText('Valve position mapped').closest('.cpm-pill')?.className).toContain('cpm-pill--good');
-    expect(screen.getByText('No approved step test').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
-    expect(screen.getByText('Stiction ruled out: its own checks failed').closest('.cpm-pill')?.className).toContain('cpm-pill--muted');
-    expect(screen.getByText('Too few samples').closest('.cpm-pill')?.className).toContain('cpm-pill--warn');
-  });
-
-  it('says so when the window is not in the loaded list', () => {
-    render(<WindowFlags row={undefined} />);
-    expect(screen.getByText(/not among the loaded windows/)).toBeTruthy();
   });
 });

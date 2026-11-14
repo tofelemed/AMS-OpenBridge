@@ -59,10 +59,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Calculations list', () => {
-  it('lists all 19, with the gate under the name and no Gate or ID column, no paging and no count', () => {
+  it('lists all 19, with the gate under the name (CHG-184: no metric code) and no Gate or ID column, no paging and no count', () => {
     mount();
     expect(rowsShown()).toHaveLength(19);
-    expect(within(rowsShown()[3]).getByText('CPLM-010 · G3')).toBeTruthy();
+    expect(within(rowsShown()[3]).getByText('G3')).toBeTruthy();
+    expect(within(list()).queryByText(/CPLM-\d+/)).toBeNull();
     expect(within(list()).queryByText('Gate')).toBeNull();
     expect(within(list()).queryByText('ID')).toBeNull();
     expect(screen.queryByText(/Page \d of/)).toBeNull();
@@ -142,7 +143,7 @@ describe('Calculations list head', () => {
   it('finds calculations by the loop unit as well as the catalogue unit', () => {
     mount();
     fireEvent.change(screen.getByLabelText('Find calculation'), { target: { value: 'kg/h' } });
-    expect(rowsShown().map(r => within(r).getByText(/CPLM-\d+ ·/).textContent)).toEqual(['CPLM-010 · G3', 'CPLM-011 · G3', 'CPLM-012 · G3', 'CPLM-013 · G3']);
+    expect(rowsShown().map(r => r.querySelector('.cpm-event-row__title')?.textContent)).toEqual(['Mean absolute error', 'Root-mean-square error', 'Integral absolute error', 'Integral squared error']);
   });
 
   it('filters by gate result', () => {

@@ -6,6 +6,7 @@
  * CHG-169 (owner review): the bundle's Shadow tab. Run shadow is the one control (the lifecycle column's Shadow button only
  * switched to this tab); "Shadow evaluation ○ Not run ?" heads it. A frozen version no longer reads "Validate the bundle first"
  * (it is validated; why it cannot run is said once, under the tabs). Times read "6 Nov 10:45", the zone named once.
+ * CHG-184 (owner review item 0): the run row names the loop only, never the run id.
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -62,7 +63,7 @@ export const ShadowComparison: React.FC<{
           </Toggletip>
         </div>
       </div>
-      {shadow?.analysisRunId && <KvRow label="Run">{shadow.analysisRunId.slice(0, 8)} on {shadow.loopId}</KvRow>}
+      {shadow?.analysisRunId && <KvRow label="Run on">{shadow.loopId}</KvRow>}
       <div className="cpm-config-inline">
         <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Loop</span>
           <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} placeholder="loop id" disabled={bundle.scopeKind === 'LOOP'} /></label>

@@ -54,7 +54,7 @@ export function legacyAvailability(e: Pick<CpmEventFrame, 'availability_state'>)
 export function availabilityCopy(e: CpmEventFrame): string {
   const a = availabilityOf(e);
   const c = conditionOf(e);
-  if (a === 'LEGACY') return 'Recorded before v2.5: availability was not tracked separately from the condition.';
+  if (a === 'LEGACY') return 'An older record: availability was not tracked separately from the condition.';
   if (c === 'CLOSED') {
     return e.close_reason === 'RECOVERED'
       ? 'Closed by an evaluable, fault-free result with enough qualified support.'

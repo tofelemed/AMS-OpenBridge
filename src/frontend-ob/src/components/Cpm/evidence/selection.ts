@@ -32,8 +32,11 @@ export function selectionSearch(s: EvidenceSelection): string {
   return p.toString();
 }
 
-/** The Workbench's four tabs, in `?sub=`. An unknown or absent value is Proof. */
-export const WORKBENCH_TABS = ['proof', 'rules', 'signal', 'identity'] as const;
+/**
+ * The Workbench's three tabs, in `?sub=`. An unknown or absent value is Proof. CHG-184: Identity & raw went, so an old link
+ * with `sub=identity` lands on Proof.
+ */
+export const WORKBENCH_TABS = ['proof', 'rules', 'signal'] as const;
 export type WorkbenchTab = typeof WORKBENCH_TABS[number];
 export const tabOf = (sub: string | null): WorkbenchTab => (WORKBENCH_TABS as readonly string[]).includes(sub ?? '') ? sub as WorkbenchTab : 'proof';
 

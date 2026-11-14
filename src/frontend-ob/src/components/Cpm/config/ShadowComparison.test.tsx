@@ -65,4 +65,11 @@ describe('ShadowComparison', () => {
     expect((screen.getByRole('button', { name: 'Starting…' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('alert').textContent).toMatch(/validate the draft first/);
   });
+
+  it('names the loop a shadow run used, never the run id (CHG-184)', () => {
+    vi.mocked(fetchMod.apiJson).mockImplementation(() => new Promise(() => {}));
+    view(bundle({ shadow: { analysisRunId: '7c1e04a2-9b3d-4e5f-a1b2-c3d4e5f60718', loopId: 'FIC10301' } }));
+    expect(screen.getByText('Run on')).toBeTruthy();
+    expect(screen.queryByText(/7c1e04a2/)).toBeNull();
+  });
 });

@@ -8,14 +8,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { CpmLoop } from '../../../api/cpmApi';
-import { useCpmCalculations, useLatestGates } from '../../../hooks/useCpm';
+import { useCpmCalculations } from '../../../hooks/useCpm';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Toggletip } from '../../../ui/Toggletip';
 import { EmptyState, KvRow, PanelHead } from '../shared';
 import { explorerHref, registryHref } from '../cpaHref';
 
-/** `windowKind`: the Explorer's fused window (CHG-089, 12h default). */
-export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> = ({ loop, windowKind = '12h' }) => {
+/** CHG-184 (owner review item 0): the lineage names no engine and no calculation version, so it reads no latest verdict. */
+export const RelationshipsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const navigate = useNavigate();
   // The gate count was hardcoded as "17 gates". The catalogue endpoint reports
   // what the engine actually computes (and which gates have been observed in
@@ -23,14 +23,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> 
   const calc = useCpmCalculations();
   const gates = calc.data?.gates ?? [];
   const observed = gates.filter(g => g.observedInResults).length;
-  const gatesSub = gates.length
-    ? `${gates.length} gates (${observed} observed) · ${calc.data?.engine ?? 'Flink'}`
-    : 'gate catalogue unavailable';
-
-  // Evidence node: name the stores this loop's evidence actually lands in, and
-  // the calculation version that produced the latest verdict.
-  const latest = useLatestGates(loop.loopId, windowKind);
-  const version = latest.data?.metadata.calculationVersion;
+  const gatesSub = gates.length ? `${gates.length} gates (${observed} observed)` : 'gate catalogue unavailable';
 
   const nodes = [
     { title: 'UNS signals', sub: Object.keys(loop.tags).join(' · ') || 'none mapped' },
@@ -39,12 +32,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop; windowKind?: string }> 
       sub: [loop.loopType, loop.criticality].filter(Boolean).join(' · ') || 'Control loop',
     },
     { title: 'CPLM pack', sub: gatesSub },
-    {
-      title: 'Evidence',
-      sub: version
-        ? `Gate results · event frames · KPI series · calc ${version}`
-        : 'Gate results · event frames · KPI series',
-    },
+    { title: 'Evidence', sub: 'Gate results · event frames · KPI series' },
   ];
 
   return (

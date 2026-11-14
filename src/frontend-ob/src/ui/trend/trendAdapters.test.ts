@@ -24,7 +24,7 @@ describe('trendPointsToPane', () => {
   });
 
   it('says % only with a declared range', () => {
-    expect(axisName(trendPointsToPane(points).axes[1])).toBe('Controller output (unit not set)');
+    expect(axisName(trendPointsToPane(points).axes[1])).toBe('Controller output');
     expect(axisName(trendPointsToPane(points, { outputRange: { min: 0, max: 100 } }).axes[1])).toBe('Controller output (%)');
   });
 
@@ -87,7 +87,7 @@ describe('pensToPane', () => {
   it('gives one axis per unit, and never guesses a unit', () => {
     const pane = pensToPane('p', pens);
     expect(pane.axes.map(a => a.unit)).toEqual(['kg/h', null]);
-    expect(axisName(pane.axes[1])).toBe('Value (unit not set)');
+    expect(axisName(pane.axes[1])).toBe('Value');
   });
 
   it('dashes a setpoint pen and numbers the others in palette order', () => {

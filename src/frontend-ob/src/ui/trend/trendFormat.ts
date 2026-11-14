@@ -7,7 +7,8 @@ import { zoneAbbr } from '../../cpa/siteTime';
 import type { ZoomRange } from '../../components/charts/boxZoom';
 import type { Interval, TrendAxis, TrendX } from './trendTypes';
 
-export const UNIT_NOT_SET = 'unit not set';
+/** CHG-184 (owner review item 12): a label with no unit is the label alone, never "unit not set". */
+export const withUnit = (label: string, unit: string | null) => (unit ? `${label} (${unit})` : label);
 export const NO_SAMPLE = 'No sample';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -23,14 +24,14 @@ export function axisUnit(axis: TrendAxis): string | null {
   return unit === '%' ? null : unit;
 }
 
-export const axisName = (axis: TrendAxis) => `${axis.label} (${axisUnit(axis) ?? UNIT_NOT_SET})`;
+export const axisName = (axis: TrendAxis) => withUnit(axis.label, axisUnit(axis));
 
 /** Six significant figures: enough for a reading, and no float noise. */
 export const numberText = (v: number) => String(Number(v.toPrecision(6)));
 
 export function valueText(value: number | null, unit: string | null): string {
   if (value == null) return NO_SAMPLE;
-  return unit ? `${numberText(value)} ${unit}` : `${numberText(value)} (${UNIT_NOT_SET})`;
+  return unit ? `${numberText(value)} ${unit}` : numberText(value);
 }
 
 const clock = (ms: number, zone: string, seconds: boolean, year: boolean) => {
@@ -85,7 +86,7 @@ export function xFormat(x: TrendX, zone: string): XFormat {
       tick: () => numberText,
       cursor: v => `${x.label} ${named(v)}`,
       span: w => `${numberText(w.from)} to ${named(w.to)}`,
-      name: () => `${x.label} (${unit ?? UNIT_NOT_SET})`,
+      name: () => withUnit(x.label, unit),
     };
   }
   return {

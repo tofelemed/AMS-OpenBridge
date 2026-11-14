@@ -1,6 +1,7 @@
 /**
- * Task 25: one effective property in a dialog: the facts the table row leaves out (the catalogue id, unit, type, default, what it
- * does) beside its value, the layer it comes from and its change class. Read-only; every value is the server's resolution.
+ * Task 25: one effective property in a dialog: the facts the table row leaves out (unit, type, default, what it does) beside its
+ * value, the layer it comes from and its change class. Read-only; every value is the server's resolution. CHG-184 (owner review
+ * item 0): no catalogue id, no build wording.
  */
 import React from 'react';
 import { Dialog } from '../../../ui/Dialog';
@@ -20,16 +21,15 @@ export const EffectivePropertyDialog: React.FC<{
   <Dialog open title={property} onClose={onClose}>
     <KvRow label="Value"><span className="cpm-mono">{valueText(value)}</span></KvRow>
     <KvRow label="Source">{isLayerSource(source) ? <TonePill tone={source === 'FACTORY' ? 'muted' : 'good'}>{source}</TonePill> : 'unset'}</KvRow>
-    {!entry && <p className="cpm-copy">The catalogue is not loaded, so class, id and unit are not shown.</p>}
+    {!entry && <p className="cpm-copy">The catalogue is not loaded, so class and unit are not shown.</p>}
     {entry && (
       <>
         <KvRow label="Class"><TonePill tone={classTone(entry.changeClass)}>{entry.changeClass}</TonePill></KvRow>
-        <KvRow label="Id"><span className="cpm-mono">{entry.id}</span></KvRow>
         <KvRow label="Unit">{entry.unit || '—'}</KvRow>
         <KvRow label="Type">{entry.type}</KvRow>
         <KvRow label="Factory default"><span className="cpm-mono">{valueText(entry.default)}</span></KvRow>
         {entry.effect && <KvRow label="What it does">{entry.effect}</KvRow>}
-        {entry.notReadByBuild && <KvRow label="Not read by this build">{entry.notReadByBuild}</KvRow>}
+        {entry.notReadByBuild && <KvRow label="Not used">{entry.notReadByBuild}</KvRow>}
       </>
     )}
   </Dialog>

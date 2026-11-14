@@ -1,9 +1,9 @@
 // CHG-170 (owner answer 1): the selected job in a panel beside the list (today's job dialog; a drawer below 1280 px): the role as
-// eyebrow, the job once, its state; the five numbers; a missing job says why it has no numbers. The engine's name, id and start
-// time sit in Record details ("Started · UTC" over "7 Nov 00:00").
+// eyebrow, the job once, its state; the five numbers; a missing job says why it has no numbers. CHG-184 (owner review Q1, Q6):
+// no Record details: the engine's raw job name, job id and start time are not shown.
 import React from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { setActiveZone } from '../../../cpa/activeZone';
 import JobPanel from './JobPanel';
 import type { JobRow } from './mergeJobs';
@@ -48,13 +48,10 @@ describe('JobPanel', () => {
     expect(screen.queryByText('Record details')).toBeNull();
   });
 
-  it('keeps the engine name, id and start time in Record details', () => {
+  it('has no Record details and shows no engine job id or raw job name (CHG-184)', () => {
     render(<JobPanel job={row()} open onClose={() => {}} />);
-    fireEvent.click(screen.getByText('Record details'));
-    const dialog = screen.getByRole('dialog', { name: 'Record details' });
-    expect(within(dialog).getByText('AMS - CPLM Gate Fusion Engine')).toBeTruthy();
-    expect(within(dialog).getByText('0f5aa1b5')).toBeTruthy();
-    expect(within(dialog).getByText('Started · UTC')).toBeTruthy();
-    expect(within(dialog).getByText('7 Nov 00:00')).toBeTruthy();
+    expect(screen.queryByText('Record details')).toBeNull();
+    expect(screen.queryByText(/0f5aa1b5/)).toBeNull();
+    expect(screen.queryByText('AMS - CPLM Gate Fusion Engine')).toBeNull();
   });
 });

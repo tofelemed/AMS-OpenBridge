@@ -27,7 +27,7 @@ describe('layerStack', () => {
   it('says where a present layer comes from: the class pack, or the bundle at that level', () => {
     const withBundle = eff({ state: 'ACTIVE_VERIFIED', bundle: { bundleId: 'b', version: 2, contentHash: 'f9153b00aaf3ba1a', scopeKind: 'LOOP', scopeRef: 'TIC10101', changeClass: 'POLICY', effectiveFrom: '2026-09-17T06:36:16Z', catalogueHash: 'c' } });
     const stack = layerStack(withBundle);
-    expect(stack.find(l => l.kind === 'LOOP')?.origin).toBe('bundle LOOP v2 · f9153b00');
+    expect(stack.find(l => l.kind === 'LOOP')?.origin).toBe('bundle LOOP v2');
     expect(stack.find(l => l.kind === 'PROFILE')?.origin).toBe('class pack');
     expect(stack.find(l => l.kind === 'FACTORY')?.origin).toBe('shipped defaults');
   });
@@ -82,8 +82,8 @@ describe('real-data semantics (lab 2026-09-18)', () => {
 });
 
 describe('bundleLabel', () => {
-  it('names a bundle by level, version and short hash', () => {
-    expect(bundleLabel({ scopeKind: 'LOOP', version: 2, contentHash: 'f9153b00aaf3ba1a3b19' })).toBe('LOOP v2 · f9153b00');
+  it('names a bundle by level and version, with no hash (CHG-184)', () => {
+    expect(bundleLabel({ scopeKind: 'LOOP', version: 2 })).toBe('LOOP v2');
     expect(bundleLabel(null)).toBe('factory layer');
   });
 });

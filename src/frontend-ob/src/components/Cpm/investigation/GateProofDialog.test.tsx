@@ -67,7 +67,7 @@ describe('GateProofDialog', () => {
   it('disables Workbench with its reason when a row has no run id', () => {
     open(matrix({ gates: [cell({ methodRunId: null })], methodRunIds: {} }));
     expect((screen.getByRole('button', { name: 'Workbench ↗' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Stored before analysis runs were kept (before v2.5), so there is no run to open')).toBeTruthy();
+    expect(screen.getByText('Stored before analysis runs were kept, so there is no run to open')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Replay ↗' }) as HTMLButtonElement).disabled).toBe(false);
   });
 

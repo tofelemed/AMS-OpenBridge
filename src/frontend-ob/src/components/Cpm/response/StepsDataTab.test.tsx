@@ -1,8 +1,8 @@
-// CHG-165: Steps & data: how the kernel decided. Steps A–H as cards (outputs on demand), the event's identity, and every
+// CHG-165: Steps & data: how the kernel decided. Steps A–H as cards (outputs on demand), the event (CHG-184: no ids or versions), and every
 // quantity, the reported ones first; not-applicable rows stay listed, muted, with their reason, never as 0.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
 import { StepsDataTab } from './StepsDataTab';
 
@@ -27,7 +27,7 @@ const result: ResponseEventDetail['result'] = {
     E: { state: 'WAITING', outputs: { reason: 'NO_INDEPENDENT_EVENT_YET' } },
   },
 };
-const draw = () => render(<StepsDataTab result={result} metrics={metrics} timeZone="UTC" methodRunId="r1" resultRevision={1} pvUnit="m3/h" />);
+const draw = () => render(<StepsDataTab result={result} metrics={metrics} timeZone="UTC" pvUnit="m3/h" />);
 
 describe('StepsDataTab', () => {
   it('shows the eight steps with their state and reason, outputs behind a disclosure', () => {
@@ -40,11 +40,14 @@ describe('StepsDataTab', () => {
     expect(steps[0].querySelector('details summary')?.textContent).toBe('2 outputs');
   });
 
-  it('names the event once: window, eligibility and finding, method, run, bundle and purpose', () => {
+  it('names the event once: window, eligibility and finding, purpose; no method code, run, bundle or revision (CHG-184)', () => {
     draw();
     expect(screen.getByText('Window').parentElement!.textContent).toMatch(/^Window\s*17 Sept? 03:25 → 17 Sept? 03:28 UTC$/);
     expect(screen.getByText(/Eligible · response characterised/)).toBeTruthy();
-    expect(screen.getByText(/LIVE · rev 1/)).toBeTruthy();
+    expect(screen.getByText('Purpose').parentElement!.textContent).toBe('PurposeLIVE');
+    const event = screen.getByRole('region', { name: 'Event' });
+    for (const gone of ['Method', 'Run', 'Bundle']) expect(within(event).queryByText(gone)).toBeNull();
+    expect(event.textContent).not.toMatch(/f9153b00|rev /);
   });
 
   it('lists the reported quantities first and every one on request, not-applicable rows muted with their reason', () => {

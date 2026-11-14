@@ -1,7 +1,7 @@
 // CHG-170 (owner answer 1): one list grouped Alarm · CPLM · Platform in the supervisor's order; a missing job says "Not listed by
 // the engine" once on its row; ◐ Starting for the transitional states; the jobs off the required list as their own group with
-// their state (answer 3d). A row selects its job; the foot opens Engine details (today's Technical details, without "JobManager
-// answering": the tile says it).
+// their state (answer 3d). A row selects its job. CHG-184 (owner review Q1): no Engine details (JobManager address, jobs off the
+// list), no foot.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -31,9 +31,8 @@ const rows = [
   job('AMS - Analysis Execution Engine', 'platform', 'MISSING'),
   job('AMS - CPLM On-Demand Evaluation', null, 'RUNNING', { checkpoint: null, uptimeSec: null }),
 ];
-const engine = { jobManagerUrl: 'http://flink-jobmanager:8081', unexpectedJobs: ['AMS - CPLM On-Demand Evaluation'] };
 const mount = (props: Partial<React.ComponentProps<typeof JobList>> = {}) =>
-  render(<JobList rows={rows} selected="AMS - CPLM Short Feature Engine" onSelect={() => {}} showRows engine={engine} {...props} />);
+  render(<JobList rows={rows} selected="AMS - CPLM Short Feature Engine" onSelect={() => {}} showRows {...props} />);
 
 describe('JobList', () => {
   it('groups the jobs Alarm, CPLM, Platform and the jobs off the list, in order', () => {
@@ -79,15 +78,10 @@ describe('JobList', () => {
     expect(onSelect).toHaveBeenLastCalledWith('AMS - Analysis Execution Engine');
   });
 
-  it('opens Engine details from its foot: the address and the jobs off the list, no answering row', () => {
+  it('has no Engine details: no JobManager address (CHG-184)', () => {
     mount();
-    fireEvent.click(screen.getByText('Engine details'));
-    const dialog = screen.getByRole('dialog', { name: 'Engine details' });
-    expect(within(dialog).getByText('JobManager address')).toBeTruthy();
-    expect(within(dialog).getByText('http://flink-jobmanager:8081')).toBeTruthy();
-    expect(within(dialog).getByText('Jobs the engine runs that are not required')).toBeTruthy();
-    expect(within(dialog).getByText('AMS - CPLM On-Demand Evaluation')).toBeTruthy();
-    expect(within(dialog).queryByText(/JobManager answering/)).toBeNull();
+    expect(screen.queryByText('Engine details')).toBeNull();
+    expect(screen.queryByText(/JobManager|flink-jobmanager/)).toBeNull();
   });
 
   it('shows its notice in place of the rows and hides the header with them', () => {
@@ -95,6 +89,5 @@ describe('JobList', () => {
     expect(screen.getByText('The analysis engine did not answer')).toBeTruthy();
     expect(container.querySelector('.cpm-event-head')).toBeNull();
     expect(screen.queryByText('CPLM Short Feature Engine')).toBeNull();
-    expect(screen.getByText('Engine details')).toBeTruthy();
   });
 });

@@ -26,10 +26,12 @@ describe('classifyGateResult', () => {
   it('NO_RESULT when the method run cannot be resolved', () => {
     expect(classifyGateResult(base({ cell: null, methodRun: null })).kind).toBe('NO_RESULT');
   });
-  it('UNSUPPORTED_METHOD when the build has no method for the gate, with the capability reason', () => {
+  it('UNSUPPORTED_METHOD when the gate has no method, with the reason in words and no build wording or method code (CHG-184)', () => {
     const s = classifyGateResult(base({ catalogue: { capabilityState: 'UNAVAILABLE', capabilityReason: 'INTERACTION_METHOD_NOT_INSTALLED', method: { id: 'G13.PEER_LINK_FLAG', version: 'legacy', state: 'LEGACY_FLAG_ONLY' } } }));
     expect(s.kind).toBe('UNSUPPORTED_METHOD');
-    expect(s.detail).toContain('INTERACTION_METHOD_NOT_INSTALLED');
+    expect(s.title).toBe('Method not available');
+    expect(s.detail).toMatch(/^Reason: /);
+    expect(`${s.title} ${s.detail}`).not.toMatch(/build|G13.PEER_LINK_FLAG|LEGACY_FLAG_ONLY/);
   });
   it('NOT_EVALUATED is a verdict, distinct from missing evidence', () => {
     expect(classifyGateResult(base({ cell: { key: 'G5', status: 'NOT_EVALUATED', reason: 'G0_FAIL' } })).kind).toBe('NOT_EVALUATED');

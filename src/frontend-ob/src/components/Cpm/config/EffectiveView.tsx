@@ -2,14 +2,14 @@
  * 2026-09-18 Gate Configuration redesign: the configuration a loop actually runs under, READ rather than
  * dumped. The layer stack (FACTORY → PROFILE → SITE → LOOP) says what each layer sets and where it comes
  * from; the gate dropdown says how many of each gate's properties a layer above FACTORY sets; one gate's
- * table shows at a time; a search crosses gates; the workers fold to one line with a tone. Opened from a
- * gate result it names the bundle THAT run carried and says plainly when it is not the one active today.
+ * table shows at a time; a search crosses gates; the workers fold to one line with a tone. CHG-184: no hash,
+ * jar or run bundle (the Workbench's "Configuration used by this run" went).
  * Read-only: every value is the server's resolution.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
-import { bundleLabel, isLayerSource, layerStack, overridesByGate, shortHash, valueText } from './configSupport';
+import { bundleLabel, isLayerSource, layerStack, overridesByGate, valueText } from './configSupport';
 import { Toggletip } from '../../../ui/Toggletip';
 import { EffectivePropertyDialog, classTone } from './EffectivePropertyDialog';
 
@@ -18,10 +18,6 @@ const gateRank = (g: string) => { const i = GATE_ORDER.indexOf(g); return i < 0 
 
 export interface EffectiveViewProps {
   eff: EffectiveConfig;
-  /** From a gate result: the bundle that run carried; a mismatch with today's is an alert. */
-  runBundleHash?: string | null;
-  /** Open on this gate (a G-key) instead of the first one. */
-  initialGate?: string;
   /** The catalogue, when loaded: adds the change class per row. */
   catalogue?: Map<string, CatalogueEntry>;
   /** A drawer inside another page: no layer stack, the table only. */
@@ -30,7 +26,7 @@ export interface EffectiveViewProps {
   openWorkersSignal?: number;
 }
 
-export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash, initialGate, catalogue, compact, openWorkersSignal }) => {
+export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, catalogue, compact, openWorkersSignal }) => {
   const [query, setQuery] = useState('');
   const [opened, setOpened] = useState<string | null>(null);
   const workersBox = useRef<HTMLDetailsElement>(null);
@@ -38,25 +34,16 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
   useEffect(() => { if (openWorkersSignal && workersBox.current) workersBox.current.open = true; }, [openWorkersSignal]);
   const gates = useMemo(() => overridesByGate(eff), [eff]);
   const gateKeys = useMemo(() => Object.keys(gates).sort((a, b) => gateRank(a) - gateRank(b)), [gates]);
-  const [picked, setPicked] = useState<string | null>(initialGate && gates[initialGate] ? initialGate : null);
+  const [picked, setPicked] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
   const matching = useMemo(() => Object.keys(eff.properties).filter(k => !q || k.toLowerCase().includes(q)).sort(), [eff.properties, q]);
   const visibleGates = q ? gateKeys.filter(g => matching.some(k => k.startsWith(`${g}.`))) : gateKeys;
   const gate = q ? null : (picked && gates[picked] ? picked : gateKeys[0] ?? null);
   const rows = (gate ? matching.filter(k => k.startsWith(`${gate}.`)) : matching);
   const stack = useMemo(() => layerStack(eff), [eff]);
-  const runDiffers = !!runBundleHash && (eff.bundle ? eff.bundle.contentHash !== runBundleHash : !runBundleHash.startsWith('profile:') && runBundleHash !== 'legacy');
 
   return (
     <div className="cpm-config-effective" data-testid="effective-config">
-      {runBundleHash && (
-        <p className={runDiffers ? 'cpm-field__error' : 'cpm-copy'} role={runDiffers ? 'alert' : undefined} data-testid="run-bundle-note">
-          {runDiffers
-            ? `The selected result was computed under bundle ${shortHash(runBundleHash, 16)}, which is NOT the configuration active for this loop today; the values below are what runs now, not what that result used.`
-            : `The selected result was computed under this configuration (${shortHash(runBundleHash, 16)}).`}
-        </p>
-      )}
-
       {!compact && (
         <>
           <PanelHead title="Where each value comes from"
@@ -110,12 +97,12 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, runBundleHash
       <details className="cpm-config-workers" id="config-workers" ref={workersBox}>
         <summary>APPLY acknowledgements</summary>
         <table className="cpm-table" data-table="effective-workers">
-          <thead><tr><th>job</th><th>jar</th><th>catalogue</th><th>applied</th></tr></thead>
+          <thead><tr><th>job</th><th>applied</th></tr></thead>
           <tbody>
             {eff.workers.map(w => (
               <tr key={w.jobName}>
-                <td>{w.jobName}</td><td className="cpm-mono">{shortHash(w.jarSha256, 8)}</td><td className="cpm-mono">{shortHash(w.catalogueHash, 8)}</td>
-                <td>{w.required === false ? <span className="cpm-muted">observer · reads no property</span> : w.ack ? <><TonePill tone={w.ack.status === 'ACK' ? 'good' : 'bad'}>{w.ack.status}</TonePill> <span className="cpm-mono">{shortHash(w.ack.bundleHash, 8)}</span></> : eff.bundle ? <TonePill tone="muted">no ACK recorded</TonePill> : <span className="cpm-copy">factory layer</span>}</td>
+                <td>{w.jobName}</td>
+                <td>{w.required === false ? <span className="cpm-muted">observer · reads no property</span> : w.ack ? <><TonePill tone={w.ack.status === 'ACK' ? 'good' : 'bad'}>{w.ack.status}</TonePill>{eff.bundle && w.ack.bundleHash !== eff.bundle.contentHash ? ' for another bundle' : ''}</> : eff.bundle ? <TonePill tone="muted">no ACK recorded</TonePill> : <span className="cpm-copy">factory layer</span>}</td>
               </tr>
             ))}
           </tbody>

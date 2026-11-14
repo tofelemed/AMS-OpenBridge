@@ -40,7 +40,7 @@ const FAILURES: [RegExp, string][] = [
   [/^HISTORIAN_UNAVAILABLE/, 'The historian did not answer. Try again in a minute.'],
   [/^TOO_MANY_ROWS/, 'The window holds more samples than one evaluation reads. Pick a shorter window.'],
   [/^REQUEST_EXPIRED/, 'The evaluation job picked the request up too late (it was busy or restarting). Evaluate again.'],
-  [/^NO_RESPONSE_FROM_EVALUATION_JOB/, 'The evaluation job did not answer. It may not be running - ask an administrator to check the "CPLM On-Demand Evaluation" Flink job.'],
+  [/^NO_RESPONSE_FROM_EVALUATION_JOB/, 'The evaluation job did not answer. It may not be running - ask an administrator to check the "CPLM On-Demand Evaluation" job.'],
   [/^UNSUPPORTED_MODE/, 'The evaluation job does not support this request. The job and the server versions differ.'],
 ];
 
@@ -73,7 +73,7 @@ const REFUSALS: Record<string, string> = {
   // The page sends no Idempotency-Key, so this 409 is the server's re-check: the run the request matched belongs to another
   // loop. A second attempt matches the same run, so "try again" is not offered.
   IDEMPOTENCY_KEY_REUSED: "This window matched a run of another loop, so it cannot be used. Trying again will not help: report it to an administrator.",
-  ANALYSIS_RUN_SUBMIT_FAILED: 'The request could not be handed to the evaluation job (Kafka). Try again.',
+  ANALYSIS_RUN_SUBMIT_FAILED: 'The request could not be handed to the evaluation job. Try again.',
 };
 
 /** A refused POST in plain words. */

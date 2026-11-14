@@ -27,7 +27,8 @@ describe('evidence basis (SME review 2 #18)', () => {
     const b = basisOf(M(), 'ar1', 'UTC');
     expect(b).toMatchObject({ kind: 'RECONSTRUCTION', label: 'Reconstructed evidence', tone: 'warn' });
     expect(b.detail).toMatch(/2026-10-15 08:00:00 from the historian · 1 artifact\(s\) differ from the retained proof · 2 identical/);
-    expect(b.detail).toMatch(/commit abcdef12; the retained proof is unchanged/);
+    expect(b.detail).toMatch(/The retained proof is unchanged/);
+    expect(b.detail).not.toMatch(/commit|abcdef12|build/);   // CHG-184: no build commit
   });
 
   it('rebuilt arrays of a lost original say so', () => {

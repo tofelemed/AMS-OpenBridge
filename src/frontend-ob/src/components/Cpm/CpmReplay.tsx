@@ -235,7 +235,7 @@ export const CpmReplay: React.FC = () => {
                 <span className="cpm-copy">
                   {`${windowSpan(selected, timeZone)} · ${selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-GB')} samples` : 'samples not reported'}`}
                 </span>
-                <TonePill tone="muted">{selected.metadata.replayId ? `Re-run ${selected.metadata.replayId}` : 'Original run · pinned'}</TonePill>
+                <TonePill tone="muted">{selected.metadata.replayId ? 'Re-run' : 'Original run · pinned'}</TonePill>
                 <ObcButton variant="flat" onClick={() => setDialog('details')}>Run details</ObcButton>
               </div>
             </section>

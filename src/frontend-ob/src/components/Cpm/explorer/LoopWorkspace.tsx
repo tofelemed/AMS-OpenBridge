@@ -67,7 +67,7 @@ export const LoopWorkspace: React.FC<LoopWorkspaceProps> = ({ loop, tab, windowK
         {tab === 'Summary' && <SummaryTab loop={loop} windowKind={windowKind} onTab={onTab} />}
         {tab === 'Signals' && <SignalsTab loop={loop} />}
         {tab === 'Calculations' && <CalculationsTab loop={loop} pageWindowKind={windowKind} />}
-        {tab === 'Relationships' && <RelationshipsTab loop={loop} windowKind={windowKind} />}
+        {tab === 'Relationships' && <RelationshipsTab loop={loop} />}
         {tab === 'History' && <HistoryTab loop={loop} />}
       </div>
     </section>

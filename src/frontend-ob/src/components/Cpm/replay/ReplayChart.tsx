@@ -23,7 +23,7 @@ export interface ReplayChartInput {
   cursorTs: number | null;
   phasePlane: boolean;
   palette: ChartPalette;
-  /** CHG-047: the registered PV unit; blank = not set (never a fake "EU"). */
+  /** CHG-047: the registered PV unit; blank = not set (never a fake "EU"; the axis then names no unit, CHG-184). */
   pvUnit: string;
   timeZone: string;
   zoom?: ZoomState;
@@ -49,7 +49,7 @@ export function buildReplayOption(i: ReplayChartInput) {
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, zoom),
       tooltip: { ...base.tooltip, trigger: 'item' as const },
       xAxis: { ...axis, type: 'value' as const, name: 'OP (%)', scale: true },
-      yAxis: { ...axis, type: 'value' as const, name: `PV (${pvUnit || 'unit not set'})`, scale: true, splitLine: faintGrid },
+      yAxis: { ...axis, type: 'value' as const, name: pvUnit ? `PV (${pvUnit})` : 'PV', scale: true, splitLine: faintGrid },   // CHG-184: no "unit not set"
       series: [
         { name: 'trajectory', type: 'scatter' as const, symbolSize: 3, itemStyle: { color: tick, opacity: 0.35 },
           data: pairs.filter(p => cursorTs == null || p.ts > cursorTs).map(p => [p.op, p.pv]) },

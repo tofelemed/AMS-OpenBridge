@@ -1,4 +1,5 @@
-// CHG-140: "Configuration this run used" reads the configuration as of the run's window, not today's.
+// The Loop Explorer's drawer reads the configuration in force now. CHG-184: the Workbench's "Configuration this run used"
+// (the run's instant) went with the Rules & parameters Configuration section.
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,14 +16,10 @@ import { EffectiveConfigDrawer } from './EffectiveConfigDrawer';
 afterEach(() => { cleanup(); useEffectiveConfig.mockClear(); });
 
 describe('EffectiveConfigDrawer', () => {
-  it('passes the run window end as the instant to read at', () => {
-    render(<MemoryRouter><EffectiveConfigDrawer loopId="FIC10401" at="2026-10-05T12:30:00.000Z" /></MemoryRouter>);
-    expect(useEffectiveConfig).toHaveBeenCalledWith('FIC10401', '2026-10-05T12:30:00.000Z');
-    expect(screen.getByText('Configuration this run used')).toBeTruthy();
-  });
-  it('without an instant it reads the configuration in force now', () => {
+  it('reads the configuration in force now', () => {
     render(<MemoryRouter><EffectiveConfigDrawer loopId="FIC10401" /></MemoryRouter>);
-    expect(useEffectiveConfig).toHaveBeenCalledWith('FIC10401', undefined);
+    expect(useEffectiveConfig).toHaveBeenCalledWith('FIC10401');
     expect(screen.getByText('Effective configuration')).toBeTruthy();
+    expect(screen.queryByText('Configuration this run used')).toBeNull();
   });
 });

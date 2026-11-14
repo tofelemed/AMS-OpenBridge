@@ -1,5 +1,5 @@
 /**
- * Task 15: Reconstruct evidence asks first. It names what will be rebuilt (loop, gate, window, run) and sends nothing until
+ * Task 15: Reconstruct evidence asks first. It names what will be rebuilt (loop, gate, window; CHG-184: no run id) and sends nothing until
  * confirmed. The dialog shows the real state of the request: in flight, or the service's refusal. An acceptance is the
  * page's to state, after the service has acknowledged; the dialog closes then, and never claims it.
  */
@@ -13,14 +13,13 @@ export interface ReconstructDialogProps {
   /** "G5 Oscillation (ACF)". */
   gate: string;
   windowText: string;
-  runId: string;
   state: 'idle' | 'pending' | 'error';
   error?: string;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, runId, state, error, onConfirm, onClose }) => (
+export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, state, error, onConfirm, onClose }) => (
   <Dialog
     open={open}
     onClose={onClose}
@@ -37,7 +36,6 @@ export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loop
       <dt>Loop</dt><dd>{loopId}</dd>
       <dt>Gate</dt><dd>{gate}</dd>
       <dt>Window</dt><dd>{windowText}</dd>
-      <dt>Run</dt><dd className="cpm-mono">{runId}</dd>
     </dl>
     {state === 'error' && <p className="cpm-field__error" role="alert">Reconstruction refused: {error}</p>}
   </Dialog>

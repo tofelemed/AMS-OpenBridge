@@ -315,7 +315,7 @@ export function snapshotSentence(s: CursorSnapshot): string {
 export function describeTrend(model: TrendModel, heading: string, plotted: string): string {
   const signals = model.series.map(s => {
     const unit = axisUnit(s.axis.axis);
-    return unit ? `${s.source.label} in ${unit}` : `${s.source.label}, unit not set`;
+    return unit ? `${s.source.label} in ${unit}` : s.source.label;
   });
   const gaps = model.panes.reduce((n, p) => n + p.noSample.length, 0);
   const lanes = model.lanes.map(l => `${l.label} lane with ${l.segments.length} ${l.segments.length === 1 ? 'segment' : 'segments'}`);

@@ -7,6 +7,7 @@
  * factory"); rows of the name over its class, the value with its unit, the source in words, in catalogue order (they were
  * alphabetical while the editor kept catalogue order). The selected property opens in the panel beside the list (a drawer below
  * 1280 px), in place of the property dialog. The foot says the workers in one line and opens Workers. `?gate=` opens that gate.
+ * CHG-184 (owner review item 0): no catalogue id, no build wording.
  */
 import React, { useMemo, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -45,10 +46,10 @@ const LayerStrip: React.FC<{ eff: EffectiveConfig }> = ({ eff }) => (
 );
 
 const PropertyPanel: React.FC<{ eff: EffectiveConfig; property: string; entry: CatalogueEntry | undefined; open: boolean; onClose: () => void }> = ({ eff, property, entry, open, onClose }) => (
-  <Inspector title={property} meta={entry ? <span className="cpm-mono">{entry.id}</span> : undefined} open={open} onClose={onClose}>
+  <Inspector title={property} open={open} onClose={onClose}>
     <KvRow label="Value"><span className="cpm-mono">{entry ? valueWithUnit(eff.properties[property], entry.unit) : valueWords(eff.properties[property])}</span></KvRow>
     <KvRow label="Source">{sourceFull(eff.sources[property], eff.bundle, eff.profileId)}</KvRow>
-    {!entry && <p className="cpm-copy">The catalogue is not loaded, so class, id and unit are not shown.</p>}
+    {!entry && <p className="cpm-copy">The catalogue is not loaded, so class and unit are not shown.</p>}
     {entry && (
       <>
         <div className="cpm-kv">
@@ -59,7 +60,7 @@ const PropertyPanel: React.FC<{ eff: EffectiveConfig; property: string; entry: C
         <KvRow label="Type">{entry.type}</KvRow>
         <KvRow label="Factory default"><span className="cpm-mono">{valueWithUnit(entry.default, entry.unit)}</span></KvRow>
         {entry.effect && <KvRow label="What it does">{entry.effect}</KvRow>}
-        {entry.notReadByBuild && <KvRow label="Not read by this build">{entry.notReadByBuild}</KvRow>}
+        {entry.notReadByBuild && <KvRow label="Not used">{entry.notReadByBuild}</KvRow>}
       </>
     )}
   </Inspector>
@@ -136,7 +137,7 @@ export const LoopEffective: React.FC<{
         </div>
       </section>
       {selected && <PropertyPanel eff={eff} property={selected} entry={byKey.get(selected)} open={drawer} onClose={() => setDrawer(false)} />}
-      <WorkersDialog eff={eff} catalogue={catalogue} open={workersOpen} onClose={() => setWorkersOpen(false)} />
+      <WorkersDialog eff={eff} open={workersOpen} onClose={() => setWorkersOpen(false)} />
     </div>
   );
 };

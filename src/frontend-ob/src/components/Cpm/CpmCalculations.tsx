@@ -8,7 +8,7 @@
  * docs/theme/redesign/samples/calculations-proposal.html and its four answers): no tabs and no `?` on the title; the band a
  * card (loop, 12h fused / 24h fused, the window list with its verdict and ‹ › … Investigation ↗); the list head one row named by
  * its options; values in the loop's unit; the window, its samples and the run once in the list's foot strip with Run details;
- * Record details a dialog; 32 px controls.
+ * 32 px controls. CHG-184 (owner review items 0, Q6): no Record details, no metric codes beside the names.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -30,7 +30,6 @@ import CalcPanel from './calc/CalcPanel';
 import CalcList from './calc/CalcList';
 import { loopUnit } from './calc/calcView';
 import { useCalcValues } from './calc/useCalcValues';
-import { recordRows } from './calc/recordRows';
 
 export const CpmCalculations: React.FC = () => {
   const navigate = useNavigate();
@@ -169,7 +168,7 @@ export const CpmCalculations: React.FC = () => {
           {selected && (
             <CalcPanel view={selected} loopId={loop.loopId} runId={v.runIdOf(selected.metric.gate)} pvUnit={pvUnit}
               stamped={v.stamped} deployed={v.deployed}
-              record={recordRows(selected.metric, selected.value, { row: v.row, catalogue: v.catalogue })} open={drawer} onClose={() => setDrawer(false)} />
+              open={drawer} onClose={() => setDrawer(false)} />
           )}
         </div>
       )}

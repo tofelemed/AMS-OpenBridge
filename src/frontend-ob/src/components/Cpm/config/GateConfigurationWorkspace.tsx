@@ -7,8 +7,8 @@
  * answers of 11 Nov 2026): two views, toggled top right without counts - Effective (no loop: what every loop runs under; a loop:
  * where each of its values comes from) and Bundles (no loop: the bundles in progress; a loop: its LOOP / PROFILE / SITE versions).
  * A bundle opens under Bundles (`view=editor&bundle=`) as five tabs. No overview page, no tiles, no Technical details, no Gate
- * role policy card: How to read (a dialog) took the five ? and the card; Build details, Workers and Record details are dialogs.
- * The band holds the loop, the open bundle with its state and Record details, and Open loop ↗.
+ * role policy card: How to read (a dialog) took the five ? and the card; Workers is a dialog. The band holds the loop, the open
+ * bundle with its state, and Open loop ↗. CHG-184 (owner review item 0, Q6): no Record details, Build details or hashes.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -20,7 +20,7 @@ import { useCpmScope } from '../plantScope';
 import { LoopBand } from '../context/LoopBand';
 import { useCpmLoops } from '../../../hooks/useCpm';
 import { useAuthStore } from '../../../store/authStore';
-import { listBundleSummaries, type Bundle, type ConfigCatalogue } from '../../../api/cpm/config';
+import { listBundleSummaries, type ConfigCatalogue } from '../../../api/cpm/config';
 import { explorerHref } from '../cpaHref';
 import { useBundle, useBundleSummaries, useConfigActions, useConfigCatalogue, useEffectiveConfig, useEffectiveSummary } from './useConfig';
 import { EffectiveLoops } from './EffectiveLoops';
@@ -28,9 +28,7 @@ import { LoopEffective } from './LoopEffective';
 import { BundlesView } from './BundlesView';
 import { EditorView, TABS, type ConfigTab } from './EditorView';
 import { ConfigHowToRead } from './ConfigHowToRead';
-import { DetailsDialog, type DetailRow } from './DetailsDialog';
 import { BundleStatePill } from './configBits';
-import { stampZoned } from './configWords';
 
 export type ConfigView = 'effective' | 'bundles' | 'editor';
 type Toggle = 'effective' | 'bundles';
@@ -40,21 +38,10 @@ const TOGGLE: ReadonlyArray<{ value: Toggle; label: string }> = [{ value: 'effec
 export const CatalogueNote: React.FC<{ catalogue: ConfigCatalogue | undefined }> = ({ catalogue }) =>
   catalogue?.workers.some(w => !w.catalogueMatches) ? <p className="cpm-field__error" role="status">a worker runs ANOTHER catalogue</p> : null;
 
-/** Record details of the open bundle: its identifiers (short, copyable) and the who / when / note of the lifecycle column. */
-export const recordRows = (b: Bundle): DetailRow[] => [
-  { label: 'Content hash', copy: b.contentHash },
-  { label: 'Etag', value: <span className="cpm-mono">{b.etag}</span> },
-  { label: 'Created', value: `${b.createdBy} · ${stampZoned(b.createdAt)}` },
-  { label: 'Updated', value: stampZoned(b.updatedAt) },
-  ...(b.note ? [{ label: 'Note', value: b.note }] : []),
-  { label: 'Catalogue hash', copy: b.catalogueHash },
-];
-
 export const GateConfigurationWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [guide, setGuide] = useState(false);
-  const [record, setRecord] = useState(false);
   const scope = useCpmScope();
   const loops = useCpmLoops();
   const loopList = useMemo(() => loops.data?.loops ?? [], [loops.data]);
@@ -129,7 +116,6 @@ export const GateConfigurationWorkspace: React.FC = () => {
           <span className="cpm-config-band">
             <span className="cpm-config-band__name">{open.scopeKind} v{open.version}</span>
             <BundleStatePill state={open.state} />
-            <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
           </span>
         )}
       </LoopBand>
@@ -139,7 +125,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
 
       {view === 'effective' && !loopId && (
         <EffectiveLoops loops={summary.data?.loops ?? []} loading={summary.isLoading} error={summary.isError ? summary.error : null} onRetry={() => void summary.refetch()}
-          catalogue={catalogue.data} onOpenLoop={id => go({ loop: id, view: 'effective', gate: null })} />
+          onOpenLoop={id => go({ loop: id, view: 'effective', gate: null })} />
       )}
       {view === 'effective' && loopId && (eff.data
         ? <LoopEffective key={loopId} eff={eff.data} catalogue={catalogue.data} gate={gate} onGate={g => go({ gate: g })} />
@@ -167,7 +153,6 @@ export const GateConfigurationWorkspace: React.FC = () => {
       )}
 
       <ConfigHowToRead open={guide} onClose={() => setGuide(false)} />
-      {open && <DetailsDialog title="Record details" open={record} onClose={() => setRecord(false)} rows={recordRows(open)} />}
     </div>
   );
 };

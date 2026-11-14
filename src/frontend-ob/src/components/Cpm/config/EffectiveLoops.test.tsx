@@ -2,14 +2,14 @@
 // service, profile or unit"), then ONE dropdown "All loops 243 · Governed bundle 1 · Factory layer 242" (owner answer 2c, client
 // side) in place of the count sentence; rows Loop (the service under the tag, the tag once) · Profile in words · Runs under
 // ("✓ Active (verified)" over "LOOP v6", or "○ Factory layer") · Effective from; 20 a page, governed first, the shared pager; a
-// row opens the loop; the foot holds Build details.
+// row opens the loop. CHG-184: no Build details.
 import React from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EffectiveLoops } from './EffectiveLoops';
 import { setActiveZone } from '../../../cpa/activeZone';
-import type { ConfigCatalogue, EffectiveSummaryLoop } from '../../../api/cpm/config';
+import type { EffectiveSummaryLoop } from '../../../api/cpm/config';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
@@ -29,10 +29,9 @@ const loops: EffectiveSummaryLoop[] = [
   ...Array.from({ length: 24 }, (_, i) => loop(`TIC1${String(i).padStart(4, '0')}`)),
   loop('FIC10302', { displayName: 'Reactor feed flow', profileId: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED', bundle: { bundleId: 'l6', version: 6, contentHash: 'f9153b00aaf3ba1a', scopeKind: 'LOOP', scopeRef: 'FIC10302', changeClass: 'POLICY', effectiveFrom: '2026-09-25T18:37:00Z', since: null } }),
 ];
-const catalogue = { catalogueHash: '8bbcbbbb7da04ddc', count: 165, workers: [{}, {}, {}, {}, {}, {}] } as unknown as ConfigCatalogue;
 const view = (over: Partial<React.ComponentProps<typeof EffectiveLoops>> = {}) => {
   const onOpenLoop = vi.fn();
-  render(<MemoryRouter><EffectiveLoops loops={loops} loading={false} error={null} onRetry={() => {}} catalogue={catalogue} onOpenLoop={onOpenLoop} {...over} /></MemoryRouter>);
+  render(<MemoryRouter><EffectiveLoops loops={loops} loading={false} error={null} onRetry={() => {}} onOpenLoop={onOpenLoop} {...over} /></MemoryRouter>);
   return { onOpenLoop };
 };
 const dataRows = () => within(screen.getByRole('table')).getAllByRole('row').slice(1);
@@ -78,15 +77,10 @@ describe('EffectiveLoops', () => {
     expect(onOpenLoop).toHaveBeenCalledWith('FIC10302');
   });
 
-  it('Build details holds the catalogue identifiers, the hash short and copyable', () => {
+  it('has no Build details: the catalogue hash and counts went (CHG-184)', () => {
     view();
-    fireEvent.click(screen.getByRole('button', { name: 'Build details' }));
-    const dialog = screen.getByRole('dialog', { name: 'Build details' });
-    expect(dialog.textContent).toMatch(/Catalogue hash8bbcbbbb/);
-    expect(dialog.textContent).not.toMatch(/8bbcbbbb7da0/);
-    expect(dialog.textContent).toMatch(/Catalogue properties165/);
-    expect(dialog.textContent).toMatch(/Workers announced6/);
-    expect(within(dialog).getByRole('button', { name: 'Copy catalogue hash' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Build details' })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Catalogue hash|8bbcbbbb/);
   });
 
   it('loading, failure and a fleet with no governed loop are said', () => {

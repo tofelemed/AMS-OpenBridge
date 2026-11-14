@@ -27,7 +27,7 @@ const PARTS: Part[] = [
     [{ pill: ['warn', '⊘', 'Open · Unobservable'] }, 'The newest window could not be judged (excluded or insufficient data), so the condition has not recovered.'],
     [{ pill: ['muted', '○', 'Closed · recovered'] }, 'An evaluable, fault-free result with enough qualified support.'],
     [{ pill: ['muted', '○', 'Closed · family changed'] }, 'A different fault family took over the loop.'],
-    [{ pill: ['muted', '?', 'Availability unknown'] }, 'Recorded before v2.5.'],
+    [{ pill: ['muted', '?', 'Availability unknown'] }, 'An older record: availability was not tracked.'],
   ] },
   { title: 'Rows', rows: [
     [{ term: 'One row' }, 'One episode of one fault family on one window kind (12h or 24h). A change in its evidence score extends it rather than duplicating it.'],

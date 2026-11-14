@@ -1,5 +1,5 @@
 /**
- * Task 16: the Workbench's Proof tab. The inputs the gate was computed from (metric id, value, unit), the run's own artifacts or
+ * Task 16: the Workbench's Proof tab. The inputs the gate was computed from (name, value, unit; CHG-184: no metric code column), the run's own artifacts or
  * the state that says why there are none, and why the result is what it is: measured against required, the evidence behind it,
  * what remains open. CHG-162 (owner review): the window and its samples are in the page's foot strip, and the two links that
  * repeated the tabs above went.
@@ -38,11 +38,11 @@ export const ProofTab: React.FC<ProofTabProps> = ({
     <div className="cpm-workbench__tab" aria-busy={state.kind === 'LOADING'}>
       {rows.length > 0 && (
         <table className="cpm-table" aria-label={`Inputs of ${gate}`}>
-          <thead><tr><th>Input</th><th>Metric</th><th>Value</th><th>Unit</th></tr></thead>
+          <thead><tr><th>Input</th><th>Value</th><th>Unit</th></tr></thead>
           <tbody>
             {rows.map(r => (
               <tr key={r.id ?? r.name}>
-                <td>{r.name}</td><td className="cpm-mono">{r.id ?? '—'}</td><td>{r.value}</td><td>{r.unit || '—'}</td>
+                <td>{r.name}</td><td>{r.value}</td><td>{r.unit || '—'}</td>
               </tr>
             ))}
           </tbody>

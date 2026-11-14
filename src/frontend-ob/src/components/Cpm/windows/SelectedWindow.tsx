@@ -2,6 +2,8 @@
  * Task 19: the selected window, in the right column beside the list (it was a separate view). Counts first, then
  * what the window is and when it was stored, then the one next step and the related looks (Historical and Trend open this window's range).
  * CHG-164 (owner review): the samples read as one row; the dialogs are short buttons without ↗, apart from the two pages.
+ * CHG-184 (owner review Q6): no Record details; the window's values are on the page Inspect this window → opens (the Workbench
+ * proof table, or Replay).
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,12 +17,12 @@ import { windowSize } from '../windowLabel';
 import { historicalHref, trendHref } from '../cpaHref';
 import { loopPens } from '../../Designer/trend/loopPens';
 import { SampleDensityDialog } from './SampleDensityDialog';
-import { EngineTimingDialog, FeatureFlagsDialog, RecordDetailsDialog } from './WindowDialogs';
+import { EngineTimingDialog, FeatureFlagsDialog } from './WindowDialogs';
 import { isDeclined } from './WindowResults';
 import { countCheck, fmtCount, nominalOf } from './windowMath';
 import { inspectTarget, windowRef } from './windowNav';
 
-type Dialogs = 'flags' | 'record' | 'engine' | 'density' | null;
+type Dialogs = 'flags' | 'engine' | 'density' | null;
 
 export const SelectedWindow: React.FC<{
   row: CpmKpiRow;
@@ -76,7 +78,6 @@ export const SelectedWindow: React.FC<{
         <KvRow label="Tag"><TonePill tone="muted">{isLong ? 'Long diagnostics' : 'Short features'}</TonePill></KvRow>
         <KvRow label="Stored">{fmtInstant(row.created_at, timeZone)}</KvRow>
         <div className="cpm-master-detail__links">
-          {link('Record details', 'record')}
           {!isLong && link('Feature flags', 'flags')}
           {link('Sample density', 'density')}
           {link('Engine & timing', 'engine')}
@@ -87,7 +88,6 @@ export const SelectedWindow: React.FC<{
         </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />
-      <RecordDetailsDialog open={dialog === 'record'} onClose={close} row={row} tier={tier} timeZone={timeZone} />
       <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} />
       <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} />
     </>

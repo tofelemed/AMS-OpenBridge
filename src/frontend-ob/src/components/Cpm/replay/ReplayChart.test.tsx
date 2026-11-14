@@ -4,9 +4,10 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { CpmTrendPoint } from '../../../api/cpm/kpis';
+import { chartPalette } from '../../../charts/chartTheme';
 
 vi.mock('echarts-for-react', () => ({ default: () => null }));
-import { ReplayChart } from './ReplayChart';
+import { ReplayChart, buildReplayOption } from './ReplayChart';
 
 afterEach(cleanup);
 const T0 = Date.UTC(2026, 9, 5, 0, 30);
@@ -23,5 +24,16 @@ describe('ReplayChart truncated slice', () => {
     show(false);
     expect(screen.getByText('Sample 5 / 5')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/replay budget/);
+  });
+});
+
+describe('ReplayChart axis names (CHG-184, owner review item 12)', () => {
+  it('names no unit when the loop has none, never "unit not set"', () => {
+    const palette = chartPalette();
+    const time = buildReplayOption({ points, cursorTs: null, phasePlane: false, palette, pvUnit: '', timeZone: 'UTC' }) as { yAxis: Array<{ name: string }> };
+    expect(time.yAxis[0].name).toBe('PV / SP');
+    const plane = buildReplayOption({ points, cursorTs: null, phasePlane: true, palette, pvUnit: '', timeZone: 'UTC' }) as unknown as { yAxis: { name: string } };
+    expect(plane.yAxis.name).toBe('PV');
+    expect((buildReplayOption({ points, cursorTs: null, phasePlane: true, palette, pvUnit: 'kg/h', timeZone: 'UTC' }) as unknown as { yAxis: { name: string } }).yAxis.name).toBe('PV (kg/h)');
   });
 });

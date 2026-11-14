@@ -108,7 +108,7 @@ describe('what ECharts really draws', () => {
 
   it('shows the direct labels and the output axis without a percent sign', () => {
     const { svg } = draw({ panes: [signals()] });
-    for (const text of ['>PV<', '>SP<', '>OP<', 'PV / SP (kg/h)', 'Controller output (unit not set)']) expect(svg).toContain(text);
+    for (const text of ['>PV<', '>SP<', '>OP<', 'PV / SP (kg/h)', 'Controller output']) expect(svg).toContain(text);
     expect(svg).not.toContain('Controller output (%)');
   });
 

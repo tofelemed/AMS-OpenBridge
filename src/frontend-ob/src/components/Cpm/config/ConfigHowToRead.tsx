@@ -38,11 +38,11 @@ const PARTS: Part[] = [
   { title: 'Change class', rows: [
     [cls('muted', 'Policy'), 'Re-evaluated on complete qualified support under one bundle; old and new values never mix inside one result.'],
     [cls('warn', '◆ State boundary'), 'A STATE_BOUNDARY change opens a new epoch: windows whose support began before the effective time report WAITING (warm-up) instead of a mixed result.'],
-    [cls('bad', '✕ Deployment'), 'A DEPLOYMENT-class change ships in a build; the workers refuse it as a bundle.'],
+    [cls('bad', '✕ Deployment'), 'A DEPLOYMENT-class change ships in a software release; the workers refuse it as a bundle.'],
   ] },
   { title: 'Flags', rows: [
     [<TonePill key="c" tone="bad">commissioning</TonePill>, 'Commissioning required: the catalogue has no starting value.'],
-    [<TonePill key="u" tone="muted">unread by build</TonePill>, "Not read by this build; the reason is in the property's panel."],
+    [<TonePill key="u" tone="muted">not used</TonePill>, "No running job reads it; the reason is in the property's panel."],
     [<TonePill key="i" tone="bad">invalid</TonePill>, 'A validation error names this property.'],
   ] },
   { title: 'Bundle state', lead: "Bundles in progress: drafts, validated, shadowed, approved or failed - active and superseded ones live on their loop's page.", rows: [
