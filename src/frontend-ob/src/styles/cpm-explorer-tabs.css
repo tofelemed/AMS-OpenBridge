@@ -46,5 +46,47 @@
 }
 .cpm-explorer-gates td:last-child { text-align: right; }
 
-.cpm-episode-links { display: flex; justify-content: flex-end; }
 .cpm-explorer-gates + .cpm-gate-tier { margin-top: var(--traverse-space-4); }
+
+/* CHG-185 (owner review item 6): History as one compact table on the shared table look (ui/data-table.css, which loads after this
+   sheet, hence `.ui-table.cpm-history`). A run's episodes are indented lines under it; one link per run at the end. Up to 1100 px
+   (sidebar folded) each row becomes a block whose cells flow in columns, each with its column name, so nothing runs off the side. */
+.ui-table.cpm-history { overflow-x: auto; }
+.ui-table.cpm-history table { table-layout: auto; }
+.ui-table.cpm-history td { padding-block: var(--traverse-space-2); vertical-align: middle; }
+.ui-table.cpm-history th:last-child, .ui-table.cpm-history td.cpm-history__action { width: 1%; text-align: end; white-space: nowrap; }
+.cpm-history__head { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+.cpm-history__cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); }
+.cpm-history__cell--stack { flex-direction: column; align-items: flex-start; gap: 0; }
+.ui-table.cpm-history .cpm-history__finding { font-weight: 600; }
+.ui-table.cpm-history .cpm-history__sub { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); white-space: nowrap; }
+.cpm-history__period, .cpm-history__toggle {
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+.cpm-history__period:hover { text-decoration: underline; }
+.cpm-history__period:focus-visible, .cpm-history__toggle:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+.cpm-history__toggle { font-variant-numeric: tabular-nums; }
+.ui-table.cpm-history .cpm-history__episode td { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+.ui-table.cpm-history .cpm-history__episode td:first-child { padding-inline-start: var(--traverse-space-6); }
+.cpm-history__episode .cpm-history__period { padding-inline-start: var(--traverse-space-2); border-inline-start: 2px solid var(--traverse-border-subtle); }
+@media (max-width: 1100px) {
+  .ui-table.cpm-history thead { display: none; }
+  .ui-table.cpm-history table, .ui-table.cpm-history tbody { display: block; width: 100%; }
+  .ui-table.cpm-history tr {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--traverse-space-2) var(--traverse-space-4);
+    align-items: start; box-sizing: border-box; padding: var(--traverse-space-3); border-bottom: 1px solid var(--traverse-border-subtle);
+  }
+  .ui-table.cpm-history td { display: block; height: auto; padding: 0; border: 0; background: transparent; text-align: start; }
+  .ui-table.cpm-history tbody tr:hover { background: var(--traverse-surface-hover); }
+  .ui-table.cpm-history tbody tr:hover td { background: transparent; }
+  .ui-table.cpm-history td[data-label]:not(:empty)::before {
+    content: attr(data-label); display: block; color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); font-weight: 400;
+  }
+  .ui-table.cpm-history .cpm-history__blank, .ui-table.cpm-history td:empty { display: none; }
+  /* an episode line keeps the run's columns (its first four cells, blanks included) and says no column name again */
+  .ui-table.cpm-history .cpm-history__episode td:first-child { padding-inline-start: 0; }
+  .ui-table.cpm-history .cpm-history__episode td:nth-child(-n+4) { display: block; }
+  .ui-table.cpm-history .cpm-history__episode td:nth-child(n+5) { display: none; }
+  .ui-table.cpm-history .cpm-history__episode td[data-label]::before { content: none; }
+  .ui-table.cpm-history td.cpm-history__action { grid-column: span 2; width: auto; align-self: end; text-align: start; }
+}

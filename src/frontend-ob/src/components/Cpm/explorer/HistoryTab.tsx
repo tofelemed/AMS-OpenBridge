@@ -1,101 +1,107 @@
 'use client';
 
 /**
- * Explorer › History. Diagnosis episodes for this loop.
+ * Explorer › History. Diagnosis episodes for this loop, consecutive same-diagnosis episodes collapsed into one run
+ * (historyQuery.ts holds the grouping and the impossible-span check).
  *
- * Two defects drove the rewrite:
- *
- * 1. Consecutive identical frames were listed one per row. A loop re-detecting
- *    the same fault every 15 minutes produced ten rows of "DETECTED FINAL
- *    ELEMENT NONLINEARITY · 1 window · peak 54%" — one fact, five pages of
- *    pager. Consecutive same-diagnosis frames now collapse into a run that can
- *    be expanded.
- * 2. Frames whose closed_at precedes their opened_at were rendered as a literal
- *    backwards range ("8/7 9:45 AM → 7/27 7:45 AM"), i.e. the UI printed an
- *    impossible span as fact. That is an upstream defect in the event frames,
- *    but this screen must flag it rather than repeat it.
+ * CHG-185 (owner review item 6): one compact table — Period · Finding · Episodes · Peak score · Review state — and one
+ * "Open in Loop Events ↗" link per run (its newest episode). A run's episodes open inline as lines that show only what differs:
+ * their period and score, and their windows where those differ. The review state is Loop Events' pill, in its words. A row or a
+ * period still opens Historical over that span. Dates and times keep their format (owner Q5).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import type { CpmEventFrame, CpmLoop } from '../../../api/cpmApi';
+import type { CpmLoop } from '../../../api/cpmApi';
 import { useCpmEvents } from '../../../hooks/useCpm';
+import { Toggletip } from '../../../ui/Toggletip';
+// the shared table look (DataTable's sheet); the episode lines under a run are not a DataTable shape
+import '../../../ui/data-table.css';
 import { EmptyState, QueryError, TonePill } from '../shared';
 import { usePagedSlice } from '../../shared/ListPager';
-import { shelfState } from '../events/shelfState';
+import { reviewView } from '../events/shelfState';
 import { diagnosisLabel } from '../vocabulary';
-import { evidenceScoreText } from '../evidenceScore';
+import { EVIDENCE_SCORE_HELP, evidenceScore } from '../evidenceScore';
 import { eventsHref, historicalHref } from '../cpaHref';
-import { fmtWhen } from '../blocks/whenText';
-import { HISTORY_QUERY } from './historyQuery';
+import {
+  HISTORY_QUERY, episodePeriod, episodeWindowsDiffer, runPeriod, spanOf, toRuns, windowsText, type Run,
+} from './historyQuery';
 
 const PAGE_SIZE = 10;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** The links and toggles in a row act on their own; the row's click (Historical) must not follow. */
+const own = (e: React.MouseEvent) => e.stopPropagation();
 
-interface Span { startMs: number; endMs: number | null; invalid: boolean }
+type OpenSpan = (startMs: number, endMs: number | null) => void;
 
-function spanOf(e: CpmEventFrame): Span {
-  const startMs = Date.parse(e.opened_at);
-  const raw = e.closed_at ? Date.parse(e.closed_at) : null;
-  const closed = raw != null && !Number.isNaN(raw) ? raw : null;
-  const invalid = closed != null && !Number.isNaN(startMs) && closed < startMs;
-  return { startMs, endMs: invalid ? null : closed, invalid };
-}
+const Period: React.FC<{ text: string; onOpen: () => void }> = ({ text, onOpen }) => (
+  <button type="button" className="cpm-history__period" title="Show in Historical" aria-label={`${text}, show in Historical`}
+    onClick={e => { own(e); onOpen(); }}>
+    {text}
+  </button>
+);
 
-interface Run {
-  key: string;
-  diagnosis: string;
-  frames: CpmEventFrame[];
-  startMs: number;
-  endMs: number | null;
-  peak: number;
-  windows: number;
-  /** Distinct evaluation window sizes across the collapsed frames (12h/24h). */
-  kinds: Set<string>;
-  anyOpen: boolean;
-  anyInvalid: boolean;
-  ackState: string;
-}
+/** A run's episodes: only what differs from the run — the period, the windows where they differ, the score. */
+const EpisodeRows: React.FC<{ run: Run; openSpan: OpenSpan }> = ({ run, openSpan }) => {
+  const showWindows = episodeWindowsDiffer(run);
+  return (
+    <>
+      {run.frames.map(e => {
+        const span = spanOf(e);
+        const open = () => openSpan(span.startMs, span.endMs);
+        return (
+          <tr key={e.id} className="cpm-history__episode cpm-row-click" onClick={open}>
+            <td data-label="Period"><Period text={episodePeriod(e)} onOpen={open} /></td>
+            <td className="cpm-history__blank" />
+            <td data-label="Episodes" className="cpm-history__sub">{showWindows ? windowsText(e.window_count, [e.window_kind]) : null}</td>
+            <td data-label="Peak score" className="ui-table__cell--end">{evidenceScore(e.peak_confidence) ?? '—'}</td>
+            <td className="cpm-history__blank" />
+            <td className="cpm-history__blank" />
+          </tr>
+        );
+      })}
+    </>
+  );
+};
 
-/** Collapse CONSECUTIVE frames carrying the same diagnosis into one run. */
-function toRuns(rows: CpmEventFrame[]): Run[] {
-  const runs: Run[] = [];
-  for (const e of rows) {
-    const span = spanOf(e);
-    const head = runs[runs.length - 1];
-    if (head && head.diagnosis === e.peak_diagnosis) {
-      head.frames.push(e);
-      head.startMs = Math.min(head.startMs, span.startMs);
-      head.endMs = span.endMs == null || head.endMs == null
-        ? null : Math.max(head.endMs, span.endMs);
-      head.peak = Math.max(head.peak, e.peak_confidence);
-      head.windows += e.window_count;
-      head.kinds.add(e.window_kind);
-      head.anyOpen = head.anyOpen || !e.closed_at;
-      head.anyInvalid = head.anyInvalid || span.invalid;
-      continue;
-    }
-    runs.push({
-      key: String(e.id),
-      diagnosis: e.peak_diagnosis,
-      frames: [e],
-      startMs: span.startMs,
-      endMs: span.endMs,
-      peak: e.peak_confidence,
-      windows: e.window_count,
-      kinds: new Set([e.window_kind]),
-      anyOpen: !e.closed_at,
-      anyInvalid: span.invalid,
-      // CHG-032: the shelf left ack_state; an active shelf still reads SHELVED here
-      ackState: shelfState(e, Date.now()) === 'ACTIVE' ? 'SHELVED' : e.ack_state,
-    });
-  }
-  return runs;
-}
-
-const spanText = (run: Run) =>
-  run.anyOpen || run.endMs == null
-    ? `${fmtWhen(run.startMs)} · open`
-    : `${fmtWhen(run.startMs)} → ${fmtWhen(run.endMs)}`;
+const RunRow: React.FC<{ run: Run; now: number; isOpen: boolean; onToggle: () => void; openSpan: OpenSpan; onEvents: (id: number) => void }> = ({
+  run, now, isOpen, onToggle, openSpan, onEvents,
+}) => {
+  const newest = run.frames[0];
+  const review = reviewView(newest, now);
+  const many = run.frames.length > 1;
+  const open = () => openSpan(run.startMs, run.endMs);
+  return (
+    <tr className="cpm-history__run cpm-row-click" onClick={open}>
+      <td data-label="Period">
+        <span className="cpm-history__cell">
+          <Period text={runPeriod(run)} onOpen={open} />
+          {/* An impossible span is a data defect, not a duration: say so rather than print a negative range. */}
+          {run.anyInvalid && <TonePill tone="warn">End before start</TonePill>}
+        </span>
+      </td>
+      <td data-label="Finding" className="cpm-history__finding">{diagnosisLabel(run.diagnosis)}</td>
+      <td data-label="Episodes">
+        <span className="cpm-history__cell cpm-history__cell--stack">
+          {many ? (
+            <button type="button" className="cpm-history__toggle" aria-expanded={isOpen}
+              aria-label={`${isOpen ? 'Hide' : 'Show'} the ${run.frames.length} episodes`}
+              onClick={e => { own(e); onToggle(); }}>
+              <span aria-hidden="true">{isOpen ? '▾' : '▸'}</span> {run.frames.length}
+            </button>
+          ) : <span>1</span>}
+          <span className="cpm-history__sub">{windowsText(run.windows, run.kinds)}</span>
+        </span>
+      </td>
+      <td data-label="Peak score" className="ui-table__cell--end">{evidenceScore(run.peak) ?? '—'}</td>
+      <td data-label="Review state"><TonePill tone={review.tone} glyph={review.glyph}>{review.label}</TonePill></td>
+      <td className="cpm-history__action" onClick={own}>
+        {/* The run's newest episode; one link per run (owner review item 6). */}
+        <ObcButton className="ui-link" variant="flat" onClick={() => onEvents(newest.id)}>Open in Loop Events ↗</ObcButton>
+      </td>
+    </tr>
+  );
+};
 
 export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const events = useCpmEvents({ loopId: loop.loopId, ...HISTORY_QUERY });
@@ -108,17 +114,21 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   // Switching loops must not leave the operator on page 4 of the previous loop.
   useEffect(() => { setPage(0); setExpanded(new Set()); }, [loop.loopId]);
 
-  // Episodes were a dead end here, while every sibling screen routes its
-  // evidence somewhere. Historical bounds its trend, KPI overlay and gate
-  // history to ?from/?to, so a run's own span is the right window to hand it.
-  const openSpan = (startMs: number, endMs: number | null) => {
+  // Historical bounds its trend, KPI overlay and gate history to ?from/?to, so a run's own span is the right window to hand it.
+  const openSpan: OpenSpan = (startMs, endMs) => {
     navigate(historicalHref(loop.loopId, {
       from: new Date(startMs).toISOString(),
       to: new Date(endMs ?? Date.now()).toISOString(),
     }));
   };
+  const toggle = (key: string) => setExpanded(s => {
+    const next = new Set(s);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   const { pageCount, safePage, pageItems } = usePagedSlice(runs, page, PAGE_SIZE);
+  const now = Date.now();
 
   return (
     <div>
@@ -133,85 +143,40 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           next={[{ label: 'Verdicts over time in Historical', to: historicalHref(loop.loopId) }]} />
       )}
 
-      {pageItems.map(run => {
-        const isOpen = expanded.has(run.key);
-        return (
-          <div key={run.key} className="cpm-episode">
-            <button
-              type="button"
-              className="cpm-episode__main"
-              onClick={() => openSpan(run.startMs, run.endMs)}
-            >
-              <span className="cpm-event-row__sub">{spanText(run)}</span>
-              <span className="cpm-episode__body">
-                <span className="cpm-event-row__title">{diagnosisLabel(run.diagnosis)}</span>
-                <span className="cpm-event-row__sub">
-                  {run.frames.length > 1 ? `${run.frames.length} episodes · ` : ''}
-                  {/* The count without its size was ambiguous — "3 windows" is
-                      36 h of evidence at 12h and 72 h at 24h. */}
-                  {run.windows} × {[...run.kinds].sort().join('/')} window(s)
-                  {' '}· peak {evidenceScoreText(run.peak)}
-                </span>
-              </span>
-              <span className="cpm-episode__state">
-                {/* An impossible span is a data defect, not a duration. Say so
-                    rather than printing a negative range as if it were real. */}
-                {run.anyInvalid && <TonePill tone="warn">END BEFORE START</TonePill>}
-                <TonePill tone={run.anyOpen ? 'warn' : 'muted'}>{run.ackState}</TonePill>
-              </span>
-            </button>
-
-            <div className="cpm-episode-links">
-              {/* The newest episode of the run: the run's own row opens Historical, this opens the event. */}
-              <ObcButton className="ui-link" variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: run.frames[0].id }))}>
-                Loop Events ↗
-              </ObcButton>
-            </div>
-
-            {run.frames.length > 1 && (
-              <button
-                type="button"
-                className="cpm-episode__toggle"
-                aria-expanded={isOpen}
-                onClick={() => setExpanded(s => {
-                  const next = new Set(s);
-                  if (next.has(run.key)) next.delete(run.key); else next.add(run.key);
-                  return next;
-                })}
-              >
-                {isOpen ? '▾' : '▸'} {run.frames.length} episodes
-              </button>
-            )}
-
-            {isOpen && run.frames.map(e => {
-              const span = spanOf(e);
-              return (
-                <div key={e.id}>
-                  <button
-                    type="button"
-                    className="cpm-episode__frame"
-                    onClick={() => openSpan(span.startMs, span.endMs)}
-                  >
-                    <span className="cpm-event-row__sub">
-                      {fmtWhen(e.opened_at)}
-                      {span.invalid ? ' · end before start'
-                        : span.endMs != null ? ` → ${fmtWhen(span.endMs)}` : ' · open'}
-                    </span>
-                    <span className="cpm-event-row__sub">
-                      {e.window_count} × {e.window_kind} window(s) · peak {evidenceScoreText(e.peak_confidence)}
-                    </span>
-                  </button>
-                  <div className="cpm-episode-links">
-                    <ObcButton className="ui-link" variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: e.id }))}>
-                      Loop Events ↗
-                    </ObcButton>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+      {pageItems.length > 0 && (
+        <div className="ui-table ui-table--compact cpm-history">
+          <table>
+            <caption className="cpm-visually-hidden">Diagnosis episodes of {loop.loopId}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                <th scope="col">Finding</th>
+                <th scope="col">Episodes</th>
+                <th scope="col" className="ui-table__cell--end">
+                  <span className="cpm-history__head">
+                    Peak score
+                    <Toggletip variant="how-to" label="About the peak score">
+                      <p>The highest evidence score in the period.</p>
+                      <p>{EVIDENCE_SCORE_HELP}</p>
+                    </Toggletip>
+                  </span>
+                </th>
+                <th scope="col">Review state</th>
+                <th scope="col"><span className="cpm-visually-hidden">Open</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map(run => (
+                <React.Fragment key={run.key}>
+                  <RunRow run={run} now={now} isOpen={expanded.has(run.key)} onToggle={() => toggle(run.key)} openSpan={openSpan}
+                    onEvents={id => navigate(eventsHref({ loop: loop.loopId, event: id }))} />
+                  {run.frames.length > 1 && expanded.has(run.key) && <EpisodeRows run={run} openSpan={openSpan} />}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="cpm-explorer-foot">
         <span className="cpm-explorer-foot__links">
@@ -225,7 +190,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
             disabled={safePage === 0}>← Prev</ObcButton></span>
           <span className="cpm-event-row__sub">
             {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, runs.length)} of{' '}
-            {runs.length} run(s) from {rows.length} episode(s)
+            {plural(runs.length, 'run', 'runs')} from {plural(rows.length, 'episode', 'episodes')}
             {rows.length >= HISTORY_QUERY.limit
               ? ` (newest ${HISTORY_QUERY.limit}; older not fetched)` : ''}
             {' '}· Page {safePage + 1} of {pageCount}

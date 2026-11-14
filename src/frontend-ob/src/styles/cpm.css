@@ -638,61 +638,6 @@
   border-radius: 999px;
 }
 
-/* ── Episode runs (History tab) ── */
-.cpm-episode { border-bottom: 1px solid var(--border-divider-color); padding: 2px 0 6px; }
-.cpm-episode__main {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr) auto;
-  gap: 10px;
-  align-items: center;
-  width: 100%;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  border-left: 3px solid transparent;
-  cursor: pointer;
-  color: var(--element-active-color);
-  font: inherit;
-  text-align: left;
-}
-.cpm-episode__main:hover { background: var(--container-background-color); }
-.cpm-episode__main:focus-visible,
-.cpm-episode__toggle:focus-visible,
-.cpm-episode__frame:focus-visible {
-  outline: 2px solid var(--border-focused-color, var(--instrument-enhanced-primary-color));
-  outline-offset: -2px;
-}
-.cpm-episode__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cpm-episode__state { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.cpm-episode__toggle {
-  margin-left: 10px;
-  background: none;
-  border: none;
-  padding: 2px 6px;
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--cpm-text-caption);
-  color: var(--traverse-text-secondary);
-}
-.cpm-episode__frame {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  width: calc(100% - 24px);
-  margin-left: 24px;
-  padding: 4px 8px;
-  background: none;
-  border: none;
-  border-left: 2px solid var(--border-divider-color);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-.cpm-episode__frame:hover { background: var(--container-background-color); }
-@media (max-width: 800px) {
-  .cpm-episode__main { grid-template-columns: minmax(0, 1fr); }
-  .cpm-episode__state { justify-content: flex-start; }
-}
 
 .cpm-source-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 

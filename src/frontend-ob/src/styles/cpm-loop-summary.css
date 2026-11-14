@@ -213,13 +213,8 @@
   .cpm-kpicards, .cpm-kpicards--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine, compact) */
+/* KPI Phase 4: per-loop KPI cards on the Explorer summary (nine; CHG-185: one grid that wraps by width) */
 .cpm-kpicards--loop { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin-top: 8px; }
 
-/* CHG-092 (SME review 2 #22): loop KPI groups + the cards that bear on the current finding */
-.cpm-kpigroup + .cpm-kpigroup { margin-top: 12px; }
-.cpm-kpigroup__title {
-  margin: 8px 0 0; font-size: var(--cpm-text-caption); font-weight: 600; color: var(--traverse-text-secondary);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
+/* CHG-092 (SME review 2 #22): the cards that bear on the current finding. CHG-185 (Q2): one grid, so the group titles went. */
 .cpm-kpicard--relevant { outline: 2px solid var(--element-active-color); outline-offset: -2px; }

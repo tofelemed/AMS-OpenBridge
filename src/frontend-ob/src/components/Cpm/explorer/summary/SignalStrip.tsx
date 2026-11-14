@@ -10,6 +10,11 @@
  *
  * `SignalStrip` is the loop now, on Loop Explorer Summary. `SignalStripAt` is the same row at one moment, on Investigation:
  * a page about an evaluated window must not show today's values beside it, so it reads only the bucket it is given.
+ *
+ * CHG-185 (owner review item 5, decision Q3): more space between the four readings, and a state colour on a LIVE reading only —
+ * amber + "At limit" for OP at a registered range bound, amber for a mode the engine does not count as normal (its name and
+ * note are the words); neutral otherwise, no green. PV stays neutral: its good band is not on this page (readingState.ts).
+ * `SignalStripAt` shows stored values, so it never takes a state colour.
  */
 import React from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
@@ -19,12 +24,19 @@ import { FacetPill } from '../../FacetPill';
 import { EmptyState } from '../../shared';
 import { registryHref } from '../../cpaHref';
 import { bucketValue, liveSource, useSignalValues } from './useSignalValues';
+import { modeNeedsLook, opReadingState } from './readingState';
 
 export { liveSource };
 
-const Signal: React.FC<{ caption: string; value: string; unit?: string; sub?: string }> = ({ caption, value, unit, sub }) => (
-  <div className="cpm-signal">
-    <span className="cpm-signal__caption">{caption}</span>
+/** `warn` paints the box amber; `state` is the word beside the caption (G05: never colour alone). */
+const Signal: React.FC<{ caption: string; value: string; unit?: string; sub?: string; warn?: boolean; state?: string | null }> = ({
+  caption, value, unit, sub, warn = false, state,
+}) => (
+  <div className={`cpm-signal${warn ? ' cpm-signal--warning' : ''}`}>
+    <span className="cpm-signal__head">
+      <span className="cpm-signal__caption">{caption}</span>
+      {state ? <span className="cpm-signal__state"><span aria-hidden="true">!</span>{state}</span> : null}
+    </span>
     <span className="cpm-signal__reading">
       <span className="cpm-signal__value">{value}</span>
       {unit ? <span className="cpm-signal__unit">{unit}</span> : null}
@@ -50,10 +62,11 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   return (
     <div className="cpm-signal-strip" role="group" aria-label="Operating signals">
       <div className="cpm-signal-group">
-        {v.signals.map(s => (
-          <Signal key={s.role} caption={s.role} value={s.value ?? '—'} unit={s.value != null ? s.unit : ''} sub={s.note} />
-        ))}
-        <Signal caption="MODE" value={v.mode.label} sub={v.modeNote} />
+        {v.signals.map(s => {
+          const state = s.role === 'OP' ? opReadingState(s.num, s.live, loop.engineering) : null;
+          return <Signal key={s.role} caption={s.role} value={s.value ?? '—'} unit={s.value != null ? s.unit : ''} sub={s.note} warn={!!state} state={state} />;
+        })}
+        <Signal caption="MODE" value={v.mode.label} sub={v.modeNote} warn={modeNeedsLook(v.modeToken, v.modeLive)} />
       </div>
       <p className="cpm-signal-strip__quality">
         <FacetPill facet="signal" tone={v.quality.tone}>{v.quality.text}</FacetPill>

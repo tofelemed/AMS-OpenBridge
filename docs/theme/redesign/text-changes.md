@@ -1817,3 +1817,26 @@ Removed on the owner's instruction (12 Nov): Calculation basis (page foot; its s
 | Pipeline Health · How to read · End-to-end verification | … fused result in Postgres. ✓ Verified only when the run wrote results. | … fused result stored. ✓ Verified only when the run wrote results. |
 | Governance · approval queue panel | Record details (Bundle id, Content hash) | (removed) |
 | Administration · Data sources · source panel | Record details (Configuration id, Client id, Version) | (removed) |
+
+## CHG-185 Loop Explorer: KPI grid, readings and History (owner review items 4, 5, 6; Q2, Q3, Q4, Q5)
+
+Dates and times keep their format (Q5). Lab values are those read on 15 Nov (read-only).
+
+| Where | Was | Now |
+|---|---|---|
+| Loop Explorer · Loop KPIs · layout | three caps group headings (CONTROL PERFORMANCE, ACTUATOR ACTIVITY, EVIDENCE QUALITY), each over its own row of cards | one grid of the nine cards that wraps by width, in the same order; the group is a small last line on each card ("Control performance", "Actuator activity", "Evidence quality") |
+| Loop Explorer · Loop KPIs · card | icon, value, title, then the explanation under it ("\|PV − SP\| inside the good band · G3 pass", "8641 of 8640 samples · G0 pass" …); the meaning in the browser's hover title | the Overview card: title and `?` at the top, icon top right, then the value; the explanation and the meaning in the `?` tip "About <title>" (hover, keyboard focus or tap); the rest of the card still opens the KPI dialog |
+| Loop Explorer · Loop KPIs · card icon | neutral outlined square | the Overview's filled square: blue for Time in normal mode, amber when the card needs a look, slate otherwise (no green) |
+| Loop Explorer · PV · SP · OP · MODE | one joined row of four readings | four boxes with space between them |
+| Loop Explorer · OP reading (live, at a registered OP range bound) | (no state) | amber box with "! At limit" beside OP |
+| Loop Explorer · MODE reading (live, not a normal mode) | (no state) | amber box; the mode's name and its note ("manual · excluded at G1 · live") are the words |
+| Loop Explorer · History · layout | one block per run, columns far apart: period, finding over "N episodes · N × 12h/24h window(s) · peak evidence score N", a caps state pill, "Loop Events ↗" on its own line, "▸ N episodes" under it | one table: PERIOD · FINDING · EPISODES · PEAK SCORE `?` · REVIEW STATE · Open in Loop Events ↗ |
+| History · Episodes | "12 episodes · 12 × 12h/24h window(s)" | "▸ 12" (the toggle, named "Show the 12 episodes") over "12 windows of 12h and 24h"; one size: "2 × 24h windows", "1 × 24h window"; a single episode: "1" |
+| History · Peak score | "peak evidence score 100" | "100" under PEAK SCORE; `?` "About the peak score": "The highest evidence score in the period." and the evidence-score note |
+| History · Review state | UNACKNOWLEDGED / ACKNOWLEDGED / SHELVED (caps pill; amber while open, grey when closed) | Loop Events' review pill: "! Unacknowledged", "✓ Acknowledged", "◐ Shelved · expires in …", "◐ Shelf expired", "! Shelf expired · unreviewed" |
+| History · impossible span | END BEFORE START | End before start |
+| History · link | "Loop Events ↗" on every run and on every episode | "Open in Loop Events ↗" once per run (its newest episode, as before) |
+| History · episode lines | "31 Oct · 00:45 → 31 Oct · 02:30 … 1 × 24h window(s) · peak evidence score 50 … Loop Events ↗" | the period, the windows only when the run's episodes differ in count or size ("1 × 24h window"), the score ("50") |
+| History · period | (the whole run row opened Historical, unmarked) | the period opens Historical over its span, title "Show in Historical"; the row still does |
+| History · pager | "1–10 of 12 run(s) from 35 episode(s) …" | "1–10 of 12 runs from 35 episodes …" |
+| History · under 1100 px | the same blocks | each run a block of labelled cells (Period, Finding, Episodes, Peak score, Review state, the link); episode lines keep the run's columns without the names |

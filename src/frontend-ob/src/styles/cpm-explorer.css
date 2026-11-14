@@ -6,14 +6,13 @@
 .cpm-tabs-row .ui-tabs { border-bottom: 0; }
 .cpm-tabs-row__end { flex: none; }
 
-/* PV, SP, OP and Mode as one joined group of readings, the signal quality at the end of the row (CHG-158, the owner's design).
-   The 1 px grid gap over the border colour draws the dividers, whichever way the group wraps. */
+/* PV, SP, OP and Mode as one group of readings, the signal quality at the end of the row (CHG-158, the owner's design).
+   CHG-185 (owner review item 5): more space between the four; each reading is its own box, so a state colour fills one box. */
 .cpm-signal-strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); margin-bottom: var(--traverse-space-3); }
-.cpm-signal-group {
-  display: grid; grid-template-columns: repeat(4, minmax(7rem, max-content)); gap: 1px; overflow: hidden;
-  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control); background: var(--traverse-border-subtle);
-}
-.cpm-signal-group > .cpm-signal { padding: var(--traverse-space-2) var(--traverse-space-4); border: 0; border-radius: 0; }
+.cpm-signal-group { display: grid; grid-template-columns: repeat(4, minmax(7rem, max-content)); gap: var(--traverse-space-3); }
+.cpm-signal-group > .cpm-signal { padding: var(--traverse-space-2) var(--traverse-space-4); }
+.cpm-signal__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--traverse-space-2); }
+.cpm-signal__state { display: inline-flex; gap: var(--traverse-space-1); color: var(--traverse-status-warning-fg); font-size: var(--cpm-text-caption); font-weight: 600; }
 .cpm-signal__reading { display: inline-flex; align-items: baseline; gap: var(--traverse-space-1); }
 .cpm-signal__unit { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }
 @media (max-width: 640px) { .cpm-signal-group { flex: 1 1 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -24,11 +23,24 @@
 .cpm-signal__caption { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); letter-spacing: 0.05em; }
 .cpm-signal__value { font-size: var(--traverse-type-section-title); font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
 .cpm-signal__sub { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+/* CHG-185 (Q3): amber + a word for a live reading off setpoint, at a limit or not in a normal mode; neutral otherwise, never green */
+.cpm-signal--warning { border-color: var(--traverse-status-warning-fg); background: var(--traverse-status-warning-bg); }
 .cpm-signal-strip__quality { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); margin: 0 0 0 auto; }
 .cpm-signal-strip__age { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
 
 /* Loop KPIs: a card opens a dialog, so it is a button that looks like the link card; coverage carries its bar */
 button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor: pointer; }
+/* CHG-185: the Overview's headed card. The title is the button and its click area covers the card; the ? tip sits above that
+   area, so a tap on the ? opens the tip and a tap anywhere else opens the dialog. The group is the last line. */
+/* The title flows as text, so a title on two lines keeps its ? right after the last word. */
+.cpm-kpicard__title { display: block; min-width: 0; }
+.cpm-kpicard__opener { display: inline; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.cpm-kpicard__title > .ui-toggletip { margin-inline-start: var(--traverse-space-1); }
+.cpm-kpicard__opener::after { content: ''; position: absolute; inset: 0; }
+.cpm-kpicard__opener:focus-visible { outline: none; }
+.cpm-kpicard--open:has(.cpm-kpicard__opener:focus-visible) { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
+.cpm-kpicard--open .ui-toggletip { position: relative; z-index: 1; }
+.cpm-kpicard__group { margin-top: auto; padding-top: var(--traverse-space-1); color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
 .cpm-kpicard__bar { display: block; height: var(--traverse-space-1); margin-top: var(--traverse-space-1); overflow: hidden; border-radius: var(--traverse-radius-control); background: var(--traverse-border-subtle); }
 .cpm-kpicard__bar > span { display: block; height: 100%; background: var(--traverse-text-secondary); }
 .cpm-kpicard--warn .cpm-kpicard__bar > span { background: var(--traverse-status-warning-fg); }

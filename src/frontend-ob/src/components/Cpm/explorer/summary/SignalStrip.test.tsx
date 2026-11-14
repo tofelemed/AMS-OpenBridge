@@ -80,6 +80,56 @@ describe('SignalStrip', () => {
     expect(subs(container)).toEqual(Array(4).fill('from historian'));
   });
 
+  // CHG-185 (owner review item 5, Q3): amber + a word on a live reading only; neutral otherwise, no green
+  describe('state colour', () => {
+    const ranged = (over: Partial<CpmLoop> = {}) => render(
+      <MemoryRouter><SignalStrip loop={{ ...LOOP, engineering: { opMin: 0, opMax: 100 }, ...over } as CpmLoop} /></MemoryRouter>);
+    const box = (c: HTMLElement, i: number) => [...c.querySelectorAll('.cpm-signal-strip .cpm-signal')][i] as HTMLElement;
+
+    it('marks a live OP at a registered range bound amber, with the words At limit', () => {
+      hooks.live.mockReturnValue({ pv: metric(12.345), sp: metric(12), op: metric(100), mode: metric('AUTO'), hasData: true, lastSourceTs: NOW });
+      const { container } = ranged();
+      expect(box(container, 2).classList.contains('cpm-signal--warning')).toBe(true);
+      expect(box(container, 2).querySelector('.cpm-signal__state')?.textContent).toBe('!At limit');
+    });
+
+    it('leaves OP neutral inside the range, without a registered range, or when it is not live', () => {
+      const op100 = (ts = NOW) => ({ pv: metric(12.345), sp: metric(12), op: metric(100, ts), mode: metric('AUTO'), hasData: true, lastSourceTs: NOW });
+      const inside = ranged();
+      expect(box(inside.container, 2).classList.contains('cpm-signal--warning')).toBe(false);
+      cleanup();
+      hooks.live.mockReturnValue(op100());
+      const { container } = strip();
+      expect(box(container, 2).classList.contains('cpm-signal--warning')).toBe(false);
+      cleanup();
+      hooks.live.mockReturnValue(op100(NOW - 3 * 86_400_000));
+      const stale = ranged();
+      expect(subs(stale.container)[2]).toBe('last received 3 days ago');
+      expect(box(stale.container, 2).classList.contains('cpm-signal--warning')).toBe(false);
+    });
+
+    it('marks a live mode that is not a normal mode amber, its name and note being the words', () => {
+      hooks.live.mockReturnValue({ pv: metric(12.345), sp: metric(12), op: metric(48.2), mode: metric('MAN'), hasData: true, lastSourceTs: NOW });
+      const { container } = ranged();
+      const mode = box(container, 3);
+      expect(mode.classList.contains('cpm-signal--warning')).toBe(true);
+      expect(mode.querySelector('.cpm-signal__value')?.textContent).toBe('MAN');
+      expect(mode.querySelector('.cpm-signal__sub')?.textContent).toBe('manual · excluded at G1 · live');
+    });
+
+    it('never colours a stored mode, nor PV and SP (PV\'s good band is not on this page), and nothing is green', () => {
+      hooks.live.mockReturnValue({ hasData: false, lastSourceTs: null });
+      hooks.last.mockReturnValue({ isLoading: false, data: { values: { pv: { value: 90, ts: NOW }, sp: { value: 10, ts: NOW }, op: { value: 100, ts: NOW }, mode: { value: 'MAN', ts: NOW } } } });
+      const { container } = ranged();
+      expect(container.querySelectorAll('.cpm-signal--warning')).toHaveLength(0);
+      cleanup();
+      hooks.live.mockReturnValue({ pv: metric(90), sp: metric(10), op: metric(48.2), mode: metric('AUTO'), hasData: true, lastSourceTs: NOW });
+      const live = ranged();
+      expect(live.container.querySelectorAll('.cpm-signal--warning')).toHaveLength(0);
+      expect(live.container.querySelector('.cpm-signal-group [class*="success"], .cpm-signal-group [class*="--good"]')).toBeNull();
+    });
+  });
+
   it('keeps the honest empty state when nothing was ever published or stored', () => {
     hooks.live.mockReturnValue({ hasData: false, lastSourceTs: null });
     const { container } = strip();

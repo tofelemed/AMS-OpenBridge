@@ -39,6 +39,10 @@ export interface SignalValue {
   unit: string;
   /** Where the shown value came from: live, last received …, from historian or last stored …; empty with no value. */
   note: string;
+  /** CHG-185: the shown number as a number, for the state colour (null with no value). */
+  num: number | null;
+  /** CHG-185: the shown value is live and its feed is current ("live" under it); only such a value takes a state colour. */
+  live: boolean;
 }
 
 export function useSignalValues(loop: CpmLoop) {
@@ -57,16 +61,19 @@ export function useSignalValues(loop: CpmLoop) {
 
   const note = (liveTs: number | undefined, liveShown: boolean, heldTs: number | undefined, fromTrend: boolean): string =>
     liveShown ? liveSource(liveTs) : fromTrend ? 'from historian' : heldTs ? `last stored ${ageLabel(heldTs)}` : '';
+  /** A live value whose feed is current: the note under it reads "live". */
+  const current = (liveTs: number | undefined, liveShown: boolean) => liveShown && liveSource(liveTs) === 'live';
 
   const signals: SignalValue[] = (['pv', 'sp', 'op'] as const).map(m => {
     const lv = live[m];
-    const liveVal = lv && typeof lv.value === 'number' ? lv.value.toFixed(2) : null;
+    const liveNum = lv ? num(lv.value) : null;
     const stored = bucketValue(last, m);
     const heldVal = num(held[m]?.value);
-    const shown = liveVal ?? (stored != null ? stored.toFixed(2) : heldVal != null ? heldVal.toFixed(2) : null);
+    const shownNum = liveNum ?? stored ?? heldVal;
     return {
-      role: m.toUpperCase() as SignalValue['role'], value: shown, unit: m === 'op' ? '%' : '',
-      note: note(lv?.ts, !!liveVal, heldVal != null ? held[m]?.ts : undefined, stored != null),
+      role: m.toUpperCase() as SignalValue['role'], value: shownNum != null ? shownNum.toFixed(2) : null, unit: m === 'op' ? '%' : '',
+      note: note(lv?.ts, liveNum != null, heldVal != null ? held[m]?.ts : undefined, stored != null),
+      num: shownNum, live: current(lv?.ts, liveNum != null),
     };
   });
 
@@ -79,6 +86,8 @@ export function useSignalValues(loop: CpmLoop) {
 
   return {
     signals, mode, modeNote, noData, series, rolling,
+    /** CHG-185: the shown mode is live and current; `modeToken` is the value behind its label. */
+    modeLive: current(live.mode?.ts, liveMode != null), modeToken: liveMode ?? last?.mode ?? held.mode?.value,
     hasLive: live.hasData,
     quality: { tone: live.hasData ? sq.tone : ('muted' as const), text: live.hasData ? sq.text : 'No live publisher' },
   };

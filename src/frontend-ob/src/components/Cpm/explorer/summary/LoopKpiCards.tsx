@@ -3,6 +3,9 @@
  * chosen kind: value, the change since the window 24 h earlier, and for coverage its bar. A card opens a dialog with its meaning, the
  * gate that judges it (Inspect Gn →) and where the number is proven, so every KPI keeps its drill-down. "Not measured in this
  * window" is said once, for the whole row of cards, not on each card.
+ *
+ * CHG-185 (owner review item 4, decision Q2): the Overview's card layout — title at top, then the value — and one grid of all nine
+ * cards that wraps by width, in the groups' order; the group is a small line on each card. The explanation is a ? tip beside the title.
  */
 import { pipelineStep, usePipelineAccess } from '../../access';
 import React, { useState } from 'react';
@@ -11,6 +14,7 @@ import type { CpmLoop } from '../../../../api/cpmApi';
 import { EmptyState, PanelHead, QueryError } from '../../shared';
 import { calculationsHref, historicalHref, pipelineHref, windowsHref } from '../../cpaHref';
 import { KpiCard } from '../../kpi/KpiCard';
+import type { KpiIconTone } from '../../kpi/kpiMeta';
 import { LOOP_KPI_GROUPS, loopKpiCards, type LoopKpiCardModel } from '../../kpi/loopKpiView';
 import LoopKpiDialog from './LoopKpiDialog';
 import { useLoopKpis } from './useLoopKpis';
@@ -19,6 +23,12 @@ import { useLoopKpis } from './useLoopKpis';
 const SIGNALS_OF: Record<string, string> = {
   service: 'pv,sp,op', variability: 'pv,sp', saturation: 'op,vp', sp: 'sp,pv',
 };
+
+const GROUP_TITLE = new Map(LOOP_KPI_GROUPS.map(g => [g.id, g.title]));
+const GROUP_RANK = new Map(LOOP_KPI_GROUPS.map((g, i) => [g.id, i]));
+
+/** The Overview's icon colours (kpiMeta): blue for mode, amber for a value that needs a look, slate otherwise; no green. */
+const iconToneOf = (c: LoopKpiCardModel): KpiIconTone => (c.tone === 'warn' ? 'warn' : c.key === 'service' ? 'mode' : 'none');
 
 export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string; gateKeys?: string[] }> = ({ loop, windowKind = '12h', gateKeys }) => {
   const canPipeline = usePipelineAccess();
@@ -34,7 +44,8 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string; gateKe
     c.proof === 'calculations' ? { label: 'Calculation proof ↗', href: calculationsHref(loop.loopId, { kind: windowKind, metric: c.metric }) }
       : c.proof === 'windows' ? { label: 'Window Inspector ↗', href: windowsHref(loop.loopId, { profile: windowKind, window: end }) }
         : { label: 'Historical ↗', href: historicalHref(loop.loopId, { from, to: end, kind: windowKind, window: end, signals: SIGNALS_OF[c.key] ?? null, focus: c.label }) };
-  const cards = k?.current ? loopKpiCards(k) : [];
+  // stable sort: the cards of a group stay together and in their own order, as the three group rows showed them
+  const cards = (k?.current ? loopKpiCards(k) : []).sort((a, b) => (GROUP_RANK.get(a.group) ?? 0) - (GROUP_RANK.get(b.group) ?? 0));
   const selected = cards.find(c => c.key === openKey);
   const inspect = (gate: string) => {
     setOpenKey(null);
@@ -50,22 +61,18 @@ export const LoopKpiCards: React.FC<{ loop: CpmLoop; windowKind?: string; gateKe
       {k && !k.current && <EmptyState title="No evaluated window yet"
         copy="The KPIs appear once this loop completes an evaluation window. Switch 12 h / 24 h at the top of the page, or check Pipeline Health if a result is overdue."
         next={pipelineStep(canPipeline, pipelineHref())} />}
-      {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined */}
-      {LOOP_KPI_GROUPS.map(gr => {
-        const inGroup = cards.filter(c => c.group === gr.id);
-        if (!inGroup.length) return null;
-        return (
-          <div key={gr.id} className="cpm-kpigroup" role="group" aria-label={gr.title}>
-            <h3 className="cpm-kpigroup__title">{gr.title}</h3>
-            <div className="cpm-kpicards cpm-kpicards--loop">
-              {inGroup.map(c => (
-                <KpiCard key={c.key} Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone}
-                  relevant={c.relevant} bar={c.bar} title={c.title} onOpen={() => setOpenKey(c.key)} />
-              ))}
+      {/* CHG-092 (SME review 2 #22): grouped by what they tell the engineer; the cards that bear on the finding are outlined.
+          CHG-185 (Q2): one grid; each card names its group. */}
+      {cards.length > 0 && (
+        <div className="cpm-kpicards cpm-kpicards--loop" role="list">
+          {cards.map(c => (
+            <div role="listitem" key={c.key}>
+              <KpiCard headed Icon={c.Icon} value={c.value} label={c.label} sub={c.sub} tone={c.tone} iconTone={iconToneOf(c)}
+                relevant={c.relevant} bar={c.bar} title={c.title} group={GROUP_TITLE.get(c.group)} onOpen={() => setOpenKey(c.key)} />
             </div>
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      )}
       {selected && <LoopKpiDialog card={selected} proof={proofOf(selected)} gateKeys={gateKeys} onInspect={inspect} onClose={() => setOpenKey(null)} />}
     </section>
   );
