@@ -11,7 +11,8 @@ import { evidenceScore } from '../evidenceScore';
 import { contextOfMatrix, metricAvailability } from '../metricAvailability';
 import { persistingText } from '../overview/priorityReason';
 
-export interface HeroFact { value: string; label: string }
+/** `bar` (0 to 100) draws the share under the value; only a measured fraction of the window has one. */
+export interface HeroFact { value: string; label: string; bar?: number }
 
 /** A stored fraction as a whole percent. Missing is a dash, and a ratio above 1 stays what it is. */
 const pct = (v: number | null | undefined): string => (v != null && Number.isFinite(v) ? `${Math.round(v * 100)} %` : '—');
@@ -34,7 +35,10 @@ export function heroFacts(matrix: CpmGateMatrix, episode: Episode | null | undef
   const { kind } = conditionOf(matrix.diagnosis);
   const metrics = matrix.metrics ?? {};
   const good = metricAvailability(contextOfMatrix(matrix), 'good_error_pct', metrics.good_error_pct);
-  const goodError = { value: good.state === 'measured' ? pct(metrics.good_error_pct) : '—', label: 'Good-error time' };
+  const ge = metrics.good_error_pct;
+  const goodError: HeroFact = good.state === 'measured'
+    ? { value: pct(ge), label: 'Good-error time', ...(ge != null && ge >= 0 && ge <= 1 ? { bar: Math.round(ge * 100) } : {}) }
+    : { value: '—', label: 'Good-error time' };
   const normalMode = { value: pct(metrics.auto_pct), label: 'Time in normal mode' };
   const coverage = { value: pct(metrics.completeness), label: 'Data coverage' };
   if (kind === 'finding' || kind === 'healthy') {
@@ -67,6 +71,15 @@ export function causeOf(matrix: Pick<CpmGateMatrix, 'diagnosis' | 'verdictV2'>):
   const cause = leadingCauseOf(matrix);
   if (cause) return { text: cause, unconfirmed: matrix.verdictV2?.confirmation?.state !== 'CONFIRMED' };
   return { text: kind === 'finding' ? 'Not established' : 'Not qualified', unconfirmed: false };
+}
+
+/**
+ * CHG-186: a line of "What is still unconfirmed" as a card: the subject before the first colon is the title, the rest the
+ * reason. A line with no colon is a title alone ("Too few samples in the window").
+ */
+export function limitCard(line: string): { title: string; reason: string | null } {
+  const at = line.indexOf(': ');
+  return at > 0 ? { title: line.slice(0, at), reason: line.slice(at + 2) } : { title: line, reason: null };
 }
 
 /** `nextCheckOf`, except that its fallback for a finding is "open the investigation", which is this page. */

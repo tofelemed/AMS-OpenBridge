@@ -3,6 +3,7 @@
  * and how sure is it. Evidence: is it backed by the data. Windows: is it new, or has it persisted. Hypotheses: which
  * mechanism explains it. Review: what to check next, and what was decided. The step lives in `?tab=`; a gate or a card named
  * in a link opens Evidence, as the links from other pages expect. Each step but the last ends with Next.
+ * CHG-186 (owner review item 8): Next is the tab's primary action, bottom right of the foot strip.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -36,7 +37,7 @@ export const InvestigationSteps: React.FC<{
       <div className="cpm-tabpanel" {...tabPanelProps('investigation', step)}>{children}</div>
       {next && (
         <div className="cpm-inv-steps__foot">
-          <ObcButton variant="normal" onClick={() => onStep(next)}>Next: {next} →</ObcButton>
+          <ObcButton variant="raised" onClick={() => onStep(next)}>Next: {next} →</ObcButton>
         </div>
       )}
     </section>

@@ -10,6 +10,10 @@
  * CHG-185 (owner review item 4): the loop KPIs take the headed layout too — title at top, then the value — with `onOpen`. The
  * explanation (`sub` and `title`) moves to a ? tip beside the title that opens on hover, focus or tap; the rest of the card opens the
  * KPI's dialog. `group` is the small line naming the card's group, `bar` the coverage bar.
+ *
+ * CHG-186 (owner review item 8): the same layout with neither `to` nor `onOpen` is a plain tile (the Investigation's result
+ * facts, which open nothing): title and ? tip, then the value and bar. `Icon` is optional there, and `tip` replaces the tip's
+ * `sub` / `title` text when the explanation is a block of its own.
  */
 import React, { useId } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
@@ -22,7 +26,8 @@ const Bar: React.FC<{ value: number }> = ({ value }) => (
 );
 
 export const KpiCard: React.FC<{
-  Icon: React.ComponentType;
+  /** Required on a link or compact card; a headed tile can go without. */
+  Icon?: React.ComponentType;
   value: React.ReactNode;
   label: string;
   sub?: React.ReactNode;
@@ -41,28 +46,35 @@ export const KpiCard: React.FC<{
   bar?: number | null;
   /** `headed` with `onOpen` only: the card's group, a small line under the value (CHG-185). */
   group?: string;
-}> = ({ Icon, value, label, sub, tone = 'muted', title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar, group }) => {
+  /** `headed` without `to`: the ? tip's content, in place of `sub` and `title` (CHG-186). */
+  tip?: React.ReactNode;
+}> = ({ Icon, value, label, sub, tone = 'muted', title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar, group, tip }) => {
   const tipId = useId();
   const valueId = useId();
   const cls = `cpm-kpicard cpm-kpicard--${tone} cpm-kpicard--${size}${headed ? ' cpm-kpicard--headed' : ''}${relevant ? ' cpm-kpicard--relevant' : ''}`;
 
-  // CHG-185: the title opens the dialog and its click area covers the card; the ? tip sits above it, so a tap on the ? opens the tip
-  if (headed && onOpen) {
+  // CHG-185: the title opens the dialog and its click area covers the card; the ? tip sits above it, so a tap on the ? opens the tip.
+  // CHG-186: without `onOpen` (and `to`) the same card is a plain tile.
+  if (headed && (onOpen || !to)) {
     return (
-      <div className={`${cls} cpm-kpicard--link cpm-kpicard--open`}>
+      <div className={onOpen ? `${cls} cpm-kpicard--link cpm-kpicard--open` : `${cls} cpm-kpicard--tile`}>
         <span className="cpm-kpicard__head">
           <span className="cpm-kpicard__title">
-            <button type="button" className="cpm-kpicard__opener" aria-haspopup="dialog" aria-describedby={valueId} onClick={onOpen}>
-              <span className="cpm-kpicard__label">{label}</span>
-            </button>
-            {(sub || title) && (
+            {onOpen ? (
+              <button type="button" className="cpm-kpicard__opener" aria-haspopup="dialog" aria-describedby={valueId} onClick={onOpen}>
+                <span className="cpm-kpicard__label">{label}</span>
+              </button>
+            ) : <span className="cpm-kpicard__label">{label}</span>}
+            {(tip || sub || title) && (
               <Toggletip variant="how-to" label={`About ${label}`}>
-                {sub ? <p><strong>{sub}</strong></p> : null}
-                {title ? <p>{title}</p> : null}
+                {tip ?? <>
+                  {sub ? <p><strong>{sub}</strong></p> : null}
+                  {title ? <p>{title}</p> : null}
+                </>}
               </Toggletip>
             )}
           </span>
-          <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>
+          {Icon && <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>}
         </span>
         <span className="cpm-kpicard__figure">
           <span className="cpm-kpicard__value" id={valueId}>{value}</span>
@@ -77,7 +89,7 @@ export const KpiCard: React.FC<{
     <>
       <span className="cpm-kpicard__head">
         <span className="cpm-kpicard__label">{label}</span>
-        <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>
+        {Icon && <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>}
       </span>
       <span className="cpm-kpicard__figure">
         <span className="cpm-kpicard__value">{value}</span>
@@ -88,9 +100,11 @@ export const KpiCard: React.FC<{
     </>
   ) : (
     <>
-      <span className="cpm-kpicard__top">
-        <span className="cpm-kpicard__icon" aria-hidden><Icon /></span>
-      </span>
+      {Icon && (
+        <span className="cpm-kpicard__top">
+          <span className="cpm-kpicard__icon" aria-hidden><Icon /></span>
+        </span>
+      )}
       <span className="cpm-kpicard__value">{value}</span>
       <span className="cpm-kpicard__label">{label}</span>
       {bar != null && <Bar value={bar} />}

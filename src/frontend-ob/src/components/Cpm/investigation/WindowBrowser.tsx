@@ -2,6 +2,7 @@
  * Recent evaluated windows with a PREVIOUS/CURRENT delta table over the key facts (CHG-141). Split out of CpmInvestigation in
  * v2.5 (1E.2). CHG-160 (owner review): the Investigation's Windows tab, no longer a dialog; its table is the window's
  * numeric evidence too, so it shows with or without a previous window.
+ * CHG-186 (owner review item 8, `08-windows-pager-DESIGN`): the pager sits on the heading line, at its end.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -64,9 +65,18 @@ export const WindowBrowser: React.FC<{
     return kind === 'excluded' || kind === 'insufficient' ? `${which} window ${lowerFirst(label)}` : null;
   };
   const notComparable = [side(previous, 'Previous'), side(matrix, 'Current')].filter(Boolean).join(' · ');
+  const pager = (pages > 1 || hasMore) ? (
+    <div className="cpm-filter-row cpm-window-tiles__pager" role="group" aria-label="Pages of windows">
+      <span title={page === 0 ? 'Already showing the newest windows' : undefined}><ObcButton variant="flat" disabled={page === 0} onClick={() => setPage(x => x - 1)}>‹ Newer</ObcButton></span>
+      <span className="cpm-copy">{page * PAGE + 1}–{Math.min(windows.length, page * PAGE + PAGE)} of {windows.length}{hasMore ? '+' : ''}</span>
+      <span title={page >= pages - 1 && !hasMore ? 'Already showing the oldest stored windows' : undefined}>
+        <ObcButton variant="flat" disabled={(page >= pages - 1 && !hasMore) || isLoadingMore}
+          onClick={() => { if (page >= pages - 1) { advance.current = windows.length; loadMore(); } else setPage(x => x + 1); }}>Older ›</ObcButton></span>
+    </div>
+  ) : undefined;
   return (
     <>
-      <PanelHead title={`Recent ${windowKind} windows`} />
+      <PanelHead title={`Recent ${windowKind} windows`} right={pager} />
       {/* SME #18 (CHG-054): each window by its END and SIZE — sliding windows share a date and often a verdict */}
       <div className="cpm-window-tiles" role="list" aria-label={`Evaluated ${windowKind} windows`}>
         {shown.map(w => {
@@ -91,15 +101,6 @@ export const WindowBrowser: React.FC<{
           );
         })}
       </div>
-      {(pages > 1 || hasMore) && (
-        <div className="cpm-filter-row cpm-window-tiles__pager">
-          <span title={page === 0 ? 'Already showing the newest windows' : undefined}><ObcButton variant="flat" disabled={page === 0} onClick={() => setPage(x => x - 1)}>‹ Newer</ObcButton></span>
-          <span className="cpm-copy">{page * PAGE + 1}–{Math.min(windows.length, page * PAGE + PAGE)} of {windows.length}{hasMore ? '+' : ''}</span>
-          <span title={page >= pages - 1 && !hasMore ? 'Already showing the oldest stored windows' : undefined}>
-            <ObcButton variant="flat" disabled={(page >= pages - 1 && !hasMore) || isLoadingMore}
-              onClick={() => { if (page >= pages - 1) { advance.current = windows.length; loadMore(); } else setPage(x => x + 1); }}>Older ›</ObcButton></span>
-        </div>
-      )}
       {/* CHG-160 (owner review): the Windows tab; the current window's measures show even when there is nothing before it */}
       <div className="cpm-matrix-scroll" style={{ marginTop: 12 }}>
         <table className="cpm-matrix">

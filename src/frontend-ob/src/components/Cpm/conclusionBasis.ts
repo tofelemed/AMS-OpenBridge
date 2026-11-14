@@ -17,9 +17,13 @@ export interface ConclusionBasis {
   lead: string;
   /** What the conclusion rests on, e.g. "sustained oscillation (G5, G7)". */
   from: string;
+  /** The same, one entry per observation seen, with its gate codes apart (CHG-186: the Investigation's chips). Empty when `from` is a phrase. */
+  items: BasisItem[];
   /** Each input the conclusion was judged without, and what that leaves open. */
   notChecked: string[];
 }
+
+export interface BasisItem { label: string; codes: string[] }
 
 const HEALTH_GAP: Record<string, string> = {
   'HEALTH NOT CONFIGURED': 'Transmitter health: no NE107 health source is bound, so a sensor fault is not ruled out',
@@ -54,12 +58,13 @@ export function basisOf(
   if (condition.kind !== 'finding' && condition.kind !== 'healthy') return null;
   const notChecked = notCheckedOf(matrix.observabilityFlags, ctx.healthLabel, ctx.inputs);
   if (condition.kind === 'healthy')
-    return { lead: 'No problem found in', from: 'the performance and symptom checks that ran on this window', notChecked };
+    return { lead: 'No problem found in', from: 'the performance and symptom checks that ran on this window', items: [], notChecked };
   // cited gates are only those that fired on this window (causeBreakdown's `cells`)
   const seen = causeBreakdown(matrix.verdictV2, matrix.observabilityFlags ?? [], ctx.inputs, matrix.gates)?.observed ?? [];
-  const from = seen.length
-    ? seen.map(o => `${lowerFirst(o.label)}${o.detail ? ` (${o.detail})` : ''}`).join(' · ')
+  const items = seen.map(o => ({ label: lowerFirst(o.label), codes: o.detail ? o.detail.split(', ') : [] }));
+  const from = items.length
+    ? items.map(i => `${i.label}${i.codes.length ? ` (${i.codes.join(', ')})` : ''}`).join(' · ')
     : 'the gate results on this window';
   const confirmed = (matrix.diagnosis ?? '').toUpperCase().includes('CONFIRMED');
-  return { lead: confirmed ? 'Confirmed from' : 'Based on', from, notChecked };
+  return { lead: confirmed ? 'Confirmed from' : 'Based on', from, items, notChecked };
 }

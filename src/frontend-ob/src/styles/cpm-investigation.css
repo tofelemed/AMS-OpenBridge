@@ -1,26 +1,73 @@
 /* CHG-141 Investigation: where the blocks sit. Placement only: every size comes from the classes the blocks already use. */
 .cpm-inv-hero { display: grid; gap: var(--traverse-space-3); }
-.cpm-inv-hero__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
-.cpm-inv-hero__result { display: grid; gap: var(--traverse-space-1); min-width: 0; }
-.cpm-inv-hero__class { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: var(--traverse-space-1) 0 0; }
-.cpm-inv-hero__class dd { margin: 0; }
+.cpm-inv-hero__top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--traverse-space-6); align-items: start; }
+.cpm-inv-hero__result { display: grid; gap: var(--traverse-space-3); min-width: 0; }
+.cpm-inv-hero__result > .cpm-copy { margin-top: calc(-1 * var(--traverse-space-2)); }
+.cpm-inv-headline { flex-wrap: wrap; }
+.cpm-inv-headline > .cpm-title { margin: 0; }
 .cpm-inv-hero__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--traverse-space-3); min-width: 0; }
+/* CHG-186: the facts are tiles with no icon, so the head is only as tall as the title */
+.cpm-inv-hero__facts .cpm-kpicard__head { min-height: 0; }
+.cpm-inv-hero__facts .cpm-kpicard__figure { margin-top: var(--traverse-space-2); }
+
+/* CHG-186 (owner review item 8): a small label in sentence case over its value (no caps eyebrow) */
+.cpm-inv-label { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+.cpm-inv-basis { display: grid; gap: var(--traverse-space-1); min-width: 0; }
+.cpm-inv-basis__phrase { margin: 0; }
+.cpm-inv-chips { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin: 0; padding: 0; list-style: none; }
+.cpm-inv-chip {
+  display: flex; flex: 0 1 auto; align-items: center; gap: var(--traverse-space-2); min-width: 0; padding: var(--traverse-space-2) var(--traverse-space-3);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
+}
+.cpm-inv-chip__check {
+  display: grid; flex: none; place-items: center; width: var(--traverse-space-5); height: var(--traverse-space-5); border-radius: 50%;
+  background: var(--traverse-surface-selected); color: var(--traverse-action-primary); font-size: var(--traverse-type-metadata); font-weight: 700;
+}
+.cpm-inv-chip__text { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+.cpm-inv-chip__code, .cpm-inv-count {
+  flex: none; padding: 0 var(--traverse-space-1); border-radius: var(--traverse-radius-control); background: var(--traverse-surface-raised);
+  color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.cpm-inv-count { min-width: var(--traverse-space-5); border-radius: var(--traverse-space-3); text-align: center; }
+/* Cause and engine severity: one card, two cells */
+.cpm-inv-class {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0;
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
+}
+.cpm-inv-class__cell { display: grid; align-content: start; gap: var(--traverse-space-1); min-width: 0; padding: var(--traverse-space-3) var(--traverse-space-4); }
+.cpm-inv-class__cell + .cpm-inv-class__cell { border-left: 1px solid var(--traverse-border-subtle); }
+.cpm-inv-class__value {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); margin: 0;
+  color: var(--traverse-text-primary); font-size: var(--traverse-type-key); font-weight: 600;
+}
+.cpm-inv-class__value .ui-badge { font-size: var(--traverse-type-metadata); }
+/* What is still unconfirmed: a card per line, title and reason */
+.cpm-inv-gaps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--traverse-space-2); margin: 0; padding: 0; list-style: none; }
+.cpm-inv-gap {
+  display: grid; align-content: start; gap: var(--traverse-space-1); min-width: 0; padding: var(--traverse-space-3) var(--traverse-space-4);
+  border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
+}
+.cpm-inv-gap__title { color: var(--traverse-text-primary); font-weight: 600; overflow-wrap: anywhere; }
+.cpm-inv-gap__reason { color: var(--traverse-text-secondary); }
 
 /* CHG-160 (owner review): the five steps in one panel, tabbed as on Loop Explorer, with Next in a foot strip. */
 .cpm-inv-steps { padding-block: 0; }
 .cpm-inv-steps > .cpm-tabs-row { margin-top: 0; }
 .cpm-inv-steps > .cpm-tabpanel { display: grid; gap: var(--traverse-space-3); min-height: 0; padding-block: var(--traverse-space-3); }
+/* CHG-186: a heading and what sits at its end (a pager, a link, a pill) share one centre line */
+.cpm-inv-steps .cpm-panel-head { align-items: center; }
 .cpm-inv-steps__foot {
   display: flex; justify-content: flex-end; margin: 0 calc(-1 * var(--traverse-space-4));
-  padding: var(--traverse-space-1) var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle);
+  padding: var(--traverse-space-3) var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle);
   border-end-start-radius: inherit; border-end-end-radius: inherit; background: var(--traverse-surface-page);
 }
 .cpm-inv-review-step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
 .cpm-inv-checks__lead { margin: 0 0 var(--traverse-space-1); }
 /* Three to a row at every desktop width: the six mechanisms read 3 + 3, never 4 + 2. */
 .cpm-hypo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-2); }
+/* CHG-186: the same card as the Result tab's (cpm-inv-gap) */
 .cpm-hypo-card {
-  display: grid; align-content: start; gap: var(--traverse-space-1); min-width: 0; padding: var(--traverse-space-2) var(--traverse-space-3);
+  display: grid; align-content: start; gap: var(--traverse-space-1); min-width: 0; padding: var(--traverse-space-3) var(--traverse-space-4);
   border: 1px solid var(--traverse-border-subtle); border-radius: var(--traverse-radius-control);
 }
 .cpm-hypo-card .cpm-hypo { min-width: 0; }
@@ -58,7 +105,10 @@
 .cpm-inv-proof { margin-top: var(--traverse-space-3); }
 .cpm-inv-proof h3 { margin: 0 0 var(--traverse-space-1); }
 
-.cpm-inv-limits { display: grid; gap: var(--traverse-space-1); margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); }
+.cpm-inv-limits {
+  display: grid; gap: var(--traverse-space-2); margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0;
+  padding: var(--traverse-space-4) var(--traverse-space-4) 0; border-top: 1px solid var(--traverse-border-subtle);
+}
 
 .cpm-inv-checks { display: grid; margin: 0; padding: 0; list-style: none; }
 .cpm-inv-checks li {
@@ -75,12 +125,14 @@
 
 @media (max-width: 1100px) {
   .cpm-inv-hero__top, .cpm-inv-work, .cpm-inv-review-step, .cpm-hypo-lower { grid-template-columns: minmax(0, 1fr); }
+  .cpm-inv-gaps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-hypo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 736px) {
   .cpm-inv-review { grid-template-columns: minmax(0, 1fr); }
-  .cpm-inv-hero__facts, .cpm-hypo-grid { grid-template-columns: minmax(0, 1fr); }
+  .cpm-inv-hero__facts, .cpm-hypo-grid, .cpm-inv-gaps, .cpm-inv-class { grid-template-columns: minmax(0, 1fr); }
+  .cpm-inv-class__cell + .cpm-inv-class__cell { border-left: 0; border-top: 1px solid var(--traverse-border-subtle); }
   .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5.cpm-inv-cards > :last-child { grid-column: 1 / -1; }
 }

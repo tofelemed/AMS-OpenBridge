@@ -108,6 +108,21 @@ describe('WindowBrowser', () => {
     expect(tile.textContent).toBe('Ends 4 Nov 16:15LatestNo fault identified');   // site time
   });
 
+  // CHG-186 (owner review item 8, 08-windows-pager-DESIGN): the pager sits on the heading line, at its end
+  it('puts the pager on the heading line, after the heading', () => {
+    render(<WindowBrowser {...props()} />);
+    const head = screen.getByRole('heading', { level: 2, name: 'Recent 12h windows' }).closest('.cpm-panel-head')!;
+    const pager = screen.getByRole('group', { name: 'Pages of windows' });
+    expect(head.contains(pager)).toBe(true);
+    expect(pager.textContent).toBe('‹ Newer1–5 of 100+Older ›');
+    expect(head.querySelector('.cpm-panel-head__right')?.contains(pager)).toBe(true);
+  });
+
+  it('shows no pager when every window fits on one page', () => {
+    render(<WindowBrowser {...props({ windows: many.slice(0, 3), hasMore: false })} />);
+    expect(screen.queryByRole('group', { name: 'Pages of windows' })).toBeNull();
+  });
+
   // CHG-160 (owner review): the browser is the Windows tab, so it names what it lists
   it('heads the Windows tab with the recent windows of its kind', () => {
     render(<WindowBrowser {...props()} />);

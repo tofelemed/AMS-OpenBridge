@@ -2,7 +2,8 @@
 // a score, a cap or a confirmation; a pre-v2.5 row renders as LEGACY family scores.
 import React from 'react';
 import { afterEach, describe, it, expect } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { CpmVerdictV2 } from '../../../api/cpm/verdict';
 import { HypothesisPanel } from './HypothesisPanel';
 
@@ -61,7 +62,14 @@ describe('HypothesisPanel', () => {
     expect(screen.getByTestId('confirmation-prose').textContent).toContain('cannot confirm a final-element fault');
     expect(container.textContent).toContain('Not confirmed');
     expect(container.textContent).not.toContain('0.89');
-    expect(container.textContent).toContain('Scores rank the mechanisms; they are not probabilities.');
+  });
+
+  // CHG-186 (owner review item 8): what a score is sits behind the heading's ?, not in a sentence under the cards
+  it('keeps what the scores mean behind the ? of the heading', () => {
+    const { container } = render(<MemoryRouter><HypothesisPanel verdict={v2} metrics={{}} /></MemoryRouter>);
+    expect(container.textContent).not.toContain('Scores rank the mechanisms');
+    fireEvent.click(screen.getByRole('button', { name: 'Mechanism scores' }));
+    expect(screen.getByText('Scores rank the mechanisms; they are not probabilities.')).toBeTruthy();
   });
 
   it('renders a pre-v2.5 row as LEGACY family scores without inventing hypotheses', () => {

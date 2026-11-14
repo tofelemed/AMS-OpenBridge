@@ -42,6 +42,14 @@ it('the basis cites only gates that saw the symptom on this window', () => {
   expect(basisOf(mx)!.from).toBe('sustained oscillation (G7)');
 });
 
+// CHG-186: the same basis, one item per observation with its gate codes apart, for the Investigation's chips
+it('lists each observation seen with its gate codes, the same as the phrase', () => {
+  const b = basisOf(m('CONFIRMED_OSCILLATION', [], verdict))!;
+  expect(b.items).toEqual([{ label: 'sustained oscillation', codes: ['G5', 'G7'] }]);
+  expect(b.from).toBe('sustained oscillation (G5, G7)');
+  expect(basisOf(m('NORMAL'))!.items).toEqual([]);
+});
+
 describe('PASS on available data', () => {
   it('a pass judged without one of its inputs is grey and names the missing input', () => {
     const mk = gateMark('PASS', 'G12', ['NO_STEP_TEST']);

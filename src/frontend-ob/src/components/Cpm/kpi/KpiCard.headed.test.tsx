@@ -2,7 +2,7 @@
 /** CHG-127: the Overview card shows its label, icon and number; the detail waits on hover and the whole card opens the list. */
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { KpiCard } from './KpiCard';
 import { trendSourceText } from '../trend/evaluatedWindow';
@@ -59,6 +59,19 @@ describe('headed KPI card', () => {
     const { container } = card({ to: undefined });
     expect(screen.queryByRole('link')).toBeNull();
     expect(container.textContent).not.toContain('View loops');
+  });
+
+  // CHG-186 (owner review item 8): with no link and no dialog, the headed card is a plain tile with its explanation behind a ?
+  it('is a plain tile without a link or a dialog: title, ? tip, value and bar, and no icon unless given', () => {
+    const { container } = render(<MemoryRouter><KpiCard headed value="84 %" label="Good-error time" bar={84} tip={<p>What it means.</p>} /></MemoryRouter>);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(container.querySelector('.cpm-kpicard--tile .cpm-kpicard__icon')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.cpm-kpicard__bar > span')?.style.width).toBe('84%');
+    expect(screen.queryByText('What it means.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'About Good-error time' }));
+    expect(screen.getByText('What it means.')).toBeTruthy();
+    const text = container.textContent ?? '';
+    expect(text.indexOf('Good-error time')).toBeLessThan(text.indexOf('84 %'));
   });
 
 });

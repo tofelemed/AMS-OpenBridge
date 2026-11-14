@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CpmGateMatrix } from '../../../api/cpm/gates';
 import { row } from '../evidence/windowFixtures';
-import { causeOf, episodeAt, heroFacts, heroNextCheck, heroTitle } from './heroFacts';
+import { causeOf, episodeAt, heroFacts, heroNextCheck, heroTitle, limitCard } from './heroFacts';
 
 const END = '2026-11-05T10:15:00Z';
 const hoursBefore = (h: number) => new Date(Date.parse(END) - h * 3600_000).toISOString();
@@ -13,7 +13,7 @@ const verdict = (over: Record<string, unknown>) => over as unknown as CpmGateMat
 describe('heroFacts', () => {
   it('shows good-error time, persisting and evidence score for a finding', () => {
     expect(heroFacts(finding, { opened_at: hoursBefore(11) })).toEqual([
-      { value: '13 %', label: 'Good-error time' },
+      { value: '13 %', label: 'Good-error time', bar: 13 },
       { value: '11 h', label: 'Persisting' },
       { value: '100', label: 'Evidence score' },
     ]);
@@ -35,7 +35,7 @@ describe('heroFacts', () => {
   it('shows how a no-fault window did, with no evidence score: it has no verdict to score', () => {
     for (const diagnosis of ['NO_CALL', 'INSUFFICIENT_EVIDENCE']) {
       expect(heroFacts(row(END, { diagnosis, confidence: 0.2, metrics: { good_error_pct: 0.91, auto_pct: 1, completeness: 1 } }), null)).toEqual([
-        { value: '91 %', label: 'Good-error time' },
+        { value: '91 %', label: 'Good-error time', bar: 91 },
         { value: '100 %', label: 'Time in normal mode' },
         { value: '100 %', label: 'Data coverage' },
       ]);
@@ -141,5 +141,27 @@ describe('heroNextCheck', () => {
 
   it('never says a no-fault window is short of data', () => {
     expect(heroNextCheck(row(END, { diagnosis: 'INSUFFICIENT_EVIDENCE' }))).toMatch(/No fault reached the evidence threshold/);
+  });
+});
+
+// CHG-186 (owner review item 8): the bar is a share of the window, so only a measured fraction draws one
+describe('the Good-error time bar', () => {
+  it('draws no bar for a value that is not measured or not a share', () => {
+    expect(heroFacts(row(END, { diagnosis: 'CONFIRMED_OSCILLATION', metrics: {} }), null)[0]).toEqual({ value: '—', label: 'Good-error time' });
+    expect(heroFacts(row(END, { diagnosis: 'CONFIRMED_OSCILLATION', metrics: { good_error_pct: 1.4 } }), null)[0]).toEqual({ value: '140 %', label: 'Good-error time' });
+  });
+});
+
+// CHG-186: a line of What is still unconfirmed becomes a card: the subject is the title, the rest the reason
+describe('limitCard', () => {
+  it('splits a line at its first colon', () => {
+    expect(limitCard('Step response (G12): no approved step test, so there is no process model to compare against'))
+      .toEqual({ title: 'Step response (G12)', reason: 'no approved step test, so there is no process model to compare against' });
+    expect(limitCard('Evidence score capped at 54: not yet persistent (3 of 5 windows agree)'))
+      .toEqual({ title: 'Evidence score capped at 54', reason: 'not yet persistent (3 of 5 windows agree)' });
+  });
+
+  it('keeps a line with no colon as a title alone', () => {
+    expect(limitCard('Too few samples in the window')).toEqual({ title: 'Too few samples in the window', reason: null });
   });
 });

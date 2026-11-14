@@ -1840,3 +1840,22 @@ Dates and times keep their format (Q5). Lab values are those read on 15 Nov (rea
 | History · period | (the whole run row opened Historical, unmarked) | the period opens Historical over its span, title "Show in Historical"; the row still does |
 | History · pager | "1–10 of 12 run(s) from 35 episode(s) …" | "1–10 of 12 runs from 35 episodes …" |
 | History · under 1100 px | the same blocks | each run a block of labelled cells (Period, Finding, Episodes, Peak score, Review state, the link); episode lines keep the run's columns without the names |
+
+## CHG-186 Investigation: five tabs in the owner's design (owner review item 8; Q4, Q5)
+
+Follows `owner-review-2026-11-14/08-result-tab-DESIGN.webp` and `08-windows-pager-DESIGN.webp`. Times keep their format (Q5);
+"↗" links stay links (Q4). The design's caps labels (CONFIRMED FROM, CAUSE, GOOD-ERROR TIME …) are sentence case, as in the
+rest of the app.
+
+| Where | Was | Now |
+|---|---|---|
+| Investigation · Result · title | "Oscillation confirmed" | "● Oscillation confirmed": the result's dot before it, in the result's tone |
+| Result · what the result rests on | one sentence: "**Confirmed from** sustained oscillation (G5, G6) · phase-portrait geometry · actuator stress (G4)." | the small label "Confirmed from" (or "Based on") over a chip per observation: "✓ sustained oscillation G5 G6", "✓ phase-portrait geometry", "✓ actuator stress G4"; each gate code a pill of its own |
+| Result · basis without observations | "**No problem found in** the performance and symptom checks that ran on this window." | the label "No problem found in" over "the performance and symptom checks that ran on this window" (no full stop) |
+| Result · cause | "Cause ?" over "Controller tuning · not confirmed" | one card with two cells; "Cause ?" over "Controller tuning" and the warning badge "! Not confirmed" |
+| Result · engine severity | "Engine severity" over "High" | the card's second cell: "Engine severity" over "● High", the dot in the severity's tone (none without a severity) |
+| Result · facts | three boxes with CAPS captions (GOOD-ERROR TIME, PERSISTING, EVIDENCE SCORE ?; TIME IN NORMAL MODE, TIME AT AN OP LIMIT, DATA COVERAGE) | the app's headed tiles (as Loop Explorer): sentence-case title, then the value; a bar under Good-error time when it is a measured share; the Evidence score `?` is now named "About Evidence score" |
+| Result · limits | heading "What is still unconfirmed" (or "Limits on this conclusion") over a bulleted list ("Transmitter health: no NE107 health source is bound, so a sensor fault is not ruled out" …) | the same heading with the count beside it ("What is still unconfirmed 5"), then a card per line in three columns: the words before the first colon as the bold title ("Transmitter health"), the rest as the reason under it; a line with no colon is a title alone ("Bandwidth limited") |
+| Investigation · foot of Result, Evidence, Windows, Hypotheses | "Next: Evidence →" (Secondary) | "Next: Evidence →" (Primary, filled), bottom right; the same for Windows, Hypotheses, Review |
+| Investigation · Windows | "‹ Newer · 1–5 of 100+ · Older ›" centred under the window tiles | the same pager on the "Recent 12h windows" heading line, right-aligned |
+| Investigation · Hypotheses | the line "Scores rank the mechanisms; they are not probabilities." under the mechanism cards | a `?` beside "Mechanisms and the evidence for each", named "Mechanism scores", holding the same sentence |

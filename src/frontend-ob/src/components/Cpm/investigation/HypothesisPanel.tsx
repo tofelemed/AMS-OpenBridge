@@ -4,11 +4,13 @@
  * fault-scoped G14 confirmation, and the observations with the method that produced each.
  * Nothing here scores, ranks or caps anything; the engine did. A pre-v2.5 row is shown as
  * stored family scores under a LEGACY pill and is never re-interpreted. CHG-160 (owner review): the Hypotheses tab, as
- * the owner's design: the mechanisms as cards, then the observations beside the G14 confirmation.
+ * the owner's design: the mechanisms as cards, then the observations beside the G14 confirmation. CHG-186 (owner review
+ * item 8): the cards in the Result tab's look; what a score is sits behind the heading's ?.
  */
 import React from 'react';
 import type { CpmVerdictV2 } from '../../../api/cpm/verdict';
 import { HYPOTHESIS_LABEL, HYPOTHESIS_ORDER, OBSERVATION_LABEL } from '../../../api/cpm/verdict';
+import { Toggletip } from '../../../ui/Toggletip';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
 import type { CpmTone } from '../shared';
 import { confirmationLabel, confirmationProse } from './confirmationCopy';
@@ -87,6 +89,7 @@ export const HypothesisPanel: React.FC<{
   return (
     <>
       <PanelHead title="Mechanisms and the evidence for each"
+        help={<Toggletip variant="how-to" label="Mechanism scores"><p>Scores rank the mechanisms; they are not probabilities.</p></Toggletip>}
         right={<TonePill tone="muted">revision {verdict.resultRevision}</TonePill>} />
       {ids.length === 0 && (
         <EmptyState title="No hypotheses on this window"
@@ -123,7 +126,6 @@ export const HypothesisPanel: React.FC<{
           );
         })}
       </div>
-      <p className="cpm-copy">Scores rank the mechanisms; they are not probabilities.</p>
 
       <div className="cpm-hypo-lower">
         {observations.length > 0 && (
