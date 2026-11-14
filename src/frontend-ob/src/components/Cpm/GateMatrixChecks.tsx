@@ -89,7 +89,7 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
                 </td>
                 <td className="cpm-checks__score">{score ?? '—'}</td>
                 <td>
-                  <ObcButton variant="flat" title={`Review ${row.loopId} in Investigation`}
+                  <ObcButton className="ui-link" variant="flat" title={`Review ${row.loopId} in Investigation`}
                     onClick={() => navigate(investigationHref(row.loopId, { kind: windowKind }))}>
                     Review ↗
                   </ObcButton>

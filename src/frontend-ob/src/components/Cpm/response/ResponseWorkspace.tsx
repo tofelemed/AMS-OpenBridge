@@ -91,11 +91,11 @@ export const ResponseWorkspace: React.FC = () => {
       onLoop={id => setParams(p => { p.set('loop', id); ['event', 'methodRun', 'tab'].forEach(k => p.delete(k)); return p; })}
       end={loopId && (
         <>
-          <ReasonedButton variant="normal" disabled={!methodRunId} reason={!methodRunId ? (eventParam ? 'This event has no stored analysis run' : 'Choose an event first') : null}
+          <ReasonedButton className="ui-link" variant="normal" disabled={!methodRunId} reason={!methodRunId ? (eventParam ? 'This event has no stored analysis run' : 'Choose an event first') : null}
             onClick={() => { if (methodRunId) navigate(workbenchHref(loopId, methodRunId, 'G12')); }}>
             Workbench ↗
           </ReasonedButton>
-          <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton>
         </>
       )}>
       {loopId && (flat.length > 0 || eventParam) && (

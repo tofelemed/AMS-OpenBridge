@@ -35,7 +35,7 @@ export const InvestigationDialogs: React.FC<{
     case 'mode':
       return createPortal(
         <Dialog open title="Mode context" onClose={close}
-          footer={<ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId, { from: matrix.windowStart, to: matrix.windowEnd, window: matrix.windowEnd, kind: windowKind }))}>Historical ↗</ObcButton>}>
+          footer={<ObcButton className="ui-link" variant="flat" onClick={() => navigate(historicalHref(loopId, { from: matrix.windowStart, to: matrix.windowEnd, window: matrix.windowEnd, kind: windowKind }))}>Historical ↗</ObcButton>}>
           <p className="cpm-copy">If manual operation was intended, the exclusion needs no change to the controller. If it was not, review the operator or logic change that took the loop out of automatic or cascade.</p>
         </Dialog>,
         document.body,

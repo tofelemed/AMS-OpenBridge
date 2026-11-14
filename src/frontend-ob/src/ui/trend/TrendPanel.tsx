@@ -103,7 +103,7 @@ export const TrendPanel: React.FC<TrendPanelProps> = ({
               {!compact && (
                 <>
                   <ObcButton variant="flat" onClick={zoomIn}>Zoom in</ObcButton>
-                  <ObcButton variant={box.selecting ? 'normal' : 'flat'} onClick={() => box.toggleSelect()}>
+                  <ObcButton variant={box.selecting ? 'normal' : 'flat'} aria-pressed={box.selecting} onClick={() => box.toggleSelect()}>
                     {box.selecting ? 'Zoom area: on' : 'Zoom area'}
                   </ObcButton>
                   <ObcButton variant="flat" disabled={!box.canUndo} onClick={box.undo}>Undo zoom</ObcButton>

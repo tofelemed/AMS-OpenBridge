@@ -188,7 +188,7 @@ export const CpmHistorical: React.FC = () => {
         onLoop={id => write(p => { p.set('loop', id); p.delete('window'); })}
         end={(
           <div className="cpm-hist-bandend">
-            {loopId && <ObcButton variant="normal" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}
+            {loopId && <ObcButton className="ui-link" variant="normal" onClick={() => navigate(explorerHref(loopId, { kind: windowKind }))}>Loop Explorer ↗</ObcButton>}
             <ExportMenu loopId={loopId ?? ''} exportDisabled={full.length === 0} onExport={k => void exporter.run(k)} exportBusy={exporter.busy}
               packageWindow={selectedFull?.windowEnd ? fmtWhen(selectedFull.windowEnd) : null}
               packageUnavailable={selectedWindow && !selectedFull ? packageReason(selectedWindow.windowEnd) : null} />

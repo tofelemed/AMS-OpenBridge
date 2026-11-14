@@ -101,7 +101,8 @@ export const Modal: React.FC<ModalProps> = ({
               <h2 id="dialog-title" className="dialog-title">{title}</h2>
               {subtitle && <p className="dialog-subtitle">{subtitle}</p>}
             </div>
-            <ObcButton variant="flat" size="small" onClick={onClose} aria-label="Close dialog">
+            {/* CHG-183: the close icon stays a ghost on the band (hmi-dialogs.css gives it action.on) */}
+            <ObcButton variant="flat" className="ui-ghost" size="small" onClick={onClose} aria-label="Close dialog">
               <ObiCloseGoogle />
             </ObcButton>
           </div>

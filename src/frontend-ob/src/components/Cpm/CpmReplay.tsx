@@ -157,7 +157,7 @@ export const CpmReplay: React.FC = () => {
         onLoop={id => setParams(p => { p.set('loop', id); dropWindow(p); return p; }, { replace: true })}
         end={<>
           {/* the chosen check's own run, else the decision's (it was Open retained proof in the verdict card) */}
-          <ReasonedButton variant="normal" disabled={!loopId || !(gateRun ?? g15Run)} reason={!(gateRun ?? g15Run) ? 'Select an evaluated window first' : null}
+          <ReasonedButton className="ui-link" variant="normal" disabled={!loopId || !(gateRun ?? g15Run)} reason={!(gateRun ?? g15Run) ? 'Select an evaluated window first' : null}
             onClick={() => { const id = gateRun ?? g15Run; if (loopId && id) navigate(workbenchHref(loopId, id, gateRun ? gateKey : 'G15')); }}>
             Workbench ↗
           </ReasonedButton>

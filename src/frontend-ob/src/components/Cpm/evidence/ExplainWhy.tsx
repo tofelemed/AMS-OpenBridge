@@ -95,7 +95,7 @@ export const ExplainWhy: React.FC<{
                 <dt>Possible cause</dt>
                 <dd>
                   <span>{causes.possible.map(c => `${c.label}${c.leading ? ' (leading)' : ''}${c.confirmed ? ' (confirmed)' : ''}`).join(' · ')}</span>
-                  {onHypotheses && <ObcButton variant="flat" onClick={onHypotheses}>Hypotheses ↗</ObcButton>}
+                  {onHypotheses && <ObcButton className="ui-link" variant="flat" onClick={onHypotheses}>Hypotheses ↗</ObcButton>}
                 </dd>
               </>
             )}

@@ -588,18 +588,8 @@
   border-top: 1px solid var(--border-divider-color);
 }
 .cpm-causes__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cpm-causes__action {
-  background: none;
-  border: 0;
-  border-radius: var(--traverse-radius-control);
-  padding: 2px var(--traverse-space-2);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--traverse-action-primary);
-  white-space: nowrap;
-}
-.cpm-causes__action:hover { background: var(--traverse-surface-hover); }
+/* CHG-183: the action is a Secondary A button (ui-btn ui-btn--secondary in ui/components.css) */
+.cpm-causes__action { white-space: nowrap; }
 @media (max-width: 700px) {
   .cpm-causes__item { grid-template-columns: minmax(0, 1fr); }
 }

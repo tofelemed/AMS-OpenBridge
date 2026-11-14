@@ -33,7 +33,7 @@ const GateRow: React.FC<{
     {open && (
       <div className="cpm-inv-gate__detail">
         <p className="cpm-copy">{gateDetail(gate, matrix, { flags, vpAbsentOnLoop })}</p>
-        <ObcButton variant="flat" onClick={onProof}>{gate} proof ↗</ObcButton>
+        <ObcButton className="ui-link" variant="flat" onClick={onProof}>{gate} proof ↗</ObcButton>
       </div>
     )}
   </div>
@@ -72,7 +72,7 @@ export const WhyResult: React.FC<{
       <div className="cpm-inv-work" id="cpm-inv-evidence">
         {children}
         <section className="cpm-surface" aria-label="Gates of this group">
-          <PanelHead title={group.tier} right={<ObcButton variant="flat" onClick={() => onProof(open ?? group.gates[0])}>Calculation proof ↗</ObcButton>} />
+          <PanelHead title={group.tier} right={<ObcButton className="ui-link" variant="flat" onClick={() => onProof(open ?? group.gates[0])}>Calculation proof ↗</ObcButton>} />
           <div className="cpm-inv-gates">
             {group.gates.map(g => (
               <GateRow key={g} gate={g} matrix={matrix} flags={flags} vpAbsentOnLoop={vpAbsentOnLoop} open={g === open}

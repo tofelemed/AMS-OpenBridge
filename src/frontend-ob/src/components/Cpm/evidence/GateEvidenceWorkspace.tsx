@@ -213,7 +213,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
   // Older › past the loaded list asks for the next page of windows (Load older windows was under More)
   const older = () => { if (nav.older) openWindow(nav.older); else if (windows.hasMore) windows.loadMore(); };
   const backButton = selection ? (() => { const back = backLink({ loopId: selection.loopId, gate: selection.gate, methodRunId: selection.methodRunId, kind: run.data?.windowKind ?? kind, toMs: run.data?.support.toMs, listedEnd: currentOption?.windowEnd });
-    return <ObcButton variant="normal" onClick={() => navigate(back.href)}>{back.label.replace(/^Back to /, '')}</ObcButton>; })() : undefined;
+    return <ObcButton className="ui-link" variant="normal" onClick={() => navigate(back.href)}>{back.label.replace(/^Back to /, '')}</ObcButton>; })() : undefined;
   const band = (
     // CHG-162 (owner review): a card, as on Historical and Investigation; More's controls sit in it
     <LoopBand card loopId={loopId}
@@ -317,7 +317,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       {run.data && (
         <div className="cpm-workbench__foot">
           <span className="cpm-copy">{footText}</span>
-          <ReasonedButton variant="flat" disabled={replay.href == null} reason={replay.href == null ? replay.reason : null}
+          <ReasonedButton className="ui-link" variant="flat" disabled={replay.href == null} reason={replay.href == null ? replay.reason : null}
             onClick={() => { if (replay.href) navigate(replay.href); }}>Evidence Replay ↗</ReasonedButton>
         </div>
       )}

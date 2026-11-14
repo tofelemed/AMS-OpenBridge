@@ -64,7 +64,7 @@ export const DateJump: React.FC<{ onJump: (beforeIso: string) => void }> = ({ on
   const [value, setValue] = useState('');
   return (
     <Popover label="Go to date" align="end"
-      trigger={t => <button type="button" className="ui-control ui-control--ghost" {...t}>Go to date</button>}>
+      trigger={t => <button type="button" className="ui-btn ui-btn--secondary" {...t}>Go to date</button>}>
       {close => (
         <div className="cpm-date-jump">
           <input className="cpm-input" type="datetime-local" aria-label="Date and time" value={value} onChange={e => setValue(e.target.value)} />
@@ -107,7 +107,7 @@ export const EvidenceMore: React.FC<EvidenceMoreProps> = (p) => {
       label="More window options"
       align="end"
       trigger={t => (
-        <button type="button" className="ui-control ui-control--ghost" {...t}>
+        <button type="button" className="ui-btn ui-btn--secondary" {...t}>
           More <span className="ui-icon ui-icon--small"><ObiChevronDownGoogle /></span>
         </button>
       )}

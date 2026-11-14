@@ -39,8 +39,8 @@ export const ConditionDetail: React.FC<{ row: ConditionRow; open: boolean; onClo
       </KvRow>
       {row.reason && <KvRow label="Close reason">{row.reason}</KvRow>}
       <div className="cpm-events-links">
-        <ObcButton variant="flat" onClick={() => navigate(evidenceHref(row.loopId, { kind: FAST_WINDOW }))}>Workbench {'↗'}</ObcButton>
-        <ObcButton variant="flat" onClick={() => navigate(windowsHref(row.loopId, { profile: FAST_WINDOW }))}>Window Inspector {'↗'}</ObcButton>
+        <ObcButton className="ui-link" variant="flat" onClick={() => navigate(evidenceHref(row.loopId, { kind: FAST_WINDOW }))}>Workbench {'↗'}</ObcButton>
+        <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(row.loopId, { profile: FAST_WINDOW }))}>Window Inspector {'↗'}</ObcButton>
       </div>
     </Inspector>
   );

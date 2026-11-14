@@ -40,7 +40,7 @@ export const AliasPanel: React.FC<{
       <KvRow label="Canonical UNS path"><span className="cpm-mono">{alias.canonicalPath}</span></KvRow>
       <KvRow label="Source">{alias.sourceSystem}</KvRow>
       <div className="cpm-events-links">
-        <ObcButton variant="flat" onClick={() => navigate(`${adminHref('plant-model')}?search=${encodeURIComponent(alias.canonicalPath)}`)}>
+        <ObcButton className="ui-link" variant="flat" onClick={() => navigate(`${adminHref('plant-model')}?search=${encodeURIComponent(alias.canonicalPath)}`)}>
           Plant model {'↗'}
         </ObcButton>
       </div>

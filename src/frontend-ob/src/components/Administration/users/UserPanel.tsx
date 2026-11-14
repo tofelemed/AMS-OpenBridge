@@ -43,7 +43,7 @@ export const UserPanel: React.FC<{
         <span className="cpm-admin-inline">
           {user.role}
           {canRoles && (
-            <ObcButton variant="flat" onClick={() => navigate(`${adminHref('roles')}?role=${encodeURIComponent(user.role)}`)}>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(`${adminHref('roles')}?role=${encodeURIComponent(user.role)}`)}>
               Permissions {'↗'}
             </ObcButton>
           )}

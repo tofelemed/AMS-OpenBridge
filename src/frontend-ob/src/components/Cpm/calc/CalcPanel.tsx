@@ -91,8 +91,8 @@ export const CalcPanel: React.FC<{
           <ObcButton variant="flat" onClick={() => setRecordOpen(true)}>Record details</ObcButton>
         </div>
         <div className="cpm-master-detail__links">
-          <ObcButton variant="flat" disabled={!runId} onClick={() => go('rules')}>Rules & parameters {'↗'}</ObcButton>
-          <ObcButton variant="flat" disabled={!runId} onClick={() => go('identity')}>Identity & raw {'↗'}</ObcButton>
+          <ObcButton className="ui-link" variant="flat" disabled={!runId} onClick={() => go('rules')}>Rules & parameters {'↗'}</ObcButton>
+          <ObcButton className="ui-link" variant="flat" disabled={!runId} onClick={() => go('identity')}>Identity & raw {'↗'}</ObcButton>
         </div>
       </Inspector>
       <CalcRecordDialog open={recordOpen} onClose={() => setRecordOpen(false)} rows={record} />

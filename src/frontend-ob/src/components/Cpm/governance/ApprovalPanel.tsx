@@ -64,7 +64,7 @@ export const ApprovalPanel: React.FC<{ bundle: BundleSummary; open: boolean; onC
         <KvRow label="Waits for">{next.what}</KvRow>
         {b.scopeKind === 'LOOP' && b.scopeRef && (
           <div className="cpm-gov-links">
-            <ObcButton variant="flat" onClick={() => navigate(registryHref(b.scopeRef))}>{`${b.scopeRef} ↗`}</ObcButton>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(registryHref(b.scopeRef))}>{`${b.scopeRef} ↗`}</ObcButton>
           </div>
         )}
       </Inspector>

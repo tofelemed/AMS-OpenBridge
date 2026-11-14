@@ -189,7 +189,7 @@ export const CpmPerformance: React.FC = () => {
         // wrapping span (ObcButton takes no title) and in the text (CHG-098, SME review 2 #29).
         actions={<>
           <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the list to open its per-window results'}>
-            <ObcButton variant="flat" disabled={!selectedLoop}
+            <ObcButton className="ui-link" variant="flat" disabled={!selectedLoop}
               onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
               Window Inspector ↗
             </ObcButton>
@@ -224,7 +224,7 @@ export const CpmPerformance: React.FC = () => {
             <p className="cpm-freshness cpm-freshness--stale" role="status">
               Stale · Newest fused window emitted {fmtAge(windowAgeMs)} ago ({fmtDateTime(new Date(newestWindow).toISOString())})
               {canPipeline && (
-                <ObcButton variant="flat" title="Job states and checkpoint health of the CPLM engines"
+                <ObcButton className="ui-link" variant="flat" title="Job states and checkpoint health of the CPLM engines"
                   onClick={() => navigate(pipelineHref())}>
                   Pipeline Health ↗
                 </ObcButton>

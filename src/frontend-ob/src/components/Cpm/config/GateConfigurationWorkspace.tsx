@@ -124,7 +124,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
         </>} />
       <LoopBand card loopId={loopId}
         onLoop={id => go({ loop: id, view: view === 'bundles' ? 'bundles' : 'effective', bundle: null, gate: null, tab: null })}
-        end={loopId ? <ObcButton variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton> : undefined}>
+        end={loopId ? <ObcButton className="ui-link" variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton> : undefined}>
         {view === 'editor' && open && (
           <span className="cpm-config-band">
             <span className="cpm-config-band__name">{open.scopeKind} v{open.version}</span>

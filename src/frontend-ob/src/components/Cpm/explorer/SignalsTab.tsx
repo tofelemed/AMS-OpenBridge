@@ -76,7 +76,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                   <td className="cpm-signal-table__value">{v.unit ? `${v.value} ${v.unit}` : v.value}</td>
                   <td>
                     {rowHref && (
-                      <ObcButton variant="flat" onClick={() => navigate(rowHref)}>Show in trend ↗</ObcButton>
+                      <ObcButton className="ui-link" variant="flat" onClick={() => navigate(rowHref)}>Show in trend ↗</ObcButton>
                     )}
                   </td>
                 </tr>
@@ -92,7 +92,7 @@ export const SignalsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           {href && (
             // The workflow endpoint of the signal-asset projection: these paths resolve through the UNS to the
             // loop's real data, so the standard Trend page can draw them: history and live tail.
-            <ObcButton variant="flat" onClick={() => navigate(href)}>Open signals in Trend ↗</ObcButton>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(href)}>Open signals in Trend ↗</ObcButton>
           )}
         </span>
       </div>

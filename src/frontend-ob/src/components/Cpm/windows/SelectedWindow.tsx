@@ -82,8 +82,8 @@ export const SelectedWindow: React.FC<{
           {link('Engine & timing', 'engine')}
         </div>
         <div className="cpm-master-detail__links">
-          <ObcButton variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Historical {'↗'}</ObcButton>
-          {trend && <ObcButton variant="flat" onClick={() => navigate(trend)}>Trend {'↗'}</ObcButton>}
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Historical {'↗'}</ObcButton>
+          {trend && <ObcButton className="ui-link" variant="flat" onClick={() => navigate(trend)}>Trend {'↗'}</ObcButton>}
         </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />

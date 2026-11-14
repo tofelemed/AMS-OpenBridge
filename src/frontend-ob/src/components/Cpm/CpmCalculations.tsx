@@ -123,7 +123,7 @@ export const CpmCalculations: React.FC = () => {
       <LoopBand card loopId={loop?.loopId ?? loopId}
         onLoop={id => setParams(p => { p.set('loop', id); noWindow(p); return p; }, { replace: true })}
         end={loop && (
-          <ObcButton variant="normal" onClick={() => navigate(investigationHref(loop.loopId, { kind: windowKind, window: v.matrix?.windowEnd ?? windowEnd }))}>
+          <ObcButton className="ui-link" variant="normal" onClick={() => navigate(investigationHref(loop.loopId, { kind: windowKind, window: v.matrix?.windowEnd ?? windowEnd }))}>
             Investigation {'↗'}
           </ObcButton>
         )}>

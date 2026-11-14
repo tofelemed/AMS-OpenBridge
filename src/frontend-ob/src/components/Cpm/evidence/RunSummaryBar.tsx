@@ -51,7 +51,7 @@ export const RunSummaryBar: React.FC<RunSummaryBarProps> = ({ run, selection, re
         <CopyableId label="run id" value={selection.methodRunId} />
         {/* the reason rides on a wrapping span: ObcButton takes no title */}
         <span title={reconstructReason}>
-          <ObcButton variant="flat" disabled={disabled} onClick={onReconstruct}>
+          <ObcButton className="ui-link" variant="flat" disabled={disabled} onClick={onReconstruct}>
             {reconstructPending ? 'Reconstruction requested…' : 'Reconstruct evidence ↗'}
           </ObcButton>
         </span>

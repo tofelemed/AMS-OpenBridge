@@ -159,8 +159,9 @@ export default function ComponentGallery(): React.ReactElement {
           open={dialog}
           onClose={() => setDialog(false)}
           title="Shelve episode"
+          subtitle="FIC10401 · Flow controller"
           description="Shelved episodes stay listed."
-          footer={<><Button variant="ghost" onClick={() => setDialog(false)}>Cancel</Button><Button variant="primary" onClick={() => setDialog(false)}>Done</Button></>}
+          footer={<><Button onClick={() => setDialog(false)}>Cancel</Button><Button variant="primary" onClick={() => setDialog(false)}>Done</Button></>}
         >
           <p>Dialog body</p>
         </Dialog>
@@ -175,11 +176,11 @@ export default function ComponentGallery(): React.ReactElement {
       <Section id="6.15" title="6.15 Buttons">
         <div className="gallery__row">
           <Button variant="primary">Primary</Button>
-          <Button variant="outline">Outline</Button>
+          <Button variant="secondary">Secondary</Button>
           <Button variant="ghost">Ghost</Button>
           <Button variant="destructive">Delete</Button>
-          <Button variant="accent">Accent outline</Button>
-          <button type="button" className="ui-link">Link</button>
+          <Button variant="link">Loop Events ↗</Button>
+          <button type="button" className="ui-btn ui-btn--secondary">Plain secondary</button>
           <Button variant="primary" disabled reason="Needs the cpm.manage permission">Disabled</Button>
         </div>
       </Section>

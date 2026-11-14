@@ -82,7 +82,7 @@ export const LoopModelLink: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
         <Dialog open={open} onClose={() => setOpen(false)} title={`${loop.loopId} · Loop model & setup`}
           footer={(
             <>
-              <ObcButton variant="flat" title={`Response events and system models of ${loop.loopId}`} onClick={() => navigate(responseHref(loop.loopId))}>
+              <ObcButton className="ui-link" variant="flat" title={`Response events and system models of ${loop.loopId}`} onClick={() => navigate(responseHref(loop.loopId))}>
                 System Response ↗
               </ObcButton>
               <ObcButton variant="raised" onClick={() => navigate(registryHref(loop.loopId))}>Loop Registry →</ObcButton>

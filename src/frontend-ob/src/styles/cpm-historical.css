@@ -45,6 +45,8 @@
  * here rule by rule.)
  */
 .cpm-compact .ui-control { height: var(--traverse-space-8); }
+/* CHG-183: a plain Secondary A button (ui-btn) is 32 px here too, padded 12 as the ObcButtons are */
+.cpm-compact .ui-btn { min-height: var(--traverse-space-8); padding: 0 var(--traverse-space-3); }
 .cpm-compact .ui-control--icon { width: var(--traverse-space-8); }
 .cpm-compact .cpm-loop-combo { min-height: var(--traverse-space-8); }
 .cpm-compact .ui-segmented__option { height: calc(var(--traverse-space-8) - 2px); }

@@ -28,7 +28,7 @@ export const ResponseSteps: React.FC = () => {
           </li>
         ))}
       </ol>
-      <ObcButton variant="flat" onClick={() => setOpen(true)}>Event states explained {'↗'}</ObcButton>
+      <ObcButton className="ui-link" variant="flat" onClick={() => setOpen(true)}>Event states explained {'↗'}</ObcButton>
       <Dialog open={open} onClose={() => setOpen(false)} title="Response event states"
         footer={<ObcButton variant="flat" onClick={() => setOpen(false)}>Close</ObcButton>}>
         <dl className="cpm-response-states">

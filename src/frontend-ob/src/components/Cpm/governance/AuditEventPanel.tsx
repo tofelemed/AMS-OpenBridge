@@ -54,7 +54,7 @@ export const AuditEventPanel: React.FC<{
         <KvRow label="Before and after values">{NOT_SERVED}</KvRow>
         {link && (
           <div className="cpm-gov-links">
-            <ObcButton variant="flat" onClick={() => navigate(link.to)}>{`${link.label} ↗`}</ObcButton>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(link.to)}>{`${link.label} ↗`}</ObcButton>
           </div>
         )}
       </Inspector>

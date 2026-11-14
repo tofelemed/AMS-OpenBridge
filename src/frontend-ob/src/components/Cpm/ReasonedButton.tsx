@@ -16,13 +16,15 @@ export const ReasonedButton: React.FC<{
   ariaPressed?: boolean;
   /** OpenBridge's full width: the painted button fills its box, not only the host. */
   fullWidth?: boolean;
+  /** A look class on the ObcButton host: ui-link for a button that opens another page (CHG-183). */
+  className?: string;
   children: React.ReactNode;
-}> = ({ variant = 'normal', disabled, reason, onClick, title, ariaPressed, fullWidth, children }) => {
+}> = ({ variant = 'normal', disabled, reason, onClick, title, ariaPressed, fullWidth, className, children }) => {
   const id = useId();
   const showReason = !!disabled && !!reason;
   return (
     <span className="cpm-reasoned">
-      <ObcButton variant={variant} disabled={disabled} fullWidth={fullWidth} onClick={onClick} title={title ?? (showReason ? reason! : undefined)}
+      <ObcButton variant={variant} className={className} disabled={disabled} fullWidth={fullWidth} onClick={onClick} title={title ?? (showReason ? reason! : undefined)}
         aria-describedby={showReason ? id : undefined} aria-pressed={ariaPressed}>
         {children}
       </ObcButton>

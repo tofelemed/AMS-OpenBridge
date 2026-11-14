@@ -99,10 +99,10 @@ export const LoopPanel: React.FC<{ loopId: string; open: boolean; onClose: () =>
           onEdit={() => setEditing(true)} onRetire={setDialog} />
         <div className="cpm-events-links">
           <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
-          <ObcButton variant="flat" onClick={() => navigate(evidenceHref(loop.loopId))}>Workbench {'↗'}</ObcButton>
-          {canReadConfig && <ObcButton variant="flat" onClick={() => navigate(configHref({ loop: loop.loopId }))}>Effective rules {'↗'}</ObcButton>}
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(evidenceHref(loop.loopId))}>Workbench {'↗'}</ObcButton>
+          {canReadConfig && <ObcButton className="ui-link" variant="flat" onClick={() => navigate(configHref({ loop: loop.loopId }))}>Effective rules {'↗'}</ObcButton>}
           {canSeeTree && (
-            <ObcButton variant="flat" onClick={() => navigate(`${adminHref('plant-model')}?search=${encodeURIComponent(loop.loopId.toLowerCase())}`)}>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(`${adminHref('plant-model')}?search=${encodeURIComponent(loop.loopId.toLowerCase())}`)}>
               Plant tree {'↗'}
             </ObcButton>
           )}

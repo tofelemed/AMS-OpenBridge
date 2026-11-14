@@ -104,9 +104,9 @@ export const SelectedWindowPanel: React.FC<{
               </ReasonedButton>
             </span>
             <div className="cpm-hist-selected__links">
-              <ObcButton variant="flat" onClick={() => onReplay(win.windowEnd)}>Replay ↗</ObcButton>
+              <ObcButton className="ui-link" variant="flat" onClick={() => onReplay(win.windowEnd)}>Replay ↗</ObcButton>
               <ObcButton variant="flat" onClick={onFit}>Fit to this window</ObcButton>
-              <ReasonedButton variant="flat" disabled={!packageReady} onClick={onPackage}
+              <ReasonedButton className="ui-link" variant="flat" disabled={!packageReady} onClick={onPackage}
                 reason={packageReason(win.windowEnd)}>
                 Evidence package ↗
               </ReasonedButton>

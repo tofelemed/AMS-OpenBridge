@@ -82,12 +82,12 @@ export const LoopTrendPanel: React.FC<{
         nowLabel="Live" nowTitle="Back to the live rolling 8 h" onNow={range.goLive}
         stateNote={isEvaluatedView ? 'evaluated window' : range.live ? 'live' : 'fixed period'}
         after={<>
-          <ObcButton variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
+          <ObcButton className="ui-link" variant="flat" title={`Open ${loop.loopId} in Historical on this period`}
             onClick={() => navigate(historicalHref(loop.loopId, period))}>
             Historical ↗
           </ObcButton>
           {loopPens(loop).length > 0 && (
-            <ObcButton variant="flat" title={`Open ${loop.loopId} on the Trend page on this period`}
+            <ObcButton className="ui-link" variant="flat" title={`Open ${loop.loopId} on the Trend page on this period`}
               onClick={() => navigate(trendHref(loop.loopId, period))}>
               Trend ↗
             </ObcButton>

@@ -51,7 +51,7 @@ export const WindowTrend: React.FC<{
   // A stalled feed leaves the strip on an earlier bucket: it says when, never "at window end".
   const stalledAt = at && at !== points[points.length - 1] ? fmtWhen(at.ts) : undefined;
   // Without a trend the link would vanish with it, so it stands alone then; with one it sits in the chart's foot.
-  const replayLink = <ObcButton variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Evidence Replay ↗</ObcButton>;
+  const replayLink = <ObcButton className="ui-link" variant="flat" onClick={() => navigate(replayHref(loopId, { window: matrix.windowEnd, kind: windowKind, gate }))}>Evidence Replay ↗</ObcButton>;
 
   return (
     <section className="cpm-surface cpm-inv-trend" aria-label="Signals over this window">

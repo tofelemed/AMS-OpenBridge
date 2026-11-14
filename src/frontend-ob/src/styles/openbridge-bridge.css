@@ -245,9 +245,36 @@ html:root[data-theme='night'] {
   --container-backdrop-color: var(--traverse-surface-panel);
 }
 
-/* Outline buttons are transparent; other uses of the normal family keep the panel surface. */
+/*
+ * CHG-183 (owner review 2026-11-14, items 7 and 17, Look 1): one button standard.
+ * raised = Primary (above). normal and flat = Secondary A: a neutral tint with a border, so every action looks
+ * like a button. The values sit on the host, so the other users of these families (rows, Login) keep theirs.
+ * Opt-outs on the host: .ui-ghost (icon-only and close buttons) and .ui-link (opens another page, label ends in ↗).
+ */
 obc-button {
-  --normal-enabled-background-color: transparent;
+  --normal-enabled-background-color: var(--traverse-surface-raised);
+  --normal-enabled-border-color: var(--traverse-border-strong);
+  --normal-hover-background-color: var(--traverse-surface-raised);
+  --normal-hover-border-color: var(--traverse-action-primary);
+  --normal-pressed-background-color: var(--traverse-surface-selected);
+  --normal-pressed-border-color: var(--traverse-action-active);
+  --normal-disabled-background-color: var(--traverse-surface-raised);
+  --normal-disabled-border-color: var(--traverse-border-subtle);
+  --on-normal-active-color: var(--traverse-text-primary);
+  --on-normal-neutral-color: var(--traverse-text-primary);
+  --on-normal-disabled-color: var(--traverse-text-muted);
+
+  --flat-enabled-background-color: var(--traverse-surface-raised);
+  --flat-enabled-border-color: var(--traverse-border-strong);
+  --flat-hover-background-color: var(--traverse-surface-raised);
+  --flat-hover-border-color: var(--traverse-action-primary);
+  --flat-pressed-background-color: var(--traverse-surface-selected);
+  --flat-pressed-border-color: var(--traverse-action-active);
+  --flat-disabled-background-color: var(--traverse-surface-raised);
+  --flat-disabled-border-color: var(--traverse-border-subtle);
+  --on-flat-active-color: var(--traverse-text-primary);
+  --on-flat-neutral-color: var(--traverse-text-primary);
+  --on-flat-disabled-color: var(--traverse-text-muted);
 
   /* RD9: 40 px painted, 48 px hit area. The box is content-box with a 1 px border, so 38 paints 40. */
   --ui-components-button-visual-size: 38px;
@@ -258,10 +285,111 @@ obc-button {
   --ui-components-button-border-radius-bottom-right: var(--traverse-radius-control);
 }
 
-/* Ghost hover: OpenBridge has no hover text variable, so the host re-points the active one. */
+/*
+ * OpenBridge has no hover or pressed text variable, so the host re-points the active one. A disabled button
+ * keeps its muted text: the shadow rule for disabled is !important.
+ */
 obc-button:hover {
-  --on-flat-active-color: var(--traverse-text-primary);
+  --on-normal-active-color: var(--traverse-action-primary);
+  --on-normal-neutral-color: var(--traverse-action-primary);
+  --on-flat-active-color: var(--traverse-action-primary);
+  --on-flat-neutral-color: var(--traverse-action-primary);
 }
+
+/* Pressed; a toggle that is on (aria-pressed) keeps the pressed look. */
+obc-button:active,
+obc-button[aria-pressed='true'] {
+  --on-normal-active-color: var(--traverse-action-active);
+  --on-normal-neutral-color: var(--traverse-action-active);
+  --on-flat-active-color: var(--traverse-action-active);
+  --on-flat-neutral-color: var(--traverse-action-active);
+}
+obc-button[aria-pressed='true'] {
+  --normal-enabled-background-color: var(--traverse-surface-selected);
+  --normal-enabled-border-color: var(--traverse-action-active);
+  --normal-hover-background-color: var(--traverse-surface-selected);
+  --normal-hover-border-color: var(--traverse-action-active);
+  --flat-enabled-background-color: var(--traverse-surface-selected);
+  --flat-enabled-border-color: var(--traverse-action-active);
+  --flat-hover-background-color: var(--traverse-surface-selected);
+  --flat-hover-border-color: var(--traverse-action-active);
+}
+
+/* Ghost: the earlier transparent flat look, for icon-only buttons and dialog close buttons. */
+obc-button.ui-ghost,
+obc-button.ui-ghost:active,
+obc-button.ui-ghost[aria-pressed='true'] {
+  --normal-enabled-background-color: transparent;
+  --normal-enabled-border-color: transparent;
+  --normal-hover-background-color: var(--traverse-surface-hover);
+  --normal-hover-border-color: transparent;
+  --normal-pressed-background-color: var(--traverse-surface-selected);
+  --normal-pressed-border-color: transparent;
+  --normal-disabled-background-color: transparent;
+  --normal-disabled-border-color: transparent;
+  --flat-enabled-background-color: transparent;
+  --flat-enabled-border-color: transparent;
+  --flat-hover-background-color: var(--traverse-surface-hover);
+  --flat-hover-border-color: transparent;
+  --flat-pressed-background-color: var(--traverse-surface-selected);
+  --flat-pressed-border-color: transparent;
+  --flat-disabled-background-color: transparent;
+  --flat-disabled-border-color: transparent;
+  --on-normal-active-color: var(--traverse-text-secondary);
+  --on-normal-neutral-color: var(--traverse-text-secondary);
+  --on-flat-active-color: var(--traverse-text-secondary);
+  --on-flat-neutral-color: var(--traverse-text-secondary);
+}
+obc-button.ui-ghost:hover {
+  --on-normal-active-color: var(--traverse-text-primary);
+  --on-normal-neutral-color: var(--traverse-text-primary);
+  --on-flat-active-color: var(--traverse-text-primary);
+  --on-flat-neutral-color: var(--traverse-text-primary);
+}
+
+/* Link: opens another page (owner Q4, label ends in ↗). Action colour, underlined, no box; the focus ring stays. */
+obc-button.ui-link,
+obc-button.ui-link[aria-pressed='true'] {
+  --normal-enabled-background-color: transparent;
+  --normal-enabled-border-color: transparent;
+  --normal-hover-background-color: transparent;
+  --normal-hover-border-color: transparent;
+  --normal-pressed-background-color: transparent;
+  --normal-pressed-border-color: transparent;
+  --normal-disabled-background-color: transparent;
+  --normal-disabled-border-color: transparent;
+  --flat-enabled-background-color: transparent;
+  --flat-enabled-border-color: transparent;
+  --flat-hover-background-color: transparent;
+  --flat-hover-border-color: transparent;
+  --flat-pressed-background-color: transparent;
+  --flat-pressed-border-color: transparent;
+  --flat-disabled-background-color: transparent;
+  --flat-disabled-border-color: transparent;
+  --on-normal-active-color: var(--traverse-action-primary);
+  --on-normal-neutral-color: var(--traverse-action-primary);
+  --on-flat-active-color: var(--traverse-action-primary);
+  --on-flat-neutral-color: var(--traverse-action-primary);
+}
+obc-button.ui-link:hover {
+  --on-normal-active-color: var(--traverse-action-hover);
+  --on-normal-neutral-color: var(--traverse-action-hover);
+  --on-flat-active-color: var(--traverse-action-hover);
+  --on-flat-neutral-color: var(--traverse-action-hover);
+}
+obc-button.ui-link:active {
+  --on-normal-active-color: var(--traverse-action-active);
+  --on-normal-neutral-color: var(--traverse-action-active);
+  --on-flat-active-color: var(--traverse-action-active);
+  --on-flat-neutral-color: var(--traverse-action-active);
+}
+/* The underline is set on the inner button and reaches the label; a disabled link drops it. */
+obc-button.ui-link::part(wrapper) {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+obc-button.ui-link:hover::part(wrapper) { text-decoration-thickness: 2px; }
+obc-button.ui-link::part(wrapper):disabled { text-decoration: none; }
 
 /* Focus gap (RD2: no waiver). These parts are undocumented; obc-fit-probe --assert guards them. */
 obc-button::part(visible-wrapper),

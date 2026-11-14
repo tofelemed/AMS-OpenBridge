@@ -39,7 +39,7 @@ export const ReviewStep: React.FC<{
   return (
     <div className="cpm-inv-review-step">
       <NextChecks matrix={matrix} loopId={loopId} windowKind={windowKind} lead={heroNextCheck(matrix)}
-        right={<ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loopId, event: episodeId, filter: 'all' }))}>Related events ↗</ObcButton>}
+        right={<ObcButton className="ui-link" variant="flat" onClick={() => navigate(eventsHref({ loop: loopId, event: episodeId, filter: 'all' }))}>Related events ↗</ObcButton>}
         onSignals={onSignals} onGate={onGate} onDialog={onDialog} />
       <ReviewNotes loopId={loopId} matrix={matrix} windowKind={windowKind} openFrame={openFrame} />
     </div>

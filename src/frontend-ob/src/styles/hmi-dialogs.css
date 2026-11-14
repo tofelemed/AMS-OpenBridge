@@ -186,26 +186,35 @@
   letter-spacing: -0.01em;
 }
 
+/* CHG-183: the subtitle takes the band's label colour (it was a fixed light grey, unreadable on Night's light band). */
 .dialog-subtitle {
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.80) !important;
+  color: var(--hmi-on-accent) !important;
   margin: 5px 0 0;
   line-height: 1.45;
 }
+.dialog-header--warning .dialog-subtitle { color: var(--on-warning-color) !important; }
+.dialog-header--danger  .dialog-subtitle { color: var(--on-alarm-color) !important; }
+.dialog-header--success .dialog-subtitle { color: var(--on-running-color) !important; }
 
-/* Close button inside header */
-.dialog-header obc-button,
-.dialog-header [part~="button"] {
-  color: rgba(255, 255, 255, 0.85) !important;
-}
-
-/* Override ObcButton flat in dialog header */
-.dialog-header .obc-btn,
-.dialog-header obc-button {
-  --obc-button-text-color: rgba(255, 255, 255, 0.85);
-  --obc-button-background: transparent;
-  --obc-button-border: transparent;
+/*
+ * CHG-183: the close button is a ghost ObcButton (.ui-ghost) on the band. Its icon, hover and focus ring take the
+ * band's label colour; by Day the focus colour is the band's own colour, so the ring would not show.
+ */
+.dialog-header { --dialog-head-on: var(--hmi-on-accent); }
+.dialog-header--warning { --dialog-head-on: var(--on-warning-color); }
+.dialog-header--danger  { --dialog-head-on: var(--on-alarm-color); }
+.dialog-header--success { --dialog-head-on: var(--on-running-color); }
+.dialog-header obc-button.ui-ghost,
+.dialog-header obc-button.ui-ghost:hover {
+  --on-flat-active-color: var(--dialog-head-on);
+  --on-flat-neutral-color: var(--dialog-head-on);
+  --element-active-color: var(--dialog-head-on);
+  --element-neutral-color: var(--dialog-head-on);
+  --flat-hover-background-color: color-mix(in srgb, var(--dialog-head-on) 18%, transparent);
+  --flat-pressed-background-color: color-mix(in srgb, var(--dialog-head-on) 28%, transparent);
+  --border-focus-color: var(--dialog-head-on);
 }
 
 /* ============================================================

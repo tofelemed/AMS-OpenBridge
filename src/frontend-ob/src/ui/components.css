@@ -197,21 +197,56 @@
   border-radius: var(--traverse-radius-panel);
 }
 .ui-dialog--wide { width: 720px; }
-.ui-dialog__head {
+/*
+ * CHG-183 (owner review 2026-11-14, items 2 and 17, Look 1): a solid band in the action colour carries the title,
+ * an optional subtitle and the close button. The modal Inspector drawer wears the same band.
+ */
+.ui-dialog__head,
+.ui-inspector--drawer .ui-inspector__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--traverse-space-2);
-  padding: var(--traverse-space-4) var(--traverse-size-panel-padding) 0;
+  padding: var(--traverse-space-3) var(--traverse-space-3) var(--traverse-space-3) var(--traverse-size-panel-padding);
+  background: var(--traverse-action-primary);
+  color: var(--traverse-action-on);
+  border-radius: calc(var(--traverse-radius-panel) - 1px) calc(var(--traverse-radius-panel) - 1px) 0 0;
 }
+.ui-inspector--drawer .ui-inspector__head { border-radius: calc(var(--traverse-radius-panel) - 1px) 0 0 0; }
+.ui-dialog__heading { display: flex; flex-direction: column; min-width: 0; }
 .ui-dialog__title {
   margin: 0;
-  color: var(--traverse-text-primary);
+  color: var(--traverse-action-on);
   font-size: var(--traverse-type-section-title);
   font-weight: 600;
 }
+.ui-dialog__subtitle {
+  margin: 0;
+  color: var(--traverse-action-on);
+  font-size: var(--traverse-type-body);
+}
+.ui-inspector--drawer .ui-inspector__title,
+.ui-inspector--drawer .ui-inspector__eyebrow,
+.ui-inspector--drawer .ui-inspector__meta { color: var(--traverse-action-on); }
+/* A state pill in the head keeps the panel behind it, so its glyph colour and text read as everywhere else. */
+.ui-inspector--drawer .ui-inspector__meta .cpm-pill { background: var(--traverse-surface-panel); }
+/* The close icon on the band: action.on, and a focus ring in action.on, since the focus colour is the band's own colour by Day. */
+.ui-dialog__head .ui-control,
+.ui-inspector--drawer .ui-inspector__head .ui-control {
+  --element-active-color: var(--traverse-action-on);
+  --element-neutral-color: var(--traverse-action-on);
+  color: var(--traverse-action-on);
+}
+.ui-dialog__head .ui-control:hover,
+.ui-inspector--drawer .ui-inspector__head .ui-control:hover { background: var(--traverse-action-hover); }
+.ui-dialog__head .ui-control:active,
+.ui-inspector--drawer .ui-inspector__head .ui-control:active { background: var(--traverse-action-active); }
+.ui-dialog__head .ui-control:focus-visible,
+.ui-inspector--drawer .ui-inspector__head .ui-control:focus-visible { outline-color: var(--traverse-action-on); }
+.ui-dialog__head + .ui-dialog__body,
+.ui-inspector--drawer .ui-inspector__head + .ui-inspector__body { padding-top: var(--traverse-space-4); }
 .ui-dialog__description {
-  margin: var(--traverse-space-1) 0 0;
+  margin: var(--traverse-space-4) 0 0;
   padding: 0 var(--traverse-size-panel-padding);
   color: var(--traverse-text-secondary);
   font-size: var(--traverse-type-body);
@@ -243,20 +278,54 @@
   width: fit-content;
 }
 .ui-button__reason { max-width: 280px; color: var(--traverse-text-muted); font-size: var(--traverse-type-metadata); }
-.ui-button--destructive {
+/* CHG-183: Destructive confirms a delete or retire: a danger fill with action.on text (sample 17, .dan). */
+.ui-button--destructive obc-button {
   --raised-enabled-background-color: var(--traverse-status-danger-fg);
   --raised-enabled-border-color: var(--traverse-status-danger-fg);
   --raised-focused-background-color: var(--traverse-status-danger-fg);
-  --raised-hover-background-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, black);
-  --raised-hover-border-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, black);
-  --raised-pressed-background-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, black);
-  --raised-pressed-border-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, black);
+  --raised-hover-background-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, var(--traverse-text-primary));
+  --raised-hover-border-color: color-mix(in srgb, var(--traverse-status-danger-fg) 85%, var(--traverse-text-primary));
+  --raised-pressed-background-color: color-mix(in srgb, var(--traverse-status-danger-fg) 72%, var(--traverse-text-primary));
+  --raised-pressed-border-color: color-mix(in srgb, var(--traverse-status-danger-fg) 72%, var(--traverse-text-primary));
 }
-.ui-button--accent {
-  --normal-enabled-border-color: var(--traverse-action-primary);
-  --on-normal-active-color: var(--traverse-action-primary);
-  --on-normal-neutral-color: var(--traverse-action-primary);
-  --normal-hover-background-color: var(--traverse-surface-selected);
+
+/*
+ * CHG-183: Secondary A for a plain <button> action (owner review item 17), the same look and size as a normal or
+ * flat ObcButton: 40 px, a neutral tint with a strong border; hover turns border and text to the action colour.
+ */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--traverse-space-2);
+  min-height: var(--traverse-size-control-min-height);
+  padding: 0 var(--traverse-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--traverse-radius-control);
+  font: inherit;
+  font-size: var(--traverse-type-body);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ui-btn:focus-visible { outline: var(--traverse-focus-width) solid var(--traverse-focus); outline-offset: var(--traverse-focus-offset); }
+.ui-btn--secondary {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-strong);
+  color: var(--traverse-text-primary);
+}
+.ui-btn--secondary:hover { border-color: var(--traverse-action-primary); color: var(--traverse-action-primary); }
+.ui-btn--secondary:active,
+.ui-btn--secondary[aria-expanded='true'] {
+  background: var(--traverse-surface-selected);
+  border-color: var(--traverse-action-active);
+  color: var(--traverse-action-active);
+}
+.ui-btn:disabled {
+  background: var(--traverse-surface-raised);
+  border-color: var(--traverse-border-subtle);
+  color: var(--traverse-text-muted);
+  cursor: not-allowed;
 }
 
 .ui-picker { position: relative; min-width: 280px; }

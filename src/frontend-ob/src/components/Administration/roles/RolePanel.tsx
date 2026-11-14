@@ -60,11 +60,11 @@ export const RolePanel: React.FC<{
       <TextInput label="Description" value={p.description} placeholder="Role description" onChange={p.onDescription} onCommit={p.onCommitDescription} />
       <div className="cpm-events-links">
         {p.canUsers && (
-          <ObcButton variant="flat" onClick={() => navigate(`${adminHref('users')}?role=${encodeURIComponent(role.role_name)}`)}>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(`${adminHref('users')}?role=${encodeURIComponent(role.role_name)}`)}>
             Users with this role {'↗'}
           </ObcButton>
         )}
-        <ObcButton variant="flat" onClick={() => navigate(governanceHref())}>Permissions by role {'↗'}</ObcButton>
+        <ObcButton className="ui-link" variant="flat" onClick={() => navigate(governanceHref())}>Permissions by role {'↗'}</ObcButton>
       </div>
       <section className="cpm-admin-perms" aria-label="Permissions">
         <h3 className="cpm-reg-part__title">Permissions</h3>

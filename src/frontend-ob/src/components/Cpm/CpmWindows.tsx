@@ -102,7 +102,7 @@ export const CpmWindows: React.FC = () => {
               {anyCplm.checkpoint?.lastCompletedAgeSec != null ? ` · ckpt ${anyCplm.checkpoint.lastCompletedAgeSec}s ago` : ''}
             </TonePill>
           )}
-          {canManage && <ObcButton variant="normal" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
+          {canManage && <ObcButton className="ui-link" variant="normal" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
         </>}>
         <select className="cpm-select" aria-label="Window profile" value={profile} onChange={e => setProfile(e.target.value)}>
           <optgroup label="Short features (G0–G4)">{optionsOf(shortSpecs)}</optgroup>

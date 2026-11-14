@@ -42,7 +42,7 @@ export const NextChecks: React.FC<{
         {nextChecks(matrix, { loopId, windowKind, canPipeline }).map(c => (
           <li key={c.label}>
             <span>{c.label}</span>
-            <ObcButton variant="flat" onClick={() => run(c.action)}>{c.link}</ObcButton>
+            <ObcButton className="ui-link" variant="flat" onClick={() => run(c.action)}>{c.link}</ObcButton>
           </li>
         ))}
       </ul>

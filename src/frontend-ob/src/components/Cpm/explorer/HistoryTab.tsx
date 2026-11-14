@@ -163,7 +163,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
 
             <div className="cpm-episode-links">
               {/* The newest episode of the run: the run's own row opens Historical, this opens the event. */}
-              <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: run.frames[0].id }))}>
+              <ObcButton className="ui-link" variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: run.frames[0].id }))}>
                 Loop Events ↗
               </ObcButton>
             </div>
@@ -202,7 +202,7 @@ export const HistoryTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
                     </span>
                   </button>
                   <div className="cpm-episode-links">
-                    <ObcButton variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: e.id }))}>
+                    <ObcButton className="ui-link" variant="flat" onClick={() => navigate(eventsHref({ loop: loop.loopId, event: e.id }))}>
                       Loop Events ↗
                     </ObcButton>
                   </div>

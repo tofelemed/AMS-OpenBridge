@@ -99,7 +99,9 @@ All 40 px, 6 px radius, `border.strong`, focus 2 px with a 3 px gap. Invalid sho
 
 `Dialog.tsx`. Named by its title, `aria-modal`, described by its description. Focus starts inside and is trapped, including buttons in shadow roots. Esc closes, focus returns to the trigger, the close control is named. Footer actions are right-aligned, primary last.
 
-The existing `Modal` still serves old pages. New pages use this one.
+CHG-183 (owner review item 2, Look 1): the head is a solid `action.primary` band with the title and an optional `subtitle` (loop · gate) in `action.on`, and the close button. Its focus ring is `action.on`, since by Day the focus colour is the band colour. The modal Inspector drawer wears the same band.
+
+The existing `Modal` still serves old pages, with the same band. New pages use this one.
 
 ## 6.12 DataState
 
@@ -129,18 +131,20 @@ Keyboard: Up and Down move, Enter selects, Esc closes and clears the search.
 
 ## 6.15 Buttons
 
-`Button.tsx` wraps `ObcButton`, which stays (RD2).
+CHG-183 (owner review 2026-11-14, items 7 and 17, Look 1): **every action looks like a button.** `Button.tsx` wraps `ObcButton`, which stays (RD2). The looks are variables on the `obc-button` host in `styles/openbridge-bridge.css`, so a bare `ObcButton` follows the same standard.
 
-| Variant | ObcButton variant | Look |
-|---|---|---|
-| `primary` | raised | `action.primary`. One per region |
-| `outline` | normal | `border.strong` |
-| `ghost` | flat | `text.secondary` |
-| `destructive` | raised | `status.danger.fg`, through variables (proposal in R01) |
-| `accent` | normal | `action.primary` border and text |
-| link | none | `<button class="ui-link">` or a router link |
+| Level | `Button` variant | ObcButton | Look | Use |
+|---|---|---|---|---|
+| Primary | `primary` | raised | `action.primary` fill, `action.on` text | The one main action of a panel or dialog |
+| Secondary A | `secondary` (default) | normal or flat | `surface.raised` tint, `border.strong`, `text.primary`; hover border and text `action.primary`; pressed `surface.selected` with `action.active` | Every other action, including in-page "→" actions |
+| Destructive | `destructive` | raised | `status.danger.fg` fill, `action.on` text | Confirms a delete or retire |
+| Ghost | `ghost` | flat + host class `ui-ghost` | transparent, `text.secondary` | Icon-only and dialog close buttons only |
+| Link | `link` | flat + host class `ui-link` | `action.primary`, underlined, no box | Opens another page: every label that ends in "↗" (owner Q4) |
 
-Painted 40 px, 6 px radius, through variables (`obc-fit-probe`). A disabled action says why, on screen, through `reason`.
+- A plain `<button>` action takes `ui-btn ui-btn--secondary` (`ui/components.css`). Cards, tabs, chips, rows and list items keep their own look.
+- A toggle that is on sets `aria-pressed`: it keeps the pressed look.
+- Disabled: `surface.raised`, `border.subtle`, `text.muted`; a disabled link drops its underline. A disabled action says why, on screen, through `reason`.
+- Painted 40 px, 6 px radius, focus 2 px with a 3 px gap (`obc-fit-probe`). `styles/buttonStandard.test.ts` keeps the rules and every "↗" button a link.
 
 ## 6.16 Toast
 

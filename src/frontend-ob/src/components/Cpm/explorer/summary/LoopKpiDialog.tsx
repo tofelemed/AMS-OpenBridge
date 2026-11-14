@@ -28,7 +28,7 @@ export const LoopKpiDialog: React.FC<{
     <Dialog open onClose={onClose} title={card.label}
       footer={(
         <>
-          <ObcButton variant="flat" onClick={() => { onClose(); navigate(proof.href); }}>{proof.label}</ObcButton>
+          <ObcButton className="ui-link" variant="flat" onClick={() => { onClose(); navigate(proof.href); }}>{proof.label}</ObcButton>
           <ReasonedButton variant="raised" disabled={missing} reason={`No ${card.gate} result in this window`}
             onClick={() => onInspect(card.gate)}>Inspect {card.gate} →</ReasonedButton>
         </>

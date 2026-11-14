@@ -65,7 +65,7 @@ const Administration: React.FC = () => {
         )}
         {hasPermission(AUDIT_PERMISSION) && (
           <div className="cpm-tabs-row__end">
-            <ObcButton variant="flat" onClick={() => navigate(governanceHref())}>Audit log {'↗'}</ObcButton>
+            <ObcButton className="ui-link" variant="flat" onClick={() => navigate(governanceHref())}>Audit log {'↗'}</ObcButton>
           </div>
         )}
       </div>

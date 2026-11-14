@@ -94,14 +94,14 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
         <div className="cpm-events-links">
           <ObcButton variant="flat" onClick={() => setRecord(true)}>Record details</ObcButton>
           {/* CHG-097 (SME review 2 #26): the finding opens the period it covers, not only the loop */}
-          <ObcButton variant="flat" title="PV, SP, OP and mode over this episode in Historical, with the peak window shaded"
+          <ObcButton className="ui-link" variant="flat" title="PV, SP, OP and mode over this episode in Historical, with the peak window shaded"
             onClick={() => navigate(historicalHref(event.loop_id, {
               from: event.opened_at, to: event.closed_at ?? new Date().toISOString(),
               kind: event.window_kind, focus: `episode EVT-${event.id}`,
             }))}>
             Historical {'↗'}
           </ObcButton>
-          <ObcButton variant="flat" title={`Open ${event.loop_id} in the Loop Explorer`}
+          <ObcButton className="ui-link" variant="flat" title={`Open ${event.loop_id} in the Loop Explorer`}
             onClick={() => navigate(explorerHref(event.loop_id, { tab: 'Summary' }))}>
             Loop {'↗'}
           </ObcButton>

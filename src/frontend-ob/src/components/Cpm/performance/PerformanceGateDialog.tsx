@@ -59,7 +59,7 @@ export const PerformanceGateDialog: React.FC<{
       actions={(
         <>
           <GateSteps prev={prev} next={next} onSelect={onSelectGate} />
-          <ObcButton variant="flat" onClick={() => navigate(windowsHref(row.loopId, { profile: windowKind }))}>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(row.loopId, { profile: windowKind }))}>
             Window Inspector ↗
           </ObcButton>
           <ObcButton variant="raised" onClick={() => navigate(investigationHref(row.loopId, { kind: windowKind, gate }))}>

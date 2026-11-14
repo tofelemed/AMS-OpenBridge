@@ -116,8 +116,8 @@ const TrendView: React.FC<ViewProps> = ({ loops, loading, loadError }) => {
   // Loop Explorer ↗ and Historical ↗ only for one loop the registry knows.
   const exits = loop ? (
     <div className="cpm-hist-bandend">
-      <ObcButton variant="normal" onClick={() => navigate(explorerHref(loop.loopId))}>Loop Explorer ↗</ObcButton>
-      <ObcButton variant="flat" onClick={() => {
+      <ObcButton className="ui-link" variant="normal" onClick={() => navigate(explorerHref(loop.loopId))}>Loop Explorer ↗</ObcButton>
+      <ObcButton className="ui-link" variant="flat" onClick={() => {
         const p = period.current();
         navigate(historicalHref(loop.loopId, { from: iso(p.start), to: iso(p.end) }));
       }}>Historical ↗</ObcButton>

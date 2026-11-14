@@ -79,7 +79,7 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ loopId, exportDisabled, 
       label="Export"
       align="end"
       trigger={t => (
-        <button type="button" className="ui-control" {...t}>
+        <button type="button" className="ui-btn ui-btn--secondary" {...t}>
           {exportBusy ? 'Preparing…' : 'Export'} <span className="ui-icon ui-icon--small"><ObiChevronDownGoogle /></span>
         </button>
       )}
@@ -183,7 +183,7 @@ export const RangeToolbar: React.FC<RangeToolbarProps> = ({
         {tools}
         {tools && trendHref && <span className="cpm-hist-sep" aria-hidden="true" />}
         {trendHref && (
-          <ObcButton variant="flat" onClick={() => onOpenTrend(trendHref)}>
+          <ObcButton className="ui-link" variant="flat" onClick={() => onOpenTrend(trendHref)}>
             Open in Trend ↗
           </ObcButton>
         )}

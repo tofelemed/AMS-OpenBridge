@@ -67,7 +67,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
       actions={(
         <>
           <GateSteps prev={prev} next={next} onSelect={onSelectGate} />
-          <ObcButton variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind, window: matrix.windowEnd }))}>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind, window: matrix.windowEnd }))}>
             Window Inspector ↗
           </ObcButton>
           {/* CHG-098: the reason it is disabled is on screen. */}

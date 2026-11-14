@@ -1,12 +1,14 @@
 /**
  * SPEC §6.11: focus starts inside and is trapped, including buttons in shadow roots. Esc closes and
  * focus returns to the trigger. The close control has a name, and Tab reaches the footer.
+ * CHG-183 (owner review 2026-11-14, item 2): the head is a solid band in the action colour with the title, an
+ * optional subtitle under it (loop · gate) and the close button.
  */
 import React, { useId } from 'react';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
 import useDialogA11y from '../hooks/useDialogA11y';
 
-const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, description, onClose, children, footer, size = 'default' }) => {
+const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, subtitle, description, onClose, children, footer, size = 'default' }) => {
   const ref = useDialogA11y<HTMLDivElement>(onClose);
   const titleId = useId();
   const descId = useId();
@@ -22,7 +24,10 @@ const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, descript
         aria-describedby={description ? descId : undefined}
       >
         <div className="ui-dialog__head">
-          <h2 id={titleId} className="ui-dialog__title">{title}</h2>
+          <div className="ui-dialog__heading">
+            <h2 id={titleId} className="ui-dialog__title">{title}</h2>
+            {subtitle && <p className="ui-dialog__subtitle">{subtitle}</p>}
+          </div>
           <button type="button" className="ui-control ui-control--ghost ui-control--icon" aria-label="Close dialog" onClick={onClose}>
             <span className="ui-icon"><ObiCloseGoogle /></span>
           </button>
@@ -37,6 +42,8 @@ const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, descript
 
 interface DialogProps {
   title: string;
+  /** A short line under the title, on the band (for example "FIC10401 · Flow controller"). */
+  subtitle?: string;
   description?: string;
   children: React.ReactNode;
   /** Actions, right-aligned, primary last (skill contract). */

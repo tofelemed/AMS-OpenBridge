@@ -103,7 +103,7 @@ export const CalculationsTab: React.FC<{ loop: CpmLoop; pageWindowKind?: string 
 
       <div className="cpm-explorer-foot">
         <span className="cpm-explorer-foot__links">
-          <ObcButton variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: short }))}>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: short }))}>
             Short windows ↗
           </ObcButton>
         </span>

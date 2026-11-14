@@ -31,7 +31,7 @@ export const RerunDialog: React.FC<{
       footer={<>
         <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>
         {(unreadable || stillRunning || noResult) && <ObcButton variant="normal" onClick={checkAgain}>Check again</ObcButton>}
-        {verdictRunId && <ObcButton variant="normal" onClick={onOpenRun}>Open the new run ↗</ObcButton>}
+        {verdictRunId && <ObcButton className="ui-link" variant="normal" onClick={onOpenRun}>Open the new run ↗</ObcButton>}
         {!verdictRunId && <ObcButton variant="raised" disabled={busy} onClick={onCreate}>{busy ? 'Running…' : 'Create run'}</ObcButton>}
       </>}>
       <KvRow label="Window">{windowText}</KvRow>

@@ -60,7 +60,7 @@ export const ReadinessBar: React.FC<{ summary: ReadinessSummary; onTab: (t: Expl
               {c.target && !(c.target.kind === 'route' && c.target.href === pipelineHref() && !canPipeline) && (
                 <button
                   type="button"
-                  className="cpm-causes__action"
+                  className="ui-btn ui-btn--secondary cpm-causes__action"
                   onClick={() => {
                     if (c.target?.kind === 'tab') onTab(c.target.tab);
                     else if (c.target?.kind === 'route') navigate(c.target.href);

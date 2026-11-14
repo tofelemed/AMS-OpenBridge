@@ -93,7 +93,7 @@ export const AlarmDetailPanel: React.FC<AlarmDetailPanelProps> = ({
               <PriorityBadge priority={alarm.priority} />
               <AlarmStateIcon alarm={alarm} />
             </div>
-            <ObcButton variant="flat" size="small" onClick={onClose} aria-label="Close detail panel">
+            <ObcButton variant="flat" className="ui-ghost" size="small" onClick={onClose} aria-label="Close detail panel">
               ✕
             </ObcButton>
           </div>

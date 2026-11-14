@@ -130,7 +130,7 @@ export const EvidenceBody: React.FC<{
               onClick={() => navigate(replay)}>
               Replay →
             </ObcButton>
-            <ObcButton variant="flat" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
+            <ObcButton className="ui-link" variant="flat" title={`Open ${loopId} in the Loop Explorer, Calculations tab`}
               onClick={() => navigate(explorerHref(loopId, { tab: 'Calculations' }))}>
               Loop ↗
             </ObcButton>
