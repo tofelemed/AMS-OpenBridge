@@ -10,6 +10,7 @@
  * CHG-195 (owner review item 19): `rowClassName` marks a row (a muted censored event or quantity that does not apply);
  * `groupOf` puts a heading row above the first row of each group, for rows handed in already in group order (the models
  * table's Candidate / Other groups). A group row is never focused or selected; not for a grid.
+ * CHG-201: each cell names its column in `data-label`, so a page can stack its rows at a narrow width.
  */
 import React, { useRef } from 'react';
 import { DataState } from './DataState';
@@ -46,6 +47,10 @@ const ariaSort = (active: boolean, dir?: 'asc' | 'desc') => {
   if (!active) return 'none' as const;
   return dir === 'asc' ? ('ascending' as const) : ('descending' as const);
 };
+
+/** CHG-201: a cell's column name (its heading text, else its label), so a page can stack rows at a narrow width. */
+const labelOf = <R,>(c: Column<R>): string | undefined =>
+  (typeof c.header === 'string' && c.header ? c.header : c.label) || undefined;
 
 /** Adjacent columns of one group, or one ungrouped column. */
 function headingRuns<R>(columns: Array<Column<R>>): Array<{ group?: string; columns: Array<Column<R>> }> {
@@ -192,6 +197,7 @@ export function DataTable<R>({
                         <td
                           key={c.key}
                           role={grid ? cellRole : undefined}
+                          data-label={labelOf(c)}
                           className={[c.align === 'end' && 'ui-table__cell--end', c.mono && 'ui-table__cell--mono', c.sticky && 'ui-table__cell--sticky', startsGroup(c) && 'ui-table__cell--group'].filter(Boolean).join(' ') || undefined}
                         >
                           {c.cell(row, rowIndex)}

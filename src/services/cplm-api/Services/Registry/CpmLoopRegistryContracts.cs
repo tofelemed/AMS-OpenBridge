@@ -143,7 +143,13 @@ public sealed record CpmLoopDto(
     /// <summary>v2.5 (2E.2): the site zone every time on the loop's evidence is shown in (registry column; 'UTC' when undeclared).</summary>
     string? Timezone = null,
     /// <summary>v2.5 (2G.1): the loop model dimensions + acquisition contract and where they came from.</summary>
-    CpmLoopModelDto? Model = null);
+    CpmLoopModelDto? Model = null,
+    /// <summary>CHG-201: when the loop was registered and last changed (cpm.loop_registry.created_at / updated_at).</summary>
+    DateTime? CreatedAt = null,
+    DateTime? UpdatedAt = null,
+    /// <summary>CHG-201: the control system's tag per signal role, from the active tag map ("PV" → "FIC10401.PV");
+    /// null when the map records none. Additive: older frontends ignore it.</summary>
+    IReadOnlyDictionary<string, string>? SourceTags = null);
 
 public sealed record CpmLoopLinkDto(string ToLoopId, string RelType, string Origin);
 

@@ -91,10 +91,11 @@ describe('links that carry the context (design 2026-11-06, section 4)', () => {
     expect(explorerHref('A', { from: 'a', to: 'b', tab: 'History' })).toBe('/cpm/explorer?loop=A&tab=History&from=a&to=b');
   });
 
-  it('opens Loop Registry on its list, or on one loop', () => {
+  it('opens Loop Registry on its list, or on the page of one loop (CHG-201)', () => {
     expect(registryHref()).toBe('/cpm/registry');
     expect(registryHref(null)).toBe('/cpm/registry');
-    expect(registryHref('A B')).toBe('/cpm/registry?loop=A+B');
+    expect(registryHref('FIC10401')).toBe('/cpm/registry/FIC10401');
+    expect(registryHref('A B')).toBe('/cpm/registry/A%20B');
   });
 
   it('names each Administration section', () => {

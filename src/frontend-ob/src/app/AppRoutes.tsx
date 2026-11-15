@@ -19,7 +19,8 @@ const SoePanel         = React.lazy(() => import('../components/Soe/SoePanel'));
 // CPLM Phase 7 — Loop Performance screens (built slice by slice; see
 // docs/cplm-intake/phase7-frontend-checklist.md)
 const CpmLoopRegistry  = React.lazy(() => import('../components/Cpm/LoopRegistry'));
-const CpmEvents        = React.lazy(() => import('../components/Cpm/CpmEvents'));
+const CpmLoopDetail    = React.lazy(() => import('../components/Cpm/registry/detail/LoopDetailPage'));   // CHG-201
+const CpmEvents       = React.lazy(() => import('../components/Cpm/CpmEvents'));
 const OverviewPage     = React.lazy(() => import('../pages/cpa/OverviewPage'));
 const CpmPerformance   = React.lazy(() => import('../components/Cpm/CpmPerformance'));
 const CpmKpiDrilldown  = React.lazy(() => import('../components/Cpm/CpmKpiDrilldown'));   // CHG-082
@@ -87,6 +88,8 @@ export const AppRoutes: React.FC = () => (
         <Route path="/cpm/pipeline"  element={<RequirePermission permission="system.manage"><CpmPipeline /></RequirePermission>} />
         <Route path="/cpm/governance" element={<RequirePermission permission="system.manage" anyOf={[...GOVERNANCE_PERMISSIONS]}><CpmGovernance /></RequirePermission>} />
         <Route path="/cpm/registry"  element={<RequirePermission permission="analytics.view"><CpmLoopRegistry /></RequirePermission>} />
+        {/* CHG-201: one loop's own page, a sub-page of Loop Registry (the sidebar keeps Loop Registry selected) */}
+        <Route path="/cpm/registry/:loopId" element={<RequirePermission permission="analytics.view"><CpmLoopDetail /></RequirePermission>} />
         <Route path="/cpm/events"    element={<RequirePermission permission="analytics.view"><CpmEvents /></RequirePermission>} />
         {/* Published-HMI launcher — every role with display.view */}
         <Route path="/displays"       element={CPA_SLICE_ONLY ? <Navigate to={HOME_PATH} replace /> : <RequirePermission permission="display.view"><DisplayLauncher /></RequirePermission>} />

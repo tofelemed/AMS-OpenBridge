@@ -52,12 +52,13 @@ describe('wizard labels', () => {
   it('names a fact state and summarises the declared applicability', async () => {
     const { factStateLabel, applicabilitySummary } = await import('./optionalInputs');
     expect(factStateLabel('NOT_APPLICABLE')).toBe('Not applicable');
+    expect(factStateLabel('NOT_INSTALLED')).toBe('Not fitted');   // CHG-201: the Loop Registry's word
     expect(factStateLabel('AVAILABLE')).toBeNull();
     expect(applicabilitySummary('', 'NOT_APPLICABLE')).toBe('Valve position derived · peers not applicable');
     // CHG-168 (owner answer 3b): the three valve-position choices by name, so a change between the last two shows
     expect(applicabilitySummary('EXPECTED', '')).toBe('Valve position expected · peers derived');
     expect(applicabilitySummary('NOT_APPLICABLE', '')).toBe('Valve position not applicable · peers derived');
-    expect(applicabilitySummary('NOT_INSTALLED', '')).toBe('Valve position not installed · peers derived');
+    expect(applicabilitySummary('NOT_INSTALLED', '')).toBe('Valve position not fitted · peers derived');
   });
 });
 

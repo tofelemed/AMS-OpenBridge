@@ -34,4 +34,11 @@ describe('DataTable row classes and groups', () => {
     fireEvent.click(screen.getByText('c'));
     expect(onSelect).toHaveBeenCalledWith(ROWS[2]);
   });
+
+  it('names each cell after its column (data-label), so a page can stack its rows at a narrow width (CHG-201)', () => {
+    const cols: Array<Column<Row>> = [...COLUMNS, { key: 'x', header: <span>?</span>, label: 'Help', cell: () => 'x' }, { key: 'y', header: '', cell: () => '›' }];
+    render(<DataTable caption="Rows" columns={cols} rows={ROWS.slice(0, 1)} rowKey={r => r.id} />);
+    const cells = [...document.querySelectorAll('tbody td')];
+    expect(cells.map(td => td.getAttribute('data-label'))).toEqual(['Id', 'Group', 'Help', null]);
+  });
 });

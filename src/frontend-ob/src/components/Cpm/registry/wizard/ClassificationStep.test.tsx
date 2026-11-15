@@ -3,6 +3,7 @@
 // suggestion, says that an explicit value overrides the preset, and types the acquisition contract.
 // CHG-168 (owner review): each select's first option names the preset ("preset (INTEGRATING)"); the badge says where the model
 // comes from; the override rule and the acquisition hints sit behind their ?.
+// CHG-201: the fields and their choices in the words the Loop detail page uses (registry/loopWords); the badge is never green.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -22,10 +23,18 @@ describe('ClassificationStep', () => {
   it('offers the contract enums, names the preset in each first option and keeps the override rule behind its ?', () => {
     const onChange = vi.fn();
     render(<ClassificationStep loopType="LIC" contract={contract} form={emptyModelForm()} onChange={onChange} />);
-    const dyn = screen.getByLabelText('Dynamic class') as HTMLSelectElement;
+    const dyn = screen.getByLabelText('Process behaviour') as HTMLSelectElement;
     expect(Array.from(dyn.options).map(o => o.value)).toEqual(['', 'FAST_SELF_REG', 'SLOW_SELF_REG', 'INTEGRATING', 'UNKNOWN']);
-    expect(dyn.options[0].textContent).toBe('preset (INTEGRATING)');
-    expect(screen.getByText('Preset from loop type')).toBeTruthy();
+    expect(Array.from(dyn.options).map(o => o.textContent)).toEqual([
+      'From the loop type (Keeps rising or falling until corrected)', 'Fast, settles on its own', 'Slow, settles on its own',
+      'Keeps rising or falling until corrected', 'Not known',
+    ]);
+    for (const label of ['Service', 'Final element', 'Control structure', 'Control goal']) expect(screen.getByLabelText(label)).toBeTruthy();
+    expect((screen.getByLabelText('Final element') as HTMLSelectElement).options[1].textContent).toBe('Control valve');
+    const mode = screen.getByLabelText('Data arrives') as HTMLSelectElement;
+    expect(Array.from(mode.options).map(o => o.textContent)).toEqual(['From the loop type (At regular intervals)', 'At regular intervals', 'When the value changes', 'Sampled, held between samples']);
+    expect(screen.getByText('Set from the loop type')).toBeTruthy();
+    expect(document.querySelector('.cpm-pill--good')).toBeNull();
     expect(screen.queryByText(/preset for LIC/i)).toBeNull();
     expect(screen.queryByText(/explicit values override the preset/i)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Loop model' }));
@@ -34,10 +43,11 @@ describe('ClassificationStep', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ dynamicClass: 'SLOW_SELF_REG' }));
   });
 
-  it('an explicit form is labelled Explicit and becomes the request model; an empty form sends no model', () => {
+  it('an explicit form is labelled Set by a person and becomes the request model; an empty form sends no model', () => {
     const form: ModelForm = { ...emptyModelForm(), dynamicClass: 'SLOW_SELF_REG', acqMode: 'RBE', gridSeconds: '5', sourceFilterS: '', tsQuantMs: '', declaredScanS: '1' };
     render(<ClassificationStep loopType="LIC" contract={contract} form={form} onChange={() => {}} />);
-    expect(screen.getByText('Explicit')).toBeTruthy();
+    expect(screen.getByText('Set by a person')).toBeTruthy();
+    expect(document.querySelector('.cpm-pill--good')).toBeNull();
     expect(modelOf(form)).toEqual({ serviceFamily: null, dynamicClass: 'SLOW_SELF_REG', objectiveType: null, topology: null, commandPath: null, acquisition: { mode: 'RBE', gridSeconds: 5, sourceFilterS: null, timestampQuantizationMs: null, declaredScanS: 1 } });
     expect(modelOf(emptyModelForm())).toBeNull();
     expect(modelOf({ ...emptyModelForm(), gridSeconds: 'abc' })).toBeNull();                       // an unparseable number is not a declaration

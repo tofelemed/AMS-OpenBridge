@@ -70,10 +70,11 @@ export function flagsForLoop(flags: readonly string[] | null | undefined, ctx: I
   return (flags ?? []).filter(f => !optionalInputLimitation(f, ctx)?.includes('does not apply'));
 }
 
+/** CHG-201: NOT_INSTALLED reads "Not fitted", the Loop Registry list's and the loop page's word for a valve with no position signal. */
 export const APPLICABILITY_OPTIONS: Array<{ value: '' | Applicability; label: string }> = [
   { value: '', label: 'Derive (from the command path)' },
   { value: 'EXPECTED', label: 'Expected' },
-  { value: 'NOT_INSTALLED', label: 'Not installed' },
+  { value: 'NOT_INSTALLED', label: 'Not fitted' },
   { value: 'NOT_APPLICABLE', label: 'Not applicable' },
 ];
 
@@ -99,7 +100,7 @@ export const peerDetail = (loop: Pick<CpmLoop, 'engineering'>): string =>
 
 /** Readiness check pill for an optional input that is fine because it does not apply here (no action needed). */
 export function factStateLabel(state: string | undefined): string | null {
-  return state === 'NOT_APPLICABLE' ? 'Not applicable' : state === 'NOT_INSTALLED' ? 'Not installed' : null;
+  return state === 'NOT_APPLICABLE' ? 'Not applicable' : state === 'NOT_INSTALLED' ? 'Not fitted' : null;
 }
 
 /**

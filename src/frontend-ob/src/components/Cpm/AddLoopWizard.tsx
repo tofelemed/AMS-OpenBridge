@@ -11,6 +11,7 @@
  * field); fields under short titled parts, the help behind ?; the ranges on the Signals tab beside the paths they scale; the
  * review open; a Monitored switch (owner answer 3a) and three valve-position choices (3b). Every field, rule and request stays.
  * CHG-192 (owner review item 16): Edit configuration names the loop under the title on the band.
+ * CHG-201: the loop's page opens it from "Edit loop", so the dialog is titled "Edit loop".
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -107,11 +108,11 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     );
 
   return (
-    <Dialog open size="wide" title={isEdit ? 'Edit configuration' : 'Add loop'} onClose={close} footer={footer}
+    <Dialog open size="wide" title={isEdit ? 'Edit loop' : 'Add loop'} onClose={close} footer={footer}
       subtitle={editLoop ? [editLoop.loopId, serviceName(editLoop)].filter(Boolean).join(' · ') : undefined}>
       {savedLoopId ? <SavedReadiness readiness={readiness.data} /> : (
         <div className="cpm-reg-editor">
-          <Tabs idBase="cpm-loop-editor" label={isEdit ? 'Edit configuration' : 'Add loop'} value={tab}
+          <Tabs idBase="cpm-loop-editor" label={isEdit ? 'Edit loop' : 'Add loop'} value={tab}
             options={TABS.map((t, i) => ({ value: t.value, label: t.label, disabled: i > step }))}
             onChange={v => setStep(TABS.findIndex(t => t.value === v))} />
           <div className="cpm-reg-editor__panel" {...tabPanelProps('cpm-loop-editor', tab)}>

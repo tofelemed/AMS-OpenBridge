@@ -63,7 +63,7 @@ describe('LoopModelCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'System Response ↗' }));
     expect(screen.getByTestId('location').textContent).toBe('/cpm/response?loop=FIC10405');
     fireEvent.click(screen.getByRole('button', { name: 'Loop Registry →' }));
-    expect(screen.getByTestId('location').textContent).toBe('/cpm/registry?loop=FIC10405');
+    expect(screen.getByTestId('location').textContent).toBe('/cpm/registry/FIC10405');
   });
 
   it('shows no Effective configuration button without cpm.config.read (CHG-081)', () => {

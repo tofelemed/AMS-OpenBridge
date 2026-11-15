@@ -1,4 +1,5 @@
-/* Loop Registry (CHG-147; CHG-168 the owner's approved sample): placement and tone only; every size is the app's own token or class. */
+/* Loop Registry (CHG-147; CHG-168 the owner's approved sample; CHG-201 the list page and a loop's own page): placement and tone
+   only; every size is the app's own token or class. */
 
 /* ── The list card: the filter row (32 px, the pager's size) at its top, the rows, the shared pager centred ── */
 .cpm-reg-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-3); }
@@ -14,28 +15,9 @@
 .cpm-reg-row--selected > td { background: var(--cpm-selected-bg); }
 .cpm-reg-row--selected:hover > td { background: var(--cpm-selected-hover-bg); }
 .cpm-reg-row--selected > td:first-child { box-shadow: inset 4px 0 0 var(--cpm-selected-edge); }
-.cpm-reg-link { color: var(--element-active-color); text-decoration: none; }
-.cpm-reg-link:hover { text-decoration: underline; }
-
-/* ── The panel ── */
+/* Shared outside the registry: Administration's user panel (the name under the title), Gate Configuration's panel foot. */
 .cpm-reg-panel__service { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-secondary); }
-/* a pill and its ? stay together at the value's end; a long pill wraps inside the row */
-.cpm-reg-fact { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--traverse-space-1); max-width: 100%; }
-.cpm-registry .cpm-kv__value .cpm-pill + .cpm-pill { margin-inline-start: var(--traverse-space-1); }
-.cpm-reg-nothing { margin: var(--traverse-space-2) 0 0; }
-/* Signals: the role with its pen, the path under the plant path, Copy */
-.cpm-reg-signal {
-  display: grid;
-  grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--traverse-space-2);
-  min-height: var(--traverse-size-control-min-height);
-  border-bottom: 1px solid var(--border-divider-color);
-}
-.cpm-reg-signal:last-child { border-bottom: 0; }
-.cpm-reg-signal__role { display: inline-flex; align-items: center; gap: var(--traverse-space-2); }
-.cpm-reg-signal__path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cpm-reg-signal__copy { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+.cpm-reg-foot { display: flex; justify-content: flex-end; }
 /* The pen of each role, from the one signal colour source (styles/signal-colours.css); SP dashed and MODE dotted, as the trends draw them */
 .cpm-reg-swatch {
   --pen: var(--traverse-text-secondary);
@@ -51,14 +33,101 @@
 .cpm-reg-swatch[data-pen='vp'] { --pen: var(--signal-vp); }
 .cpm-reg-swatch[data-pen='sp'] { --pen: var(--signal-sp); background: repeating-linear-gradient(90deg, var(--pen) 0 4px, transparent 4px 7px); }
 .cpm-reg-swatch[data-pen='mode'] { height: 0; background: none; border-top: 2px dotted var(--pen); border-radius: 0; }
-/* the actions wrap; each reason stays under its own button */
-.cpm-reg-actions { align-items: flex-start; margin-top: 0; }
-/* the foot holds the way on, on the page colour, as the list feet do */
-.cpm-reg-foot { display: flex; justify-content: flex-end; }
-.cpm-registry .ui-inspector__foot {
-  background: var(--traverse-surface-page);
-  border-end-start-radius: inherit;
-  border-end-end-radius: inherit;
+
+/* ── CHG-201 the list: one full-width table in the list card (the approved mockup) ── */
+.cpm-reg-card { border-radius: var(--traverse-radius-panel); }
+.cpm-reg-list .ui-table td { padding-block: var(--traverse-space-2); }
+.cpm-reg-list th:last-child, .cpm-reg-list td:last-child { width: 1%; text-align: end; }
+.cpm-reg-tagline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-2); }
+.cpm-reg-tag { color: var(--traverse-text-primary); font-weight: 600; text-decoration: none; }
+.cpm-reg-tag:hover { text-decoration: underline; }
+.cpm-reg-desc { display: block; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 400; }
+.cpm-reg-chev { color: var(--traverse-text-muted); font-size: var(--traverse-type-section-title); line-height: 1; }
+
+/* ── CHG-201 a loop's own page: the head, then the cards (two columns from 1280 px) ── */
+.cpm-reg-detail-head { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+.cpm-reg-back { align-self: flex-start; color: var(--traverse-action-primary); font-size: var(--cpm-text-small); text-decoration: none; }
+.cpm-reg-back:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cpm-reg-back:focus-visible { outline: var(--traverse-focus-width) solid var(--traverse-focus); outline-offset: var(--traverse-focus-offset); }
+.cpm-reg-detail-head__id { min-width: 0; }
+.cpm-reg-detail-head__lead { margin: 0; color: var(--traverse-text-secondary); }
+.cpm-reg-detail-head__pills { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin-top: var(--traverse-space-2); }
+.cpm-reg-detail-head__actions { align-items: flex-start; }
+.cpm-reg-resend { display: inline-flex; align-items: flex-start; gap: var(--traverse-space-1); }
+.cpm-reg-resend > .ui-toggletip { margin-top: var(--traverse-space-3); }
+.cpm-reg-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--traverse-size-panel-gap); }
+.cpm-reg-section--wide { grid-column: 1 / -1; }
+@media (min-width: 1280px) {
+  .cpm-reg-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.cpm-reg-section { min-width: 0; border-radius: var(--traverse-radius-panel); padding: var(--traverse-size-panel-padding); }
+.cpm-reg-section__head { display: flex; align-items: center; gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-2); }
+.cpm-reg-section__title { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-section-title); font-weight: 600; }
+.cpm-reg-section__end { margin-inline-start: auto; }
+/* label / value rows, the value left-aligned under its own column */
+.cpm-reg-kv {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: var(--traverse-space-3);
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--traverse-size-row-compact);
+  padding: var(--traverse-space-2) 0;
+  border-bottom: 1px solid var(--traverse-border-subtle);
+}
+.cpm-reg-kv:last-of-type { border-bottom: 0; }
+.cpm-reg-kv__label { color: var(--traverse-text-secondary); }
+.cpm-reg-kv__value { min-width: 0; color: var(--traverse-text-primary); overflow-wrap: anywhere; }
+.cpm-reg-kv__link { margin-inline-start: var(--traverse-space-2); }
+.cpm-reg-note, .cpm-reg-empty { margin: var(--traverse-space-2) 0 0; color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+.cpm-reg-muted { color: var(--traverse-text-secondary); }
+.cpm-reg-retry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+/* Signals: the pen, the role and its plain name */
+.cpm-reg-signals .ui-table td { padding-block: var(--traverse-space-2); }
+.cpm-reg-sig { display: inline-flex; align-items: center; gap: var(--traverse-space-3); }
+.cpm-reg-sig__text { display: flex; flex-direction: column; }
+/* Ready for analysis: ✓ in the neutral tone, ! in amber (owner Q3: no green for a normal state) */
+.cpm-reg-checklist, .cpm-reg-links { margin: 0; padding: 0; list-style: none; }
+.cpm-reg-checklist__item {
+  display: grid;
+  grid-template-columns: var(--traverse-space-6) minmax(0, 1fr);
+  gap: var(--traverse-space-2);
+  padding: var(--traverse-space-2) 0;
+  border-bottom: 1px solid var(--traverse-border-subtle);
+}
+.cpm-reg-checklist__item:last-child, .cpm-reg-links__row:last-child { border-bottom: 0; }
+.cpm-reg-checklist__mark { font-weight: 700; }
+.cpm-reg-checklist__mark--ok { color: var(--traverse-text-secondary); }
+.cpm-reg-checklist__mark--warn { color: var(--traverse-status-warning-fg); }
+.cpm-reg-checklist__why { display: block; color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+.cpm-reg-links__row { padding: var(--traverse-space-2) 0; border-bottom: 1px solid var(--traverse-border-subtle); }
+
+/* Narrow (the 768 and 390 reference widths): each loop and each signal reads as a card, every value under its column name
+   (DataTable's data-label); the head row stays for screen readers. */
+@media (max-width: 820px) {
+  :is(.cpm-reg-list, .cpm-reg-signals) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :is(.cpm-reg-list, .cpm-reg-signals) :is(table, tbody) { display: block; width: 100%; }
+  :is(.cpm-reg-list, .cpm-reg-signals) tbody tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--traverse-space-2) var(--traverse-space-4);
+    align-items: start;
+    box-sizing: border-box;
+    padding: var(--traverse-space-3);
+    border-bottom: 1px solid var(--traverse-border-subtle);
+  }
+  :is(.cpm-reg-list, .cpm-reg-signals) .ui-table td { display: block; height: auto; padding: 0; border: 0; background: transparent; text-align: start; }
+  :is(.cpm-reg-list, .cpm-reg-signals) td:first-child { grid-column: 1 / -1; }
+  :is(.cpm-reg-list, .cpm-reg-signals) td[data-label]:not(:first-child)::before {
+    content: attr(data-label); display: block; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata);
+  }
+  .cpm-reg-list tbody tr:hover { background: var(--traverse-surface-hover); }
+  .cpm-reg-list tbody tr:hover td { background: transparent; }
+  .cpm-reg-list td:last-child { position: absolute; top: var(--traverse-space-3); right: var(--traverse-space-3); width: auto; }
+}
+@media (max-width: 600px) {
+  .cpm-reg-kv { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
 /* ── The editor and Bulk import dialogs: tabs, then short titled parts ── */

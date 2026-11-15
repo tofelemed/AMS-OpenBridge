@@ -2,7 +2,7 @@
  * CHG-168 (owner review, answer 1): the list's one filter row, inside the list card and 32 px high. Search first (it matches the
  * tag, service, site, area, unit and type), then ONE dropdown that merged Show retired and the three configuration-limit counts,
  * then Export CSV (owner answer 3c). "Configuration limits unavailable" with Retry sits beside the dropdown when the fleet
- * summary cannot be read; the limit options then carry no number.
+ * summary cannot be read; the limit options then carry no number. CHG-201: the search's hint is the approved mockup's.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -20,7 +20,7 @@ export const RegistryFilters: React.FC<{
   onExport: () => void;
 }> = ({ search, onSearch, view, onView, counts, limitsError, onExport }) => (
   <div className="cpm-compact cpm-reg-filters" role="group" aria-label="Loop filters">
-    <input className="cpm-input" type="search" aria-label="Find loop" placeholder="Loop, service, unit or type"
+    <input className="cpm-input" type="search" aria-label="Find loop" placeholder="Search loop, description or unit"
       value={search} onChange={e => onSearch(e.target.value)} />
     <select className="cpm-select" aria-label="Loops shown" value={view} onChange={e => onView(e.target.value as RegistryView)}>
       {viewOptions(counts).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

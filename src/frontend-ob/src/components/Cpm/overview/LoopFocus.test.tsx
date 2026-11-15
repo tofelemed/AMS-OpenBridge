@@ -84,7 +84,7 @@ describe('LoopFocus, the chosen loop (CHG-177)', () => {
     const { container } = show();
     const line = container.querySelector('.cpm-empty-line')!;
     expect(line.textContent).toBe('No PV, SP or OP samples stored in the last 8 h · Signal mapping ↗ · Pipeline Health ↗');
-    expect(screen.getByRole('link', { name: 'Signal mapping ↗' }).getAttribute('href')).toBe('/cpm/registry?loop=FIC10301');
+    expect(screen.getByRole('link', { name: 'Signal mapping ↗' }).getAttribute('href')).toBe('/cpm/registry/FIC10301');
     expect(screen.getByRole('link', { name: 'Pipeline Health ↗' }).getAttribute('href')).toBe('/cpm/pipeline');
     expect(container.textContent).not.toMatch(/root\.|historian series/i);
     expect(container.querySelector('.cpm-empty')).toBeNull();

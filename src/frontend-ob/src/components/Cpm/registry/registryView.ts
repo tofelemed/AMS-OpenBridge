@@ -45,8 +45,9 @@ export function viewCounts(scoped: CpmLoop[], summary: CpmFleetSummary | undefin
 const LABEL: Record<RegistryView, string> = {
   current: 'Not retired',
   all: 'With retired',
-  vp: 'VP expected, not mapped',
-  peers: 'Peer links expected, missing',
+  // CHG-201: the words of the list's Valve position column and the loop page's checklist
+  vp: 'Valve position not connected',
+  peers: 'No linked loops',
   degraded: 'Degraded',
 };
 const ORDER: RegistryView[] = ['current', 'all', 'vp', 'peers', 'degraded'];

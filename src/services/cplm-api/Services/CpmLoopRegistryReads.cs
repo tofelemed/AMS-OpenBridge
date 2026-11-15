@@ -20,22 +20,23 @@ public static class CpmLoopRegistryReads
         SELECT loop_id, asset_id, display_name, site, area, unit, loop_type, criticality,
                is_active, monitoring::text AS monitoring, tags::text AS tags, threshold_profile_id,
                engineering::text AS engineering, timezone,
-               service_family, dynamic_class, objective_type, topology, command_path, acquisition::text AS acquisition, classification_source
+               service_family, dynamic_class, objective_type, topology, command_path, acquisition::text AS acquisition, classification_source,
+               created_at, updated_at
         FROM cpm.loop_registry
         """;
 
-    private static readonly IReadOnlyList<(string SignalRole, string UnsPath)> NoTags = Array.Empty<(string, string)>();
+    private static readonly IReadOnlyList<(string SignalRole, string UnsPath, string? SourceTag)> NoMappings = Array.Empty<(string, string, string?)>();
 
     public static async Task<IReadOnlyList<CpmLoopDto>> LoadAllAsync(NpgsqlConnection conn)
     {
         var rows = (await conn.QueryAsync(RegistrySelect + " ORDER BY loop_id")).ToList();
 
-        var tagsByLoop = (await conn.QueryAsync<(string LoopId, string SignalRole, string UnsPath)>("""
-                SELECT loop_id, signal_role, uns_path FROM cpm.loop_tag_map WHERE is_active = TRUE
+        var tagsByLoop = (await conn.QueryAsync<(string LoopId, string SignalRole, string UnsPath, string? SourceTag)>("""
+                SELECT loop_id, signal_role, uns_path, source_tag FROM cpm.loop_tag_map WHERE is_active = TRUE
                 """))
             .GroupBy(t => t.LoopId, StringComparer.Ordinal)
             .ToDictionary(g => g.Key,
-                          g => (IReadOnlyList<(string SignalRole, string UnsPath)>)g.Select(t => (t.SignalRole, t.UnsPath)).ToList(),
+                          g => (IReadOnlyList<(string SignalRole, string UnsPath, string? SourceTag)>)g.Select(t => (t.SignalRole, t.UnsPath, t.SourceTag)).ToList(),
                           StringComparer.Ordinal);
 
         // Same set the per-loop UNION produced: a loop's outgoing links, plus incoming PEER
@@ -53,9 +54,9 @@ public static class CpmLoopRegistryReads
         foreach (var row in rows)
         {
             string loopId = row.loop_id;
-            var tags = tagsByLoop.TryGetValue(loopId, out var t) ? t : NoTags;
+            var mappings = tagsByLoop.TryGetValue(loopId, out var t) ? t : NoMappings;
             var links = linksByLoop.TryGetValue(loopId, out var ls) ? Sorted(ls) : Array.Empty<CpmLoopLinkDto>();
-            result.Add(Hydrate(row, tags, links));
+            result.Add(Hydrate(row, mappings, links));
         }
         return result;
     }
@@ -65,8 +66,8 @@ public static class CpmLoopRegistryReads
         var row = await conn.QueryFirstOrDefaultAsync(RegistrySelect + " WHERE loop_id = @loopId", new { loopId });
         if (row is null) return null;
 
-        var tags = (await conn.QueryAsync<(string SignalRole, string UnsPath)>("""
-            SELECT signal_role, uns_path FROM cpm.loop_tag_map
+        var mappings = (await conn.QueryAsync<(string SignalRole, string UnsPath, string? SourceTag)>("""
+            SELECT signal_role, uns_path, source_tag FROM cpm.loop_tag_map
             WHERE loop_id = @loopId AND is_active = TRUE
             """, new { loopId })).ToList();
 
@@ -78,7 +79,23 @@ public static class CpmLoopRegistryReads
             FROM cpm.loop_link WHERE to_loop_id = @loopId AND rel_type = 'PEER'
             """, new { loopId })).ToList();
 
-        return Hydrate(row, tags, Sorted(links));
+        return Hydrate(row, mappings, Sorted(links));
+    }
+
+    /// <summary>CHG-201: the active mappings with their source tags → the DTO, with the source tag per role (null when none).</summary>
+    public static CpmLoopDto Hydrate(dynamic row, IReadOnlyList<(string SignalRole, string UnsPath, string? SourceTag)> mappings, IReadOnlyList<CpmLoopLinkDto> links)
+    {
+        CpmLoopDto dto = Hydrate(row, mappings.Select(m => (m.SignalRole, m.UnsPath)).ToList(), links);
+        return dto with { SourceTags = SourceTagsOf(mappings) };
+    }
+
+    /// <summary>The trimmed source tag per role (upper-cased role, as Tags); a blank tag is no tag; null when no role has one.</summary>
+    internal static IReadOnlyDictionary<string, string>? SourceTagsOf(IEnumerable<(string SignalRole, string UnsPath, string? SourceTag)> mappings)
+    {
+        var tags = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var m in mappings)
+            if (!string.IsNullOrWhiteSpace(m.SourceTag)) tags[m.SignalRole.ToUpperInvariant()] = m.SourceTag.Trim();
+        return tags.Count == 0 ? null : tags;
     }
 
     /// <summary>Pure: a registry row plus its active tag map and its links → the DTO.</summary>
@@ -95,7 +112,20 @@ public static class CpmLoopRegistryReads
             loopId, (Guid?)row.asset_id, row.display_name, row.site, row.area, row.unit,
             row.loop_type, row.criticality, row.is_active, enabled, tags,
             BuildObservabilityFlags(tags.Keys, links, ParseJson((string?)row.engineering), ReadModel(row).CommandPath), links, stepTest, row.threshold_profile_id,
-            ReadRange((string?)row.engineering), (string?)row.timezone, ReadModel(row));
+            ReadRange((string?)row.engineering), (string?)row.timezone, ReadModel(row),
+            DateOf(row, "created_at"), DateOf(row, "updated_at"));
+    }
+
+    /// <summary>CHG-201: a registry timestamp column as UTC, or null when the row does not carry it (a narrower select).</summary>
+    private static DateTime? DateOf(dynamic row, string column)
+    {
+        if (row is not IDictionary<string, object?> cols || !cols.TryGetValue(column, out var v) || v is null) return null;
+        return v switch
+        {
+            DateTime d => d.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(d, DateTimeKind.Utc) : d.ToUniversalTime(),
+            DateTimeOffset o => o.UtcDateTime,
+            _ => null,
+        };
     }
 
     /// <summary>v2.5 (2G.1): the stored dimensions; a row that predates the columns reads as the loop_type preset.</summary>

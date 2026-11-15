@@ -10,7 +10,7 @@ import { Toggletip } from '../../../../ui/Toggletip';
 import { NO_VP_COPY } from '../../investigation/confirmationCopy';
 import { OptionalInputFields, hasVpChecked } from '../../OptionalInputFields';
 import { deriveSignalPath, type SignalRole } from '../../plantLocation';
-import { shortPath } from '../loopPanelFacts';
+import { shortPath } from '../signalPath';
 import type { FieldCheck, WizardState } from './wizardForm';
 import { SignalPathField } from './SignalPathField';
 import { Part } from './editorParts';

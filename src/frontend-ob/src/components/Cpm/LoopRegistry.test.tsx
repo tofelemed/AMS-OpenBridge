@@ -1,11 +1,13 @@
-// Task 23: the Loop Registry list shows Loop, Loop type and VP. CHG-168 (owner review, the approved sample and the answers of
-// 11 Nov): the header is the eyebrow and the title (no ?) with How to read, Bulk import and Add loop; one filter row inside the
-// list card, search first, then ONE dropdown (Not retired n · With retired n · the three limit counts), Export CSV; the shared
-// pager, centred; a row opens the loop in the panel beside the list (the address carries it); "Choose a loop" until one is picked.
+// CHG-168 (owner review, the approved sample and the answers of 11 Nov): the header is the eyebrow and the title (no ?) with
+// How to read, Bulk import and Add loop; one filter row inside the list card, search first, then ONE dropdown (Not retired n ·
+// With retired n · the three limit counts), Export CSV; the shared pager, centred.
+// CHG-201 (owner-approved mockup, 15 Nov 2026): the list is the whole page, no side panel. A row opens the loop's own page
+// (/cpm/registry/:loopId) with the list's address kept, so "‹ All loops" returns to the same list; an old ?loop= link lands on
+// the loop's page. The plant names are read once; nothing is read per row.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { LoopRegistry } from './LoopRegistry';
 import { useAuthStore } from '../../store/authStore';
 import type { CpmLoop } from '../../api/cpmApi';
@@ -14,33 +16,51 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
-vi.mock('./registry/LoopPanel', () => ({ default: (p: { loopId: string }) => <aside>panel of {p.loopId}</aside> }));
 vi.mock('./AddLoopWizard', () => ({ default: () => <div>wizard</div> }));
 vi.mock('./BulkImportDialog', () => ({ default: () => <div>import</div> }));
 const download = vi.fn();
 vi.mock('../../utils/csv', () => ({ downloadTextFile: (...a: unknown[]) => download(...a) }));
+let plantReads = 0;
+const locations = {
+  sites: [{ contextualPath: 'hdpe', name: 'HDPE Plant', type: 1 }],
+  areas: [{ contextualPath: 'hdpe/A1', name: 'Section 100', type: 2 }],
+  units: [{ contextualPath: 'hdpe/A1/U1', name: '1001-Polymerization Reactor 1', type: 3 }],
+};
+vi.mock('./plantLocation', async orig => ({
+  ...(await orig<typeof import('./plantLocation')>()),
+  usePlantLocations: () => { plantReads += 1; return { data: locations }; },
+}));
 
+const P = 'hdpe/A1/U1';
 const loop = (id: string, over: Partial<CpmLoop> = {}): CpmLoop => ({
   loopId: id, assetId: null, displayName: `${id} service`, site: 'hdpe', area: 'A1', unit: 'U1', loopType: 'FIC',
-  criticality: 'medium', isActive: true, monitoringEnabled: true, tags: { VP: 'x' }, observabilityFlags: [], links: [],
-  stepTestApproved: false, thresholdProfileId: 'prof-1', model: null, ...over,
+  criticality: 'medium', isActive: true, monitoringEnabled: true,
+  tags: { PV: `${P}/${id}.pv`, SP: `${P}/${id}.sp`, OP: `${P}/${id}.op`, MODE: `${P}/${id}.mode`, VP: `${P}/${id}.vp` },
+  observabilityFlags: [], links: [], stepTestApproved: false, thresholdProfileId: 'prof-1', model: null, ...over,
 } as CpmLoop);
 
 let loops: CpmLoop[] = [];
 let loading = false;
+const readinessReads = vi.fn();
 vi.mock('../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: loading ? undefined : { loops }, isLoading: loading, isError: false, error: null, refetch: vi.fn() }),
   useFleetSummary: () => fleet,
+  useCpmReadiness: (...a: unknown[]) => { readinessReads(...a); return {}; },
 }));
 const okFleet = { data: { capability: { loopsCappedByMissingVp: 236, loopsWithoutDisturbanceContext: 241, vpNotApplicable: 1 } }, isError: false, error: null, refetch: vi.fn() };
 let fleet: Record<string, unknown> = okFleet;
 
 const Where = () => { const l = useLocation(); return <div data-testid="where">{l.pathname + l.search}</div>; };
 const SetScope = ({ k, v }: { k: string; v: string }) => { const [, set] = useSearchParams(); return <button onClick={() => set(p => { p.set(k, v); return p; })}>pick {k}</button>; };
-const PickLoop = () => { const [, set] = useSearchParams(); return <button onClick={() => set(p => { p.set('loop', 'L27'); return p; })}>pick loop</button>; };
-const HistoryBack = () => { const nav = useNavigate(); return <button onClick={() => nav(-1)}>history back</button>; };
-const open = (url: string) => render(<MemoryRouter initialEntries={[url]}><LoopRegistry /><Where />
-  <SetScope k="site" v="hdpe" /><SetScope k="area" v="A1" /><SetScope k="unit" v="U1" /><PickLoop /><HistoryBack /></MemoryRouter>);
+const open = (url: string) => render(
+  <MemoryRouter initialEntries={[url]}>
+    <Routes>
+      <Route path="/cpm/registry" element={<LoopRegistry />} />
+      <Route path="/cpm/registry/:loopId" element={<div>page of the loop</div>} />
+    </Routes>
+    <Where /><SetScope k="site" v="hdpe" /><SetScope k="area" v="A1" /><SetScope k="unit" v="U1" />
+  </MemoryRouter>,
+);
 const asUser = (permissions: string[]) => useAuthStore.setState({
   user: { user_id: 'u', username: 'u', email: '', role: 'Engineer', is_active: true, permissions }, status: 'authenticated', accessToken: 't',
 });
@@ -48,8 +68,12 @@ const where = () => screen.getByTestId('where').textContent!;
 const shown = () => screen.getByLabelText('Loops shown') as HTMLSelectElement;
 const ids = () => screen.queryAllByRole('link', { name: /^[A-Z0-9-]+$/ }).map(a => a.textContent);
 const many = (n: number) => Array.from({ length: n }, (_, i) => loop(`L${String(i).padStart(2, '0')}`));
+const rowOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!;
 
-beforeEach(() => { fleet = okFleet; loading = false; loops = [loop('FIC1'), loop('FIC2', { loopType: 'PIC' })]; asUser(['cpm.manage']); download.mockReset(); });
+beforeEach(() => {
+  fleet = okFleet; loading = false; loops = [loop('FIC1'), loop('FIC2', { loopType: 'PIC' })]; asUser(['cpm.manage']);
+  download.mockReset(); readinessReads.mockReset(); plantReads = 0;
+});
 afterEach(cleanup);
 
 describe('LoopRegistry header', () => {
@@ -59,19 +83,17 @@ describe('LoopRegistry header', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Loop Registry');
     expect(screen.queryByRole('button', { name: 'Loop Registry' })).toBeNull();
     for (const name of ['How to read', 'Bulk import', 'Add loop']) expect(screen.getByRole('button', { name })).toBeTruthy();
-    expect(screen.queryByText(/A loop is only as good as its signal mappings/)).toBeNull();
   });
 
-  it('How to read holds State, VP and Readiness, with the words of the two old ?', () => {
+  it('How to read holds State and Ready for analysis in the list’s words, no gate code', () => {
+    fleet = { ...okFleet, data: { capability: { ...okFleet.data.capability, vpNotInstalled: 2 } } };
     open('/cpm/registry');
     fireEvent.click(screen.getByRole('button', { name: 'How to read' }));
     const dlg = screen.getByRole('dialog', { name: 'How to read' });
-    expect(within(dlg).getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['State', 'VP', 'Readiness']);
-    for (const word of ['Active', 'Degraded', 'Not monitored', 'Retired', 'Mapped', 'Not mapped', 'No VP']) expect(within(dlg).getByText(word)).toBeTruthy();
-    expect(within(dlg).getByText('A loop is only as good as its signal mappings')).toBeTruthy();
-    expect(within(dlg).getByText('Map the VP tag so non-following evidence can confirm a valve fault (G14).')).toBeTruthy();
-    expect(within(dlg).getByText('Interaction analysis unavailable (G13) until peers are configured.')).toBeTruthy();
-    expect(within(dlg).getByText('1 without a valve (valve diagnosis does not apply).')).toBeTruthy();
+    expect(within(dlg).getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['State', 'Ready for analysis']);
+    for (const word of ['Not monitored', 'Retired', 'Degraded', 'Ready', '2 items to set', 'Plant facts, nothing to fix']) expect(within(dlg).getByText(word)).toBeTruthy();
+    expect(within(dlg).getByText('2 with no valve position signal fitted · 1 with no valve.')).toBeTruthy();
+    expect(dlg.textContent).not.toMatch(/G1[34]|\bVP\b|Mapped|peer links/);
   });
 
   it('disables Add loop and Bulk import with a reason without cpm.manage, and enables them with it', () => {
@@ -89,13 +111,20 @@ describe('LoopRegistry header', () => {
 });
 
 describe('LoopRegistry list', () => {
-  it('shows Loop, Loop type and VP, the service under the tag, and no list title or count note', () => {
+  it('is one full-width table with no side panel: Loop, Type, Plant unit, Valve position, Ready for analysis', () => {
     open('/cpm/registry');
-    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Loop', 'Loop type', 'VP']);
-    expect(screen.getAllByText('service').length).toBe(2);
-    expect(screen.queryByText('Loop assets')).toBeNull();
-    expect(screen.queryByText(/^\d+ loops?/)).toBeNull();
-    expect(screen.queryByLabelText('Configuration limits')).toBeNull();
+    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Loop', 'Type', 'Plant unit', 'Valve position?', 'Ready for analysis', 'Open the loop']);
+    expect(screen.queryByRole('heading', { name: 'Choose a loop' })).toBeNull();
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(within(rowOf('FIC2')).getByText('Pressure')).toBeTruthy();
+    expect(within(rowOf('FIC1')).getByText('1001 · Polymerization Reactor 1')).toBeTruthy();
+  });
+
+  it('reads the plant names once and nothing per row', () => {
+    loops = many(20);
+    open('/cpm/registry');
+    expect(plantReads).toBeGreaterThan(0);
+    expect(readinessReads).not.toHaveBeenCalled();
   });
 
   it('puts the search first in one filter row, then the dropdown and Export CSV', () => {
@@ -103,14 +132,20 @@ describe('LoopRegistry list', () => {
     const row = screen.getByRole('group', { name: 'Loop filters' });
     const controls = Array.from(row.querySelectorAll('input, select, button')).map(e => e.getAttribute('aria-label') ?? e.textContent);
     expect(controls).toEqual(['Find loop', 'Loops shown', 'Export CSV']);
-    expect((screen.getByLabelText('Find loop') as HTMLInputElement).placeholder).toBe('Loop, service, unit or type');
+    expect((screen.getByLabelText('Find loop') as HTMLInputElement).placeholder).toBe('Search loop, description or unit');
+  });
+
+  it('finds a loop by its unit name as shown', () => {
+    loops = [loop('FIC1'), loop('FIC2', { unit: 'U9' })];
+    open('/cpm/registry?search=polymerization');
+    expect(ids()).toEqual(['FIC1']);
   });
 
   it('counts each choice in the dropdown, from the list and the server summary, whatever the search', () => {
     loops = [loop('FIC1'), loop('OLD1', { isActive: false }), loop('DEG', { observabilityFlags: ['NO_VP'], tags: {} })];
     open('/cpm/registry?search=FIC');
     expect(Array.from(shown().options).map(o => o.textContent)).toEqual([
-      'Not retired 2', 'With retired 3', 'VP expected, not mapped 236', 'Peer links expected, missing 241', 'Degraded 1',
+      'Not retired 2', 'With retired 3', 'Valve position not connected 236', 'No linked loops 241', 'Degraded 1',
     ]);
   });
 
@@ -127,9 +162,8 @@ describe('LoopRegistry list', () => {
     expect(where()).toContain('retired=1');
     expect(where()).not.toContain('page=');
     expect(ids()).toEqual(['A1', 'A2', 'A3', 'OLD']);
-    const old = screen.getByRole('link', { name: 'OLD' }).closest('tr')!;
-    expect(within(old).getByText('Retired')).toBeTruthy();
-    expect(within(old).getByText('⊘')).toBeTruthy();
+    expect(within(rowOf('OLD')).getByText('Retired')).toBeTruthy();
+    expect(within(rowOf('OLD')).getByText('⊘')).toBeTruthy();
     fireEvent.change(shown(), { target: { value: 'vp' } });
     expect(where()).toContain('gap=vp');
     expect(where()).not.toContain('retired=');
@@ -145,17 +179,6 @@ describe('LoopRegistry list', () => {
     expect(ids()).toEqual(['DEG']);
   });
 
-  it('shows one muted pill beside the name only for Not monitored and Retired', () => {
-    loops = [loop('GOOD'), loop('DEG', { observabilityFlags: ['NO_VP'], tags: {} }), loop('OFF', { monitoringEnabled: false }), loop('OLD', { isActive: false })];
-    open('/cpm/registry?retired=1');
-    const rowOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!;
-    expect(within(rowOf('GOOD')).queryByText(/Degraded|Not monitored|Retired/)).toBeNull();
-    expect(within(rowOf('DEG')).queryByText(/Degraded/)).toBeNull();
-    expect(within(rowOf('OFF')).getByText('Not monitored')).toBeTruthy();
-    expect(within(rowOf('OFF')).getByText('○')).toBeTruthy();
-    expect(within(rowOf('OLD')).getByText('Retired')).toBeTruthy();
-  });
-
   it('says so, with a retry beside the dropdown, when the limits cannot be read', () => {
     const refetch = vi.fn();
     fleet = { data: undefined, isError: true, error: new Error('boom'), refetch };
@@ -164,7 +187,7 @@ describe('LoopRegistry list', () => {
     expect(within(row).getByText('Configuration limits unavailable')).toBeTruthy();
     fireEvent.click(within(row).getByRole('button', { name: 'Retry' }));
     expect(refetch).toHaveBeenCalled();
-    expect(Array.from(shown().options).map(o => o.textContent)).toContain('VP expected, not mapped');
+    expect(Array.from(shown().options).map(o => o.textContent)).toContain('Valve position not connected');
   });
 
   it('says no loop matches a search, with Show all loops, and never offers to onboard the first loop', () => {
@@ -226,56 +249,38 @@ describe('LoopRegistry list', () => {
     expect(lines.length).toBe(31);
     expect(text).not.toContain('OLD');
   });
+
+  it('says no internal code, gate code, slug or path anywhere on the list', () => {
+    loops = [
+      loop('FIC10401', { displayName: 'Flow controller FIC10401 (FCS0101)', tags: {}, model: { serviceFamily: 'FLOW', dynamicClass: 'FAST_SELF_REG', objectiveType: 'TIGHT', topology: 'SINGLE', commandPath: 'OP_TO_VALVE', acquisition: { mode: 'PERIODIC' }, classificationSource: 'PRESET_FROM_LOOP_TYPE' } }),
+      loop('OFF_1', { monitoringEnabled: false, unit: 'u_unknown_unit' }),
+    ];
+    open('/cpm/registry?retired=1');
+    fireEvent.click(screen.getByRole('button', { name: 'Valve position' }));
+    const text = document.querySelector('.cpm-registry')!.textContent!.replace(/OFF_1/g, '');   // the page, not the test's address probe
+    expect(text).toContain('Not fitted: the valve has no position signal.');
+    expect(text).not.toMatch(/[A-Za-z0-9]_[A-Za-z0-9]|G13|G14|FAST_SELF_REG|OP_TO_VALVE|PRESET|\w+\/\w+\/\w/);   // a path has two slashes
+  });
 });
 
-describe('LoopRegistry panel', () => {
-  it('says Choose a loop and loads no loop while the address names none', () => {
-    open('/cpm/registry');
-    expect(screen.getByRole('heading', { name: 'Choose a loop' })).toBeTruthy();
-    expect(screen.queryByText(/panel of/)).toBeNull();
-    expect(screen.queryByRole('row', { current: true })).toBeNull();
-  });
-
-  it('opens the loop the address names beside the list, the list kept and its row marked', () => {
-    open('/cpm/registry?loop=FIC2');
-    expect(screen.getByText('panel of FIC2')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'FIC1' })).toBeTruthy();
-    expect(screen.getByRole('row', { current: true }).textContent).toContain('FIC2');
-  });
-
-  it('opens a loop from its link or anywhere on its row, keeping the search and the page', () => {
-    open('/cpm/registry?search=FIC&page=1');
-    fireEvent.click(screen.getByRole('link', { name: 'FIC1' }));
-    expect(where()).toContain('loop=FIC1');
-    expect(where()).toContain('search=FIC');
-    expect(screen.getByText('panel of FIC1')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: 'FIC2' }).closest('tr')!.querySelectorAll('td')[1]);
-    expect(where()).toContain('loop=FIC2');
-  });
-
-  it('opens a loop once when the link itself is clicked, so Back returns to the list (B10)', () => {
-    open('/cpm/registry');
-    fireEvent.click(screen.getByRole('link', { name: 'FIC1' }));
-    expect(where()).toContain('loop=FIC1');
-    fireEvent.click(screen.getByText('history back'));
-    expect(where()).not.toContain('loop=');
-    expect(screen.getByRole('heading', { name: 'Choose a loop' })).toBeTruthy();
-  });
-
-  it('opens the list at the page that holds a deep-linked loop', () => {
+describe('LoopRegistry opens a loop on its own page', () => {
+  it('from anywhere on its row, keeping the list address (search, choice, page, scope)', () => {
     loops = many(30);
-    open('/cpm/registry?loop=L27');
-    expect(screen.getByText('Page 2 of 2')).toBeTruthy();
-    expect(screen.getByRole('row', { current: true }).textContent).toContain('L27');
+    open('/cpm/registry?search=L&retired=1&page=2&site=hdpe');
+    fireEvent.click(rowOf('L27').querySelectorAll('td')[1]);
+    expect(where()).toBe('/cpm/registry/L27?search=L&retired=1&page=2&site=hdpe');
+    expect(screen.getByText('page of the loop')).toBeTruthy();
   });
 
-  it('moves to the page of a loop named from outside the list while the page is open, and stays for a row picked on it', () => {
-    loops = many(30);
-    open('/cpm/registry');
-    fireEvent.click(screen.getByText('pick loop'));               // a link or the search palette names L27, on page 2
-    expect(screen.getByText('Page 2 of 2')).toBeTruthy();
-    expect(screen.getByRole('row', { current: true }).textContent).toContain('L27');
-    fireEvent.click(screen.getByRole('link', { name: 'L26' }));
-    expect(screen.getByText('Page 2 of 2')).toBeTruthy();
+  it('with Enter on a focused row', () => {
+    open('/cpm/registry?search=FIC');
+    fireEvent.keyDown(rowOf('FIC2'), { key: 'Enter' });
+    expect(where()).toBe('/cpm/registry/FIC2?search=FIC');
+  });
+
+  it('when an old link names the loop with ?loop=, keeping the rest of its address', () => {
+    open('/cpm/registry?loop=FIC2&site=hdpe');
+    expect(where()).toBe('/cpm/registry/FIC2?site=hdpe');
+    expect(screen.getByText('page of the loop')).toBeTruthy();
   });
 });

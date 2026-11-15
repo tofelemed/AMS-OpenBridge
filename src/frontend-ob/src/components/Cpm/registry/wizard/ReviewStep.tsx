@@ -8,7 +8,7 @@
 import React from 'react';
 import { SIGNAL_ROLES } from '../../plantLocation';
 import { applicabilitySummary } from '../../optionalInputs';
-import { shortPath } from '../loopPanelFacts';
+import { shortPath } from '../signalPath';
 import { diffSettings, locationText, modelSummary, rangeText } from './changeSummary';
 import { PipelineHelp } from './PipelineHelp';
 import type { WizardState } from './wizardForm';

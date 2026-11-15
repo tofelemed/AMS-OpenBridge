@@ -4,7 +4,7 @@
  * CHG-168 (owner answer 3b): Valve position offers the three values the API accepts, Expected / Not installed / Not applicable
  * (the checkbox could only save Expected or Not applicable; Not installed came from a CSV alone). Interacting loops drops Not
  * installed, which means nothing for peers, unless the loop already has it (an edit keeps what is stored). The explanations are
- * behind each ?.
+ * behind each ?. CHG-201: Not installed reads "Not fitted", the Loop Registry's word.
  */
 import React, { useId } from 'react';
 import { Toggletip } from '../../ui/Toggletip';
@@ -34,9 +34,9 @@ export const OptionalInputFields: React.FC<{
         help={(
           <Toggletip variant="how-to" label="Valve position choices">
             <p>Expected: the valve has positioner feedback. Not mapped, the loop is degraded and a valve cause stops at suspected.</p>
-            <p>Not installed: a valve without positioner feedback, so a valve cause is suspected, not confirmed.</p>
+            <p>Not fitted: a valve with no position signal, so a valve cause is suspected, not confirmed.</p>
             <p>Not applicable: a drive or a direct action, with no valve.</p>
-            <p>Not installed or not applicable, the loop is never shown as degraded or "VP not mapped".</p>
+            <p>Not fitted or not applicable, the loop is never shown as missing its valve position.</p>
           </Toggletip>
         )}>
         <select id={`${id}-vp`} className="cpm-select" value={form.vpApplicability || 'EXPECTED'} onChange={onChange('vpApplicability')}>

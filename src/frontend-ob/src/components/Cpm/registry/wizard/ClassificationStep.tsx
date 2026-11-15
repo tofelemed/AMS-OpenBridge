@@ -8,11 +8,15 @@
  * "✓ Explicit"; the Classification source row went), each select's first option names the preset ("preset (FLOW)"; the
  * "Preset for FIC: …" sentence went) and the override rule is behind the ?. Acquisition: the four hints are behind the ? and
  * an undeclared number reads "undeclared" (the hints were cut off as placeholders).
+ * CHG-201: the fields and their choices say the Loop detail page's words (registry/loopWords): Service, Process behaviour, Control
+ * goal, Control structure, Final element, Data arrives; each first option "From the loop type (…)"; the badge "Set from the loop
+ * type" / "Set by a person", never green (owner Q3). The values sent are the registry's codes, as before.
  */
 import React from 'react';
 import { TonePill } from '../../shared';
 import { Toggletip } from '../../../../ui/Toggletip';
 import type { CpmLoopModel, CpmRegistryContract } from '../../../../api/cpmApi';
+import { acquisitionWord, MODEL_FIELDS, modelWord, type ModelDim } from '../loopWords';
 import { Grid, Part } from './editorParts';
 
 export interface ModelForm {
@@ -22,12 +26,12 @@ export interface ModelForm {
 
 export const emptyModelForm = (): ModelForm => ({ serviceFamily: '', dynamicClass: '', objectiveType: '', topology: '', commandPath: '', acqMode: '', gridSeconds: '', sourceFilterS: '', tsQuantMs: '', declaredScanS: '' });
 
-const DIMENSIONS: Array<{ key: keyof ModelForm & ('serviceFamily' | 'dynamicClass' | 'objectiveType' | 'topology' | 'commandPath'); label: string; list: keyof NonNullable<CpmRegistryContract['model']> }> = [
-  { key: 'serviceFamily', label: 'Service family', list: 'serviceFamilies' },
-  { key: 'dynamicClass', label: 'Dynamic class', list: 'dynamicClasses' },
-  { key: 'objectiveType', label: 'Objective', list: 'objectiveTypes' },
-  { key: 'topology', label: 'Topology', list: 'topologies' },
-  { key: 'commandPath', label: 'Command path', list: 'commandPaths' },
+const DIMENSIONS: Array<{ key: keyof ModelForm & ModelDim; label: string; list: keyof NonNullable<CpmRegistryContract['model']> }> = [
+  { key: 'serviceFamily', label: MODEL_FIELDS.serviceFamily, list: 'serviceFamilies' },
+  { key: 'dynamicClass', label: MODEL_FIELDS.dynamicClass, list: 'dynamicClasses' },
+  { key: 'objectiveType', label: MODEL_FIELDS.objectiveType, list: 'objectiveTypes' },
+  { key: 'topology', label: MODEL_FIELDS.topology, list: 'topologies' },
+  { key: 'commandPath', label: MODEL_FIELDS.commandPath, list: 'commandPaths' },
 ];
 
 const NUMBERS: Array<{ key: 'gridSeconds' | 'sourceFilterS' | 'tsQuantMs' | 'declaredScanS'; label: string; hint: string }> = [
@@ -63,7 +67,7 @@ export const ClassificationStep: React.FC<{ loopType: string; contract: CpmRegis
   return (
     <>
       <Part title="Loop model"
-        end={explicit ? <TonePill tone="good" glyph="✓">Explicit</TonePill> : <TonePill tone="muted" glyph="◌">Preset from loop type</TonePill>}
+        end={explicit ? <TonePill tone="muted" glyph="✓">Set by a person</TonePill> : <TonePill tone="muted" glyph="◌">Set from the loop type</TonePill>}
         help={(
           <Toggletip variant="how-to" label="Loop model">
             <p>The tag type only suggests a model. Explicit values override the preset and are never overwritten by a later preset; leave a field blank to take the preset.</p>
@@ -74,8 +78,8 @@ export const ClassificationStep: React.FC<{ loopType: string; contract: CpmRegis
             <label key={d.key} className="cpm-field cpm-reg-field">
               <span className="ui-field__label">{d.label}</span>
               <select className="cpm-select" aria-label={d.label} value={form[d.key]} onChange={set(d.key)}>
-                <option value="">preset{preset ? ` (${(preset as unknown as Record<string, string | null>)[d.key] ?? '—'})` : ''}</option>
-                {((contract?.[d.list] as string[] | undefined) ?? []).map(v => <option key={v} value={v}>{v}</option>)}
+                <option value="">From the loop type{preset ? ` (${modelWord(d.key, (preset as unknown as Record<string, string | null>)[d.key])})` : ''}</option>
+                {((contract?.[d.list] as string[] | undefined) ?? []).map(v => <option key={v} value={v}>{modelWord(d.key, v)}</option>)}
               </select>
             </label>
           ))}
@@ -90,10 +94,10 @@ export const ClassificationStep: React.FC<{ loopType: string; contract: CpmRegis
         )}>
         <Grid>
           <label className="cpm-field cpm-reg-field">
-            <span className="ui-field__label">Mode</span>
-            <select className="cpm-select" aria-label="Acquisition mode" value={form.acqMode} onChange={set('acqMode')}>
-              <option value="">preset (PERIODIC)</option>
-              {(contract?.acquisitionModes ?? ['PERIODIC', 'RBE', 'SAMPLE_HOLD']).map(v => <option key={v} value={v}>{v}</option>)}
+            <span className="ui-field__label">Data arrives</span>
+            <select className="cpm-select" aria-label="Data arrives" value={form.acqMode} onChange={set('acqMode')}>
+              <option value="">From the loop type ({acquisitionWord('PERIODIC')})</option>
+              {(contract?.acquisitionModes ?? ['PERIODIC', 'RBE', 'SAMPLE_HOLD']).map(v => <option key={v} value={v}>{acquisitionWord(v)}</option>)}
             </select>
           </label>
           {NUMBERS.map(n => (

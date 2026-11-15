@@ -137,7 +137,7 @@ describe('the node panel', () => {
     expect(p.textContent).toContain('Managed byCPM Loop Registry');
     expect(within(p).getAllByRole('button').map(b => b.textContent)).toEqual(expect.arrayContaining(['Add Measurement', 'Edit', 'Delete', 'Loop Registry →']));
     fireEvent.click(within(p).getByRole('button', { name: 'Loop Registry →' }));
-    expect(screen.getByTestId('where').textContent).toBe('/cpm/registry?loop=FC10711');
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/registry/FC10711');
   });
 
   it('adds a child in titled parts with the same request', async () => {

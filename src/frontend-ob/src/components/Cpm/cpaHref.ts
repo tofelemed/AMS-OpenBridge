@@ -124,8 +124,8 @@ export const calculationsHref = (loop: string, opts: { metric?: string | null; k
 export const trendHref = (loop: string, opts: { roles?: string[]; range?: string | null; from?: string | null; to?: string | null } = {}) =>
   build('/trend', { loop, roles: opts.roles?.join(','), range: opts.range, from: opts.from, to: opts.to });
 
-/** Loop Registry: its list, or one loop's detail. */
-export const registryHref = (loop?: string | null) => build('/cpm/registry', { loop });
+/** Loop Registry: its list, or one loop's own page (CHG-201: `/cpm/registry/:loopId`; an old `?loop=` link is redirected there). */
+export const registryHref = (loop?: string | null) => (loop ? `/cpm/registry/${encodeURIComponent(loop)}` : '/cpm/registry');
 
 /** Links from other pages keep their shape; a bundle opens the editor, a LOOP scope names the loop. */
 export const configHref = (q: {

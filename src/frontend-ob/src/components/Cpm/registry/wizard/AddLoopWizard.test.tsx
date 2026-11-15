@@ -58,9 +58,9 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 beforeEach(() => { mutate.mockReset(); readiness = undefined; activateError = null; });
 
 describe('AddLoopWizard tabs', () => {
-  it('is a dialog titled Edit configuration with four tabs, no step count and no eyebrow', () => {
+  it('is a dialog titled Edit loop, after the button that opens it (CHG-201), with four tabs, no step count and no eyebrow', () => {
     edit();
-    expect(screen.getByRole('dialog', { name: 'Edit configuration' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Edit loop' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Identity', 'Classification', 'Signals', 'Review']);
     for (const gone of ['Step 1 of 4', 'Governed registry workflow', 'Edit loop 45FIC-109', 'Windows & profile']) expect(screen.queryByText(gone)).toBeNull();
     expect(next().textContent).toBe('Next: Classification →');
@@ -205,11 +205,11 @@ describe('AddLoopWizard saving (edit)', () => {
     expect((saveEdit(drive).engineering as Record<string, string>).vpApplicability).toBeUndefined();
   });
 
-  it('offers three valve-position choices and saves Not installed (owner answer 3b)', () => {
+  it('offers three valve-position choices and saves Not fitted (owner answer 3b; CHG-201: the word the list uses)', () => {
     const req = saveEdit(loop, () => {
       toTab(2);
       const vp = screen.getByLabelText('Valve position') as HTMLSelectElement;
-      expect(Array.from(vp.options).map(o => o.textContent)).toEqual(['Expected', 'Not installed', 'Not applicable']);
+      expect(Array.from(vp.options).map(o => o.textContent)).toEqual(['Expected', 'Not fitted', 'Not applicable']);
       fireEvent.change(vp, { target: { value: 'NOT_INSTALLED' } });
       fireEvent.click(screen.getByRole('tab', { name: 'Identity' }));
     });
@@ -224,7 +224,7 @@ describe('AddLoopWizard saving (edit)', () => {
     cleanup();
     edit({ ...loop, engineering: { ...loop.engineering, peerApplicability: 'NOT_INSTALLED' } } as unknown as CpmLoop);
     toTab(2);
-    expect(peers()).toEqual(['Derive (expected)', 'Expected', 'Not installed', 'Not applicable']);
+    expect(peers()).toEqual(['Derive (expected)', 'Expected', 'Not fitted', 'Not applicable']);
   });
 
   it('switches monitoring off and on, with the change and its effect in the review (owner answer 3a)', () => {

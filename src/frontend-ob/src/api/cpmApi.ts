@@ -48,6 +48,11 @@ export interface CpmLoop {
   timezone?: string | null;
   /** v2.5 (2G.1): the loop model dimensions + acquisition contract, with where they came from. */
   model?: CpmLoopModelDto | null;
+  /** CHG-201: when the loop was registered and last changed (ISO); absent from an older cplm-api. */
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  /** CHG-201: the control system's tag per signal role ("PV" → "FIC10401.PV"); absent when the tag map records none. */
+  sourceTags?: Record<string, string> | null;
 }
 
 /** v2.5 (2G.1): how the source delivers samples - what bounds the methods (NR-016) and names a hold (NR-019). */

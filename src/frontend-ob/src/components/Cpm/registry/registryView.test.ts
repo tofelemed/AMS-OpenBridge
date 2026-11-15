@@ -1,5 +1,5 @@
 // CHG-168 (owner review, answer 1): one dropdown holds Show retired and the three configuration-limit counts; the choice keeps
-// today's address (?retired=1, ?gap=vp|peers|degraded).
+// today's address (?retired=1, ?gap=vp|peers|degraded). CHG-201: the two limits in the words the list and the loop's page use.
 import { describe, expect, it } from 'vitest';
 import type { CpmFleetSummary, CpmLoop } from '../../../api/cpmApi';
 import { inView, setView, viewCounts, viewOf, viewOptions } from './registryView';
@@ -44,14 +44,14 @@ describe('registry view', () => {
     const c = viewCounts(scoped, summary);
     expect(c).toEqual({ current: 2, all: 3, vp: 234, peers: 239, degraded: 1 });
     expect(viewOptions(c).map(o => o.label)).toEqual([
-      'Not retired 2', 'With retired 3', 'VP expected, not mapped 234', 'Peer links expected, missing 239', 'Degraded 1',
+      'Not retired 2', 'With retired 3', 'Valve position not connected 234', 'No linked loops 239', 'Degraded 1',
     ]);
   });
 
   it('names the limit options without a number while the summary is not there', () => {
     const c = viewCounts([loop('A')], undefined);
     expect(viewOptions(c).map(o => o.label)).toEqual([
-      'Not retired 1', 'With retired 1', 'VP expected, not mapped', 'Peer links expected, missing', 'Degraded 0',
+      'Not retired 1', 'With retired 1', 'Valve position not connected', 'No linked loops', 'Degraded 0',
     ]);
   });
 });

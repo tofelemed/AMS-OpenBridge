@@ -2255,3 +2255,36 @@ Words and number forms only where a finding named them; times keep their format 
 | Evidence Replay · window verdict (#26) | "Time in AUTO" | "Time in Auto" |
 | Loop Registry · loop type (#26) | "UNKNOWN" | "Unknown type" |
 | Governance · audit trail user filter (#27) | placeholder "Exact user name" | "User name" |
+
+## CHG-201 Loop Registry as a list page + a Loop detail sub-page (owner-approved mockup, 15 Nov 2026)
+
+The side panel went; a row opens the loop's own page, `/cpm/registry/:loopId`. Codes are said in the words below, the same in the
+list, the loop's page and the editor (`registry/loopWords.ts`). CSV export keeps its columns and codes. Times keep their format (Q5).
+
+| Where | Was | Now |
+|---|---|---|
+| List · columns | Loop · Loop type · VP | Loop · Type · Plant unit · Valve position (?) · Ready for analysis · › |
+| List · under the tag | "Flow controller (FCS0101)" | "Flow controller · FCS0101" (the tag never repeated) |
+| List · Type | "FIC", "PIC", "PIC_GAS", "PIC_VAPOUR", "LIC", "TIC" | "Flow", "Pressure", "Gas pressure", "Vapour pressure", "Level", "Temperature" ("Unknown type" kept, "Other" for any other code) |
+| List · Plant unit | (not shown; the slug only in search) | the unit's asset-model name, "6002 · Pellet Homogenization II Silo 4 & 5"; "Not in the plant model" when the model has no such unit |
+| List · Valve position | "Mapped" / "Not mapped" / "No VP" | "Connected" / "! Not connected" / "— Not fitted" / "— Not applicable" |
+| List · Valve position ? (new, in the head) | — | the four words, one line each |
+| List · Ready for analysis | — | "✓ Ready" (neutral) or "! n items to set" (amber); "—" for a retired loop |
+| List · search hint | "Loop, service, unit or type" | "Search loop, description or unit" (it now also finds the unit's name) |
+| List · dropdown | "VP expected, not mapped n", "Peer links expected, missing n" | "Valve position not connected n", "No linked loops n" (addresses unchanged) |
+| How to read | three parts: State (Active, Degraded, Not monitored, Retired), VP (Mapped, Not mapped, No VP), Readiness (with G13 / G14 sentences) | two parts: State (Not monitored, Retired, Degraded), Ready for analysis (✓ Ready, ! 2 items to set, plant facts in words); the valve words moved to the column's ? |
+| Panel → page · head | panel title "FIC10401", "✓ Active" / "! Degraded" | "‹ All loops", "Set up · Loop Registry", "FIC10401", "Flow controller · FCS0101", "Monitoring on" / "○ Monitoring off" / "⊘ Retired" and the readiness pill |
+| Panel → page · actions | "Edit configuration", "Retire" / "Restore", "Re-project links & republish evidence" | "Edit loop", "Retire loop" / "Restore loop", "Resend to analysis" (? "Sends this loop's settings to the analysis again, after a change.") |
+| Resend receipt | "Republished X by u at …: n link(s) live on the broadcast, m signal asset(s) projected into the UNS." | "Sent X to the analysis again by u at …." |
+| Panel rows "Plant path", "Gate profile", "Model" | "hdpe / section_600 / u6002_…", "default", "FLOW · FAST_SELF_REG" | Where it is: Plant / Area / Unit names, Control station, Times shown in; Analysis settings: "Standard" + Gate Configuration ↗; How it is controlled: Loop type, Final element, Control structure, Control goal, Process behaviour, Criticality |
+| Model words | FLOW, PRESSURE_LIQUID, FAST_SELF_REG, SLOW_SELF_REG, INTEGRATING, INTEGRATING_LAG, UNDERDAMPED, TIGHT, AVERAGING, RATIO, CONSTRAINT, RAMP, BATCH, QUALITY, SUPERVISORY, UNSET, SINGLE, CASCADE_MASTER, CASCADE_SLAVE, SPLIT_RANGE, OVERRIDE, FEEDFORWARD, OP_TO_VALVE, OP_TO_VFD, OP_TO_SLAVE_SP, UNKNOWN | Flow, Liquid pressure, "Fast, settles on its own", "Slow, settles on its own", "Keeps rising or falling until corrected", "Keeps rising or falling, after a delay", "Overshoots before it settles", Tight control, "Averaging (smooth changes)", Keep a ratio, Stay within a limit, Follow a ramp, Batch, Product quality, Sets other loops, Not set, Single loop, "Cascade master (outer loop)", "Cascade slave (inner loop)", Split range, Override, Feedforward, Control valve, Variable-speed drive, Setpoint of another loop, Not known |
+| Classification source | "PRESET_FROM_LOOP_TYPE" / "EXPLICIT" (editor badge "◌ Preset from loop type" / "✓ Explicit", green) | "Set from the loop type. Change it in Edit loop." / "Set by a person." (editor badge "◌ Set from the loop type" / "✓ Set by a person", neutral) |
+| Acquisition | "PERIODIC", "RBE", "SAMPLE_HOLD" | "At regular intervals", "When the value changes", "Sampled, held between samples" |
+| Signals | role + "…/fic10401.pv" + Copy | Signal (pen, role, plain name) · Source tag ("FIC10401.PV", the DCS tag when recorded) · Unit · Range · Data ("Receiving data", "! No data", "! Expected") |
+| Readiness | "Valve position (G14)" "Expected · not mapped", "Peer links (G13)" "None · expected", the server's check labels ("CPLM Flink jobs running", …) | the checklist: "Process value, setpoint, output and mode connected", "Units and ranges set", "Valve position not connected", "No linked loops", "Monitoring off", "Loop type not set", "Signals not in the plant model", each missing one with one sentence of why and how |
+| Linked loops | "PEER → G13_LOOP_B" | "Interacts with G13_LOOP_B" (Cascade master of / Cascade slave of / Upstream of / Downstream of / Linked to), the loop a link to its page; empty: "No linked loops yet. Link the loops this one affects, or is affected by, in the plant model, then use Resend to analysis." or "A stand-alone loop: no linked loops are expected." |
+| Changes (new) | — | Added / Last changed ("31 Aug 2026"), a retired loop's "Open episode": "Oscillation, open since 1 Nov 2026" |
+| Not found | "No loop X" / "It was renamed, removed or never onboarded." | "No loop X" / "It was renamed, removed or never added." with "‹ All loops" |
+| Editor · dialog title (edit) | "Edit configuration" | "Edit loop" |
+| Editor · model fields | Service family, Dynamic class, Objective, Topology, Command path, Mode; first option "preset (FLOW)" | Service, Process behaviour, Control goal, Control structure, Final element, Data arrives; first option "From the loop type (Flow)"; each option its word |
+| Editor · valve position choice | "Not installed" | "Not fitted" (also its ? and the saved readiness pill) |
