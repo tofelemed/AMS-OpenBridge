@@ -7,12 +7,19 @@
  * per-window statistics over the latest emitted windows of each kind — never
  * summed across kinds: all short kinds except 1m are SLIDING windows whose
  * samples overlap, so aggregation across kinds double-counts by construction.
+ * CHG-190 (owner review item 13, Q7): it left the foot of the page for a wide dialog, opened by "Compare window sizes" in the
+ * page's band. Its rows are read only while the dialog is open. A size is named once, as the profile list names it; "last 12"
+ * is said once, on the Windows column. Picking a row opens that size on the page and closes the dialog.
  */
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmKpiRow, CpmWindowSpec } from '../../../api/cpmApi';
 import { useCpmKpisByResolution } from '../../../hooks/useCpm';
+import { Dialog } from '../../../ui/Dialog';
 import { Toggletip } from '../../../ui/Toggletip';
-import { PanelHead, TonePill, fmtWindowShape } from '../shared';
+import { TonePill } from '../shared';
+import { profileLabel } from '../windowLabel';
 import { fmtVal, isDeclined } from './WindowResults';
 
 const METRIC_OPTIONS: { field: string; label: string; pct?: boolean }[] = [
@@ -47,10 +54,7 @@ const KindRow: React.FC<{
       className={active ? 'cpm-event-row--selected' : undefined}
       style={{ cursor: 'pointer' }}
       onClick={() => onPick(spec.kind)}>
-      <td>
-        <span className="cpm-mono">{spec.kind}</span>
-        <div className="cpm-event-row__sub">{fmtWindowShape(spec)}</div>
-      </td>
+      <td>{profileLabel(spec)}</td>
       <td className="cpm-mono">
         {isLoading ? '…' : fmtVal(latest, pct)}
       </td>
@@ -70,6 +74,7 @@ const KindRow: React.FC<{
   );
 };
 
+/** The comparison table with its metric choice: the dialog's body. */
 export const CompareAcrossKinds: React.FC<{
   loopId: string;
   shortSpecs: CpmWindowSpec[];
@@ -82,28 +87,24 @@ export const CompareAcrossKinds: React.FC<{
   const kinds = useMemo(() => shortSpecs.map(s => s.kind), [shortSpecs]);
   const kpis = useCpmKpisByResolution(loopId, kinds, 12);
   return (
-    <section className="cpm-surface">
-      <PanelHead title="Same loop, every short granularity"
-        help={
-          <Toggletip variant="how-to" label="Across window sizes">
-            <p>Statistics are per window kind over its latest 12 emitted windows; declined windows are excluded. Kinds other than 1m are sliding windows whose samples overlap: values are comparable side by side but must never be summed across rows. Click a row to inspect that granularity.</p>
-          </Toggletip>
-        }
-        right={
-          // CHG-164: in the head row, named by its options
-          <select className="cpm-select" aria-label="Metric" value={field} onChange={e => setField(e.target.value)}>
-            {METRIC_OPTIONS.map(m => <option key={m.field} value={m.field}>{m.label}</option>)}
-          </select>
-        } />
+    <>
+      <div className="cpm-compare-sizes__bar">
+        <select className="cpm-select" aria-label="Metric" value={field} onChange={e => setField(e.target.value)}>
+          {METRIC_OPTIONS.map(m => <option key={m.field} value={m.field}>{m.label}</option>)}
+        </select>
+        <Toggletip variant="how-to" label="Across window sizes">
+          <p>Statistics are per window size over its latest 12 emitted windows; declined windows are excluded. Sizes other than 1m are sliding windows whose samples overlap: values are comparable side by side but must never be summed across rows. Click a row to inspect that size.</p>
+        </Toggletip>
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="cpm-signal-table">
           <thead>
             <tr>
-              <th scope="col">Window</th>
+              <th scope="col">Size</th>
               <th scope="col">Latest {metric.label}</th>
-              <th scope="col">Median (last 12)</th>
-              <th scope="col">Range (last 12)</th>
-              <th scope="col">Windows</th>
+              <th scope="col">Median</th>
+              <th scope="col">Range</th>
+              <th scope="col">Windows (last 12)</th>
             </tr>
           </thead>
           <tbody>
@@ -116,8 +117,31 @@ export const CompareAcrossKinds: React.FC<{
           </tbody>
         </table>
       </div>
-    </section>
+    </>
   );
 };
 
-export default CompareAcrossKinds;
+/** "Compare window sizes" in the page's band, and the wide dialog it opens (Q7). */
+export const CompareWindowSizes: React.FC<{
+  loopId: string;
+  shortSpecs: CpmWindowSpec[];
+  activeKind: string;
+  onPickKind: (kind: string) => void;
+  /** Under the title: loop tag · name · the window size the page shows. */
+  subtitle: string;
+}> = ({ subtitle, onPickKind, ...rest }) => {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  return (
+    <>
+      <ObcButton variant="normal" aria-haspopup="dialog" onClick={() => setOpen(true)}>Compare window sizes</ObcButton>
+      {open && createPortal(
+        <Dialog open onClose={close} title="Compare window sizes" subtitle={subtitle} size="wide"
+          footer={<ObcButton variant="flat" onClick={close}>Close</ObcButton>}>
+          <CompareAcrossKinds {...rest} onPickKind={kind => { onPickKind(kind); close(); }} />
+        </Dialog>, document.body)}
+    </>
+  );
+};
+
+export default CompareWindowSizes;

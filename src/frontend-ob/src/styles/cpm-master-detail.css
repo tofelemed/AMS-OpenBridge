@@ -8,14 +8,11 @@
 @media (max-width: 1279.98px) {
   .cpm-master-detail { grid-template-columns: minmax(0, 1fr); }
 }
-.cpm-master-detail__bar { align-items: flex-end; gap: var(--traverse-space-3); flex-wrap: wrap; }
-.cpm-master-detail__bar .cpm-filter-count { margin-inline-start: auto; }
 .cpm-master-detail__section {
   padding: var(--traverse-space-2) var(--traverse-space-3);
   color: var(--traverse-text-secondary);
   border-bottom: 1px solid var(--border-divider-color);
 }
-.cpm-master-detail__links { display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--traverse-space-3); }
 
 /* Window list: a pill fits its content and keeps the same outline on the selected row. */
 .cpm-master-detail__list .cpm-event-row > .cpm-pill { justify-self: start; }
@@ -23,3 +20,34 @@
 
 /* CHG-164 (owner review): Load older windows sits centred under the list, as the pagers do. */
 .cpm-windows-more { display: flex; justify-content: center; margin-top: var(--traverse-space-3); }
+
+/*
+ * CHG-190 (owner review items 13 and 14): the Window Inspector and the Calculations panel in the owner's reference design
+ * (ui/inspector-reference.css holds the panel parts). The rows are even: one compact row height, centred, no rule between them.
+ */
+.ui-inspector--reference .cpm-kv {
+  box-sizing: border-box;
+  align-items: center;
+  min-height: var(--traverse-size-row-compact);
+  border-bottom: 0;
+}
+.ui-inspector--reference .ui-inspector__foot .cpm-reasoned { display: flex; align-items: stretch; width: 100%; }
+.ui-inspector--reference .ui-inspector__foot .cpm-reasoned > obc-button { display: block; width: 100%; }
+.ui-inspector--reference .ui-inspector__foot .cpm-reasoned__why { max-width: none; }
+
+/* The window list is a panel as the selected window is: its title, and the filter top right. */
+.cpm-windows-list { border-radius: var(--traverse-radius-panel); }
+.cpm-windows-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--traverse-space-2) var(--traverse-space-3);
+  margin-bottom: var(--traverse-space-3);
+}
+.cpm-windows-head__title { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-section-title); font-weight: 600; }
+
+/* Compare window sizes (dialog): the metric and its ? over the table. */
+.cpm-compare-sizes__bar { display: flex; align-items: center; gap: var(--traverse-space-1); margin-bottom: var(--traverse-space-3); }
+/* Method (dialog): the explanation under its rows. */
+.cpm-method-dialog__text { margin-top: var(--traverse-space-3); }

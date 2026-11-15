@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 // Task 19: the selected window in the right column: counts, tag, stored time, the links and their dialogs (CHG-184: no Record details).
+// CHG-190 (owner review items 13, 14): the owner's reference design: links top right, a Details grid, the primary full width.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -7,8 +8,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { CpmKpiRow, CpmLoop } from '../../../api/cpmApi';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
-    React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; fullWidth?: boolean; className?: string }) =>
+    React.createElement('button', { onClick: p.onClick, disabled: p.disabled, className: p.className, 'data-full-width': p.fullWidth ? 'true' : undefined }, p.children),
 }));
 vi.mock('../../../hooks/useCpm', () => ({
   useRawWindow: vi.fn(() => ({ isLoading: false, isError: false, data: { points: [], count: 0, hasMore: false } })),
@@ -109,6 +110,34 @@ describe('SelectedWindow', () => {
     const where = decodeURIComponent(screen.getByTestId('where').textContent ?? '');
     expect(where).toContain('/historical?loop=FIC10401');
     expect(where).toContain('window=');
+  });
+
+  it('puts Historical and Trend top right of the head, as links (CHG-190, owner Q4)', () => {
+    mount(row());
+    const head = document.querySelector('.ui-inspector__head') as HTMLElement;
+    expect(within(head).getByRole('heading', { name: '15 min window' })).toBeTruthy();
+    for (const name of ['Historical ↗', 'Trend ↗']) {
+      const link = within(head).getByRole('button', { name });
+      expect(link.closest('.ui-inspector__actions')).toBeTruthy();
+      expect(link.className).toContain('ui-link');
+    }
+  });
+
+  it('opens its dialogs from a Details grid of buttons under the rows (CHG-190)', () => {
+    mount(row());
+    const grid = screen.getByRole('region', { name: 'Details' });
+    expect(grid.closest('.ui-inspector__body')).toBeNull();
+    const buttons = within(grid).getAllByRole('button');
+    expect(buttons.map(b => b.textContent)).toEqual(['Feature flags›', 'Sample density›', 'Engine & timing›']);
+    for (const b of buttons) expect(b.getAttribute('aria-haspopup')).toBe('dialog');
+  });
+
+  it('makes Inspect this window → the full-width primary at the foot (CHG-190)', () => {
+    mount(row());
+    const inspect = screen.getByRole('button', { name: 'Inspect this window →' });
+    expect(inspect.closest('.ui-inspector__foot')).toBeTruthy();
+    expect(inspect.getAttribute('data-full-width')).toBe('true');
+    expect(document.querySelector('.ui-inspector--reference')).toBeTruthy();
   });
 
   it('shows each of the two links once in the panel (B9)', () => {

@@ -1,17 +1,20 @@
 // @vitest-environment jsdom
 // Task 19: Window Inspector. The list and the selected window side by side; the newest window selected by default,
 // an exact ?window= kept; counts in words; no raw read on a row click; Pipeline Health only for system.manage.
+// CHG-190 (owner review item 13, Q7): the list a titled panel with its filter top right; Compare window sizes a wide dialog
+// opened from the band, read only while open; nothing under the list.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { CpmKpiRow } from '../../api/cpmApi';
 
-const { kpis, perms, rawSpy, nextSpy } = vi.hoisted(() => ({
+const { kpis, perms, rawSpy, nextSpy, byResSpy } = vi.hoisted(() => ({
   kpis: { rows: [] as unknown[], hasNext: false },
   perms: { manage: false },
   rawSpy: vi.fn(),
   nextSpy: vi.fn(),
+  byResSpy: vi.fn(),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
@@ -32,14 +35,18 @@ vi.mock('../../hooks/useCpm', () => {
     cadenceMs: null, minSamples: 10, feeds: '', overlapping: !!slideMs,
   });
   return {
-    useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10401', timezone: 'UTC', tags: {} }] } }),
+    useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10401', displayName: 'Flow controller FIC10401 (FCS0101)', timezone: 'UTC', tags: {} }] } }),
     useCpmResolutions: () => ({ data: { windows: [spec('15m', 900_000, 300_000), spec('1m', 60_000, null)], shortWindows: [], longWindows: [] } }),
     usePipelineMetrics: () => ({ data: undefined }),
     useCpmKpisPaged: () => ({
       data: { pages: [{ samples: kpis.rows }] }, isLoading: false, isError: false, hasNextPage: kpis.hasNext,
       isFetchingNextPage: false, fetchNextPage: nextSpy, refetch: vi.fn(),
     }),
-    useCpmKpisByResolution: () => ({ data: { byResolution: {} }, isLoading: false }),
+    useCpmKpisByResolution: (...a: unknown[]) => {
+      byResSpy(...a);
+      const r = (end: string, mae: number) => ({ window_end: end, sample_count: 180, sufficient_data: true, gate0_status: 'PASS', mae });
+      return { data: { byResolution: { '15m': { samples: [r('2026-11-04T13:50:00Z', 0.5), r('2026-11-04T13:45:00Z', 0.25)] } } }, isLoading: false };
+    },
     useRawWindow: (...a: unknown[]) => rawSpy(...a),
   };
 });
@@ -68,7 +75,7 @@ beforeEach(() => {
   kpis.hasNext = false;
   kpis.rows = [row(NEWEST, { sample_count: 181 }), row(MID), row(OLD, { sample_count: 4, sufficient_data: false })];
 });
-afterEach(() => { cleanup(); rawSpy.mockReset(); nextSpy.mockReset(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); rawSpy.mockReset(); nextSpy.mockReset(); byResSpy.mockReset(); vi.unstubAllGlobals(); });
 
 describe('Window Inspector', () => {
   it('selects the newest row by default', () => {
@@ -140,11 +147,42 @@ describe('Window Inspector', () => {
     expect(screen.getByRole('button', { name: 'Pipeline Health ↗' })).toBeTruthy();
   });
 
-  it('keeps the profile select and compare across kinds', () => {
+  it('keeps the profile select; the comparison is no longer a section under the list (CHG-190)', () => {
     mount();
     const select = screen.getByLabelText('Window profile') as HTMLSelectElement;
     expect(within(select).getByText('15 min · 5 min slide')).toBeTruthy();
-    expect(screen.getByText('Same loop, every short granularity')).toBeTruthy();
+    expect(screen.queryByText('Same loop, every short granularity')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(byResSpy).not.toHaveBeenCalled();
+  });
+
+  it('opens Compare window sizes in a wide dialog from the band, with the comparison in it (CHG-190, Q7)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Compare window sizes' }));
+    const dialog = screen.getByRole('dialog', { name: 'Compare window sizes' });
+    expect(dialog.className).toContain('ui-dialog--wide');
+    expect(within(dialog).getByText('FIC10401 · Flow controller (FCS0101) · 15 min window')).toBeTruthy();
+    expect(within(dialog).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Size', 'Latest MAE', 'Median', 'Range', 'Windows (last 12)']);
+    expect(within(dialog).getByText('15 min · 5 min slide')).toBeTruthy();
+    expect(within(dialog).getByText('0.25 – 0.5')).toBeTruthy();
+    expect(byResSpy).toHaveBeenCalledWith('FIC10401', ['15m', '1m'], 12);
+    fireEvent.change(within(dialog).getByLabelText('Metric'), { target: { value: 'rmse' } });
+    expect(within(dialog).getByText('Latest RMSE')).toBeTruthy();
+  });
+
+  it('opens a picked size on the page and closes the dialog', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Compare window sizes' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Compare window sizes' })).getByText(/^1 min/));
+    expect(url()).toContain('profile=1m');
+    expect(screen.queryByRole('dialog', { name: 'Compare window sizes' })).toBeNull();
+  });
+
+  it('titles the list Windows, with the Sample count filter at its head (CHG-190)', () => {
+    mount();
+    const list = screen.getByRole('region', { name: 'Windows' });
+    const head = within(list).getByRole('heading', { name: 'Windows' }).parentElement as HTMLElement;
+    expect(within(head).getByLabelText('Sample count')).toBeTruthy();
   });
 
   it('asks for a loop first', () => {

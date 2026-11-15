@@ -5,12 +5,14 @@
  * newest first, with the selected one beside the list in the right column (Task 19; it was a separate view).
  * The newest loaded window is selected when none is named; a named window that is not loaded selects nothing and says so. A row click reads nothing more: the
  * counts are on the row, and the window opens in Replay or the Workbench from "Inspect this window".
- * Compare across window sizes sits under the list. CHG-164 (owner review, the pattern of Historical, Investigation and the
- * Workbench): no ? on the title; the band a card (loop, window size, ‹ › … the engine and Pipeline Health); no count line; Load
- * older windows centred under the list; 32 px controls.
+ * CHG-164 (owner review, the pattern of Historical, Investigation and the Workbench): no ? on the title; the band a card (loop,
+ * window size, ‹ › … the engine and Pipeline Health); no count line; Load older windows centred under the list; 32 px controls.
+ * CHG-190 (owner review item 13, Q7): the page in the look of the selected-window panel, the owner's reference design: the list
+ * a panel titled Windows with its filter top right; Compare window sizes left the foot of the page for a wide dialog, opened
+ * from the band.
  */
 import { sameInstant } from './evidence/useWindowAt';
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, TonePill, WorkspaceHeader, QueryError, windowSpecsOf } from './shared';
@@ -20,10 +22,11 @@ import { useAuthStore } from '../../store/authStore';
 import { useCpmKpisPaged, useCpmLoops, useCpmResolutions, usePipelineMetrics } from '../../hooks/useCpm';
 import WindowList, { WindowListBar, countFilterOf, type CountFilter } from './windows/WindowList';
 import SelectedWindow from './windows/SelectedWindow';
-import CompareAcrossKinds from './windows/CompareAcrossKinds';
+import CompareWindowSizes from './windows/CompareAcrossKinds';
 import { resolveWindowView } from './windows/windowNav';
 import { PROFILE_SECONDS } from './windows/windowMath';
-import { profileLabel } from './windowLabel';
+import { profileLabel, windowSize } from './windowLabel';
+import { serviceName } from './loopName';
 
 export const CpmWindows: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +40,7 @@ export const CpmWindows: React.FC = () => {
   const [filter, setFilter] = useState<CountFilter>('all');
   // Below 1280 px the panel is a drawer: a link that names a window opens it.
   const [drawer, setDrawer] = useState(() => params.has('window'));
+  const listTitle = useId();
 
   const resolutions = useCpmResolutions();
   const metrics = usePipelineMetrics();
@@ -103,6 +107,10 @@ export const CpmWindows: React.FC = () => {
             </TonePill>
           )}
           {canManage && <ObcButton className="ui-link" variant="normal" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}
+          {loopId && shortSpecs.length > 0 && (
+            <CompareWindowSizes loopId={loopId} shortSpecs={shortSpecs} activeKind={profile} onPickKind={setProfile}
+              subtitle={[loopId, loop ? serviceName(loop) : '', `${windowSize({ windowKind: profile })} window`].filter(Boolean).join(' · ')} />
+          )}
         </>}>
         <select className="cpm-select" aria-label="Window profile" value={profile} onChange={e => setProfile(e.target.value)}>
           <optgroup label="Short features (G0–G4)">{optionsOf(shortSpecs)}</optgroup>
@@ -125,7 +133,8 @@ export const CpmWindows: React.FC = () => {
       )}
       {loopId && (
         <div className="cpm-master-detail">
-          <section className="cpm-surface">
+          <section className="cpm-surface cpm-windows-list" aria-labelledby={listTitle}>
+            <WindowListBar titleId={listTitle} filter={rows.length > 0 ? filter : null} onFilter={setFilter} />
             {kpis.isLoading && <EmptyState title="Loading windows…" />}
             {kpis.isError && <QueryError title="Window data unavailable" error={kpis.error} retry={() => void kpis.refetch()} />}
             {!kpis.isLoading && !kpis.isError && rows.length === 0 && (
@@ -134,7 +143,6 @@ export const CpmWindows: React.FC = () => {
                 next={canManage ? [{ label: 'Pipeline Health', to: pipelineHref() }] : undefined} />
             )}
             {rows.length > 0 && (<>
-              <WindowListBar filter={filter} onFilter={setFilter} />
               {missing && (
                 <EmptyState title={missing === 'filtered' ? 'This window is hidden by the Sample count filter.' : 'This window is not in the loaded list.'}
                   copy={missing === 'filtered' ? undefined : 'Load older windows to reach it.'}
@@ -159,10 +167,6 @@ export const CpmWindows: React.FC = () => {
               timeZone={timeZone} open={drawer} onClose={() => setDrawer(false)} />
           )}
         </div>
-      )}
-
-      {loopId && shortSpecs.length > 0 && (
-        <CompareAcrossKinds loopId={loopId} shortSpecs={shortSpecs} activeKind={profile} onPickKind={setProfile} />
       )}
     </div>
   );

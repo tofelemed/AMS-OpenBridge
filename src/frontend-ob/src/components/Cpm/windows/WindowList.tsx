@@ -3,6 +3,7 @@
  * section head), its samples over nominal with the ratio, and its count check. A declined window stays in the count check.
  * The bar above holds the sample-count filter. CHG-164 (owner review): no "n matching / m loaded" line; Newer / Older became the
  * band's ‹ ›; the filter is named by its options ("All windows"), as the band's controls are.
+ * CHG-190 (owner review item 13): the bar is the panel's head, as on the selected-window panel: the title, the filter top right.
  */
 import { sameInstant } from '../evidence/useWindowAt';
 import React from 'react';
@@ -29,12 +30,17 @@ export function countFilterOf(row: CpmKpiRow, tier: 'short' | 'long'): Exclude<C
 }
 
 export const WindowListBar: React.FC<{
-  filter: CountFilter; onFilter: (f: CountFilter) => void;
-}> = ({ filter, onFilter }) => (
-  <div className="cpm-toolbar cpm-master-detail__bar">
-    <select className="cpm-select" aria-label="Sample count" value={filter} onChange={e => onFilter(e.target.value as CountFilter)}>
-      {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-    </select>
+  titleId: string;
+  /** null while there are no rows to filter: the head shows the title only. */
+  filter: CountFilter | null; onFilter: (f: CountFilter) => void;
+}> = ({ titleId, filter, onFilter }) => (
+  <div className="cpm-windows-head">
+    <h2 id={titleId} className="cpm-windows-head__title">Windows</h2>
+    {filter != null && (
+      <select className="cpm-select" aria-label="Sample count" value={filter} onChange={e => onFilter(e.target.value as CountFilter)}>
+        {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+      </select>
+    )}
   </div>
 );
 

@@ -1973,3 +1973,27 @@ each note's author time print exactly as before; only the readout's time leaves 
 | Evidence package · after the download | nothing when the zip was whole; "Downloaded, but not complete: metrics could not be read (Error: 503); evidence manifests is not held for this window. manifest.json says so." | "✓ Downloaded cplm-FIC10401-12h-2026-11-06T2000-evidence-package.zip", then one line per part left out: "! Not read metrics (Error: 503)", "– Not held evidence manifests" |
 | Replay · cursor readout | caps "PV SP OP MODE" over "785.73 800.00 27.81 AUT" in monospace, "Sample 8,639 / 8,639" | the Loop Explorer readings: "PV 785.73 kg/h", "SP 800.00 kg/h", "OP 27.81 %", "MODE Auto" (a token with one meaning is named: Auto, Cascade, Manual …; any other reads as stored), then "Sample 8,639 of 8,639" and the time |
 | Replay · foot strip | "12 h window · 14 Nov 08:00 → 14 Nov 20:00 UTC · 8,639 samples" could wrap | the same text on one line at desktop widths (the Workbench's strip; the full text on hover), "Original run · pinned" and "Run details" beside it |
+
+## CHG-190 Window Inspector and Calculations in the reference panel design (owner review items 13, 14; Q4, Q5, Q6, Q7)
+
+Times keep their format (Q5): the selected window's Window and Stored rows and the list's day heads print exactly as before.
+"↗" links stay links (Q4). Record details stays gone (Q6, CHG-184); no Identity & raw link is left.
+
+| Where | Was | Now |
+|---|---|---|
+| Window Inspector · band | — | button "Compare window sizes" after "Pipeline Health ↗" (opens the dialog below) |
+| Window Inspector · page foot | section "Same loop, every short granularity ?" with the Metric select and the table, under the list | gone from the page; it is the Compare window sizes dialog |
+| Compare window sizes dialog | — | title "Compare window sizes", subtitle "FIC10401 · Flow controller (FCS0101) · 15 min window"; the Metric select and its ? over the table; footer "Close" |
+| Compare window sizes · table head | "Window", "Latest MAE", "Median (last 12)", "Range (last 12)", "Windows" | "Size", "Latest MAE", "Median", "Range", "Windows (last 12)" |
+| Compare window sizes · size cell | "15m" (monospace) over "15 min / 5 min slide" | "15 min · 5 min slide" (as the profile list names it) |
+| Compare window sizes · ? tip | "Statistics are per window kind …; Kinds other than 1m are sliding windows … Click a row to inspect that granularity." | "Statistics are per window size …; Sizes other than 1m are sliding windows … Click a row to inspect that size." (a click also closes the dialog) |
+| Window Inspector · list | the "All windows" filter alone at the top left | title "Windows", the "All windows" filter top right |
+| Window Inspector · selected window | "Historical ↗" and "Trend ↗" stacked under the dialog buttons | "Historical ↗" and "Trend ↗" top right, beside the title "15 min window" (in the drawer, under the band) |
+| Window Inspector · selected window | "Feature flags", "Sample density", "Engine & timing" stacked | caps head "DETAILS" over a two-column grid of the same three buttons, each with "›" |
+| Window Inspector · selected window | "Inspect this window →" at its text width | the same button, full width, on the page colour |
+| Calculations · panel title | "Sample completeness" | "Sample completeness ?"; the ? holds "Fraction of expected samples present in the window." and "Calculation CPLM-001" |
+| Calculations · panel rows | "Value 1.00", "Unit ratio" (two rows; the PV-unit line under Unit) | "Value 1.00 ratio" (one row; "the loop's PV unit (PV units)" / "no PV unit is set on this loop" under it). A count reads bare ("8,639"), as the Proof table writes it |
+| Calculations · Method row | "samples received ÷ samples expected" with the explanation under it | the formula only; "Method ?" holds the explanation (tip "How it is computed") |
+| Calculations · panel links | "Rules & parameters ↗" | caps head "DETAILS" over two buttons "Rules & parameters ›" (opens the Workbench's Rules tab of the run, as before) and "Method ›" |
+| Method dialog | — | title "Method", subtitle the calculation's name ("Sample completeness"); rows "Formula", "Unit"; the explanation; footer "Close" |
+| Calculations · panel foot | "Open G0 proof →" at its text width | the same button, full width, on the page colour; "No run is stored for G0 on this window." under it when disabled, as before |

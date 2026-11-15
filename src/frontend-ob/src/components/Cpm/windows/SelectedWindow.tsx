@@ -4,12 +4,15 @@
  * CHG-164 (owner review): the samples read as one row; the dialogs are short buttons without ↗, apart from the two pages.
  * CHG-184 (owner review Q6): no Record details; the window's values are on the page Inspect this window → opens (the Workbench
  * proof table, or Replay).
+ * CHG-190 (owner review items 13 and 14): the owner's reference design, built as drawn: Historical ↗ and Trend ↗ top right
+ * (they stay links, Q4), the rows even, the dialogs a Details grid of buttons, Inspect this window → full width at the foot.
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmKpiRow, CpmLoop, CpmWindowSpec } from '../../../api/cpmApi';
 import { Inspector } from '../../../ui/Inspector';
+import { DetailsGrid, type DetailItem } from '../../../ui/DetailsGrid';
 import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, TonePill } from '../shared';
 import { fmtInstant } from '../context/LoopContextBar';
@@ -47,14 +50,18 @@ export const SelectedWindow: React.FC<{
   // Historical opens on this window's range; /trend reads the loop's PV, SP, OP and VP pens itself, pinned to the window.
   const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
     ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
-  const link = (label: string, to: Dialogs) => (
-    <ObcButton variant="flat" onClick={() => setDialog(to)}>{label}</ObcButton>
-  );
+  const detail = (label: string, to: Exclude<Dialogs, null>): DetailItem => ({ label, dialog: true, onClick: () => setDialog(to) });
+  const details = [...(isLong ? [] : [detail('Feature flags', 'flags')]), detail('Sample density', 'density'), detail('Engine & timing', 'engine')];
   return (
     <>
-      <Inspector title={`${windowSize({ windowKind: kind })} window`} open={open} onClose={onClose}
+      <Inspector variant="reference" title={`${windowSize({ windowKind: kind })} window`} open={open} onClose={onClose}
+        actions={<>
+          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Historical {'↗'}</ObcButton>
+          {trend && <ObcButton className="ui-link" variant="flat" onClick={() => navigate(trend)}>Trend {'↗'}</ObcButton>}
+        </>}
+        details={<DetailsGrid items={details} />}
         primaryAction={
-          <ObcButton variant="raised" onClick={() => navigate(inspectTarget(windowRef(row), loopId, kind))}>
+          <ObcButton variant="raised" fullWidth onClick={() => navigate(inspectTarget(windowRef(row), loopId, kind))}>
             Inspect this window {'→'}
           </ObcButton>
         }>
@@ -77,15 +84,6 @@ export const SelectedWindow: React.FC<{
         )}
         <KvRow label="Tag"><TonePill tone="muted">{isLong ? 'Long diagnostics' : 'Short features'}</TonePill></KvRow>
         <KvRow label="Stored">{fmtInstant(row.created_at, timeZone)}</KvRow>
-        <div className="cpm-master-detail__links">
-          {!isLong && link('Feature flags', 'flags')}
-          {link('Sample density', 'density')}
-          {link('Engine & timing', 'engine')}
-        </div>
-        <div className="cpm-master-detail__links">
-          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(historicalHref(loopId, { from: row.window_start, to: row.window_end, window: row.window_end }))}>Historical {'↗'}</ObcButton>
-          {trend && <ObcButton className="ui-link" variant="flat" onClick={() => navigate(trend)}>Trend {'↗'}</ObcButton>}
-        </div>
       </Inspector>
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />
       <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} />

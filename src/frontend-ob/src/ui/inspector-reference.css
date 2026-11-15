@@ -1,0 +1,47 @@
+/*
+ * CHG-190 (owner review 2026-11-14, items 13 and 14): the owner's reference design for a detail panel
+ * (owner-review-2026-11-14/13-window-inspector-DESIGN.png). Tokens only; sizes are the app's own.
+ */
+
+/* The title with its ?, and the links top right of the head (in the drawer they open the body, under the band). */
+.ui-inspector__title-row { display: inline-flex; align-items: center; gap: var(--traverse-space-1); min-width: 0; }
+.ui-inspector__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--traverse-space-1) var(--traverse-space-2);
+  margin-inline-start: auto;
+}
+.ui-inspector__actions--body { margin-bottom: var(--traverse-space-2); }
+/* The links' last text ends on the rows' edge, as their values do (the button's own padding sits outside it). */
+.ui-inspector--reference .ui-inspector__actions { margin-inline-end: calc(-1 * var(--traverse-space-3)); }
+
+/* Details: a small head over two columns of Secondary A buttons, each its label and a › at its end. */
+.ui-details {
+  padding: var(--traverse-space-3) var(--traverse-size-panel-padding) var(--traverse-space-4);
+  border-top: 1px solid var(--traverse-border-subtle);
+}
+.ui-details__head {
+  margin: 0 0 var(--traverse-space-2);
+  color: var(--traverse-text-secondary);
+  font-size: var(--traverse-type-metadata);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ui-details__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--traverse-space-2); }
+.ui-details .ui-details__item { justify-content: space-between; min-width: 0; white-space: normal; text-align: start; }
+.ui-details__label { min-width: 0; overflow-wrap: anywhere; }
+.ui-details__chevron { flex: none; color: var(--traverse-text-secondary); }
+.ui-details .ui-details__item:hover .ui-details__chevron { color: inherit; }
+.ui-details .ui-details__item:disabled .ui-details__chevron { color: var(--traverse-text-muted); }
+
+/* The one primary action, full width, on the page colour; no second line under the Details part. */
+.ui-inspector--reference .ui-inspector__foot {
+  background: var(--traverse-surface-page);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+.ui-inspector--reference .ui-details + .ui-inspector__foot { border-top: 0; }
+.ui-inspector--reference .ui-inspector__foot > obc-button { display: block; width: 100%; }
