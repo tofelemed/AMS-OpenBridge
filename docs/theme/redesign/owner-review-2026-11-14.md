@@ -347,11 +347,12 @@ Response tab (`ResultCard.tsx`, `ResponseNotes.tsx`)
 - [ ] Charts and trends stay as they are.
 
 Fit quality tab
-- [ ] "Charts not kept": find why and fix it. The note shows when the server holds no charts for the chosen event.
-      This event is accepted (eligible, candidate model), and since CHG-105 (in the plant build) accepted events
-      keep their charts 30 days, so it should have them. Check on plant data: were the charts written for this
-      event, is the event older than the v2.9.0 deploy, does the Response tab draw from another source. If an event
-      truly has no charts, one plain line without the retention sentence (technical text rule).
+- [ ] "Charts not kept": the note shows when the server holds no charts for the chosen event. Most likely the event
+      was censored (`19-steps-data.png`: 4 h window, "capture reached its maximum length" = interrupted at the 4 h
+      limit, no model). Today a censored event keeps its charts 6 h, an accepted event 30 days (CHG-105). A censored
+      event has no fit, so Fit quality has nothing to draw for it anyway. Fix: the tab says plainly that the event
+      was interrupted before the response finished, so no model was fitted. Check on lab data that an accepted event
+      older than 6 h still has its charts. Keeping censored events' charts longer is the owner's decision (Q9).
 
 Frequency tab (`BodePanel.tsx`)
 - [ ] The margins table in the standard table look.
@@ -418,3 +419,37 @@ Models tab (`ModelHistory.tsx`): IMPORTANT
   "estimator" column (OE_LM_DELAY_PROFILE) show engine method codes. Remove the column from the page, keeping it in
   the CSV export (my recommendation)? Or show a plain name for each method?
   **Answer (2026-11-15): remove them.**
+- **Q9 (item 19, owner 2026-11-15 "we need to keep the charts"):** censored (interrupted) events are ~73 % of all
+  events (about 3,400 a day at Marun). Today their charts last 6 h and the event itself 3 days. Keep their charts as
+  long as the event (3 days, about +0.13 GB inside the existing 2 GiB chart cap; a cplm-api change), or longer (then
+  the censored events must also be kept longer)?
+  **Answer (2026-11-15): approved as recommended: keep their charts as long as the event (3 days).**
+- **Q10 (item 19, owner 2026-11-15):** "a typical response curve that shows rise time, time constant etc clearly".
+  Today the Response chart draws PV, the model fit, baseline and target, and the 10 / 50 / 63 / 90 % times as dots on a
+  separate % axis; dead time, time constant, rise time, settling band, overshoot and gain are numbers only, not drawn on
+  the curve. Proposal: draw them on the curve, only those the engine computed for that event type (sample first).
+  **Answer (2026-11-15): approved as recommended; sample first.**
+  **Owner after the sample (2026-11-15):** build it in the UI as separate trends, one trend per row, never several
+  annotations merged into one congested chart and never two charts side by side (all System Response tabs). Trend
+  inventory proposed to the owner: Response tab up to 7 (measured response with PV change, input with OP change, dead
+  time and time constant, rise time and settling, overshoot, slope for level loops, model fit), Fit quality 3, Frequency
+  2, Models 3 = 15; each event shows only those that apply.
+  **Owner (2026-11-15):** "if the engine is calculating these things we should have all these trends, well designed
+  and organized as per our design rules". Added: an Error trend (the error the engine integrates for IAE / ISE /
+  ITAE), so Response tab up to 8, 16 in all. Decay ratio stays off the curve until the engine fault is fixed.
+
+## 20. System Response: redraw from the historian (owner, 2026-11-15)
+
+Storage brainstorm option 2, approved: keep the exact stored charts for a while, then redraw from the historian (loop
+samples kept 90 days). A "Redraw from historian" button where an event's charts are gone, then a progress dialog in the
+Evaluate a window style (Reading the historian → Drawing → Done, auto-close), then the trends. Only the trends that can
+be made from the historian plus the stored values: Measured response, Input, Dead time / time constant, Rise time /
+settling, Overshoot, Slope, Error. Not Model fit, Fit quality or Frequency (only with the stored charts). Build = CHG-198.
+
+- **Q11:** for the redraw to reach past 30 days, the event records (values) must be kept longer than the charts. Keep
+  accepted events' records 90 days (= the historian) and cap the stored charts at about 30 days (1 GiB)? About +2.4 GB
+  in total. Censored events stay 3 days.
+  **Answer (2026-11-15): "keep accepted events for 30 days, then from the historian; censored events for 3 days".**
+  Read as: accepted events' stored charts 30 days, then the redraw from the historian (up to its 90 days), so their
+  record and values stay 90 days; censored events 3 days (record, values, charts). Build = CHG-199 (plant script cpm-22).
+  **Confirmed by the owner (2026-11-15): "yes approved".**

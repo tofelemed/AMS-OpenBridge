@@ -199,3 +199,27 @@ def test_chg105_cpm21_ships_runs_online_before_the_swap_and_is_mirrored():
     for mirror in ("database/scripts/69_cplm_response_charts.sql", "migration/schema/03-traverse_cplm.sql"):
         m = (root / mirror).read_text(encoding="utf-8")
         assert "days = 30, max_bytes = 2147483648" in m and "days = 14 AND max_bytes IS NULL" in m, mirror
+
+
+# ── CHG-199: accepted response events 90 d, their stored charts 30 d (cpm-22) ───
+def test_chg199_cpm22_ships_runs_online_after_the_swap_and_is_mirrored():
+    root = HERE.parent.parent
+    for rel in ("scripts/cpm-22-response-redraw-retention.sql", "scripts/cpm-22-response-redraw-retention.rollback.sql"):
+        assert rel in br.OPS_FILES
+        assert (root / rel).is_file()
+    assert "chg199-cpm22" in br.release_blocks.DIRECTIVES and "chg199-cpm22" not in br.release_blocks.PRE_SWAP
+    assert "cpm-22-response-redraw-retention.sql" not in chg102_steps(set())
+    s = chg102_steps({"chg199-cpm22"})
+    blk = s[s.index("# 6m. CHG-199"):s.index("# 8. post-update checks")]
+    assert s.index("deploy.sh --prod") < s.index("# 6m. CHG-199")
+    assert "< /tmp/v0.0.0-test/ops/cpm-22-response-redraw-retention.sql" in blk and "cpm-22 OK" in blk
+    assert "cpm-22-response-redraw-retention.rollback.sql" in blk
+    assert not any(l.startswith(("docker stop", "docker start")) for l in blk.splitlines())
+    sql = (root / "scripts/cpm-22-response-redraw-retention.sql").read_text(encoding="utf-8")
+    assert "\\c " not in sql and "SET days = 90 WHERE record_class = 'RESPONSE' AND days = 30" in sql
+    assert "('RESPONSE_CHARTS', 30)" in sql
+    rb = (root / "scripts/cpm-22-response-redraw-retention.rollback.sql").read_text(encoding="utf-8")
+    assert "SET days = 30 WHERE record_class = 'RESPONSE' AND days = 90" in rb and "\\c " not in rb
+    assert "DELETE FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CHARTS'" in rb
+    for mirror in ("database/scripts/70_cplm_response_redraw_retention.sql", "migration/schema/03-traverse_cplm.sql"):
+        assert "RESPONSE_CHARTS" in (root / mirror).read_text(encoding="utf-8"), mirror

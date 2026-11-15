@@ -8,7 +8,7 @@ deploy.sh --prod already recreates every changed service.
 from __future__ import annotations
 
 DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18",
-              "chg102-cpm19", "chg102-cpm20", "chg105-cpm21"}
+              "chg102-cpm19", "chg102-cpm20", "chg105-cpm21", "chg199-cpm22"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -161,10 +161,24 @@ docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERR
 """
 
 
+def chg199_cpm22(release: str) -> str:
+    # CHG-199: the old cplm-api reads only RESPONSE days; the new one also ages the stored charts out at RESPONSE_CHARTS.
+    return f"""
+# 6m. CHG-199 System Response retention (accepted events + quantities 90 d, their stored charts 30 d; older trends are
+#     redrawn from the historian, CHG-198) - AFTER the new cplm-api is healthy. Online, re-runnable (lock_timeout 10 s).
+docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-22-response-redraw-retention.sql
+#     last line: cpm-22 OK | RESPONSE=90d RESPONSE_CHARTS=30d
+#     The tables grow for 60 more days (~21 KB per accepted event, ~1,250-2,000 a day: +1.6-2.5 GB, then level); check weekly:
+#       docker exec instrumental-postgres psql -U postgres -d traverse_cplm -Atc "select pg_size_pretty(pg_total_relation_size('analytics.response_event') + pg_total_relation_size('analytics.response_metric'))"
+#     Rollback (online; the events older than 30 d go at the next sweep):
+#       docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERROR_STOP=1 < /tmp/{release}/ops/cpm-22-response-redraw-retention.rollback.sql
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
           "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
           "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19, "chg102-cpm20": chg102_cpm20,
-          "chg105-cpm21": chg105_cpm21}
+          "chg105-cpm21": chg105_cpm21, "chg199-cpm22": chg199_cpm22}
 PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20", "chg105-cpm21"}
 
 

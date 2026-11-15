@@ -1,0 +1,20 @@
+# Release v2.9.1 - CPA owner production review CHG-183..200 on top of v2.9.0 + redesign (plant bundle v2.9.0-20261112, src 7ba43a0e).
+# Consumed by: python migration/deploy/build-release.py --release v2.9.1 --skip-jar   (no Flink change: the jar is not rebuilt)
+# Build from feat/cpa-redesign. Build box migration/.env must keep LOOP_ROOT_PREFIX=root.hdpe.cpm (the frontend bakes it).
+#
+#   ams-frontend  CHG-183 button standard + cyan dialog header; CHG-184 ids / versions / Record details / Identity tab removed;
+#                 CHG-185 Loop Explorer KPI grid, readings, History tab; CHG-186 Investigation tabs; CHG-187 Workbench gate
+#                 results; CHG-188 Evaluate / Reconstruct dialogs with progress; CHG-189 Replay; CHG-190 Window Inspector +
+#                 Calculations panels, Compare window sizes dialog; CHG-191 Performance gate dialog; CHG-192 every other dialog;
+#                 CHG-193 quieter secondary buttons, technical text removed, final review fixes; CHG-194 sidebar + header;
+#                 CHG-195 System Response tabs; CHG-197 Response tab as separate trends with the response times drawn;
+#                 CHG-198 redraw an event's trends from the historian when its stored charts are gone;
+#                 CHG-200 final browser test fixes (narrow widths, plain units and numbers, tab wrap, redraw Done).
+#   cplm-api      CHG-196 censored response events keep their charts as long as the event (3 d);
+#                 CHG-199 accepted response events keep their values 90 d and their stored charts 30 d (new row RESPONSE_CHARTS).
+#
+# One online SQL step AFTER the cplm-api swap: ops/cpm-22-response-redraw-retention.sql (directive below; VM-STEPS 6m).
+# No topic, no Flink swap, no other service, no config. Users: Ctrl+F5 once.
+!chg199-cpm22
+ams-frontend
+cplm-api
