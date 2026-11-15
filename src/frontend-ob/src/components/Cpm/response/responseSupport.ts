@@ -32,13 +32,6 @@ export function epochMs(d: DecodedArtifact): Float64Array {
   return out;
 }
 
-/** Seconds after t0 placed on the event's time axis. */
-export function afterT0Ms(d: DecodedArtifact, t0Ms: number): Float64Array {
-  const out = new Float64Array(d.n);
-  for (let i = 0; i < d.n; i++) out[i] = t0Ms + d.columns.x[i] * 1000;
-  return out;
-}
-
 export const prov = (d: DecodedArtifact | undefined, key: string): string | undefined => d?.meta.provenance?.[key];
 export const provList = (d: DecodedArtifact | undefined, key: string): string[] => (prov(d, key) ?? '').split(';').map(s => s.trim()).filter(Boolean);
 

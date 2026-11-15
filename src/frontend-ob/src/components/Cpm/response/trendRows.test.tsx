@@ -34,7 +34,7 @@ describe('One trend per row', () => {
     const curve = decoded({ gate: 'G12', kind: 'delay_objective_curve', x: [0, 10, 20], y: [3, 2, 1] });
     const { container } = render(<CandidateModelsTable table={table} delayCurve={curve} intervals={undefined} rejections={undefined} />);
     const rows = container.querySelector('.cpm-response-trend-rows') as HTMLElement;
-    expect(rowCharts(container)).toEqual(['Delay objective curve (best candidate)']);
+    expect(rowCharts(container)).toEqual(['Delay search (best candidate)']);
     const order = [...rows.children].map(c => (c.classList.contains('cpm-chart') ? 'curve' : c.querySelector('table') ? 'table' : 'other'));
     expect(order).toEqual(['curve', 'table']);
   });

@@ -5,8 +5,12 @@
  * in the axis name, bands labelled with their meaning, and an on-demand CSV export of
  * the same values the chart draws. Colours come from the chart palette (charts/chartTheme.ts), never literals.
  * Phase 5 (cpa-ui-fix-plan): rectangle zoom on x and on every unit axis, from the title bar.
+ * CHG-197 (owner Q10): optional, for the System Response trends only: a fixed shared time range, annotations drawn from this
+ * chart's palette (out of the legend and the hover readout), time-only zoom, a dash-dot pen, a help tip in the head and an
+ * ECharts connect group so linked trends keep one cursor and one zoom. Without them a chart is drawn exactly as before.
  */
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ECharts } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { axisChrome, baseOption, chartPalette, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
@@ -14,6 +18,7 @@ import { axisTimeFormatter, formatInZone, zoneLabel } from './timezone';
 import { FULL_ZOOM, boxZoomOption, type ZoomState } from '../../charts/boxZoom';
 import { useBoxZoom, useKeepSelecting } from '../../charts/useBoxZoom';
 import ChartZoomBar from '../../charts/ChartZoomBar';
+import { joinTrendGroup } from '../../../ui/trend/trendGroup';
 
 /** What a series is drawn as. `sp` is for setpoints; `neutral` is a reference mark that is not a signal. */
 export type Pen = 'pv' | 'sp' | 'op' | 'vp' | 'overlay' | 'neutral' | 'danger';
@@ -40,6 +45,8 @@ export interface CpmSeries {
   /** Per-point extra tooltip lines (quality, hold kind, sample vs verified time). */
   meta?: (i: number) => string[];
   dashed?: boolean;
+  /** CHG-197: an estimated series (a model fit): a distinct dash-dot pattern (traverse-design-system §6). */
+  dashDot?: boolean;
   area?: boolean;
   /** An echarts symbol for markers (e.g. a short bar for an interval cap); a filled circle when absent. */
   symbol?: string;
@@ -58,6 +65,15 @@ export interface CpmChartInput {
   width?: number;
   /** Phase 5: the current rectangle zoom, carried in the option so a re-applied option keeps it. */
   zoom?: ZoomState;
+  /** CHG-197: the time axis drawn over exactly this range (ms), shared by linked charts so their zoom percentages agree. */
+  xRange?: [number, number];
+  /** CHG-197: false = the rectangle zoom works on time only (linked charts have different value axes). */
+  zoomY?: boolean;
+  /**
+   * CHG-197: extra ECharts series drawn over the data (marks, spans, dots), built from this chart's palette so they follow
+   * the theme; `axisOf(unit)` is the value axis of a unit. They are not in the legend or the hover readout.
+   */
+  annotate?: (palette: ChartPalette, axisOf: (unit: string) => number) => Array<Record<string, unknown>>;
 }
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
@@ -95,7 +111,8 @@ export function buildCpmChartOption(input: CpmChartInput) {
   const tick = axisTimeFormatter(Number.isFinite(maxX - minX) ? maxX - minX : 0, timeZone);
   const xAxis = xKind === 'time'
     ? { ...axis, type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
-        axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: tick }, splitLine: { show: false } }
+        axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: tick }, splitLine: { show: false },
+        ...(input.xRange ? { min: input.xRange[0], max: input.xRange[1] } : {}) }
     : { ...axis, type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
         axisLabel: { ...axis.axisLabel, hideOverlap: true }, splitLine: { show: false }, scale: true };
   const yAxis = units.map((u, i) => ({
@@ -115,7 +132,8 @@ export function buildCpmChartOption(input: CpmChartInput) {
       showSymbol: !!s.markers,
       symbol: s.markers ? s.symbol ?? 'circle' : 'none',
       symbolSize: s.markers ? (s.symbol ? [12, 2] : 7) : 4,
-      lineStyle: { color: pens[s.pen], width: s.markers ? 0 : s.bandMeaning ? 1 : 1.5, type: s.dashed || s.bandMeaning ? ('dashed' as const) : ('solid' as const) },
+      lineStyle: { color: pens[s.pen], width: s.markers ? 0 : s.bandMeaning ? 1 : 1.5,
+        type: s.dashDot ? [8, 3, 2, 3] : s.dashed || s.bandMeaning ? ('dashed' as const) : ('solid' as const) },
       itemStyle: { color: pens[s.pen] },
       areaStyle: s.area ? { color: pens[s.pen], opacity: 0.12 } : undefined,
       ...(s.held ? { step: 'end' as const } : {}),
@@ -132,19 +150,22 @@ export function buildCpmChartOption(input: CpmChartInput) {
   // audit F19: the legend sits BELOW the plot and the x-axis name, never over the y-axis name; the bottom
   // margin reserves the rows the legend will take, estimated from the label widths against the drawn width
   const legendRows = legendRowsFor(echartsSeries.map(s => s.name), input.width);
+  const marks = input.annotate ? input.annotate(palette, u => Math.max(0, units.indexOf(u))) : [];
+  const known = new Set(echartsSeries.map(s => s.id));
   return {
     ...base,
     animation: false,
     grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
-    ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: units.map((_, i) => i) }, input.zoom ?? FULL_ZOOM),
+    ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: input.zoomY === false ? undefined : units.map((_, i) => i) }, input.zoom ?? FULL_ZOOM),
     xAxis,
     yAxis,
-    legend: { ...base.legend, bottom: 0, itemGap: 14 },
+    legend: { ...base.legend, bottom: 0, itemGap: 14, ...(marks.length > 0 ? { data: echartsSeries.map(s => s.name) } : {}) },
     tooltip: {
       ...base.tooltip,
       trigger: 'axis' as const,
       formatter: (params: unknown) => {
-        const items = (Array.isArray(params) ? params : [params]) as Array<{ seriesId: string; seriesName: string; value: [number, number | null]; dataIndex: number }>;
+        const items = ((Array.isArray(params) ? params : [params]) as Array<{ seriesId: string; seriesName: string; value: [number, number | null]; dataIndex: number }>)
+          .filter(it => known.has(it.seriesId));   // CHG-197: an annotation is read from its own label, not the readout
         if (items.length === 0) return '';
         const x = items[0].value[0];
         const head = xKind === 'time' ? `${formatInZone(x, timeZone)} (${zoneLabel(timeZone, x)})` : `${input.xLabel ?? 'x'} = ${x}${input.xUnit ? ' ' + input.xUnit : ''}`;
@@ -157,7 +178,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
         return [head, ...lines].join('<br/>');
       },
     },
-    series: echartsSeries,
+    series: [...echartsSeries, ...marks],
   };
 }
 
@@ -211,6 +232,10 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
   headingLevel?: 2 | 3 | 4;
   /** CHG-195: Export CSV in the chart's head, after the zoom tools, instead of under the chart. */
   exportInHead?: boolean;
+  /** CHG-197: a "?" tip beside the title saying how the chart's values are measured. */
+  help?: React.ReactNode;
+  /** CHG-197: charts of one group share the cursor and the zoom (ECharts connect, ui/trend/trendGroup). */
+  connectGroup?: string;
 }> = (props) => {
   const theme = useChartTheme();
   // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
@@ -223,7 +248,14 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const box = useBoxZoom({ hasY: true });
+  const box = useBoxZoom({ hasY: props.zoomY !== false });
+  const { connectGroup } = props;
+  const release = useRef<(() => void) | null>(null);
+  useEffect(() => () => { release.current?.(); release.current = null; }, []);
+  const onChartReady = useCallback((chart: ECharts) => {
+    box.onChartReady(chart);
+    if (connectGroup && !release.current) release.current = joinTrendGroup(chart, connectGroup);
+  }, [box, connectGroup]);
   const option = useMemo(() => buildCpmChartOption({ ...props, palette: chartPalette(), width, zoom: box.zoom }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
     [props, theme, width, box.zoom]);
@@ -255,11 +287,12 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
         {props.title && (Heading
           ? <Heading className="cpm-chart__title cpm-chart__title--heading">{props.title}</Heading>
           : <span className="cpm-chart__title">{props.title}</span>)}
+        {props.help}
         {sampleNote && drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The CSV carries every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
         <ChartZoomBar box={box} hasData={drawn > 0} />
         {props.exportInHead && exportCsv}
       </div>
-      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={box.onChartReady} onEvents={onEvents} />
+      <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={onChartReady} onEvents={onEvents} />
       {!props.exportInHead && <div className="cpm-chart__more">{exportCsv}</div>}
     </div>
   );

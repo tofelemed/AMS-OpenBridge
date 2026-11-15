@@ -7,6 +7,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
 import type { ResponseEventDetail } from '../../../api/cpm/response';
 import { EventPanes, type EventPanesProps } from './EventPanes';
+import { selfRegulating, T0S } from './trends/trendFixtures';
 
 vi.mock('echarts-for-react', () => ({ default: () => React.createElement('div', { 'data-testid': 'echarts' }) }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -51,6 +52,35 @@ describe('EventPanes', () => {
   it('says in one plain line on Response that a censored event has no charts', () => {
     draw('response', result({ capture_state: 'CENSORED', model_state: 'NONE' }));
     expect(screen.getByRole('note').textContent).toBe('Charts are not available for this event.');
+  });
+
+  // CHG-197 (owner Q10): the result row, then the trends one per row, then the reported quantities
+  const held = { ...none, readiness: 'COMPLETE', count: 1, artifacts: [{ gate: 'G12', kind: 'accepted_samples', readiness: 'COMPLETE' }] } as unknown as EvidenceManifest;
+  const withCharts = (r: ResponseEventDetail['result']) => {
+    const e = selfRegulating();
+    return render(
+      <EventPanes tab="response" timeZone="UTC" t0Ms={T0S * 1000} pvUnit="m3/h"
+        detail={{ data: { result: r, metrics: e.metrics }, isError: false, isLoading: false } as unknown as EventPanesProps['detail']}
+        manifest={{ data: held, isError: false } as unknown as EventPanesProps['manifest']}
+        arts={{ byKind: e.byKind, loading: false, errors: [], unavailable: [] }} />,
+    );
+  };
+
+  it('draws the Response tab as the result, the trends one per row, then the reported quantities', () => {
+    const { container } = withCharts(result());
+    const trends = container.querySelector('[aria-label="Response trends"]')!;
+    expect([...trends.querySelectorAll('h2')].map(h => h.textContent))
+      .toEqual(['Measured response', 'Input', 'Dead time and time constant', 'Rise time and settling', 'Error from the setpoint', 'Model fit']);
+    const order = [...container.querySelectorAll('h2')].map(h => h.textContent);
+    expect(order[order.length - 1]).toBe('Reported quantities');
+    const row = container.querySelector('.cpm-response-result')!;
+    expect(row.compareDocumentPosition(trends) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a censored event with its charts held: the plain note, then the measured response and the input only', () => {
+    const { container } = withCharts(result({ capture_state: 'CENSORED', evaluation_state: 'CENSORED', model_state: 'NONE' }));
+    expect(screen.getByRole('note').textContent).toBe('This event was interrupted before the response finished, so no model was fitted.');
+    expect([...container.querySelectorAll('[aria-label="Response trends"] h2')].map(h => h.textContent)).toEqual(['Measured response', 'Input']);
   });
 
   it('says in one plain line on Fit quality that an accepted event has no charts', () => {

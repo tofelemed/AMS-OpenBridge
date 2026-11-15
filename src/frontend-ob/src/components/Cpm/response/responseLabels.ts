@@ -65,3 +65,32 @@ export function outputValue(key: string, v: unknown): string {
   if (key === 'path_id' || /^[A-Z]+(_[A-Z]+)*_TO_[A-Z_]+$/.test(t)) return pathLabel(t);
   return /^[A-Z][A-Z0-9_]*$/.test(t) ? codeLabel(t) : t;
 }
+
+/** CHG-197 (owner rule: no technical text): the model families of the engine's model bank in words. */
+const FAMILY_LABEL: Record<string, string> = {
+  FOPDT: 'First order with dead time', SOPDT: 'Second order with dead time', SO_UNDERDAMPED: 'Second order underdamped',
+  IPDT: 'Integrating with dead time', INTEGRATOR_LAG: 'Integrating with lag',
+};
+export const familyLabel = (family: string | null | undefined): string => FAMILY_LABEL[(family ?? '').toUpperCase()] ?? codeLabel(family);
+
+/** The candidate rows' parameter keys (ProcessModel.toString) in words, with their unit. */
+const CANDIDATE_PARAM: Record<string, [string, string]> = {
+  gain: ['Gain', ''], theta: ['Dead time', 's'], tau: ['Time constant', 's'], tau2: ['Second time constant', 's'],
+  zeta: ['Damping ratio', ''], wn: ['Natural frequency', 'rad/s'],
+};
+/** "theta", "4.0" → "Dead time 4 s"; another key reads as its parameter name ("process_gain" → "Process gain"). */
+export function candidateParamText(key: string, raw: string): string {
+  const [label, unit] = CANDIDATE_PARAM[key] ?? [words(key), /(_time|time_constant)/.test(key) ? 's' : ''];
+  const n = Number(raw);
+  return `${label} ${Number.isFinite(n) ? readable(n) : raw}${unit ? ` ${unit}` : ''}`;
+}
+
+/** "ESTIMATION:NOT_ESTIMATED:NO_EXCITATION" → "Estimation · Not estimated · No excitation". */
+export const reasonText = (reason: string): string => reason.split(':').map(p => p.trim()).filter(Boolean).map(p => codeLabel(p)).join(' · ');
+
+/** The validation step's output keys in words (subgate E). */
+const VALIDATION_LABEL: Record<string, string> = {
+  verdict: 'Verdict', free_run_rmse: 'Free-run error (RMSE)', prediction_rmse: 'One-step prediction error (RMSE)', fit_improvement: 'Fit improvement',
+  residual_bias: 'Residual bias', whiteness: 'Whiteness', input_residual_correlation: 'Input–residual correlation',
+};
+export const validationLabel = (key: string): string => VALIDATION_LABEL[key] ?? outputLabel(key);

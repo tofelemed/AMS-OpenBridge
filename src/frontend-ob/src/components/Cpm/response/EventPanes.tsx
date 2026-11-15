@@ -5,13 +5,16 @@
  * arrays were not kept says so once per tab that draws arrays; its values still show (no Workbench link: an event-keyed G12
  * run cannot be reconstructed). CHG-195 (owner review item 19): the note is one plain line; a censored event's Fit quality
  * says it was cut short before its response finished, so no model was fitted, instead of a charts note.
+ * CHG-197 (owner Q10): Response draws the event as separate trends, one per row (trends/ResponseTrends), between the result row
+ * and the reported quantities; a censored event with its charts held says why it has only the measured response and the input.
  */
 import React from 'react';
 import { EmptyState, QueryError } from '../shared';
 import type { GateArtifacts } from '../evidence/useGateArtifacts';
 import type { useEvidenceManifest } from '../evidence/useEvidence';
 import { ResultCard } from './ResultCard';
-import { ResponseChart } from './ResponseChart';
+import { ResponseTrends } from './trends/ResponseTrends';
+import { RequireKinds } from '../evidence/views/viewSupport';
 import { ResidualPanel } from './ResidualPanel';
 import { CandidateModelsTable } from './CandidateModelsTable';
 import { BodePanel } from './BodePanel';
@@ -56,6 +59,9 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
     ? <p className="cpm-copy" role="status">Evidence readiness: {manifest.data.readiness} ({manifest.data.count} artifact(s)). The manifest refreshes while artifacts arrive.</p>
     : null;
 
+  // a censored event was cut short before its response finished: it never has a fit, whatever charts are held. The event's
+  // result carries the state as evaluation_state (the list's captureState has no key of its own there).
+  const censored = [result?.capture_state, result?.evaluation_state].includes('CENSORED');
   if (tab === 'response') {
     const healthExclusions = Array.isArray(result?.health_exclusions) ? (result!.health_exclusions as string[]) : [];
     return (
@@ -63,15 +69,17 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
         <ResultCard result={result} metrics={metrics} loading={detail.isLoading} pvUnit={pvUnit} />
         {note}
         {manifestState}
-        {manifest.data && !notKept && <ResponseChart arts={arts} timeZone={timeZone} t0Ms={t0Ms} healthExclusions={healthExclusions} />}
+        {manifest.data && !notKept && censored && <ArraysNote state="NOT_FITTED" />}
+        {manifest.data && !notKept && (
+          <RequireKinds arts={arts} kinds={['accepted_samples']} skeleton="evidence">
+            <ResponseTrends byKind={arts.byKind} metrics={metrics} result={result} t0Ms={t0Ms} pvUnit={pvUnit} timeZone={timeZone} healthExclusions={healthExclusions} />
+          </RequireKinds>
+        )}
         {pending}
         {detail.data && <ReportedQuantities metrics={metrics} pvUnit={pvUnit} />}
       </>
     );
   }
-  // a censored event was cut short before its response finished: it never has a fit, whatever charts are held. The event's
-  // result carries the state as evaluation_state (the list's captureState has no key of its own there).
-  const censored = [result?.capture_state, result?.evaluation_state].includes('CENSORED');
   if (tab === 'fit' && censored) return <ArraysNote state="NOT_FITTED" />;
   if (tab === 'fit') {
     return (
@@ -80,8 +88,8 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
         {manifestState}
         {manifest.data && !notKept && (
           <>
-            <ResidualPanel residuals={one('residuals')} acf={one('residual_acf')} timeZone={timeZone} validation={result?.subgates?.E} loading={decoding('residuals', 'residual_acf')} />
-            <CandidateModelsTable table={one('candidate_models')} delayCurve={one('delay_objective_curve')} intervals={one('parameter_intervals')} rejections={one('rejection_reasons')} loading={decoding('candidate_models', 'rejection_reasons')} />
+            <ResidualPanel residuals={one('residuals')} acf={one('residual_acf')} timeZone={timeZone} validation={result?.subgates?.E} loading={decoding('residuals', 'residual_acf')} pvUnit={pvUnit} />
+            <CandidateModelsTable table={one('candidate_models')} delayCurve={one('delay_objective_curve')} intervals={one('parameter_intervals')} rejections={one('rejection_reasons')} loading={decoding('candidate_models', 'rejection_reasons')} pvUnit={pvUnit} />
           </>
         )}
         {pending}

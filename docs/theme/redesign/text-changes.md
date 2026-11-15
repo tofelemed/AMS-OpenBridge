@@ -2159,3 +2159,31 @@ A censored event's charts are now kept as long as the event itself (3 days), so 
 
 Behaviour, not words: a link straight to a censored event now lists the censored events and selects it in the event
 selector (before, the selector said "Selected event (not in the list)").
+
+## CHG-197 System Response as separate trends with the response times drawn on them (owner Q10)
+
+The Response tab draws the event as separate trends, one per row at full width, between the result row and "Reported
+quantities". A trend shows only when the engine produced what it draws. Each has its heading, a "?" tip saying how the engine
+measures it, Zoom area / Undo / Reset and Export CSV in its head; all share one time axis, one cursor and one zoom. Times on the
+labels count from the step; the time axis keeps its format (Q5). Fit quality loses its remaining technical text.
+
+| Where | Was | Now |
+|---|---|---|
+| Response · chart panel | eyebrow "G12", heading "Response", path pill "OP_TO_PV", "?" "How to read this chart"; two panes "Output" and "Input" | up to eight trends, each its own heading: "Measured response", "Input", "Dead time and time constant", "Rise time and settling", "Overshoot", "Slope", "Error from the setpoint", "Model fit"; each "?" is "<heading>: how it is measured" |
+| Response · curves | "PV (accepted)", "applied input (reconstructed, held)", "model fit (training)", "holdout prediction (free run)", "upper — …", "lower — …" | "PV", "OP applied" (VP / the path's input on other paths), "Model fit (training)" (dash-dot), "Holdout prediction" (drawn only where it falls inside this event's window), "Prediction band, upper — prediction interval of the output, not parameter confidence" (and lower) |
+| Response · reference lines | curves "baseline y0 (pre-event median)" and "reference r1 (target)" on every event | guides "Baseline 120", "Final value 134.6"; "Setpoint 60" (dashed curve and label) on a setpoint step only; "Step" on the step line |
+| Response · response times | markers "response time (progress level)" on their own "%" axis | dots on the PV curve "10 %", "50 %", "90 %", "Measured 63 % 154 s"; spans "Dead time 34 s", "Time constant 120 s" (second order: "Slower time constant", "Faster time constant"), "Rise time 250 s"; guide "63 % of the change" |
+| Response · new labels | — | "PV change 14.6 m3/h", "OP change 4 %", "Gain (model) 3.65 m3/h/% OP", "Wrong-way move 3.2 % of the change", "Settling band ±0.292 m3/h", "Settled 410 s", "Setpoint band ±0.5 m3/h", "At setpoint 380 s", "Peak at 95 s", "Overshoot 18 %", "Error left from the setpoint 0.4 m3/h", "Slope 0.02 m3/h/s", "Integrating gain (model) 0.004 m3/h/(% OP·s)", the rise over run ("+1.8 m3/h", "90 s"), "No error", "IAE 2,777 m3/h·s", "ISE 17,011 (m3/h)²·s", "ITAE 694,632 m3/h·s²", curve "Error (setpoint − PV)" |
+| Response · axis names | "PV_EU", "input_EU", "%" | the loop's PV unit ("m3/h"), the input unit ("% OP") |
+| Response · a censored event with its charts held | the two panes | "This event was interrupted before the response finished, so no model was fitted.", then "Measured response" and "Input" only |
+| Response · decay ratio | in the quantities only | unchanged: never drawn (engine fault on noisy data) |
+| Fit quality · residual panel | eyebrow "Subgate E"; rows "state VALIDATED", "verdict PASS", "free_run_rmse 0.123456", "prediction_rmse", "fit_improvement", "residual_bias", "whiteness", "input_residual_correlation" | eyebrow "Step E"; "State Validated", "Verdict Pass", "Free-run error (RMSE) 0.123", "One-step prediction error (RMSE)", "Fit improvement", "Residual bias", "Whiteness", "Input–residual correlation" |
+| Fit quality · residual charts | curve "residual (y − ŷ)" on axis "PV_EU"; curve "residual ACF", axis "lag (samples)" | "Residual (PV − model)" on the loop's PV unit; "Autocorrelation", axis "Lag (samples)" |
+| Fit quality · candidate models | eyebrow "Subgate D", pill "ESTIMATED"; chart "Delay objective curve (best candidate)", curve "objective J(θ)" on "PV_EU^2"; "No delay profile was recorded for the best candidate." | eyebrow "Step D", pill "Estimated"; chart "Delay search (best candidate)", curve "Fit error" on "(m3/h)²"; "No delay search was recorded for the best candidate." |
+| Fit quality · candidates table | heads "# · family · path · parameters · objective (PV_EU^2) · identifiability"; "0 (best)", "FOPDT", "OP_TO_PV", "gain=3.0, theta=4.0, tau=20.0", "cond=10.5" | the standard table: "Rank · Model · Path · Parameters · Fit error ((m3/h)²) · Identifiability"; "1 (best)", "First order with dead time" (also "Second order with dead time", "Second order underdamped", "Integrating with dead time", "Integrating with lag"), "OP → PV", "Gain 3 · Dead time 4 s · Time constant 20 s", "Condition number 10.5" |
+| Fit quality · parameter uncertainty | eyebrow "Subgate D", pill "COVARIANCE"; heads "parameter · std. error (parameter_units)"; rows "process_gain" | eyebrow "Step D", pill "Covariance"; the standard table "Parameter · Standard error"; rows "Process gain" |
+| Fit quality · rejection reasons | eyebrow "Kernel"; "ESTIMATION:NOT_ESTIMATED:NO_EXCITATION" | no eyebrow; "Estimation · Not estimated · No excitation" |
+
+CSV: every exported column keeps its series key ("pv", "u_applied", "y_fit", "residual (y − ŷ)", "residual ACF",
+"objective J(θ)", …); the unit in a column head is now the loop's unit, as on the Models trends since CHG-195. Each Response
+trend exports its own curves under its own file name ("FIC1-measured-response-….csv").

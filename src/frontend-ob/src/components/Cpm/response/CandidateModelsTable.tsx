@@ -5,17 +5,25 @@
  * CHG-165 (owner review): on the Fit quality tab the candidates go with the delay curve of the best one. CHG-195 (owner rule
  * 15 Nov 2026): one trend per row: the delay curve at full width, then the candidates table at full width.
  * CHG-193 (owner decision 15 Nov 2026): the identifiability flags and the delay uncertainty in words.
+ * CHG-197 (owner rule: no technical text): the model families, paths, parameters, states, units and rejection reasons in words,
+ * the two tables in the standard table; the CSV keeps its column names.
  */
 import React from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
+import { DataTable, type Column } from '../../../ui/DataTable';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
-import { candidateRows, fmt, prov, provList } from './responseSupport';
+import { codeLabel } from '../vocabulary';
+import { candidateRows, displayUnit, fmt, paramLabel, prov, provList, type CandidateRow } from './responseSupport';
+import { candidateParamText, familyLabel, pathLabel, reasonText } from './responseLabels';
+
+interface Ranked { row: CandidateRow; rank: number; objective: number | undefined }
+interface Interval { name: string; se: number }
 
 export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined; delayCurve: DecodedArtifact | undefined; intervals: DecodedArtifact | undefined; rejections: DecodedArtifact | undefined; loading?: boolean;
   /** CHG-105: the event's charts are not stored (the Response panel above says why); never claim "no model was estimated". */
-  notStored?: boolean }> = ({ table, delayCurve, intervals, rejections, loading, notStored }) => {
+  notStored?: boolean; pvUnit?: string | null }> = ({ table, delayCurve, intervals, rejections, loading, notStored, pvUnit }) => {
   if (!table && !rejections && loading) return <ArtifactSkeleton kinds={['candidate_models', 'rejection_reasons']} />;
   if (!table && !rejections && notStored) return <EmptyState title="Candidate models not stored" />;
   const rows = candidateRows(prov(table, 'rows'));
@@ -25,55 +33,51 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
   if (!table && reasons.length === 0) {
     return <EmptyState title="No candidate models" copy="No model was estimated for this event. Steps & data says where it stopped and why." />;
   }
+  // "PV_EU^2" reads "(m3/h)²": the square belongs to the whole unit
+  const squared = (u: string | undefined) => displayUnit((u ?? 'PV_EU^2').replace(/PV_EU\^2/g, '(PV_EU)^2'), table?.meta.roleOrPath, pvUnit).replace(/\^2/g, '²');
+  const errorUnit = squared(table?.units.y);
+  const ranked: Ranked[] = rows.map((row, i) => ({ row, rank: i + 1, objective: objective && Number.isFinite(objective[i]) ? objective[i] : undefined }));
+  const columns: Array<Column<Ranked>> = [
+    { key: 'rank', header: 'Rank', cell: r => (r.rank === 1 ? '1 (best)' : String(r.rank)) },
+    { key: 'model', header: 'Model', cell: r => familyLabel(r.row.family) },
+    { key: 'path', header: 'Path', cell: r => (r.row.path ? pathLabel(r.row.path) : '—') },
+    { key: 'parameters', header: 'Parameters', cell: r => r.row.parameters.map(([k, v]) => candidateParamText(k, v)).join(' · ') },
+    { key: 'error', header: `Fit error (${errorUnit})`, cell: r => (r.objective != null ? fmt(r.objective) : '—'), align: 'end' },
+    { key: 'identifiability', header: 'Identifiability', cell: r => (
+      <>
+        {r.row.flatDelay && <TonePill tone="warn">Flat delay</TonePill>}{' '}
+        {r.row.boundsHit && <TonePill tone="warn">Bounds hit</TonePill>}{' '}
+        {r.row.signUncertain && <TonePill tone="warn">Sign uncertain</TonePill>}{' '}
+        {r.row.cond && <span>Condition number {r.row.cond}</span>}
+      </>
+    ) },
+  ];
+  const errors: Interval[] = intervals ? Array.from(intervals.columns.y, (se, i) => ({ name: names[i] ?? `Parameter ${i + 1}`, se })) : [];
+  const intervalColumns: Array<Column<Interval>> = [
+    { key: 'parameter', header: 'Parameter', cell: r => paramLabel(r.name) },
+    { key: 'se', header: 'Standard error', cell: r => (Number.isFinite(r.se) ? fmt(r.se) : 'not available'), align: 'end' },
+  ];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="Subgate D" title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{prov(table, 'state') ?? '—'}</TonePill> : undefined} />
+      <PanelHead eyebrow="Step D" title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{codeLabel(prov(table, 'state'))}</TonePill> : undefined} />
       <div className="cpm-response-trend-rows">
       {delayCurve && delayCurve.n > 0 && (
-        <CpmChart title="Delay objective curve (best candidate)" xKind="value" xLabel="Dead time" csvXLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
-          series={[{ id: 'objective', label: 'objective J(θ)', unit: delayCurve.units.y ?? 'PV_EU^2', x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
+        <CpmChart title="Delay search (best candidate)" xKind="value" xLabel="Dead time" csvXLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
+          series={[{ id: 'objective', label: 'Fit error', csvLabel: 'objective J(θ)', unit: squared(delayCurve.units.y), x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
       )}
-      {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay profile was recorded for the best candidate.</p>}
-      {rows.length > 0 && (
-        <div className="cpm-table-wrap"><table className="cpm-table" data-table="candidates">
-          <thead><tr><th>#</th><th>family</th><th>path</th><th>parameters</th><th>objective ({table?.units.y ?? 'PV_EU^2'})</th><th>identifiability</th></tr></thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} data-best={i === 0}>
-                <td className="cpm-mono">{i}{i === 0 ? ' (best)' : ''}</td>
-                <td>{r.family}</td>
-                <td className="cpm-mono">{r.path}</td>
-                <td className="cpm-mono">{r.parameters.map(([k, v]) => `${k}=${v}`).join(', ')}</td>
-                <td className="cpm-mono">{objective && Number.isFinite(objective[i]) ? fmt(objective[i]) : '—'}</td>
-                <td>
-                  {r.flatDelay && <TonePill tone="warn">Flat delay</TonePill>}{' '}
-                  {r.boundsHit && <TonePill tone="warn">Bounds hit</TonePill>}{' '}
-                  {r.signUncertain && <TonePill tone="warn">Sign uncertain</TonePill>}{' '}
-                  <span className="cpm-mono">cond={r.cond}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      )}
+      {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay search was recorded for the best candidate.</p>}
+      {ranked.length > 0 && <DataTable caption="Candidate models of this event" columns={columns} rows={ranked} rowKey={r => String(r.rank)} />}
       </div>
       {intervals && (
         <>
-          <PanelHead eyebrow="Subgate D" title="Parameter uncertainty" right={<TonePill tone="muted">{prov(intervals, 'method') ?? '—'}</TonePill>} />
-          <div className="cpm-table-wrap"><table className="cpm-table" data-table="parameter-intervals">
-            <thead><tr><th>parameter</th><th>std. error ({intervals.units.y ?? 'parameter units'})</th></tr></thead>
-            <tbody>
-              {Array.from(intervals.columns.y, (se, i) => (
-                <tr key={i}><td className="cpm-mono">{names[i] ?? `p${i}`}</td><td className="cpm-mono">{Number.isFinite(se) ? fmt(se) : 'not available'}</td></tr>
-              ))}
-            </tbody>
-          </table></div>
+          <PanelHead eyebrow="Step D" title="Parameter uncertainty" right={<TonePill tone="muted">{codeLabel(prov(intervals, 'method'))}</TonePill>} />
+          <DataTable caption="Parameter uncertainty of the best candidate" columns={intervalColumns} rows={errors} rowKey={r => r.name} />
           <KvRow label="Delay uncertainty">{prov(intervals, 'theta_uncertainty_s') ?? '—'} s (delay grid resolution bound)</KvRow>
         </>
       )}
-      <PanelHead eyebrow="Kernel" title="Rejection reasons" />
+      <PanelHead title="Rejection reasons" />
       {reasons.length === 0 ? <p className="cpm-copy">No candidate was rejected.</p> : (
-        <ul className="cpm-ranked" data-list="rejections">{reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+        <ul className="cpm-ranked" data-list="rejections" aria-label="Rejection reasons">{reasons.map((r, i) => <li key={i}>{reasonText(r)}</li>)}</ul>
       )}
     </section>
   );
