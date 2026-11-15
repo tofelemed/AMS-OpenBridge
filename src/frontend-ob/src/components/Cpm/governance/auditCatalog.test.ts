@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENTITIES, EVENTS, actionView, actorView, entityKind, entityName, entityOne, eventsFor, shortId } from './auditCatalog';
+import { ENTITIES, EVENTS, actionView, actorView, entityKind, entityName, entityOne, eventsFor } from './auditCatalog';
 
 const row = (over: Partial<{ eventType: string; entityType: string; entityId: string; userId: string }>) => ({
   eventType: 'CPM_LOOP_ACTIVATED', entityType: 'CpmLoop', entityId: 'FIC10503', userId: 'a_engineer', ...over,
@@ -46,7 +46,11 @@ describe('an action reads in words with its tone and glyph, never repeating the 
     expect(actionView(row({ eventType: 'CPM_LOOP_DELETED' }))).toEqual({ label: 'Loop deleted', tone: 'bad', glyph: '✕' });
     expect(actionView(row({ eventType: 'ingestion.datasource.tested', entityType: 'data-source-config' })).label).toBe('Data source tested');
     expect(actionView(row({ eventType: 'RBAC_ROLE_PERMISSIONS_RESET', entityType: 'RolePermissions' })).label).toBe('Role permissions reset');
-    expect(actionView(row({ eventType: 'CPM_EVIDENCE_REPUBLISHED_BULK', entityId: 'bulk:20' })).label).toBe('Evidence republished (bulk)');
+    expect(actionView(row({ eventType: 'CPM_EVIDENCE_REPUBLISHED_BULK', entityId: 'bulk:20' })).label).toBe('Loop settings resent to analysis (bulk)');
+    expect(actionView(row({ eventType: 'CPM_EVIDENCE_REPUBLISHED' })).label).toBe('Loop settings resent to analysis');
+    expect(actionView(row({ eventType: 'CPM_INSTRUMENT_BINDING_CREATED' })).label).toBe('Instrument linked');
+    expect(actionView(row({ eventType: 'CPM_RECOMPUTE_STARTED' })).label).toBe('Recalculation started');
+    expect(actionView(row({ eventType: 'AUDIT_CHAIN_RECHAINED', entityType: 'AuditChain' })).label).toBe('Audit chain recalculated');
   });
 
   it('a bulk activation of no loop is not shown in the good tone', () => {
@@ -61,29 +65,44 @@ describe('an action reads in words with its tone and glyph, never repeating the 
     expect(actionView(d, { kind: 'ACTIVATE' }).label).toBe('Activation scheduled');
   });
 
-  it('a code no emitter writes yet still reads as words', () => {
-    expect(actionView(row({ eventType: 'CPM_SOMETHING_NEW' })).label).toBe('CPM something new');
-    expect(actionView(row({ eventType: 'ingestion.thing.done' })).label).toBe('Ingestion thing done');
+  it('a code no emitter writes yet still reads as words, without the service it came from (CHG-202)', () => {
+    expect(actionView(row({ eventType: 'CPM_SOMETHING_NEW' })).label).toBe('Something new');
+    expect(actionView(row({ eventType: 'ingestion.thing.done' })).label).toBe('Thing done');
+    expect(actionView(row({ eventType: 'RBAC_ROLE_RENAMED' })).label).toBe('Role renamed');
   });
 });
 
-describe('the actor', () => {
-  it('a service is System, an old id-only event is Not recorded by name, a person is their user name', () => {
-    expect(actorView('system')).toEqual({ text: 'System', byName: true, id: null });
-    expect(actorView('')).toEqual({ text: 'Not recorded by name', byName: false, id: null });
-    expect(actorView('7c41e0d2-9b1a-4f7e-8d2c-0a1b2c3d4e5f')).toEqual({ text: 'Not recorded by name', byName: false, id: '7c41e0d2-9b1a-4f7e-8d2c-0a1b2c3d4e5f' });
-    expect(actorView('g_admin')).toEqual({ text: 'g_admin', byName: true, id: null });
+describe('the actor (CHG-202: no talk of ids)', () => {
+  const me = { user_id: '5f3c91e2-1111-4222-8333-944445555666', username: 'superadmin', full_name: 'Super Administrator' };
+  it('a service is System, an event with no name is Unknown user, a person is their user name', () => {
+    expect(actorView('system')).toEqual({ text: 'System', byName: true });
+    expect(actorView('')).toEqual({ text: 'Unknown user', byName: false });
+    expect(actorView('unknown')).toEqual({ text: 'Unknown user', byName: false });
+    expect(actorView('7c41e0d2-9b1a-4f7e-8d2c-0a1b2c3d4e5f')).toEqual({ text: 'Unknown user', byName: false });
+    expect(actorView('g_admin')).toEqual({ text: 'g_admin', byName: true });
+  });
+
+  it('the signed-in person reads by their name, by login or by id, without a request', () => {
+    expect(actorView('superadmin', me)).toEqual({ text: 'Super Administrator', byName: true });
+    expect(actorView('SuperAdmin', me)).toEqual({ text: 'Super Administrator', byName: true });
+    expect(actorView(me.user_id, me)).toEqual({ text: 'Super Administrator', byName: true });
+    expect(actorView(me.user_id, { ...me, full_name: '' })).toEqual({ text: 'superadmin', byName: true });
+    expect(actorView('g_admin', me)).toEqual({ text: 'g_admin', byName: true });
   });
 });
 
 describe('the entity by short name', () => {
-  it('names what it can, and shortens a raw id', () => {
+  it('names what it can, and never shows a raw id (CHG-202)', () => {
     expect(entityName(row({}))).toBe('FIC10503');
     expect(entityName(row({ eventType: 'CPM_EVIDENCE_REPUBLISHED_BULK', entityId: 'bulk:20' }))).toBe('20 loops');
     expect(entityName(row({ eventType: 'CPM_LOOPS_BULK_ACTIVATED', entityId: 'bulk:1' }))).toBe('1 loop');
     expect(entityName(row({ entityType: 'CpmEventFrame', entityId: '2230' }))).toBe('EVT-2230');
     expect(entityName(row({ entityType: 'RolePermissions', entityId: 'Engineer' }))).toBe('Engineer');
-    expect(entityName(row({ entityType: 'Display', entityId: 'd19f0a2c-1111-4222-8333-944445555666' }))).toBe('d19f0a2c…');
+    expect(entityName(row({ entityType: 'Display', entityId: 'd19f0a2c-1111-4222-8333-944445555666' }))).toBeNull();
+    expect(entityName(row({ entityType: 'gate_config_bundle', entityId: 'c7d1aa00-1111-4222-8333-944445555666' }))).toBeNull();
+    expect(entityName(row({ entityType: 'data-source-config', entityId: '043f185b' }))).toBeNull();
+    expect(entityName(row({ entityType: 'system_model', entityId: '1234' }))).toBeNull();
+    expect(entityName(row({ entityType: 'SomethingElse', entityId: 'anything' }))).toBeNull();
     expect(entityName(row({ entityType: 'gate_config_bundle', entityId: 'c7d1aa00-1111-4222-8333-944445555666' }), 'FIC10302 · v7')).toBe('FIC10302 · v7');
     expect(entityName(row({ entityType: 'AuditChain', entityId: 'audit.immutable_events' }))).toBe('Whole chain');
     expect(entityName(row({ entityType: 'User', eventType: 'USER_BULK_IMPORTED', entityId: 'bulk-import' }))).toBe('Bulk import');
@@ -92,8 +111,8 @@ describe('the entity by short name', () => {
   it('names the type in words, an unknown one from its code', () => {
     expect(entityOne('gate_config_bundle')).toBe('Gate configuration bundle');
     expect(entityOne('SomethingElse')).toBe('Something else');
-    expect(shortId('abc')).toBe('abc');
-    expect(entityKind({ entityType: 'CpmLoop', entityId: 'bulk:20' })).toBe('CPM loops');
-    expect(entityKind({ entityType: 'CpmLoop', entityId: 'FIC10503' })).toBe('CPM loop');
+    expect(entityKind({ entityType: 'CpmLoop', entityId: 'bulk:20' })).toBe('Loops');
+    expect(entityKind({ entityType: 'CpmLoop', entityId: 'FIC10503' })).toBe('Loop');
+    expect(entityKind({ entityType: 'CpmEventFrame', entityId: '2230' })).toBe('Loop event');
   });
 });

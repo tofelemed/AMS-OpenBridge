@@ -4,6 +4,7 @@
  * bundle; the exit on the Gate Configuration tab that step needs (CHG-184, owner review Q6: no Record details): Open approval →
  * (Approval) for a bundle waiting for an approver, Open deployments → (Deployments) for one waiting for activation. Approving,
  * activating and rolling back stay on Gate Configuration with every rule and refusal.
+ * CHG-202 (owner, 15 Nov 2026): the site by its plant-model name, a profile in words, the signed-in author by their name.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,9 +13,11 @@ import type { BundleSummary } from '../../../api/cpm/config';
 import { Inspector } from '../../../ui/Inspector';
 import { configHref, registryHref } from '../cpaHref';
 import { bundleStateWord, classWord } from '../config/configWords';
+import { useAuthStore } from '../../../store/authStore';
 import { KvRow, TonePill } from '../shared';
+import { actorView } from './auditCatalog';
 import { stamp, zoneTag } from './auditTime';
-import { bundleName } from './useConfigNames';
+import { bundleName, scopeRefWords, useSiteName } from './useConfigNames';
 
 const TO_APPROVE = new Set(['VALIDATED', 'SHADOW_EVALUATED']);
 
@@ -25,9 +28,11 @@ export function waitsFor(state: string): { what: string; exit: string; tab: 'app
   return { what: 'A new activation (NOT active)', exit: 'Open deployments →', tab: 'deployments' };
 }
 
-/** "Loop FIC10301", "Site", "Profile pid_flow". */
+/** "Loop FIC10301", "Site", "Profile PID flow". */
 export const scopeWords = (b: Pick<BundleSummary, 'scopeKind' | 'scopeRef'>): string =>
-  b.scopeKind === 'SITE' ? 'Site' : `${b.scopeKind.charAt(0)}${b.scopeKind.slice(1).toLowerCase()}${b.scopeRef ? ` ${b.scopeRef}` : ''}`;
+  b.scopeKind === 'SITE'
+    ? 'Site'
+    : `${b.scopeKind.charAt(0)}${b.scopeKind.slice(1).toLowerCase()}${b.scopeRef ? ` ${scopeRefWords(b.scopeKind, b.scopeRef)}` : ''}`;
 
 export const BundleState: React.FC<{ state: string }> = ({ state }) => {
   const w = bundleStateWord(state);
@@ -41,11 +46,13 @@ export const ClassMark: React.FC<{ changeClass: string }> = ({ changeClass }) =>
 
 export const ApprovalPanel: React.FC<{ bundle: BundleSummary; open: boolean; onClose: () => void }> = ({ bundle: b, open, onClose }) => {
   const navigate = useNavigate();
+  const me = useAuthStore(s => s.user);
+  const siteName = useSiteName();
   const next = waitsFor(b.state);
   const ref = b.scopeKind === 'SITE' ? undefined : b.scopeRef ?? undefined;
   return (
     <>
-      <Inspector eyebrow="Gate configuration bundle" title={bundleName(b)} meta={<BundleState state={b.state} />} open={open} onClose={onClose}
+      <Inspector eyebrow="Gate configuration bundle" title={bundleName(b, siteName)} meta={<BundleState state={b.state} />} open={open} onClose={onClose}
         primaryAction={
           <div className="cpm-admin-foot cpm-admin-foot--end">
             <ObcButton variant="raised" onClick={() => navigate(configHref({ site: b.site, scope: b.scopeKind, ref, bundle: b.bundleId, tab: next.tab }))}>
@@ -53,10 +60,10 @@ export const ApprovalPanel: React.FC<{ bundle: BundleSummary; open: boolean; onC
             </ObcButton>
           </div>
         }>
-        <KvRow label="Site">{b.site}</KvRow>
+        <KvRow label="Site">{siteName(b.site)}</KvRow>
         <KvRow label="Scope">{scopeWords(b)}</KvRow>
         <KvRow label="Change class"><ClassMark changeClass={b.changeClass} /></KvRow>
-        <KvRow label="Author">{b.createdBy}</KvRow>
+        <KvRow label="Author">{actorView(b.createdBy, me).text}</KvRow>
         <KvRow label={`Updated · ${zoneTag(Date.parse(b.updatedAt))}`}>{stamp(b.updatedAt)}</KvRow>
         <KvRow label="Waits for">{next.what}</KvRow>
         {b.scopeKind === 'LOOP' && b.scopeRef && (

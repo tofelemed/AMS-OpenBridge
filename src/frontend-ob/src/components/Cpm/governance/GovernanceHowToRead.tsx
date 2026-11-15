@@ -5,6 +5,9 @@
  * page's ? said (How these filters differ, About the audit chain, When a permission change applies, Why versions are stored) and
  * the approval rules word for word, the ControlAuthority rule in cplm-api's own words (ConfigStore.cs), stated nowhere before.
  * Corrected on the way: Entity asks the server too (the filters text named only User and Event type); "(A13)" went.
+ * CHG-202 (owner, 15 Nov 2026: no ids or backend text): the rules in plain words (no permission key, content hash, server or
+ * quoted refusal; the ControlAuthority role keeps its exact name, which an administrator has to give it); "Unknown user" with
+ * no talk of ids; the filters, the chain and the stored versions without "server", "rows fetched", "walk" or "payload".
  */
 import React from 'react';
 import { Dialog } from '../../../ui/Dialog';
@@ -15,18 +18,18 @@ export type GovernanceTab = 'trail' | 'approvals' | 'duties' | 'traceability';
 type Term = { pill: Array<[tone: CpmTone, glyph: string, word: string]> } | { act: [tone: CpmTone | null, glyph: string, word: string] } | { term: string };
 interface Part { title: string; rows?: Array<[Term, string]>; text?: string }
 
-/** The approval rules, as Gate Configuration and cplm-api word them. */
-export const APPROVE_RULE = 'Needs cpm.config.approve (by someone other than the author).';
-export const APPROVAL_BINDS = 'An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server.';
-export const CONTROL_AUTHORITY = 'a site-wide or objective / test-permission change needs an approver with the ControlAuthority role';
+/** The approval rules, in plain words (Gate Configuration enforces them; CHG-202). */
+export const APPROVE_RULE = 'Someone other than the author, with permission to approve gate configuration.';
+export const APPROVAL_BINDS = 'An approval holds only for the content approved, and it expires. Approving your own draft, an expired approval or an approval of content changed since is refused.';
+export const CONTROL_AUTHORITY = 'A site-wide change, or a change to an objective or a test permission, needs an approver with the ControlAuthority role.';
 export const SIGN_OUT = 'Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.';
 
 export const HOW_TO: Record<GovernanceTab, Part[]> = {
   trail: [
     { title: 'Actor', rows: [
-      [{ term: 'a user name' }, 'The person signed in when the change was made.'],
-      [{ term: 'System' }, 'A service did it: a shelf that expired, an activation verified.'],
-      [{ term: 'Not recorded by name' }, 'An older Administration event that names its actor by user id; the id is in Record details.'],
+      [{ term: 'a name' }, 'The person signed in when the change was made.'],
+      [{ term: 'System' }, 'The application did it: a shelf that expired, an activation verified.'],
+      [{ term: 'Unknown user' }, 'An older change recorded without the person’s name.'],
     ] },
     { title: 'Action', rows: [
       [{ act: ['good', '✓', 'Loop activated'] }, 'Activated, acknowledged, approved, verified.'],
@@ -34,14 +37,14 @@ export const HOW_TO: Record<GovernanceTab, Part[]> = {
       [{ act: ['bad', '✕', 'Loop deleted'] }, 'Deleted or rejected.'],
       [{ act: [null, '', 'Draft edited'] }, 'Any other change.'],
     ] },
-    { title: 'Filters', text: 'Entity, User, Event type and the time range ask the server, so they reach older records. Find searches only the rows fetched. User matches the exact user name, in any case.' },
-    { title: 'Audit chain', text: 'Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain asks the audit log to walk the chain and shows its answer.' },
+    { title: 'Filters', text: 'Entity, User, Event type and the time range search the whole audit trail, older records too. Find searches only the page shown. User matches the whole user name, in any case.' },
+    { title: 'Audit chain', text: 'Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain checks every entry and shows the result.' },
   ],
   approvals: [
     { title: 'State', rows: [
       [{ pill: [['warn', '◐', 'Validated'], ['warn', '◐', 'Shadow evaluated']] }, 'Waits for an independent approver.'],
       [{ pill: [['warn', '◐', 'Approved']] }, 'Waits for activation.'],
-      [{ pill: [['bad', '✕', 'Activation failed'], ['bad', '✕', 'Partially acknowledged']] }, 'NOT active: activate again once the fleet is fixed.'],
+      [{ pill: [['bad', '✕', 'Activation failed'], ['bad', '✕', 'Partially acknowledged']] }, 'NOT active: activate again once the cause is fixed.'],
     ] },
     { title: 'Rules', rows: [
       [{ term: 'Approve' }, APPROVE_RULE],
@@ -54,7 +57,7 @@ export const HOW_TO: Record<GovernanceTab, Part[]> = {
     { title: 'When a permission change applies', text: SIGN_OUT },
   ],
   traceability: [
-    { title: 'Why versions are stored', text: 'Every stored window carries these versions in its payload, so any historical verdict can be attributed to the formula that produced it.' },
+    { title: 'Why versions are stored', text: 'Every stored window keeps these versions, so any past verdict can be traced to the formula that produced it.' },
   ],
 };
 

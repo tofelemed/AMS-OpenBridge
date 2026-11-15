@@ -4,6 +4,12 @@
  * audit-emitter.ts, audit-service's own AUDIT_CHAIN_RECHAINED). The Entity and Event type filters offer this fixed list; they
  * offered three entity types and only the event types seen in the rows fetched. An action reads in words with its tone and
  * glyph ("✓ Draft approved"), the entity by a short name with its type under it. A code no emitter writes yet still reads as words.
+ *
+ * CHG-202 (owner, 15 Nov 2026: no ids, no backend text): "Loops" and "Loop events" (not "CPM …"); the republish action in the
+ * Loop Registry's words (CHG-201 "Resend to analysis"); no hash, binding or recompute talk; an unknown code without the service
+ * that wrote it. An actor is a person's name, "System" or "Unknown user", never an id (the signed-in person by their full
+ * name, from the session, with no request). An entity known only by an id (a bundle, deployment, data source, display, user,
+ * model) shows its type alone: the codes stay in the filters' option values and the service's data only.
  */
 import type { CpmTone } from '../shared';
 import { codeLabel } from '../vocabulary';
@@ -11,8 +17,8 @@ import { codeLabel } from '../vocabulary';
 export interface EntityKind { code: string; one: string; many: string }
 
 export const ENTITIES: readonly EntityKind[] = [
-  { code: 'CpmLoop', one: 'CPM loop', many: 'CPM loops' },
-  { code: 'CpmEventFrame', one: 'CPM event', many: 'CPM events' },
+  { code: 'CpmLoop', one: 'Loop', many: 'Loops' },
+  { code: 'CpmEventFrame', one: 'Loop event', many: 'Loop events' },
   { code: 'gate_config_bundle', one: 'Gate configuration bundle', many: 'Gate configuration bundles' },
   { code: 'config_deployment', one: 'Configuration deployment', many: 'Configuration deployments' },
   { code: 'data-source-config', one: 'Data source', many: 'Data sources' },
@@ -34,9 +40,9 @@ export const EVENTS: readonly EventKind[] = [
   ...ev('CpmLoop', [
     ['CPM_LOOP_ACTIVATED', 'Loop activated', 'good'], ['CPM_LOOPS_BULK_ACTIVATED', 'Loops activated (bulk)', 'good'],
     ['CPM_LOOP_RETIRED', 'Loop retired'], ['CPM_LOOP_RESTORED', 'Loop restored'], ['CPM_LOOPS_BULK_RETIRED', 'Loops retired (bulk)'],
-    ['CPM_LOOP_DELETED', 'Loop deleted', 'bad'], ['CPM_EVIDENCE_REPUBLISHED', 'Evidence republished'],
-    ['CPM_EVIDENCE_REPUBLISHED_BULK', 'Evidence republished (bulk)'], ['CPM_RECOMPUTE_STARTED', 'Recompute started'],
-    ['CPM_INSTRUMENT_BINDING_CREATED', 'Instrument binding created'],
+    ['CPM_LOOP_DELETED', 'Loop deleted', 'bad'], ['CPM_EVIDENCE_REPUBLISHED', 'Loop settings resent to analysis'],
+    ['CPM_EVIDENCE_REPUBLISHED_BULK', 'Loop settings resent to analysis (bulk)'], ['CPM_RECOMPUTE_STARTED', 'Recalculation started'],
+    ['CPM_INSTRUMENT_BINDING_CREATED', 'Instrument linked'],
   ]),
   ...ev('CpmEventFrame', [
     ['CPM_EVENT_ACKNOWLEDGED', 'Event acknowledged', 'good'], ['CPM_EVENT_SHELVED', 'Event shelved', 'warn'],
@@ -68,7 +74,7 @@ export const EVENTS: readonly EventKind[] = [
     ['USER_CREATED', 'User created'], ['USER_UPDATED', 'User updated'], ['USER_DELETED', 'User deleted', 'bad'], ['USER_BULK_IMPORTED', 'Users imported (bulk)'],
   ]),
   ...ev('system_model', [['cpm.model.reviewed', 'Model reviewed']]),
-  ...ev('AuditChain', [['AUDIT_CHAIN_RECHAINED', 'Chain re-hashed']]),
+  ...ev('AuditChain', [['AUDIT_CHAIN_RECHAINED', 'Audit chain recalculated']]),
 ];
 
 const EVENT = new Map(EVENTS.map(e => [e.code, e]));
@@ -77,17 +83,20 @@ const ENTITY = new Map(ENTITIES.map(e => [e.code, e]));
 /** The event types of one entity type; every type when none is chosen. */
 export const eventsFor = (entity: string): EventKind[] => EVENTS.filter(e => !entity || e.entity === entity);
 
-/** A code no emitter writes yet: a dotted code as words, acronyms upper case. */
+/** The service or module a code starts with ("CPM_", "RBAC_", "ingestion."): not the reader's business. */
+const SOURCE = /^(cpm|rbac|ingestion)[._]/i;
+
+/** A code no emitter writes yet, as words, without the service that wrote it: "CPM_SOMETHING_NEW" → "Something new". */
 export const codeWords = (code: string | null | undefined): string => {
-  const text = code?.includes('.') ? code.replace(/\./g, ' ').replace(/^./, c => c.toUpperCase()) : codeLabel(code);
-  return text.replace(/\bCpm\b/g, 'CPM').replace(/\bRbac\b/g, 'RBAC');
+  const bare = (code ?? '').trim().replace(SOURCE, '');
+  return bare.includes('.') ? bare.replace(/\./g, ' ').replace(/^./, c => c.toUpperCase()) : codeLabel(bare);
 };
 
 /** "Gate configuration bundle"; an unknown type from its code ("SomethingElse" → "Something else"). */
 export const entityOne = (code: string): string =>
   ENTITY.get(code)?.one ?? codeWords(code.replace(/([a-z])([A-Z])/g, '$1_$2'));
 
-/** The entity type a row shows under its name: plural for a bulk event ("20 loops" · "CPM loops"). */
+/** The entity type a row shows under its name: plural for a bulk event ("20 loops" · "Loops"). */
 export const entityKind = (e: { entityType: string; entityId: string }): string =>
   (e.entityId.startsWith('bulk:') ? ENTITY.get(e.entityType)?.many ?? entityOne(e.entityType) : entityOne(e.entityType));
 
@@ -115,30 +124,46 @@ export function actionView(e: Row, deployment?: { kind?: string | null } | null)
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SERVICES = new Set(['system', 'traverse-service']);
 
-/** A raw id, cut to its first eight characters; anything else as written. */
-export const shortId = (id: string): string => (UUID.test(id) ? `${id.slice(0, 8)}…` : id);
+/** A raw id (a GUID): never shown. */
+export const isRawId = (id: string | null | undefined): boolean => UUID.test((id ?? '').trim());
 
-export interface ActorView { text: string; byName: boolean; id: string | null }
+/** The signed-in person, from the session (no request): what lets their own events read by their full name. */
+export interface Me { user_id?: string | null; username?: string | null; full_name?: string | null }
+
+export interface ActorView { text: string; byName: boolean }
+
+const UNKNOWN: ActorView = { text: 'Unknown user', byName: false };
+const same = (a: string, b: string | null | undefined) => !!b && a.toLowerCase() === b.trim().toLowerCase();
 
 /**
- * Who did it: a person's user name; "System" for a service's own event; "Not recorded by name" for an event recorded with a
- * user id only (auth-service before CHG-171) or with no actor at all. The id goes to Record details.
+ * Who did it: "System" for a service's own event; the signed-in person by their full name (matched by login, or by the id an
+ * event recorded before CHG-171); anyone else by their user name; "Unknown user" for an event recorded with an id only or with
+ * no actor at all.
  */
-export function actorView(userId: string | null | undefined): ActorView {
+export function actorView(userId: string | null | undefined, me?: Me | null): ActorView {
   const u = (userId ?? '').trim();
-  if (SERVICES.has(u.toLowerCase())) return { text: 'System', byName: true, id: null };
-  if (!u || u.toLowerCase() === 'unknown') return { text: 'Not recorded by name', byName: false, id: null };
-  if (UUID.test(u)) return { text: 'Not recorded by name', byName: false, id: u };
-  return { text: u, byName: true, id: null };
+  if (SERVICES.has(u.toLowerCase())) return { text: 'System', byName: true };
+  if (!u || u.toLowerCase() === 'unknown') return UNKNOWN;
+  if (me && (same(u, me.username) || same(u, me.user_id))) {
+    const name = me.full_name?.trim() || me.username?.trim();
+    if (name) return { text: name, byName: true };
+  }
+  return UUID.test(u) ? UNKNOWN : { text: u, byName: true };
 }
 
-/** The entity by a short name: a loop's tag, "20 loops", "EVT-2230", a role's name, a bundle's "FIC10302 · v7" when known. */
-export function entityName(e: Row, known?: string | null): string {
+/** The entity types whose id is itself a name the reader knows: a loop's tag, a role's name. */
+const NAMED = new Set(['CpmLoop', 'Role', 'RolePermissions']);
+
+/**
+ * The entity by a short name: a loop's tag, "20 loops", "EVT-2230", a role's name, a bundle's "FIC10302 · v7" when known.
+ * Null when only an id names it: the row and the panel then show its type alone.
+ */
+export function entityName(e: Row, known?: string | null): string | null {
   if (known) return known;
   const bulk = bulkCount(e.entityId);
   if (bulk !== null && Number.isFinite(bulk)) return `${bulk} ${bulk === 1 ? 'loop' : 'loops'}`;
   if (e.entityType === 'CpmEventFrame' && /^\d+$/.test(e.entityId)) return `EVT-${e.entityId}`;
   if (e.entityType === 'AuditChain') return 'Whole chain';
   if (e.entityId === 'bulk-import') return 'Bulk import';
-  return shortId(e.entityId);
+  return NAMED.has(e.entityType) && e.entityId.trim() && !UUID.test(e.entityId) ? e.entityId : null;
 }

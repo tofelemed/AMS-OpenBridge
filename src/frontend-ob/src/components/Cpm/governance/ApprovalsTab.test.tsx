@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // CHG-174 (owner review, badges 9-10, answers 1 and 4): the queue as a list with the selected bundle in a panel, read from the
 // summary projection (finding: it read every bundle in full), its exit on the Gate Configuration tab that step needs.
+// CHG-202 (owner, 15 Nov 2026): sites by their plant-model name, a profile in words, the signed-in author by name, no key.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -9,6 +10,7 @@ import { ApprovalsTab } from './ApprovalsTab';
 
 const go = vi.fn();
 let held = ['system.manage', 'cpm.config.read'];
+let me: { user_id: string; username: string; full_name?: string } | null = null;
 const summaries = vi.fn();
 const full = vi.fn();
 
@@ -21,7 +23,10 @@ vi.mock('../../../ui/shell/shellHooks', () => ({ useShellBand: () => 'wide' }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => go }));
 vi.mock('../../../cpa/activeZone', () => ({ activeZone: () => 'UTC' }));
 vi.mock('../../../store/authStore', () => ({
-  useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: p => held.includes(p) }),
+  useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean; user: typeof me }) => unknown) => pick({ hasPermission: p => held.includes(p), user: me }),
+}));
+vi.mock('../plantLocation', () => ({
+  useSiteFilters: () => ({ data: [{ path: 'root.hdpe', name: 'HDPE Plant', segment: 'hdpe' }, { path: 'root.site2', name: 'Site Two', segment: 'site2' }] }),
 }));
 vi.mock('../../../hooks/useCpm', () => ({
   useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10301', site: 'hdpe' }, { loopId: 'X1', site: 'site2' }], count: 2 } }),
@@ -44,6 +49,7 @@ const mount = () => render(
 
 beforeEach(() => {
   held = ['system.manage', 'cpm.config.read'];
+  me = null;
   go.mockClear(); summaries.mockReset(); full.mockReset();
   summaries.mockImplementation(async (site: string) => ({
     site,
@@ -89,7 +95,7 @@ describe('approvals', () => {
     const panel = await screen.findByRole('complementary');
     expect(within(panel).getByRole('heading', { name: 'FIC10301 · v2' })).toBeTruthy();
     const kv = (label: string) => within(panel).getByText(label).nextElementSibling?.textContent;
-    expect(kv('Site')).toBe('hdpe');
+    expect(kv('Site')).toBe('HDPE Plant');
     expect(kv('Scope')).toBe('Loop FIC10301');
     expect(kv('Change class')).toBe('Policy');
     expect(kv('Author')).toBe('b_engineer');
@@ -131,10 +137,26 @@ describe('approvals', () => {
     await waitFor(() => expect(summaries.mock.calls.length).toBeGreaterThan(before));
   });
 
-  it('without cpm.config.read it says what is needed and reads nothing (it showed the raw 403)', () => {
+  it('without cpm.config.read it says so in words and reads nothing (it showed the raw 403; CHG-202: no key)', () => {
     held = ['system.manage'];
     mount();
-    expect(screen.getByText('The approval queue needs the cpm.config.read permission')).toBeTruthy();
+    expect(screen.getByText('You do not have permission to view approvals')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cpm\.config\.read/);
     expect(summaries).not.toHaveBeenCalled();
+  });
+
+  it('names a site by its plant name, a profile in words, and the signed-in author by name (CHG-202)', async () => {
+    me = { user_id: 'u-1', username: 'b_engineer', full_name: 'Bea Engineer' };
+    summaries.mockImplementation(async (site: string) => ({ site, bundles: site === 'hdpe'
+      ? [bundle({ scopeKind: 'PROFILE', scopeRef: 'pid_flow', version: 4 }), bundle({ bundleId: 'b-9', scopeKind: 'SITE', scopeRef: null, version: 2, updatedAt: '2026-11-08T09:00:00Z' })]
+      : [bundle({ bundleId: 'b-7', site: 'site2', scopeRef: 'X1', updatedAt: '2026-11-07T09:00:00Z' })] }));
+    mount();
+    const panel = await screen.findByRole('complementary');
+    expect(within(panel).getByRole('heading', { name: 'PID flow · v4' })).toBeTruthy();
+    expect(within(panel).getByText('Scope').nextElementSibling?.textContent).toBe('Profile PID flow');
+    expect(within(panel).getByText('Author').nextElementSibling?.textContent).toBe('Bea Engineer');
+    expect(screen.getByText('HDPE Plant · v2')).toBeTruthy();
+    expect(screen.getAllByText(/· Site Two/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/pid_flow|\bhdpe\b|b_engineer/)).toHaveLength(0);
   });
 });

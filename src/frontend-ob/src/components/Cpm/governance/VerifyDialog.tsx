@@ -1,12 +1,14 @@
 /**
- * The result of a chain verification, in the service's own words. A click is never proof: the dialog shows what audit-service
- * answered, and says what it does not serve (range, count, algorithm).
+ * The result of a chain verification. A click is never proof: the dialog says what the audit log answered.
  *
- * CHG-174 (owner review, badge 8): the dialog in parts Answer · Run at · Not served, with the not-served sentence once (it stood
- * in the dialog twice and on the Audit integrity card, which went); a refusal reads "✕ Verify failed" (tone, glyph and word; it
- * read "VERIFY FAILED"); a request that never reached the service says so plainly (it read as a 500, "Failed to fetch"). The last
- * run sits in one line under the button (VerifyLine). The request, its permission and Run again are unchanged.
+ * CHG-174 (owner review, badge 8): the dialog in parts Answer · Run at; a refusal reads "✕ Verify failed" (tone, glyph and word;
+ * it read "VERIFY FAILED"); a request that never reached the service says so plainly (it read as a 500, "Failed to fetch"). The
+ * last run sits in one line under the button (VerifyLine). The request, its permission and Run again are unchanged.
  * CHG-193 (owner decision 15 Nov 2026): no service names on screen; the service is "the audit log".
+ * CHG-202 (owner, 15 Nov 2026: no backend text): the answer in our words, never the service's own text, a status code or a
+ * hash. The service answers 200 only when every entry checks out (intact) and 500 when one does not or the check broke; a
+ * refusal for permission and any other answer say so in words. "Not served" (range, count, algorithm) went: it described the
+ * service's reply, not the chain.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -18,13 +20,23 @@ import { stamp, zoneTag } from './auditTime';
 
 export type VerifyState = ReturnType<typeof useVerifyAuditChain>;
 
-export const NOT_SERVED_NOTE = 'The chain range, entry count and algorithm are not served, so this answer cannot be checked here.';
-export const MEANS_500 = 'This answer means the audit log reported possible tampering or could not complete the walk.';
+export const CHECKING = 'Checking every entry…';
+export const INTACT = 'The audit chain is intact: no entry has been changed.';
+export const CHANGED_OR_UNFINISHED = 'An entry may have been changed, or the check could not finish.';
+export const NO_PERMISSION = 'You do not have permission to verify the audit chain.';
+export const NOT_COMPLETED = 'The audit log could not complete the check.';
 export const NOT_REACHED = 'The audit log could not be reached, so the chain was not checked.';
 
 /** An answer from the service (any HTTP status) against a request that never reached it. */
 const reached = (error: unknown): error is ApiError => error instanceof ApiError;
 const ranText = (at: Date) => `${stamp(at.toISOString())} ${zoneTag(at.getTime())}`;
+
+/** What a failed verification means, in words: never the service's text or its status code. */
+function failure(error: unknown): string {
+  if (!reached(error)) return NOT_REACHED;
+  if (error.status === 401 || error.status === 403) return NO_PERMISSION;
+  return error.status === 500 ? CHANGED_OR_UNFINISHED : NOT_COMPLETED;
+}
 
 export const VerifyDialog: React.FC<{
   verify: VerifyState; ranAt?: Date | null; onRunAgain?: () => void; onClose: () => void;
@@ -37,26 +49,16 @@ export const VerifyDialog: React.FC<{
     <section className="cpm-howto__part" aria-label="Answer">
       <h3 className="cpm-howto__title">Answer</h3>
       <div role="status">
-        {verify.isPending && <p className="cpm-copy">Walking the full chain…</p>}
-        {verify.isSuccess && <><p className="cpm-copy">The audit log answered:</p><p className="cpm-mono">{String(verify.data)}</p></>}
+        {verify.isPending && <p className="cpm-copy">{CHECKING}</p>}
+        {verify.isSuccess && <p className="cpm-copy">{INTACT}</p>}
         {verify.isError && (
-          <>
-            <p className="cpm-copy">
-              <TonePill tone="bad" glyph="✕">Verify failed</TonePill>{' '}
-              {reached(verify.error) ? <span>{verify.error.message}</span> : <span>{NOT_REACHED}</span>}
-            </p>
-            {reached(verify.error) && verify.error.status === 500 && <p className="cpm-copy">{MEANS_500}</p>}
-          </>
+          <p className="cpm-copy">
+            <TonePill tone="bad" glyph="✕">Verify failed</TonePill>{' '}<span>{failure(verify.error)}</span>
+          </p>
         )}
       </div>
     </section>
     {ranAt && !verify.isPending && <KvRow label="Run at">{ranText(ranAt)}</KvRow>}
-    {!verify.isPending && (
-      <section className="cpm-howto__part" aria-label="Not served">
-        <h3 className="cpm-howto__title">Not served</h3>
-        <p className="cpm-copy">{NOT_SERVED_NOTE}</p>
-      </section>
-    )}
   </Dialog>
 );
 
@@ -66,7 +68,7 @@ export const VerifyLine: React.FC<{ verify: VerifyState; ranAt: Date | null }> =
   return (
     <span className="cpm-gov-verify__line" role="status">
       {verify.isIdle && 'Not verified in this session.'}
-      {verify.isPending && 'Walking the full chain…'}
+      {verify.isPending && CHECKING}
       {verify.isSuccess && (ranAt ? `Last run ${ranText(ranAt)}` : 'Last run in this session')}
       {verify.isError && (
         <span className="cpm-pill--bad">

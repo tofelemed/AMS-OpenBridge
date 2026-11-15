@@ -12,6 +12,8 @@
  * Change traceability; they were one long scroll. A user without system.manage sees the Audit trail only, as the lower cards
  * showed to system.manage holders only. Verify sends the same request on the same permission, once; then the button reopens the
  * answer and Run again asks again.
+ * CHG-202 (owner, 15 Nov 2026): Governance in plain words, no ids or backend text on any tab; Verify's disabled reason names
+ * what is missing in words, not the permission key.
  */
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -59,7 +61,7 @@ export const CpmGovernance: React.FC = () => {
           {tab === 'trail' && (
             <span className="cpm-gov-verify">
               <ReasonedButton variant="normal" disabled={!canAudit || verify.isPending}
-                reason={!canAudit ? 'Needs the admin.audit.view permission' : null}
+                reason={!canAudit ? 'Needs permission to view the audit trail' : null}
                 onClick={() => { if (!hasAnswer) run(); setVerifying(true); }}>
                 Verify audit chain
               </ReasonedButton>

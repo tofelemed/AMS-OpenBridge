@@ -3,12 +3,13 @@
  * in the registry → Loop Registry; a bundle → Gate Configuration on the tab its step needs (approved → Approval, shadow → Shadow,
  * else Properties); a deployment → its bundle's Deployments tab (when the page could read which bundle); a role → Administration ›
  * Roles; a user → Administration › Users; an HMI display → the designer, in a build that has it. Only a single loop linked before.
+ * CHG-202: a link never reads as an id (a display known only by its id reads "HMI display"); a bundle names its site in words.
  */
 import type { AuditEventRow } from '../../../api/auditApi';
 import { isSliceNavPath } from '../../../productSlice';
 import { adminHref, configHref, registryHref } from '../cpaHref';
 import type { ConfigTab } from '../config/EditorView';
-import { entityName } from './auditCatalog';
+import { entityName, entityOne } from './auditCatalog';
 import { bundleName, type ConfigNames } from './useConfigNames';
 
 export interface ObjectLink { label: string; to: string }
@@ -24,13 +25,13 @@ const GONE = new Set(['RBAC_ROLE_DELETED', 'USER_DELETED', 'DISPLAY_DELETED', 'F
 export function bundleOf(e: AuditEventRow, names: ConfigNames): { id: string; name?: string } | null {
   if (e.entityType === 'gate_config_bundle') {
     const b = names.bundle(e.entityId);
-    return { id: e.entityId, name: b ? bundleName(b) : undefined };
+    return { id: e.entityId, name: b ? bundleName(b, names.site) : undefined };
   }
   if (e.entityType === 'config_deployment') {
     const d = names.deployment(e.entityId);
     if (!d) return null;
     const b = names.bundle(d.bundleId);
-    return { id: d.bundleId, name: b ? bundleName(b) : undefined };
+    return { id: d.bundleId, name: b ? bundleName(b, names.site) : undefined };
   }
   return null;
 }
@@ -53,6 +54,8 @@ export function objectLink(
   if (e.entityType === 'User') {
     return ctx.has('admin.users.edit') && e.entityId !== 'bulk-import' ? { label: 'Users', to: adminHref('users') } : null;
   }
-  if (e.entityType === 'Display' && isSliceNavPath('/designer')) return { label: entityName(e), to: `/designer/${encodeURIComponent(e.entityId)}` };
+  if (e.entityType === 'Display' && isSliceNavPath('/designer')) {
+    return { label: entityName(e) ?? entityOne(e.entityType), to: `/designer/${encodeURIComponent(e.entityId)}` };
+  }
   return null;
 }

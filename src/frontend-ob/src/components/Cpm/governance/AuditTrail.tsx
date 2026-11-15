@@ -10,6 +10,9 @@
  * tone and glyph) · Entity (a short name, its type under it), and the shared pager over every event on the server (25 a page; it
  * paged the newest 200 in the browser). The selected event is in a panel beside the list (a drawer below 1280 px); the page
  * opens on the newest. Entity, user, event type and the time range ask the server; Find searches only the rows fetched.
+ * CHG-202 (owner, 15 Nov 2026): no ids or backend text. The actor is a name, System or Unknown user (the signed-in person by
+ * their full name); an entity known only by an id shows its type alone; a time's tooltip reads as the panel's (it held the raw
+ * record); the empty and refused states say what they mean in words, with no permission key.
  */
 import React, { useState } from 'react';
 import { ApiError } from '../../../api/apiFetch';
@@ -18,12 +21,13 @@ import { useCpmLoops } from '../../../hooks/useCpm';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuthStore } from '../../../store/authStore';
 import { Pagination } from '../../../ui/forms/Pagination';
-import { EmptyState, QueryError } from '../shared';
+import { EmptyState } from '../shared';
 import { actionView, actorView, entityKind, entityName } from './auditCatalog';
 import { bundleOf } from './auditLinks';
-import { rangeQuery, stamp, zoneTag } from './auditTime';
+import { rangeQuery, stamp, stampSeconds, zoneTag } from './auditTime';
 import { AuditEventPanel } from './AuditEventPanel';
 import { AuditFilters, NO_FILTERS, type FilterState } from './AuditFilters';
+import { ReadFailed } from './ReadFailed';
 import { useAuditTrail } from './useAuditTrail';
 import { useConfigNames, type ConfigNames } from './useConfigNames';
 
@@ -41,6 +45,7 @@ const Action: React.FC<{ e: AuditEventRow; names: ConfigNames }> = ({ e, names }
 
 export const AuditTrail: React.FC = () => {
   const has = useAuthStore(s => s.hasPermission);
+  const me = useAuthStore(s => s.user);
   const canRead = has('admin.audit.view');
   const [f, setF] = useState<FilterState>(NO_FILTERS);
   const [anchor, setAnchor] = useState(() => Date.now());
@@ -49,7 +54,7 @@ export const AuditTrail: React.FC = () => {
   const [drawer, setDrawer] = useState(false);
   const user = useDebounce(f.user.trim(), 400);
   const range = rangeQuery(f.range, anchor, f.fromDay, f.toDay);
-  const t = useAuditTrail({ entityType: f.entityType, eventType: f.eventType, user, ...range }, f.search, page, canRead);
+  const t = useAuditTrail({ entityType: f.entityType, eventType: f.eventType, user, ...range }, f.search, page, canRead, me);
   const loops = useCpmLoops();
   const names = useConfigNames(
     t.rows.some(e => e.entityType === 'gate_config_bundle' || e.entityType === 'config_deployment'),
@@ -75,20 +80,18 @@ export const AuditTrail: React.FC = () => {
       <section className="cpm-surface cpm-admin-list" aria-label="Audit events">
         <AuditFilters value={f} onChange={change} />
         {!canRead && (
-          <EmptyState title="Audit reads require the admin.audit.view permission"
-            copy="Your session does not carry it; the trail itself keeps recording regardless." />
+          <EmptyState title="You do not have permission to view the audit trail" copy="Changes are still recorded." />
         )}
         {canRead && audit.isLoading && <EmptyState title="Loading audit trail…" />}
         {canRead && forbidden && (
-          <EmptyState title="The audit log refused the read"
-            copy="Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions." />
+          <EmptyState title="The audit log could not be opened" copy="Sign in again to refresh your permissions." />
         )}
         {canRead && audit.isError && !forbidden && (
-          <QueryError title="Audit log not reached" error={audit.error} retry={() => void audit.refetch()} />
+          <ReadFailed title="Audit log not reached" retry={() => void audit.refetch()} />
         )}
         {canRead && audit.data && !audit.isError && t.rows.length === 0 && (filtered
-          ? <EmptyState title="No audit events match" copy="The trail records display, CPM, gate-configuration, data-source, role and user changes." />
-          : <EmptyState title="No governance events recorded yet" copy="Display, CPM, gate-configuration, data-source, role and user changes are recorded here as they happen." />
+          ? <EmptyState title="No audit events match" copy="The audit trail records changes to loops, loop events, gate configuration, data sources, displays, roles and users." />
+          : <EmptyState title="No governance events recorded yet" copy="Changes to loops, loop events, gate configuration, data sources, displays, roles and users are recorded here as they happen." />
         )}
 
         {t.rows.length > 0 && (
@@ -98,18 +101,19 @@ export const AuditTrail: React.FC = () => {
               <tbody>
                 {t.rows.map(e => {
                   const on = e.eventId === selected?.eventId;
-                  const actor = actorView(e.userId);
+                  const actor = actorView(e.userId, me);
+                  const name = entityName(e, bundleOf(e, names)?.name);
                   return (
                     <tr key={e.eventId} className={`cpm-reg-row${on ? ' cpm-reg-row--selected' : ''}`} aria-current={on ? 'true' : undefined}
                       onClick={() => pick(e)}>
-                      <td title={e.timestampUtc}>
+                      <td title={stampSeconds(e.timestampUtc)}>
                         <button type="button" className="cpm-audit-open" onClick={ev => { ev.stopPropagation(); pick(e); }}>{stamp(e.timestampUtc)}</button>
                       </td>
                       <td className={actor.byName ? undefined : 'cpm-gov-muted'}>{actor.text}</td>
                       <td><Action e={e} names={names} /></td>
                       <td>
-                        <span className="cpm-gov-entity">{entityName(e, bundleOf(e, names)?.name)}</span>
-                        <span className="cpm-event-row__sub">{entityKind(e)}</span>
+                        <span className="cpm-gov-entity">{name ?? entityKind(e)}</span>
+                        {name && <span className="cpm-event-row__sub">{entityKind(e)}</span>}
                       </td>
                     </tr>
                   );
@@ -124,7 +128,7 @@ export const AuditTrail: React.FC = () => {
         )}
       </section>
       {selected && (
-        <AuditEventPanel event={selected} names={names} has={has} loopIds={loops.data?.loops.map(l => l.loopId)}
+        <AuditEventPanel event={selected} names={names} has={has} me={me} loopIds={loops.data?.loops.map(l => l.loopId)}
           open={drawer} onClose={() => setDrawer(false)} />
       )}
     </div>

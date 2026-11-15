@@ -20,6 +20,7 @@ const asked = vi.fn();
 let loopList: { loopId: string; site: string }[] | undefined = [{ loopId: 'FIC00701', site: 'hdpe' }];
 const go = vi.fn();
 let names = { bundle: (_id: string) => undefined as unknown, deployment: (_id: string) => undefined as unknown };
+let me: { user_id: string; username: string; full_name?: string } | null = null;
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
@@ -29,7 +30,7 @@ vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-close-google', () => ({
 vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-content-copy-google', () => ({ ObiContentCopyGoogle: () => null }));
 vi.mock('../../../ui/shell/shellHooks', () => ({ useShellBand: () => 'wide' }));
 vi.mock('../../../store/authStore', () => ({
-  useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean }) => unknown) => pick({ hasPermission: p => held.includes(p) }),
+  useAuthStore: (pick: (s: { hasPermission: (p: string) => boolean; user: typeof me }) => unknown) => pick({ hasPermission: p => held.includes(p), user: me }),
 }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => go }));
 vi.mock('../../../cpa/activeZone', () => ({ activeZone: () => 'UTC' }));
@@ -52,6 +53,7 @@ beforeEach(() => {
   go.mockClear();
   loopList = [{ loopId: 'FIC00701', site: 'hdpe' }];
   names = { bundle: () => undefined, deployment: () => undefined };
+  me = null;
   answer = page([
     row({ eventType: 'CPM_EVENT_ACKNOWLEDGED', userId: 'operator', entityType: 'CpmEventFrame', entityId: '48213', correlationId: 'c-71af' }),
     row({ eventType: 'CPM_LOOP_DELETED', userId: 'system' }),
@@ -70,10 +72,10 @@ describe('the audit trail list', () => {
     expect(within(ack).getByText('Event acknowledged')).toBeTruthy();
     expect(within(ack).getByText('✓')).toBeTruthy();
     expect(within(ack).getByText('EVT-48213')).toBeTruthy();
-    expect(within(ack).getByText('CPM event')).toBeTruthy();
+    expect(within(ack).getByText('Loop event')).toBeTruthy();
     expect(within(del).getByText('System')).toBeTruthy();
     expect(within(del).getByText('✕')).toBeTruthy();
-    expect(within(reset).getByText('Not recorded by name')).toBeTruthy();
+    expect(within(reset).getByText('Unknown user')).toBeTruthy();
     expect(within(reset).getByText('Role permissions reset')).toBeTruthy();
   });
 
@@ -82,30 +84,41 @@ describe('the audit trail list', () => {
     expect(within(panel()).getByRole('heading', { name: 'Event acknowledged' })).toBeTruthy();
     fireEvent.click(rows()[2]);
     expect(within(panel()).getByRole('heading', { name: 'Role permissions reset' })).toBeTruthy();
-    expect(within(panel()).getByText('Recorded by user id only; the id is in Record details.')).toBeTruthy();
+    expect(within(panel()).queryByText(/user id|Record details/)).toBeNull();
     expect(within(panel()).getByText('4 Nov 2026 13:04:11')).toBeTruthy();
     expect(within(panel()).getByText('Not available')).toBeTruthy();
   });
 
-  it('Record details hold the raw ids, the correlation and the hash with Copy', () => {
+  it('has no Record details (owner Q6): no event code, correlation or hash anywhere (CHG-202)', () => {
     render(<AuditTrail />);
-    fireEvent.click(within(panel()).getByText('Record details'));
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('CPM_EVENT_ACKNOWLEDGED')).toBeTruthy();
-    expect(within(dialog).getByText('c-71af')).toBeTruthy();
-    expect(within(dialog).getByText('3fa9c2d81e07…')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Copy hash' })).toBeTruthy();
-    expect(within(dialog).getByText('48213')).toBeTruthy();
+    expect(screen.queryByText('Record details')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/CPM_EVENT_ACKNOWLEDGED|c-71af|3fa9c2d8/);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('an actor recorded by id shows the id only in Record details', () => {
+  it('an actor recorded by id reads Unknown user, and the id is shown nowhere (CHG-202)', () => {
     render(<AuditTrail />);
-    expect(screen.queryByText(GUID)).toBeNull();
     fireEvent.click(rows()[2]);
-    fireEvent.click(within(panel()).getByText('Record details'));
-    const actor = within(screen.getByRole('dialog')).getByRole('region', { name: 'Actor' });
-    expect(within(actor).getByText(GUID)).toBeTruthy();
-    expect(within(actor).getByText('Not recorded by name')).toBeTruthy();
+    expect(within(panel()).getByText('Unknown user')).toBeTruthy();
+    expect(document.body.textContent).not.toContain(GUID);
+    expect(document.body.textContent).not.toMatch(/7c41e0d2/);
+  });
+
+  it('the signed-in person reads by their name, by login or by the id an old event recorded (CHG-202)', () => {
+    me = { user_id: GUID, username: 'operator', full_name: 'Olga Petrova' };
+    render(<AuditTrail />);
+    const [ack, , reset] = rows();
+    expect(within(ack).getByText('Olga Petrova')).toBeTruthy();
+    expect(within(reset).getByText('Olga Petrova')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Find event'), { target: { value: 'olga' } });
+    expect(rows()).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText('Find event'), { target: { value: 'operator' } });
+    expect(rows()).toHaveLength(1);
+  });
+
+  it('the time under the cursor reads as the panel does, not as the raw record (CHG-202)', () => {
+    render(<AuditTrail />);
+    expect(within(rows()[0]).getAllByRole('cell')[0].getAttribute('title')).toBe('4 Nov 2026 13:04:11');
   });
 });
 
@@ -114,7 +127,7 @@ describe('links to the object', () => {
     answer = page([row({ eventType: 'CPM_LOOP_ACTIVATED' })]);
     render(<AuditTrail />);
     fireEvent.click(within(panel()).getByText('FIC00701 ↗'));
-    expect(go).toHaveBeenCalledWith('/cpm/registry?loop=FIC00701');
+    expect(go).toHaveBeenCalledWith('/cpm/registry/FIC00701');
     cleanup();
     loopList = [];
     render(<AuditTrail />);
@@ -146,11 +159,13 @@ describe('links to the object', () => {
     expect(go).toHaveBeenCalledWith('/cpm/config?view=editor&bundle=b-6&tab=deployments');
   });
 
-  it('without the configuration read a deployment keeps its id and no link', () => {
+  it('without the configuration read a deployment reads by its type, with no id and no link (CHG-202)', () => {
     answer = page([row({ eventType: 'CONFIG_DEPLOYMENT_SCHEDULED', entityType: 'config_deployment', entityId: 'e5b0aa11-1111-4222-8333-944445555666' })]);
     render(<AuditTrail />);
     expect(within(rows()[0]).getByText('Deployment scheduled')).toBeTruthy();
-    expect(within(rows()[0]).getByText('e5b0aa11…')).toBeTruthy();
+    expect(within(rows()[0]).getAllByText('Configuration deployment')).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(/e5b0aa11/);
+    expect(within(panel()).queryByText('Entity')).toBeNull();
     expect(within(panel()).queryByText(/↗/)).toBeNull();
   });
 
@@ -219,7 +234,7 @@ describe('filters', () => {
     render(<AuditTrail />);
     fireEvent.change(screen.getByLabelText('Find event'), { target: { value: 'zzz' } });
     expect(screen.getByText('No audit events match')).toBeTruthy();
-    expect(screen.getByText('The trail records display, CPM, gate-configuration, data-source, role and user changes.')).toBeTruthy();
+    expect(screen.getByText('The audit trail records changes to loops, loop events, gate configuration, data sources, displays, roles and users.')).toBeTruthy();
     expect(screen.queryByText(/^[\d,]+ events?$/)).toBeNull();
     expect(screen.queryByRole('navigation')).toBeNull();
   });
@@ -267,18 +282,19 @@ describe('server paging (owner answer 2)', () => {
     held = [];
     answer = {};
     render(<AuditTrail />);
-    expect(screen.getByText('Audit reads require the admin.audit.view permission')).toBeTruthy();
+    expect(screen.getByText('You do not have permission to view the audit trail')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/admin\.audit\.view|session/);
     expect(asked.mock.calls[0][1]).toBe(false);
   });
 });
 
 // CHG-193 (owner decision 15 Nov 2026, A2): no service names or status codes on screen; the trail is "the audit log"
 describe('the audit log refusing or not answering', () => {
-  it('says the audit log refused the read, in plain words', () => {
+  it('says the audit log could not be opened, in plain words', () => {
     answer = { isError: true, error: new ApiError(403, 'Forbidden'), refetch: vi.fn() } as unknown as Record<string, unknown>;
     render(<AuditTrail />);
-    expect(screen.getByText('The audit log refused the read')).toBeTruthy();
-    expect(screen.getByText('Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions.')).toBeTruthy();
+    expect(screen.getByText('The audit log could not be opened')).toBeTruthy();
+    expect(screen.getByText('Sign in again to refresh your permissions.')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/audit-service|Audit service|403/);
   });
 

@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // CHG-174 (owner review, the approved sample governance-proposal.html, badges 1, 2, 8, 14, and the owner's answers of 11 Nov 2026).
 import React from 'react';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CpmGovernance } from './CpmGovernance';
-import { APPROVAL_BINDS, APPROVE_RULE, CONTROL_AUTHORITY, SIGN_OUT } from './governance/GovernanceHowToRead';
+import { APPROVAL_BINDS, APPROVE_RULE, CONTROL_AUTHORITY, HOW_TO, SIGN_OUT } from './governance/GovernanceHowToRead';
+import { INTACT } from './governance/VerifyDialog';
+import { technicalIn } from './governance/plainWordsCheck';
 import { SIGN_OUT as ROLES_SIGN_OUT } from '../Administration/roles/RolePanel';
 
 const verify = { isIdle: true, isPending: false, isSuccess: false, isError: false, data: undefined as unknown, error: null, mutate: vi.fn() };
@@ -53,10 +53,10 @@ describe('the header', () => {
     fireEvent.click(screen.getByText('How to read'));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getAllByRole('heading').map(h => h.textContent)).toEqual(['How to read', 'Actor', 'Action', 'Filters', 'Audit chain']);
-    expect(within(dialog).getByText('Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain asks the audit log to walk the chain and shows its answer.')).toBeTruthy();
+    expect(within(dialog).getByText('Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain checks every entry and shows the result.')).toBeTruthy();
   });
 
-  it('on Approvals How to read states the approval rules word for word, ControlAuthority in the server’s words', () => {
+  it('on Approvals How to read states the approval rules in plain words (CHG-202)', () => {
     mount('?tab=approvals');
     fireEvent.click(screen.getByText('How to read'));
     const dialog = screen.getByRole('dialog');
@@ -108,11 +108,11 @@ describe('Verify audit chain (behaviour unchanged)', () => {
   });
 
   it('with an answer, the click shows it and does not ask again; Run again does', () => {
-    Object.assign(verify, { isIdle: false, isSuccess: true, data: 'Hash chain verified.' });
+    Object.assign(verify, { isIdle: false, isSuccess: true, data: 'Chain verified. No tampering detected.' });
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Verify audit chain' }));
     expect(verify.mutate).not.toHaveBeenCalled();
-    expect(screen.getByText('Hash chain verified.')).toBeTruthy();
+    expect(screen.getByText(INTACT)).toBeTruthy();
     fireEvent.click(screen.getByText('Run again'));
     expect(verify.mutate).toHaveBeenCalledTimes(1);
   });
@@ -121,16 +121,16 @@ describe('Verify audit chain (behaviour unchanged)', () => {
     held = ['system.manage'];
     mount();
     expect((screen.getByRole('button', { name: 'Verify audit chain' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Needs the admin.audit.view permission')).toBeTruthy();
+    expect(screen.getByText('Needs permission to view the audit trail')).toBeTruthy();
   });
 });
 
-describe('words kept word for word', () => {
-  const root = join(__dirname, '..', '..', '..', '..', '..');
-  it('the approval rules match Gate Configuration and cplm-api', () => {
-    expect(readFileSync(join(__dirname, 'config', 'lifecycle.ts'), 'utf8')).toContain(APPROVE_RULE);
-    expect(readFileSync(join(__dirname, 'config', 'ApprovalTab.tsx'), 'utf8')).toContain(APPROVAL_BINDS);
-    expect(readFileSync(join(root, 'src', 'services', 'cplm-api', 'Services', 'Config', 'ConfigStore.cs'), 'utf8')).toContain(`"${CONTROL_AUTHORITY}"`);
+describe('words', () => {
+  // CHG-202 (owner, 15 Nov 2026): the rules no longer quote Gate Configuration's permission key or cplm-api's refusal; they
+  // read in plain words, with no permission key, hash, server or code.
+  it('How to read names no permission key, hash, server or code on any tab', () => {
+    const all = Object.values(HOW_TO).flat().flatMap(p => [p.title, p.text ?? '', ...(p.rows ?? []).map(([, meaning]) => meaning)]);
+    expect(technicalIn([...all, APPROVE_RULE, APPROVAL_BINDS, CONTROL_AUTHORITY].join('\n')).join(' | ')).toBe('');
   });
 
   it('the sign-out sentence is the one Roles shows', () => {
