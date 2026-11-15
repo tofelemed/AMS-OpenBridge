@@ -1,7 +1,9 @@
 /**
  * v2.5 Task 2E.4 - the long-tier views (G5 ACF, G6 PSD, G7 waveform fits, G8 lag structure, G9
  * cycle geometry, G10 actuator limits, G11 measurement) on their exact artifacts. Pure bodies on
- * decoded artifacts; the exported views resolve the selected run's artifacts.
+ * decoded artifacts; the exported views resolve the selected run's artifacts. CHG-187 (owner review 11.2): no eyebrow over a
+ * panel, no pill or row that repeats one of the gate's KPI cards, no build or capability wording; G5 and G8 speak plain words
+ * on their charts (G5_SIGNAL_AXIS, g5SignalCaption, G8_LEGEND).
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -17,6 +19,7 @@ import { RequireKinds, col, first, markersAt, markersWhere } from './viewSupport
 import { fmtQuantity } from '../format';
 import { formatInZone } from '../timezone';
 import { cycleTally } from './headlines';
+import { codeLabel } from '../../vocabulary';
 
 const P = (d: DecodedArtifact, k: string) => d.meta.provenance?.[k];
 
@@ -38,20 +41,30 @@ export function crossingInstantsMs(crossings: DecodedArtifact, signalStartMs: nu
   return Number.isFinite(base) ? Array.from(crossings.columns.x, s => base + s * 1000) : [];
 }
 
+/** CHG-187: the centred signal's axis, in words ("EU_centred" read as a code). */
+export const G5_SIGNAL_AXIS = 'Deviation (EU)';
+const STEP_NOUN: Record<string, string> = { LINEAR_DETREND: 'linear trend', DETREND: 'trend', SUBTRACT_MEAN: 'mean' };
+
+/** CHG-187: the signal chart's caption in plain words ("LINEAR_DETREND;SUBTRACT_MEAN" → "…with its linear trend and mean removed…"). */
+export function g5SignalCaption(preprocessing: string | undefined): string {
+  const steps = (preprocessing ?? '').split(';').map(x => x.trim()).filter(Boolean);
+  if (steps.length === 0) return 'Signal and its zero crossings';
+  if (steps.every(x => STEP_NOUN[x])) return `Signal with its ${steps.map(x => STEP_NOUN[x]).join(' and ')} removed, and its zero crossings`;
+  return `Signal (${steps.map(x => codeLabel(x).toLowerCase()).join(', ')}) and its zero crossings`;
+}
+
 export const G5Body: React.FC<{ acf: DecodedArtifact; signal: DecodedArtifact | undefined; crossings: DecodedArtifact | undefined; timeZone: string }> = ({ acf, signal, crossings, timeZone }) => {
-  const acfSeries = col(acf, 'y', 'acf_value', 'overlay', { unit: '1', markers: false });
-  const pairs = col(acf, 'acf_pair_count', 'acf_pair_count', 'neutral', { unit: 'count', dashed: true });
+  const acfSeries = col(acf, 'y', 'Autocorrelation', 'overlay', { unit: '1', markers: false });
+  const pairs = col(acf, 'acf_pair_count', 'Pairs per lag', 'neutral', { unit: 'count', dashed: true });
   // audit F17: the crossings are instants ON the centred signal (y = 0), not a chart of their own
   const instants = crossings ? crossingInstantsMs(crossings, signal?.columns.x[0]) : [];
-  const signalUnit = signal?.units.y ?? 'EU_centred';
-  const signalSeries: CpmSeries[] = signal ? [col(signal, 'y', 'preprocessed_signal', 'pv', { unit: signalUnit })] : [];
-  if (signal && instants.length) signalSeries.push(markersAt(instants, 0, 'crossings', 'zero crossings', 'danger', signalUnit));
+  const signalSeries: CpmSeries[] = signal ? [col(signal, 'y', 'Signal', 'pv', { unit: G5_SIGNAL_AXIS })] : [];
+  if (signal && instants.length) signalSeries.push(markersAt(instants, 0, 'crossings', 'Zero crossings', 'danger', G5_SIGNAL_AXIS));
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G5" title="Oscillation from the autocorrelation"
-        right={<TonePill tone="muted">period {fmtQuantity(P(acf, 'period_s'), 's')} · regularity {fmtQuantity(P(acf, 'regularity'), '1')}</TonePill>} />
-      {signal && <CpmChart title={`preprocessed signal (${P(signal, 'preprocessing')?.replace(/;/g, ' · ') ?? 'basis not declared'}) with the zero crossings`} series={signalSeries} xKind="time" timeZone={timeZone} height={200} />}
-      <CpmChart title="ACF versus lag (s); pair counts on their own axis" series={[acfSeries, pairs]} xKind="value" xLabel="acf_lag_s" xUnit="s" height={220} />
+      <PanelHead title="Oscillation from the autocorrelation" />
+      {signal && <CpmChart title={g5SignalCaption(P(signal, 'preprocessing'))} series={signalSeries} xKind="time" timeZone={timeZone} height={200} />}
+      <CpmChart title="Autocorrelation versus lag; pair counts on their own axis" series={[acfSeries, pairs]} xKind="value" xLabel="Lag" xUnit="s" height={220} />
       {crossings && instants.length > 0 && (
         <details className="cpm-chart__more">
           <summary>{instants.length} zero crossings</summary>
@@ -66,7 +79,8 @@ export const G5Body: React.FC<{ acf: DecodedArtifact; signal: DecodedArtifact | 
           {crossings.columns.x.length > 500 && <p className="cpm-copy">First 500 of {crossings.columns.x.length}; the CSV of the signal chart carries every instant.</p>}
         </details>
       )}
-      <KvRow label="Accepted cycles / regularity method">{fmtQuantity(P(acf, 'accepted_cycles'), 'count')} / {P(acf, 'regularity_method') ?? '—'} — too few cycles or inadequate sampling reject the estimate</KvRow>
+      {/* item 0: the method's name, not its version suffix */}
+      <KvRow label="Regularity method">{P(acf, 'regularity_method') ? codeLabel(P(acf, 'regularity_method')!.replace(/_V\d+$/, '')) : '—'}</KvRow>
     </section>
   );
 };
@@ -86,9 +100,8 @@ export const G6Body: React.FC<{ d: DecodedArtifact; onOpenG5?: () => void; onOpe
   const noiseSeries: CpmSeries[] = Number.isFinite(noise) && noise > 0 ? [{ id: 'noise', label: 'noise_reference', unit, x: d.columns.x, y: Array.from(d.columns.x, () => noise), pen: 'neutral', bandMeaning: 'in-band median level' }] : [];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G6" title={`Spectrum — ${kind}`} right={<TonePill tone="muted">{P(d, 'spectral_window') ?? '—'} · fft {P(d, 'fft_size') ?? '—'} · Δf {P(d, 'resolution_hz') ?? '—'} Hz</TonePill>} />
+      <PanelHead title={`Spectrum — ${kind}`} right={<TonePill tone="muted">{P(d, 'spectral_window') ?? '—'} · fft {P(d, 'fft_size') ?? '—'}</TonePill>} />
       <CpmChart title={`${kind} versus frequency (Hz), log ordinate`} series={[psd, marked, ...noiseSeries]} xKind="value" xLabel="frequency_hz" xUnit="Hz" logY height={260} />
-      <KvRow label="ordinate_kind / unit">{kind} / {unit} — an amplitude is never relabelled as a density</KvRow>
       <KvRow label="detrend / segment / overlap / segments">{P(d, 'detrend') ?? '—'} / {P(d, 'segment_samples') ?? '—'} samples / {P(d, 'overlap_fraction') ?? '—'} / {P(d, 'segments') ?? '—'}</KvRow>
       <KvRow label="peak_indices / harmonic_indices">{P(d, 'peak_indices') ?? '—'} / {P(d, 'harmonic_indices') ?? '—'}</KvRow>
       <div className="cpm-filter-row">
@@ -116,7 +129,7 @@ export const G7Body: React.FC<{ cycles: DecodedArtifact[]; scores?: DecodedArtif
   const fits: CpmSeries[] = accepted.length > 0 ? [col(accepted[0], 'sine_fit', 'sine_fit (first accepted cycle)', 'overlay', { dashed: true }), col(accepted[0], 'triangle_fit', 'triangle_fit (first accepted cycle)', 'vp', { dashed: true })] : [];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G7" title="Per-cycle sine versus triangle fits" right={<TonePill tone={tally.accepted > 0 ? 'good' : 'warn'}>{tally.accepted} accepted of {tally.total}</TonePill>} />
+      <PanelHead title="Per-cycle sine versus triangle fits" />
       {accepted.length > 0
         ? <CpmChart title={`measured cycles in phase coordinates with the sine and triangle predictions (${showing})`} series={[...overlays, ...fits]} xKind="value" xLabel="phase" xUnit="cycle fraction" height={260} />
         : tally.accepted > 0
@@ -142,13 +155,18 @@ export const G7WaveformFits: React.FC<GateViewProps> = ({ manifest, gate }) => {
 };
 
 // ── G8 ─────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * CHG-187 (owner review 11.2): plain names. phi_positive / phi_negative are the PV–OP cross-correlation at a positive and at a
+ * negative lag of the same size, both drawn over |lag|: an odd, asymmetric pair is the lag asymmetry this gate looks for. The
+ * method pill and the bicoherence and capability wording went (item 0); the measure is the gate's KPI card, whose ? tip holds
+ * the "not an odd-harmonic spectrum" note.
+ */
+export const G8_LEGEND = { positive: 'At positive lag', negative: 'At negative lag', odd: 'Odd part', even: 'Even part' } as const;
 export const G8Body: React.FC<{ d: DecodedArtifact }> = ({ d }) => (
   <section className="cpm-surface">
-    <PanelHead eyebrow="G8" title="Lag asymmetry" right={<TonePill tone="muted">{P(d, 'method_id') ?? 'method not declared'}</TonePill>} />
-    <CpmChart title="phi_positive / phi_negative versus lag (s)" series={[col(d, 'y', 'phi_positive', 'pv', { unit: '1' }), col(d, 'phi_negative', 'phi_negative', 'op', { unit: '1' })]} xKind="value" xLabel="lag_s" xUnit="s" height={220} />
-    <CpmChart title="odd / even contributions" series={[col(d, 'odd_contribution', 'odd_contribution', 'overlay', { unit: '1' }), col(d, 'even_contribution', 'even_contribution', 'neutral', { unit: '1', dashed: true })]} xKind="value" xLabel="lag_s" xUnit="s" height={180} />
-    <p className="cpm-copy">This is a lag asymmetry index, not an odd-harmonic spectrum; it is supporting evidence and never decisive on its own.</p>
-    <KvRow label="bicoherence">{P(d, 'bicoherence') ?? 'NOT_INSTALLED'} — {P(d, 'capability_reason') ?? 'no bicoherence picture is shown for an uncomputed method'}</KvRow>
+    <PanelHead title="Lag asymmetry" />
+    <CpmChart title="PV–OP cross-correlation at positive and negative lag" series={[col(d, 'y', G8_LEGEND.positive, 'pv', { unit: '1' }), col(d, 'phi_negative', G8_LEGEND.negative, 'op', { unit: '1' })]} xKind="value" xLabel="Lag" xUnit="s" height={220} />
+    <CpmChart title="Odd and even parts" series={[col(d, 'odd_contribution', G8_LEGEND.odd, 'overlay', { unit: '1' }), col(d, 'even_contribution', G8_LEGEND.even, 'neutral', { unit: '1', dashed: true })]} xKind="value" xLabel="Lag" xUnit="s" height={180} />
   </section>
 );
 export const G8LagStructure: React.FC<GateViewProps> = ({ manifest, gate }) => {
@@ -163,7 +181,7 @@ export const G9Body: React.FC<{ polygons: DecodedArtifact[]; pairs: DecodedArtif
   const firstPairs = pairs.find(p => p.meta.roleOrPath === firstPoly?.meta.roleOrPath) ?? pairs[0];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G9" title="Cycle geometry" right={<TonePill tone="muted">{polygons.length} cycle polygon(s)</TonePill>} />
+      <PanelHead title="Cycle geometry" />
       {firstPoly && <Trajectory title={`${firstPoly.meta.roleOrPath}: PV versus applied input, sample order, corners highlighted`} x={firstPoly.columns.y} y={firstPoly.columns.x}
         xLabel="u_applied" xUnit={firstPoly.units.y ?? 'pp'} yLabel="pv" yUnit={firstPoly.units.x ?? 'EU'} highlight={Array.from(firstPoly.columns.corners ?? [], v => v !== 0)} highlightLabel="corners" />}
       {firstPairs && <Trajectory title={`${firstPairs.meta.roleOrPath}: normalized_pairs (fraction of cycle range)`} x={firstPairs.columns.y} y={firstPairs.columns.x} xLabel="u_norm" xUnit="fraction" yLabel="pv_norm" yUnit="fraction" height={240} />}
@@ -197,11 +215,11 @@ export const G10Body: React.FC<{ d: DecodedArtifact; dwell: DecodedArtifact | un
   }
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G10" title="Actuator limits" right={<TonePill tone="muted">limit source: {P(d, 'limit_reason') ?? '—'}</TonePill>} />
+      <PanelHead title="Actuator limits" />
       <CpmChart title={`u_requested / u_applied${vpMapped ? ' / vp' : ''} (pp)`} series={[col(d, 'u_requested', 'u_requested', 'op', { unit: 'pp', dashed: true }), col(d, 'y', 'u_applied', 'overlay', { unit: 'pp' }), ...(vpMapped ? [col(d, 'vp', 'vp', 'vp', { unit: 'pp' })] : [])]} xKind="time" timeZone={timeZone} height={200} />
       {vpMapped && <CpmChart title="tracking_error (u_requested − vp)" series={[col(d, 'tracking_error', 'tracking_error', 'danger', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={130} />}
-      <IntervalLane title="active limits" intervals={lanes} fromMs={d.columns.x[0]} toMs={d.columns.x[d.n - 1]} timeZone={timeZone} empty="No sample at a limit in this window." />
-      <TimelineTable title="dwell_events" rows={episodes(dwell, i => (dwell?.mask?.[i] ? 'HIGH dwell' : 'LOW dwell'))} timeZone={timeZone} empty="No limit dwell episode retained for this run." />
+      <IntervalLane heading title="Active limits" intervals={lanes} fromMs={d.columns.x[0]} toMs={d.columns.x[d.n - 1]} timeZone={timeZone} empty="No sample at a limit in this window." />
+      <TimelineTable title="Dwell episodes" rows={episodes(dwell, i => (dwell?.mask?.[i] ? 'HIGH dwell' : 'LOW dwell'))} timeZone={timeZone} empty="No limit dwell episode retained for this run." />
       <KvRow label="supply_pressure / actuator_pressure">{P(d, 'supply_pressure') ?? 'NOT_MAPPED'} / {P(d, 'actuator_pressure') ?? 'NOT_MAPPED'} — VP presence is not confirmation; windup is unavailable without controller evidence</KvRow>
     </section>
   );
@@ -223,13 +241,12 @@ export const G11Body: React.FC<{ d: DecodedArtifact; freeze: DecodedArtifact | u
   })).filter(r => r.endMs > r.startMs) : [];
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G11" title="Measurement health" />
+      <PanelHead title="Measurement health" />
       <CpmChart title="PV" series={[col(d, 'y', 'pv', 'pv')]} xKind="time" timeZone={timeZone} height={160} />
       <CpmChart title="delta_pv with the noise band; spikes marked" series={[col(d, 'delta_pv', 'delta_pv', 'overlay', { unit: d.units.delta_pv ?? 'EU' }), markersWhere(d, 'spikes', 'delta_pv', 'spikes', 'danger'), ...bandSeries]} xKind="time" timeZone={timeZone} height={160} />
-      <TimelineTable title="freeze_events" rows={episodes(freeze, () => 'PV frozen')} timeZone={timeZone} empty="No freeze episode retained for this run." />
-      <IntervalLane title="F / C / S / M eligibility intervals (per role)" intervals={healthRows} fromMs={d.columns.x[0]} toMs={d.columns.x[d.n - 1]} timeZone={timeZone}
+      <TimelineTable title="Freeze episodes" rows={episodes(freeze, () => 'PV frozen')} timeZone={timeZone} empty="No freeze episode retained for this run." />
+      <IntervalLane heading title="Eligibility per role (F / C / S / M)" intervals={healthRows} fromMs={d.columns.x[0]} toMs={d.columns.x[d.n - 1]} timeZone={timeZone}
         empty={health ? (P(health, 'absence_semantics') ?? 'No health lanes.') : 'Health lanes not retained — absence of health is NOT OK (NOT_CONFIGURED).'} />
-      <KvRow label="quantization">{P(d, 'quantization') ?? '—'} — quality and device status remain separate; no biased-sensor diagnosis from one PV</KvRow>
     </section>
   );
 };

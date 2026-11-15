@@ -18,6 +18,8 @@ export interface WhyRow {
   against: string;
   /** Requirements: true / false. Detection thresholds and figures without a threshold: null. */
   ok: boolean | null;
+  /** CHG-187: a detection threshold's position ("Below the attention level"), shown in the result column. */
+  position?: string;
 }
 
 export interface WhySources {
@@ -56,8 +58,8 @@ function detection(label: string, value: number | null, warn: number | null, hig
   if (value == null) return missing ? { label, value: missing, against: '', ok: null } : null;
   if (warn == null && high == null) return { label, value: f2(value), against: NO_THRESHOLD, ok: null };
   const parts = [warn != null ? `attention at ${f2(warn)}` : null, high != null ? `high at ${f2(high)}` : null].filter(Boolean).join(' · ');
-  const where = high != null && value >= high ? 'above the high level' : warn != null && value >= warn ? 'above the attention level' : 'below the attention level';
-  return { label, value: `${f2(value)} — ${where}`, against: parts, ok: null };
+  const where = high != null && value >= high ? 'Above the high level' : warn != null && value >= warn ? 'Above the attention level' : 'Below the attention level';
+  return { label, value: f2(value), against: parts, ok: null, position: where };
 }
 
 export function whyRows(gate: string, src: WhySources): WhyRow[] {

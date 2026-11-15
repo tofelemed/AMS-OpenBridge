@@ -1,13 +1,15 @@
 // v2.5 Task 2E.4 (spec §3.1 per-gate views; NR-034, NR-035): every view renders from the exact
 // artifacts with its axis units, never connects nulls, states a band's meaning, and degrades to a
-// stated state - not an empty chart - when its artifacts are missing.
+// stated state - not an empty chart - when its artifacts are missing. CHG-187 (owner review 11.2): no eyebrow, no pill or row that
+// repeats a KPI card, plain words on the G5 and G8 charts, G15's hypotheses as a table.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { decoded, times, T0 } from './fixtures';
 import { G0Body, G2rBody, G3Body, parseBounds } from './ShortViews';
-import { G5Body, G6Body, G7Body, G10Body, G11Body, episodes } from './LongViews';
+import { G5Body, G5_SIGNAL_AXIS, G6Body, G7Body, G8Body, G8_LEGEND, G10Body, G11Body, episodes, g5SignalCaption } from './LongViews';
 import { G14Body, G15Body, rankedHypotheses } from './FusionViews';
+import { fromSymptoms } from './G15Decision';
 import { G13Body, peerRows } from './G13Interaction';
 import { RequireKinds } from './viewSupport';
 import type { GateArtifacts } from '../useGateArtifacts';
@@ -68,14 +70,39 @@ describe('gate views', () => {
     render(<G5Body acf={acf} signal={signal} crossings={crossings} timeZone="UTC" />);
     expect(captured).toHaveLength(2);                                                              // signal + ACF; no crossing_times chart
     const signalSeries = seriesOf(captured[0]);
-    const marks = signalSeries.find(s => s.name === 'zero crossings')!;
+    const marks = signalSeries.find(s => s.name === 'Zero crossings')!;
     expect(marks).toBeTruthy();
     const points = marks.data as Array<[number, number | null]>;
     expect(points.filter(p => p[1] != null)).toHaveLength(3);
     expect(points[0][0]).toBe(T0 + 7_200_000 + 500);                                            // from the signal's first sample, not the window start
     expect(points.every(p => p[1] === 0)).toBe(true);
-    expect(screen.getByText(/period 290.2 s/)).toBeTruthy();                                        // formatted, not 290.23199999999997
+    expect(screen.queryByText(/period 290.2 s/)).toBeNull();                                        // CHG-187: the pill repeated the KPI cards
     expect(screen.getByRole('table', { name: /crossings/i }).querySelectorAll('tbody tr')).toHaveLength(3);
+    // CHG-187: a plain caption and axis name, not LINEAR_DETREND · SUBTRACT_MEAN and EU_centred
+    expect(screen.getByText('Signal with its linear trend and mean removed, and its zero crossings')).toBeTruthy();
+    expect(screen.queryByText(/LINEAR_DETREND|SUBTRACT_MEAN|preprocessed signal/)).toBeNull();
+    expect(yAxesOf(captured[0]).map(a => a.name)).toEqual([G5_SIGNAL_AXIS]);
+    expect(seriesOf(captured[1]).map(s => s.name)).toEqual(['Autocorrelation', 'Pairs per lag']);
+    expect(screen.getByText('Regularity method')).toBeTruthy();
+    expect(screen.queryByText(/Accepted cycles \/ regularity method/)).toBeNull();
+    expect(document.querySelector('.cpm-eyebrow')).toBeNull();
+  });
+
+  it('G5: the caption speaks the preprocessing in words, and names an unknown step without its code', () => {
+    expect(g5SignalCaption('SUBTRACT_MEAN')).toBe('Signal with its mean removed, and its zero crossings');
+    expect(g5SignalCaption(undefined)).toBe('Signal and its zero crossings');
+    expect(g5SignalCaption('HIGH_PASS_FILTER')).toBe('Signal (high pass filter) and its zero crossings');
+  });
+
+  it('G8: plain legend names, no method pill and no bicoherence or capability wording', () => {
+    const d = decoded({ gate: 'G8', kind: 'lag_structure', x: [0, 10, 20], y: [0.1, 0.5, 0.6], xQuantity: 'lag_s', xUnit: 's',
+      columns: { phi_negative: [0.1, -0.3, -0.4], odd_contribution: [0, 0.4, 0.5], even_contribution: [0.1, 0.1, 0.1] },
+      provenance: { method_id: 'G8.XCORR_ASYMMETRY_V1', bicoherence: 'NOT_INSTALLED', capability_reason: 'bispectral estimator not installed in this build' } });
+    render(<G8Body d={d} />);
+    expect(seriesOf(captured[0]).map(s => s.name)).toEqual([G8_LEGEND.positive, G8_LEGEND.negative]);
+    expect(seriesOf(captured[1]).map(s => s.name)).toEqual([G8_LEGEND.odd, G8_LEGEND.even]);
+    expect((captured[0] as { xAxis: { name: string } }).xAxis.name).toBe('Lag (s)');
+    expect(document.body.textContent).not.toMatch(/XCORR_ASYMMETRY_V1|phi_positive|phi_negative|bicoherence|installed|odd-harmonic/i);
   });
 
   it('G6: the ordinate kind and unit come from the artifact, the peak bins are markers, and the axis is log', () => {
@@ -97,7 +124,7 @@ describe('gate views', () => {
       provenance: { cycle_id: '1', accepted: 'false', reject_reason: 'FLAT_CYCLE', sse_sine: '0', sse_triangle: '0', cycle_score: '0', amplitudes: '0', phases: '0' } });
     render(<G7Body cycles={[ok, bad]} />);
     expect(screen.getByText('FLAT_CYCLE')).toBeTruthy();
-    expect(screen.getByText(/1 accepted of 2/)).toBeTruthy();
+    expect(screen.queryByText(/1 accepted of 2/)).toBeNull();                                       // CHG-187: the Accepted cycles card says it
     expect(seriesOf(captured[0]).map(s => s.name)).toEqual(['cycle 0 measured', 'sine_fit (first accepted cycle)', 'triangle_fit (first accepted cycle)']);
   });
 
@@ -120,7 +147,6 @@ describe('gate views', () => {
 
   it('G7: with cycle_scores the counts cover every cycle and the chart says how many it shows', () => {
     render(<G7Body cycles={[g7Cycle('0', true), g7Cycle('99', false)]} scores={g7Scores(100, [0, 10, 20])} />);
-    expect(screen.getByText(/3 accepted of 100/)).toBeTruthy();
     expect(screen.getByText(/showing 2 of 100 cycles/)).toBeTruthy();
   });
 
@@ -150,7 +176,8 @@ describe('gate views', () => {
     const legacy = arts({ interaction: [decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: { capability_state: 'UNAVAILABLE', capability_reason: 'INTERACTION_NOT_ANALYSED_BY_LONG_TIER', legacy_link_flag: 'HAS_PEER_LINKS' } })] });
     render(<G13Body arts={legacy} loopId="FIC10302" timeZone="UTC" />);
     expect(screen.getByText(/Unsupported method/)).toBeTruthy();
-    expect(screen.getByText(/INTERACTION_NOT_ANALYSED_BY_LONG_TIER/)).toBeTruthy();
+    expect(screen.getByText(/This run holds only whether peer links are configured \(peer links configured\), not the aligned peer analysis/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/INTERACTION_NOT_ANALYSED_BY_LONG_TIER|legacy|long tier/i);   // CHG-187: no capability code or legacy wording
     expect(captured).toHaveLength(0);                                                           // never a picture of an uncomputed method
     cleanup();
     const record = decoded({ gate: 'G13', kind: 'interaction', x: [], y: [], provenance: {
@@ -162,9 +189,10 @@ describe('gate views', () => {
     const xc = decoded({ gate: 'G13', kind: 'cross_correlation', role: 'TIC10305', x: [-10, -5, 0, 5, 10], y: [0.1, 0.9, 0.5, 0.2, 0.1], xQuantity: 'lag_s', xUnit: 's', yQuantity: 'xcorr', yUnit: '1', provenance: { peer_id: 'TIC10305', peak_xcorr: '0.9', lag_at_peak_s: '-5', lag_sign_convention: 'POSITIVE_WHEN_PEER_FOLLOWS_LOOP' } });
     const coh = decoded({ gate: 'G13', kind: 'coherence', role: 'TIC10305', x: [0, 0.001, 0.002], y: [0.1, 0.94, 0.2], xQuantity: 'frequency_hz', xUnit: 'Hz', yQuantity: 'coherence', yUnit: '1', provenance: { peer_id: 'TIC10305', band_low_hz: '0.000277', band_high_hz: '0.0166', coherence_band_max: '0.94' } });
     render(<G13Body arts={arts({ interaction: [record], aligned_series: [aligned], cross_correlation: [xc], coherence: [coh] })} loopId="FIC10302" timeZone="UTC" />);
-    expect(screen.getByText('INTERACTION_DETECTED')).toBeTruthy();
+    expect(screen.queryByText('INTERACTION_DETECTED')).toBeNull();                                 // CHG-187: the State card says it
+    expect(screen.queryByText(/G13\.ALIGNED_PEER_ANALYSIS_V1|relationship revision/)).toBeNull();
     expect(screen.getByText('PEER_UNOBSERVED')).toBeTruthy();                                     // the unobserved peer is stated, not drawn
-    expect(screen.getByText(/graph relation is not proof/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Candidate relationships' })).toBeTruthy();          // "a graph relation is not proof" behind the ?
     expect(peerRows(record)[0]).toMatchObject({ id: 'TIC10305', associated: true, direction: 'PEER_LEADS_LOOP', lagS: -60, coherence: 0.94 });
     const graph = captured[0] as { series: Array<{ type: string; data: unknown[]; links: Array<{ source: string; target: string }> }> };
     expect(graph.series[0].type).toBe('graph');
@@ -180,7 +208,9 @@ describe('gate views', () => {
     expect(cohOpt.xAxis.name).toBe('frequency (Hz)');
     cleanup();
     render(<G14Body d={decoded({ gate: 'G14', kind: 'confirmation_record', x: [], y: [], provenance: { claim_type: 'FINAL_ELEMENT_NON_FOLLOWING', state: 'SUSPECTED', reason: 'VP_TRACKING_HEALTHY', positive_evidence_ids: '', contradictions: 'VP_TRACKING_HEALTHY', scope: 'VP tracking', confirmed_at: 'NOT_CONFIRMED', test_id: 'NONE', review_record: 'NONE' } })} timeZone="UTC" />);
-    expect(screen.getAllByText('Suspected')[0]).toBeTruthy();
+    expect(screen.queryByText('Suspected')).toBeNull();                                            // CHG-187: state, claim, reason, scope are cards
+    expect(screen.queryByText('Claim')).toBeNull();
+    expect(screen.getByText('Source validity')).toBeTruthy();
     expect(screen.getByText(/none — no positive non-following record/)).toBeTruthy();
     expect(screen.getByText('VP_TRACKING_HEALTHY', { selector: 'td' })).toBeTruthy();
     cleanup();
@@ -190,10 +220,19 @@ describe('gate views', () => {
       qualified_support: '86400000', condition_state: 'NONE_OPEN', availability: 'HEALTH_NOT_CONFIGURED', case_state: 'SUSPECTED_FINAL_ELEMENT_NONLINEARITY', result_revision: '1' } });
     expect(rankedHypotheses(dec).map(h => h.id)).toEqual(['STICTION', 'TUNING']);
     render(<G15Body d={dec} />);
-    const items = screen.getAllByRole('listitem');
-    expect(items[0].querySelector('[title="STICTION"]')).toBeTruthy();
-    expect(items[0].getAttribute('data-leading')).toBe('true');
-    expect(screen.getByText(/not an additive waterfall/)).toBeTruthy();
+    // CHG-187: the hypotheses are a table, rank · hypothesis · status · score · from; the decision rows are the KPI cards
+    const table = screen.getByRole('table', { name: 'Hypotheses' });
+    expect(Array.from(table.querySelectorAll('th')).map(h => h.textContent)).toEqual(['Rank', 'Hypothesis', 'Status', 'Score', 'From']);
+    const first = table.querySelectorAll('tbody tr')[0];
+    expect(first.querySelector('[title="STICTION"]')).toBeTruthy();
+    expect(first.querySelector('[data-leading="true"]')?.textContent).toContain('Leading');
+    expect(first.querySelector('.ui-badge')?.textContent).toContain('Detected');
+    expect(first.textContent).toContain('0.70');
+    expect(first.textContent).toContain('Sustained oscillation');
+    for (const gone of ['Possible cause', 'Case', 'Open condition', 'Availability', 'Qualified support', 'HYPOTHESES', 'OBSERVATIONS']) expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.getByText(/not an additive waterfall/)).toBeTruthy();                           // the engine trace stays, closed
+    expect((document.querySelector('[data-advanced="engine-trace"]') as HTMLDetailsElement).open).toBe(false);
+    expect(fromSymptoms('OSCILLATION,EFFORT')).toMatch(/^[A-Z]/);
   });
 
   it('a view whose artifact is missing states it (never an empty chart)', () => {

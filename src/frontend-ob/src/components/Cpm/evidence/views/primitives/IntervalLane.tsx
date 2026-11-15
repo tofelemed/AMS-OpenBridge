@@ -61,13 +61,14 @@ export function buildIntervalLaneOption(i: IntervalLaneInput) {
   };
 }
 
-export const IntervalLane: React.FC<Omit<IntervalLaneInput, 'palette'> & { height?: number; empty?: string }> = (props) => {
+/** `heading`: the title as a sentence-case section heading (CHG-187, the Proof tab) instead of the caps label Signal context keeps. */
+export const IntervalLane: React.FC<Omit<IntervalLaneInput, 'palette'> & { height?: number; empty?: string; heading?: boolean }> = (props) => {
   const theme = useChartTheme();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
   const option = useMemo(() => buildIntervalLaneOption({ ...props, palette: chartPalette() }), [props, theme]);
   return (
     <div className="cpm-lane" data-lane={props.title}>
-      <span className="cpm-eyebrow">{props.title}</span>
+      {props.heading ? <h3 className="cpm-subhead">{props.title}</h3> : <span className="cpm-eyebrow">{props.title}</span>}
       {props.intervals.length === 0
         ? <p className="cpm-copy">{props.empty ?? 'No intervals in this run.'}</p>
         : <ReactECharts option={option} notMerge style={{ height: props.height ?? 48 }} />}

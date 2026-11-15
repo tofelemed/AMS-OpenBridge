@@ -6,7 +6,7 @@ import { methodRun } from './runFixture';
 
 describe('proofRows', () => {
   it('shows measured input, value and unit with the metric id', () => {
-    expect(proofRows('G3', methodRun())).toEqual([{ name: 'Mean absolute error', id: 'CPLM-010', value: '0.7103', unit: 'PV units' }]);
+    expect(proofRows('G3', methodRun())).toEqual([{ name: 'Mean absolute error', id: 'CPLM-010', field: 'mae', value: '0.7103', unit: 'PV units' }]);
   });
 
   it('shows the reason for a missing value, never 0', () => {
@@ -20,7 +20,7 @@ describe('proofRows', () => {
 
   it('shows a real 0 as 0', () => {
     const rows = proofRows('G3', methodRun({ result: { mae: 0, gate3_status: 'PASS' } }));
-    expect(rows[0]).toEqual({ name: 'Mean absolute error', id: 'CPLM-010', value: '0', unit: 'PV units' });
+    expect(rows[0]).toEqual({ name: 'Mean absolute error', id: 'CPLM-010', field: 'mae', value: '0', unit: 'PV units' });
   });
 
   it('leaves out a calculation this run does not carry', () => {

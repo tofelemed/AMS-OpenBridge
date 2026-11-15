@@ -1,7 +1,8 @@
 /**
  * CHG-099 (SME review 2 #18): "what am I looking at" — the evidence basis of the workbench (retained proof, rebuilt
  * because the original was no longer held, or a reconstruction viewed beside the retained proof) and the switch between
- * the retained proof and the newest reconstruction. The choice lives in the URL (?view=<analysisRunId>).
+ * the retained proof and the newest reconstruction. The choice lives in the URL (?view=<analysisRunId>). CHG-187 (owner review 11):
+ * retained proof is said once, by the gate head's "Evidence kept" label, so this line names only a rebuild or a reconstruction.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -22,18 +23,19 @@ export const EvidenceBasisBar: React.FC<{
   if (!manifest) return null;
   const basis = basisOf(manifest, view, timeZone, evaluated);
   const newest = manifest.reconstructions?.[0];
-  // Task 15: "nothing held" is said once, by the state panel under the verdict, so the bar adds no pill for it. A
-  // reconstruction asked for (running, failed, empty) is a data state and keeps its line.
-  if (basis.kind === 'NONE' && !newest) return null;
+  // "nothing held" and "retained proof" are said once, by the head's retention label (CHG-187), so the bar adds no pill for
+  // them. A reconstruction asked for (running, failed, empty) is a data state and keeps its line.
+  if ((basis.kind === 'NONE' || basis.kind === 'RETAINED') && !newest) return null;
+  const named = basis.kind !== 'NONE' && basis.kind !== 'RETAINED';
   // nothing to switch to when the rebuild is all there is (REBUILT_LOST)
   const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST';
   return (
     <div className="cpm-eval-note cpm-evidence-basis" role="group" aria-label="Evidence basis">
-      {basis.kind !== 'NONE' && <TonePill tone={basis.tone}>{basis.label}</TonePill>}
-      {basis.detail && <span>{basis.detail}</span>}
+      {named && <TonePill tone={basis.tone}>{basis.label}</TonePill>}
+      {named && basis.detail && <span>{basis.detail}</span>}
       {/* lab pass 2026-10-15: the newest reconstruction is named on every basis, not only beside retained proof */}
       {/* not repeated when the basis text already carries it (the rebuild shown by default) */}
-      {newest && basis.kind !== 'RECONSTRUCTION' && !basis.detail.includes(reconstructionSummary(newest, timeZone, false)) && (
+      {newest && basis.kind !== 'RECONSTRUCTION' && !(named && basis.detail.includes(reconstructionSummary(newest, timeZone, false))) && (
         <span className="cpm-event-row__sub">{reconstructionSummary(newest, timeZone)}</span>
       )}
       {newest?.rebuiltAs && onOpenRun && (

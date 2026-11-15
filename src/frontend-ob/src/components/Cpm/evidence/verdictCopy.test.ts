@@ -2,7 +2,7 @@
 // status / reason and the view's headline numbers - never "BANDWIDTH" alone, never filler like
 // "read the artifacts; every value is the run's own" (2026-09-17 audit, F16).
 import { describe, expect, it } from 'vitest';
-import { reasonSentence, statusWord, verdictSentence, whyParagraphs } from './verdictCopy';
+import { limitFlags, reasonSentence, statusWord, verdictSentence, whyParagraphs } from './verdictCopy';
 import type { GateState } from './GateResultState';
 
 const ready: GateState = { kind: 'READY', title: 'Ready', detail: '', stillValid: '', action: 'NONE', tone: 'good' };
@@ -49,5 +49,24 @@ describe('verdict copy', () => {
     expect(whyParagraphs({ gate: 'G12', name: 'System response', status: null, reason: null, state: g12 }).join(' ')).not.toMatch(/Reconstruct/);
     const g5: GateState = { ...g12, action: 'RECONSTRUCT' };
     expect(whyParagraphs({ gate: 'G5', name: 'Oscillation', status: 'PASS', reason: null, state: g5 }).join(' ')).toMatch(/Reconstruct the evidence/);
+  });
+});
+
+// CHG-187 (owner review 11.2): the sentence went; what it added beyond the head's mark and the cards stays as a flag
+describe('limitFlags', () => {
+  it('keeps a limit on the claim as a short flag, capitalised', () => {
+    expect(limitFlags({ gate: 'G5', status: 'WARN', reason: 'BANDWIDTH', stateKind: 'READY', eligibilityDetail: '2.0 samples per 10.0 s period < 8 (observed grid 5.0 s)' }))
+      .toEqual(['Limited by the 5 s acquisition grid']);
+    expect(limitFlags({ gate: 'G14', status: 'NOT_APPLICABLE', reason: 'NOT_A_FINAL_ELEMENT_CLAIM', stateKind: 'NOT_RETAINED' })).toEqual(['The claim is not about the final element']);
+  });
+
+  it('says nothing when there is no reason, or when the state panel already names it', () => {
+    expect(limitFlags({ gate: 'G3', status: 'PASS', reason: null, stateKind: 'READY' })).toEqual([]);
+    for (const k of ['NOT_EVALUATED', 'DISABLED', 'SHORT_TIER', 'UNSUPPORTED_METHOD', 'LOADING'])
+      expect(limitFlags({ gate: 'G13', status: 'NOT_EVALUATED', reason: 'NO_PEER_LINKS', stateKind: k })).toEqual([]);
+  });
+
+  it('flags a run with no verdict', () => {
+    expect(limitFlags({ gate: 'G5', status: null, reason: null, stateKind: 'READY' })).toEqual(['No verdict recorded for this run']);
   });
 });

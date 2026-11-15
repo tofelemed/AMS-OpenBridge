@@ -6,6 +6,8 @@
  * window, ‹ ›, Newest, Go to date … the way back) → [gate rail | one panel: gate head with the run's actions → evidence basis →
  * three tabs (Proof, Rules & parameters, Signal context; ?sub=, kept by goTo) → foot strip with the window, its samples and
  * Evidence Replay]. There is no right column, and no More. CHG-184 (owner review item 0, 11.3): no Identity & raw tab, no run id.
+ * CHG-187 (owner review 9, 11): each fact once - one retention label and "Measured vs required" (a dialog) in the gate head,
+ * the gate's numbers as KPI cards with a limit as a small flag (no sentence), the foot strip one compact line.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -35,17 +37,18 @@ import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
 import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
 import { EvidenceBasisBar } from './EvidenceBasisBar';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
-import { TERMINAL_RUN_STATES, reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
+import { TERMINAL_RUN_STATES, basisOf, reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
+import { retentionLabel } from './retention';
+import { MeasuredCheck } from './MeasuredCheck';
 
 /** Manifest poll interval while a reconstruction is pending (plant: artifacts land in ~20 s). */
 const RECONSTRUCTION_POLL_MS = 10_000;
 import { useGateArtifacts } from './useGateArtifacts';
 import { findOptionOfRun, neighbours, resolveLanding, runInWindow, useEvidenceWindows, type WindowOption, type WindowTier } from './useEvidenceWindows';
 import { chipCells, gateReasonOf, gateStatusOf } from './gateFacts';
-import { verdictSentence } from './verdictCopy';
+import { limitFlags } from './verdictCopy';
 import { headlineOf } from './views/headlines';
 import { formatInZone, siteZoneOf, zoneLabel } from './timezone';
-import { buildTierGroups } from '../gateStatus';
 import { ReasonedButton } from '../ReasonedButton';
 import { backLink, replayLink } from './runLinks';
 import { useAuthStore } from '../../../store/authStore';
@@ -164,10 +167,17 @@ export const GateEvidenceWorkspace: React.FC = () => {
   });
   const arts = useGateArtifacts(state.kind === 'READY' ? manifest.data : undefined, selection?.gate ?? '');
   const eligibilityDetail = currentOption?.methodEligibility?.[selection?.gate ?? '']?.detail ?? null;
-  const headline = useMemo(() => (selection ? headlineOf(selection.gate, arts) : []), [selection, arts]);
+  const fusedRow = useFusedRow(run.data?.loopId, run.data);
+  // CHG-187: a card that is a stored calculation reads the run's own result, else its window's fused row
+  const headline = useMemo(() => (selection ? headlineOf(selection.gate, arts, f => run.data?.result?.[f] ?? fusedRow.row?.metrics?.[f]) : []),
+    [selection, arts, run.data, fusedRow.row]);
+  const shownFields = useMemo(() => new Set(headline.flatMap(h => (h.field ? [h.field] : []))), [headline]);
   // CHG-077: G14's NO_VP on a loop without a valve position is the plant fact, not "not mapped"
-  const sentenceReason = reason === 'NO_VP' && vpAbsent(inputContextOf(loop)) ? 'VP_NOT_APPLICABLE' : reason;
-  const sentence = selection ? verdictSentence({ gate: selection.gate, name: entry?.name ?? selection.gate, status, reason: sentenceReason, headline, eligibilityDetail }) : '';
+  const flagReason = reason === 'NO_VP' && vpAbsent(inputContextOf(loop)) ? 'VP_NOT_APPLICABLE' : reason;
+  // a Reason card (G14's record) already says why, so no flag repeats it
+  const flags = selection && !headline.some(h => h.label === 'Reason') ? limitFlags({ gate: selection.gate, status, reason: flagReason, stateKind: state.kind, eligibilityDetail }) : [];
+  const basis = rawManifest.data ? basisOf(rawManifest.data, view, timeZone, run.data?.identity.purpose === 'EVALUATE') : undefined;
+  const retention = retentionLabel(manifest.data?.readiness, basis?.kind, state);
   const inputFlags = useMemo(() => effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)), [currentOption, loop]);
   // CHG-162: while a run loads (a gate's own run can be slow) the list keeps the window's gates and their runs
   const chips = useMemo(() => chipsOf({
@@ -177,11 +187,9 @@ export const GateEvidenceWorkspace: React.FC = () => {
     inputFlags,
   }), [run.data, currentOption, catalogue.data, inputFlags, analysisRunParam]);
 
-  const fusedRow = useFusedRow(run.data?.loopId, run.data);
   const reconstructReason = !run.data ? undefined
     : !canReconstruct ? 'Reconstructing evidence needs the cpm.analysis.create permission'
     : !run.data.reconstruction.supported ? reconstructRefusal(run.data.reconstruction.reason) : undefined;
-  const gateTier = selection ? buildTierGroups([selection.gate])[0]?.label : undefined;
   const runWindowText = run.data
     ? `${run.data.windowKind} · ${formatInZone(run.data.support.fromMs, timeZone)} → ${formatInZone(run.data.support.toMs, timeZone)} · ${zoneLabel(timeZone, run.data.support.fromMs)}`
     : '';
@@ -189,8 +197,9 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const period = run.data ? samplePeriodOf(run.data, fusedRow.row) : null;
   const nominal = run.data ? nominalSamples(run.data, period) : null;
   const count = run.data?.support.sampleCount;
+  // CHG-187 (owner review 9): window · samples · rate, one line; the times as they were
   const samplesText = count == null ? '' : nominal != null && period != null
-    ? ` · ${count.toLocaleString('en-GB')} of ${nominal.toLocaleString('en-GB')} samples at ${Number(period.toFixed(1))} s` : ` · ${count.toLocaleString('en-GB')} samples`;
+    ? ` · ${count.toLocaleString('en-GB')} of ${nominal.toLocaleString('en-GB')} samples · every ${Number(period.toFixed(1))} s` : ` · ${count.toLocaleString('en-GB')} samples`;
   const footText = run.data
     ? `${windowSpan({ windowKind: run.data.windowKind, windowStart: run.data.support.fromMs, windowEnd: run.data.support.toMs }, timeZone)}${samplesText}`
     : '';
@@ -275,18 +284,21 @@ export const GateEvidenceWorkspace: React.FC = () => {
         ? <GateRail chips={chips} selected={selection.gate} onSelect={g => { const id = chips.find(c => c.gate === g)?.methodRunId; if (id) goTo(id, g); }} />
         : <div className="cpm-rail" aria-hidden />}
       <section className="cpm-surface cpm-workbench__main">
-      <WorkbenchHead gate={selection.gate} name={entry?.name ?? selection.gate} tier={gateTier} status={status} inputFlags={inputFlags}
+      <WorkbenchHead gate={selection.gate} name={entry?.name ?? selection.gate} status={status} inputFlags={inputFlags}
         actions={(
-          <RunSummaryBar run={run.data} readiness={manifest.data?.readiness}
-            reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct}>
+          <RunSummaryBar run={run.data} retention={retention}
+            reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct}
+            check={run.data && (
+              <MeasuredCheck gate={selection.gate} run={run.data} manifest={manifest.data} eligibilityDetail={eligibilityDetail} inputs={inputContextOf(loop)}
+                subtitle={`${selection.loopId} · ${selection.gate} ${entry?.name ?? ''}`.trim()} onHypotheses={selection.gate === 'G15' ? toHypotheses : undefined} />
+            )}>
             {evaluate && <ObcButton variant="flat" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>{evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}</ObcButton>}
           </RunSummaryBar>
         )} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
         evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
       <div aria-busy={run.isLoading || manifest.isLoading}>
-        <VerdictCard gate={selection.gate} name={entry?.name ?? selection.gate} status={status} reason={reason} state={state} sentence={sentence} headline={headline}
-          tier={gateTier} inputFlags={inputFlags} noHead />
+        <VerdictCard flags={flags} headline={headline} />
       </div>
       {reconstruct.isSuccess && (
         <p className="cpm-copy" role="status">
@@ -299,19 +311,17 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <Tabs idBase="workbench" label="Evidence Workbench views" options={TABS} value={tab} onChange={setTab} />
       <div {...tabPanelProps('workbench', tab)}>
         {tab === 'proof' && (
-          <ProofTab gate={selection.gate} run={run.data} manifest={manifest.data} state={state} eligibilityDetail={eligibilityDetail}
-            timeZone={timeZone} timeFmt={timeFmt} inputs={inputContextOf(loop)}
+          <ProofTab gate={selection.gate} run={run.data} manifest={manifest.data} state={state} timeZone={timeZone} timeFmt={timeFmt} shownFields={shownFields}
             onRetry={() => { void run.refetch(); void rawManifest.refetch(); }}
             onGoToLatest={windows.options[0] ? () => openWindow(windows.options[0]) : undefined}
-            onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }}
-            onHypotheses={selection.gate === 'G15' ? toHypotheses : undefined} />
+            onNavigateGate={g => { const id = run.data?.methodRunIds[g]; if (id) goTo(id, g); }} />
         )}
         {tab === 'rules' && <RulesTab gate={selection.gate} run={run.data} entry={entry} manifest={rawManifest.data} manifestLoading={rawManifest.isLoading} manifestError={rawManifest.error} timeZone={timeZone} />}
         {tab === 'signal' && <SignalTab run={run.data} timeZone={timeZone} timeFmt={timeFmt} />}
       </div>
       {run.data && (
         <div className="cpm-workbench__foot">
-          <span className="cpm-copy">{footText}</span>
+          <span className="cpm-workbench__foot-facts" title={footText}>{footText}</span>
           <ReasonedButton className="ui-link" variant="flat" disabled={replay.href == null} reason={replay.href == null ? replay.reason : null}
             onClick={() => { if (replay.href) navigate(replay.href); }}>Evidence Replay ↗</ReasonedButton>
         </div>

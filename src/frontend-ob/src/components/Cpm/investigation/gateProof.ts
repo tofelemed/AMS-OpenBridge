@@ -23,7 +23,10 @@ export function gateValues(gate: string, matrix: CpmGateMatrix): GateValue[] {
   const defs = catalogueOf(gate);
   if (defs.length === 0) {
     return whyRows(gate, { prov: () => undefined, cfg: () => undefined, row: matrix })
-      .map(r => ({ label: r.label, value: r.against && r.against !== NO_THRESHOLD ? `${r.value} · ${r.against}` : r.value }));
+      .map(r => {
+        const value = r.position ? `${r.value} — ${r.position.charAt(0).toLowerCase()}${r.position.slice(1)}` : r.value;   // CHG-187: the position is its own field
+        return { label: r.label, value: r.against && r.against !== NO_THRESHOLD ? `${value} · ${r.against}` : value };
+      });
   }
   const context = contextOfMatrix(matrix);
   return defs.flatMap((m): GateValue[] => {

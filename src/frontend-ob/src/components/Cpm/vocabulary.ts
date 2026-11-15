@@ -12,7 +12,7 @@ import { HYPOTHESIS_LABEL, OBSERVATION_LABEL } from '../../api/cpm/verdict';
 import { reasonLabel } from './kpi/fleetKpiView';
 
 /** Abbreviations that stay upper case when a code is humanised. */
-const ACRONYMS = new Set(['op', 'pv', 'sp', 'vp', 'acf', 'fft', 'pid', 'vfd', 'eu', 'sse', 'dcs', 'opc', 'id', 'ne107', 'cpa', 'pem']);
+const ACRONYMS = new Set(['op', 'pv', 'sp', 'vp', 'acf', 'fft', 'pid', 'vfd', 'eu', 'sse', 'dcs', 'opc', 'id', 'ne107', 'cpa', 'pem', 'psd']);
 
 /** "SOME_NEW_CODE" → "Some new code"; gate ids (G5, G2r) and acronyms (OP, PV, ACF) keep their case. */
 export function humanise(code: string | null | undefined): string {

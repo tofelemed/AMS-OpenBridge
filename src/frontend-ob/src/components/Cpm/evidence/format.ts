@@ -105,6 +105,7 @@ export const PROVENANCE_LABELS: Record<string, string> = {
   selection_rule: 'Selection rule', qualified_support: 'Qualified support', condition_state: 'Condition', availability: 'Availability',
   case_state: 'Case state', selector_id: 'Selector', selected: 'Selected', tracking: 'Tracking', window_start_ms: 'Window start',
   grid_seconds: 'Acquisition grid', sample_period_sec: 'Sample period', freeze_events: 'Freeze events', dwell_events: 'Dwell events',
+  limit_dwell_warn_s: 'Limit dwell attention',   // CHG-187: a KPI card's title (was "Limit dwell warn s")
 };
 
 const bareKey = (key: string) => key.includes('.') ? key.slice(key.lastIndexOf('.') + 1) : key;

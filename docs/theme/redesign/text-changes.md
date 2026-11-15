@@ -1859,3 +1859,70 @@ rest of the app.
 | Investigation · foot of Result, Evidence, Windows, Hypotheses | "Next: Evidence →" (Secondary) | "Next: Evidence →" (Primary, filled), bottom right; the same for Windows, Hypotheses, Review |
 | Investigation · Windows | "‹ Newer · 1–5 of 100+ · Older ›" centred under the window tiles | the same pager on the "Recent 12h windows" heading line, right-aligned |
 | Investigation · Hypotheses | the line "Scores rank the mechanisms; they are not probabilities." under the mechanism cards | a `?` beside "Mechanisms and the evidence for each", named "Mechanism scores", holding the same sentence |
+
+## CHG-187 Evidence Workbench: gate results, each fact once (owner review items 9, 11; Q4, Q5)
+
+Times keep their format (Q5); "↗" links stay links (Q4). "Reconstruct evidence ↗" and "Evaluate a window" are unchanged
+(Task 6 redoes them). Signal context is unchanged except the shared foot strip. The G15 "Advanced — engine trace (raw codes)"
+disclosure stays, closed (owner has not ruled).
+
+| Where | Was | Now |
+|---|---|---|
+| Workbench · gate head | caps tier eyebrow over the gate ("ELIGIBILITY", "DIAGNOSTIC EVIDENCE", "FUSION") | removed (the gate list beside it groups the gates by tier) |
+| Workbench · gate head · retention | "PROOF RETAINED · COMPLETE" | label "i Evidence kept" + `?` ("The live engine's own arrays for this run, kept by the retention policy.") |
+| Workbench · under the head | "● Retained proof · The live engine's own arrays for this run, kept by the retention policy." | removed (the head's label and its `?`) |
+| Workbench · Proof tab note | "Evidence not retained for this run ? The verdict and every value of this run stand." | label "– Evidence not kept" + `?` in the gate head (the policy sentence and "The verdict and every value of this run stand."); no note in the tab |
+| Workbench · gate head · arrays still arriving | "Proof retained · PENDING" | "i Evidence arriving" + `?` ("Some of the arrays are not stored yet. The verdict and its values are valid.") |
+| Workbench · Proof tab · empty | (nothing, or the not-retained note) | "No inputs are stored for this gate, and its evidence was not kept." when the gate has no inputs; "No charts for this run." when its inputs are all cards above (only when the tab would otherwise be empty) |
+| Workbench · Proof · not evaluated / disabled | pill "● Not evaluated" over "Not evaluated: the engine looked and declined" | no pill (the head's mark says it); the panel title and reason stay |
+| Workbench · sentence above the tiles | "G5 Oscillation (ACF): Warning — ACF period 280.5 s, regularity 1.00, accepted cycles 71; limited by the 5 s acquisition grid." (every gate) | removed; a real limit stays as a small flag: "· Limited by the 5 s acquisition grid", "· The claim is not about the final element", "· No verdict recorded for this run" |
+| Workbench · tiles | boxes with CAPS captions (ACF PERIOD, REGULARITY …) | KPI cards: sentence-case title + `?` tip, then the value with its unit |
+| Workbench · tile tips (new) | the raw value on hover | one line each, e.g. ACF period "Dominant oscillation period, from the autocorrelation."; Accepted cycles "Complete cycles the estimate rests on. Too few cycles or too coarse sampling reject the estimate."; Possible cause "The leading explanation, not confirmed."; Open condition "Missing evidence does not close a condition; a disabled gate reduces assessability rather than proving health." (full list: `evidence/views/tileTips.ts`) |
+| Workbench · G10 tile | "Limit dwell warn s" | "Limit dwell attention" |
+| Workbench · G6 tile | "Ordinate: Psd" | "Ordinate: PSD" |
+| Workbench · foot strip (and under Signal context) | "12 h window · 6 Nov 08:00 → 6 Nov 20:00 UTC · 8,307 of 8,624 samples at 5 s" (wrapped) | "12 h window · 6 Nov 08:00 → 6 Nov 20:00 UTC · 8,307 of 8,624 samples · every 5 s", one line from 1280 px |
+| Proof · inputs table | columns "Input · Value · Unit" | shared data table "Measure · Value", the unit beside the number ("0.96 ratio", a count without "count"), `?` per row with the calculation's meaning and "Calculation CPLM-001" |
+| Proof · inputs a card shows | G5 "Oscillation period (ACF) 1844.8 s", "Oscillation regularity 1.00"; G8 "Horch oddness 0.8107 score" (repeating the cards) | not listed again (the card says it) |
+| Proof · foot of every gate | "MEASURED VS REQUIRED" + rows, "WHAT REMAINS OPEN" + "Nothing this window flags limits this gate's claim." | button "Measured vs required" in the gate head; dialog titled "Measured vs required", subtitle "FIC10401 · G5 Oscillation (ACF)", table "Measure · Measured · Required · Pass / fail" ("✓ Pass", "! Fail", or the position "Above the high level"); then "Evidence behind it" (G15) and "What remains open" only when something is open; no "Nothing open" line |
+| Measured vs required · Required column | "≥ 5 required", "≥ 3 required to persist", "no threshold configured for this profile" | "≥ 5", "≥ 3 to persist", "No threshold configured" |
+| Measured vs required · detection rows | "60.26 — above the high level" | Measured "61.77", Pass / fail "Above the high level" |
+| Gate head · state-only gates | "MEASURED VS REQUIRED · This gate reports a state, not a measured value against a threshold." | label "State check" + `?` (the same sentence); no measured button |
+| Gate head · state-only gate with open limits | (the open list at the foot of the tab) | button "What remains open" opening the same dialog with the list |
+| G14 · What remains open | "Evidence scores rank the explanations; they are not probabilities." (always) | removed (G14 shows no score) |
+| Proof charts | "8,379 points, drawn sampled" | removed on the Proof tab (the foot strip gives the window's samples; the CSV still carries every value) |
+| Proof · every gate panel | caps eyebrow over each panel title ("G5", "G0 ROLE RIBBON", "PEER", "HYPOTHESES", "OBSERVATIONS", "WHY", "CANDIDATE RELATIONSHIPS", "PROPAGATION") | one sentence-case heading per section |
+| G0 panel title | "PV — PV" | "PV" (the role name only when it differs) |
+| G1 | row "selector / selected / tracking: … (unknown mapping stays unknown)" | removed (the cards; "An unknown mapping stays unknown." in their tips) |
+| G1 / G2r / G10 / G11 lanes | caps "MODE_NORMALIZED (STATE INTERVALS)", "DOMAIN_MASK (IN / OUT)", "ACTIVE LIMITS", "DWELL_EVENTS", "FREEZE_EVENTS", "F / C / S / M ELIGIBILITY INTERVALS (PER ROLE)" | headings "Mode (state intervals)", "In or out of the region", "Active limits", "Dwell episodes", "Freeze episodes", "Eligibility per role (F / C / S / M)" |
+| G2 | row "trigger_threshold: X (source)"; "… a ramp is not a step" | row removed (the cards); "A ramp is not a step." in the threshold card's tip |
+| G2r | row "operating_regime_id: … — out of the model domain is not a healthy process" | removed (the card and its tip) |
+| G3 | rows "eligible_duration", "objective_id / benchmark_interval … — no objective means performance without a health pass" | row "benchmark_interval" only (the cards and their tips) |
+| G4 | rows "command_total_variation / measured_travel_variation … — OP travel is not valve travel", "sigma_u_norm / sigma_pv_norm (basis)", "baseline_activity (warn ratio) … — high activity cannot directly confirm friction" | rows "measured_travel_variation", "activity_basis" (the cards and their tips hold the rest) |
+| G5 chart pill | "● period 1844.8 s · regularity 1.00" | removed (the cards) |
+| G5 chart caption | "preprocessed signal (LINEAR_DETREND · SUBTRACT_MEAN) with the zero crossings" | "Signal with its linear trend and mean removed, and its zero crossings" |
+| G5 axis and legend | "EU_centred"; "preprocessed_signal", "zero crossings" | "Deviation (EU)"; "Signal", "Zero crossings" |
+| G5 second chart | "ACF versus lag (s); pair counts on their own axis", legend "acf_value", "acf_pair_count", axis "acf_lag_s (s)" | "Autocorrelation versus lag; pair counts on their own axis", legend "Autocorrelation", "Pairs per lag", axis "Lag (s)" |
+| G5 row | "Accepted cycles / regularity method: 71 / ACF_PEAK_REGULARITY_V1 — too few cycles or inadequate sampling reject the estimate" | "Regularity method: ACF peak regularity" (the count is a card, its note the card's tip) |
+| G6 | pill "HANN · fft 1024 · Δf 0.000195 Hz"; row "ordinate_kind / unit … — an amplitude is never relabelled as a density" | pill "HANN · fft 1024" (Δf is a card); row removed (the Ordinate card and its tip) |
+| G7 | pill "71 accepted of 148" | removed (the Accepted cycles card) |
+| G8 tiles | METHOD "Cross-correlation asymmetry", BICOHERENCE "Not installed", CAPABILITY REASON "bispectral estimator not installed in this build · …" | one card "Horch oddness 0.52 score" + `?` ("Odd symmetry of the PV–OP cross-correlation. A lag asymmetry index, not an odd-harmonic spectrum: supporting evidence, never decisive on its own.") |
+| G8 chart | pill "XCORR_ASYMMETRY_V1"; "phi_positive / phi_negative versus lag (s)", legend "phi_positive", "phi_negative"; "odd / even contributions", legend "odd_contribution", "even_contribution" | no pill; "PV–OP cross-correlation at positive and negative lag", legend "At positive lag", "At negative lag"; "Odd and even parts", legend "Odd part", "Even part"; axis "Lag (s)" |
+| G8 | "This is a lag asymmetry index, not an odd-harmonic spectrum; …"; row "bicoherence NOT_INSTALLED — bispectral estimator not installed in this build; …" | removed (the card's tip; build wording goes, item 0) |
+| G9 / G10 pills | "8 cycle polygon(s)"; "limit source: Declared range" | removed (the cards) |
+| G11 | row "quantization … — quality and device status remain separate; no biased-sensor diagnosis from one PV" | removed (the card and its tip) |
+| G13 | pill "INTERACTION_DETECTED"; rows "method G13.ALIGNED_PEER_ANALYSIS_V1", "reason …", "band (Hz) … · relationship revision 3"; "Unmapped or unobserved peers do not rule out a disturbance; …" | no pill (State card); no method row; "Reason" in words; "Band (Hz)" without the revision; the sentence in the Peers card's tip |
+| G13 sections | "CANDIDATE RELATIONSHIPS · Graph relation is not proof", "PROPAGATION · Associated peers ordered by lag (negative = peer leads)" | "Candidate relationships ?" ("A graph relation is not proof."), "Associated peers by lag ?" ("Ordered by lag; a negative lag means the peer leads.") |
+| G13 run without the analysis | "INTERACTION_NOT_ANALYSED_BY_LONG_TIER — legacy link flag: HAS_PEER_LINKS. The long tier that produced this row did not run the aligned peer analysis." | "This run holds only whether peer links are configured (peer links configured), not the aligned peer analysis." |
+| G14 | panel "G14 · Valve confirmation" with a state pill and rows Claim, Scope, Reason, Non-following dwell; "Confirmation is a claim scoped to its evidence: …" | cards State, Claim, Reason, Scope, Non-following dwell (the scope note and the closing sentence in their tips); panel "Confirmation evidence" with Source validity, Confirmed at, the evidence table, Step test / review record |
+| G15 | panel "G15 · Decision" with pill "Evidence score (uncalibrated, not a probability)" and rows Possible cause, Case, Open condition, Availability, Qualified support | cards Possible cause, Case, Open condition, Availability, Qualified support; the score note behind the "Hypotheses ?" |
+| G15 hypotheses | "HYPOTHESES · Ranked by evidence score — the highest leads; scores do not add up", one sentence each ("● Qualified Controller tuning — evidence score 1.00 (from sustained oscillation) · leading") | "Hypotheses ?" ("Ranked by evidence score: the highest leads, and the scores do not add up."), a table Rank · Hypothesis · Status · Score · From ("1 · Controller tuning Leading · i Qualified · 1.00 · Sustained oscillation") |
+| G15 symptoms | "OBSERVATIONS · Symptoms as observed", seen "yes" / "no" | "Symptoms observed", seen "Yes" / "No" |
+| G15 sources | "WHY · Which gate supplied each symptom" | "Which gate supplied each symptom" |
+| G15 | "Missing evidence does not close a condition; a disabled gate reduces assessability rather than proving health." | in the Open condition card's tip |
+| Rules & parameters · headings | caps "WHAT THIS GATE ASKS", "METHOD", "PARAMETERS USED" | "What this gate asks", "Parameters used"; Method is a row of the first section |
+| Rules · Needs | the engine's text, e.g. "Samples on the window; per-role quality decoded under the source's declared protocol." | plain words, e.g. "Samples in the window, with each signal's quality read from its source." (17 gates, `tabs/rulesText.ts`; a changed engine text shows as served) |
+| Rules · Role | "BLOCKING" | "Blocking" |
+| Rules · thresholds | "Thresholds: FLOW_FAST_SELF_REG profile, as in force at …" | "Thresholds: Flow, fast self-regulating profile, as in force at …" |
+| Rules · pinned | "This run is pinned: these are the parameters and configuration it ran under, not those in force now." | label "Pinned to the run's settings" + `?` ("These are the parameters and configuration this run ran under, not those in force now.") |
+| Gate list | "ø G14 Final-element / confirmation" on two lines | one line (the list is as wide as its longest gate) |
+| Window dropdown (Workbench, Investigation, Replay) | "6 Nov 20:00 · Oscillation confirme" (cut at 250 px) | the whole label; the dropdown is as wide as its longest option |

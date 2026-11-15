@@ -1,7 +1,8 @@
 /* Task 15: the Evidence Workbench's frame. The gate rail on the left, the run bar and the reading column on the right.
    Placement only: sizes are the app's own (the rail's gates take the chips' height, padding and radius they had). */
 .cpm-workbench {
-  display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  /* CHG-187 (owner review 9): the rail is as wide as its longest gate, so every gate reads on one line (G14 wrapped) */
+  display: grid; grid-template-columns: minmax(180px, max-content) minmax(0, 1fr);
   gap: var(--traverse-space-4); align-items: start;
 }
 /* CHG-162 (owner review): the reading column is one panel: the gate head row and the foot strip run edge to edge. */
@@ -15,7 +16,7 @@
 .cpm-workbench__gate .cpm-panel-title { margin: 0; }
 .cpm-workbench__head .cpm-run-bar { padding: 0; border: 0; gap: var(--traverse-space-2); }
 .cpm-workbench__foot {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3);
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-2) var(--traverse-space-3);
   margin: 0 calc(-1 * var(--traverse-space-4)); padding: var(--traverse-space-1) var(--traverse-space-4);
   border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
   border-end-start-radius: inherit; border-end-end-radius: inherit;
@@ -25,8 +26,10 @@
 /* the band's window kind and Go to date keep to their content */
 .cpm-band .cpm-kind-select { width: auto; }
 .cpm-step-pair { display: inline-flex; align-items: center; }
-/* the window's end and state fit in 250 px; on a compact page the band then holds its controls on one line at 1440 */
-.cpm-compact .cpm-band .cpm-evidence-toolbar__window { max-width: 250px; }
+/* CHG-187 (owner review 9): the window dropdown is as wide as its longest label (250 px cut "…Oscillation confirmed", here and on
+   Investigation and Replay, which share it); the compact band's controls sit 8 px apart, so they still hold one line at 1440 */
+.cpm-compact .cpm-band .cpm-evidence-toolbar__window { flex: 0 0 auto; width: auto; min-width: 0; max-width: 100%; }
+.cpm-compact .cpm-band__row { column-gap: var(--traverse-space-2); }
 .cpm-date-jump { display: flex; align-items: center; gap: var(--traverse-space-2); }
 /* Task 16: the four tabs. Each panel is a column of surfaces; the links sit in a row under them. */
 .cpm-workbench__tab { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
@@ -53,7 +56,7 @@
 }
 .cpm-rail__mark { font-weight: 700; flex: 0 0 auto; }
 .cpm-rail__code { flex: 0 0 auto; }
-.cpm-rail__name { min-width: 0; overflow-wrap: anywhere; }
+.cpm-rail__name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .cpm-rail__gate:hover { box-shadow: 0 0 0 1px var(--instrument-enhanced-primary-color); }
 .cpm-rail__gate--selected { outline: 2px solid var(--instrument-enhanced-primary-color); outline-offset: 1px; }
 .cpm-rail__gate:disabled { opacity: 0.8; cursor: not-allowed; border-style: dashed; }
@@ -86,3 +89,32 @@
 }
 .cpm-gate-state--note h3 { margin: 0; font-size: var(--traverse-type-body); font-weight: 600; color: var(--traverse-text-primary); }
 .cpm-gate-state--note .cpm-gate-state__valid { font-size: var(--traverse-type-body); }
+
+/* CHG-187 (owner review 9, 11): the foot strip is one line at desktop widths (window · samples · rate); narrower it may wrap. */
+.cpm-workbench__foot-facts { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--traverse-text-secondary); }
+@media (max-width: 1279px) {
+  .cpm-workbench__foot { flex-wrap: wrap; }
+  .cpm-workbench__foot-facts { white-space: normal; }
+}
+/* the gate head: one retention label with its ?, then Measured vs required or "State check" */
+.cpm-run-bar__retention { gap: var(--traverse-space-1); }
+.cpm-measured { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-measured__state { display: inline-flex; align-items: center; gap: var(--traverse-space-1); color: var(--traverse-text-secondary); }
+/* the gate's KPI cards and the limits on its claim, under the head */
+.cpm-verdict--body { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+.cpm-verdict__flags { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
+.cpm-verdict__tiles .cpm-kpicard__head { min-height: 0; }
+.cpm-verdict__tiles .cpm-kpicard__figure { margin-top: var(--traverse-space-2); }
+/* the Proof table's measure and its ?; the measured-vs-required dialog's sections */
+.cpm-proof__measure { display: inline-flex; align-items: center; gap: var(--traverse-space-1); }
+.cpm-why { gap: var(--traverse-space-3); }
+.cpm-why__section { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
+.cpm-why__heading, .cpm-subhead { margin: 0; font-size: var(--traverse-type-body); font-weight: 600; color: var(--traverse-text-primary); }
+/* Rules & parameters: the pinned label in the parameters' head */
+.cpm-rules__pinned { display: inline-flex; align-items: center; gap: var(--traverse-space-1); color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+/* G15: the hypotheses, the symptoms and the gates that supplied them, one heading each */
+.cpm-decision { display: flex; flex-direction: column; gap: var(--traverse-space-3); }
+.cpm-hypo__name[data-leading='true'] { font-weight: 600; }
+.cpm-hypo__lead { margin-inline-start: var(--traverse-space-2); color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); font-weight: 400; }
+/* when the head wraps, the run's actions keep to the right, where they sit on one line */
+.cpm-workbench__head .cpm-run-bar { margin-inline-start: auto; }

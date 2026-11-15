@@ -1,11 +1,14 @@
 // Task 16: the Rules & parameters tab. What the gate asks, the method, the parameters THIS run used (its own artifacts'
 // provenance, never today's defaults) and one note that the run is pinned. CHG-184: no Configuration section, no versions.
+// CHG-187 (owner review 11.3): sentence-case headings, plain "Needs", the role as a word, the profile by its name, the pinned
+// paragraph a label with a ? tip.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RulesTab } from './RulesTab';
+import { plainNeeds } from './rulesText';
 import { artifact, manifest, methodRun } from './runFixture';
 import type { GateCatalogueEntry } from '../../../../api/cpm/catalogue';
 import { useAuthStore } from '../../../../store/authStore';
@@ -13,7 +16,8 @@ import { useAuthStore } from '../../../../store/authStore';
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
 }));
-vi.mock('../../../../api/cpm/config', () => ({ getEffectiveConfig: vi.fn(async () => ({ profileId: 'standard', bundle: { version: 4 }, properties: {} })) }));
+const profile = vi.hoisted(() => ({ id: 'standard' }));
+vi.mock('../../../../api/cpm/config', () => ({ getEffectiveConfig: vi.fn(async () => ({ profileId: profile.id, bundle: { version: 4 }, properties: {} })) }));
 afterEach(cleanup);
 
 const entry = {
@@ -66,10 +70,45 @@ describe('RulesTab', () => {
     expect(screen.queryByRole('button', { name: /Configuration used by this run/ })).toBeNull();
   });
 
-  it('states once that the run is pinned', () => {
+  it('says the run is pinned as a label, the sentence behind its ?', () => {
     asUser([]);
     show();
-    expect(screen.getAllByText(/not those in force now/)).toHaveLength(1);
+    expect(screen.getByText(/Pinned to the run's settings/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: "Pinned to the run's settings" })).toBeTruthy();
+    expect(screen.queryByText(/This run is pinned/)).toBeNull();
+  });
+
+  it('has one sentence-case heading per section and no Method section of its own', () => {
+    asUser([]);
+    show();
+    expect(screen.getAllByRole('heading').map(h => h.textContent)).toEqual(['What this gate asks', 'Parameters used']);
+    expect(document.querySelector('.cpm-eyebrow')).toBeNull();
+    expect(screen.getByText('Method')).toBeTruthy();   // a row of the first section
+  });
+
+  it('writes the role as a word, not in capitals', () => {
+    asUser([]);
+    show();
+    expect(screen.getByText('Performance')).toBeTruthy();
+    expect(screen.queryByText('PERFORMANCE')).toBeNull();
+  });
+
+  it('names the profile in words when it has a name, never in capitals', async () => {
+    asUser(['cpm.config.read']);
+    profile.id = 'FLOW_FAST_SELF_REG';
+    try {
+      show();
+      expect(await screen.findByText(/Thresholds: Flow, fast self-regulating profile/)).toBeTruthy();
+      expect(screen.queryByText(/FLOW_FAST_SELF_REG/)).toBeNull();
+    } finally { profile.id = 'standard'; }
+  });
+
+  it('writes "Needs" in plain words for the text it was written from, and keeps any other text as served', () => {
+    expect(plainNeeds('G5', 'Enough cycles of the candidate period inside the window (>= 3) at >= 8 samples per period.'))
+      .toBe('At least 3 cycles of the oscillation inside the window, with at least 8 samples per cycle.');
+    expect(plainNeeds('G14', 'VP mapped, fresh and GOOD over the qualifying interval.')).not.toMatch(/GOOD|VP /);
+    expect(plainNeeds('G5', 'A changed precondition.')).toBe('A changed precondition.');
+    expect(plainNeeds('G99', 'x')).toBe('x');
   });
 
   it('does not say no parameter was retained while the manifest is loading, and shows a read error as an error', () => {

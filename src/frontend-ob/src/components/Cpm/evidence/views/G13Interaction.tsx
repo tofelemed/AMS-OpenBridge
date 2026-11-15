@@ -4,19 +4,22 @@
  * in seconds with its sign convention stated, the coherence over frequency with the band marked,
  * the candidate relationship graph is an echarts force layout of the record (a graph relation is
  * not proof), and the propagation table orders associated peers by who leads. Unobserved peers,
- * insufficient support, no peers and a legacy row are stated states, never a picture.
+ * insufficient support, no peers and a run without the analysis are stated states, never a picture. CHG-187 (owner review 11.2,
+ * item 0): one sentence-case heading per section (the notes behind ?), no method code, revision or capability wording, and the
+ * state is the gate's KPI card, not a pill here.
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { baseOption, chartPalette, useChartTheme, type ChartPalette } from '../../../../charts/chartTheme';
 import { KvRow, PanelHead, TonePill } from '../../shared';
+import { Toggletip } from '../../../../ui/Toggletip';
 import type { DecodedArtifact } from '../artifactCodec';
 import { useGateArtifacts, type GateArtifacts } from '../useGateArtifacts';
 import type { GateViewProps } from '../EvidenceArtifactRenderer';
 import { GateResultStatePanel } from '../GateResultState';
 import { CpmChart, type CpmSeries } from '../CpmChart';
 import { RequireKinds, col, first } from './viewSupport';
-import { phrase } from '../../vocabulary';
+import { codeLabel, phrase } from '../../vocabulary';
 
 const P = (d: DecodedArtifact | undefined, k: string) => d?.meta.provenance?.[k];
 const list = (s: string | undefined) => (s ?? '').split(';').map(x => x.trim()).filter(Boolean);
@@ -59,22 +62,20 @@ export function buildRelationshipGraph(loopId: string, peers: PeerRow[], palette
 export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d, loopId }) => {
   const theme = useChartTheme();
   const peers = peerRows(d);
-  const state = P(d, 'capability_state') ?? P(d, 'state') ?? 'UNAVAILABLE';
   const reason = P(d, 'capability_reason') ?? P(d, 'reason') ?? '';
   // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
   const graph = useMemo(() => buildRelationshipGraph(loopId, peers, chartPalette()), [loopId, peers, theme]);
   const associated = peers.filter(p => p.associated).sort((a, b) => (a.lagS ?? 0) - (b.lagS ?? 0));
   return (
     <section className="cpm-surface">
-      <PanelHead eyebrow="G13" title="Interaction and disturbances" right={<TonePill tone={state === 'INTERACTION_DETECTED' ? 'warn' : state === 'NO_INTERACTION' ? 'good' : 'muted'}>{state}</TonePill>} />
-      <KvRow label="method">{P(d, 'method_id') ?? '—'}</KvRow>
-      <KvRow label="reason">{reason || '—'}</KvRow>
-      <KvRow label="band (Hz)">{P(d, 'frequency_hz') ?? '—'} · relationship revision {P(d, 'relationship_revision') ?? '—'}</KvRow>
+      <PanelHead title="Interaction and disturbances" />
+      <KvRow label="Reason">{reason ? codeLabel(reason) : '—'}</KvRow>
+      <KvRow label="Band (Hz)">{P(d, 'frequency_hz') ?? '—'}</KvRow>
       {peers.length > 0 && (
         <>
-          <PanelHead eyebrow="Candidate relationships" title="Graph relation is not proof" />
+          <PanelHead title="Candidate relationships" help={<Toggletip variant="how-to" label="Candidate relationships"><p>A graph relation is not proof.</p></Toggletip>} />
           <ReactECharts option={graph} notMerge style={{ height: 260 }} />
-          <PanelHead eyebrow="Propagation" title="Associated peers ordered by lag (negative = peer leads)" />
+          <PanelHead title="Associated peers by lag" help={<Toggletip variant="how-to" label="Associated peers by lag"><p>Ordered by lag; a negative lag means the peer leads.</p></Toggletip>} />
           <table className="cpm-table" data-table="propagation">
             <thead><tr><th>peer</th><th>state</th><th>direction</th><th>lag (s)</th><th>coherence in band</th></tr></thead>
             <tbody>
@@ -92,8 +93,7 @@ export const G13Record: React.FC<{ d: DecodedArtifact; loopId: string }> = ({ d,
           {associated.length === 0 && <p className="cpm-copy">No peer clears both the coherence and cross-correlation floors on shared support.</p>}
         </>
       )}
-      <KvRow label="alternative explanations">{list(P(d, 'alternative_explanations')).map(a => phrase(a)).join(' · ') || 'none listed'}</KvRow>
-      <p className="cpm-copy">Unmapped or unobserved peers do not rule out a disturbance; pairwise correlation alone gives no causal certainty.</p>
+      <KvRow label="Alternative explanations">{list(P(d, 'alternative_explanations')).map(a => phrase(a)).join(' · ') || 'none listed'}</KvRow>
     </section>
   );
 };
@@ -107,7 +107,7 @@ export const G13PeerPanes: React.FC<{ aligned: DecodedArtifact; xcorr: DecodedAr
   ];
   return (
     <section className="cpm-surface" data-peer={peerId}>
-      <PanelHead eyebrow="Peer" title={peerId} right={<TonePill tone="muted">support {P(aligned, 'support_s') ?? '—'} s</TonePill>} />
+      <PanelHead title={peerId} right={<TonePill tone="muted">support {P(aligned, 'support_s') ?? '—'} s</TonePill>} />
       <CpmChart title={`aligned series — ${peerId}`} series={series} xKind="time" timeZone={timeZone} height={220} />
       {xcorr && (
         <CpmChart title={`cross-correlation — ${(P(xcorr, 'lag_sign_convention') ? phrase(P(xcorr, 'lag_sign_convention')) : 'lag')}`} xKind="value" xLabel="lag" xUnit={xcorr.units.x ?? 's'} height={200}
@@ -127,10 +127,12 @@ export const G13Body: React.FC<{ arts: GateArtifacts; loopId: string; timeZone: 
   if (!record) return null;
   const method = P(record, 'method_id');
   if (!method || method === 'G13.PEER_LINK_FLAG' || P(record, 'capability_reason') === 'INTERACTION_NOT_ANALYSED_BY_LONG_TIER') {
+    // CHG-187 (item 0): no capability code and no "legacy" wording: what the run holds, in words
+    const links = P(record, 'legacy_link_flag');
     return (
       <GateResultStatePanel state={{
         kind: 'UNSUPPORTED_METHOD', title: 'Interaction not analysed for this run',
-        detail: `${P(record, 'capability_reason') ?? 'LEGACY_FLAG_ONLY'} — legacy link flag: ${P(record, 'legacy_link_flag') ?? '—'}. The long tier that produced this row did not run the aligned peer analysis.`,
+        detail: `This run holds only whether peer links are configured${links ? ` (${phrase(links)})` : ''}, not the aligned peer analysis.`,
         stillValid: 'A configured link is not a verdict: it neither proves nor rules out a disturbance. The other gates of this run are unaffected.', action: 'NONE', tone: 'muted',
       }} />
     );

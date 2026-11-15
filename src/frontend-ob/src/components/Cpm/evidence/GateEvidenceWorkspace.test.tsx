@@ -115,21 +115,42 @@ describe('GateEvidenceWorkspace', () => {
 
   it('shows a stated evidence state with the reconstruction action when nothing is retained', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await waitFor(() => expect(screen.getAllByText(/Evidence not retained for this run/).length).toBeGreaterThan(0));   // NOT_RETAINED: policy, not a wait
+    await waitFor(() => expect(screen.getAllByText('Evidence not kept').length).toBeGreaterThan(0));   // NOT_RETAINED: policy, not a wait
     expect(screen.getAllByText(/Reconstruct evidence/).length).toBeGreaterThan(0);
   });
 
-  it('states that nothing is retained once: not as EVIDENCE NONE, No arrays held or a Not retained pill', async () => {
+  // CHG-187 (owner review 9, 11): one label in the gate head, its detail behind the ?; no sentence, no note in the Proof tab
+  it('states that nothing is kept once, as a label in the gate head: not as EVIDENCE NONE, No arrays held or a sentence', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await waitFor(() => expect(screen.getAllByText(/Evidence not retained for this run/).length).toBe(1));
-    for (const gone of [/No arrays held/, /EVIDENCE/, /^Not retained$/, /^NONE$/, /^Explain$/, /Read the evidence below/]) expect(screen.queryByText(gone)).toBeNull();
-    expect(screen.queryByText(/The live path keeps the arrays/)).toBeNull();   // behind the ?
-    expect(screen.getByRole('button', { name: 'Evidence not retained for this run' })).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText('Evidence not kept')).toHaveLength(1));
+    expect(document.querySelector('.cpm-workbench__head')?.textContent).toContain('Evidence not kept');
+    for (const gone of [/No arrays held/, /EVIDENCE/, /^Not retained$/, /^NONE$/, /^Explain$/, /Read the evidence below/, /Evidence not retained for this run/, /PROOF RETAINED|Proof retained/])
+      expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.queryByText(/The verdict and every value of this run stand/)).toBeNull();   // behind the ?
+    expect(screen.getByRole('button', { name: 'Evidence not kept' })).toBeTruthy();
+  });
+
+  // CHG-187 (owner review 11.1): measured vs required leaves the foot of the Proof tab for the gate head
+  it('puts the state check in the gate head and no measured-vs-required section on the Proof tab', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await waitFor(() => expect(document.querySelector('.cpm-workbench__head')?.textContent).toContain('State check'));
+    expect(screen.queryByText(/^Measured vs required$/i, { selector: 'h3' })).toBeNull();
+    expect(screen.queryByText(/^What remains open$/i, { selector: 'h3' })).toBeNull();
+    expect(screen.queryByText(/This gate reports a state/)).toBeNull();   // the label's ? holds it
+    expect(screen.queryByText(/Nothing this window flags/)).toBeNull();
+  });
+
+  it('writes the foot strip as one compact line: window · samples · rate', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    const foot = await screen.findByText(/^5 min window · /);
+    expect(foot.className).toBe('cpm-workbench__foot-facts');
+    expect(foot.getAttribute('title')).toBe(foot.textContent);
+    expect(foot.textContent).not.toMatch(/samples at/);
   });
 
   it('asks in a dialog before reconstructing: no request until confirmed, then the real state', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });   // the run has loaded: the bar's button is live
+    await screen.findByText('Evidence not kept');   // the run has loaded: the bar's button is live
     fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
     const d = await screen.findByRole('dialog', { name: 'Reconstruct evidence' });
     expect(d.textContent).toContain('FIC10302');
@@ -149,7 +170,7 @@ describe('GateEvidenceWorkspace', () => {
       return respond(url);
     });
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });   // the run has loaded: the bar's button is live
+    await screen.findByText('Evidence not kept');   // the run has loaded: the bar's button is live
     fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Reconstruct' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/Reconstruction refused: 503 engine busy/));
@@ -159,7 +180,7 @@ describe('GateEvidenceWorkspace', () => {
   it('disables Reconstruct with a reason for a user without cpm.analysis.create', async () => {
     asUser([]);
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     // the run bar holds the one button and the one reason; the state panel repeats neither
     const buttons = screen.getAllByRole('button', { name: /Reconstruct evidence/ });
     expect(buttons).toHaveLength(1);
@@ -175,7 +196,7 @@ describe('GateEvidenceWorkspace', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-      await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+      await screen.findByText('Evidence not kept');
       // the hook coalesces manifest reads into the batch endpoint; a poll is one more batch (or single) read
       const manifestGets = () => urls().filter(u => u.endsWith('/method-runs/evidence/batch') || u.endsWith(`/method-runs/${RUN}/evidence`)).length;
       fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
@@ -193,7 +214,7 @@ describe('GateEvidenceWorkspace', () => {
   // CHG-153 final review: the links out of the Workbench name the run's own window and kind.
   it('a 5m run goes back to the Window Inspector on its own window, and offers no Replay', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     const back = screen.getByRole('button', { name: 'Window Inspector ↗' });   // CHG-162: at the end of the band
     fireEvent.click(back);
     const where = decodeURIComponent(screen.getByTestId('loc').textContent ?? '');
@@ -204,7 +225,7 @@ describe('GateEvidenceWorkspace', () => {
 
   it('a 5m run shows Evidence Replay disabled with its reason', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     expect((screen.getByRole('button', { name: /Evidence Replay/ }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Replay holds 12 h and 24 h windows')).toBeTruthy();
   });
@@ -265,7 +286,7 @@ describe('GateEvidenceWorkspace', () => {
 
   it('has no Explain column, no repeated verdict strip, and says what the gate asks once, on Rules & parameters', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     expect(screen.queryByRole('complementary')).toBeNull();
     expect(screen.queryByText(/Back to conclusion/)).toBeNull();
     expect(screen.queryByText('Error against the objective')).toBeNull();
@@ -291,7 +312,7 @@ describe('GateEvidenceWorkspace', () => {
   // CHG-162 (owner review): the band holds what More held; the way back sits at its end
   it('puts the window kind, the window, the steps, Newest and Go to date in the band, with no More', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     expect(screen.getByRole('combobox', { name: 'Window kind' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^More/ })).toBeNull();
     for (const name of ['‹', '›', 'Newest']) expect(screen.getByRole('button', { name })).toBeTruthy();
@@ -301,7 +322,7 @@ describe('GateEvidenceWorkspace', () => {
 
   it('has no Run id link, no loop result line, and no links that repeat the tabs', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
-    await screen.findByRole('heading', { name: 'Evidence not retained for this run' });
+    await screen.findByText('Evidence not kept');
     expect(screen.queryByRole('button', { name: /Run id/ })).toBeNull();
     expect(screen.queryByText('Loop result')).toBeNull();
     expect(screen.queryByRole('button', { name: /See rules|View signal context/ })).toBeNull();

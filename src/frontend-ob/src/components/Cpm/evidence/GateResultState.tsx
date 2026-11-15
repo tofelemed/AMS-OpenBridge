@@ -118,7 +118,8 @@ export const GateResultStatePanel: React.FC<{
     }
     return (
       <div className="cpm-gate-state" data-state={state.kind}>
-        <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>
+        {/* CHG-187: a gate status (not evaluated, disabled) is the head's mark already; the pill would say it a third time */}
+        {state.kind !== 'NOT_EVALUATED' && state.kind !== 'DISABLED' && <TonePill tone={state.tone}>{codeLabel(state.kind)}</TonePill>}
         <EmptyState title={state.title} copy={state.detail} action={action} />
         {state.stillValid && <p className="cpm-gate-state__valid">{state.stillValid}</p>}
         {state.link && <Link className="cpm-gate-state__link" to={state.link.href}>{state.link.label}</Link>}

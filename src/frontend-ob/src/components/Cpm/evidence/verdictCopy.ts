@@ -101,3 +101,17 @@ export function whyParagraphs(i: WhyInput): string[] {
   }
   return out;
 }
+
+/** The states whose own panel names the reason, so no flag repeats it. */
+const STATE_SAYS_REASON = new Set(['LOADING', 'FAILED_REQUEST', 'NO_RESULT', 'NOT_EVALUATED', 'DISABLED', 'SHORT_TIER', 'UNSUPPORTED_METHOD']);
+
+/**
+ * CHG-187 (owner review 11.2): what the verdict sentence added beyond the head's mark and the KPI cards - a limit on the
+ * claim ("Limited by the 5 s acquisition grid") - as a short flag. Nothing when the state panel already names the reason.
+ */
+export function limitFlags(i: { gate: string; status: string | null; reason: string | null; stateKind: string; eligibilityDetail?: string | null }): string[] {
+  if (STATE_SAYS_REASON.has(i.stateKind)) return [];
+  if (!i.status) return ['No verdict recorded for this run'];
+  const r = reasonSentence(i.reason, { gate: i.gate, eligibilityDetail: i.eligibilityDetail });
+  return r ? [r.charAt(0).toUpperCase() + r.slice(1)] : [];
+}

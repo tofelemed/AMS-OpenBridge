@@ -27,7 +27,7 @@ describe('whyRows', () => {
 
   it('G4: a detection threshold reads as a position, from the engine copy in the row first', () => {
     const [r] = whyRows('G4', src({}, row({ effort_ratio: 2.49, gate4_warn_ratio: 3, gate4_high_ratio: 8 }, [{ key: 'G4', status: 'PASS' }])));
-    expect(r).toEqual({ label: 'Actuator activity (effort ratio)', value: '2.49 — below the attention level', against: 'attention at 3 · high at 8', ok: null });
+    expect(r).toEqual({ label: 'Actuator activity (effort ratio)', value: '2.49', against: 'attention at 3 · high at 8', ok: null, position: 'Below the attention level' });
   });
 
   it('says when no threshold is configured, and never shows a placeholder as a value', () => {

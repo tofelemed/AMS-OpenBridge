@@ -1,9 +1,9 @@
 /**
- * SME review #19 (CHG-055) + Task 16: "Why this result" on the Proof tab — each measured value against the threshold that
- * applied when the run happened, for the decision gate the observed symptoms and possible causes, and what remains open. The
- * result sentence is the verdict card's and the thresholds' source line is on Rules & parameters, so neither is said here
- * again. CHG-162 (owner review): the evidence behind the decision is two lines and a way to the loop's hypotheses on
- * Investigation, which hold the rest; the probability note is said once, on the evidence-score row.
+ * SME review #19 (CHG-055) + Task 16: "Why this result" — each measured value against the threshold that applied when the run
+ * happened, for the decision gate the observed symptoms and possible causes, and what remains open. CHG-187 (owner review 11.1):
+ * it left the foot of the Proof tab for the "Measured vs required" dialog the gate's head opens (MeasuredCheck): a table of
+ * measure · measured · required · pass / fail, then the evidence behind the decision and what remains open, each only when it
+ * holds something. `useWhy` gathers the facts once for the head (button or "State check") and the dialog.
  */
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,11 +14,13 @@ import { getEffectiveConfig } from '../../../api/cpm/config';
 import { diagnosisLabel, lowerFirst } from '../vocabulary';
 import { conditionOf, limitationOf } from '../explorer/summary/summaryText';
 import { causeBreakdown } from '../causeAnalysis';
-import { whyRows } from './whyRules';
+import { NO_THRESHOLD, whyRows, type WhyRow } from './whyRules';
 import type { InputContext } from '../optionalInputs';
 import { INPUT_LIMITS_GATE } from '../inputLimits';
 import { flagsForLoop } from '../optionalInputs';
 import { useAuthStore } from '../../../store/authStore';
+import { DataTable, type Column } from '../../../ui/DataTable';
+import { StatusBadge } from '../../../ui/StatusBadge';
 
 /** Which window flags limit which gate's claim: the missing inputs (shared, CHG-064) plus the method limits. */
 const LIMITS_GATE: Record<string, string[]> = {
@@ -26,13 +28,21 @@ const LIMITS_GATE: Record<string, string[]> = {
   INSUFFICIENT_SAMPLES: ['*'], QUALITY_UNKNOWN: ['*'], AREA_OUT_OF_BAND: ['G9'], PERIOD_OUT_OF_BAND: ['G5', 'G6'],
 };
 
-export const ExplainWhy: React.FC<{
+export interface WhyInput {
   gate: string; run: MethodRun | undefined; manifest: EvidenceManifest | undefined; eligibilityDetail: string | null;
   /** CHG-059: the loop's optional-input context (VP / peers applicability). */
   inputs?: InputContext;
-  /** Opens the loop's hypotheses on Investigation. */
-  onHypotheses?: () => void;
-}> = ({ gate, run, manifest, eligibilityDetail, inputs, onHypotheses }) => {
+}
+
+export interface Why {
+  rows: WhyRow[];
+  open: string[];
+  causes: ReturnType<typeof causeBreakdown> | null;
+  /** The thresholds or the window's row are still loading. */
+  loading: boolean;
+}
+
+export function useWhy({ gate, run, manifest, eligibilityDetail, inputs }: WhyInput): Why {
   const endIso = run ? new Date(run.support.toMs).toISOString() : undefined;
   const row = useFusedRow(run?.loopId, run);
   const canReadConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
@@ -49,66 +59,70 @@ export const ExplainWhy: React.FC<{
     return v == null || v === '' ? undefined : String(v);
   };
   const rows = whyRows(gate, { prov, row: fused, cfg: p => cfg.data?.properties?.[p], eligibilityDetail });
-
   const flags = fused?.observabilityFlags ?? [];
   const open = [...new Set(flagsForLoop(flags, inputs).filter(f => (LIMITS_GATE[f] ?? []).some(g => g === '*' || g === gate)).map(f => limitationOf(f, inputs)))];
   // Only a window the engine did not judge. NO_CALL and INSUFFICIENT_EVIDENCE are verdicts (conditionOf: no-fault), and the gates
   // of a short window read Insufficient evidence, so "no verdict" is never said.
   const cond = conditionOf(fused?.diagnosis);
   if (cond.kind === 'insufficient' || cond.kind === 'excluded') open.unshift(`The whole window: ${lowerFirst(diagnosisLabel(fused?.diagnosis))}.`);
-  // G15 says it on its evidence-score row; G14 has no such row
-  if (gate === 'G14') open.push('Evidence scores rank the explanations; they are not probabilities.');
   const causes = gate === 'G15' ? causeBreakdown(fused?.verdictV2, flags, inputs) : null;
+  return { rows, open, causes, loading: (canReadConfig && cfg.isLoading) || row.isLoading };
+}
 
-  return (
-    <div className="cpm-why" data-testid="explain-why">
-      <h3 className="cpm-eyebrow">Measured vs required</h3>
-      {rows.length > 0 ? (
-        <dl className="cpm-why__rows">
-          {rows.map(r => (
-            <React.Fragment key={r.label}>
-              <dt>{r.label}</dt>
-              <dd>
-                {r.ok != null && <span className={`cpm-why__mark cpm-matrix__cell--${r.ok ? 'good' : 'bad'}`} aria-label={r.ok ? 'met' : 'not met'}>{r.ok ? '✓' : '✕'}</span>}
-                <span>{r.value}</span>
-                {r.against && <span className="cpm-why__against">{r.against}</span>}
-              </dd>
-            </React.Fragment>
-          ))}
-        </dl>
-      ) : (
-        <p className="cpm-metric-na">{cfg.isLoading || row.isLoading ? 'Loading the thresholds that applied…' : 'This gate reports a state, not a measured value against a threshold.'}</p>
-      )}
-
-      {causes && (causes.observed.length > 0 || causes.possible.length > 0) && (
-        <>
-          <h3 className="cpm-eyebrow">Evidence behind it</h3>
-          <dl className="cpm-why__rows">
-            {causes.observed.length > 0 && (
-              <>
-                <dt>Observed</dt>
-                <dd>{causes.observed.map(o => (o.detail ? `${o.label} (${o.detail})` : o.label)).join(' · ')}</dd>
-              </>
-            )}
-            {causes.possible.length > 0 && (
-              <>
-                <dt>Possible cause</dt>
-                <dd>
-                  <span>{causes.possible.map(c => `${c.label}${c.leading ? ' (leading)' : ''}${c.confirmed ? ' (confirmed)' : ''}`).join(' · ')}</span>
-                  {onHypotheses && <ObcButton className="ui-link" variant="flat" onClick={onHypotheses}>Hypotheses ↗</ObcButton>}
-                </dd>
-              </>
-            )}
-          </dl>
-        </>
-      )}
-
-      <h3 className="cpm-eyebrow">What remains open</h3>
-      {open.length > 0
-        ? <ul className="cpm-why__open">{open.map(o => <li key={o}>{o}</li>)}</ul>
-        : <p className="cpm-copy">Nothing this window flags limits this gate's claim.</p>}
-    </div>
-  );
+/** A requirement passes or fails; a detection threshold has a position; a figure with no threshold has neither. */
+const Result: React.FC<{ r: WhyRow }> = ({ r }) => {
+  if (r.ok === true) return <StatusBadge tone="success">Pass</StatusBadge>;
+  if (r.ok === false) return <StatusBadge tone="warning">Fail</StatusBadge>;
+  return <>{r.position ?? '—'}</>;
 };
+
+/** Under a "Required" heading the word itself is not repeated ("≥ 5 required" → "≥ 5"). */
+export const requiredText = (against: string): string =>
+  against === NO_THRESHOLD ? 'No threshold configured' : against ? against.replace(/ required to /, ' to ').replace(/ required$/, '') : '—';
+
+const COLUMNS: Array<Column<WhyRow>> = [
+  { key: 'measure', header: 'Measure', cell: r => r.label },
+  { key: 'measured', header: 'Measured', cell: r => r.value, align: 'end' },
+  { key: 'required', header: 'Required', cell: r => requiredText(r.against) },
+  { key: 'result', header: 'Pass / fail', cell: r => <Result r={r} /> },
+];
+
+export const hasCauses = (why: Why) => !!why.causes && (why.causes.observed.length > 0 || why.causes.possible.length > 0);
+
+/** The dialog's body: each section only when it holds something. */
+export const ExplainWhy: React.FC<{ why: Why; gate: string; onHypotheses?: () => void }> = ({ why, gate, onHypotheses }) => (
+  <div className="cpm-why" data-testid="explain-why">
+    {why.rows.length > 0 && <DataTable caption={`Measured vs required, ${gate}`} columns={COLUMNS} rows={why.rows} rowKey={r => r.label} />}
+    {hasCauses(why) && (
+      <section className="cpm-why__section">
+        <h3 className="cpm-why__heading">Evidence behind it</h3>
+        <dl className="cpm-why__rows">
+          {why.causes!.observed.length > 0 && (
+            <>
+              <dt>Observed</dt>
+              <dd>{why.causes!.observed.map(o => (o.detail ? `${o.label} (${o.detail})` : o.label)).join(' · ')}</dd>
+            </>
+          )}
+          {why.causes!.possible.length > 0 && (
+            <>
+              <dt>Possible cause</dt>
+              <dd>
+                <span>{why.causes!.possible.map(c => `${c.label}${c.leading ? ' (leading)' : ''}${c.confirmed ? ' (confirmed)' : ''}`).join(' · ')}</span>
+                {onHypotheses && <ObcButton className="ui-link" variant="flat" onClick={onHypotheses}>Hypotheses ↗</ObcButton>}
+              </dd>
+            </>
+          )}
+        </dl>
+      </section>
+    )}
+    {why.open.length > 0 && (
+      <section className="cpm-why__section">
+        {/* alone in the dialog, the dialog's own title says it */}
+        {(why.rows.length > 0 || hasCauses(why)) && <h3 className="cpm-why__heading">What remains open</h3>}
+        <ul className="cpm-why__open">{why.open.map(o => <li key={o}>{o}</li>)}</ul>
+      </section>
+    )}
+  </div>
+);
 
 export default ExplainWhy;

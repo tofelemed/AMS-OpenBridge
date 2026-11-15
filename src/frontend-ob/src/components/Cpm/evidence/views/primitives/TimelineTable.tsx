@@ -1,6 +1,7 @@
 /**
  * v2.5 Task 2E.4 primitive: a table of episodes / events with their instants in the site zone -
- * dwell episodes, freeze episodes, state intervals, rejected cycles. Rows are the artifact's rows.
+ * dwell episodes, freeze episodes, state intervals, rejected cycles. Rows are the artifact's rows. CHG-187 (owner review 11.2):
+ * its title is a sentence-case heading, not a caps label.
  */
 import React from 'react';
 import { formatInZone } from '../../timezone';
@@ -15,7 +16,7 @@ export interface TimelineRow {
 
 export const TimelineTable: React.FC<{ title: string; rows: TimelineRow[]; timeZone: string; empty: string }> = ({ title, rows, timeZone, empty }) => (
   <div className="cpm-timeline-table" data-table={title}>
-    <span className="cpm-eyebrow">{title}</span>
+    <h3 className="cpm-subhead">{title}</h3>
     {rows.length === 0 ? <p className="cpm-copy">{empty}</p> : (
       <table className="cpm-table">
         <thead><tr><th>Start</th><th>End</th><th>Duration</th><th>What</th><th>Detail</th></tr></thead>

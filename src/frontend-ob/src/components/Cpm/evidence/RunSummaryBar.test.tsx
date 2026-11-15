@@ -1,11 +1,13 @@
-// Task 15: the run bar. Retained proof and sufficiency are two different facts and are stated apart:
-// "Proof retained" is whether the arrays are held; "Loop result" is what the engine concluded. The run is
-// pinned, which is not the controller's mode. Reconstruct is disabled with its reason, never silently.
+// Task 15: the run bar. Retained evidence and sufficiency are two different facts and are stated apart: the retention label
+// says whether the arrays are held; "Loop result" is what the engine concluded. Reconstruct is disabled with its reason, never
+// silently. CHG-187 (owner review 9, 11): the retention fact is ONE label ("Evidence kept" / "Evidence not kept") with a ? tip.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { RunSummaryBar } from './RunSummaryBar';
+import { retentionLabel } from './retention';
+import type { GateState } from './GateResultState';
 import type { MethodRun } from '../../../api/cpm/evidence';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -25,20 +27,26 @@ const run: MethodRun = {
 };
 const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="loc">{l.pathname + l.search}</div>; };
 
-const bar = (over: Partial<React.ComponentProps<typeof RunSummaryBar>> = {}) => render(
+const READY: GateState = { kind: 'READY', title: 'Ready', detail: '', stillValid: '', action: 'NONE', tone: 'good' };
+const NOT_RETAINED: GateState = { kind: 'NOT_RETAINED', title: 'Evidence not retained for this run', detail: 'The live path keeps the arrays for windows with a finding.',
+  stillValid: 'The verdict and every value of this run stand.', action: 'RECONSTRUCT', tone: 'muted' };
+const bar = ({ readiness = 'COMPLETE', state = READY, ...over }: Partial<React.ComponentProps<typeof RunSummaryBar>> & { readiness?: string; state?: GateState } = {}) => render(
   <MemoryRouter initialEntries={['/cpm/evidence']}>
     <Routes><Route path="*" element={<>
-      <RunSummaryBar run={run} readiness="COMPLETE" onReconstruct={() => {}} {...over} />
+      <RunSummaryBar run={run} retention={retentionLabel(readiness, 'RETAINED', state)} onReconstruct={() => {}} {...over} />
       <Probe />
     </>} /></Routes>
   </MemoryRouter>,
 );
 
 describe('RunSummaryBar', () => {
-  it('states proof retained apart from the loop result, and the run as pinned', () => {
+  it('states the evidence as kept, apart from the loop result, with its detail behind the ?', () => {
     bar();
     const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
-    expect(text).toMatch(/Proof retained · COMPLETE/);
+    expect(text).toMatch(/Evidence kept/);
+    expect(text).not.toMatch(/Proof retained|COMPLETE/);
+    expect(screen.getByRole('button', { name: 'Evidence kept' })).toBeTruthy();
+    expect(screen.queryByText(/kept by the retention policy/)).toBeNull();
     // CHG-162: the window and its samples are in the foot strip, the loop's result in the window dropdown
     expect(text).not.toMatch(/Loop result|pinned run|samples/);
     expect(text).not.toMatch(/3535c78aa45a|Calc version/);
@@ -52,7 +60,7 @@ describe('RunSummaryBar', () => {
     bar({ readiness: 'FAILED' });
     let text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
     expect(text).toMatch(/Reconstruction failed/);
-    expect(text).not.toMatch(/Proof retained/);
+    expect(text).not.toMatch(/Proof retained|Evidence kept/);
     cleanup();
     bar({ readiness: 'EXPIRED' });
     text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
@@ -60,9 +68,18 @@ describe('RunSummaryBar', () => {
     expect(text).not.toMatch(/Proof retained|FAILED|EXPIRED/);
   });
 
-  it('leaves the retention fact to the panel when nothing is held', () => {
-    bar({ readiness: 'NONE' });
-    expect(screen.getByRole('list', { name: 'Run summary' }).textContent).not.toMatch(/Proof retained|NONE/i);
+  it('says "Evidence not kept" when nothing is held, the policy and what still stands behind the ?', () => {
+    bar({ readiness: 'NONE', state: NOT_RETAINED });
+    const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
+    expect(text).toMatch(/Evidence not kept/);
+    expect(text).not.toMatch(/Proof retained|NONE|The verdict and every value/);
+    expect(screen.getByRole('button', { name: 'Evidence not kept' })).toBeTruthy();
+  });
+
+  it('draws the measured-vs-required control before Reconstruct', () => {
+    bar({ check: <button type="button">Measured vs required</button> });
+    const names = screen.getAllByRole('button').map(b => b.textContent);
+    expect(names.indexOf('Measured vs required')).toBeLessThan(names.findIndex(n => /Reconstruct evidence/.test(n ?? '')));
   });
 
   it('names a non-live purpose, and has no Run id link', () => {

@@ -1,68 +1,42 @@
 /**
- * v2.5 workbench: the answer first. The verdict card opens the reading column with the gate's
- * status, one plain sentence and the key numbers as tiles. CHG-184: the window's flags card went with
- * Identity & raw (the flags are on Investigation, Performance and Replay).
+ * v2.5 workbench: the answer first, under the gate's head. CHG-187 (owner review 11.2): the gate's key numbers are KPI cards
+ * (title, value with its unit, ? tip), each fact said once. The sentence above them went: its status is the head's mark, its
+ * numbers are the cards, and what it added - a limit on the claim ("Limited by the 5 s acquisition grid") - stays as a small
+ * flag. Draws nothing when there is neither.
  */
 import React from 'react';
-import { KpiTile, PanelHead } from '../shared';
-import { gateTone } from '../gateStatus';
-import { GateBadge } from '../../../ui/GateBadge';
-import type { GateState } from './GateResultState';
+import { KpiCard } from '../kpi/KpiCard';
+import { StatusBadge } from '../../../ui/StatusBadge';
 import type { Headline } from './views/headlines';
-import { codeLabel } from '../vocabulary';
 
 export interface VerdictCardProps {
-  gate: string;
-  name: string;
-  status: string | null;
-  reason: string | null;
-  state: GateState;
-  sentence: string;
+  /** Limits on the gate's claim, as short phrases. */
+  flags: string[];
   headline: Headline[];
-  /** Task 15: the gate's tier ("Diagnostic evidence"), as the eyebrow; "Verdict" without it. */
-  tier?: string;
-  /** Task 15: what the gate asks, under the title. */
-  question?: string | null;
-  /** The window's input flags, for a mark that depends on them (gateMark). */
-  inputFlags?: readonly string[] | null;
-  /** CHG-162: the page's head row names the gate and its mark, so the card is its sentence and tiles alone (or nothing). */
-  noHead?: boolean;
 }
 
-export const VerdictCard: React.FC<VerdictCardProps> = ({ gate, name, status, state, sentence, headline, tier, question, inputFlags, noHead }) => {
-  const tone = status ? gateTone(status, gate) : 'muted';
-  if (noHead) {
-    const said = sentence !== `${gate} ${name}: ${codeLabel(status)}.` ? sentence : '';
-    const tiles = state.kind === 'READY' ? headline : [];
-    if (!said && tiles.length === 0) return null;
-    return (
-      <div className="cpm-verdict cpm-verdict--body" role="region" aria-label="Verdict">
-        {said && <p className="cpm-verdict__sentence">{said}</p>}
-        {tiles.length > 0 && (
-          <div className="cpm-verdict__tiles">
-            {tiles.map(h => (
-              <KpiTile key={h.label} caption={h.label} tone={h.tone}
-                value={<span title={h.raw && h.raw !== h.value ? h.raw : undefined}>{h.unit ? `${h.value} ${h.unit}` : h.value}</span>} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
+/** A number keeps the card's figure size; a word or a phrase reads at text size (the app's own rule for a value that is not a number). */
+const valueOf = (h: Headline) => {
+  const text = h.unit ? `${h.value} ${h.unit}` : h.value;
+  return /^[-+]?[\d.,]+(\s|$)/.test(h.value) ? text : <span className="cpm-kpicard__text">{text}</span>;
+};
+
+export const VerdictCard: React.FC<VerdictCardProps> = ({ flags, headline }) => {
+  if (flags.length === 0 && headline.length === 0) return null;
   return (
-    <section className={`cpm-surface cpm-verdict cpm-tone-${tone}`} role="region" aria-label="Verdict">
-      <PanelHead eyebrow={tier ?? 'Verdict'} title={`${gate} · ${name}`} right={status ? <GateBadge status={status} gate={gate} inputFlags={inputFlags} /> : undefined} />
-      {question && <p className="cpm-verdict__question">{question}</p>}
-      {/* The card's heading and pill already say it when the sentence has nothing to add */}
-      {sentence !== `${gate} ${name}: ${codeLabel(status)}.` && <p className="cpm-verdict__sentence">{sentence}</p>}
-      {state.kind === 'READY' && headline.length > 0 && (
-        <div className="cpm-verdict__tiles">
-          {headline.map(h => (
-            <KpiTile key={h.label} caption={h.label} tone={h.tone}
-              value={<span title={h.raw && h.raw !== h.value ? h.raw : undefined}>{h.unit ? `${h.value} ${h.unit}` : h.value}</span>} />
-          ))}
+    <div className="cpm-verdict cpm-verdict--body" role="region" aria-label="Verdict">
+      {flags.length > 0 && (
+        <div className="cpm-verdict__flags">
+          {flags.map(f => <StatusBadge key={f} tone="neutral">{f}</StatusBadge>)}
         </div>
       )}
-    </section>
+      {headline.length > 0 && (
+        <div className="cpm-verdict__tiles">
+          {headline.map(h => <KpiCard key={h.label} headed label={h.label} value={valueOf(h)} tip={h.tip ? <p>{h.tip}</p> : undefined} />)}
+        </div>
+      )}
+    </div>
   );
 };
+
+export default VerdictCard;

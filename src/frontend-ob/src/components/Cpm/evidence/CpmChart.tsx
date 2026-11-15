@@ -6,7 +6,7 @@
  * the same values the chart draws. Colours come from the chart palette (charts/chartTheme.ts), never literals.
  * Phase 5 (cpa-ui-fix-plan): rectangle zoom on x and on every unit axis, from the title bar.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { axisChrome, baseOption, chartPalette, useChartTheme, type ChartPalette } from '../../../charts/chartTheme';
@@ -62,6 +62,9 @@ const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ?
 
 /** Above this many points a series is decimated for drawing (never for the CSV). */
 export const SAMPLE_ABOVE = 5000;
+
+/** CHG-187 (owner review 11.2): the Workbench's Proof charts leave out "N points, drawn sampled"; its foot strip gives the window's samples. */
+export const ChartSampleNote = createContext(true);
 
 /** Rows a horizontal legend needs: each entry is its marker + text (~7 px a character) + the item gap; without a width, four per row. */
 export function legendRowsFor(names: string[], width: number | undefined): number {
@@ -230,11 +233,12 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
     URL.revokeObjectURL(a.href);
   };
   const drawn = props.series.reduce((n, s) => n + s.x.length, 0);
+  const sampleNote = useContext(ChartSampleNote);
   return (
     <div className="cpm-chart" ref={wrap}>
       <div className="cpm-chart__bar">
         {props.title && <span className="cpm-chart__title">{props.title}</span>}
-        {drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The CSV carries every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
+        {sampleNote && drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The CSV carries every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
         <ChartZoomBar box={box} hasData={drawn > 0} />
       </div>
       <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={box.onChartReady} onEvents={onEvents} />
