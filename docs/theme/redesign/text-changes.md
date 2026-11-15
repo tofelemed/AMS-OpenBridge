@@ -1997,3 +1997,24 @@ Times keep their format (Q5): the selected window's Window and Stored rows and t
 | Calculations · panel links | "Rules & parameters ↗" | caps head "DETAILS" over two buttons "Rules & parameters ›" (opens the Workbench's Rules tab of the run, as before) and "Method ›" |
 | Method dialog | — | title "Method", subtitle the calculation's name ("Sample completeness"); rows "Formula", "Unit"; the explanation; footer "Close" |
 | Calculations · panel foot | "Open G0 proof →" at its text width | the same button, full width, on the page colour; "No run is stored for G0 on this window." under it when disabled, as before |
+
+## CHG-191 Performance gate dialog wider, two columns, each fact once (owner review item 3; Q4, Q5)
+
+The gate dialog of Performance and of Loop Explorer (Summary and Calculations tabs) changes together: they share
+`blocks/GateDialog` and the evidence parts of `GateEvidencePanel`. Times keep their format (Q5): the window line joins the
+two times exactly as "Window from" and "Window to" printed them. "↗" links stay links (Q4). The dialog is wide (720 px);
+from a 1000 px viewport the result is on the left and what the gate asks, its effect and its flags on the right.
+
+| Where | Was | Now |
+|---|---|---|
+| Gate dialog (every page, Investigation's Calculation proof too) · top | caps tier label "DIAGNOSTIC EVIDENCE" / "ELIGIBILITY" / "PERFORMANCE" / "CONFIRMATION" / "FUSION" over the gate name | gone; the gate name ("Horch oddness") is the result column's heading |
+| Performance and Loop Explorer gate dialog · window | row "Assessment  Latest 12h window · 07/11/2026, 11:45:00 UTC"; under More about this gate "Window from 06/11/2026, 23:45:00 UTC" and "Window to 07/11/2026, 11:45:00 UTC" | one line under the gate name: "12h window · 06/11/2026, 23:45:00 UTC → 07/11/2026, 11:45:00 UTC" |
+| same · "Window & attribution" | heading over Window from, Window to, Gate role, Samples | gone; "Samples 7023" is a row of the result column, under Loop result (and Reason) |
+| same · role | row "Gate role  SUPPORTING" and "Effect on the verdict" | "Gate role" gone; "Effect on the verdict" stays ("Contributes supporting evidence to family qualification.") |
+| same · caps labels | "PURPOSE" over "What this gate asks", "FUSION BEHAVIOUR" over "Effect on the verdict", "OBSERVABILITY" over "Flags on this window" | the caps labels are gone; the three headings stay, in the second column |
+| same · disclosure | "More about this gate" (closed) holding the window, role, samples, purpose, effect, flags and links | gone; everything is shown |
+| Performance gate dialog · foot | body: "Workbench →", "Replay →" (buttons), "Loop ↗"; foot: "Prev", "Next", "Window Inspector ↗", "Review →" | foot only, in three groups: "Prev" "Next" · "Workbench ↗" "Replay ↗" "Loop ↗" "Window Inspector ↗" (links) · "Review →" (the one primary) |
+| Loop Explorer gate dialog · foot | body: "Replay →" (button), "Loop ↗"; foot: "Prev", "Next", "Window Inspector ↗", "Evidence Workbench →" | foot only: "Prev" "Next" · "Replay ↗" "Loop ↗" "Window Inspector ↗" (links) · "Evidence Workbench →" (the one primary) |
+| Loop Explorer gate dialog · what it asks | row "What this gate asks  Cross-correlation non-reciprocity … (catalogue definition)" and, under More about this gate, "What this gate asks  Does the cross-correlation show the odd symmetry of stiction?" | one heading "What this gate asks": the question, then the definition under it |
+| Gate dialog · while the gate definitions load | "Definition unavailable." | "Loading…"; "Definition unavailable." only once they have loaded without this gate |
+| Performance gate dialog · a failed read | row "Reason  <the error>" (and the same error again under More about this gate) | the error once, as a line under the rows |

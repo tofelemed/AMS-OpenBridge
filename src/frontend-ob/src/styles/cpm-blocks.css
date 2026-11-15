@@ -18,4 +18,40 @@
   gap: var(--traverse-space-2);
 }
 
-.cpm-gate-dialog__name { margin: 0 0 var(--traverse-space-3); font-weight: 600; }
+/*
+ * CHG-191 (owner review 2026-11-14, item 3): the gate dialog. One normal heading per part (the gate's name over the result,
+ * then what it asks, its effect, its flags) and no caps label; the window is one line under the name. With a second column
+ * the dialog is wide (ui/Dialog size wide): result left, the rest right from 1000 px, one column below that.
+ */
+.cpm-gate-dialog__heading { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-primary); }
+.cpm-gate-dialog__window { margin: 0 0 var(--traverse-space-2); color: var(--traverse-text-secondary); font-variant-numeric: tabular-nums; }
+.cpm-gate-dialog__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--traverse-space-5) var(--traverse-space-6);
+}
+@media (min-width: 1000px) {
+  .cpm-gate-dialog__cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}
+.cpm-gate-dialog__part + .cpm-gate-dialog__part { margin-top: var(--traverse-space-5); }
+.cpm-gate-dialog__part .cpm-copy + .cpm-copy { margin-top: var(--traverse-space-2); }
+.cpm-gate-dialog__part .cpm-flag-row { gap: var(--traverse-space-2); }
+
+/* The foot: Prev / Next together on the left, then the "↗" links (they wrap among themselves), then the one primary. */
+.cpm-gate-actions {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-2) var(--traverse-space-4);
+}
+.cpm-gate-actions__steps,
+.cpm-gate-actions__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--traverse-space-2);
+}
+/* A link has its own padding, so the links sit without a gap and, when they wrap, as one centred cluster. */
+.cpm-gate-actions__links { flex: 1 1 0%; min-width: min-content; gap: 0; justify-content: center; }
+.cpm-gate-actions__primary { margin-inline-start: auto; }

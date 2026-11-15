@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * Explorer › Summary › one gate of the latest fused window, in the shared gate dialog. The status comes from the served
- * cell through `gateMark`, beside the loop's result, because a gate can differ from the result. The rest of the evidence
- * is one disclosure away, and previous and next walk the gates in tier order. Evidence Workbench → opens this gate's
- * immutable run; Window Inspector ↗ opens this window. Loaded lazily, and only when a tile is selected.
+ * Explorer › Summary (and Calculations) › one gate of the latest fused window, in the shared gate dialog. The status comes
+ * from the served cell through `gateMark`, beside the loop's result, because a gate can differ from the result. Previous and
+ * next walk the gates in tier order. Evidence Workbench → (the primary) opens this gate's immutable run; Window Inspector ↗
+ * opens this window. Loaded lazily, and only when a tile is selected.
+ * CHG-191 (owner review item 3): the same wide, two-column dialog as Performance; the catalogue's definition sits under
+ * "What this gate asks" in the second column, so that heading is said once.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,10 +14,10 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmLoop } from '../../../../api/cpmApi';
 import type { CpmGateMatrix } from '../../../../api/cpm/gates';
 import { useGateCatalogue } from '../../../../hooks/useCpm';
-import GateDialog, { GateSteps } from '../../blocks/GateDialog';
-import { EvidenceBody } from '../../GateEvidencePanel';
+import GateDialog, { GateActions, GateSteps, gateWindowLine } from '../../blocks/GateDialog';
+import { EvidenceAbout, EvidenceLinks, EvidenceState, useGateEvidence } from '../../GateEvidencePanel';
 import { ReasonedButton } from '../../ReasonedButton';
-import { TonePill, fmtDateTime } from '../../shared';
+import { TonePill } from '../../shared';
 import { windowsHref } from '../../cpaHref';
 import { evidenceScoreText } from '../../evidenceScore';
 import { workbenchHref } from '../../evidence/selection';
@@ -39,6 +41,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
   loop, gate, matrix, windowKind, gateKeys, flags, onSelectGate, onClose,
 }) => {
   const navigate = useNavigate();
+  const ev = useGateEvidence(loop.loopId, gate, windowKind);
   const cell = matrix.gates.find(g => g.key === gate);
   const runId = cell?.methodRunId ?? matrix.methodRunIds?.[gate] ?? null;
   const catalogue = useGateCatalogue();
@@ -50,7 +53,7 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
   const next = idx >= 0 && idx < gateKeys.length - 1 ? gateKeys[idx + 1] : null;
   const rows = [
     ...(cell?.reason ? [{ label: 'Reason', value: codeLabel(cell.reason) }] : []),
-    ...(entry?.definition ? [{ label: 'What this gate asks', value: entry.definition }] : []),
+    { label: 'Samples', value: matrix.sampleCount ?? '—' },
   ];
 
   return (
@@ -62,27 +65,32 @@ export const SummaryGateDetail: React.FC<SummaryGateDetailProps> = ({
           {score && <span className="cpm-event-row__sub"> {score}</span>}
         </>
       )}
-      assessment={`Latest ${windowKind} window${matrix.windowEnd ? ` · ${fmtDateTime(matrix.windowEnd)}` : ''}`}
+      windowLine={gateWindowLine(windowKind, matrix.windowStart, matrix.windowEnd)}
       rows={rows}
+      aside={<EvidenceAbout ev={ev} gateKey={gate} definition={entry?.definition} />}
       actions={(
-        <>
-          <GateSteps prev={prev} next={next} onSelect={onSelectGate} />
-          <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind, window: matrix.windowEnd }))}>
-            Window Inspector ↗
-          </ObcButton>
-          {/* CHG-098: the reason it is disabled is on screen. */}
-          <ReasonedButton variant="raised" disabled={!runId}
-            reason="Stored before analysis runs were kept, so there is no run to open"
-            onClick={() => { if (runId) navigate(workbenchHref(loop.loopId, runId, gate)); }}>
-            Evidence Workbench →
-          </ReasonedButton>
-        </>
+        <GateActions
+          steps={<GateSteps prev={prev} next={next} onSelect={onSelectGate} />}
+          links={(
+            <>
+              <EvidenceLinks ev={ev} loopId={loop.loopId} gateKey={gate} windowKind={windowKind} withWorkbench={false} />
+              <ObcButton className="ui-link" variant="flat" onClick={() => navigate(windowsHref(loop.loopId, { profile: windowKind, window: matrix.windowEnd }))}>
+                Window Inspector ↗
+              </ObcButton>
+            </>
+          )}
+          primary={(
+            // CHG-098: the reason it is disabled is on screen.
+            <ReasonedButton variant="raised" disabled={!runId}
+              reason="Stored before analysis runs were kept, so there is no run to open"
+              onClick={() => { if (runId) navigate(workbenchHref(loop.loopId, runId, gate)); }}>
+              Evidence Workbench →
+            </ReasonedButton>
+          )}
+        />
       )}
     >
-      <details className="cpm-gate-more">
-        <summary>More about this gate</summary>
-        <EvidenceBody loopId={loop.loopId} gateKey={gate} windowKind={windowKind} withWorkbench={false} />
-      </details>
+      <EvidenceState ev={ev} windowKind={windowKind} />
     </GateDialog>
   );
 };
