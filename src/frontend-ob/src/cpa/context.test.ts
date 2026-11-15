@@ -15,18 +15,19 @@ describe('destinations', () => {
   it('lists 17 entries under six headings in the reference order', () => {
     expect(DESTINATIONS.map(d => d.label)).toEqual([
       'Overview', 'Performance', 'Loop Events', 'Loop Explorer', 'Historical', 'Investigation', 'Evidence Workbench',
-      'Evidence Replay', 'Window Inspector', 'Calculations', 'System Response', 'Loop Registry', 'Gate Configuration',
-      'Trend', 'Pipeline Health', 'Administration', 'Governance',
+      'Evidence Replay', 'Window Inspector', 'Calculations', 'System Response', 'Trend', 'Loop Registry', 'Gate Configuration',
+      'Pipeline Health', 'Administration', 'Governance',
     ]);
+    // CHG-194 (owner review item 18): Engineering before Set up
     expect([...new Set(DESTINATIONS.map(d => d.group))]).toEqual([
-      'Find problems', 'Check a loop', 'Understand the cause', 'Set up', 'Engineering', 'System',
+      'Find problems', 'Check a loop', 'Understand the cause', 'Engineering', 'Set up', 'System',
     ]);
   });
 
   it('puts every page on the address the plant already uses', () => {
     expect(DESTINATIONS.map(d => d.path)).toEqual([
       '/cpm', '/cpm/performance', '/cpm/events', '/cpm/explorer', '/cpm/historical', '/cpm/investigation', '/cpm/evidence',
-      '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/response', '/cpm/registry', '/cpm/config', '/trend',
+      '/cpm/replay', '/cpm/windows', '/cpm/calculations', '/cpm/response', '/trend', '/cpm/registry', '/cpm/config',
       '/cpm/pipeline', '/admin', '/cpm/governance',
     ]);
   });

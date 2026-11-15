@@ -1,6 +1,7 @@
 /**
  * The 17 CPA pages under six headings (design 2026-11-06, section 3), on the addresses the plant uses.
  * Plain data: the sidebar, the palette, links and the tests all read this one list.
+ * CHG-194 (owner review item 18): Engineering comes before Set up; the headings follow the order of this list.
  */
 import type { KindParam } from './tabKind';
 
@@ -20,7 +21,7 @@ export const ADMINISTRATION_PERMISSIONS: readonly string[] = [...ADMIN_PERMISSIO
  */
 export const GOVERNANCE_PERMISSIONS: readonly string[] = ['system.manage', 'admin.audit.view'];
 
-export type NavGroup = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Set up' | 'Engineering' | 'System';
+export type NavGroup = 'Find problems' | 'Check a loop' | 'Understand the cause' | 'Engineering' | 'Set up' | 'System';
 
 export type DestinationId =
   | 'overview' | 'performance' | 'events' | 'explorer' | 'historical' | 'investigation' | 'workbench' | 'replay' | 'windows'
@@ -105,6 +106,11 @@ export const DESTINATIONS: readonly Destination[] = [
     showTo: READ, covers: [], carriesLoop: true, carriesWindow: true,
   },
   {
+    id: 'trend', label: 'Trend', group: 'Engineering', path: '/trend',
+    purpose: 'Any tags on one chart',
+    showTo: ['historian.view'], covers: [], carriesLoop: false, carriesWindow: false,
+  },
+  {
     id: 'registry', label: 'Loop Registry', group: 'Set up', path: '/cpm/registry',
     purpose: 'Every registered loop and its configuration',
     showTo: READ, covers: [], carriesLoop: false, carriesWindow: false,
@@ -113,11 +119,6 @@ export const DESTINATIONS: readonly Destination[] = [
     id: 'config', label: 'Gate Configuration', group: 'Set up', path: '/cpm/config',
     purpose: 'What each loop runs under, and the bundles that change it',
     showTo: ['cpm.config.read'], covers: [], carriesLoop: true, carriesWindow: false,
-  },
-  {
-    id: 'trend', label: 'Trend', group: 'Engineering', path: '/trend',
-    purpose: 'Any tags on one chart',
-    showTo: ['historian.view'], covers: [], carriesLoop: false, carriesWindow: false,
   },
   {
     id: 'pipeline', label: 'Pipeline Health', group: 'System', path: '/cpm/pipeline',

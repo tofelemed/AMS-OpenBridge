@@ -2101,3 +2101,19 @@ count, a running job and a window with nothing found are neutral, not green (Q3)
 unbroken; the gate dialog's Loop result stacks its lines under the pill; the gate dialog foot puts the "↗" links on their own
 row when narrow; the Compare window sizes table shows an edge shadow when it scrolls; "No notes on this loop yet." is set apart
 from the form; the Workbench gate head keeps its actions on the title line from 1280 px.
+
+## CHG-194 Sidebar without the CPA label, bold headings, Engineering before Set up, header aligned to the sidebar (owner review item 18)
+
+The sidebar and header of every page. Sizes are unchanged: the sidebar stays 220 px (64 px rail), rows, icons and type keep
+their size. Times are unchanged (Q5).
+
+| Where | Was | Now |
+|---|---|---|
+| Sidebar (expanded, and the drawer) · above the headings | caps module name "CPA" | gone; the module is still named "CPA" for a screen reader (a named group). The 64 px rail keeps its "CPA" |
+| Sidebar · section headings | Find problems, Check a loop, Understand the cause, Set up, Engineering, System in the regular weight | the same words in bold, in the order Find problems, Check a loop, Understand the cause, **Engineering**, **Set up**, System |
+| Search palette (Ctrl K) · CPA pages | Trend listed after Gate Configuration | Trend listed after System Response (the palette follows the sidebar order) |
+
+Looks, not words: beside the 220 px sidebar the plant selector starts exactly at the sidebar's right edge, under
+"Traverse CPA" which stays in the header above the sidebar; with the rail and below 1024 px (drawer) the selector follows the
+brand. The plant selector is at most 240 px wide (was 380 px; 300 px below 1280 px) and the search at most 320 px (was 420 px).
+Checked at 1440, 1366, 1280, 1024, 768 and 390 px: the header fits, nothing scrolls sideways.

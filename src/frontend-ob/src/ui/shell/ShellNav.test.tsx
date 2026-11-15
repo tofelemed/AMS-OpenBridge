@@ -22,12 +22,13 @@ const nav = (at = '/cpm', rail = false) => render(
 afterEach(cleanup);
 
 describe('ShellNav', () => {
+  // CHG-194 (owner review item 18): Engineering comes before Set up
   it('shows the six headings in order, each before its entries', () => {
     held = EVERYTHING;
     nav();
     const list = screen.getByRole('navigation');
     expect(within(list).getAllByRole('heading').map(h => h.textContent)).toEqual([
-      'Find problems', 'Check a loop', 'Understand the cause', 'Set up', 'Engineering', 'System',
+      'Find problems', 'Check a loop', 'Understand the cause', 'Engineering', 'Set up', 'System',
     ]);
     const under = (heading: string) => within(screen.getByRole('group', { name: heading })).getAllByRole('link').map(a => a.textContent);
     expect(under('Find problems')).toEqual(['Overview', 'Performance', 'Loop Events']);
@@ -35,6 +36,23 @@ describe('ShellNav', () => {
       'Investigation', 'Evidence Workbench', 'Evidence Replay', 'Window Inspector', 'Calculations', 'System Response',
     ]);
     expect(under('Engineering')).toEqual(['Trend']);
+  });
+
+  // CHG-194 (owner review item 18): no "CPA" name above the headings; the module stays named for a screen reader
+  it('shows no module name above the headings, and keeps the module named for assistive technology', () => {
+    held = EVERYTHING;
+    const { container } = nav();
+    expect(screen.queryByText('CPA')).toBeNull();
+    expect(container.querySelector('.shell-nav__module-name')).toBeNull();
+    const module = screen.getByRole('group', { name: 'CPA' });
+    expect(within(module).getByRole('heading', { name: 'Find problems' })).toBeTruthy();
+  });
+
+  it('keeps the module name on the rail, which has no headings', () => {
+    held = EVERYTHING;
+    nav('/cpm', true);
+    expect(screen.getByText('CPA').closest('.shell-nav__module-name')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'CPA' })).toBeTruthy();
   });
 
   it('gives every entry its own page address and an icon', () => {

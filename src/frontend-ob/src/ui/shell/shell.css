@@ -56,11 +56,21 @@
   text-decoration: none;
 }
 .shell__brand:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 3px; }
+/*
+ * CHG-194 (owner review item 18): beside the expanded sidebar the brand fills the header above it, so the plant selector
+ * starts exactly at the sidebar's right edge: header padding + brand + gap = the sidebar width. With the rail and in the
+ * drawer the selector simply follows the brand.
+ */
+.shell:not(.shell--rail):not(.shell--drawer) .shell__brand {
+  flex: 0 0 calc(var(--traverse-size-sidebar-expanded) - var(--traverse-space-4) - var(--traverse-space-2));
+  margin-inline-end: 0;
+}
 .shell__wordmark { font-size: var(--traverse-type-section-title); font-weight: 700; }
 .shell__module { color: var(--traverse-action-primary); font-size: var(--traverse-type-key); font-weight: 600; }
 
 .shell-trigger { max-width: 260px; }
-.shell-trigger--plant { max-width: 380px; }
+/* CHG-194 (owner review item 18): the plant selector and the search narrower (were 380 px and 420 px). */
+.shell-trigger--plant { max-width: 240px; }
 .shell-trigger__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell-trigger__count { flex: none; color: var(--traverse-text-secondary); white-space: nowrap; }
 .shell-trigger__zone { flex: none; color: var(--traverse-text-muted); font-size: var(--traverse-type-metadata); white-space: nowrap; }
@@ -70,7 +80,7 @@
 .shell__search {
   flex: 1 1 220px;
   min-width: var(--traverse-size-control-min-height);
-  max-width: 420px;
+  max-width: 320px;
   color: var(--traverse-text-muted);
   text-align: start;
 }
@@ -146,12 +156,13 @@
 }
 .shell-nav--rail .shell-nav__module-name { padding-inline: 0; text-align: center; }
 .shell-nav__group + .shell-nav__group { margin-top: var(--traverse-space-1); }
+/* CHG-194 (owner review item 18): the headings in bold. */
 .shell-nav__group-name {
   margin: 0;
   padding: var(--traverse-space-2) var(--traverse-space-3) var(--traverse-space-1);
   color: var(--traverse-text-secondary);
   font-size: var(--traverse-type-metadata);
-  font-weight: 400;
+  font-weight: 700;
 }
 .shell-nav__list { display: grid; gap: calc(var(--traverse-space-1) / 2); margin: 0; padding: 0; list-style: none; }
 .shell-nav__entry { position: relative; }
@@ -261,7 +272,7 @@
 @media (max-width: 1279.98px) {
   .shell__kbd { display: none; }
   .shell-trigger { max-width: 180px; }
-  .shell-trigger--plant { max-width: 300px; }
+  .shell-trigger--plant { max-width: 240px; }
   .shell-trigger--range { max-width: 280px; }
   .shell-trigger--user .shell-trigger__text { max-width: 96px; }
 }

@@ -5,6 +5,8 @@
  * review): the list scrolls on a short screen, rail or not, and Collapse / Expand sits under it,
  * outside the scroll, so the menu can always be opened again; a rail tip is placed beside its entry
  * with fixed positioning, so the scrolling list cannot clip it.
+ * CHG-194 (owner review item 18): the expanded list shows no module name above its headings; the module is a named group,
+ * so a screen reader still hears it. The rail, which has no headings, keeps the name.
  */
 import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -86,8 +88,8 @@ export const ShellNav: React.FC<{
     >
       <div className="shell-nav__scroll">
       {modules.map(m => (
-        <div key={m.id} className="shell-nav__module">
-          <div className="shell-nav__module-name">{m.label}</div>
+        <div key={m.id} role="group" aria-label={m.label} className="shell-nav__module">
+          {rail && <div className="shell-nav__module-name" aria-hidden="true">{m.label}</div>}
           {byGroup(items).map(([group, entries]) => (
             <div key={group} role="group" className="shell-nav__group" aria-label={group}>
               {!rail && <h2 className="shell-nav__group-name">{group}</h2>}
