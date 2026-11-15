@@ -82,6 +82,18 @@ describe('SelectedWindow', () => {
     expect(screen.getByRole('dialog', { name: 'Engine & timing' })).toBeTruthy();
   });
 
+  // CHG-192 (owner review item 16): each of the three dialogs names the loop and the window size under its title
+  it('names the loop and the window size under each dialog title, and the raw count as a row', () => {
+    mount(row());
+    for (const name of ['Feature flags', 'Sample density', 'Engine & timing']) {
+      fireEvent.click(screen.getByRole('button', { name }));
+      const dialog = screen.getByRole('dialog', { name });
+      expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10401 · 15 min window');
+      if (name === 'Sample density') expect(within(dialog).getByText('Raw points').nextSibling?.textContent).toBe('0');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    }
+  });
+
   it('is a long diagnostic: tagged so, with no feature flags', () => {
     mount(row({ long_metrics_qualified: true }), '12h', true);
     expect(screen.getByText('Long diagnostics')).toBeTruthy();

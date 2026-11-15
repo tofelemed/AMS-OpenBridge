@@ -104,6 +104,9 @@ describe('GateConfigurationWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Workers' }));
     const dialog = screen.getByRole('dialog', { name: 'Workers' });
     expect(within(dialog).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['AMS - CPLM Short Feature Engine✓ACK', 'AMS - CPLM Gate Fusion Engine✓ACK']);
+    // CHG-192 (owner review item 16): the loop under the title, no caps section heading
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10302');
+    expect(within(dialog).queryByRole('heading', { name: /APPLY/ })).toBeNull();
     expect(dialog.textContent).not.toMatch(/f9153b00|dabe1862|Bundle hash|Worker jar|Catalogue hash/);
   });
 

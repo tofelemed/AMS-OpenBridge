@@ -72,6 +72,12 @@ describe('HypothesisPanel', () => {
     expect(screen.getByText('Scores rank the mechanisms; they are not probabilities.')).toBeTruthy();
   });
 
+  // CHG-192 (owner review item 0, carried from CHG-186): the result's revision is a version, not shown
+  it('shows no revision of the result', () => {
+    const { container } = render(<MemoryRouter><HypothesisPanel verdict={{ ...v2, resultRevision: 7 }} metrics={{}} /></MemoryRouter>);
+    expect(container.textContent).not.toMatch(/revision/i);
+  });
+
   it('renders a pre-v2.5 row as LEGACY family scores without inventing hypotheses', () => {
     const legacy: CpmVerdictV2 = {
       ...v2, legacy: true, observations: {}, hypotheses: {}, leadingHypothesis: null,

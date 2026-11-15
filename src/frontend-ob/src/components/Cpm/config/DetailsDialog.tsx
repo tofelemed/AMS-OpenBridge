@@ -8,9 +8,9 @@ import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
 
-export const DetailsDialog: React.FC<{ title: string; open: boolean; onClose: () => void; children?: React.ReactNode }> = ({ title, open, onClose, children }) =>
-  (open ? createPortal(
-    <Dialog open title={title} onClose={onClose} footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
+export const DetailsDialog: React.FC<{ title: string; subtitle?: string; open: boolean; onClose: () => void; children?: React.ReactNode }> =
+  ({ title, subtitle, open, onClose, children }) => (open ? createPortal(
+    <Dialog open title={title} subtitle={subtitle} onClose={onClose} footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
       <div className="cpm-config-details">{children}</div>
     </Dialog>, document.body) : null);
 

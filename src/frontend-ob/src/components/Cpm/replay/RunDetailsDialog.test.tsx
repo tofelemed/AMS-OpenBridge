@@ -3,7 +3,7 @@
 // and the samples, so the dialog does not, and Computed reads as a time with its zone named.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { row } from '../evidence/windowFixtures';
 import { RunDetailsDialog } from './RunDetailsDialog';
@@ -24,6 +24,9 @@ describe('RunDetailsDialog', () => {
     expect(screen.queryByText('abcdef012345')).toBeNull();
     for (const gone of ['Decision run (G15)', 'Bundle', 'Calculation', 'Engine build']) expect(screen.queryByText(gone)).toBeNull();
     expect(screen.getByText('COMPLETE')).toBeTruthy();
+    // CHG-192 (owner review item 16): the sentence sits behind the ? of Proof retained, not under the rows
+    expect(screen.queryByText(/not that it was sufficient/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Proof retained' }));
     expect(screen.getByText(/not that it was sufficient/)).toBeTruthy();
   });
 

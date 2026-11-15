@@ -187,6 +187,8 @@ describe('the selected user', () => {
     expect(deleteUser).not.toHaveBeenCalled();
     fireEvent.click(within(panel()).getByRole('button', { name: 'Delete' }));
     dialog = screen.getByRole('dialog', { name: 'Delete user' });
+    // CHG-192 (owner review items 16, 17): a delete confirms with the destructive button
+    expect(within(dialog).getByRole('button', { name: 'Delete' }).closest('.ui-button--destructive')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(deleteUser).toHaveBeenCalledWith('u1'));
   });
@@ -247,6 +249,8 @@ describe('Add user and Edit user', () => {
     fireEvent.click(row('a_engineer'));
     fireEvent.click(within(panel()).getByRole('button', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit user' });
+    // CHG-192: the account under the title, since its Username field is not shown
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('a_engineer');
     expect(within(dialog).queryByLabelText('Username *')).toBeNull();
     expect(within(dialog).queryByLabelText('Password *')).toBeNull();
     fireEvent.change(field(dialog, 'Email *'), { target: { value: 'a.engineer@example.test' } });

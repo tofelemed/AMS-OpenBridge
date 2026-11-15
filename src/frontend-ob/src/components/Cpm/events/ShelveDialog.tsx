@@ -5,12 +5,13 @@
  * reason; on an active shelf the call is an update (the history says so). The expiry is stated before it is sent and every
  * refusal is explained in place. CHG-167 (owner review, answer 1): a dialog opened from Shelve… / Update shelf… (it was a
  * panel under the buttons): titled parts For and Reason in aligned columns, the expiry line, Cancel · Shelve. Its sentence
- * stays word for word.
+ * stays word for word. CHG-192 (owner review item 16): the episode (loop · finding) under the title on the band.
  */
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
+import { episodeSubtitle } from './eventsState';
 import { SegmentedControl } from '../../../ui/SegmentedControl';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { fromSiteInput, toSiteInput } from '../../../cpa/siteTime';
@@ -57,7 +58,7 @@ const Body: React.FC<ShelveDialogProps> = ({ event, canManage, pending, error, m
   const title = active ? 'Update shelf' : 'Shelve';
 
   return (
-    <Dialog open onClose={onClose} title={title} size="wide"
+    <Dialog open onClose={onClose} title={title} subtitle={episodeSubtitle(event)} size="wide"
       footer={<>
         <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
         <ReasonedButton variant="raised" disabled={!canManage || pending || !!invalid} reason={!canManage ? NEEDS : null}

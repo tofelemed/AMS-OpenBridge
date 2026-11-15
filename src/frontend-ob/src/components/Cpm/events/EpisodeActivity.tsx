@@ -5,6 +5,7 @@
  * episode as a single timeline, newest first. CHG-167 (owner review): the one place for who, when and why ("Shelved ·
  * superadmin · until 11 Nov 21:30 — maintenance planned"); Full history is a dialog (so no ↗), titled "Full history", in two
  * parts, Actions (a table) and Notes (with the control that links an earlier loop note). Reads the queries the dialog's parts use.
+ * CHG-192 (owner review item 16): Full history names the episode (loop · finding) under its title.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,6 +13,7 @@ import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/butto
 import type { CpmEventAction, CpmEventFrame } from '../../../api/cpmApi';
 import type { LoopNote } from '../../../api/cpm/investigations';
 import { Dialog } from '../../../ui/Dialog';
+import { episodeSubtitle } from './eventsState';
 import { useEventActions } from '../../../hooks/useCpm';
 import { useEventNotes } from '../../../hooks/useLoopNotes';
 import { ACTION_VIEW } from './shelfState';
@@ -60,7 +62,7 @@ export const EpisodeActivity: React.FC<{ event: CpmEventFrame }> = ({ event }) =
         </ol>
       )}
       {full && createPortal(
-        <Dialog open onClose={() => setFull(false)} title="Full history" size="wide">
+        <Dialog open onClose={() => setFull(false)} title="Full history" subtitle={episodeSubtitle(event)} size="wide">
           <div className="cpm-howto">
             <section className="cpm-howto__part" aria-labelledby="cpm-history-actions">
               <h3 id="cpm-history-actions" className="cpm-howto__title">Actions</h3>

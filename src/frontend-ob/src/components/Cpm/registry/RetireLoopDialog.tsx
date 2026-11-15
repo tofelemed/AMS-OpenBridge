@@ -4,16 +4,19 @@
  * Retire or restore a loop (CHG-146). Retire keeps the loop's history and can be undone by Restore; it needs a
  * reason (at most 500 characters, as the server refuses more). A failed call stays in the dialog with the typed
  * reason, so nothing has to be written again. CHG-168 (owner review): "Retire loop" / "Restore loop" (the loop is named in
- * the panel heading behind the dialog), and a disabled Retire loop says "Write a reason first" under it.
+ * the panel heading behind the dialog), and a disabled Retire loop says "Write a reason first" under it. CHG-192 (owner review
+ * items 16, 17): the loop under the title on the band; Retire loop is the destructive button, Restore loop the primary.
  */
 import React, { useId, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
+import { Button } from '../../../ui/Button';
 import type { CpmLoop } from '../../../api/cpmApi';
 import type { LoopRetireResult } from '../../../api/cpm/loopRetire';
 import { useRestoreLoop, useRetireLoop } from '../../../hooks/useLoopRetire';
 import { reasonOf } from '../ActionReceipt';
 import ReasonedButton from '../ReasonedButton';
+import { serviceName } from '../loopName';
 
 export const REASON_LIMIT = 500;
 
@@ -44,16 +47,16 @@ export const RetireLoopDialog: React.FC<{
       open
       onClose={() => { if (!pending) onClose(); }}
       title={isRetire ? 'Retire loop' : 'Restore loop'}
+      subtitle={[loop.loopId, serviceName(loop)].filter(Boolean).join(' · ')}
       description={isRetire
         ? 'The loop stops being monitored. Its history stays, and Restore brings it back.'
         : 'The loop is monitored again as it was before it was retired.'}
       footer={(
         <>
-          <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
-          <ReasonedButton variant="raised" disabled={pending || (isRetire && trimmed === '')}
-            reason={isRetire && trimmed === '' ? 'Write a reason first' : null} onClick={confirm}>
-            {isRetire ? 'Retire loop' : 'Restore loop'}
-          </ReasonedButton>
+          <ObcButton variant="normal" disabled={pending} onClick={onClose}>Cancel</ObcButton>
+          {isRetire
+            ? <Button variant="destructive" disabled={pending || trimmed === ''} reason={trimmed === '' ? 'Write a reason first' : undefined} onClick={confirm}>Retire loop</Button>
+            : <ReasonedButton variant="raised" disabled={pending} onClick={confirm}>Restore loop</ReasonedButton>}
         </>
       )}
     >

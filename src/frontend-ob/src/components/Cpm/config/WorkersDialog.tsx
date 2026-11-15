@@ -3,7 +3,8 @@
  * applied · catalogue matches"). It holds what the Worker alignment tile and the APPLY acknowledgements disclosure held: each
  * job and what it applied (an observer reads no property and never answers). CHG-184 (owner review item 0): the Build part
  * (bundle, catalogue and jar hashes) and the Jar / Catalogue hash columns went; an acknowledgement for another bundle says so in
- * words, never as a hash.
+ * words, never as a hash. CHG-192 (owner review item 16): the loop under the title; no section heading in caps ("APPLY
+ * acknowledgements" said again what the title and the Job / Applied columns say).
  */
 import React from 'react';
 import type { EffectiveConfig } from '../../../api/cpm/config';
@@ -11,9 +12,8 @@ import { TonePill } from '../shared';
 import { DetailsDialog } from './DetailsDialog';
 
 export const WorkersDialog: React.FC<{ eff: EffectiveConfig; open: boolean; onClose: () => void }> = ({ eff, open, onClose }) => (
-  <DetailsDialog title="Workers" open={open} onClose={onClose}>
-    <section className="cpm-config-part" aria-label="APPLY acknowledgements">
-      <h3 className="cpm-howto__title">APPLY acknowledgements</h3>
+  <DetailsDialog title="Workers" subtitle={eff.loopId} open={open} onClose={onClose}>
+    <section className="cpm-config-part" aria-label="What each job applied">
       <table className="cpm-table" data-table="effective-workers">
         <thead><tr><th>Job</th><th>Applied</th></tr></thead>
         <tbody>

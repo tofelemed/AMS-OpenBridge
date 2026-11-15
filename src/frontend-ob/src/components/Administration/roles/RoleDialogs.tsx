@@ -3,11 +3,14 @@
  * button that turned into Cancel), and Delete role picking the role its users move to from a list (it was free text, where a
  * typo was refused by the server). The words are kept; each dialog ends with the button that names its action.
  * Owner, 12 Nov 2026 (CHG-182): the Delete sentence now matches the list (the old one asked to type a role or leave it blank).
+ * CHG-192 (owner review item 16): Delete role is titled by its action with the role under it on the band, and its last button
+ * is destructive.
  */
 import React, { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
+import { Button } from '../../../ui/Button';
 import { ReasonedButton } from '../../Cpm/ReasonedButton';
 import { Field, Part } from '../../Cpm/registry/wizard/editorParts';
 import type { Role } from '../../../api/rolesApi';
@@ -64,10 +67,10 @@ export const DeleteRoleDialog: React.FC<{
   const targets = reassignTargets(roles, role);
   const [target, setTarget] = useState(targets.includes('Viewer') ? 'Viewer' : targets[0] ?? '');
   return createPortal(
-    <Dialog open title={`Delete role "${role}"`} onClose={() => { if (!busy) onCancel(); }}
+    <Dialog open title="Delete role" subtitle={role} onClose={() => { if (!busy) onCancel(); }}
       footer={<>
-        <ObcButton variant="flat" disabled={busy} onClick={onCancel}>Cancel</ObcButton>
-        <ObcButton variant="raised" disabled={busy} onClick={() => onDelete(target)}>Delete role</ObcButton>
+        <ObcButton variant="normal" disabled={busy} onClick={onCancel}>Cancel</ObcButton>
+        <Button variant="destructive" disabled={busy} onClick={() => onDelete(target)}>Delete role</Button>
       </>}>
       <div className="cpm-admin-confirm">
         <p className="cpm-copy">Users who hold this role move to the role you pick.</p>

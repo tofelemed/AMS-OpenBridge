@@ -9,7 +9,7 @@
  */
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import type { CpmTone } from '../shared';
-import { phrase } from '../vocabulary';
+import { diagnosisLabel, phrase } from '../vocabulary';
 
 export type ConditionState = 'OPEN' | 'CLOSED';
 export type AvailabilityState = 'OBSERVED' | 'UNOBSERVABLE' | 'LEGACY';
@@ -105,3 +105,7 @@ export function matchesEventFilter(e: CpmEventFrame, f: EventFilterKey): boolean
     default: return true;
   }
 }
+
+/** CHG-192 (owner review item 16): the episode a dialog acts on, under its title: the loop and the finding the panel is titled by. */
+export const episodeSubtitle = (e: Pick<CpmEventFrame, 'loop_id' | 'peak_diagnosis'>): string =>
+  [e.loop_id, e.peak_diagnosis ? diagnosisLabel(e.peak_diagnosis) : ''].filter(Boolean).join(' · ');

@@ -45,3 +45,9 @@ button.cpm-response-tile:focus-visible { outline: 2px solid var(--instrument-enh
   .cpm-response-step-cards, .cpm-response-quantities--three { grid-template-columns: minmax(0, 1fr); }
   .cpm-compact .cpm-band .cpm-response-event-select { max-width: 100%; }
 }
+
+/* CHG-192 (owner review items 2, 16): the model review in the shared dialog; the form as label / value rows, the meaning of
+   the chosen decision under its control, the note as wide as the row. */
+.cpm-model-review__form { margin-top: var(--traverse-space-4); }
+.cpm-run-form__value.cpm-model-review__decision { flex-direction: column; align-items: flex-start; }
+.cpm-model-review__form .cpm-textarea { width: 100%; }

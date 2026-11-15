@@ -89,8 +89,7 @@ export const HypothesisPanel: React.FC<{
   return (
     <>
       <PanelHead title="Mechanisms and the evidence for each"
-        help={<Toggletip variant="how-to" label="Mechanism scores"><p>Scores rank the mechanisms; they are not probabilities.</p></Toggletip>}
-        right={<TonePill tone="muted">revision {verdict.resultRevision}</TonePill>} />
+        help={<Toggletip variant="how-to" label="Mechanism scores"><p>Scores rank the mechanisms; they are not probabilities.</p></Toggletip>} />
       {ids.length === 0 && (
         <EmptyState title="No hypotheses on this window"
           copy="No mechanism had evidence to rank on this window — the observations show what was (and was not) seen." />

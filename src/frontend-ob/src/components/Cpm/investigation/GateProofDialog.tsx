@@ -2,7 +2,8 @@
  * CHG-141: Calculation proof. One gate of this window in the shared gate dialog, with the values behind it, and the two
  * ways on: its immutable run in the Workbench, or the same loop, window and gate in Replay. A row with no run says why the
  * Workbench cannot open. CHG-160 (owner review): named by the gate; the band names the loop and window, the Result tab
- * the loop's result, and both ways on are short links on one line.
+ * the loop's result, and both ways on are short links on one line. CHG-192 (owner review item 16): "Calculated values" is a
+ * sentence-case section heading, not a caps eyebrow.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -44,7 +45,7 @@ export const GateProofDialog: React.FC<{
       )}
     >
       <div className="cpm-inv-proof">
-        <h3 className="cpm-eyebrow">Calculated values</h3>
+        <h3 className="cpm-howto__title">Calculated values</h3>
         {values.length > 0
           ? values.map(v => <KvRow key={v.label} label={v.label}><span title={v.title}>{v.value}</span></KvRow>)
           : <p className="cpm-metric-na">This gate reports a state, not a measured value.</p>}

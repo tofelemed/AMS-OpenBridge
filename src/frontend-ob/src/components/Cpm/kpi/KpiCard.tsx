@@ -55,24 +55,34 @@ export const KpiCard: React.FC<{
 
   // CHG-185: the title opens the dialog and its click area covers the card; the ? tip sits above it, so a tap on the ? opens the tip.
   // CHG-186: without `onOpen` (and `to`) the same card is a plain tile.
+  // CHG-192 (carried from CHG-185): on a card that opens a dialog the opener is the card-wide button, named by the title; the
+  // title is plain text whose last word and ? never part (`cpm-kpicard__tail`), so a title that wraps keeps its ? right after its
+  // last word (a button is laid out as one box, and a text break before the ? was still taken: the ? sat alone on a line). Tab
+  // order: the opener, then the ?. A plain tile keeps its title as one text, the ? beside it.
   if (headed && (onOpen || !to)) {
+    const cut = label.lastIndexOf(' ');
+    const help = (tip || sub || title) ? (
+      <Toggletip variant="how-to" label={`About ${label}`}>
+        {tip ?? <>
+          {sub ? <p><strong>{sub}</strong></p> : null}
+          {title ? <p>{title}</p> : null}
+        </>}
+      </Toggletip>
+    ) : null;
     return (
       <div className={onOpen ? `${cls} cpm-kpicard--link cpm-kpicard--open` : `${cls} cpm-kpicard--tile`}>
+        {onOpen && (
+          <button type="button" className="cpm-kpicard__opener" aria-haspopup="dialog" aria-label={label}
+            aria-describedby={valueId} onClick={onOpen} />
+        )}
         <span className="cpm-kpicard__head">
           <span className="cpm-kpicard__title">
             {onOpen ? (
-              <button type="button" className="cpm-kpicard__opener" aria-haspopup="dialog" aria-describedby={valueId} onClick={onOpen}>
-                <span className="cpm-kpicard__label">{label}</span>
-              </button>
-            ) : <span className="cpm-kpicard__label">{label}</span>}
-            {(tip || sub || title) && (
-              <Toggletip variant="how-to" label={`About ${label}`}>
-                {tip ?? <>
-                  {sub ? <p><strong>{sub}</strong></p> : null}
-                  {title ? <p>{title}</p> : null}
-                </>}
-              </Toggletip>
-            )}
+              <span className="cpm-kpicard__label">
+                {cut > 0 ? `${label.slice(0, cut)} ` : ''}
+                <span className="cpm-kpicard__tail">{label.slice(cut + 1)}{help}</span>
+              </span>
+            ) : <><span className="cpm-kpicard__label">{label}</span>{help}</>}
           </span>
           {Icon && <span className={`cpm-kpicard__icon cpm-kpicard__icon--${iconTone}`} aria-hidden><Icon /></span>}
         </span>

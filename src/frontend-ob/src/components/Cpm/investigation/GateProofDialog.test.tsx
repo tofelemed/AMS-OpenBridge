@@ -40,6 +40,15 @@ describe('GateProofDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Replay ↗' })).toBeTruthy();
   });
 
+  // CHG-192 (owner review item 16): a sentence-case section heading, no caps eyebrow
+  it('heads the values with a plain "Calculated values" heading, not a caps label', () => {
+    open(matrix());
+    const dialog = screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' });
+    const heading = within(dialog).getByRole('heading', { name: 'Calculated values' });
+    expect(heading.className).toBe('cpm-howto__title');
+    expect(dialog.querySelector('.cpm-eyebrow')).toBeNull();
+  });
+
   it('is named by the gate and its check', () => {
     open(matrix());
     expect(screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' })).toBeTruthy();

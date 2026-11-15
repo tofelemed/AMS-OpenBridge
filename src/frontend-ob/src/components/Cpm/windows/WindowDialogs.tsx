@@ -1,7 +1,8 @@
 /**
  * Task 19: the dialogs behind the selected window's links. Feature flags names the six short-tier flags (it replaced the
  * unexplained string of ticks), Engine & timing the contract the window ran under. Each sits on the page body through a portal.
- * CHG-184 (owner review Q6): Record details (the metric values) went.
+ * CHG-184 (owner review Q6): Record details (the metric values) went. CHG-192 (owner review item 16): the loop and the window
+ * size under each title.
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -14,7 +15,12 @@ import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
 import { gateName } from '../gateStatus';
 import { SHORT_GATES } from './WindowResults';
 
-interface DialogProps { open: boolean; onClose: () => void }
+interface DialogProps {
+  open: boolean;
+  onClose: () => void;
+  /** CHG-192: the loop and the window size, under the title. */
+  subtitle?: string;
+}
 
 const Close: React.FC<{ onClose: () => void }> = ({ onClose }) => <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>;
 
@@ -28,10 +34,10 @@ export const flagStatus = (row: CpmKpiRow, key: string, field: string, declined:
   return typeof v === 'string' ? v : null;
 };
 
-export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declined: boolean }> = ({ open, onClose, row, declined }) => {
+export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declined: boolean }> = ({ open, onClose, subtitle, row, declined }) => {
   if (!open) return null;
   return createPortal(
-    <Dialog open onClose={onClose} title="Feature flags" footer={<Close onClose={onClose} />}>
+    <Dialog open onClose={onClose} title="Feature flags" subtitle={subtitle} footer={<Close onClose={onClose} />}>
       {SHORT_GATES.map(g => (
         <div key={g.key} className="cpm-kv" data-flag={g.key}>
           <span className="cpm-kv__label"><strong>{g.key}</strong> {gateName(g.key)}</span>
@@ -41,13 +47,13 @@ export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declin
     </Dialog>, document.body);
 };
 
-export const EngineTimingDialog: React.FC<DialogProps & { spec: CpmWindowSpec | undefined; kind: string }> = ({ open, onClose, spec, kind }) => {
+export const EngineTimingDialog: React.FC<DialogProps & { spec: CpmWindowSpec | undefined; kind: string }> = ({ open, onClose, subtitle, spec, kind }) => {
   if (!open) return null;
   const lateness = spec?.allowedLatenessMs != null
     ? `${fmtDuration(spec.allowedLatenessMs)} (event-time)`
     : spec?.cadenceMs != null ? `Not applicable: recomputed every ${fmtDuration(spec.cadenceMs)} from a retained buffer` : '—';
   return createPortal(
-    <Dialog open onClose={onClose} title="Engine & timing" footer={<Close onClose={onClose} />}>
+    <Dialog open onClose={onClose} title="Engine & timing" subtitle={subtitle} footer={<Close onClose={onClose} />}>
       <KvRow label="Window">{kind}</KvRow>
       <KvRow label="Size / slide">{spec ? `${fmtWindowShape(spec)}${spec.overlapping ? ', overlapping' : ', no overlap'}` : '—'}</KvRow>
       <KvRow label="Allowed lateness">{lateness}</KvRow>

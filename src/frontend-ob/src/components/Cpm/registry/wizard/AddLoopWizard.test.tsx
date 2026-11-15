@@ -64,6 +64,8 @@ describe('AddLoopWizard tabs', () => {
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Identity', 'Classification', 'Signals', 'Review']);
     for (const gone of ['Step 1 of 4', 'Governed registry workflow', 'Edit loop 45FIC-109', 'Windows & profile']) expect(screen.queryByText(gone)).toBeNull();
     expect(next().textContent).toBe('Next: Classification →');
+    // CHG-192 (owner review item 16): the loop under the title on the band
+    expect(document.querySelector('.ui-dialog__subtitle')?.textContent).toBe('45FIC-109 · Feed flow');
   });
 
   it('goes forward only through Next, and back by Back or an earlier tab', () => {
@@ -84,6 +86,7 @@ describe('AddLoopWizard tabs', () => {
   it('is titled Add loop for a new loop, and says why Next waits', () => {
     render(<AddLoopWizard existing={[loop]} onClose={() => {}} />);
     expect(screen.getByRole('dialog', { name: 'Add loop' })).toBeTruthy();
+    expect(document.querySelector('.ui-dialog__subtitle')).toBeNull();
     expect(next().disabled).toBe(true);
     expect(screen.getByText('Loop tag is required')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Loop tag *'), { target: { value: '45fic-109' } });

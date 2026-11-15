@@ -44,7 +44,8 @@ describe('LoopKpiCards', () => {
     expect(screen.getAllByRole('list')).toHaveLength(1);
     const cards = [...container.querySelectorAll('.cpm-kpicard')];
     expect(cards).toHaveLength(9);
-    expect(cards.map(c => c.querySelector('.cpm-kpicard__label')?.textContent)).toEqual([
+    // CHG-192: the ? sits with the title's last word; the card is named by its title alone
+    expect(cards.map(c => c.querySelector('.cpm-kpicard__opener')?.getAttribute('aria-label'))).toEqual([
       'Time in normal mode', 'Good-error time', 'Control error (MAE)', 'PV variability (2σ)', 'Setpoint changes',
       'Time at an OP limit', 'OP travel', 'OP reversals', 'Data coverage',
     ]);

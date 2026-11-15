@@ -136,6 +136,9 @@ describe('the selected role', () => {
     await waitFor(() => expect(box('asset.edit').checked).toBe(true));
     fireEvent.click(within(panel()).getByRole('button', { name: 'Reset to default' }));
     let dialog = screen.getByRole('dialog', { name: 'Reset to default' });
+    // CHG-192: the role it resets under the title; the reset loses changes, so its button is destructive
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('Engineer');
+    expect(within(dialog).getByRole('button', { name: 'Reset to default' }).closest('.ui-button--destructive')).toBeTruthy();
     expect(within(dialog).getByText('The role gets its default permission set back; changes made on this page are lost.')).toBeTruthy();
     expect(within(dialog).getByText(SIGN_OUT)).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
@@ -153,7 +156,10 @@ describe('the selected role', () => {
     await waitFor(() => expect(within(panel()).getByText('Custom role')).toBeTruthy());
     expect(within(panel()).queryByRole('button', { name: 'Reset to default' })).toBeNull();
     fireEvent.click(within(panel()).getByRole('button', { name: 'Delete role' }));
-    const dialog = screen.getByRole('dialog', { name: 'Delete role "Supervisor"' });
+    // CHG-192 (owner review item 16): titled by the action, the role under it on the band, the last button destructive
+    const dialog = screen.getByRole('dialog', { name: 'Delete role' });
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('Supervisor');
+    expect(within(dialog).getByRole('button', { name: 'Delete role' }).closest('.ui-button--destructive')).toBeTruthy();
     // Owner, 12 Nov (item 5): the sentence matches the list picker (no free text, nothing to leave blank)
     expect(within(dialog).getByText('Users who hold this role move to the role you pick.')).toBeTruthy();
     expect(dialog.textContent).not.toMatch(/leave blank|enter a role/);

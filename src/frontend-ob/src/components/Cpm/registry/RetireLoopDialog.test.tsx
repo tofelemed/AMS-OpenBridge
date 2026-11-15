@@ -19,7 +19,7 @@ vi.mock('../../../hooks/useLoopRetire', () => ({
 
 import { RetireLoopDialog } from './RetireLoopDialog';
 
-const loop = { loopId: 'FIC1', isActive: true } as CpmLoop;
+const loop = { loopId: 'FIC1', displayName: 'Flow controller FIC1', isActive: true } as CpmLoop;
 const onClose = vi.fn();
 const onDone = vi.fn();
 const open = (mode: 'retire' | 'restore' = 'retire') =>
@@ -39,6 +39,17 @@ describe('RetireLoopDialog', () => {
     open('restore');
     expect(screen.getByRole('dialog', { name: 'Restore loop' })).toBeTruthy();
     expect(screen.queryByText('Write a reason first')).toBeNull();
+  });
+
+  // CHG-192 (owner review items 16, 17): the loop on the band under the title; Retire is destructive, Restore the primary
+  it('names the loop under the title, with Retire loop destructive and Restore loop primary', () => {
+    open();
+    expect(document.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC1 · Flow controller');
+    expect(confirm().closest('.ui-button--destructive')).toBeTruthy();
+    cleanup();
+    open('restore');
+    expect(document.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC1 · Flow controller');
+    expect(confirm().closest('.ui-button--destructive')).toBeNull();
   });
 
   it('needs a reason to retire, says so under the button, and sends it trimmed', () => {

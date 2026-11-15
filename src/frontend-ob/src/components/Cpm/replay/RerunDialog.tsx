@@ -1,7 +1,8 @@
 /**
  * Task 18 (spec section 12, decision 3): confirm a re-run of the open window. The window and the settings it ran under are
  * fixed; the current configuration is not offered (said as not available yet). No promise of an identical result.
- * A finished run opens in the Workbench; the original stays on Replay.
+ * A finished run opens in the Workbench; the original stays on Replay. CHG-192 (owner review item 16): the Configuration label
+ * in sentence case, as the Window row's.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -36,7 +37,7 @@ export const RerunDialog: React.FC<{
       </>}>
       <KvRow label="Window">{windowText}</KvRow>
       <fieldset className="cpm-rerun-config">
-        <legend className="cpm-field__label">Configuration</legend>
+        <legend className="cpm-kv__label">Configuration</legend>
         <label className="cpm-check">
           <input type="radio" name="rerun-config" checked readOnly /> Settings of this window
         </label>

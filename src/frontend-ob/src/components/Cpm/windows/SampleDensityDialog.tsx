@@ -3,6 +3,7 @@
  * sub-page; Task 19 fix round 1 returns it as a dialog). The slice is read only while the dialog is open, so selecting
  * a window reads nothing. W1: the budget uses the engine's per-window sample period when the row carries one.
  * W2: when the raw page is capped, buckets past the last fetched sample are UNKNOWN, not empty.
+ * CHG-192 (owner review item 16): the loop and the window size under the title; the raw count is a label / value row.
  */
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -11,20 +12,20 @@ import type { CpmKpiRow } from '../../../api/cpmApi';
 import { useRawWindow } from '../../../hooks/useCpm';
 import { loopSeries } from '../../../utils/loopSeries';
 import { Dialog } from '../../../ui/Dialog';
-import { EmptyState, QueryError } from '../shared';
+import { EmptyState, KvRow, QueryError } from '../shared';
 
 const BUCKETS = 24;
 /** The engine normalizes samples onto a 5 s grid; used only when the row reports no sample period. */
 const FALLBACK_PERIOD_S = 5;
 
-export const SampleDensityDialog: React.FC<{ open: boolean; onClose: () => void; row: CpmKpiRow; loopId: string }> = ({
-  open, onClose, row, loopId,
+export const SampleDensityDialog: React.FC<{ open: boolean; onClose: () => void; row: CpmKpiRow; loopId: string; subtitle?: string }> = ({
+  open, onClose, row, loopId, subtitle,
 }) => {
   if (!open) return null;
-  return createPortal(<Body onClose={onClose} row={row} loopId={loopId} />, document.body);
+  return createPortal(<Body onClose={onClose} row={row} loopId={loopId} subtitle={subtitle} />, document.body);
 };
 
-const Body: React.FC<{ onClose: () => void; row: CpmKpiRow; loopId: string }> = ({ onClose, row, loopId }) => {
+const Body: React.FC<{ onClose: () => void; row: CpmKpiRow; loopId: string; subtitle?: string }> = ({ onClose, row, loopId, subtitle }) => {
   const winStart = row.window_start ? new Date(row.window_start) : undefined;
   const winEnd = row.window_end ? new Date(row.window_end) : undefined;
   const raw = useRawWindow(loopSeries(loopId), winStart, winEnd, 'pv', 5000);
@@ -66,8 +67,8 @@ const Body: React.FC<{ onClose: () => void; row: CpmKpiRow; loopId: string }> = 
   }, [density]);
 
   return (
-    <Dialog open onClose={onClose} title="Sample density" footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
-      {raw.data && <p className="cpm-copy">{raw.data.count.toLocaleString()} raw points{rawCapped ? ' (first page)' : ''}</p>}
+    <Dialog open onClose={onClose} title="Sample density" subtitle={subtitle} footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
+      {raw.data && <KvRow label="Raw points">{raw.data.count.toLocaleString()}{rawCapped ? ' (first page)' : ''}</KvRow>}
       {raw.isLoading && <EmptyState title="Counting raw samples…" />}
       {raw.isError && <QueryError title="Raw slice unavailable" error={raw.error} retry={() => void raw.refetch()} />}
       {!raw.isLoading && !raw.isError && density.length === 0 && (

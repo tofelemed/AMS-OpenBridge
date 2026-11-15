@@ -218,23 +218,7 @@
 .cpm-wizard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .cpm-wizard-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
 
-/* ── Modal / drawer scaffolding ── */
-.cpm-modal-backdrop {
-  position: fixed; inset: 0;
-  background: var(--traverse-overlay);
-  z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
-}
-.cpm-modal {
-  background: var(--container-backdrop-color);
-  color: var(--element-active-color);
-  border: 1px solid var(--border-divider-color);
-  border-radius: 10px;
-  width: min(860px, 92vw);
-  max-height: 88vh;
-  overflow: auto;
-  padding: 20px;
-}
+/* CHG-192: the page-local modal (.cpm-modal) went; the model review uses the shared ui/Dialog. */
 
 /* ── Empty state ── */
 .cpm-empty { text-align: center; padding: 32px 16px; color: var(--traverse-text-secondary); }
@@ -917,19 +901,6 @@
 /* CHG-065: name + score on one line, the evidence text on its own line under them — the score bar spilled
    into the evidence column when the panel sits half-width beside the reasoning chain. */
 
-
-/* The wizard / bulk-import footer lives inside `.cpm-modal`, which is a single
-   `overflow: auto` box — so on a long step (or a 100-row CSV preview) Back and
-   Next scrolled out of view and the dialog looked like it had no way forward. */
-.cpm-modal .cpm-wizard-footer {
-  position: sticky;
-  bottom: -20px;
-  z-index: 1;
-  margin-top: 16px;
-  padding: 12px 0;
-  background: var(--container-backdrop-color);
-  border-top: 1px solid var(--border-divider-color);
-}
 
 /* Governance RBAC matrix: permission rows x role columns, reusing the gate
    matrix chips so "holds / does not hold" reads the same as "pass / not

@@ -13,10 +13,9 @@
   gap: 8px 20px;
   margin: 0;
 }
+/* CHG-192 (owner review item 16): the Loop summary dialog's labels are in sentence case, as every dialog's label / value rows. */
 .cpm-loop-summary__label {
   font-size: var(--cpm-text-caption);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--traverse-text-secondary);
   padding-top: 2px;
 }

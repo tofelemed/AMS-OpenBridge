@@ -54,16 +54,28 @@ export const PerformanceKpis: React.FC<{
           <span className="cpm-kpi__sub">{t.sub}</span>
         </button>
       ))}
+      {/* CHG-192 (owner review item 16): label / value rows, and the drill-down as the dialog's one primary */}
       <Dialog open={current != null} title={current?.caption ?? ''} onClose={() => setOpen(null)}
         footer={current && (
-          <ObcButton variant="flat" onClick={() => navigate(kpiHref(current.drill, { ...scope, windowKind }))}>Show the loops</ObcButton>
+          <ObcButton variant="raised" onClick={() => navigate(kpiHref(current.drill, { ...scope, windowKind }))}>Show the loops</ObcButton>
         )}>
         {current && (
-          <>
-            {current.lines.map(l => <p key={l} className="cpm-copy">{l}</p>)}
-            <p className="cpm-copy">{current.explain}</p>
-            {healthFiltered && <p className="cpm-copy">The health filter does not narrow this figure: it counts the whole scope.</p>}
-          </>
+          <dl className="cpm-run-form">
+            {current.lines.length > 0 && (
+              <>
+                <dt>Basis</dt>
+                <dd className="cpm-kpi-basis">{current.lines.map(l => <span key={l}>{l}</span>)}</dd>
+              </>
+            )}
+            <dt>Meaning</dt>
+            <dd>{current.explain}</dd>
+            {healthFiltered && (
+              <>
+                <dt>Scope</dt>
+                <dd>The health filter does not narrow this figure: it counts the whole scope.</dd>
+              </>
+            )}
+          </dl>
         )}
       </Dialog>
     </div>

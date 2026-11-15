@@ -121,6 +121,8 @@ describe('EpisodeActions: Shelve dialog (CHG-167)', () => {
     mount(frame({}));
     fireEvent.click(button('Shelve…'));
     const dialog = screen.getByRole('dialog', { name: 'Shelve' });
+    // CHG-192 (owner review item 16): the episode it acts on under the title
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301 · Oscillation suspected');
     expect(within(dialog).getByText('A shelf always expires; the episode returns to the queue afterwards with the acknowledgement it has. Shelving does not review it.')).toBeTruthy();
     const send = within(dialog).getByRole('button', { name: 'Shelve' }) as HTMLButtonElement;
     expect(send.disabled).toBe(true);
@@ -176,6 +178,7 @@ describe('EpisodeActions: Unshelve dialog (CHG-167)', () => {
     mount(shelved());
     fireEvent.click(button('Unshelve…'));
     const dialog = screen.getByRole('dialog', { name: 'Unshelve' });
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301 · Oscillation suspected');
     expect(within(dialog).getByText('The shelf (expires in 3.0 h) ends now and the episode returns to the Unacknowledged queue.')).toBeTruthy();
     fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'disturbance cleared' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Unshelve' }));

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 /** CHG-127: the Overview card shows its label, icon and number; the detail waits on hover and the whole card opens the list. */
 import React from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { KpiCard } from './KpiCard';
@@ -72,6 +74,34 @@ describe('headed KPI card', () => {
     expect(screen.getByText('What it means.')).toBeTruthy();
     const text = container.textContent ?? '';
     expect(text.indexOf('Good-error time')).toBeLessThan(text.indexOf('84 %'));
+  });
+
+  // CHG-192 (carried from CHG-185): a button is laid out as one box, so a title inside it pushed the ? onto a line of its own
+  it('keeps the title as plain text beside its ?, the opener being a card-wide button named by the title', () => {
+    const open = vi.fn();
+    const { container } = render(<MemoryRouter><KpiCard headed Icon={Icon} value="—" label="Time in normal mode" sub="Share." onOpen={open} /></MemoryRouter>);
+    const opener = screen.getByRole('button', { name: 'Time in normal mode' });
+    expect(opener.textContent).toBe('');
+    expect(opener.getAttribute('aria-haspopup')).toBe('dialog');
+    const title = container.querySelector('.cpm-kpicard__title') as HTMLElement;
+    expect(title.querySelector('button.cpm-kpicard__opener')).toBeNull();
+    expect(title.querySelector('.cpm-kpicard__label')?.textContent).toBe('Time in normal mode?');
+    // the last word and the ? never part
+    const tail = title.querySelector('.cpm-kpicard__tail') as HTMLElement;
+    expect(tail.firstChild?.textContent).toBe('mode');
+    expect(tail.lastElementChild?.className).toContain('ui-toggletip');
+    // Tab reaches the opener before the ?
+    const buttons = Array.from(container.querySelectorAll('button')).map(b => b.getAttribute('aria-label') ?? b.textContent);
+    expect(buttons.indexOf('Time in normal mode')).toBe(0);
+    expect(buttons.indexOf('About Time in normal mode')).toBe(1);
+    fireEvent.click(opener);
+    expect(open).toHaveBeenCalled();
+  });
+
+  it('never breaks between the last word of the title and its ?, while the title still wraps between words', () => {
+    const css = readFileSync(join(__dirname, '../../../styles/cpm-explorer.css'), 'utf8');
+    expect(css).toMatch(/\.cpm-kpicard__tail \{ white-space: nowrap; \}/);
+    expect(css).toMatch(/\.cpm-kpicard__opener \{[^}]*position: absolute; inset: 0;/);
   });
 
 });

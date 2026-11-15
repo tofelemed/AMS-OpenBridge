@@ -4,12 +4,13 @@
  * Unshelve confirmation (CHG-032). `POST /events/{id}/unshelve` ends an active or expired shelf; the episode keeps the
  * acknowledgement it has, so the dialog says which queue it lands in. CHG-167 (owner review, answer 1): a dialog opened from
  * Unshelve… (it was a panel under the buttons), Reason in an aligned column, Cancel · Unshelve. Both sentences stay word for
- * word, the one for an expired shelf included (owner answer 5).
+ * word, the one for an expired shelf included (owner answer 5). CHG-192 (owner review item 16): the episode under the title.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
+import { episodeSubtitle } from './eventsState';
 import type { CpmEventFrame } from '../../../api/cpmApi';
 import { ReasonedButton } from '../ReasonedButton';
 import { isAcknowledged, shelfCountdown, shelfState } from './shelfState';
@@ -32,7 +33,7 @@ const Body: React.FC<UnshelveDialogProps> = ({ event, canManage, pending, error,
   const lands = isAcknowledged(event) ? 'stays acknowledged' : 'returns to the Unacknowledged queue';
 
   return (
-    <Dialog open onClose={onClose} title="Unshelve" size="wide"
+    <Dialog open onClose={onClose} title="Unshelve" subtitle={episodeSubtitle(event)} size="wide"
       footer={<>
         <ObcButton variant="flat" disabled={pending} onClick={onClose}>Cancel</ObcButton>
         <ReasonedButton variant="raised" disabled={!canManage || pending} reason={!canManage ? NEEDS : null}

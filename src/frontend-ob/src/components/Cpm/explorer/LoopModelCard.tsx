@@ -2,7 +2,7 @@
  * The loop as the engines see it, in a dialog from "Loop model & setup →" on Summary: the v2.5 loop-model dimensions (2G.1) with
  * where the classification came from, the acquisition contract that bounds the methods, the gate profile and the historian
  * device. Onward: Loop Registry → (where it is changed) and System Response ↗. The Workbench button went; Review evidence → in
- * the band is the way there.
+ * the band is the way there. CHG-192 (owner review item 16): titled "Loop model & setup" with the loop under it on the band.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,6 +16,7 @@ import { KvRow } from '../shared';
 import { EffectiveConfigDrawer } from '../config/EffectiveConfigDrawer';
 import { registryHref, responseHref } from '../cpaHref';
 import { codeLabel } from '../vocabulary';
+import { serviceName } from '../loopName';
 import { useAuthStore } from '../../../store/authStore';
 
 const acquisitionText = (a: NonNullable<CpmLoop['model']>['acquisition'] | null | undefined): string => {
@@ -79,7 +80,8 @@ export const LoopModelLink: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
     <>
       <ObcButton variant="flat" onClick={() => setOpen(true)}>Loop model & setup →</ObcButton>
       {createPortal(
-        <Dialog open={open} onClose={() => setOpen(false)} title={`${loop.loopId} · Loop model & setup`}
+        <Dialog open={open} onClose={() => setOpen(false)} title="Loop model & setup"
+          subtitle={[loop.loopId, serviceName(loop)].filter(Boolean).join(' · ')}
           footer={(
             <>
               <ObcButton className="ui-link" variant="flat" title={`Response events and system models of ${loop.loopId}`} onClick={() => navigate(responseHref(loop.loopId))}>

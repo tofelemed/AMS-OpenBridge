@@ -10,10 +10,12 @@
  * Signals · Review and "Next: X →" (forward only through Next, back any time; no "Step 1 of 4", no eyebrow, the tag the first
  * field); fields under short titled parts, the help behind ?; the ranges on the Signals tab beside the paths they scale; the
  * review open; a Monitored switch (owner answer 3a) and three valve-position choices (3b). Every field, rule and request stays.
+ * CHG-192 (owner review item 16): Edit configuration names the loop under the title on the band.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../ui/Dialog';
+import { serviceName } from './loopName';
 import { Tabs, tabPanelProps } from '../../ui/Tabs';
 import { useActivateLoop, useCpmReadiness, useCpmRegistryContract } from '../../hooks/useCpm';
 import type { CpmLoop } from '../../api/cpmApi';
@@ -105,7 +107,8 @@ export const AddLoopWizard: React.FC<{ existing: CpmLoop[]; editLoop?: CpmLoop; 
     );
 
   return (
-    <Dialog open size="wide" title={isEdit ? 'Edit configuration' : 'Add loop'} onClose={close} footer={footer}>
+    <Dialog open size="wide" title={isEdit ? 'Edit configuration' : 'Add loop'} onClose={close} footer={footer}
+      subtitle={editLoop ? [editLoop.loopId, serviceName(editLoop)].filter(Boolean).join(' · ') : undefined}>
       {savedLoopId ? <SavedReadiness readiness={readiness.data} /> : (
         <div className="cpm-reg-editor">
           <Tabs idBase="cpm-loop-editor" label={isEdit ? 'Edit configuration' : 'Add loop'} value={tab}

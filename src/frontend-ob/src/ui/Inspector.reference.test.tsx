@@ -61,6 +61,21 @@ describe('Inspector, reference design', () => {
     expect((within(grid).getByRole('button', { name: 'Rules' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('gives the grid the widest one-line button width, so a label that would wrap in two columns gets one (CHG-192)', () => {
+    setWidth(false);
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const label = this.textContent ?? '';
+      const width = this.style.width === 'max-content' ? (label.startsWith('Rules & parameters') ? 180.4 : 100) : 0;
+      return { width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    });
+    render(<DetailsGrid items={[{ label: 'Rules & parameters', onClick: () => undefined }, { label: 'Method', dialog: true, onClick: () => undefined }]} />);
+    const grid = document.querySelector('.ui-details__grid') as HTMLElement;
+    expect(grid.style.getPropertyValue('--ui-details-fit')).toBe('181px');
+    // the measuring copies are gone
+    expect(grid.querySelectorAll('.ui-details__item')).toHaveLength(2);
+    rect.mockRestore();
+  });
+
   it('leaves an Inspector without the variant as it was', () => {
     setWidth(false);
     render(<Inspector title="Loop" open onClose={() => undefined}>Detail</Inspector>);
@@ -74,7 +89,8 @@ describe('Reference design rules (tokens only)', () => {
   const css = readFileSync(join(__dirname, 'inspector-reference.css'), 'utf8');
   const page = readFileSync(join(__dirname, '../styles/cpm-master-detail.css'), 'utf8');
   it('draws the Details grid in two columns under a rule, and the foot on the page colour with a full-width primary', () => {
-    expect(css).toMatch(/\.ui-details__grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    // CHG-192: at most two columns, one when two buttons of the widest one-line width do not fit (no label wraps)
+    expect(css).toMatch(/\.ui-details__grid \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, max\(var\(--ui-details-fit\), calc\(\(100% - var\(--traverse-space-2\)\) \/ 2\)\)\), 1fr\)\)/);
     expect(css).toMatch(/\.ui-details \{[^}]*border-top: 1px solid var\(--traverse-border-subtle\)/);
     expect(css).toMatch(/\.ui-inspector--reference \.ui-inspector__foot \{[^}]*background: var\(--traverse-surface-page\)/);
     expect(css).toMatch(/\.ui-inspector--reference \.ui-inspector__foot > obc-button \{ display: block; width: 100%; \}/);

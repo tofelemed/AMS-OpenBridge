@@ -165,6 +165,17 @@ describe('Loop notes as cards', () => {
     await waitFor(() => expect(s.link).toHaveBeenCalledWith({ refId: 'a', eventId: null }));
   });
 
+  it('keeps one primary in the dialog while a card is in Edit: the card Save is secondary (CHG-192)', () => {
+    s.notes = [note('a', '2026-10-10T10:06:00Z', { eventId: 77 })];
+    renderNotes();
+    const dialog = openDialog();
+    const card = dialog.querySelector('.cpm-note-card') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
+    expect(within(card).getByRole('button', { name: 'Save' }).getAttribute('data-variant')).toBe('normal');
+    const primaries = Array.from(dialog.querySelectorAll('button[data-variant="raised"]')).map(b => b.textContent);
+    expect(primaries).toEqual(['Save note']);
+  });
+
   it('drops an edit on Cancel, sending nothing', () => {
     s.notes = [note('a', '2026-10-10T10:06:00Z')];
     renderNotes();

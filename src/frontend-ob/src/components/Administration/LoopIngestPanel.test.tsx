@@ -62,6 +62,17 @@ describe('Loop ingest', () => {
 });
 
 describe('Edit MODE map', () => {
+  // CHG-192 (owner review item 16): the source on the band; the explanation behind the heading's ?, not a sentence
+  it('names the source under the title and keeps the token rule behind a ?', () => {
+    show(source({ mode_value_map: { 1: 'AUT' } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit MODE map' }));
+    expect(dialog().querySelector('.ui-dialog__subtitle')?.textContent).toBe('OT Gateway (loop samples)');
+    expect(within(dialog()).getByRole('heading', { name: 'Source MODE value → engine token' })).toBeTruthy();
+    expect(dialog().textContent).not.toContain('Use exact tokens');
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'MODE map' }));
+    expect(dialog().textContent).toContain('Use exact tokens');
+  });
+
   it('edits the rows in a dialog and saves the whole stored config with the new map', async () => {
     show(source({ mode_value_map: { 1: 'AUT' }, grid_seconds: 5, param_roles: { POS: 'vp' } }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit MODE map' }));

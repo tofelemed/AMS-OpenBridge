@@ -205,7 +205,8 @@ export const RolesConfig: React.FC = () => {
       )}
 
       {asking === 'add' && <AddRoleDialog busy={busy} error={dialogError} onCancel={() => setAsking(null)} onCreate={(n, d) => void onCreate(n, d)} />}
-      <AdminConfirmDialog open={asking === 'reset'} title="Reset to default" confirmLabel="Reset to default" busy={busy} error={dialogError}
+      <AdminConfirmDialog open={asking === 'reset'} title="Reset to default" subtitle={selectedRole?.role_name} confirmLabel="Reset to default"
+        busy={busy} error={dialogError}
         onCancel={() => setAsking(null)} onConfirm={() => void onReset()}>
         <p className="cpm-copy">The role gets its default permission set back; changes made on this page are lost.</p>
         <p className="cpm-copy">{SIGN_OUT}</p>

@@ -25,7 +25,7 @@ const act = (id: number, action: string, at: string, reason: string | null = nul
   ({ id, eventId: 833, action, actor: 'eng.a', at, until, reason });
 const note = (refId: string, createdAt: string, text: string) =>
   ({ refId, createdAt, createdBy: 'eng.b', note: text, outcome: 'NO_ACTION_NEEDED', eventId: 833 });
-const event = { id: 833, loop_id: 'FIC10301' } as CpmEventFrame;
+const event = { id: 833, loop_id: 'FIC10301', peak_diagnosis: 'CONFIRMED_OSCILLATION' } as CpmEventFrame;
 
 describe('timeline', () => {
   it('merges actions and notes, newest first, with the expiry of a shelf', () => {
@@ -51,6 +51,8 @@ describe('EpisodeActivity', () => {
     expect(screen.queryByRole('button', { name: /↗/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Full history' }));
     const dialog = screen.getByRole('dialog', { name: 'Full history' });
+    // CHG-192 (owner review item 16): the episode under the title
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301 · Oscillation confirmed');
     expect(within(dialog).getByRole('heading', { name: 'Actions' })).toBeTruthy();
     expect(within(dialog).getByRole('heading', { name: 'Notes' })).toBeTruthy();
     expect(within(dialog).getByText('notes and link control')).toBeTruthy();

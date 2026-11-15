@@ -3,12 +3,15 @@
  * (value → engine token, with what the engine makes of the token), Add value, the Yokogawa CENTUM preset, the "Nothing here
  * counts as AUTO" warning and Save MODE map. PUT replaces profile_config, so saving is a read-modify-write of the whole stored
  * object (CHG-012): the mqtt block, the TLS certificate and every other loop_ingest key are carried across untouched.
+ * CHG-192 (owner review item 16): the source under the title on the band; the explanation went behind the ? of a short heading.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { ObiDelete } from '@oicl/openbridge-webcomponents-react/icons/icon-delete';
 import { Dialog } from '../../ui/Dialog';
+import { Toggletip } from '../../ui/Toggletip';
+import { Part } from '../Cpm/registry/wizard/editorParts';
 import { CpmIconButton } from '../Cpm/shared';
 import { DataSourceDto, LoopIngestConfig, extractApiError, updateDataSource } from './dataSourcesApi';
 // Single source of truth for the engine's mode tokens: it must stay in step with ingestion-service ModeVocabulary.cs.
@@ -63,15 +66,19 @@ export const ModeMapDialog: React.FC<{
   };
 
   return createPortal(
-    <Dialog open title="Edit MODE map" onClose={() => { if (!saving) onClose(); }}
+    <Dialog open title="Edit MODE map" subtitle={source.name} onClose={() => { if (!saving) onClose(); }}
       footer={<>
         <ObcButton variant="flat" disabled={saving} onClick={onClose}>Cancel</ObcButton>
         <ObcButton variant="raised" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save MODE map'}</ObcButton>
       </>}>
-      <p className="cpm-copy">
-        Source MODE value → engine token. Use exact tokens: <strong>AUT</strong>, <strong>MAN</strong>, <strong>CAS</strong>,
-        {' '}<strong>IMAN</strong>. Everything else in this block is managed through the API and is left untouched by this save.
-      </p>
+      <Part title="Source MODE value → engine token" help={(
+        <Toggletip variant="how-to" label="MODE map">
+          <p>
+            Use exact tokens: <strong>AUT</strong>, <strong>MAN</strong>, <strong>CAS</strong>, <strong>IMAN</strong>. Everything else in
+            this block is managed through the API and is left untouched by this save.
+          </p>
+        </Toggletip>
+      )}>
       {rows.map((row, i) => {
         const cls = classifyMode(row.token);
         const filled = row.value.trim() !== '' || row.token.trim() !== '';
@@ -94,6 +101,7 @@ export const ModeMapDialog: React.FC<{
         <ObcButton variant="normal" onClick={() => setRows(rs => [...rs, { value: '', token: '' }])}>Add value</ObcButton>
         <ObcButton variant="normal" onClick={() => setRows(CENTUM_PRESET.map(([value, token]) => ({ value, token })))}>Use Yokogawa CENTUM preset</ObcButton>
       </div>
+      </Part>
       {error && <p className="cpm-field__error" role="alert">{error}</p>}
     </Dialog>, document.body);
 };

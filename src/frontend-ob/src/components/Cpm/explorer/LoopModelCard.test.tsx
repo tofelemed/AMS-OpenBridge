@@ -53,7 +53,9 @@ describe('LoopModelCard', () => {
       </MemoryRouter>);
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Loop model & setup →' }));
-    const d = screen.getByRole('dialog', { name: /Loop model & setup/ });
+    // CHG-192 (owner review item 16): titled by what it shows, the loop under the title on the band
+    const d = screen.getByRole('dialog', { name: 'Loop model & setup' });
+    expect(d.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10405 · Hexane feed flow');
     expect(d.textContent).toContain('Gate profile');
     expect(d.textContent).not.toMatch(/PRESET|Context|Evidence workbench/);
     fireEvent.click(screen.getByRole('button', { name: /effective configuration/i }));

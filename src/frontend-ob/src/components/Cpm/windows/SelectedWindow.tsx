@@ -17,6 +17,7 @@ import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, TonePill } from '../shared';
 import { fmtInstant } from '../context/LoopContextBar';
 import { windowSize } from '../windowLabel';
+import { serviceName } from '../loopName';
 import { historicalHref, trendHref } from '../cpaHref';
 import { loopPens } from '../../Designer/trend/loopPens';
 import { SampleDensityDialog } from './SampleDensityDialog';
@@ -52,6 +53,8 @@ export const SelectedWindow: React.FC<{
     ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const detail = (label: string, to: Exclude<Dialogs, null>): DetailItem => ({ label, dialog: true, onClick: () => setDialog(to) });
   const details = [...(isLong ? [] : [detail('Feature flags', 'flags')]), detail('Sample density', 'density'), detail('Engine & timing', 'engine')];
+  // CHG-192 (owner review item 16): each dialog names the loop and the window size under its title, as Compare window sizes does
+  const subtitle = [loopId, loop ? serviceName(loop) : '', `${windowSize({ windowKind: kind })} window`].filter(Boolean).join(' · ');
   return (
     <>
       <Inspector variant="reference" title={`${windowSize({ windowKind: kind })} window`} open={open} onClose={onClose}
@@ -85,9 +88,9 @@ export const SelectedWindow: React.FC<{
         <KvRow label="Tag"><TonePill tone="muted">{isLong ? 'Long diagnostics' : 'Short features'}</TonePill></KvRow>
         <KvRow label="Stored">{fmtInstant(row.created_at, timeZone)}</KvRow>
       </Inspector>
-      <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} />
-      <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} />
-      <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} />
+      <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} subtitle={subtitle} />
+      <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} subtitle={subtitle} />
+      <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} subtitle={subtitle} />
     </>
   );
 };

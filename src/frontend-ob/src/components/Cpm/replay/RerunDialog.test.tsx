@@ -121,6 +121,9 @@ describe('RerunCard and dialog', () => {
     open();
     expect((screen.getByLabelText(/Current configuration/) as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText('Not available yet.')).toBeTruthy();   // CHG-184: no release wording
+    // CHG-192 (owner review item 16): the Configuration label in sentence case, no caps label
+    expect(screen.getByText('Configuration').className).toBe('cpm-kv__label');
+    expect(document.querySelector('[role="dialog"] .cpm-field__label')).toBeNull();
   });
 
   it('does not promise exact reproduction, nor claim a bundle that may not be held', () => {

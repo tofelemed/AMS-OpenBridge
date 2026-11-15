@@ -30,7 +30,15 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.ui-details__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--traverse-space-2); }
+/*
+ * CHG-192 (carried from CHG-190): two columns while two buttons of the widest one-line width (--ui-details-fit, measured by
+ * DetailsGrid) fit side by side, else one; never more than two. A label then never wraps inside its button.
+ */
+.ui-details__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--ui-details-fit), calc((100% - var(--traverse-space-2)) / 2))), 1fr));
+  gap: var(--traverse-space-2);
+}
 .ui-details .ui-details__item { justify-content: space-between; min-width: 0; white-space: normal; text-align: start; }
 .ui-details__label { min-width: 0; overflow-wrap: anywhere; }
 .ui-details__chevron { flex: none; color: var(--traverse-text-secondary); }

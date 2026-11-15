@@ -7,7 +7,7 @@
  * first button is Cancel on Profile and "← Back" after it; the last names the action (Create data source / Save changes).
  * A tab's problem shows once something on it was typed or Next was pressed on it, so "Name is required" never greets an empty
  * form; Next on a tab with a problem stays and shows it. Save checks every tab. The request, the checks and the CA file rules
- * are as before (wizard/wizardForm.ts).
+ * are as before (wizard/wizardForm.ts). CHG-192 (owner review item 16): Edit data source names the source under the title.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -109,7 +109,7 @@ export const DataSourceWizard: React.FC<{
   );
 
   return (
-    <Dialog open size="wide" title={title} onClose={() => { if (!saving) onCancel(); }} footer={footer}>
+    <Dialog open size="wide" title={title} subtitle={existing?.name} onClose={() => { if (!saving) onCancel(); }} footer={footer}>
       <div className="cpm-reg-editor">
         <Tabs idBase="admin-source" label={title} value={tab}
           options={WIZARD_TABS.map((t, i) => ({ value: t.value, label: t.label, disabled: i > reached }))}

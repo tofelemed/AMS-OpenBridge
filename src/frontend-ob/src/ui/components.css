@@ -196,7 +196,12 @@
   border: 1px solid var(--traverse-border-subtle);
   border-radius: var(--traverse-radius-panel);
 }
-.ui-dialog--wide { width: 720px; }
+/*
+ * CHG-192 (owner review item 16, carried from CHG-191): the owner asked for a wider dialog with more space. 880 px holds the
+ * Performance gate dialog's foot (Prev / Next · four "↗" links · Review →, 781 px measured at 1440) on one line with room
+ * to spare; below that the panel's max-width keeps it inside the screen.
+ */
+.ui-dialog--wide { width: 880px; }
 /*
  * CHG-183 (owner review 2026-11-14, items 2 and 17, Look 1): a solid band in the action colour carries the title,
  * an optional subtitle and the close button. The modal Inspector drawer wears the same band.

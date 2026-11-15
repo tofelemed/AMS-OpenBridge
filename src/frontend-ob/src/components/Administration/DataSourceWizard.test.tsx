@@ -136,6 +136,8 @@ describe('Edit data source', () => {
   it('saves the changes, carrying the stored blocks and the stored password', async () => {
     open(existing);
     expect(screen.getByRole('dialog', { name: 'Edit data source' })).toBeTruthy();
+    // CHG-192 (owner review item 16): the source it edits, under the title
+    expect(document.querySelector('.ui-dialog__subtitle')?.textContent).toBe('OT Gateway (loop samples)');
     fireEvent.click(next());
     type('Name *', 'Gateway renamed');
     fireEvent.click(next());

@@ -46,3 +46,6 @@
   border-radius: 4px;
 }
 .cpm-matrix__result-btn:hover { color: var(--instrument-enhanced-primary-color); text-decoration: underline; }
+
+/* CHG-192 (owner review item 16): a fleet tile's dialog in label / value rows; the basis lines one under another. */
+.cpm-run-form > dd.cpm-kpi-basis { display: flex; flex-direction: column; gap: var(--traverse-space-1); }

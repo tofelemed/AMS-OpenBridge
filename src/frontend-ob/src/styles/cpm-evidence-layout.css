@@ -140,7 +140,8 @@
   margin: 0; font-size: var(--traverse-type-body); color: var(--traverse-text-primary);
 }
 .cpm-gate-legend__row { display: contents; }
-.cpm-gate-legend--key .cpm-gate-legend__group-label { padding-top: 2px; color: var(--traverse-text-secondary); }
+/* CHG-192 (owner review item 16): the key opens only in dialogs (Gate status key, How to read), where no label is in caps. */
+.cpm-gate-legend--key .cpm-gate-legend__group-label { padding-top: 2px; color: var(--traverse-text-secondary); text-transform: none; letter-spacing: normal; }
 .cpm-gate-legend__marks { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-5); margin: 0; }
 /* CHG-156: How to read, in two titled parts with the note set apart. */
 .cpm-howto { display: flex; flex-direction: column; gap: var(--traverse-space-6); }

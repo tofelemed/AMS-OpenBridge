@@ -6,6 +6,7 @@
  * for word. On your own account Role and Active account are disabled with the reason on screen (the server refuses both).
  * Add user sends Active account (3a); Edit user sends only what changed and closes without a request when nothing did (3b);
  * a refusal shows as the server words it (3c).
+ * CHG-192 (owner review item 16): Edit user names the account under the title on the band (its Username field is not shown).
  */
 import React, { useId, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -53,7 +54,7 @@ export const UserEditorDialog: React.FC<{
 
   const busy = save.isPending;
   return (
-    <Dialog open title={editing ? 'Edit user' : 'Add user'} onClose={() => { if (!busy) onClose(); }}
+    <Dialog open title={editing ? 'Edit user' : 'Add user'} subtitle={user?.username} onClose={() => { if (!busy) onClose(); }}
       footer={<>
         <ObcButton variant="flat" disabled={busy} onClick={onClose}>Cancel</ObcButton>
         <ObcButton variant="raised" disabled={busy} onClick={handleSave}>

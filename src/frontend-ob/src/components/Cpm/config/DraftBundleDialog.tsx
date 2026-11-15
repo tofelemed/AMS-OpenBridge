@@ -5,6 +5,7 @@
  * number (before, always the newest: a FIC10302 LOOP draft started from v7, rolled back, instead of v6, active). The server
  * copies the layers of the `parentBundleId` it is given, so the choice is the request's. Each level says the version it
  * starts from ("Starts from"); the callout moved here from the Bundles list; a disabled Create draft says why.
+ * CHG-192 (owner review item 16): "Nothing changes for a loop until a bundle is activated." moved behind the Level ?.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -77,12 +78,12 @@ export const DraftBundleDialog: React.FC<{
           </ReasonedButton>
         </>
       )}>
-      <p className="cpm-copy">Nothing changes for a loop until a bundle is activated.</p>
       <section className="cpm-config-part" aria-label="Level">
         <div className="cpm-title-row">
           <h3 className="cpm-howto__title">Level</h3>
           <Toggletip variant="how-to" label="The three levels">
             {KINDS.map(k => <p key={k}><strong>{k}</strong> {LEVEL_COPY[k]}</p>)}
+            <p>Nothing changes for a loop until a bundle is activated.</p>
           </Toggletip>
         </div>
         <table className="cpm-table cpm-config-draft__levels">

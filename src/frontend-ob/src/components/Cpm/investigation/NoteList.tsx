@@ -3,6 +3,7 @@
  * and time (as they printed before), its text, and its links (the window it was written on, the episode it is about). An
  * existing note's episode and outcome change through its Edit action: the card opens two fields with Cancel and Save, and
  * only what changed is sent (the same PATCH calls as before). No select is open when nothing is being edited.
+ * CHG-192 (owner review item 16): the card's Save is secondary, so the dialog's one primary stays "Save note" in its footer.
  */
 import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -59,7 +60,7 @@ const NoteEdit: React.FC<{ n: LoopNote; episodes: CpmEventFrame[]; onDone: () =>
       <div className="cpm-note-card__actions">
         {failure && <span className="cpm-field__error" role="alert">{failure.message || 'The change was not saved.'}</span>}
         <ObcButton variant="normal" disabled={busy} onClick={onDone}>Cancel</ObcButton>
-        <ObcButton variant="raised" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</ObcButton>
+        <ObcButton variant="normal" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</ObcButton>
       </div>
     </div>
   );

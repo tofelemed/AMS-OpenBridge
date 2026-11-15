@@ -30,13 +30,17 @@
 
 /* Loop KPIs: a card opens a dialog, so it is a button that looks like the link card; coverage carries its bar */
 button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor: pointer; }
-/* CHG-185: the Overview's headed card. The title is the button and its click area covers the card; the ? tip sits above that
-   area, so a tap on the ? opens the tip and a tap anywhere else opens the dialog. The group is the last line. */
-/* The title flows as text, so a title on two lines keeps its ? right after the last word. */
+/* CHG-185: the Overview's headed card. The opener's click area covers the card; the ? tip sits above that area, so a tap on
+   the ? opens the tip and a tap anywhere else opens the dialog. The group is the last line. */
+/* The title flows as text, so a title on two lines keeps its ? right after the last word. CHG-192 (carried from CHG-185): the
+   title is plain text (the opener is the card-wide button below), and its last word and the ? sit in one span that does not
+   break ("Time in normal mode" pushed the ? alone onto a second line at 1440); the label still wraps between its other words.
+   Font and card size unchanged. */
 .cpm-kpicard__title { display: block; min-width: 0; }
-.cpm-kpicard__opener { display: inline; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
-.cpm-kpicard__title > .ui-toggletip { margin-inline-start: var(--traverse-space-1); }
-.cpm-kpicard__opener::after { content: ''; position: absolute; inset: 0; }
+.cpm-kpicard__tail { white-space: nowrap; }
+.cpm-kpicard__title .ui-toggletip { margin-inline-start: var(--traverse-space-1); }
+/* The opener covers the card, so a click or tap anywhere on it opens the dialog; it is named by the title. */
+.cpm-kpicard__opener { position: absolute; inset: 0; padding: 0; border: 0; border-radius: inherit; background: none; cursor: pointer; }
 .cpm-kpicard__opener:focus-visible { outline: none; }
 .cpm-kpicard--open:has(.cpm-kpicard__opener:focus-visible) { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
 .cpm-kpicard--open .ui-toggletip { position: relative; z-index: 1; }

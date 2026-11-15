@@ -8,7 +8,7 @@ import type { FleetPerformance } from '../../../api/cpm/fleetKpis';
 import { PerformanceKpis } from './PerformanceKpis';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+  ObcButton: ({ children, onClick, variant }: { children?: React.ReactNode; onClick?: () => void; variant?: string }) => <button data-variant={variant} onClick={onClick}>{children}</button>,
 }));
 afterEach(cleanup);
 
@@ -48,6 +48,16 @@ describe('PerformanceKpis', () => {
     expect(within(dialog).getByText(/165 stale, 76 never evaluated/)).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Show the loops' }));
     expect(screen.getByTestId('where').textContent).toMatch(/^\/cpm\?review=assessed/);
+  });
+
+  // CHG-192 (owner review item 16): label / value rows, no sentence paragraphs; the drill-down is the one primary
+  it('shows the basis and the meaning as label / value rows, with Show the loops as the one primary', () => {
+    show({ healthFiltered: true });
+    fireEvent.click(screen.getByRole('button', { name: /Good-error time/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Good-error time' });
+    expect([...dialog.querySelectorAll('dt')].map(d => d.textContent)).toEqual(['Basis', 'Meaning', 'Scope']);
+    expect(dialog.querySelector('.ui-dialog__body p')).toBeNull();
+    expect([...dialog.querySelectorAll('button[data-variant="raised"]')].map(b => b.textContent)).toEqual(['Show the loops']);
   });
 
   it('every tile reaches its own loops', () => {

@@ -45,6 +45,15 @@ describe('draftRequest', () => {
 });
 
 describe('DraftBundleDialog', () => {
+  // CHG-192 (owner review item 16): no explanatory sentence over the form; it sits behind the Level ?
+  it('keeps "Nothing changes for a loop until a bundle is activated." behind the Level ?', () => {
+    render(<DraftBundleDialog levels={levels} creating={false} onClose={() => {}} onCreate={() => {}} />);
+    const dialog = screen.getByRole('dialog', { name: 'Prepare bundle draft' });
+    expect(dialog.textContent).not.toContain('Nothing changes for a loop');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'The three levels' }));
+    expect(dialog.textContent).toContain('Nothing changes for a loop until a bundle is activated.');
+  });
+
   it('offers LOOP, PROFILE and SITE when drafting, and picks the right parent version', () => {
     const onCreate = vi.fn();
     render(<DraftBundleDialog levels={levels} creating={false} onClose={() => {}} onCreate={onCreate} />);
@@ -58,8 +67,7 @@ describe('DraftBundleDialog', () => {
   it('says which version each level starts from, the active one first, and sends that one', () => {
     const onCreate = vi.fn();
     render(<DraftBundleDialog levels={lab} creating={false} onClose={() => {}} onCreate={onCreate} />);
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('Nothing changes for a loop until a bundle is activated.')).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
     const loopRow = screen.getByRole('radio', { name: /LOOP/ }).closest('tr')!;
     expect(loopRow.textContent).toMatch(/v6.*Active \(verified\)/);
     expect(loopRow.textContent).not.toMatch(/v7/);

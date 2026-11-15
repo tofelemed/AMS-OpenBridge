@@ -2018,3 +2018,38 @@ from a 1000 px viewport the result is on the left and what the gate asks, its ef
 | Loop Explorer gate dialog · what it asks | row "What this gate asks  Cross-correlation non-reciprocity … (catalogue definition)" and, under More about this gate, "What this gate asks  Does the cross-correlation show the odd symmetry of stiction?" | one heading "What this gate asks": the question, then the definition under it |
 | Gate dialog · while the gate definitions load | "Definition unavailable." | "Loading…"; "Definition unavailable." only once they have loaded without this gate |
 | Performance gate dialog · a failed read | row "Reason  <the error>" (and the same error again under More about this gate) | the error once, as a line under the rows |
+
+## CHG-192 Every remaining dialog in the owner's dialog standard (owner review item 16; items 0, 17; Q1, Q4, Q5, Q6)
+
+The dialogs Tasks 1–9 did not redo, in the approved look (`17-buttons-SAMPLE.png`, Look 1): the object a dialog acts on under
+its title on the band, label / value rows, no caps labels, no explanatory sentence where a ? does, one primary on the right,
+destructive confirms in the destructive look. Times are unchanged (Q5). The full inventory is
+`owner-review-2026-11-14/item16-dialogs.md`.
+
+| Where | Was | Now |
+|---|---|---|
+| Administration › Users › Edit user · band | "Edit user" | "Edit user", the username under it (e.g. "a_engineer") |
+| Administration › Roles › Delete role · band | title `Delete role "Supervisor"` | title "Delete role", the role under it ("Supervisor") |
+| Administration › Roles › Reset to default · band | "Reset to default" | "Reset to default", the role under it ("Engineer") |
+| Administration › Data sources › Edit data source · band | "Edit data source" | "Edit data source", the source name under it |
+| Administration › Data sources › Edit MODE map · band | "Edit MODE map" | "Edit MODE map", the source name under it |
+| Administration › Edit MODE map · body | sentence "Source MODE value → engine token. Use exact tokens: AUT, MAN, CAS, IMAN. Everything else in this block is managed through the API and is left untouched by this save." | heading "Source MODE value → engine token" with a ? ("MODE map"): "Use exact tokens: AUT, MAN, CAS, IMAN. Everything else in this block is managed through the API and is left untouched by this save." |
+| Loop Registry › Edit configuration · band | "Edit configuration" | "Edit configuration", the loop under it ("FIC10401 · Flow controller") |
+| Loop Registry › Retire loop / Restore loop · band | "Retire loop" / "Restore loop" | the same titles, the loop under them ("FIC10401 · Flow controller") |
+| Loop Explorer › Loop model & setup · band | title "FIC10401 · Loop model & setup" | title "Loop model & setup", the loop under it ("FIC10401 · Flow controller") |
+| Loop Explorer › Loop summary (Open details) · row labels | "MAIN REASON", "NEXT CHECK", "BASIS", "NOT CHECKED", "EVIDENCE SEEN", "DATA", "LIMITATIONS" (caps) | "Main reason", "Next check", "Basis", "Not checked", "Evidence seen", "Data", "Limitations" |
+| Gate status key (Loop Explorer, Workbench Key) and Performance How to read · group names | "CHECKS", "WINDOW", "SYMPTOMS", "RESULT", "NO RESULT" (caps) | "Checks", "Window", "Symptoms", "Result", "No result" |
+| Performance › fleet tile dialog (Good-error time, Median error, Periodic diagnosis, Diagnostic capability) · body | the basis lines and the meaning as paragraphs; "The health filter does not narrow this figure: it counts the whole scope." | rows "Basis" (the same lines), "Meaning" (the same sentence) and, with the health filter on, "Scope" (the same sentence); "Show the loops" is the primary |
+| Gate Configuration › Prepare bundle draft · body | sentence "Nothing changes for a loop until a bundle is activated." over the Level part | the same sentence behind the Level ? ("The three levels"), under the three levels |
+| Gate Configuration › Workers · band and body | "Workers"; heading "APPLY acknowledgements" over the table | "Workers", the loop under it ("FIC10302"); no heading (the table's Job · Applied columns say it) |
+| Loop Events › Shelve / Update shelf / Unshelve / Full history · band | "Shelve" / "Update shelf" / "Unshelve" / "Full history" | the same titles, the episode under them ("FIC10301 · Oscillation suspected"); the dialogs' sentences stay word for word (CHG-167) |
+| Evidence Replay › Re-run this window · Configuration | "CONFIGURATION" (caps) | "Configuration" |
+| Evidence Replay and Calculations › Run details · body | sentence "Complete retention shows the proof was kept, not that it was sufficient." under the rows | the same sentence behind a ? beside "Proof retained" |
+| Window Inspector › Feature flags / Sample density / Engine & timing · band | the title alone | the title, the loop and window size under it ("FIC10401 · Flow controller · 15 min window"), as Compare window sizes |
+| Window Inspector › Sample density · raw count | line "8,640 raw points" ("(first page)" when capped) | row "Raw points  8,640" ("(first page)" kept) |
+| System Response › Review system model | page-local overlay: caps eyebrow "MODEL REVIEW" over "FOPDT · OP_TO_PV" with the state pill; rows "revision", "estimator / uncertainty"; caps field labels "DECISION", "APPROVED REGIME (OPTIONAL)", "NOTE" | the shared dialog: title "Review system model", "FOPDT · OP_TO_PV" under it on the band; rows "State", "Revision", "Estimator / uncertainty"; form rows "Decision", "Approved regime (optional)", "Note"; Cancel, Record decision |
+| Investigation › Calculation proof · section | "CALCULATED VALUES" (caps eyebrow) | "Calculated values" (a plain heading) |
+| Investigation › Hypotheses · heading | pill "revision 1" beside "Mechanisms and the evidence for each" | no pill (item 0: a version) |
+
+Looks, not words: every Administration delete confirm and Reset to default, Delete role and Retire loop use the destructive
+button; the Loop notes dialog's card Save is secondary (one primary: Save note); the wide dialog is 880 px (was 720 px).
