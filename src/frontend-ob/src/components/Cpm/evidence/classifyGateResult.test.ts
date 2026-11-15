@@ -23,6 +23,11 @@ describe('classifyGateResult', () => {
     expect(s.kind).toBe('FAILED_REQUEST');
     expect(s.detail).toContain('boom');
   });
+  // CHG-188 (owner review 10.2, 10.3): the evaluated window shows its evidence; only other non-live runs are shadow runs
+  it('shows an evaluated window (EVALUATE) like any run, and keeps the shadow state for other non-live runs', () => {
+    expect(classifyGateResult(base({ methodRun: { purpose: 'EVALUATE' } })).kind).toBe('READY');
+    expect(classifyGateResult(base({ methodRun: { purpose: 'SHADOW' } })).kind).toBe('SHADOW');
+  });
   it('NO_RESULT when the method run cannot be resolved', () => {
     expect(classifyGateResult(base({ cell: null, methodRun: null })).kind).toBe('NO_RESULT');
   });

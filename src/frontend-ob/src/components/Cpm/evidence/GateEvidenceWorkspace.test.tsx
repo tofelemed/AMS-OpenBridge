@@ -4,7 +4,7 @@
 // the gate strip, the window steppers and "Newest" all navigate within the loaded window list.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
@@ -34,10 +34,16 @@ const fusedRow = {
   observabilityFlags: ['NO_VP'], familyDisqualifiers: [], insufficientEvidenceReason: 'INSUFFICIENT_SAMPLES', methodEligibility: null, computedAt: '2026-09-17T08:01:00Z', jarSha256: 'def',
 };
 
+// CHG-188: what the lab says about the accepted reconstruction (its job's state, and the rebuild once the manifest lists it)
+const lab = { jobState: 'SUBMITTED', rebuilt: false, purpose: 'LIVE' };
+const rebuiltManifest = (id: string) => ({ ...noEvidence(id), reconstructions: [{ analysisRunId: 'ar-1', state: 'FINISHED', createdAt: '2026-09-16T12:10:00Z',
+  source: 'iotdb', differing: 0, identical: 2, readiness: 'IDENTICAL', sourceCommit: null, jarSha256: null, artifacts: [] }] });
+const manifestOf = (id: string) => (lab.rebuilt && id === RUN ? rebuiltManifest(id) : noEvidence(id));
+
 function respond(url: string): unknown {
   if (url.endsWith(`/method-runs/${RUN}`)) {
     return { methodRunId: RUN, tier: 'short', gate: 'G3', loopId: 'FIC10302', site: 'hdpe', windowKind: '5m', gateResultId: null,
-      support: { fromMs: 1789586400000, toMs: 1789586700000, sampleCount: 61 }, identity, cell: null, verdictV2: null, result: { gate3_status: 'WARN' },
+      support: { fromMs: 1789586400000, toMs: 1789586700000, sampleCount: 61 }, identity: { ...identity, purpose: lab.purpose }, cell: null, verdictV2: null, result: { gate3_status: 'WARN' },
       methodRunIds: { G0: 'g0-run', G3: RUN }, reconstruction: { supported: true, reason: '' }, computedAt: '2026-09-16T12:05:00Z' };
   }
   if (url.endsWith(`/method-runs/${G3_FUSED}`) || url.endsWith('/method-runs/g15-run') || url.endsWith('/method-runs/g0-run')) {
@@ -49,12 +55,12 @@ function respond(url: string): unknown {
       reconstruction: { supported: true, reason: '' }, computedAt: fusedRow.computedAt };
   }
   if (url.endsWith('/method-runs/evidence/batch')) {
-    return { count: 4, manifests: Object.fromEntries([RUN, G3_FUSED, 'g15-run', 'g0-run', 'g1-run', 'g11-run'].map(id => [id, noEvidence(id)])) };
+    return { count: 4, manifests: Object.fromEntries([RUN, G3_FUSED, 'g15-run', 'g0-run', 'g1-run', 'g11-run'].map(id => [id, manifestOf(id)])) };
   }
   // CHG-099: the accepted reconstruction names the run it rebuilds; its state is read (and refreshed) while it runs
   if (url.endsWith('/analysis-runs')) return { analysisRunId: 'ar-1', loopId: 'FIC10302', purpose: 'EVIDENCE_RECONSTRUCTION', jobId: 'job-1', source: 'iotdb', gate: 'G3', reconstructs: RUN };
-  if (url.endsWith('/analysis-runs/ar-1')) return { analysisRunId: 'ar-1', state: 'SUBMITTED' };
-  if (/\/method-runs\/[^/]+\/evidence$/.test(url)) return noEvidence(url.split('/').slice(-2)[0]);
+  if (url.endsWith('/analysis-runs/ar-1')) return { analysisRunId: 'ar-1', state: lab.jobState };
+  if (/\/method-runs\/[^/]+\/evidence$/.test(url)) return manifestOf(url.split('/').slice(-2)[0]);
   if (url.includes('/gates?')) {
     const q = new URL('http://x' + url).searchParams;
     if (q.get('projection') !== 'summary' || q.get('includeInsufficient') !== 'true') throw new Error(`the picker must ask for summary rows incl. insufficient: ${url}`);
@@ -98,6 +104,7 @@ describe('GateEvidenceWorkspace', () => {
     vi.mocked(fetchMod.apiFetch).mockReset();
     vi.mocked(fetchMod.apiFetch).mockImplementation(async () => ({ ok: true, status: 200, json: async () => [], arrayBuffer: async () => new ArrayBuffer(0) }) as unknown as Response);
     asUser(['cpm.analysis.create']);
+    Object.assign(lab, { jobState: 'SUBMITTED', rebuilt: false, purpose: 'LIVE' });
   });
   afterEach(cleanup);
 
@@ -148,10 +155,11 @@ describe('GateEvidenceWorkspace', () => {
     expect(foot.textContent).not.toMatch(/samples at/);
   });
 
-  it('asks in a dialog before reconstructing: no request until confirmed, then the real state', async () => {
+  // CHG-188 (owner review 15): the dialog shows the run; closed mid-run, the page says it was accepted and the button reopens it
+  it('asks in a dialog before reconstructing: no request until confirmed, then the run in the dialog', async () => {
     renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
     await screen.findByText('Evidence not kept');   // the run has loaded: the bar's button is live
-    fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Reconstruct evidence' }));
     const d = await screen.findByRole('dialog', { name: 'Reconstruct evidence' });
     expect(d.textContent).toContain('FIC10302');
     expect(d.textContent).toContain('G3 Base performance');
@@ -159,9 +167,32 @@ describe('GateEvidenceWorkspace', () => {
     expect(posts()).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Reconstruct' }));
     await waitFor(() => expect(posts()).toHaveLength(1));
-    await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status').textContent).toBe('Running'));
+    expect(screen.queryByText(/Reconstruction accepted/)).toBeNull();   // the dialog says it
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted · submitted/).length).toBeGreaterThan(0));
     expect(screen.queryByText(/\(run /)).toBeNull();   // CHG-184: the accepted line names no run id
-    expect(screen.queryByRole('dialog')).toBeNull();
+    // the button reopens the run, and sends nothing new
+    fireEvent.click(screen.getByRole('button', { name: 'Reconstruct evidence' }));
+    expect(within(await screen.findByRole('dialog')).getByRole('status').textContent).toBe('Running');
+    expect(posts()).toHaveLength(1);
+  });
+
+  it('says Done once the rebuild is listed, closes by itself and leaves no accepted line', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+      await screen.findByText('Evidence not kept');
+      fireEvent.click(screen.getByRole('button', { name: 'Reconstruct evidence' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Reconstruct' }));
+      await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status').textContent).toBe('Running'));
+      Object.assign(lab, { jobState: 'FINISHED', rebuilt: true });
+      await act(() => vi.advanceTimersByTimeAsync(10_500));   // the job's state poll; its end reads the manifest at once
+      await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status').textContent).toMatch(/Done/));
+      await act(() => vi.advanceTimersByTimeAsync(1_300));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByText(/Reconstruction accepted/)).toBeNull();
+    } finally { vi.useRealTimers(); }
   });
 
   it('shows the refusal in the dialog and never an accepted line', async () => {
@@ -201,7 +232,8 @@ describe('GateEvidenceWorkspace', () => {
       const manifestGets = () => urls().filter(u => u.endsWith('/method-runs/evidence/batch') || u.endsWith(`/method-runs/${RUN}/evidence`)).length;
       fireEvent.click(screen.getAllByRole('button', { name: /Reconstruct evidence/ })[0]);
       fireEvent.click(await screen.findByRole('button', { name: 'Reconstruct' }));
-      await waitFor(() => expect(screen.getAllByText(/Reconstruction accepted/).length).toBeGreaterThan(0));
+      await waitFor(() => expect(posts()).toHaveLength(1));
+      await waitFor(() => expect(screen.getAllByText('Running').length).toBeGreaterThan(0));   // CHG-188: the dialog shows the run
       await vi.advanceTimersByTimeAsync(1_000);
       const afterAccept = manifestGets();                      // the one invalidation refetch
       await vi.advanceTimersByTimeAsync(10_500);
@@ -209,6 +241,30 @@ describe('GateEvidenceWorkspace', () => {
       await vi.advanceTimersByTimeAsync(10_500);
       expect(manifestGets()).toBeGreaterThan(afterAccept + 1); // and keeps firing while nothing arrived
     } finally { vi.useRealTimers(); }
+  });
+
+  // CHG-188 (owner review 10): Evaluate a window is a dialog opened from the gate head; nothing is sent until Evaluate
+  it('opens Evaluate a window as a dialog from the gate head', async () => {
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await screen.findByText('Evidence not kept');
+    expect(screen.queryByRole('button', { name: /Hide Evaluate a window/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Evaluate a window' }));
+    const d = await screen.findByRole('dialog', { name: 'Evaluate a window' });
+    expect(d.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10302 · Reactor feed flow');
+    expect(within(d).getByRole('group', { name: 'Length' })).toBeTruthy();
+    fireEvent.click(within(d).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(posts()).toHaveLength(0);
+  });
+
+  // CHG-188 (owner review 10.3): an evaluated window is one label in the head, its detail behind the ?
+  it('names an evaluated window "Re-evaluated" in the head, with no EVALUATE pill and no evaluation note', async () => {
+    lab.purpose = 'EVALUATE';
+    renderAt(`?loop=FIC10302&methodRun=${RUN}&gate=G3`);
+    await waitFor(() => expect(document.querySelector('.cpm-workbench__head')?.textContent).toContain('Re-evaluated'));
+    expect(screen.getByRole('button', { name: 'Re-evaluated' })).toBeTruthy();
+    expect(screen.queryByText('EVALUATE')).toBeNull();
+    expect(screen.queryByText(/Evaluated from the historian|artifact\(s\) rebuilt|Evidence not kept/)).toBeNull();
   });
 
   // CHG-153 final review: the links out of the Workbench name the run's own window and kind.

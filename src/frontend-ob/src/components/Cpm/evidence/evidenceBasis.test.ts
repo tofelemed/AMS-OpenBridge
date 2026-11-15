@@ -2,7 +2,7 @@
 // original was no longer held, or a reconstruction viewed beside the retained proof — and never mixes the two silently.
 import { describe, expect, it } from 'vitest';
 import type { EvidenceArtifactMeta, EvidenceManifest, EvidenceReconstruction } from '../../../api/cpm/evidence';
-import { basisOf, reconstructRefusal, reconstructionSettled, reconstructionSummary, viewedManifest } from './evidenceBasis';
+import { basisOf, evaluatedAt, reconstructRefusal, reconstructionSettled, reconstructionSummary, viewAfterRebuild, viewedManifest } from './evidenceBasis';
 
 const art = (id: string, kind: string, over: Partial<EvidenceArtifactMeta> = {}): EvidenceArtifactMeta => ({
   artifactId: id, methodRunId: 'run', gate: 'G5', kind, roleOrPath: null, x: { quantity: null, unit: null }, y: { quantity: null, unit: null },
@@ -60,11 +60,13 @@ describe('nothing retained: the rebuild is shown, labelled (CHG-099)', () => {
   it('shows the newest reconstruction by default when no original is complete', () => {
     const m = M({ artifacts: [art('o1', 'cycle_scores', { readiness: 'EXPIRED' })], readiness: 'EXPIRED' });
     expect(basisOf(m, null, 'UTC')).toMatchObject({ kind: 'REBUILT_LOST', label: 'Rebuilt evidence' });
-    // CHG-102 5c: an evaluated window's verdict is the evaluation's own - the "live engine only" sentence would be wrong
+    // CHG-102 5c: an evaluated window's verdict is the evaluation's own - the "live engine only" sentence would be wrong.
+    // CHG-188 (owner review 10.3): the head's "Re-evaluated" label says it; no note, no "N artifact(s) rebuilt"
     const e = basisOf(m, null, 'UTC', true);
-    expect(e).toMatchObject({ kind: 'REBUILT_LOST', label: 'Evaluated from the historian' });
-    expect(e.detail).toMatch(/verdict and the arrays shown are that evaluation's/);
-    expect(e.detail).not.toMatch(/Verdicts come only from the live engine/);
+    expect(e).toMatchObject({ kind: 'EVALUATED', label: 'Re-evaluated', detail: '' });
+    expect(evaluatedAt(m, null, '2026-10-16T00:00:00Z')).toBe(Date.parse('2026-10-15T08:00:00Z'));   // the rebuild's own time
+    expect(evaluatedAt(M({ reconstructions: [] }), null, '2026-10-16T00:00:00Z')).toBe(Date.parse('2026-10-16T00:00:00Z'));
+    expect(evaluatedAt(M({ reconstructions: [] }), null, null)).toBeNull();
     const v = viewedManifest(m, null)!;
     expect(v.artifacts.map(a => a.artifactId)).toEqual(['r1']);
     expect(v.readiness).toBe('COMPLETE');
@@ -95,5 +97,16 @@ describe('a rebuild under a new run identity (lab pass 2026-10-15)', () => {
     expect(b.detail).toMatch(/97 artifact\(s\) rebuilt/);
     expect(b.detail).not.toMatch(/differ from the retained proof/);
     expect(b.detail).toMatch(/a rebuild re-creates the arrays, not the verdict/);
+  });
+});
+
+// CHG-188 (owner review 15): once a reconstruction is done, its charts show
+describe('viewAfterRebuild', () => {
+  it('opens the rebuild beside retained proof, and leaves an all-rebuilt run to show it by itself', () => {
+    expect(viewAfterRebuild(M(), 'ar1')).toBe('ar1');
+    const lost = M({ artifacts: [art('o1', 'cycle_scores', { readiness: 'EXPIRED' })], readiness: 'EXPIRED' });
+    expect(viewAfterRebuild(lost, 'ar1')).toBeNull();
+    expect(viewAfterRebuild(M({ reconstructions: [recon({ readiness: 'IDENTICAL', differing: 0, artifacts: [] })] }), 'ar1')).toBeNull();
+    expect(viewAfterRebuild(M(), undefined)).toBeNull();
   });
 });

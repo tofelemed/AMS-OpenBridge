@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../../api/apiFetch';
 import type { EvaluationRun } from '../../../api/cpm/evaluation';
-import { evaluationRefusal, evaluationSettled, evaluationStatus, openableVerdict, requestedEnd, requestedStart, VERDICT_WAIT_MS } from './evaluationState';
+import { evaluationPhase, evaluationRefusal, evaluationSettled, evaluationStatus, openableVerdict, requestedEnd, requestedStart, VERDICT_WAIT_MS } from './evaluationState';
 
 const NOW = Date.parse('2026-11-04T10:07:30Z');
 const run = (o: Partial<EvaluationRun>): EvaluationRun => ({
@@ -66,5 +66,33 @@ describe('evaluationRefusal', () => {
     expect(evaluationRefusal(new ApiError(400, 'x', 'INVALID_WINDOW'))).toMatch(/retention/);
     expect(evaluationRefusal(new ApiError(403, 'Forbidden'))).toMatch(/not allowed/);
     expect(evaluationRefusal(new Error('boom'))).toMatch(/boom/);
+  });
+});
+
+// CHG-188 (owner review 10.2): the dialog's progress uses only the states the status API reports
+describe('evaluationPhase', () => {
+  const p = (o: Partial<Parameters<typeof evaluationPhase>[0]>) =>
+    evaluationPhase({ pending: false, startError: null, accepted: true, run: undefined, readError: null, nowMs: NOW, ...o });
+
+  it('is the form before Evaluate, and no state word while the request is on its way', () => {
+    expect(p({ accepted: false })).toEqual({ step: 'IDLE' });
+    expect(p({ pending: true })).toEqual({ step: 'STARTING' });
+    expect(p({})).toEqual({ step: 'STARTING' });   // answered, the first status not read yet
+  });
+
+  it('follows QUEUED and RUNNING, and is Done only once the verdict can be opened', () => {
+    expect(p({ run: run({ state: 'QUEUED' }) }).step).toBe('QUEUED');
+    expect(p({ run: run({ state: 'RUNNING' }) }).step).toBe('RUNNING');
+    const finishing = run({ state: 'FINISHED', gateResults: 0, verdictMethodRunId: 'g15', finishedAt: new Date(NOW - 5_000).toISOString() });
+    expect(p({ run: finishing }).step).toBe('RUNNING');
+    expect(p({ run: run({ state: 'FINISHED', gateResults: 3, verdictMethodRunId: 'g15', cached: true }) }).step).toBe('DONE');
+  });
+
+  it('fails with the reason in plain words, and when the result never arrives', () => {
+    expect(p({ startError: new ApiError(429, 'x', 'TOO_MANY_EVALUATIONS_IN_FLIGHT') })).toEqual({ step: 'FAILED', reason: expect.stringMatching(/3 evaluations/) });
+    expect(p({ run: run({ state: 'FAILED', error: 'NO_HISTORIAN_DATA: dev' }) })).toEqual({ step: 'FAILED', reason: expect.stringMatching(/no samples/) });
+    expect(p({ readError: new Error('502') }).reason).toMatch(/could not be read\. It may still finish/);
+    const stale = run({ state: 'FINISHED', gateResults: 0, verdictMethodRunId: 'g15', finishedAt: new Date(NOW - VERDICT_WAIT_MS - 1).toISOString() });
+    expect(p({ run: stale }).reason).toMatch(/did not arrive within a minute/);
   });
 });

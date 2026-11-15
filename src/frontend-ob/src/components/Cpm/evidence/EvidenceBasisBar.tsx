@@ -3,12 +3,13 @@
  * because the original was no longer held, or a reconstruction viewed beside the retained proof) and the switch between
  * the retained proof and the newest reconstruction. The choice lives in the URL (?view=<analysisRunId>). CHG-187 (owner review 11):
  * retained proof is said once, by the gate head's "Evidence kept" label, so this line names only a rebuild or a reconstruction.
+ * CHG-188 (owner review 10.3): an evaluated window likewise, by the head's "Re-evaluated" label.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
 import { TonePill } from '../shared';
-import { basisOf, reconstructionSummary } from './evidenceBasis';
+import { basisOf, effectiveView, reconstructionSummary } from './evidenceBasis';
 
 export const EvidenceBasisBar: React.FC<{
   manifest: EvidenceManifest | undefined;
@@ -22,13 +23,17 @@ export const EvidenceBasisBar: React.FC<{
 }> = ({ manifest, view, timeZone, onView, onOpenRun, evaluated }) => {
   if (!manifest) return null;
   const basis = basisOf(manifest, view, timeZone, evaluated);
-  const newest = manifest.reconstructions?.[0];
+  // CHG-188 (owner review 10.3): an evaluated window is said once, by the head's "Re-evaluated" label, and so is the
+  // evaluation's own rebuild ("Reconstructed … · N artifact(s) rebuilt" went with the note)
+  const all = manifest.reconstructions?.[0];
+  const newest = basis.kind === 'EVALUATED' && all?.analysisRunId === effectiveView(manifest, view).id ? undefined : all;
   // "nothing held" and "retained proof" are said once, by the head's retention label (CHG-187), so the bar adds no pill for
   // them. A reconstruction asked for (running, failed, empty) is a data state and keeps its line.
-  if ((basis.kind === 'NONE' || basis.kind === 'RETAINED') && !newest) return null;
-  const named = basis.kind !== 'NONE' && basis.kind !== 'RETAINED';
-  // nothing to switch to when the rebuild is all there is (REBUILT_LOST)
-  const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST';
+  const quiet = basis.kind === 'NONE' || basis.kind === 'RETAINED' || basis.kind === 'EVALUATED';
+  if (quiet && !newest) return null;
+  const named = !quiet;
+  // nothing to switch to when the rebuild is all there is (REBUILT_LOST, EVALUATED)
+  const viewable = newest && newest.differing > 0 && basis.kind !== 'REBUILT_LOST' && basis.kind !== 'EVALUATED';
   return (
     <div className="cpm-eval-note cpm-evidence-basis" role="group" aria-label="Evidence basis">
       {named && <TonePill tone={basis.tone}>{basis.label}</TonePill>}

@@ -49,7 +49,9 @@ export function classifyGateResult(i: GateStateInput): GateState {
     return { kind: 'FAILED_REQUEST', title: 'The request failed', detail: msg, stillValid: 'Nothing on this view is current until the request succeeds.', action: 'RETRY', tone: 'bad' };
   }
   if (!i.methodRun && !i.cell) return { kind: 'NO_RESULT', title: 'No result carries this run', detail: 'No stored evaluation matches this run.', stillValid: '', action: 'GO_TO_LATEST', tone: 'muted' };
-  if (i.methodRun && i.methodRun.purpose !== 'LIVE') {
+  // CHG-188 (owner review 10.2, 10.3): a window evaluated on request is shown like any window - its own verdict and arrays,
+  // said once by the head's "Re-evaluated" label - not as a shadow run with a raw "EVALUATE evaluation" panel instead of them
+  if (i.methodRun && i.methodRun.purpose !== 'LIVE' && i.methodRun.purpose !== 'EVALUATE') {
     return { kind: 'SHADOW', title: `${i.methodRun.purpose} evaluation`, detail: 'This run was produced by a bounded evaluation, not the live timeline; it never opened or closed an episode.',
       stillValid: 'The verdict and evidence are exact for that run and configuration.', action: 'NONE', tone: 'warn' };
   }

@@ -6,12 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { RunSummaryBar } from './RunSummaryBar';
-import { retentionLabel } from './retention';
+import { reEvaluatedLabel, retentionLabel } from './retention';
 import type { GateState } from './GateResultState';
 import type { MethodRun } from '../../../api/cpm/evidence';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; variant?: string; 'aria-haspopup'?: string }) =>
+    React.createElement('button', { onClick: p.onClick, disabled: p.disabled, 'data-class': p.className ?? '', 'data-variant': p.variant, 'aria-haspopup': p['aria-haspopup'] }, p.children),
 }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/icon-button/icon-button', () => ({
   ObcIconButton: (p: { children?: React.ReactNode; onClick?: () => void }) => React.createElement('button', { onClick: p.onClick }, p.children),
@@ -106,10 +107,26 @@ describe('RunSummaryBar', () => {
     expect(onReconstruct).not.toHaveBeenCalled();
   });
 
-  it('shows the request while it is in flight', () => {
-    bar({ reconstructPending: true });
-    const b = screen.getByRole('button', { name: /Reconstruction requested/ }) as HTMLButtonElement;
-    expect(b.disabled).toBe(true);
+  // CHG-188 (owner review 15, Q4): Reconstruct opens a dialog, so it is an action button, not a "↗" link
+  it('offers Reconstruct as a secondary button that opens a dialog, without ↗ or the link look', () => {
+    bar();
+    const b = screen.getByRole('button', { name: 'Reconstruct evidence' });
+    expect(b.textContent).not.toMatch(/↗/);
+    expect(b.getAttribute('data-class')).not.toMatch(/ui-link/);
+    expect(b.getAttribute('data-variant')).toBe('normal');
+    expect(b.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(screen.queryByText(/Reconstruction requested/)).toBeNull();
+  });
+
+  // CHG-188 (owner review 10.3): an evaluated window is one "Re-evaluated" label, not an EVALUATE pill beside it
+  it('names an evaluated window "Re-evaluated" with its ?, and no EVALUATE pill', () => {
+    bar({ run: { ...run, identity: { ...run.identity, purpose: 'EVALUATE' } }, retention: reEvaluatedLabel(Date.parse('2026-11-14T19:45:00Z'), 'UTC') });
+    const text = screen.getByRole('list', { name: 'Run summary' }).textContent!;
+    expect(text).toMatch(/Re-evaluated/);
+    expect(text).not.toMatch(/EVALUATE|Evaluated from the historian|artifact/);
+    expect(screen.queryByText('EVALUATE')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Re-evaluated' })).toBeTruthy();
+    expect(screen.queryByText(/Kept 3 days/)).toBeNull();   // behind the ?
   });
 });
 

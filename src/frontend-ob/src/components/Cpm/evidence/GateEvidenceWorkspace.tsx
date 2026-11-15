@@ -8,6 +8,8 @@
  * Evidence Replay]. There is no right column, and no More. CHG-184 (owner review item 0, 11.3): no Identity & raw tab, no run id.
  * CHG-187 (owner review 9, 11): each fact once - one retention label and "Measured vs required" (a dialog) in the gate head,
  * the gate's numbers as KPI cards with a limit as a small flag (no sentence), the foot strip one compact line.
+ * CHG-188 (owner review 10, 15): Evaluate a window and Reconstruct evidence are dialogs that show their run's progress and close
+ * by themselves when it is done; an evaluated window is one "Re-evaluated" label in the gate head.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,6 +25,7 @@ import { RunSummaryBar } from './RunSummaryBar';
 import { WorkbenchHead } from './WorkbenchHead';
 import { nominalSamples, samplePeriodOf } from './tabs/proofRows';
 import { investigationHref } from '../cpaHref';
+import { serviceName } from '../loopName';
 import { windowSpan } from '../windowLabel';
 import { ReconstructDialog } from './ReconstructDialog';
 import { useFusedRow } from './useFusedRow';
@@ -34,15 +37,12 @@ import { ProofTab } from './tabs/ProofTab';
 import { RulesTab } from './tabs/RulesTab';
 import { SignalTab } from './tabs/SignalTab';
 import { Tabs, tabPanelProps, type TabOption } from '../../../ui/Tabs';
-import { useAnalysisRunState, useEvidenceManifest, useMethodRun, useReconstruct } from './useEvidence';
+import { useAnalysisRunState, useMethodRun } from './useEvidence';
 import { EvidenceBasisBar } from './EvidenceBasisBar';
-import type { EvidenceManifest } from '../../../api/cpm/evidence';
-import { TERMINAL_RUN_STATES, basisOf, reconstructRefusal, reconstructionSettled, viewedManifest } from './evidenceBasis';
-import { retentionLabel } from './retention';
+import { TERMINAL_RUN_STATES, basisOf, evaluatedAt, reconstructRefusal, viewedManifest } from './evidenceBasis';
+import { reEvaluatedLabel, retentionLabel } from './retention';
 import { MeasuredCheck } from './MeasuredCheck';
-
-/** Manifest poll interval while a reconstruction is pending (plant: artifacts land in ~20 s). */
-const RECONSTRUCTION_POLL_MS = 10_000;
+import { RECONSTRUCTION_POLL_MS, useReconstructFlow } from './useReconstructFlow';
 import { useGateArtifacts } from './useGateArtifacts';
 import { findOptionOfRun, neighbours, resolveLanding, runInWindow, useEvidenceWindows, type WindowOption, type WindowTier } from './useEvidenceWindows';
 import { chipCells, gateReasonOf, gateStatusOf } from './gateFacts';
@@ -64,7 +64,6 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [evaluateOpen, setEvaluateOpen] = useState(false);
-  const [reconOpen, setReconOpen] = useState(false);
   const selection = useMemo(() => parseSelection(params), [params]);
   const loopId = selection?.loopId ?? params.get('loop')?.trim() ?? undefined;
   const wantedGate = params.get('gate')?.trim() || null;
@@ -76,31 +75,22 @@ export const GateEvidenceWorkspace: React.FC = () => {
   // CHG-102 5c: ?analysisRun= names the EVALUATE run the window was opened from (its own verdict, not the live row)
   const analysisRunParam = params.get('analysisRun')?.trim() || undefined;
   const run = useMethodRun(selection?.methodRunId, analysisRunParam);
-  const reconstruct = useReconstruct(selection?.methodRunId);
-  // A reconstruction lands in ~20 s at the plant; poll while one is pending so the charts appear by themselves
-  // (the hook stops polling once readiness is COMPLETE). Without a pending request the manifest is not polled.
-  // CHG-099: a reconstruction is stored beside the retained proof, so the poll stops when THAT reconstruction settles —
-  // and only for the run it was asked for (navigating to another window drops it)
-  const pendingRun = reconstruct.isSuccess && reconstruct.data.reconstructs === selection?.methodRunId
-    ? reconstruct.data.analysisRunId : undefined;
-  const runState = useAnalysisRunState(pendingRun, RECONSTRUCTION_POLL_MS);
-  const settled = useCallback((m: EvidenceManifest) => reconstructionSettled(m, pendingRun), [pendingRun]);
-  const rawManifest = useEvidenceManifest(selection?.methodRunId, pendingRun ? RECONSTRUCTION_POLL_MS : undefined, pendingRun ? settled : undefined);
+  // CHG-099 (SME review 2 #18): ?view=<analysisRunId> shows a reconstruction in place of the differing originals
+  const view = params.get('view');
+  const setView = (v: string | null) => setParams(p => { if (v) p.set('view', v); else p.delete('view'); return p; }, { replace: true });
+  // A reconstruction lands in ~20 s at the plant; the manifest is polled only while one is pending (CHG-188: the dialog shows it)
+  const recon = useReconstructFlow(selection?.methodRunId, setView);
+  const { rawManifest, pendingRun, runState } = recon;
   // a reconstruction listed as still running (asked for earlier, or by someone else): reading its state refreshes it from
   // Flink; once it ends, the manifest is read again so the evidence-basis bar shows the outcome
   const listedPending = !pendingRun ? rawManifest.data?.reconstructions?.find(r => r.readiness === 'PENDING')?.analysisRunId : undefined;
   const listedState = useAnalysisRunState(listedPending, RECONSTRUCTION_POLL_MS);
   const listedEnded = !!listedState.data && TERMINAL_RUN_STATES.has(listedState.data.state);
   useEffect(() => { if (listedEnded) void rawManifest.refetch(); }, [listedEnded]);   // eslint-disable-line react-hooks/exhaustive-deps
-  // CHG-099 (SME review 2 #18): ?view=<analysisRunId> shows a reconstruction in place of the differing originals
-  const view = params.get('view');
   const manifest = { ...rawManifest, data: viewedManifest(rawManifest.data, view) };
-  const setView = (v: string | null) => setParams(p => { if (v) p.set('view', v); else p.delete('view'); return p; }, { replace: true });
   const tab = tabOf(params.get('sub'));
   const setTab = (t: WorkbenchTab) => setParams(p => { if (t === 'proof') p.delete('sub'); else p.set('sub', t); return p; }, { replace: true });
   const canReconstruct = useAuthStore(s => s.hasPermission('cpm.analysis.create'));
-  // the dialog closes by itself once the service has acknowledged; the page then states the accepted request
-  useEffect(() => { if (reconstruct.isSuccess) setReconOpen(false); }, [reconstruct.isSuccess]);
 
   const loop = loops.data?.loops.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
   const timeZone = siteZoneOf(loop);
@@ -176,8 +166,11 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const flagReason = reason === 'NO_VP' && vpAbsent(inputContextOf(loop)) ? 'VP_NOT_APPLICABLE' : reason;
   // a Reason card (G14's record) already says why, so no flag repeats it
   const flags = selection && !headline.some(h => h.label === 'Reason') ? limitFlags({ gate: selection.gate, status, reason: flagReason, stateKind: state.kind, eligibilityDetail }) : [];
-  const basis = rawManifest.data ? basisOf(rawManifest.data, view, timeZone, run.data?.identity.purpose === 'EVALUATE') : undefined;
-  const retention = retentionLabel(manifest.data?.readiness, basis?.kind, state);
+  const evaluated = run.data?.identity.purpose === 'EVALUATE';
+  const basis = rawManifest.data ? basisOf(rawManifest.data, view, timeZone, evaluated) : undefined;
+  // CHG-188 (owner review 10.3): an evaluated window is one label, "Re-evaluated", in the head
+  const retention = evaluated ? reEvaluatedLabel(evaluatedAt(rawManifest.data, view, run.data?.computedAt), timeZone)
+    : retentionLabel(manifest.data?.readiness, basis?.kind, state);
   const inputFlags = useMemo(() => effectiveInputFlags(currentOption?.flags?.observabilityFlags, inputContextOf(loop)), [currentOption, loop]);
   // CHG-162: while a run loads (a gate's own run can be slow) the list keeps the window's gates and their runs
   const chips = useMemo(() => chipsOf({
@@ -203,9 +196,13 @@ export const GateEvidenceWorkspace: React.FC = () => {
   const footText = run.data
     ? `${windowSpan({ windowKind: run.data.windowKind, windowStart: run.data.support.fromMs, windowEnd: run.data.support.toMs }, timeZone)}${samplesText}`
     : '';
-  const askReconstruct = () => { reconstruct.reset(); setReconOpen(true); };
-  // CHG-102 5c: any window the historian holds, evaluated on demand; the result opens on its fused (G15) run
-  const evaluate = loopId ? <EvaluateWindow loopId={loopId} timeZone={timeZone} kindHint={kind} onOpen={openEvaluated} /> : null;
+  // CHG-102 5c: any window the historian holds, evaluated on demand; the result opens on its fused (G15) run. CHG-188: a dialog,
+  // drawn at the same place in both layouts below, so a run survives the page moving from "no run open" to the opened window
+  const evaluate = loopId ? (
+    <EvaluateWindow loopId={loopId} timeZone={timeZone} kindHint={kind} open={evaluateOpen} onClose={() => setEvaluateOpen(false)} onOpen={openEvaluated}
+      subtitle={[loopId, loop ? serviceName(loop) : ''].filter(Boolean).join(' · ')} />
+  ) : null;
+  const evaluateButton = <ObcButton variant="normal" aria-haspopup="dialog" onClick={() => setEvaluateOpen(true)}>Evaluate a window</ObcButton>;
   const LOOP_KEYS = ['methodRun', 'gate', 'mode', 'kind', 'before'];
   const support = run.data?.support;
   const runWindow = optionIndex < 0 && support?.fromMs != null && support.toMs != null
@@ -245,6 +242,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
         </>
       )}
       {loopId && <DateJump onJump={toDate} />}
+      {loopId && !selection && evaluateButton}
     </LoopBand>
   );
 
@@ -277,8 +275,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
     <div className="cpm-screen cpm-evidence-workspace cpm-compact">
       <WorkspaceHeader eyebrow="Understand the cause" title="Evidence Workbench" />
       {band}
-      {/* Here, not in the More panel: a run must survive a click elsewhere, which closes the panel */}
-      {evaluateOpen && evaluate}
+      {evaluate}
       <div className="cpm-workbench">
       {run.data || currentOption
         ? <GateRail chips={chips} selected={selection.gate} onSelect={g => { const id = chips.find(c => c.gate === g)?.methodRunId; if (id) goTo(id, g); }} />
@@ -287,27 +284,27 @@ export const GateEvidenceWorkspace: React.FC = () => {
       <WorkbenchHead gate={selection.gate} name={entry?.name ?? selection.gate} status={status} inputFlags={inputFlags}
         actions={(
           <RunSummaryBar run={run.data} retention={retention}
-            reconstructReason={reconstructReason} reconstructPending={reconstruct.isPending} onReconstruct={askReconstruct}
+            reconstructReason={reconstructReason} onReconstruct={recon.ask}
             check={run.data && (
               <MeasuredCheck gate={selection.gate} run={run.data} manifest={manifest.data} eligibilityDetail={eligibilityDetail} inputs={inputContextOf(loop)}
                 subtitle={`${selection.loopId} · ${selection.gate} ${entry?.name ?? ''}`.trim()} onHypotheses={selection.gate === 'G15' ? toHypotheses : undefined} />
             )}>
-            {evaluate && <ObcButton variant="flat" aria-expanded={evaluateOpen} onClick={() => setEvaluateOpen(v => !v)}>{evaluateOpen ? 'Hide Evaluate a window' : 'Evaluate a window'}</ObcButton>}
+            {evaluate && evaluateButton}
           </RunSummaryBar>
         )} />
       <EvidenceBasisBar manifest={rawManifest.data} view={view} timeZone={timeZone} onView={setView}
-        evaluated={run.data?.identity.purpose === 'EVALUATE'} onOpenRun={id => goTo(id, selection.gate)} />
+        evaluated={evaluated} onOpenRun={id => goTo(id, selection.gate)} />
       <div aria-busy={run.isLoading || manifest.isLoading}>
         <VerdictCard flags={flags} headline={headline} />
       </div>
-      {reconstruct.isSuccess && (
+      {recon.runningUnseen && (
         <p className="cpm-copy" role="status">
           Reconstruction accepted{runState.data ? ` · ${runState.data.state.toLowerCase()}` : ''}.
           It is stored beside the retained proof, never over it; this page lists it above when it arrives.
           <ObcButton variant="flat" onClick={() => void rawManifest.refetch()}>Refresh</ObcButton>
         </p>
       )}
-      {reconstruct.isError && !reconOpen && <p className="cpm-field__error" role="alert">Reconstruction refused: {(reconstruct.error as Error).message}</p>}
+      {recon.refusal && !recon.open && <p className="cpm-field__error" role="alert">Reconstruction refused: {recon.refusal}</p>}
       <Tabs idBase="workbench" label="Evidence Workbench views" options={TABS} value={tab} onChange={setTab} />
       <div {...tabPanelProps('workbench', tab)}>
         {tab === 'proof' && (
@@ -328,9 +325,8 @@ export const GateEvidenceWorkspace: React.FC = () => {
       )}
       </section>
       </div>
-      <ReconstructDialog open={reconOpen} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText}
-        state={reconstruct.isPending ? 'pending' : reconstruct.isError ? 'error' : 'idle'} error={reconstruct.isError ? (reconstruct.error as Error).message : undefined}
-        onConfirm={() => reconstruct.mutate()} onClose={() => setReconOpen(false)} />
+      <ReconstructDialog open={recon.open} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText}
+        phase={recon.phase} startedAt={recon.startedAt} onConfirm={recon.confirm} onClose={recon.close} />
     </div>
   );
 };

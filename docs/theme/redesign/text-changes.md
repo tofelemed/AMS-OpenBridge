@@ -1926,3 +1926,29 @@ disclosure stays, closed (owner has not ruled).
 | Rules · pinned | "This run is pinned: these are the parameters and configuration it ran under, not those in force now." | label "Pinned to the run's settings" + `?` ("These are the parameters and configuration this run ran under, not those in force now.") |
 | Gate list | "ø G14 Final-element / confirmation" on two lines | one line (the list is as wide as its longest gate) |
 | Window dropdown (Workbench, Investigation, Replay) | "6 Nov 20:00 · Oscillation confirme" (cut at 250 px) | the whole label; the dropdown is as wide as its longest option |
+
+## CHG-188 Evaluate a window and Reconstruct evidence as dialogs with progress (owner review items 10, 15; Q4, Q5)
+
+Times keep their format (Q5): the window line and the Reconstruct window row print exactly as before. The elapsed time
+("0:12") is a duration since the click, not a clock time. "Reconstruct evidence" opens a dialog, so it is an action button,
+not a "↗" link (Q4 covers links that open another page).
+
+| Where | Was | Now |
+|---|---|---|
+| Workbench · gate head | button "Evaluate a window" / "Hide Evaluate a window" (toggled an inline panel) | button "Evaluate a window" (opens the dialog) |
+| Workbench · no run open | the inline "Evaluate a window from the historian" panel under the band | button "Evaluate a window" in the band (opens the dialog) |
+| Evaluate · title | "Evaluate a window from the historian" | dialog "Evaluate a window", subtitle "FIC10401 · Flow controller (FCS0101)" |
+| Evaluate · hint | "Any window the historian holds, with the engine the live verdicts use. Kept 3 days." | removed (the "Re-evaluated" tip says it after the run) |
+| Evaluate · length | caps "LENGTH", select 4h / 12h / 24h | "Length", segments "12h" "24h" |
+| Evaluate · end | caps "ENDING AT (EMPTY = NOW)", empty date field "mm/dd/yyyy --:-- --" | "Ending at" "Now"; picking a time starts from now, with a "Now" button back |
+| Evaluate · window | "2026-11-14 07:45:00 → 2026-11-14 19:45:00 (UTC)" beside the fields | row "Window" with the same text |
+| Evaluate · actions | "Evaluate" / "Evaluating…", then "Open the result" | "Cancel" + "Evaluate" (primary); while it runs "Close"; after a failure "Close" + "Retry" (primary) |
+| Evaluate · state | pill "QUEUED" "Queued for the evaluation job…", "RUNNING" "Evaluating from the historian…", "FINISHED" "Evaluated (8,641 samples, 0.4 s)." / "Evaluated earlier - the stored result is shown." | spinner + "Queued" or "Running" + "0:07"; "✓ Done" + time, then the dialog closes by itself and the window opens |
+| Evaluate · failure | pill "FAILED" + the reason; "Not started" + the refusal; "Unknown" "The run's state could not be read. It may still finish; reload to check." | "✕ Failed" + the same reason or refusal; "The run's state could not be read. It may still finish."; new: "The evaluation finished, but its result did not arrive within a minute." |
+| Workbench · evaluated window | evidence-basis line "Evaluated from the historian · This window was evaluated on request from the historian with the engine the live verdicts use; the verdict and the arrays shown are that evaluation's, kept 3 days. Reconstructed 2026-11-14 19:45:10 from the historian · 3 artifact(s) rebuilt." and pill "EVALUATE" | label "i Re-evaluated" + `?` ("Evaluated on request 2026-11-14 19:45:10, from the historian, with the engine the live verdicts use." / "Kept 3 days.") |
+| Workbench · evaluated window · Proof tab | pill "Shadow", "EVALUATE evaluation", "This run was produced by a bounded evaluation, not the live timeline; it never opened or closed an episode.", "The verdict and evidence are exact for that run and configuration." | the window's own cards and charts (said once by "Re-evaluated") |
+| Workbench · gate head | link "Reconstruct evidence ↗"; while sent "Reconstruction requested…" | secondary button "Reconstruct evidence"; while a run is in flight it reopens its progress |
+| Reconstruct · text | "Rebuilds this gate's arrays from the run's window. The rebuild is stored beside the retained proof, never over it." | "Rebuilds this gate's charts from its window. The kept proof is not changed." |
+| Reconstruct · actions | "Cancel" + "Reconstruct" (both outline) / "Requesting…" | "Cancel" + "Reconstruct" (primary); while it runs "Close"; after a failure "Close" + "Retry" (primary) |
+| Reconstruct · state | the dialog closed on acceptance; the page said "Reconstruction accepted · submitted. It is stored beside …" until left | spinner + "Running" + "0:03", then "✓ Done" and the dialog closes by itself (the rebuilt charts show); the page line shows only while a run goes on with the dialog closed |
+| Reconstruct · failure | "Reconstruction refused: 403 Forbidden" | "✕ Failed" + "Reconstruction refused: 403 Forbidden"; new: "The reconstruction job failed: …", "The reconstruction job was cancelled.", "The reconstruction failed.", "A rebuilt chart failed verification.", "It produced no evidence for this run.", "Its outcome was not recorded.", "No result after 5 minutes. It may still finish; this page lists it when it arrives." |

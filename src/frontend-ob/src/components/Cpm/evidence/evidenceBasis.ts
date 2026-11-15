@@ -5,13 +5,15 @@
  *   - REBUILT_LOST   no retained proof is complete (expired, failed or never kept), so the newest reconstruction is shown
  *                    by default — labelled as rebuilt (cplm-api stores every reconstruction beside the run's own set);
  *   - RECONSTRUCTION a reconstruction viewed beside the retained proof: its differing artifacts replace the originals in the
- *                    view; identical ones are the retained bytes (never stored twice).
+ *                    view; identical ones are the retained bytes (never stored twice);
+ *   - EVALUATED      CHG-188 (owner review 10.3): a window evaluated on request from the historian. The gate head says it with
+ *                    one "Re-evaluated" label (retention.ts), so the basis line says nothing more.
  * Historian context (the signal lanes) is neither: it is labelled where it is drawn. Pure (unit-tested).
  */
 import type { EvidenceArtifactMeta, EvidenceManifest, EvidenceReconstruction } from '../../../api/cpm/evidence';
 import { formatInZone } from './timezone';
 
-export type BasisKind = 'RETAINED' | 'REBUILT_LOST' | 'RECONSTRUCTION' | 'NONE';
+export type BasisKind = 'RETAINED' | 'REBUILT_LOST' | 'RECONSTRUCTION' | 'EVALUATED' | 'NONE';
 
 export interface EvidenceBasis { kind: BasisKind; label: string; detail: string; tone: 'muted' | 'warn' }
 
@@ -73,11 +75,9 @@ export function basisOf(m: EvidenceManifest | undefined, view: string | null | u
   if (!m || (m.artifacts.length === 0 && !m.reconstructions?.some(x => x.artifacts.length > 0))) return { kind: 'NONE', label: 'No arrays held', detail: '', tone: 'muted' };
   const eff = effectiveView(m, view);
   const r = reconstructionOf(m, eff.id);
-  // CHG-102 5c: a window evaluated on request - the verdict on screen is the evaluation's own, not the live engine's
-  if (r && eff.auto && evaluated) {
-    return { kind: 'REBUILT_LOST', label: 'Evaluated from the historian', tone: 'warn',
-      detail: `This window was evaluated on request from the historian with the engine the live verdicts use; the verdict and the arrays shown are that evaluation's, kept 3 days. ${reconstructionSummary(r, timeZone, false)}.` };
-  }
+  // CHG-102 5c: a window evaluated on request - the verdict on screen is the evaluation's own, not the live engine's.
+  // CHG-188: said once, by the head's "Re-evaluated" label; no note and no "N artifact(s) rebuilt" line here
+  if (r && eff.auto && evaluated) return { kind: 'EVALUATED', label: 'Re-evaluated', tone: 'muted', detail: '' };
   if (r && eff.auto) {
     return { kind: 'REBUILT_LOST', label: 'Rebuilt evidence', tone: 'warn',
       detail: `No retained proof is held for this run, so the rebuilt arrays are shown. ${reconstructionSummary(r, timeZone, false)}. Verdicts come only from the live engine; a rebuild re-creates the arrays, not the verdict.` };
@@ -92,6 +92,20 @@ export function basisOf(m: EvidenceManifest | undefined, view: string | null | u
       detail: 'These arrays were rebuilt on request by an earlier version, which wrote them over the run\'s original arrays; the originals are no longer held. Verdicts come only from the live engine; a rebuild re-creates the arrays, not the verdict.' };
   }
   return { kind: 'RETAINED', label: 'Retained proof', tone: 'muted', detail: 'The live engine\'s own arrays for this run, kept by the retention policy.' };
+}
+
+/** CHG-188: when an evaluated window ran - its rebuild's creation time (the time the old note printed), else the run's own. */
+export function evaluatedAt(m: EvidenceManifest | undefined, view: string | null | undefined, computedAt: string | null | undefined): number | null {
+  const r = reconstructionOf(m, effectiveView(m, view).id);
+  const ms = Date.parse(r?.createdAt ?? computedAt ?? '');
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** CHG-188 (owner review 15): the view to open once a reconstruction is done, so its charts show. Null when it has none, or
+ * when nothing is retained: the page shows the rebuild by itself then (labelled "Rebuilt evidence", not as a comparison). */
+export function viewAfterRebuild(m: EvidenceManifest | undefined, analysisRunId: string | undefined): string | null {
+  if (!analysisRunId || !reconstructionOf(m, analysisRunId) || effectiveView(m, null).auto) return null;
+  return analysisRunId;
 }
 
 /** A pending reconstruction is settled once the manifest lists it with a final readiness (cplm-api keeps it PENDING

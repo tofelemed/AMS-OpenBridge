@@ -1,11 +1,14 @@
 /**
- * Task 15: Reconstruct evidence asks first. It names what will be rebuilt (loop, gate, window; CHG-184: no run id) and sends nothing until
- * confirmed. The dialog shows the real state of the request: in flight, or the service's refusal. An acceptance is the
- * page's to state, after the service has acknowledged; the dialog closes then, and never claims it.
+ * Task 15: Reconstruct evidence asks first. It names what will be rebuilt (loop, gate, window; CHG-184: no run id) and sends
+ * nothing until confirmed. CHG-188 (owner review 15): one line of text, the rows Loop, Gate and Window, Reconstruct as the
+ * primary action and Cancel as secondary. After Reconstruct it shows the run's progress (Running, with the time since the
+ * click, then Done; the page closes it by itself), or Failed with the reason and Retry. Closing it mid-run leaves the run going.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { Dialog } from '../../../ui/Dialog';
+import type { RunPhase } from './runPhase';
+import { RunProgress } from './RunProgress';
 
 export interface ReconstructDialogProps {
   open: boolean;
@@ -13,32 +16,38 @@ export interface ReconstructDialogProps {
   /** "G5 Oscillation (ACF)". */
   gate: string;
   windowText: string;
-  state: 'idle' | 'pending' | 'error';
-  error?: string;
+  /** The run's progress (reconstructionPhase); IDLE asks first. */
+  phase: RunPhase;
+  /** When Reconstruct was clicked. */
+  startedAt: number | null;
+  /** Reconstruct, and Retry after a failure. */
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, state, error, onConfirm, onClose }) => (
-  <Dialog
-    open={open}
-    onClose={onClose}
-    title="Reconstruct evidence"
-    description="Rebuilds this gate's arrays from the run's window. The rebuild is stored beside the retained proof, never over it."
-    footer={(
-      <>
-        <ObcButton variant="flat" onClick={onClose}>Cancel</ObcButton>
-        <ObcButton variant="normal" disabled={state === 'pending'} onClick={onConfirm}>{state === 'pending' ? 'Requesting…' : 'Reconstruct'}</ObcButton>
-      </>
-    )}
-  >
-    <dl className="cpm-recon">
-      <dt>Loop</dt><dd>{loopId}</dd>
-      <dt>Gate</dt><dd>{gate}</dd>
-      <dt>Window</dt><dd>{windowText}</dd>
-    </dl>
-    {state === 'error' && <p className="cpm-field__error" role="alert">Reconstruction refused: {error}</p>}
-  </Dialog>
-);
+export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, phase, startedAt, onConfirm, onClose }) => {
+  const failed = phase.step === 'FAILED';
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Reconstruct evidence"
+      description="Rebuilds this gate's charts from its window. The kept proof is not changed."
+      footer={(
+        <>
+          <ObcButton variant="normal" onClick={onClose}>{phase.step === 'IDLE' ? 'Cancel' : 'Close'}</ObcButton>
+          {(phase.step === 'IDLE' || failed) && <ObcButton variant="raised" onClick={onConfirm}>{failed ? 'Retry' : 'Reconstruct'}</ObcButton>}
+        </>
+      )}
+    >
+      <dl className="cpm-recon cpm-run-form">
+        <dt>Loop</dt><dd>{loopId}</dd>
+        <dt>Gate</dt><dd>{gate}</dd>
+        <dt>Window</dt><dd>{windowText}</dd>
+      </dl>
+      {phase.step !== 'IDLE' && <RunProgress phase={phase} startedAt={startedAt} />}
+    </Dialog>
+  );
+};
 
 export default ReconstructDialog;

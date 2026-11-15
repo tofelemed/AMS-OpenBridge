@@ -1,88 +1,140 @@
 /**
- * CHG-102 Phase 5c: "Evaluate a window" - any 4 h / 12 h / 24 h window of the loop, ending at a picked time, evaluated
- * from the historian by the always-running on-demand Flink job. The same engine as the live verdicts; the result is
- * labelled EVALUATE in the header and kept 3 days. The run is polled while it is queued / running and opened when it
- * finishes. The window list above shows only the live 15-min verdicts of the last 14 days; this reaches any window the
- * historian holds.
+ * CHG-102 Phase 5c: "Evaluate a window" - any 12 h / 24 h window of the loop, ending now or at a picked time, evaluated from the
+ * historian by the always-running on-demand Flink job, with the engine the live verdicts use; the result is kept 3 days. The
+ * window list shows only the live verdicts of the last 14 days; this reaches any window the historian holds.
+ * CHG-188 (owner review 10): a dialog (cyan band, the loop as subtitle). Length as 12h / 24h segments, Ending at "Now" by
+ * default, the window it will evaluate, Evaluate as the primary action. After Evaluate it shows the run as the status API
+ * reports it (Queued, Running, with the time since the click), and on Done it closes by itself while the page opens the
+ * evaluated window. A failure stays open with the reason and Retry. The run lives here, not in the dialog: closed mid-run, the
+ * run goes on and the page still opens the window when it is done; reopened, the dialog shows the run. A new loop starts over.
  */
-import React, { useEffect, useId, useRef, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
-import { EVALUATION_KINDS, getEvaluation, postEvaluation, type EvaluationKind } from '../../../api/cpm/evaluation';
-import { TonePill } from '../shared';
+import { getEvaluation, postEvaluation, type EvaluationKind, type EvaluationRun } from '../../../api/cpm/evaluation';
+import { toSiteInput } from '../../../cpa/siteTime';
+import { Dialog } from '../../../ui/Dialog';
+import { SegmentedControl } from '../../../ui/SegmentedControl';
 import { formatInZone } from './timezone';
-import { evaluationRefusal, evaluationSettled, evaluationStatus, openableVerdict, requestedEnd, requestedStart } from './evaluationState';
+import { evaluationPhase, evaluationSettled, openableVerdict, requestedEnd, requestedStart } from './evaluationState';
+import { inFlight } from './runPhase';
+import { RunProgress } from './RunProgress';
+import { useAfterDone, useTick } from './useRunClock';
 
 export interface EvaluateWindowProps {
   loopId: string;
   timeZone: string;
-  /** The window kind the toolbar shows, used as the first choice when it is one of 4h / 12h / 24h. */
+  /** On the band: "FIC10401 · Flow controller". */
+  subtitle?: string;
+  /** The window kind the toolbar shows, the first choice when it is 24h. */
   kindHint?: string;
+  open: boolean;
+  onClose: () => void;
   /** Opens the evaluated window in the workbench: its fused (G15) run, and every gate's run of the window. */
   onOpen: (verdictMethodRunId: string, methodRunIds: Record<string, string>, analysisRunId: string) => void;
 }
 
 const POLL_MS = 1500;
+const LENGTHS: readonly EvaluationKind[] = ['12h', '24h'];
 
-export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone, kindHint, onOpen }) => {
+/** "Now" until a time is picked; picking starts from now, so the browser never shows an empty date field. */
+const EndingAt: React.FC<{ labelId: string; value: string; disabled: boolean; onChange: (v: string) => void }> = ({ labelId, value, disabled, onChange }) => {
+  const input = useRef<HTMLInputElement>(null);
+  const focusInput = useRef(false);
+  useEffect(() => { if (value && focusInput.current) { focusInput.current = false; input.current?.focus(); } }, [value]);
+  if (!value) {
+    return (
+      <button type="button" className="cpm-input cpm-run-form__now" disabled={disabled} aria-label="Ending at: Now. Pick another time"
+        onClick={() => { focusInput.current = true; onChange(toSiteInput(requestedEnd('', Date.now()))); }}>Now</button>
+    );
+  }
+  return (
+    <>
+      <input ref={input} className="cpm-input" type="datetime-local" aria-labelledby={labelId} value={value} disabled={disabled}
+        onChange={e => onChange(e.target.value)} />
+      <button type="button" className="ui-btn ui-btn--secondary" disabled={disabled} onClick={() => onChange('')}>Now</button>
+    </>
+  );
+};
+
+export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone, subtitle, kindHint, open, onClose, onOpen }) => {
   const ids = useId();
-  const [kind, setKind] = useState<EvaluationKind>((EVALUATION_KINDS as readonly string[]).includes(kindHint ?? '') ? kindHint as EvaluationKind : '12h');
+  const [kind, setKind] = useState<EvaluationKind>(kindHint === '24h' ? '24h' : '12h');
   const [end, setEnd] = useState('');
   const [runId, setRunId] = useState<string | undefined>();
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const opened = useRef<string | undefined>();
-
-  // a different loop starts over (a run of the previous loop must never open here)
-  useEffect(() => { setRunId(undefined); opened.current = undefined; }, [loopId]);
+  const qc = useQueryClient();
 
   const start = useMutation({
-    mutationFn: () => postEvaluation(loopId, kind, requestedEnd(end, Date.now())),
-    onSuccess: r => { opened.current = undefined; setRunId(r.analysisRunId); },
+    mutationFn: (a: { kind: EvaluationKind; endMs: number }) => postEvaluation(loopId, a.kind, a.endMs),
+    // the answer is the run itself, and the newest word on it: a retry answered with the same run (in flight, or stored)
+    // must not show the state read before it
+    onSuccess: r => { qc.setQueryData(['cpm', 'evaluation', r.analysisRunId], r); opened.current = undefined; setRunId(r.analysisRunId); },
   });
-  const run = useQuery({
+  const resetStart = start.reset;
+  const reset = useCallback(() => { setRunId(undefined); setStartedAt(null); resetStart(); opened.current = undefined; }, [resetStart]);
+  // a different loop starts over (a run of the previous loop must never open here)
+  useEffect(() => { reset(); }, [loopId]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const poll = useQuery({
     queryKey: ['cpm', 'evaluation', runId ?? ''],
     queryFn: ({ signal }) => getEvaluation(runId!, signal),
     enabled: !!runId,
     refetchInterval: q => (evaluationSettled(q.state.data, Date.now()) ? false : POLL_MS),
   });
+  // a stored result of the same window is in the POST's answer, so it opens at once
+  const data: EvaluationRun | undefined = runId && poll.data?.analysisRunId === runId ? poll.data : undefined;
+  const phase = evaluationPhase({
+    pending: start.isPending, startError: start.error, accepted: !!runId, run: data, readError: runId ? poll.error : null, nowMs: Date.now(),
+  });
+  useTick(inFlight(phase));
 
-  const data = run.data?.analysisRunId === runId ? run.data : undefined;
   const verdict = openableVerdict(data);
   useEffect(() => {
     if (verdict && data && opened.current !== verdict) { opened.current = verdict; onOpen(verdict, data.methodRunIds ?? {}, data.analysisRunId); }
   }, [verdict, onOpen, data]);
+  useAfterDone(phase.step === 'DONE', () => { onClose(); reset(); });
 
+  const evaluate = () => {
+    reset();
+    setStartedAt(Date.now());
+    start.mutate({ kind, endMs: requestedEnd(end, Date.now()) });
+  };
+  // closing mid-run leaves the run going; after Done or a failure the next opening starts with the form
+  const close = () => { onClose(); if (!inFlight(phase)) reset(); };
+  // a changed window after a failure is a new request: the form again, with Evaluate
+  const edit = (apply: () => void) => { if (phase.step === 'FAILED') reset(); apply(); };
+
+  const locked = inFlight(phase) || phase.step === 'DONE';
+  const failed = phase.step === 'FAILED';
   const endMs = requestedEnd(end, Date.now());
-  const busy = start.isPending || (!!data && !evaluationSettled(data, Date.now()) && !verdict) || (!!runId && !data && !run.error);
-  const status = evaluationStatus(data);
-  const refusal = evaluationRefusal(start.error);
   return (
-    <section className="cpm-surface cpm-evaluate-window" aria-labelledby={`${ids}-title`}>
-      <div className="cpm-evaluate-window__head">
-        <h2 className="cpm-evaluate-window__title" id={`${ids}-title`}>Evaluate a window from the historian</h2>
-        <span className="cpm-evaluate-window__hint">Any window the historian holds, with the engine the live verdicts use. Kept 3 days.</span>
-      </div>
-      <div className="cpm-toolbar">
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label" id={`${ids}-kind`}>Length</span>
-          <select className="cpm-select" aria-labelledby={`${ids}-kind`} value={kind} disabled={busy} onChange={e => setKind(e.target.value as EvaluationKind)}>
-            {EVALUATION_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
-          </select>
-        </label>
-        <label className="cpm-field cpm-field--compact">
-          <span className="cpm-field__label" id={`${ids}-end`}>Ending at (empty = now)</span>
-          <input className="cpm-input" type="datetime-local" aria-labelledby={`${ids}-end`} value={end} disabled={busy} onChange={e => setEnd(e.target.value)} />
-        </label>
-        <span className="cpm-evaluate-window__range" aria-live="polite">
+    <Dialog open={open} onClose={close} title="Evaluate a window" subtitle={subtitle}
+      footer={(
+        <>
+          <ObcButton variant="normal" onClick={close}>{phase.step === 'IDLE' ? 'Cancel' : 'Close'}</ObcButton>
+          {(phase.step === 'IDLE' || failed) && <ObcButton variant="raised" onClick={evaluate}>{failed ? 'Retry' : 'Evaluate'}</ObcButton>}
+        </>
+      )}>
+      <div className="cpm-run-form">
+        <span className="cpm-run-form__label" id={`${ids}-len`}>Length</span>
+        <div className="cpm-run-form__value">
+          <SegmentedControl<EvaluationKind> label="Length" value={kind} onChange={k => edit(() => setKind(k))} ignoreReselect
+            options={LENGTHS.map(k => ({ value: k, label: k, disabled: locked }))} />
+        </div>
+        <span className="cpm-run-form__label" id={`${ids}-end`}>Ending at</span>
+        <div className="cpm-run-form__value">
+          <EndingAt labelId={`${ids}-end`} value={end} disabled={locked} onChange={v => edit(() => setEnd(v))} />
+        </div>
+        <span className="cpm-run-form__label">Window</span>
+        <span className="cpm-run-form__value" aria-live="polite">
           {formatInZone(requestedStart(endMs, kind), timeZone)} → {formatInZone(endMs, timeZone)} ({timeZone})
         </span>
-        <ObcButton variant="normal" disabled={busy} onClick={() => start.mutate()}>{busy ? 'Evaluating…' : 'Evaluate'}</ObcButton>
-        {verdict && <ObcButton variant="flat" onClick={() => onOpen(verdict, data?.methodRunIds ?? {}, data!.analysisRunId)}>Open the result</ObcButton>}
       </div>
-      {refusal && <p className="cpm-evaluate-window__status" role="alert"><TonePill tone="bad">Not started</TonePill> {refusal}</p>}
-      {!refusal && status && (
-        <p className="cpm-evaluate-window__status" role="status"><TonePill tone={status.tone}>{data!.state}</TonePill> {status.text}</p>
-      )}
-      {run.error != null && <p className="cpm-evaluate-window__status" role="alert"><TonePill tone="bad">Unknown</TonePill> The run's state could not be read. It may still finish; reload to check.</p>}
-    </section>
+      {phase.step !== 'IDLE' && <RunProgress phase={phase} startedAt={startedAt} />}
+    </Dialog>
   );
 };
+
+export default EvaluateWindow;

@@ -5,6 +5,7 @@
 import { ApiError } from '../../../api/apiFetch';
 import { EVALUATION_KIND_MS, floorTo15Min, type EvaluationKind, type EvaluationRun } from '../../../api/cpm/evaluation';
 import { fromSiteInput } from '../../../cpa/siteTime';
+import { IDLE, type RunPhase } from './runPhase';
 
 export const EVALUATION_TERMINAL: ReadonlySet<string> = new Set(['FINISHED', 'FAILED']);
 
@@ -84,4 +85,37 @@ export function evaluationRefusal(error: unknown): string | null {
     return REFUSALS[code] ?? (error.status === 403 ? 'You are not allowed to start an evaluation.' : `The evaluation could not start: ${error.message}`);
   }
   return `The evaluation could not start: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+export interface EvaluationProgressInput {
+  /** The POST is in flight. */
+  pending: boolean;
+  startError: unknown;
+  /** The POST was answered with a run id. */
+  accepted: boolean;
+  run: EvaluationRun | undefined;
+  /** The run's state could not be read. */
+  readError: unknown;
+  nowMs: number;
+}
+
+/**
+ * CHG-188 (owner review 10.2): the dialog's progress, from the states the status API reports (QUEUED, RUNNING, FINISHED,
+ * FAILED). FINISHED is Done only once its verdict row is stored, so the page can open the window; until then it is still
+ * Running, and when the row never comes (VERDICT_WAIT_MS) it is a failure with Retry. A re-sent request of the same window
+ * returns the run already made or in flight, so Retry never starts a second one.
+ */
+export function evaluationPhase(p: EvaluationProgressInput): RunPhase {
+  if (p.startError) return { step: 'FAILED', reason: evaluationRefusal(p.startError) ?? '' };
+  if (p.pending) return { step: 'STARTING' };
+  const r = p.run;
+  if (openableVerdict(r)) return { step: 'DONE' };
+  if (r?.state === 'FAILED') return { step: 'FAILED', reason: evaluationStatus(r)?.text };
+  if (p.readError) return { step: 'FAILED', reason: 'The run\'s state could not be read. It may still finish.' };
+  if (!r) return p.accepted ? { step: 'STARTING' } : IDLE;
+  if (r.state === 'QUEUED') return { step: 'QUEUED' };
+  if (r.state === 'FINISHED' && evaluationSettled(r, p.nowMs)) {
+    return { step: 'FAILED', reason: 'The evaluation finished, but its result did not arrive within a minute.' };
+  }
+  return { step: 'RUNNING' };
 }

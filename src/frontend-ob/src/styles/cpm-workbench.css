@@ -72,6 +72,23 @@
 .cpm-recon { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--traverse-space-1) var(--traverse-space-4); margin: 0; }
 .cpm-recon dt { color: var(--traverse-text-secondary); }
 .cpm-recon dd { margin: 0; overflow-wrap: anywhere; }
+/* CHG-188 (owner review 10, 15): a run dialog's label / value rows (the approved sample's form) and its progress line */
+.cpm-run-form { display: grid; grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr); align-items: center; gap: var(--traverse-space-3) var(--traverse-space-4); margin: 0; }
+.cpm-run-form > dt, .cpm-run-form__label { color: var(--traverse-text-secondary); }
+.cpm-run-form > dd, .cpm-run-form__value { margin: 0; min-width: 0; color: var(--traverse-text-primary); overflow-wrap: anywhere; }
+.cpm-run-form__value { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+.cpm-run-form .cpm-input { min-width: 14rem; max-width: 100%; }
+.cpm-run-form__now { text-align: start; cursor: pointer; }
+.cpm-run-form__now:disabled { color: var(--traverse-text-muted); cursor: not-allowed; }
+.cpm-run-progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin-top: var(--traverse-space-4); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); color: var(--traverse-text-primary); outline: none; }
+.cpm-run-progress:focus-visible { outline: var(--traverse-focus-width) solid var(--traverse-focus); outline-offset: var(--traverse-focus-offset); }
+/* OpenBridge's circular progress fills its box; the arc in the action colour on a quiet track */
+.cpm-run-progress__spin { position: relative; display: inline-block; flex: none; width: 1.25em; height: 1.25em;
+  --instrument-enhanced-secondary-color: var(--traverse-action-primary); --container-backdrop-color: var(--traverse-border-subtle); }
+.cpm-run-progress__state { font-weight: 600; }
+.cpm-run-progress__elapsed { color: var(--traverse-text-secondary); font-variant-numeric: tabular-nums; }
+.cpm-run-progress__failed { display: flex; flex: 1 1 0; min-width: 0; align-items: flex-start; gap: var(--traverse-space-2); }
+.cpm-run-progress__failed > .ui-badge { flex: none; }
 
 /* below 850 px the rail is the native picker, over the page */
 @media (max-width: 849px) {
