@@ -24,7 +24,7 @@ describe('ModelReviewDialog', () => {
   it('names the model and its revision, never its id or the event id', () => {
     render(<ModelReviewDialog model={model} pending={false} error={null} onClose={() => {}} onSubmit={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Review system model' });
-    expect(dialog.textContent).toContain('FOPDT · OP_TO_PV');
+    expect(dialog.textContent).toContain('FOPDT · OP → PV');
     expect(screen.getByText('Revision').parentElement?.textContent).toBe('Revision4');
     expect(dialog.textContent).not.toMatch(/3f2a9c1e|evt-8c41d2/);
     expect(screen.queryByText('model')).toBeNull();
@@ -38,14 +38,35 @@ describe('ModelReviewDialog', () => {
     render(<ModelReviewDialog model={model} pending={false} error={null} onClose={onClose} onSubmit={onSubmit} />);
     const dialog = screen.getByRole('dialog', { name: 'Review system model' });
     expect(dialog.className).toContain('ui-dialog');
-    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FOPDT · OP_TO_PV');
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FOPDT · OP → PV');
     expect(dialog.querySelector('.cpm-eyebrow, .cpm-field__label')).toBeNull();
-    expect(within(dialog).getByText('State').parentElement?.textContent).toBe('StateCANDIDATE');
+    expect(within(dialog).getByText('State').parentElement?.textContent).toBe('StateCandidate');
     expect(within(dialog).getByLabelText('Note')).toBeTruthy();
     expect([...dialog.querySelectorAll('button[data-variant="raised"]')].map(b => b.textContent)).toEqual(['Record decision']);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record decision' }));
     expect(onSubmit).toHaveBeenCalledWith({ modelId: model.modelId, revision: 4, decision: 'VALIDATED', note: undefined, domain: undefined });
     fireEvent.keyDown(document.activeElement ?? dialog, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  // CHG-195 (owner review item 19): the parameters by their engineering names in the loop's units, no estimator row (Q8), the
+  // state as its pill word; the decision form, the revision and the 409 / 403 answers unchanged
+  it('names the parameters, drops the estimator row and says the state as its pill word', () => {
+    const withParams = { ...model, parameters: {
+      process_gain: { value: -1.74, unit: 'PV_EU/input_EU', uncertainty: 16.42, method: 'MODEL_FOPDT', reason: null },
+      dead_time: { value: 34.01, unit: 's', uncertainty: 195, method: 'MODEL_FOPDT', reason: null },
+      time_constant: { value: 7200, unit: 's', uncertainty: null, method: 'MODEL_FOPDT', reason: null },
+    } } as SystemModel;
+    render(<ModelReviewDialog model={withParams} pvUnit="m3/h" pending={false} error={null} onClose={() => {}} onSubmit={() => {}} />);
+    const dialog = screen.getByRole('dialog', { name: 'Review system model' });
+    const rows = [...dialog.querySelectorAll('.cpm-response-quantities .cpm-kv')].map(r => [r.querySelector('.cpm-kv__label')?.textContent, r.querySelector('.cpm-kv__value')?.textContent]);
+    expect(rows).toEqual([
+      ['State', 'Candidate'],
+      ['Revision', '4'],
+      ['Process gain', '-1.74 m3/h/% OP ± 16.42'],
+      ['Dead time', '34.01 s ± 195.00'],
+      ['Time constant', '7200.00 s'],
+    ]);
+    expect(dialog.textContent).not.toMatch(/process_gain|dead_time|Estimator|OUTPUT_ERROR_LM|COVARIANCE/);
   });
 });

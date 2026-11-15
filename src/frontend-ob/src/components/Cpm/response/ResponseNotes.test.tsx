@@ -1,6 +1,5 @@
 // CHG-165: one note per tab when a run's arrays were not kept, and the reported quantities of the Response tab: the ones the
-// result row does not already say. CHG-178: the note says the charts are not kept and how long charts are kept (from the
-// events answer's retention), with no rebuild link: a G12 response event cannot be reconstructed.
+// result row does not already say. No rebuild link: a G12 response event cannot be reconstructed.
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -25,30 +24,27 @@ describe('arraysState', () => {
   });
 });
 
+// CHG-195 (owner review item 19): one plain line, no retention sentence; removed and failed stay distinct; a censored event
+// says why it has no fit instead of "Charts not kept"
 describe('ArraysNote', () => {
-  it('says the values stand, how long charts are kept, and offers no rebuild', () => {
-    render(<ArraysNote state="NOT_KEPT" retention={{ acceptedDays: 30, censoredDays: 7, censoredChartHours: 6 }} />);
-    expect(screen.getByRole('note').textContent).toBe(
-      'Charts not keptThe result and every value stand. Charts are kept 30 days for accepted events and 6 h for censored candidates; they cannot be rebuilt.');
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.queryByText(/Workbench/)).toBeNull();
-  });
-
-  it('says for ever when accepted charts are never removed', () => {
-    render(<ArraysNote state="NOT_KEPT" retention={{ acceptedDays: null, censoredDays: null, censoredChartHours: 6 }} />);
-    expect(screen.getByRole('note').textContent).toMatch(/Charts are kept for ever for accepted events and 6 h for censored candidates;/);
-  });
-
-  it('says the charts are not stored when the answer carries no retention', () => {
+  it('says in one plain line that the charts are not available, and offers no rebuild', () => {
     render(<ArraysNote state="NOT_KEPT" />);
-    expect(screen.getByRole('note').textContent).toBe(
-      'Charts not keptThe result and every value stand. Charts are not stored for this event and cannot be rebuilt.');
+    expect(screen.getByRole('note').textContent).toBe('Charts are not available for this event.');
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/kept|rebuilt|Workbench/)).toBeNull();
   });
 
-  it('keeps the removed and failed headings in chart words', () => {
+  it('keeps removed by retention and failed verification distinct, also plain', () => {
     render(<><ArraysNote state="EXPIRED" /><ArraysNote state="FAILED" /></>);
-    expect(screen.getByText('Charts removed by retention')).toBeTruthy();
-    expect(screen.getByText('Charts failed verification')).toBeTruthy();
+    expect(screen.getAllByRole('note').map(n => n.textContent)).toEqual([
+      'Charts for this event were removed by retention.',
+      'Charts for this event failed verification.',
+    ]);
+  });
+
+  it('says a censored event was interrupted before the response finished, so no model was fitted', () => {
+    render(<ArraysNote state="NOT_FITTED" />);
+    expect(screen.getByRole('note').textContent).toBe('This event was interrupted before the response finished, so no model was fitted.');
   });
 });
 
@@ -60,7 +56,10 @@ describe('ReportedQuantities', () => {
       q({ quantityId: 'overshoot', reasonIfNull: 'NO_OVERSHOOT' }),
       q({ quantityId: 'baseline_pv', value: 3 }),
     ];
-    render(<ReportedQuantities metrics={metrics} pvUnit="m3/h" />);
+    const { container } = render(<ReportedQuantities metrics={metrics} pvUnit="m3/h" />);
+    expect(container.querySelector('.ui-table table')).toBeTruthy();                  // CHG-195: the standard table
+    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Quantity', 'Value']);
+    expect(screen.getAllByRole('row')[1].textContent).toBe('IAE9.60 m3/h*s');
     expect(screen.getByText('IAE')).toBeTruthy();
     expect(screen.getByText('9.60 m3/h*s')).toBeTruthy();
     expect(screen.queryByText('Process gain K')).toBeNull();

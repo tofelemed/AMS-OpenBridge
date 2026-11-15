@@ -93,11 +93,15 @@ export function penStyle(palette: ChartPalette, index: number): { color: string;
 /** Lane fills for a tone (good, warn, bad, muted). A canvas lane and a DOM pill read the same status role. */
 export const toneColors = (p: ChartPalette) => ({ good: p.success, warn: p.warning, bad: p.danger, muted: p.unknown });
 
-/** Tooltip chrome. Without it ECharts draws a white box in Night (CD14). */
+/**
+ * Tooltip chrome. Without it ECharts draws a white box in Night (CD14). CHG-195 (owner review item 19): `confine` keeps the
+ * hover readout inside the chart; near the chart's left edge it flipped left and hid under the sidebar.
+ */
 export const tooltipChrome = (p: ChartPalette) => ({
   backgroundColor: p.tooltipBg,
   borderColor: p.tooltipBorder,
   textStyle: { color: p.tooltipFg },
+  confine: true,
 });
 
 /** Text on a status-filled lane segment (`action.on`, verified on every `status.*.fg` in both themes). */

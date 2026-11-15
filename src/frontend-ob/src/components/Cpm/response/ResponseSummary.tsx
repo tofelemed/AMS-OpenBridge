@@ -1,11 +1,15 @@
 /**
- * Task 21: the System Response summary. Three tiles (events, accepted events, the model state), each a link to what is
- * behind it, and, when a loop has no event to show, one panel that says why and where to go.
+ * Task 21: the System Response summary. Three counts (events, accepted events, the model state), each opening what is
+ * behind it (CHG-195: as KPI cards), and, when a loop has no event to show, one panel that says why and where to go.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
+import { ObiCheckGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-check-google';
+import { ObiRecordEvent } from '@oicl/openbridge-webcomponents-react/icons/icon-record-event';
+import { ObiTrend } from '@oicl/openbridge-webcomponents-react/icons/icon-trend';
 import { PanelHead } from '../shared';
+import { KpiCard } from '../kpi/KpiCard';
 import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/response';
 import { configHref, historicalHref } from '../cpaHref';
 import { codeLabel } from '../vocabulary';
@@ -39,32 +43,32 @@ export function responseFacts(events: ResponseEventSummary[], hasMore: boolean, 
   };
 }
 
-/** CHG-165: the event tiles sit above their table on the Events tab; the model tile opens the Models tab. */
-const Tile: React.FC<{ caption: string; value: string; sub?: string; onOpen?: () => void }> = ({ caption, value, sub, onOpen }) => {
-  const body = (
-    <>
-      <span className="cpm-kpi__caption">{caption}</span><span className="cpm-kpi__value">{value}</span>
-      {sub && <span className="cpm-kpi__sub">{sub}</span>}
-    </>
-  );
-  return onOpen
-    ? <button type="button" className="cpm-kpi cpm-response-tile" onClick={onOpen}>{body}</button>
-    : <div className="cpm-kpi">{body}</div>;
-};
-
+/**
+ * CHG-195 (owner review item 19): the three counts as the Overview's KPI cards (label and icon on top, then the value). Each
+ * opens what is behind it: the two event counts move to the events table, the model card opens the Models tab. A card with
+ * nothing behind it stays a plain tile. What the event counts leave out (censored candidates) is the small line under the value.
+ */
 export const ResponseTiles: React.FC<{
   events: ResponseEventSummary[]; hasMore: boolean; models: SystemModel[] | undefined; modelsStatus?: ModelsStatus;
   /** Censored candidates the list leaves out: the counts say what they exclude. */
   censoredHidden?: number;
+  onEvents?: () => void;
   onModels?: () => void;
-}> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0, onModels }) => {
+}> = ({ events, hasMore, models, modelsStatus = 'ready', censoredHidden = 0, onEvents, onModels }) => {
   const f = responseFacts(events, hasMore, models ?? [], modelsStatus);
   const basis = censoredHidden > 0 ? `${censoredHidden} censored not counted` : undefined;
+  const toEvents = events.length > 0 ? onEvents : undefined;
   return (
-    <div className="cpm-kpi-row cpm-response-tiles">
-      <Tile caption="Response events" value={f.events} sub={basis} />
-      <Tile caption="Accepted events" value={f.accepted} />
-      <Tile caption="System model" value={f.model} onOpen={(models ?? []).length > 0 ? onModels : undefined} />
+    <div className="cpm-kpicards cpm-response-tiles" role="list" aria-label="Response counts">
+      <div role="listitem">
+        <KpiCard headed Icon={ObiRecordEvent} value={f.events} label="Response events" group={basis} onOpen={toEvents} opensDialog={false} />
+      </div>
+      <div role="listitem">
+        <KpiCard headed Icon={ObiCheckGoogle} value={f.accepted} label="Accepted events" onOpen={toEvents} opensDialog={false} />
+      </div>
+      <div role="listitem">
+        <KpiCard headed Icon={ObiTrend} value={f.model} label="System model" onOpen={(models ?? []).length > 0 ? onModels : undefined} opensDialog={false} />
+      </div>
     </div>
   );
 };

@@ -6,7 +6,7 @@
  */
 import type { ResponseEventDetail, ResponseEventSummary, ResponseQuantity, ResponseSubgate } from '../../../api/cpm/response';
 import type { CpmTone } from '../shared';
-import { metricOf, quantityText, stateTone } from './responseSupport';
+import { fmt, metricOf, quantityText, stateTone } from './responseSupport';
 import { phrase } from '../vocabulary';
 
 export const humanise = (code: string | null | undefined): string => (code ?? '').trim() ? phrase(code) : '';
@@ -60,7 +60,8 @@ export interface ResultSummary {
   family: string | null;
   modelState: string;
   headline: string;
-  parameters: Array<{ label: string; text: string }>;
+  /** CHG-195: `value` (with its unit) and `spread` (the ±, or null) are the result row's two lines; `text` is both. */
+  parameters: Array<{ label: string; text: string; value: string; spread: string | null }>;
   validation: { state: string; text: string };
   identifiability: string;
 }
@@ -79,7 +80,10 @@ export function resultSummary(result: ResponseEventDetail['result'], metrics: Re
   const modelState = (result.model_state || 'NONE').toUpperCase();
   const d = result.subgates?.D;
   const e = result.subgates?.E;
-  const parameters = keyResults(metrics).filter(k => MODEL_PARAMETER_IDS.has(k.id) && k.applicable).map(k => ({ label: k.label, text: k.text }));
+  const parameters = keyResults(metrics).filter(k => MODEL_PARAMETER_IDS.has(k.id) && k.applicable).map(k => {
+    const q = metricOf(metrics, k.id)!;
+    return { label: k.label, text: k.text, value: `${fmt(q.value!)}${q.unit ? ` ${q.unit}` : ''}`, spread: q.uncertainty != null ? `± ${fmt(q.uncertainty)}` : null };
+  });
   const eReason = humanise(e?.outputs?.reason as string | undefined);
   const eVerdict = humanise(e?.outputs?.verdict as string | undefined);
   const validation = { state: e?.state ?? 'NOT_RUN', text: [sentence(humanise(e?.state ?? 'NOT_RUN')), eVerdict || eReason].filter(Boolean).join(' · ') };

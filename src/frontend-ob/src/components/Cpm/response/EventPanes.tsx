@@ -2,14 +2,14 @@
  * CHG-165 (owner review): the four System Response tabs that read one event. Response: the result row, the response chart full
  * width, the reported quantities. Fit quality: residuals beside their autocorrelation, the candidate models beside the delay
  * curve. Frequency: magnitude beside phase, the margins. Steps & data: subgates A–H, the event, every quantity. A run whose
- * arrays were not kept says so once per tab that draws arrays; its values still show. CHG-178: the note says how long charts
- * are kept and that they cannot be rebuilt (no Workbench link: an event-keyed G12 run cannot be reconstructed).
+ * arrays were not kept says so once per tab that draws arrays; its values still show (no Workbench link: an event-keyed G12
+ * run cannot be reconstructed). CHG-195 (owner review item 19): the note is one plain line; a censored event's Fit quality
+ * says it was cut short before its response finished, so no model was fitted, instead of a charts note.
  */
 import React from 'react';
 import { EmptyState, QueryError } from '../shared';
 import type { GateArtifacts } from '../evidence/useGateArtifacts';
 import type { useEvidenceManifest } from '../evidence/useEvidence';
-import type { ResponseRetention } from '../../../api/cpm/response';
 import { ResultCard } from './ResultCard';
 import { ResponseChart } from './ResponseChart';
 import { ResidualPanel } from './ResidualPanel';
@@ -29,8 +29,6 @@ export interface EventPanesProps {
   arts: GateArtifacts;
   t0Ms: number;
   pvUnit?: string | null;
-  /** CHG-178: how long charts are kept, from the events answer; absent on older servers. */
-  retention?: ResponseRetention;
 }
 
 const Loading: React.FC<{ what: string }> = ({ what }) => (
@@ -39,14 +37,14 @@ const Loading: React.FC<{ what: string }> = ({ what }) => (
   </div>
 );
 
-export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit, retention }) => {
+export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit }) => {
   if (detail.isError) return <QueryError error={detail.error} retry={() => void detail.refetch()} />;
   const result = detail.data?.result;
   const metrics = detail.data?.metrics;
   if (tab === 'steps') return result ? <StepsDataTab result={result} metrics={metrics} timeZone={timeZone} pvUnit={pvUnit} /> : <Loading what="the event" />;
 
   const notKept = arraysState(manifest.data);
-  const note = notKept && <ArraysNote state={notKept} retention={retention} />;
+  const note = notKept && <ArraysNote state={notKept} />;
   const one = (k: string) => arts.byKind[k]?.[0];
   // Phase 7: a panel is "decoding" only while a kind the manifest DECLARES is still loading
   const declared = new Set((manifest.data?.artifacts ?? []).filter(a => a.gate === 'G12' && a.readiness === 'COMPLETE').map(a => a.kind));
@@ -71,6 +69,10 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
       </>
     );
   }
+  // a censored event was cut short before its response finished: it never has a fit, whatever charts are held. The event's
+  // result carries the state as evaluation_state (the list's captureState has no key of its own there).
+  const censored = [result?.capture_state, result?.evaluation_state].includes('CENSORED');
+  if (tab === 'fit' && censored) return <ArraysNote state="NOT_FITTED" />;
   if (tab === 'fit') {
     return (
       <>

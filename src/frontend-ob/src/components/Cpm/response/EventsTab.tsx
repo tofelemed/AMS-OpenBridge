@@ -4,10 +4,13 @@
  * request per row). Censored candidates stay out until asked for (audit F20); the choice carries their count. Choosing an
  * event is explicit, never "latest", and opens it on the Response tab. CHG-178: the time reads "7 Oct 05:43" in the loop's
  * site zone, as the band's options do; the zone is named once, in the heading ("Time · UTC").
+ * CHG-195 (owner review item 19): the counts are KPI cards and the events the standard table (ui/DataTable): same columns,
+ * same order, the censored choice; a row (click or Enter) opens its event; a censored row is muted.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { PanelHead, TonePill } from '../shared';
+import { DataTable, type Column } from '../../../ui/DataTable';
 import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/response';
 import { zoneAbbr } from '../../../cpa/siteTime';
 import { fmtInstantBare } from '../context/LoopContextBar';
@@ -32,57 +35,51 @@ export interface EventsTabProps {
   onModels: () => void;
 }
 
+/** The section the two event cards move to (CHG-195): scrolled into view and focused. */
+const EVENTS_ID = 'response-events';
+const toEvents = () => {
+  const el = document.getElementById(EVENTS_ID);
+  el?.scrollIntoView?.({ block: 'start' });
+  el?.focus();
+};
+
 export const EventsTab: React.FC<EventsTabProps> = ({
   events, selectedId, timeZone, loading, hasMore, models, modelsStatus, censoredCount, showCensored, onToggleCensored, onMore, onSelect, onModels,
-}) => (
-  <>
-    <ResponseTiles events={events} hasMore={hasMore} models={models} modelsStatus={modelsStatus}
-      censoredHidden={showCensored ? 0 : censoredCount} onModels={onModels} />
-    <section className="cpm-surface cpm-response-sub" aria-label="Response events" aria-busy={loading || undefined}>
-      <PanelHead title="Events" right={censoredCount > 0 && (
-          <select className="cpm-select" aria-label="Censored events" value={showCensored ? 'show' : 'hide'}
-            onChange={e => onToggleCensored(e.target.value === 'show')}>
-            <option value="hide">Hide censored ({censoredCount})</option>
-            <option value="show">Show censored ({censoredCount})</option>
-          </select>
-        )} />
-      {events.length === 0 ? (
-        <p className="cpm-copy">{loading ? 'Loading events…' : 'No response event recorded for this loop.'}</p>
-      ) : (
-        <div className="cpm-table-wrap">
-          <table className="cpm-table" data-table="response-events">
-            <thead><tr><th>Time · {zoneAbbr(timeZone, events[0].t0Ms)}</th><th>Type</th><th>Path</th><th>State</th><th>Finding</th><th>Model</th></tr></thead>
-            <tbody>
-              {events.map(e => {
-                const v = eventRowView(e);
-                const m = modelOfEvent(models, e.eventId);
-                const selected = e.eventId === selectedId;
-                return (
-                  <tr key={e.eventId} className={`${selected ? 'cpm-row--selected' : ''}${v.censored ? ' cpm-row--muted' : ''}`.trim() || undefined}>
-                    <td className="cpm-nowrap">
-                      <button type="button" className="ui-link cpm-mono" aria-current={selected ? 'true' : undefined} onClick={() => onSelect(e)}>
-                        {fmtInstantBare(e.t0Ms, timeZone)}
-                      </button>
-                    </td>
-                    <td>{typeLabel(e.eventType)}</td>
-                    <td className="cpm-nowrap">{pathLabel(e.pathId)}</td>
-                    <td><TonePill tone={v.tone}>{codeLabel(v.state)}</TonePill></td>
-                    <td>{v.reason}</td>
-                    <td>{m ? modelBrief(m) : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {hasMore && (
-        <div className="cpm-windows-more">
-          <ObcButton variant="flat" disabled={loading} onClick={onMore}>{loading ? 'Loading…' : 'Older events'}</ObcButton>
-        </div>
-      )}
-    </section>
-  </>
-);
+}) => {
+  const columns: Array<Column<ResponseEventSummary>> = [
+    { key: 'time', header: `Time · ${events.length > 0 ? zoneAbbr(timeZone, events[0].t0Ms) : ''}`, mono: true, cell: e => <span className="cpm-nowrap">{fmtInstantBare(e.t0Ms, timeZone)}</span> },
+    { key: 'type', header: 'Type', cell: e => typeLabel(e.eventType) },
+    { key: 'path', header: 'Path', cell: e => <span className="cpm-nowrap">{pathLabel(e.pathId)}</span> },
+    { key: 'state', header: 'State', cell: e => { const v = eventRowView(e); return <TonePill tone={v.tone}>{codeLabel(v.state)}</TonePill>; } },
+    { key: 'finding', header: 'Finding', cell: e => eventRowView(e).reason },
+    { key: 'model', header: 'Model', cell: e => { const m = modelOfEvent(models, e.eventId); return m ? modelBrief(m) : '—'; } },
+  ];
+  return (
+    <>
+      <ResponseTiles events={events} hasMore={hasMore} models={models} modelsStatus={modelsStatus}
+        censoredHidden={showCensored ? 0 : censoredCount} onEvents={toEvents} onModels={onModels} />
+      <section id={EVENTS_ID} tabIndex={-1} className="cpm-surface cpm-response-sub" aria-label="Response events" aria-busy={loading || undefined}>
+        <PanelHead title="Events" right={censoredCount > 0 && (
+            <select className="cpm-select" aria-label="Censored events" value={showCensored ? 'show' : 'hide'}
+              onChange={e => onToggleCensored(e.target.value === 'show')}>
+              <option value="hide">Hide censored ({censoredCount})</option>
+              <option value="show">Show censored ({censoredCount})</option>
+            </select>
+          )} />
+        {events.length === 0 ? (
+          <p className="cpm-copy">{loading ? 'Loading events…' : 'No response event recorded for this loop.'}</p>
+        ) : (
+          <DataTable caption="Response events, newest first" columns={columns} rows={events} rowKey={e => e.eventId}
+            selectedKey={selectedId ?? null} onSelect={onSelect} rowClassName={e => (eventRowView(e).censored ? 'cpm-row--muted' : undefined)} />
+        )}
+        {hasMore && (
+          <div className="cpm-windows-more">
+            <ObcButton variant="flat" disabled={loading} onClick={onMore}>{loading ? 'Loading…' : 'Older events'}</ObcButton>
+          </div>
+        )}
+      </section>
+    </>
+  );
+};
 
 export default EventsTab;

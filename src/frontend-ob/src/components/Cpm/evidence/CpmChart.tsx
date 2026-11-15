@@ -207,6 +207,10 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
   title?: string; onClick?: (seriesId: string, index: number) => void;
   /** CHG-193: the CSV x column when the axis name is in words. */
   csvXLabel?: string;
+  /** CHG-195 (owner review item 19): the title as a heading of this level (the Models tab's trends, one per row). */
+  headingLevel?: 2 | 3 | 4;
+  /** CHG-195: Export CSV in the chart's head, after the zoom tools, instead of under the chart. */
+  exportInHead?: boolean;
 }> = (props) => {
   const theme = useChartTheme();
   // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
@@ -241,19 +245,22 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
   };
   const drawn = props.series.reduce((n, s) => n + s.x.length, 0);
   const sampleNote = useContext(ChartSampleNote);
+  const Heading = props.headingLevel ? (`h${props.headingLevel}` as const) : null;
+  // the numbers behind the picture, on request: one button, the file built on click (2026-10-03: the open data table
+  // re-serialised every point into the page and was not used)
+  const exportCsv = <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>;
   return (
     <div className="cpm-chart" ref={wrap}>
       <div className="cpm-chart__bar">
-        {props.title && <span className="cpm-chart__title">{props.title}</span>}
+        {props.title && (Heading
+          ? <Heading className="cpm-chart__title cpm-chart__title--heading">{props.title}</Heading>
+          : <span className="cpm-chart__title">{props.title}</span>)}
         {sampleNote && drawn > SAMPLE_ABOVE && <span className="cpm-chart__note" title="The CSV carries every value; only the drawing is decimated.">{drawn.toLocaleString('en-GB')} points, drawn sampled</span>}
         <ChartZoomBar box={box} hasData={drawn > 0} />
+        {props.exportInHead && exportCsv}
       </div>
       <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={box.onChartReady} onEvents={onEvents} />
-      {/* the numbers behind the picture, on request: one button, the file built on click (2026-10-03: the
-          open data table re-serialised every point into the page and was not used) */}
-      <div className="cpm-chart__more">
-        <ObcButton variant="flat" onClick={csv}>Export CSV</ObcButton>
-      </div>
+      {!props.exportInHead && <div className="cpm-chart__more">{exportCsv}</div>}
     </div>
   );
 };

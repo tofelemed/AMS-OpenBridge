@@ -2,6 +2,8 @@
  * 2026-09-17 audit F5/F19: the answer first. CHG-165 (owner review): the result is one row on the Response tab: the model
  * the kernel estimated (family from the metric method), its parameters with ± and units, the validation verdict, and its
  * state once, as the pill. Without a model, the row says why. It keeps its height as a skeleton while the event loads.
+ * CHG-195 (owner review item 19): the model name with its state pill beside it, then one value block per parameter the model
+ * has: the value and unit on the first line, its ± on a quieter second line.
  */
 import React from 'react';
 import { TonePill } from '../shared';
@@ -28,16 +30,19 @@ export const ResultCard: React.FC<{
     <section className={`cpm-surface cpm-response-result cpm-tone-${s.family ? stateTone(s.modelState) : 'muted'}`} role="region" aria-label="Result">
       <div className="cpm-response-result__head">
         <span className="cpm-eyebrow">Result</span>
-        <h2 className="cpm-panel-title">{s.headline}</h2>
+        <div className="cpm-response-result__title">
+          <h2 className="cpm-panel-title">{s.headline}</h2>
+          <TonePill tone={stateTone(state)}>{codeLabel(state)}</TonePill>
+        </div>
         <span className="cpm-copy">{s.family ? `Validation: ${s.validation.text}` : s.identifiability}</span>
       </div>
       {s.parameters.map(p => (
         <div key={p.label} className="cpm-response-param">
-          <span className="cpm-kpi__caption">{p.label}</span>
-          <span className="cpm-kpi__value">{displayUnit(p.text, result.path_id, pvUnit)}</span>
+          <span className="cpm-kpi__caption cpm-response-param__label">{p.label}</span>
+          <span className="cpm-kpi__value cpm-response-param__value">{displayUnit(p.value, result.path_id, pvUnit)}</span>
+          {p.spread && <span className="cpm-response-param__spread">{p.spread}</span>}
         </div>
       ))}
-      <span className="cpm-response-result__state"><TonePill tone={stateTone(state)}>{codeLabel(state)}</TonePill></span>
     </section>
   );
 };

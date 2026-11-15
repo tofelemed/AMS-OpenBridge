@@ -22,9 +22,12 @@ const base = { timeZone: 'UTC', loading: false, hasMore: false, models: [model],
   onToggleCensored: () => {}, onMore: () => {}, onSelect: () => {}, onModels: () => {} };
 
 describe('EventsTab', () => {
-  it('lists each event once: time, type and path in words, one state, the finding, the model it produced', () => {
+  // CHG-195 (owner review item 19): the standard table (ui/DataTable): same columns, same order; a row opens its event
+  it('lists each event once in the standard table: time, type and path in words, one state, the finding, the model it produced', () => {
     const onSelect = vi.fn();
-    render(<EventsTab {...base} events={[ev({}), ev({ eventId: 'e2', modelState: 'NONE', finding: 'NO_RESPONSE' })]} selectedId="e1" onSelect={onSelect} />);
+    const { container } = render(<EventsTab {...base} events={[ev({}), ev({ eventId: 'e2', modelState: 'NONE', finding: 'NO_RESPONSE' })]} selectedId="e1" onSelect={onSelect} />);
+    expect(container.querySelector('.ui-table table')).toBeTruthy();
+    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Time · UTC', 'Type', 'Path', 'State', 'Finding', 'Model']);
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText('Input test')).toBeTruthy();
@@ -33,11 +36,12 @@ describe('EventsTab', () => {
     expect(within(rows[0]).getByText('Response characterised')).toBeTruthy();
     expect(within(rows[0]).getByText('FOPDT · K 0.21')).toBeTruthy();
     expect(within(rows[1]).getAllByText('—').length).toBeGreaterThan(0);
-    expect(within(rows[0]).getByRole('button').getAttribute('aria-current')).toBe('true');
-    expect(within(rows[0]).getByRole('button').textContent).toBe('7 Oct 05:43');
-    expect(screen.getByRole('columnheader', { name: 'Time · UTC' })).toBeTruthy();
-    fireEvent.click(within(rows[1]).getByRole('button'));
+    expect(rows[0].getAttribute('aria-current')).toBe('true');
+    expect(within(rows[0]).getByText('7 Oct 05:43')).toBeTruthy();
+    fireEvent.click(rows[1]);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'e2' }));
+    fireEvent.keyDown(rows[0], { key: 'Enter' });
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ eventId: 'e1' }));
   });
 
   it('keeps censored rows out until asked, with their count in the choice', () => {
@@ -50,11 +54,19 @@ describe('EventsTab', () => {
     expect(toggle).toHaveBeenCalledWith(true);
   });
 
-  it('reads a censored row by its reason', () => {
+  it('reads a censored row by its reason, the row muted', () => {
     render(<EventsTab {...base} events={[ev({ captureState: 'CENSORED', censorReason: 'SOURCE_GAP', modelState: 'NONE' })]} selectedId={undefined} censoredCount={1} showCensored />);
     const row = screen.getAllByRole('row')[1];
     expect(within(row).getByText('Censored')).toBeTruthy();
     expect(within(row).getByText('Source gap')).toBeTruthy();
+    expect(row.className).toBe('cpm-row--muted');
+  });
+
+  it('moves to the events table from the two event cards', () => {
+    render(<EventsTab {...base} events={[ev({})]} selectedId={undefined} />);
+    const table = screen.getByRole('region', { name: 'Response events' });
+    fireEvent.click(screen.getByRole('button', { name: 'Accepted events' }));
+    expect(document.activeElement).toBe(table);
   });
 
   it('loads older events on request and opens the models from the model tile', () => {
@@ -62,7 +74,7 @@ describe('EventsTab', () => {
     render(<EventsTab {...base} events={[ev({})]} selectedId={undefined} hasMore onMore={onMore} onModels={onModels} />);
     fireEvent.click(screen.getByText('Older events'));
     expect(onMore).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /System model/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'System model' }));
     expect(onModels).toHaveBeenCalled();
   });
 });

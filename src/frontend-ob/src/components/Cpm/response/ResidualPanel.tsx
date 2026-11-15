@@ -1,7 +1,8 @@
 /**
  * v2.5 Task 2E.5 (spec §2.7): residuals over time (PV EU) and their autocorrelation by lag in
  * samples - the kernel's arrays. Whiteness / bias verdicts come from subgate E, stated as text.
- * CHG-165 (owner review): the Fit quality tab: the residuals and their autocorrelation side by side.
+ * CHG-165 (owner review): the Fit quality tab. CHG-195 (owner rule 15 Nov 2026): the residuals, then their autocorrelation,
+ * one per row at full width.
  */
 import React from 'react';
 import { Toggletip } from '../../../ui/Toggletip';
@@ -34,7 +35,7 @@ export const ResidualPanel: React.FC<{ residuals: DecodedArtifact | undefined; a
           {['verdict', 'free_run_rmse', 'prediction_rmse', 'fit_improvement', 'residual_bias', 'whiteness', 'input_residual_correlation'].filter(k => k in outputs).map(k => <KvRow key={k} label={k}>{text(k)}</KvRow>)}
         </div>
       )}
-      <div className="cpm-response-pair">
+      <div className="cpm-response-trend-rows">
       {residuals && (
         <CpmChart title="Residuals" xKind="time" timeZone={timeZone} height={200}
           series={[{ id: 'residual', label: 'residual (y − ŷ)', unit: residuals.units.y ?? residuals.meta.y.unit ?? '', x: epochMs(residuals), y: Array.from(residuals.columns.y), pen: 'overlay' }]} />

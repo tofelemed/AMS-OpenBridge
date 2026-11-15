@@ -55,26 +55,35 @@ describe('responseFacts', () => {
 });
 
 describe('ResponseTiles', () => {
-  it('renders the three tiles', () => {
-    render(<ResponseTiles events={[ev({})]} hasMore={false} models={[model('VALIDATED')]} />);
-    expect(screen.getByText('Response events')).toBeTruthy();
-    expect(screen.getByText('Accepted events')).toBeTruthy();
-    expect(screen.getByText('System model')).toBeTruthy();
-    expect(screen.getByText('Validated')).toBeTruthy();
+  // CHG-195 (owner review item 19): the three counts as the Overview's KPI cards, each still opening what is behind it
+  it('draws the three counts as KPI cards in the Overview layout: label and icon on top, then the value', () => {
+    const { container } = render(<ResponseTiles events={[ev({})]} hasMore={false} models={[model('VALIDATED')]} onEvents={() => {}} onModels={() => {}} />);
+    const cards = [...container.querySelectorAll('.cpm-kpicard--headed')];
+    expect(cards).toHaveLength(3);
+    expect(cards.map(c => c.querySelector('.cpm-kpicard__label')?.textContent)).toEqual(['Response events', 'Accepted events', 'System model']);
+    expect(cards.map(c => c.querySelector('.cpm-kpicard__value')?.textContent)).toEqual(['1', '1', 'Validated']);
+    expect(cards.every(c => c.querySelector('.cpm-kpicard__icon'))).toBe(true);
+    expect(screen.getByRole('list', { name: 'Response counts' })).toBeTruthy();
+    expect(container.querySelector('.cpm-kpi')).toBeNull();
   });
 
-  it('names its basis once; the model tile opens the Models tab (CHG-165), the event tiles sit above their table', () => {
-    const onModels = vi.fn();
-    render(<ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} onModels={onModels} />);
+  it('opens the events behind the two event counts and the models behind the model card; the basis is said once', () => {
+    const onModels = vi.fn(); const onEvents = vi.fn();
+    render(<ResponseTiles events={[ev({})]} hasMore models={[model('VALIDATED')]} censoredHidden={4} onEvents={onEvents} onModels={onModels} />);
     expect(screen.getAllByText('4 censored not counted')).toHaveLength(1);
-    expect(screen.getByText('Accepted events').closest('a, button')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /System model/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Response events' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Accepted events' }));
+    expect(onEvents).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: 'System model' }));
     expect(onModels).toHaveBeenCalledTimes(1);
+    for (const b of screen.getAllByRole('button')) expect(b.hasAttribute('aria-haspopup')).toBe(false);
   });
 
-  it('leaves the model tile plain without a model', () => {
-    render(<ResponseTiles events={[]} hasMore={false} models={[]} onModels={() => {}} />);
-    expect(screen.getByText('System model').closest('a, button')).toBeNull();
+  it('leaves a card plain when nothing is behind it', () => {
+    render(<ResponseTiles events={[]} hasMore={false} models={[]} onEvents={() => {}} onModels={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'System model' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Response events' })).toBeNull();
+    expect(screen.getByText('System model')).toBeTruthy();
   });
 });
 

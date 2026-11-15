@@ -1,4 +1,4 @@
-// CHG-165: System Response as six tabs in `?tab=`, plain labels, the event once in the foot and Next to the following tab.
+// CHG-165: System Response as six tabs in `?tab=`, plain labels and Next to the following tab (CHG-195: no foot line).
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -21,11 +21,14 @@ describe('tabOf', () => {
 });
 
 describe('ResponseTabs', () => {
-  it('shows the six tabs with plain labels, the foot text and Next to the following tab', () => {
+  // CHG-195 (owner review item 19): no foot line under a tab; the event selector names the event. Next stays.
+  it('shows the six tabs with plain labels and, under the tab, only Next to the following tab', () => {
     const onTab = vi.fn();
-    render(<ResponseTabs tab="fit" onTab={onTab} foot="Input test · run 6a1e89ce"><p>body</p></ResponseTabs>);
+    const { container } = render(<ResponseTabs tab="fit" onTab={onTab}><p>body</p></ResponseTabs>);
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Events', 'Response', 'Fit quality', 'Frequency', 'Steps & data', 'Models']);
-    expect(screen.getByText('Input test · run 6a1e89ce')).toBeTruthy();
+    const foot = container.querySelector('.cpm-response-tabs__foot') as HTMLElement;
+    expect(foot.textContent).toBe('Next: Frequency →');
+    expect(foot.querySelector('.cpm-copy')).toBeNull();
     fireEvent.click(screen.getByText('Next: Frequency →'));
     expect(onTab).toHaveBeenCalledWith('frequency');
   });

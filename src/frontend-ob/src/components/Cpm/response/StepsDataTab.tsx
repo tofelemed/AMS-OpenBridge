@@ -1,23 +1,26 @@
 /**
- * CHG-165 (owner review): Steps & data, how the kernel decided. The subgates A–H as cards (state, reason, the raw outputs on
- * demand), the event said once (window, eligibility and finding, purpose; CHG-184, owner review item 0: no method code or version,
- * run id, bundle hash or revision), and the quantity catalogue with the reported ones first; not-applicable rows stay listed,
- * muted, with their reason, never as 0. It replaces the right column (EventAside) and the catalogue card (QuantityCatalogue).
- * The Workbench exit is in the band.
+ * CHG-165 (owner review): Steps & data, how the kernel decided. The subgates A–H as cards (state, reason, the outputs on demand)
+ * and the quantity catalogue with the reported ones first; not-applicable rows stay listed, muted, with their reason, never as
+ * 0. It replaces the right column (EventAside) and the catalogue card (QuantityCatalogue). The Workbench exit is in the band.
+ * CHG-195 (owner review item 19): a card's "n outputs" opens a dialog (the step name, the loop and step under it) with the
+ * outputs as label / value rows in plain words; the Event panel is gone (the band names the event); All quantities takes the
+ * full width as the standard table, without the method column (owner Q8).
  */
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { KvRow, PanelHead, TonePill } from '../shared';
+import { Dialog } from '../../../ui/Dialog';
+import { DataTable, type Column } from '../../../ui/DataTable';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
-import { readable } from '../evidence/format';
-import { fmtPeriod } from '../context/LoopContextBar';
-import { codeLabel, phrase } from '../vocabulary';
-import { KEY_RESULT_IDS, subgateSteps } from './responseCopy';
+import { codeLabel } from '../vocabulary';
+import { KEY_RESULT_IDS, subgateSteps, type SubgateStep } from './responseCopy';
+import { outputLabel, outputValue, pathLabel } from './responseLabels';
 import { displayUnit, quantityText } from './responseSupport';
 
-const outputText = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : readable(v)) : typeof v === 'object' ? JSON.stringify(v) : String(v);
-const positive = (ms: unknown): number | null => (typeof ms === 'number' && ms > 0 ? ms : null);
 const LABEL = new Map(KEY_RESULT_IDS);
 const quantityLabel = (id: string) => LABEL.get(id) ?? codeLabel(id);
+const support = (q: ResponseQuantity) => (q.supportFromMs != null && q.supportToMs != null ? `${Math.round((q.supportToMs - q.supportFromMs) / 1000)} s` : '—');
 
 export interface StepsDataTabProps {
   result: ResponseEventDetail['result'];
@@ -27,15 +30,28 @@ export interface StepsDataTabProps {
   pvUnit?: string | null;
 }
 
-export const StepsDataTab: React.FC<StepsDataTabProps> = ({ result, metrics, timeZone, pvUnit }) => {
+const OutputsDialog: React.FC<{ step: SubgateStep; loopId: string; onClose: () => void }> = ({ step, loopId, onClose }) => createPortal(
+  <Dialog open title={step.name} subtitle={`${loopId} · Step ${step.key}`} onClose={onClose}
+    footer={<ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}>
+    {step.outputs.map(([k, v]) => <KvRow key={k} label={outputLabel(k)}>{outputValue(k, v)}</KvRow>)}
+  </Dialog>,
+  document.body,
+);
+
+export const StepsDataTab: React.FC<StepsDataTabProps> = ({ result, metrics, pvUnit }) => {
   const [show, setShow] = useState<'reported' | 'all'>('reported');
+  const [open, setOpen] = useState<SubgateStep | null>(null);
   const steps = subgateSteps(result.subgates);
   const all = metrics ?? [];
   const reported = all.filter(q => q.value != null);
   const rows = show === 'reported' ? reported : [...reported, ...all.filter(q => q.value == null)];
   const paths = new Set(all.map(q => q.pathId || '—'));
-  const start = positive(result.window_start_ms);
-  const end = positive(result.window_end_ms);
+  const columns: Array<Column<ResponseQuantity>> = [
+    { key: 'quantity', header: 'Quantity', cell: q => quantityLabel(q.quantityId) },
+    { key: 'value', header: 'Value', cell: q => <span className="cpm-nowrap">{displayUnit(quantityText(q), q.pathId, pvUnit)}</span> },
+    ...(paths.size > 1 ? [{ key: 'path', header: 'Path', cell: (q: ResponseQuantity) => pathLabel(q.pathId) }] : []),
+    { key: 'support', header: 'Support', mono: true, cell: q => <span className="cpm-nowrap">{support(q)}</span> },
+  ];
   return (
     <>
       <ol className="cpm-response-step-cards" aria-label="Subgates">
@@ -47,48 +63,28 @@ export const StepsDataTab: React.FC<StepsDataTabProps> = ({ result, metrics, tim
             </span>
             {s.reason && <span className="cpm-event-row__sub">{s.reason}</span>}
             {s.outputs.length > 0 && (
-              <details className="cpm-step__outputs">
-                <summary>{s.outputs.length} output{s.outputs.length === 1 ? '' : 's'}</summary>
-                {s.outputs.map(([k, v]) => <KvRow key={k} label={k}><span className="cpm-mono cpm-wrap">{outputText(v)}</span></KvRow>)}
-              </details>
+              <span className="cpm-response-step-card__outputs">
+                <ObcButton variant="flat" aria-haspopup="dialog" onClick={() => setOpen(s)}>
+                  {s.outputs.length} output{s.outputs.length === 1 ? '' : 's'}
+                </ObcButton>
+              </span>
             )}
           </li>
         ))}
       </ol>
-      <div className="cpm-response-pair cpm-response-pair--wide-right">
-        <section className="cpm-surface cpm-response-sub cpm-response-aside" aria-label="Event">
-          <PanelHead title="Event" />
-          <KvRow label="Window">{start || end ? fmtPeriod({ label: '', start, end }, timeZone).slice(1).trim() : 'unknown'}</KvRow>
-          <KvRow label="Eligibility · finding">{codeLabel(result.eligibility)} · {result.finding ? phrase(String(result.finding)) : '—'}</KvRow>
-          <KvRow label="Purpose">{result.purpose}</KvRow>
-        </section>
-        <section className="cpm-surface cpm-response-sub" aria-label="All quantities">
-          <PanelHead title="All quantities" right={(
-            <select className="cpm-select" aria-label="Quantities shown" value={show} onChange={e => setShow(e.target.value as 'reported' | 'all')}>
-              <option value="reported">Reported ({reported.length})</option>
-              <option value="all">All ({all.length})</option>
-            </select>
-          )} />
-          {rows.length === 0 ? <p className="cpm-copy">No quantities were reported for this event.</p> : (
-            <div className="cpm-table-wrap">
-              <table className="cpm-table" data-table="quantities-all">
-                <thead><tr><th>Quantity</th><th>Value</th><th>Method</th>{paths.size > 1 && <th>Path</th>}<th>Support</th></tr></thead>
-                <tbody>
-                  {rows.map(q => (
-                    <tr key={q.quantityId} data-applicable={q.value != null} className={q.value == null ? 'cpm-row--muted' : undefined}>
-                      <td title={q.quantityId}>{quantityLabel(q.quantityId)}</td>
-                      <td className="cpm-nowrap">{displayUnit(quantityText(q), q.pathId, pvUnit)}</td>
-                      <td className="cpm-mono cpm-wrap">{q.method || '—'}</td>
-                      {paths.size > 1 && <td className="cpm-mono">{q.pathId || '—'}</td>}
-                      <td className="cpm-mono cpm-nowrap">{q.supportFromMs != null && q.supportToMs != null ? `${Math.round((q.supportToMs - q.supportFromMs) / 1000)} s` : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
+      {open && <OutputsDialog step={open} loopId={result.loop_id} onClose={() => setOpen(null)} />}
+      <section className="cpm-surface cpm-response-sub" aria-label="All quantities">
+        <PanelHead title="All quantities" right={(
+          <select className="cpm-select" aria-label="Quantities shown" value={show} onChange={e => setShow(e.target.value as 'reported' | 'all')}>
+            <option value="reported">Reported ({reported.length})</option>
+            <option value="all">All ({all.length})</option>
+          </select>
+        )} />
+        {rows.length === 0 ? <p className="cpm-copy">No quantities were reported for this event.</p> : (
+          <DataTable caption="Quantities of this event" columns={columns} rows={rows} rowKey={q => q.quantityId}
+            rowClassName={q => (q.value == null ? 'cpm-row--muted' : undefined)} />
+        )}
+      </section>
     </>
   );
 };

@@ -46,15 +46,29 @@ describe('ResultCard', () => {
     rerender(<ResultCard result={result} metrics={metrics} loading={false} />);
     expect(screen.getByRole('heading', { name: 'FOPDT model' })).toBeTruthy();
     expect(screen.getByText('Candidate')).toBeTruthy();                                  // CHG-165: the state once, as the pill
-    expect(screen.getByText(/-76\.55 PV unit\/% OP ± 22\.22/)).toBeTruthy();         // no PV unit registered: said so, as on Models
+    expect(screen.getByText('-76.55 PV unit/% OP')).toBeTruthy();                       // no PV unit registered: said so, as on Models
+    expect(screen.getByText('± 22.22')).toBeTruthy();
     expect(screen.getByText(/Waiting · no independent event yet/)).toBeTruthy();
     expect(screen.queryByText(/candidate table below/)).toBeNull();
   });
 
   it("says the units in the loop's PV unit and the input the model came from, not the kernel placeholders", () => {
     render(<ResultCard result={result} metrics={metrics} loading={false} pvUnit="m3/h" />);
-    expect(screen.getByText('-76.55 m3/h/% OP ± 22.22')).toBeTruthy();
+    expect(screen.getByText('-76.55 m3/h/% OP')).toBeTruthy();
     expect(screen.queryByText(/PV_EU/)).toBeNull();
+  });
+
+  // CHG-195 (owner review item 19): the model name and its state pill, then one value block per parameter: the value on the
+  // first line, its ± on a quieter second line; same values, same units
+  it('designs the row: the model and its pill together, then a value block per parameter with its ± under the value', () => {
+    const { container } = render(<ResultCard result={result} metrics={metrics} loading={false} pvUnit="m3/h" />);
+    const title = container.querySelector('.cpm-response-result__title') as HTMLElement;
+    expect(title.querySelector('h2')?.textContent).toBe('FOPDT model');
+    expect(title.querySelector('.cpm-pill')?.textContent).toBe('Candidate');
+    const blocks = [...container.querySelectorAll('.cpm-response-param')];
+    expect(blocks.map(b => b.querySelector('.cpm-response-param__label')?.textContent)).toEqual(['Process gain K', 'Dead time θ', 'Time constant τ']);
+    expect(blocks.map(b => b.querySelector('.cpm-response-param__value')?.textContent)).toEqual(['-76.55 m3/h/% OP', '71.97 s', '2253.49 s']);
+    expect(blocks.map(b => b.querySelector('.cpm-response-param__spread')?.textContent ?? null)).toEqual(['± 22.22', null, '± 688.20']);
   });
 
   it('says why when no model was estimated', () => {

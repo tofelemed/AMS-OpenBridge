@@ -48,7 +48,9 @@ export const KpiCard: React.FC<{
   group?: string;
   /** `headed` without `to`: the ? tip's content, in place of `sub` and `title` (CHG-186). */
   tip?: React.ReactNode;
-}> = ({ Icon, value, label, sub, tone = 'muted', title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar, group, tip }) => {
+  /** `onOpen` opens a dialog (the default); false when it opens a tab or a page part instead (CHG-195, System Response). */
+  opensDialog?: boolean;
+}> = ({ Icon, value, label, sub, tone = 'muted', title, to, size = 'regular', headed = false, relevant = false, iconTone = 'none', onOpen, bar, group, tip, opensDialog = true }) => {
   const tipId = useId();
   const valueId = useId();
   const cls = `cpm-kpicard cpm-kpicard--${tone} cpm-kpicard--${size}${headed ? ' cpm-kpicard--headed' : ''}${relevant ? ' cpm-kpicard--relevant' : ''}`;
@@ -72,7 +74,7 @@ export const KpiCard: React.FC<{
     return (
       <div className={onOpen ? `${cls} cpm-kpicard--link cpm-kpicard--open` : `${cls} cpm-kpicard--tile`}>
         {onOpen && (
-          <button type="button" className="cpm-kpicard__opener" aria-haspopup="dialog" aria-label={label}
+          <button type="button" className="cpm-kpicard__opener" aria-haspopup={opensDialog ? 'dialog' : undefined} aria-label={label}
             aria-describedby={valueId} onClick={onOpen} />
         )}
         <span className="cpm-kpicard__head">

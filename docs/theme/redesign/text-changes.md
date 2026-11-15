@@ -2117,3 +2117,32 @@ Looks, not words: beside the 220 px sidebar the plant selector starts exactly at
 "Traverse CPA" which stays in the header above the sidebar; with the rail and below 1024 px (drawer) the selector follows the
 brand. The plant selector is at most 240 px wide (was 380 px; 300 px below 1280 px) and the search at most 320 px (was 420 px).
 Checked at 1440, 1366, 1280, 1024, 768 and 390 px: the header fits, nothing scrolls sideways.
+
+## CHG-195 System Response tabs in the owner design (owner review item 19; Q8; owner rule 15 Nov 2026: one trend per row)
+
+KPI cards, standard tables, an outputs dialog, one trend per row, no foot line. Times keep their format (Q5); "↗" controls
+stay links (Q4). Sizes are unchanged; CSV exports keep every column (the Models CSV keeps `estimator`).
+
+| Where | Was | Now |
+|---|---|---|
+| Every tab · bottom | "Input test · 13 Nov 07:20 → 13 Nov 07:24 UTC · OP → PV · run 0e7f95f0", then "Next: … →" | only "Next: … →" (the event selector at the top names the event) |
+| Events · counts | three plain tiles "Response events", "Accepted events", "System model"; only System model opened something | the same words as KPI cards in the Overview layout (title and icon, then the value); "N censored not counted" is the small line under the value; Response events and Accepted events move to the events table, System model opens Models |
+| Events · table | the time was a link that opened the event | the standard table, same columns and order; the row (click or Enter) opens the event; a censored row is muted |
+| Response · result row | "-1.74 PV unit/% OP ± 16.42" on one line per parameter; the state pill at the far right | the state pill beside the model name; per parameter the value and unit ("-1.74 PV unit/% OP"), then "± 16.42" on a quieter line under it |
+| Response · Reported quantities | a loose three-column list of label / value rows | a table Quantity · Value; "n of m reported" stays in its head |
+| Response / Fit quality / Frequency · no charts | heading "Charts not kept" + "The result and every value stand. Charts are kept 30 days for accepted events and 6 h for censored candidates; they cannot be rebuilt." | "Charts are not available for this event." |
+| same · removed by retention | heading "Charts removed by retention" + the same sentence | "Charts for this event were removed by retention." |
+| same · failed verification | heading "Charts failed verification" + the same sentence | "Charts for this event failed verification." |
+| Fit quality · a censored event | "Charts not kept" (or empty residual / candidate panels while its charts were held) | "This event was interrupted before the response finished, so no model was fitted." |
+| Fit quality · layout | Residuals beside Residual autocorrelation; the candidates table beside the delay objective curve | Residuals, then Residual autocorrelation, then the Delay objective curve, each full width in its own row; the candidate models table full width after them |
+| Frequency · margins | a loose three-column list of label / value rows | a table Margin · Value ("not claimed" stays for a margin not claimed); magnitude, then phase, each in its own row |
+| Steps & data · step cards | "▸ 5 outputs" opened raw rows inside the card: "path_id OP_TO_PV", "bandwidth NOT_ASSESSED", "path_reason OP_ASSUMED_APPLIED", "sample_grid_s 4.03", "u_applied_available true" | a "5 outputs" button opens a dialog titled with the step name ("Eligibility"), "FIC10302 · Step A" under it, rows "Path OP → PV", "Bandwidth Not assessed", "Path reason OP assumed applied", "Sample interval (s) 4.03", "Applied OP available Yes"; other keys in sentence case, a unit suffix in brackets ("Fit (ms)") |
+| Steps & data · Event panel | Window, Eligibility · finding, Purpose | gone |
+| Steps & data · All quantities | beside the Event panel; columns Quantity, Value, Method ("HELD_INTERVAL_INTEGRALS_V1", "THEIL_SEN"), Path ("OP_TO_PV"), Support; the quantity id on hover | full width, the standard table; columns Quantity, Value, Path (only with more than one path, in words "OP → PV"), Support; no Method (Q8), no id on hover |
+| Models · trends | three charts side by side; each "Export CSV" under its chart, above the table | one per row at full width, in the order Process gain, Dead time, Time constant; the title is the chart's heading; "Zoom area", "Undo", "Reset", "Export CSV" in its head; "Export models CSV" stays at the top |
+| Models · hover readout | "model a7065b37 · Validated" | "Validated model"; the readout stays inside the chart |
+| Models · table | heads created, family, path, estimator, state, rev, review, (blank); "OE_LM_DELAY_PROFILE" | the standard table: Created, Family, Path, State, Revision, Reviewed by, then the Review button (secondary); no estimator column (Q8); group rows "Candidate (1)", "Other (1)" stay |
+| Review system model dialog | subtitle "FOPDT · OP_TO_PV"; "State CANDIDATE"; row "Estimator / uncertainty OE_LM_DELAY_PROFILE / COVARIANCE"; rows "process_gain", "dead_time", "time_constant" with "PV_EU/input_EU" | subtitle "FOPDT · OP → PV"; "State Candidate" (the pill word); no estimator row (Q8); rows "Process gain", "Dead time", "Time constant" in the loop's units ("m3/h/% OP"); the decision form, the revision and the 409 / 403 messages unchanged |
+
+Looks, not words: every CPA chart's hover readout stays inside its chart (the shared tooltip chrome confines it), so it no
+longer hides under the sidebar; at 390 px a wide table scrolls inside its panel instead of pushing the tab past the screen.

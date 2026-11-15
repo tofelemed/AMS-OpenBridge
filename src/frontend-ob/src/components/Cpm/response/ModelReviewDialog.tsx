@@ -6,6 +6,9 @@
  * CHG-192 (owner review items 2, 16): the shared dialog (the cyan band, focus trap, Escape) instead of a page-local overlay;
  * titled "Review system model" with the model (family · path) under the title; the state and the facts as label / value rows
  * in sentence case; the form as the dialog's label / value rows, no caps labels; Cancel, then Record decision as the one primary.
+ * CHG-195 (owner review item 19): the parameters by name (Process gain, Dead time, Time constant) in the loop's units, the path in
+ * words, the state as its pill word; no Estimator / uncertainty row (owner Q8). The form, the revision and the 409 / 403 answers
+ * are unchanged.
  */
 import React, { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -15,7 +18,9 @@ import { SegmentedControl } from '../../../ui/SegmentedControl';
 import { KvRow, TonePill } from '../shared';
 import type { ReviewDecision, SystemModel } from '../../../api/cpm/response';
 import { ApiError } from '../../../api/apiFetch';
-import { quantityText, stateTone } from './responseSupport';
+import { displayUnit, paramLabel, quantityText, stateTone } from './responseSupport';
+import { codeLabel } from '../vocabulary';
+import { pathLabel } from './responseLabels';
 
 const DECISIONS: Array<{ key: ReviewDecision; label: string; hint: string }> = [
   { key: 'VALIDATED', label: 'Validated', hint: 'Holdout-checked and accepted inside the stated domain.' },
@@ -26,8 +31,10 @@ const DECISIONS: Array<{ key: ReviewDecision; label: string; hint: string }> = [
 
 export const ModelReviewDialog: React.FC<{
   model: SystemModel; pending: boolean; error: unknown; onClose: () => void;
+  /** CHG-195: the loop's registered PV unit, for the kernel's PV_EU placeholder (as on the Models tab). */
+  pvUnit?: string | null;
   onSubmit: (args: { modelId: string; revision: number; decision: ReviewDecision; note?: string; domain?: Record<string, unknown> }) => void;
-}> = ({ model, pending, error, onClose, onSubmit }) => {
+}> = ({ model, pending, error, onClose, onSubmit, pvUnit }) => {
   const id = useId();
   const [decision, setDecision] = useState<ReviewDecision>('VALIDATED');
   const [note, setNote] = useState('');
@@ -36,7 +43,7 @@ export const ModelReviewDialog: React.FC<{
   const forbidden = error instanceof ApiError && error.status === 403;
   const close = () => { if (!pending) onClose(); };
   return createPortal(
-    <Dialog open title="Review system model" subtitle={`${model.family} · ${model.pathId}`} size="wide" onClose={close}
+    <Dialog open title="Review system model" subtitle={`${model.family} · ${pathLabel(model.pathId)}`} size="wide" onClose={close}
       footer={<>
         <ObcButton variant="normal" onClick={onClose} disabled={pending}>Cancel</ObcButton>
         <ObcButton variant="raised" disabled={pending || stale} onClick={() => onSubmit({ modelId: model.modelId, revision: model.revision, decision, note: note || undefined, domain: regime ? { regime } : undefined })}>
@@ -44,11 +51,10 @@ export const ModelReviewDialog: React.FC<{
         </ObcButton>
       </>}>
       <div className="cpm-response-quantities">
-        <KvRow label="State"><TonePill tone={stateTone(model.modelState)}>{model.modelState}</TonePill></KvRow>
+        <KvRow label="State"><TonePill tone={stateTone(model.modelState)}>{codeLabel(model.modelState)}</TonePill></KvRow>
         <KvRow label="Revision">{model.revision}</KvRow>
-        <KvRow label="Estimator / uncertainty">{model.estimator || '—'} / {model.uncertaintyMethod || '—'}</KvRow>
         {Object.entries(model.parameters ?? {}).map(([k, p]) => (
-          <KvRow key={k} label={k}>{quantityText({ quantityId: k, value: p.value, unit: p.unit, uncertainty: p.uncertainty, method: p.method, pathId: model.pathId, supportFromMs: null, supportToMs: null, configHash: model.bundleHash, reasonIfNull: p.reason ?? '' })}</KvRow>
+          <KvRow key={k} label={paramLabel(k)}>{displayUnit(quantityText({ quantityId: k, value: p.value, unit: p.unit, uncertainty: p.uncertainty, method: p.method, pathId: model.pathId, supportFromMs: null, supportToMs: null, configHash: model.bundleHash, reasonIfNull: p.reason ?? '' }), model.pathId, pvUnit)}</KvRow>
         ))}
       </div>
       <div className="cpm-run-form cpm-model-review__form">

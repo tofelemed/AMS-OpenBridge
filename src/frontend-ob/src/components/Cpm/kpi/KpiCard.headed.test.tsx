@@ -98,6 +98,17 @@ describe('headed KPI card', () => {
     expect(open).toHaveBeenCalled();
   });
 
+  // CHG-195 (owner review item 19): System Response's cards open a tab or move to the table, not a dialog
+  it('does not announce a dialog when the card opens a page part instead', () => {
+    const open = vi.fn();
+    render(<MemoryRouter><KpiCard headed Icon={Icon} value="12" label="Response events" group="3 censored not counted" opensDialog={false} onOpen={open} /></MemoryRouter>);
+    const opener = screen.getByRole('button', { name: 'Response events' });
+    expect(opener.hasAttribute('aria-haspopup')).toBe(false);
+    expect(screen.getByText('3 censored not counted')).toBeTruthy();
+    fireEvent.click(opener);
+    expect(open).toHaveBeenCalled();
+  });
+
   it('never breaks between the last word of the title and its ?, while the title still wraps between words', () => {
     const css = readFileSync(join(__dirname, '../../../styles/cpm-explorer.css'), 'utf8');
     expect(css).toMatch(/\.cpm-kpicard__tail \{ white-space: nowrap; \}/);

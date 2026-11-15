@@ -3,12 +3,12 @@
 // the kernel never estimated.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { ModelHistoryBody } from './ModelHistory';
 import type { SystemModel } from '../../../api/cpm/response';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: Record<string, unknown>) => React.createElement('button', { disabled: p.disabled as boolean, 'aria-describedby': p['aria-describedby'] as string, onClick: p.onClick as () => void }, p.children as React.ReactNode),
+  ObcButton: (p: Record<string, unknown>) => React.createElement('button', { disabled: p.disabled as boolean, 'aria-describedby': p['aria-describedby'] as string, 'data-variant': p.variant as string, onClick: p.onClick as () => void }, p.children as React.ReactNode),
 }));
 const download = vi.hoisted(() => vi.fn());
 vi.mock('../../../utils/csv', () => ({ downloadTextFile: download }));
@@ -56,9 +56,43 @@ describe('ModelHistory', () => {
   it('groups models as candidate, validated and baseline, then the rest', () => {
     const models = [model({ modelId: 'x', modelState: 'SUPERSEDED' }), model({ modelId: 'b', modelState: 'ACTIVE_BASELINE' }), model({ modelId: 'v', modelState: 'VALIDATED' }), model({ modelId: 'c', modelState: 'CANDIDATE' })];
     render(<ModelHistoryBody models={models} timeZone="UTC" onReview={() => {}} canReview />);
-    const heads = Array.from(document.querySelectorAll('tr.cpm-table__group')).map(r => r.textContent);
+    const heads = Array.from(document.querySelectorAll('tr.ui-table__group-row')).map(r => r.textContent);
     expect(heads).toEqual(['Candidate (1)', 'Validated (1)', 'Baseline (1)', 'Other (1)']);
-    expect(document.querySelectorAll('tbody tr:not(.cpm-table__group)')).toHaveLength(4);
+    expect(document.querySelectorAll('tbody tr:not(.ui-table__group-row)')).toHaveLength(4);
+  });
+
+  // CHG-195 (owner review item 19): the standard table, no estimator column (Q8; the CSV keeps it), Review a secondary button
+  it('draws the models in the standard table without the estimator, Review as a secondary button', () => {
+    render(<ModelHistoryBody models={[model({ modelId: 'c', modelState: 'CANDIDATE' })]} timeZone="UTC" onReview={() => {}} canReview />);
+    const table = document.querySelector('.ui-table table') as HTMLTableElement;
+    expect(table).toBeTruthy();
+    expect([...table.querySelectorAll('thead th')].map(h => h.textContent)).toEqual(['Created', 'Family', 'Path', 'State', 'Revision', 'Reviewed by', 'Review']);
+    expect(table.textContent).not.toMatch(/OUTPUT_ERROR_LM|estimator/i);
+    const review = within(table).getByRole('button', { name: 'Review' });
+    expect(review.getAttribute('data-variant')).toBe('flat');
+  });
+
+  // CHG-195 (owner review item 19): the three trends one per row, full width, each with its own heading, legend, zoom tools and
+  // Export CSV in its head; the hover readout stays inside the chart (confine), so it never hides under the sidebar
+  it('draws one parameter trend per row, full width, each with its heading, zoom tools and Export CSV in its own head', () => {
+    const p = (v: number) => ({ value: v, unit: 's', uncertainty: 0.5, method: 'COVARIANCE', reason: null });
+    const models = [model({ modelId: 'a', parameters: { process_gain: { ...p(3), unit: 'PV_EU/pp' }, dead_time: p(4), time_constant: p(20) } })];
+    const { container } = render(<ModelHistoryBody models={models} timeZone="UTC" pvUnit="m3/h" onReview={() => {}} canReview={false} />);
+    const rows = container.querySelector('.cpm-response-trend-rows') as HTMLElement;
+    expect(rows).toBeTruthy();
+    const charts = [...rows.querySelectorAll(':scope > .cpm-chart')];
+    expect(charts).toHaveLength(3);
+    expect(charts.map(c => c.querySelector('.cpm-chart__bar h3')?.textContent)).toEqual(['Process gain (m3/h/pp)', 'Dead time (s)', 'Time constant (s)']);
+    for (const c of charts) {
+      const bar = c.querySelector('.cpm-chart__bar') as HTMLElement;
+      expect([...bar.querySelectorAll('button')].map(b => b.textContent)).toEqual(['Zoom area', 'Undo', 'Reset', 'Export CSV']);
+      expect(c.querySelector('.cpm-chart__more')).toBeNull();
+    }
+    expect(screen.getAllByText('Export models CSV')).toHaveLength(1);
+    for (const o of captured as Array<{ tooltip: { confine?: boolean } }>) expect(o.tooltip.confine).toBe(true);
+    // the readout names the model by its state, not by its id (no technical text)
+    const gain = captured[0] as { series: Array<{ __meta?: (i: number) => string[] }> };
+    expect(gain.series[0].__meta!(0)).toEqual(['Candidate model', 'interval 2.50 … 3.50 (± 1 standard error of the estimate)']);
   });
 
   it('draws nothing without models: the summary tile says so', () => {

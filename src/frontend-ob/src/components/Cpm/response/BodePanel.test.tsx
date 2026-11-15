@@ -20,6 +20,10 @@ describe('BodePanel', () => {
     expect(screen.queryByText('Frequency response not available')).toBeNull();
     expect(screen.getByText('Gain margin')).toBeTruthy();
     expect(screen.getAllByText('not claimed')).toHaveLength(2);                       // the reason once, in the note
+    // CHG-195 (owner review item 19): the margins in the standard table, Margin · Value
+    expect(document.querySelector('.ui-table table')).toBeTruthy();
+    expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Margin', 'Value']);
+    expect(screen.getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['Gain marginnot claimed', 'Phase marginnot claimed']);
     expect(screen.queryByText(/not applicable/)).toBeNull();
   });
 

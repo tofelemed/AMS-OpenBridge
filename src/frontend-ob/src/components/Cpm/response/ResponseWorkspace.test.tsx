@@ -65,7 +65,7 @@ describe('ResponseWorkspace', () => {
     expect(screen.getByRole('tab', { name: 'Events' }).getAttribute('aria-selected')).toBe('true');
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
-    fireEvent.click(rows[1].querySelector('button')!);
+    fireEvent.click(rows[1]);
     expect(screen.getByTestId('where').textContent).toBe('/cpm/response?loop=FIC1&event=e2&tab=response');
   });
 
@@ -82,7 +82,7 @@ describe('ResponseWorkspace', () => {
     state.events = [ev(1)];
     draw([], '/cpm/response?loop=FIC1&event=e1');
     expect(screen.getByRole('tab', { name: 'Response' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByText(/run r1/)).toBeTruthy();                         // the foot says the event once
+    expect(screen.queryByText(/run r1/)).toBeNull();                         // CHG-195: no foot line; the band names the event
     fireEvent.click(screen.getByText('Workbench ↗'));
     expect(screen.getByTestId('where').textContent).toMatch(/^\/cpm\/evidence\?.*methodRun=r1.*gate=G12|^\/cpm\/evidence\?.*gate=G12.*methodRun=r1/);
   });

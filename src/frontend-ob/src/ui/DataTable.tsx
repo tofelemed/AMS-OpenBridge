@@ -6,6 +6,10 @@
  * Two optional additions, for a table read cell by cell. `Column.group` draws a spanning heading over
  * adjacent columns. `grid` makes the table an ARIA grid with one tab stop: rows stop being focus
  * targets, and the page's controls take roving focus through `useGridFocus`.
+ *
+ * CHG-195 (owner review item 19): `rowClassName` marks a row (a muted censored event or quantity that does not apply);
+ * `groupOf` puts a heading row above the first row of each group, for rows handed in already in group order (the models
+ * table's Candidate / Other groups). A group row is never focused or selected; not for a grid.
  */
 import React, { useRef } from 'react';
 import { DataState } from './DataState';
@@ -57,6 +61,7 @@ function headingRuns<R>(columns: Array<Column<R>>): Array<{ group?: string; colu
 export function DataTable<R>({
   caption, columns, rows, rowKey, sort, onSort, selectedKey, onSelect, density = 'default',
   loading, error, onRetry, emptyTitle, emptyReason, emptyAction, filtered, filteredTitle, onResetFilters, toolbar, footer, grid,
+  rowClassName, groupOf,
 }: {
   /** Names the table for assistive technology. */
   caption: string;
@@ -85,6 +90,10 @@ export function DataTable<R>({
   footer?: React.ReactNode;
   /** Read cell by cell, with one tab stop. */
   grid?: DataTableGrid;
+  /** A class for a row, such as cpm-row--muted. */
+  rowClassName?: (row: R) => string | undefined;
+  /** The group heading of a row; rows arrive in group order. Not used with `grid`. */
+  groupOf?: (row: R) => string;
 }): React.ReactElement {
   const bodyRef = useRef<HTMLTableSectionElement>(null);
 
@@ -161,9 +170,15 @@ export function DataTable<R>({
                 const key = rowKey(row);
                 const selected = key === selectedKey;
                 const selectable = !grid && onSelect;
+                const group = !grid && groupOf ? groupOf(row) : undefined;
+                const startsRowGroup = group !== undefined && (rowIndex === 0 || groupOf!(rows[rowIndex - 1]) !== group);
                 return (
+                  <React.Fragment key={key}>
+                  {startsRowGroup && (
+                    <tr className="ui-table__group-row"><th scope="colgroup" colSpan={columns.length}>{group}</th></tr>
+                  )}
                   <tr
-                    key={key}
+                    className={rowClassName?.(row) || undefined}
                     tabIndex={selectable ? 0 : undefined}
                     aria-current={selected ? 'true' : undefined}
                     aria-rowindex={grid ? grid.firstRow + rowIndex + headingRows + 1 : undefined}
@@ -184,6 +199,7 @@ export function DataTable<R>({
                       );
                     })}
                   </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>

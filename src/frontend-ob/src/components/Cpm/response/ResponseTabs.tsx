@@ -3,6 +3,7 @@
  * and which qualified. Response: what model came out of this step. Fit quality: can it be trusted. Frequency: how much margin
  * does the loop have. Steps & data: how did the kernel decide. Models: how has the loop's model changed, and is it reviewed.
  * The tab lives in `?tab=`; a link that names an event (or a G12 run) opens Response. Each tab but the last ends with Next.
+ * CHG-195 (owner review item 19): no foot line under a tab; the event selector at the top names the event.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -34,10 +35,8 @@ export const needsEvent = (tab: ResponseTab): boolean => tab !== 'events' && tab
 export const ResponseTabs: React.FC<{
   tab: ResponseTab;
   onTab: (tab: ResponseTab) => void;
-  /** The selected event, said once. */
-  foot?: string;
   children: React.ReactNode;
-}> = ({ tab, onTab, foot, children }) => {
+}> = ({ tab, onTab, children }) => {
   const next = RESPONSE_TABS[VALUES.indexOf(tab) + 1];
   return (
     <section className="cpm-surface cpm-inv-steps cpm-response-tabs">
@@ -47,10 +46,9 @@ export const ResponseTabs: React.FC<{
         </div>
       </div>
       <div className="cpm-tabpanel" {...tabPanelProps('response', tab)}>{children}</div>
-      {(foot || next) && (
+      {next && (
         <div className="cpm-inv-steps__foot cpm-response-tabs__foot">
-          {foot && <span className="cpm-copy">{foot}</span>}
-          {next && <ObcButton variant="normal" onClick={() => onTab(next.value)}>Next: {next.label} →</ObcButton>}
+          <ObcButton variant="normal" onClick={() => onTab(next.value)}>Next: {next.label} →</ObcButton>
         </div>
       )}
     </section>

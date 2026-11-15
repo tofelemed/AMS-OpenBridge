@@ -6,6 +6,7 @@
  * loop and the event (‹ › step through the events; Workbench ↗ opens the event's G12 run, Open loop ↗ the Loop Explorer), and
  * six tabs each answer one question (see ResponseTabs). The three columns, the right column and the catalogue card are gone;
  * the result, steps and quantities are each said once; a run whose arrays were not kept says so once per tab.
+ * CHG-195 (owner review item 19): no foot line under the tabs (the band names the event).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -29,7 +30,6 @@ import { EventSelect } from './EventSelect';
 import { EventsTab } from './EventsTab';
 import { ResponseTabs, needsEvent, tabOf, type ResponseTab } from './ResponseTabs';
 import { EventPanes } from './EventPanes';
-import { eventFoot } from './responseLabels';
 
 export { responseHref } from '../cpaHref';
 
@@ -53,7 +53,6 @@ export const ResponseWorkspace: React.FC = () => {
   const events = useResponseEvents(loopId, 'LIVE', showCensored);
   const flat = useMemo(() => events.data?.pages.flatMap(p => p.events) ?? [], [events.data]);
   const censoredCount = events.data?.pages[0]?.censoredCount ?? 0;
-  const retention = events.data?.pages[0]?.retention;
   // a G12 view links by method run: resolve it to its event once, then navigate to the event id
   const runLookup = useMethodRun(!eventParam && methodRunParam ? methodRunParam : undefined);
   useEffect(() => {
@@ -119,9 +118,6 @@ export const ResponseWorkspace: React.FC = () => {
 
   // CHG-130: nothing at all to show: one explanation, not one per tab. Censored events keep the list, which can show them.
   const nothingYet = noEvents && censoredCount === 0 && !eventParam && !methodRunParam && models.isSuccess && (models.data?.models ?? []).length === 0;
-  const footEvent = selected ?? (result && typeof result.window_start_ms === 'number'
-    ? { eventType: String(result.event_type ?? ''), pathId: result.path_id, t0Ms: result.window_start_ms, tEndMs: (result.window_end_ms as number | null) ?? null, methodRunId: methodRunId ?? '' }
-    : undefined);
 
   let body: React.ReactNode;
   if (tab === 'events') {
@@ -147,7 +143,7 @@ export const ResponseWorkspace: React.FC = () => {
     body = (
       <EventPanes tab={tab} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
         t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0}
-        pvUnit={loop?.engineering?.pvUnit} retention={retention} />
+        pvUnit={loop?.engineering?.pvUnit} />
     );
   }
 
@@ -156,9 +152,9 @@ export const ResponseWorkspace: React.FC = () => {
       {header}
       {band}
       {nothingYet ? <ResponseEmpty loopId={loopId} canConfig={canConfig} /> : (
-        <ResponseTabs tab={tab} onTab={setTab} foot={footEvent ? eventFoot(footEvent, timeZone) : undefined}>{body}</ResponseTabs>
+        <ResponseTabs tab={tab} onTab={setTab}>{body}</ResponseTabs>
       )}
-      {reviewing && <ModelReviewDialog model={reviewing} pending={review.isPending} error={review.error} onClose={() => setReviewing(null)} onSubmit={args => review.mutate(args)} />}
+      {reviewing && <ModelReviewDialog model={reviewing} pvUnit={loop?.engineering?.pvUnit} pending={review.isPending} error={review.error} onClose={() => setReviewing(null)} onSubmit={args => review.mutate(args)} />}
     </div>
   );
 };

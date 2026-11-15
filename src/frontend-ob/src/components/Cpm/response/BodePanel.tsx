@@ -3,12 +3,14 @@
  * produced one (validated model + known controller form + a crossing in band). Magnitude on a log
  * axis, phase in degrees on its own axis, crossings as the kernel listed them, margins from the
  * quantities with their null reasons. Captioned as a model-domain estimate.
- * CHG-165 (owner review): the Frequency tab. Magnitude and phase side by side; the margins are listed either way (a margin
+ * CHG-165 (owner review): the Frequency tab. Magnitude and phase (CHG-195: one per row); the margins are listed either way (a margin
  * not claimed says why, never 0); without a Bode, one line says why instead of a full panel. When the margins stand but the
- * Bode is missing, the arrays were not kept, and the tab's own note says so.
+ * Bode is missing, the arrays were not kept, and the tab's own note says so. CHG-195 (owner review item 19): the margins in the
+ * standard table (Margin · Value).
  */
 import React from 'react';
-import { KvRow, PanelHead, TonePill } from '../shared';
+import { PanelHead, TonePill } from '../shared';
+import { DataTable, type Column } from '../../../ui/DataTable';
 import type { ResponseQuantity } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
@@ -20,6 +22,13 @@ import { phrase } from '../vocabulary';
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const MARGINS: Array<[string, string]> = [['gain_margin', 'Gain margin'], ['phase_margin', 'Phase margin'], ['gain_crossover', 'Gain crossover'], ['phase_crossover', 'Phase crossover'], ['peak_sensitivity', 'Peak |S|'], ['peak_complementary_sensitivity', 'Peak |T|'], ['closed_loop_bandwidth', 'Closed-loop bandwidth']];
 
+/** CHG-195 (owner review item 19): the margins in the standard table, Margin · Value. */
+interface MarginRow { label: string; value: string }
+const MARGIN_COLUMNS: Array<Column<MarginRow>> = [
+  { key: 'margin', header: 'Margin', cell: r => r.label },
+  { key: 'value', header: 'Value', cell: r => r.value },
+];
+
 export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: ResponseQuantity[] | undefined; controller: { state: string; outputs: Record<string, unknown> } | undefined; loading?: boolean }> = ({ bode, metrics, controller, loading }) => {
   const gm = metricOf(metrics, 'gain_margin');
   if (!bode && loading) return <ArtifactSkeleton kinds={['bode']} size="result" />;
@@ -27,6 +36,14 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
   const reason = gm?.reasonIfNull || (controller?.outputs?.reason as string | undefined) || 'NO_FREQUENCY_RESULT';
   const omega = bode?.columns.x;
   const margins = MARGINS.map(([id, label]) => [label, metricOf(metrics, id)] as const).filter(([, q]) => q);
+  // the reason is in the note once; each margin it covers just says so
+  const rows: MarginRow[] = [
+    ...margins.map(([label, q]) => ({ label, value: notClaimed && q?.value == null ? 'not claimed' : quantityText(q) })),
+    ...(bode ? [
+      { label: 'Gain crossings (rad/s)', value: provList(bode, 'gain_crossings').join(', ') || 'none' },
+      { label: 'Phase crossings (rad/s)', value: provList(bode, 'phase_crossings').join(', ') || 'none' },
+    ] : []),
+  ];
   return (
     <>
       {notClaimed && (
@@ -38,7 +55,7 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
       {bode && omega && (
         <section className="cpm-surface cpm-response-sub">
           <PanelHead eyebrow="Subgate F" title="Frequency response" right={<TonePill tone="warn">model-domain estimate</TonePill>} />
-          <div className="cpm-response-pair">
+          <div className="cpm-response-trend-rows">
             <CpmChart title="|L(jω)|" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} logY height={240}
               series={[{ id: 'mag', label: '|L| = |C·G|', unit: bode.units.y ?? 'dimensionless', x: omega, y: Array.from(bode.columns.y), pen: 'overlay' }]} />
             {bode.columns.phase_deg && (
@@ -49,15 +66,10 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
           <p className="cpm-copy">{phrase(prov(bode, 'note') ?? 'MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE')}: margins hold inside the model's validated domain and are not a safety guarantee.</p>
         </section>
       )}
-      {(margins.length > 0 || bode) && (
+      {rows.length > 0 && (
         <section className="cpm-surface cpm-response-sub" aria-label="Margins">
           <PanelHead title="Margins" />
-          <div className="cpm-response-quantities cpm-response-quantities--three">
-            {/* the reason is in the note once; each margin it covers just says so */}
-            {margins.map(([label, q]) => <KvRow key={label} label={label}>{notClaimed && q?.value == null ? 'not claimed' : quantityText(q)}</KvRow>)}
-            {bode && <KvRow label="Gain crossings (rad/s)">{provList(bode, 'gain_crossings').join(', ') || 'none'}</KvRow>}
-            {bode && <KvRow label="Phase crossings (rad/s)">{provList(bode, 'phase_crossings').join(', ') || 'none'}</KvRow>}
-          </div>
+          <DataTable caption="Stability margins of this event" columns={MARGIN_COLUMNS} rows={rows} rowKey={r => r.label} />
         </section>
       )}
     </>
