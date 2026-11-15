@@ -6,7 +6,7 @@
  * as a peak, so on noisy data a noise wiggle on the tail counts as the second peak and the ratio is wrong. It stays in the
  * quantities table, where it is reported as the engine gave it.
  */
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import type { Mark } from './annotations';
 import { level, secs, type ResponseFacts } from './responseFacts';
 import { ms, placement, pvSeries, setpointSeries, stepMark, TREND_HEIGHT, type TrendSpec } from './trendSupport';
@@ -20,7 +20,7 @@ export function overshootTrend(f: ResponseFacts): TrendSpec | null {
     stepMark(f),
     { kind: 'guide', y: f.final, label: { text: 'Final value' } },
     { kind: 'dot', x, y: peak, label: { text: 'Peak at', value: secs(peakT) }, side: 'top' },
-    { kind: 'bracket', x, y1: f.final, y2: peak, label: { text: 'Overshoot', value: `${readable(overshoot)} %` }, side: 'right' },
+    { kind: 'bracket', x, y1: f.final, y2: peak, label: { text: 'Overshoot', value: `${plainNumber(overshoot)} %` }, side: 'right' },
   ];
   const left = f.value('steady_error');
   if (left != null && f.setpoint != null) {

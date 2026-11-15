@@ -135,3 +135,5 @@
   .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5.cpm-inv-cards > :last-child { grid-column: 1 / -1; }
 }
+/* CHG-200 (final test #29): the case select keeps one width on every tab, so the band does not shift between Result and Evidence */
+.cpm-band .cpm-select.cpm-inv-case, .cpm-select.cpm-inv-case { width: 12rem; max-width: 100%; }

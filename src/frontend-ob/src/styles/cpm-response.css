@@ -54,3 +54,17 @@
 .cpm-model-review__form { margin-top: var(--traverse-space-4); }
 .cpm-run-form__value.cpm-model-review__decision { flex-direction: column; align-items: flex-start; }
 .cpm-model-review__form .cpm-textarea { width: 100%; }
+
+/* CHG-200 (final test #3): at phone width the review dialog's facts stack (label above value) and its form is one column, so
+   nothing is wider than the dialog: no fixed minimum inside the body, the decision's choices wrap */
+@media (max-width: 600px) {
+  .ui-dialog .cpm-response-quantities .cpm-kv { flex-direction: column; align-items: flex-start; gap: var(--traverse-space-1); }
+  .cpm-run-form.cpm-model-review__form { grid-template-columns: minmax(0, 1fr); }
+  .cpm-run-form.cpm-model-review__form .cpm-input { min-width: 0; width: 100%; }
+  .cpm-model-review__decision .ui-segmented { flex-wrap: wrap; max-width: 100%; }
+}
+/* CHG-200 (C9): the validation facts are label / value rows, one per line, as every other list of facts */
+.cpm-response-quantities.cpm-response-quantities--rows { grid-template-columns: minmax(0, 1fr); }
+/* CHG-200 (final test #5, C9): a section that follows the candidate models table starts after a gap, not against the table */
+.cpm-response-candidates > .cpm-panel-head:not(:first-child) { margin-top: var(--traverse-space-5); }
+.cpm-response-candidates > .cpm-kv { margin-bottom: var(--traverse-space-2); }

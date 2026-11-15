@@ -2219,3 +2219,39 @@ that said "as long as the event" would have become false.
 | Evidence Workbench · a G12 run with no charts | "A response event keeps its charts as long as the event. G12 charts cannot be rebuilt." | "A response event keeps its charts for a limited time; G12 charts cannot be rebuilt. System Response can redraw its trends from the historian." |
 | Evidence Workbench · Reconstruct (disabled) reason on a G12 run | "G12 charts cannot be rebuilt: a response event keeps them as long as the event." | "G12 charts cannot be rebuilt: a response event keeps them for a limited time. System Response can redraw its trends from the historian." |
 | System Response · `chartsAbsentCopy` (no page shows it since CHG-195) | "Accepted events keep their charts <acceptedDays> days. …" | the days are the charts' own (`acceptedChartDays`; the event's days when the server sends none or null) |
+
+## CHG-200 Fixes from the final browser test of the owner-review batch (final-test.md #1-#32, controller C1-C9)
+
+Words and number forms only where a finding named them; times keep their format (Q5); CSV keys are unchanged.
+
+| Where | Was | Now |
+|---|---|---|
+| Redraw dialog · Trends row (C1) | named "Error from the setpoint" when the engine reported its integrals | names only the trends that draw for sure; Error from the setpoint appears on the page when the samples reproduce it |
+| Response · after a redraw (C4) | the charts note ("Charts are not available for this event.") and the redrawn line | the redrawn line only ("Redrawn from the historian. …") |
+| Response trends · labels a narrow chart (below 600 px) or a crowded spot cannot hold (#2, C2) | drawn over the lines | one line under the chart: the label's words, then its value ("Baseline 100 · Final value 115 · PV change 14.99 PV unit") |
+| Result card, Reported quantities, All quantities, Review dialog, candidate table (#7, C7) | "5.101e-6", "8.312e+6", "6.435e-3", "2678.58", "kg/h^2*s", "PV unit*s^2", "PV unit/(% OP*s)", "1.00 fraction" | "< 0.0001", "8,312,000", "0.00644", "2,679", "(kg/h)²·s", "PV unit·s²", "PV unit/(% OP·s)", "1.00"; the ± never breaks from its number |
+| Reported quantities / All quantities (#7, C6) | "t63", "t10", "t50", "t90", "Mae time", "Rmse time", "Prediction rmse" | "63 % time", "10 % time", "50 % time", "90 % time", "Mean absolute error", "RMS error", "Prediction RMS error" |
+| Fit quality · eyebrows (C6) | "STEP E", "STEP D" (twice) | none |
+| Fit quality · Candidate models (#5) | Path "FIT"; "Condition number 11.775364368273369"; head "Fit error ((PV unit)²)" | Path "OP → PV"; "Condition number 11.8"; head "Fit error, (PV unit)²" |
+| Fit quality · Parameter uncertainty (#5, C6) | pill "Covariance"; row "baseline" | no pill; row "Baseline" |
+| Fit quality · Residual autocorrelation axis (C6) | "dimensionless" | none |
+| Frequency (#6, C6) | eyebrow "SUBGATE F"; pill "model-domain estimate"; titles "\|L(jω)\|", "∠L(jω)"; legends "\|L\| = \|C·G\|", "phase"; axis "ω (rad/s)", unit "dimensionless"; "Model domain estimate not a safety guarantee: margins hold inside the model's validated domain and are not a safety guarantee." | no eyebrow; pill "Model estimate"; titles and legends "Loop gain", "Loop phase"; axis "Frequency (rad/s)" on a log scale, no unit word; "The margins hold inside the model's validated domain; they are not a safety guarantee." |
+| Models · table Family column, Review dialog subtitle (#20) | "FOPDT" | "First order with dead time" |
+| Review dialog · Approved regime placeholder (#26) | "e.g. DEFAULT" | "e.g. Normal operation" |
+| Evidence Workbench · a run without the gate's chart (#12) | "Artifact not available: decision_record" / "This run retained no such artifact. The verdict stands; reconstruct the evidence to see the arrays." | "The decision record is not stored for this run" / "Reconstruct the evidence to see it."; a declared kind reads "PSD: Expired (Retention)" |
+| Historical · Mode lane (#13) | "AUT" on a green bar | "Auto" on a neutral bar (amber for a mode that needs a look); the hover readout "Mode: Auto" |
+| Evidence Replay · package, part not read (#14) | "evidence manifests (ApiError: The service is currently unavailable. Try again shortly.)" | "evidence manifests: The service is currently unavailable. Try again shortly." |
+| Evidence Replay · package, while it builds (#14) | "Building…" only | "Building…" and "Read so far: metrics · signal samples" |
+| Gate dialogs (Performance, Loop Explorer) · band (#21) | title "FIC10401 · G8", the gate name as a heading in the body | title "G8 · Lag asymmetry", subtitle "FIC10401"; the gate name said once |
+| Reconstruct evidence dialog · band and rows (#21) | no subtitle; rows Loop, Gate, Window | subtitle "<loop> · <gate>"; row Window |
+| Evidence package dialog · band (#21) | no subtitle | subtitle "<loop>" |
+| Measured vs required dialog · foot (#21) | ✕ only | "Close" (secondary) |
+| Run dialogs and package · done (#22) | "✓ Done", "✓ Downloaded" in green | the same words in the neutral badge |
+| Reconstruct · after 5 minutes (#30) | badge "✕ Failed" | badge "… Still running" (neutral), with Keep waiting |
+| Performance · header (#23) | "Window Inspector ↗" greyed, reason in a hover title | under it: "Select a loop in the list first." |
+| Investigation · result (#26) | "Engine severity" | "Severity" |
+| Window Inspector · selected window (#26) | "Engine & timing" (button and dialog title) | "Timing" |
+| Window Inspector · Compare window sizes (#31, #26) | Windows "0 ● 12 declined"; metric "In AUTO" | "0 evaluated · 12 declined"; "In Auto" |
+| Evidence Replay · window verdict (#26) | "Time in AUTO" | "Time in Auto" |
+| Loop Registry · loop type (#26) | "UNKNOWN" | "Unknown type" |
+| Governance · audit trail user filter (#27) | placeholder "Exact user name" | "User name" |

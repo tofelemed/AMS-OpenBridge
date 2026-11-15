@@ -133,4 +133,15 @@ export function unitForKey(key: string): string | undefined {
 export const readable = (v: number, digits = 3): string =>
   !Number.isFinite(v) ? '—' : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('en-GB') : String(Number(v.toPrecision(digits)));
 
+/**
+ * CHG-200 (System Response, controller C7): a number for reading that never shows an exponent: `readable` from 0.0001 up (grouped
+ * from 1,000), a smaller one as "< 0.0001" (the space does not break). Formatting only: the value is the same number.
+ */
+export const plainNumber = (v: number, digits = 3): string => {
+  if (!Number.isFinite(v)) return '—';
+  if (v === 0) return '0';
+  if (Math.abs(v) < 1e-4) return v > 0 ? '<\u00a00.0001' : '>\u00a0−0.0001';
+  return readable(v, digits);
+};
+
 export const shortId = (id: string | null | undefined, n = 8): string => (id && id.length > 0 ? id.slice(0, n) : '—');

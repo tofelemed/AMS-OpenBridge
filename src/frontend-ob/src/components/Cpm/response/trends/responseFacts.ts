@@ -9,9 +9,9 @@
  */
 import type { ResponseEventDetail, ResponseQuantity } from '../../../../api/cpm/response';
 import type { DecodedArtifact } from '../../evidence/artifactCodec';
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import { pathLabel } from '../responseLabels';
-import { displayUnit, metricOf } from '../responseSupport';
+import { displayUnit, metricOf, typographicUnit } from '../responseSupport';
 
 export interface ResponseFacts {
   /** The step and the event end, epoch seconds (the engine's time base). */
@@ -51,9 +51,9 @@ export interface ResponseFacts {
 }
 
 /** Seconds as read on a label: "34.2 s", "120 s". */
-export const secs = (v: number) => `${readable(v)} s`;
+export const secs = (v: number) => `${plainNumber(v)} s`;
 /** A PV level or change: four significant figures ("134.6"). */
-export const level = (v: number) => readable(v, 4);
+export const level = (v: number) => plainNumber(v, 4);
 
 const valid = (d: DecodedArtifact, i: number) => (d.mask ? d.mask[i] : true);
 
@@ -72,9 +72,8 @@ export function buildFacts(args: {
   const pathId = String(args.result?.path_id ?? samples.meta.roleOrPath ?? '');
   const quantity = (id: string) => metricOf(args.metrics, id);
   const value = (id: string) => { const v = quantity(id)?.value; return v == null || !Number.isFinite(v) ? null : v; };
-  // "PV_EU^2*s" reads "(m3/h)²·s": the square belongs to the whole unit
-  const unitOf = (u: string | null | undefined) =>
-    displayUnit((u ?? '').replace(/PV_EU\^2/g, '(PV_EU)^2'), pathId, args.pvUnit).replace(/\*/g, '·').replace(/\^2/g, '²');
+  // "PV_EU^2*s" reads "(m3/h)²·s": the square belongs to the whole unit (CHG-200: the one helper the tables use too)
+  const unitOf = (u: string | null | undefined) => displayUnit(typographicUnit(u), pathId, args.pvUnit);
   const baseline = value('baseline_pv');
   const final = value('endpoint_pv');
   const spStep = value('sp_step');

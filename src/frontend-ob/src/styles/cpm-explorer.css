@@ -5,6 +5,8 @@
 .cpm-tabs-row > .cpm-tabs { flex: 1 1 auto; min-width: 0; margin: 0; }
 .cpm-tabs-row .ui-tabs { border-bottom: 0; }
 .cpm-tabs-row__end { flex: none; }
+/* CHG-200 (final test #9): at phone width the tabs wrap (ui-tabs) and the end link wraps under them */
+@media (max-width: 600px) { .cpm-tabs-row { flex-wrap: wrap; } }
 
 /* PV, SP, OP and Mode as one group of readings, the signal quality at the end of the row (CHG-158, the owner's design).
    CHG-185 (owner review item 5): more space between the four; each reading is its own box, so a state colour fills one box. */

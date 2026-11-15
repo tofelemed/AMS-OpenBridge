@@ -3,7 +3,7 @@
  * (the engine's robust medians), the setpoint on a setpoint step, the PV change between them, and the wrong-way move
  * (undershoot: how far PV first went against the step, % of the change) when the engine reported one.
  */
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import type { Mark } from './annotations';
 import { level, type ResponseFacts } from './responseFacts';
 import { ms, placement, pvSeries, setpointSeries, stepMark, TREND_HEIGHT, type TrendSpec } from './trendSupport';
@@ -20,7 +20,7 @@ export function measuredTrend(f: ResponseFacts): TrendSpec {
   const under = f.value('undershoot');
   if (under != null && under > 0 && f.baseline != null && f.change != null) {
     const y = f.baseline - (under / 100) * f.change;
-    marks.push({ kind: 'guide', y, from: ms(f.t0), to: ms(f.tEnd), dotted: true, label: { text: 'Wrong-way move', value: `${readable(under)} % of the change` } });
+    marks.push({ kind: 'guide', y, from: ms(f.t0), to: ms(f.tEnd), dotted: true, label: { text: 'Wrong-way move', value: `${plainNumber(under)} % of the change` } });
     const at = wrongWayPoint(f, y);
     if (at != null) marks.push({ kind: 'dot', x: at, y });
   }

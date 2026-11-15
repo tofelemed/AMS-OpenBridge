@@ -20,7 +20,7 @@ import type { ReviewDecision, SystemModel } from '../../../api/cpm/response';
 import { ApiError } from '../../../api/apiFetch';
 import { displayUnit, paramLabel, quantityText, stateTone } from './responseSupport';
 import { codeLabel } from '../vocabulary';
-import { pathLabel } from './responseLabels';
+import { familyLabel, pathLabel } from './responseLabels';
 
 const DECISIONS: Array<{ key: ReviewDecision; label: string; hint: string }> = [
   { key: 'VALIDATED', label: 'Validated', hint: 'Holdout-checked and accepted inside the stated domain.' },
@@ -43,7 +43,7 @@ export const ModelReviewDialog: React.FC<{
   const forbidden = error instanceof ApiError && error.status === 403;
   const close = () => { if (!pending) onClose(); };
   return createPortal(
-    <Dialog open title="Review system model" subtitle={`${model.family} · ${pathLabel(model.pathId)}`} size="wide" onClose={close}
+    <Dialog open title="Review system model" subtitle={`${familyLabel(model.family)} · ${pathLabel(model.pathId)}`} size="wide" onClose={close}
       footer={<>
         <ObcButton variant="normal" onClick={onClose} disabled={pending}>Cancel</ObcButton>
         <ObcButton variant="raised" disabled={pending || stale} onClick={() => onSubmit({ modelId: model.modelId, revision: model.revision, decision, note: note || undefined, domain: regime ? { regime } : undefined })}>
@@ -66,7 +66,7 @@ export const ModelReviewDialog: React.FC<{
         </div>
         <label className="cpm-run-form__label" htmlFor={`${id}-regime`}>Approved regime (optional)</label>
         <div className="cpm-run-form__value">
-          <input id={`${id}-regime`} className="cpm-input" value={regime} onChange={e => setRegime(e.target.value)} placeholder="e.g. DEFAULT" />
+          <input id={`${id}-regime`} className="cpm-input" value={regime} onChange={e => setRegime(e.target.value)} placeholder="e.g. Normal operation" />
         </div>
         <label className="cpm-run-form__label" htmlFor={`${id}-note`}>Note</label>
         <div className="cpm-run-form__value">

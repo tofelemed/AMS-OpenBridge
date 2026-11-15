@@ -85,9 +85,9 @@ describe('ReportedQuantities', () => {
     const { container } = render(<ReportedQuantities metrics={metrics} pvUnit="m3/h" />);
     expect(container.querySelector('.ui-table table')).toBeTruthy();                  // CHG-195: the standard table
     expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Quantity', 'Value']);
-    expect(screen.getAllByRole('row')[1].textContent).toBe('IAE9.60 m3/h*s');
+    expect(screen.getAllByRole('row')[1].textContent).toBe('IAE9.60 m3/h·s');
     expect(screen.getByText('IAE')).toBeTruthy();
-    expect(screen.getByText('9.60 m3/h*s')).toBeTruthy();
+    expect(screen.getByText('9.60 m3/h·s')).toBeTruthy();
     expect(screen.queryByText('Process gain K')).toBeNull();
     expect(screen.queryByText('Overshoot')).toBeNull();
     expect(screen.getByText('3 of 4 reported')).toBeTruthy();

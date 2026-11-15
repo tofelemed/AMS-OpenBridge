@@ -50,7 +50,7 @@ export const WindowVerdictCard: React.FC<{
           </span>
         </KvRow>
         {cell?.reason && <KvRow label="Reason">{codeLabel(cell.reason)}</KvRow>}
-        <KvRow label="Time in AUTO">{formatMetric(autoPct, true)}</KvRow>
+        <KvRow label="Time in Auto">{formatMetric(autoPct, true)}</KvRow>
         {metrics.map(m => <KvRow key={m.field} label={m.label}>{formatMetric(metricValue(row, kpiRow, m.field), m.pct)}</KvRow>)}
       </div>
       {children && <div className="cpm-replay-check-panel__foot">{children}</div>}

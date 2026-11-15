@@ -42,7 +42,7 @@ describe('One trend per row', () => {
   it('draws the magnitude, then the phase, each in its own row, then the margins', () => {
     const bode = decoded({ gate: 'G12', kind: 'bode', x: [0.1, 1, 10], y: [10, 1, 0.1], columns: { phase_deg: [-10, -90, -170] }, provenance: { gain_crossings: '1', phase_crossings: '' } });
     const { container } = render(<BodePanel bode={bode} metrics={[]} controller={undefined} />);
-    expect(rowCharts(container)).toEqual(['|L(jω)|', '∠L(jω)']);
+    expect(rowCharts(container)).toEqual(['Loop gain', 'Loop phase']);
     const sections = [...container.querySelectorAll('section')].map(s => s.getAttribute('aria-label') ?? s.querySelector('.cpm-panel-title')?.textContent);
     expect(sections[sections.length - 1]).toBe('Margins');
   });

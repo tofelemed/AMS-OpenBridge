@@ -40,7 +40,6 @@ export const GateDialog: React.FC<{
   if (!open) return null;
   const result = (
     <>
-      {!loopInView && <h3 className="cpm-panel-title cpm-gate-dialog__heading">{gateName(gate)}</h3>}
       {windowLine != null && <p className="cpm-gate-dialog__window">{windowLine}</p>}
       <KvRow label="Check status"><GateBadge status={status} gate={gate} inputFlags={flags} /></KvRow>
       {/* CHG-193 (sweep D9): the result pill, with the last verdict and the score stacked under it */}
@@ -50,7 +49,9 @@ export const GateDialog: React.FC<{
     </>
   );
   return createPortal(
-    <Dialog open onClose={onClose} title={loopInView ? `${gate} · ${gateName(gate)}` : `${loop} · ${gate}`} footer={actions}
+    // CHG-200 (final test #21, the dialog standard): the gate and its name as the title, the loop as the subtitle on the band
+    // (left out where the page is about that one loop); the gate name is said once
+    <Dialog open onClose={onClose} title={`${gate} · ${gateName(gate)}`} subtitle={loopInView ? undefined : loop} footer={actions}
       size={aside ? 'wide' : 'default'}>
       {aside
         ? (

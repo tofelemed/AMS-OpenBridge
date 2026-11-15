@@ -25,8 +25,10 @@ describe('ReconstructDialog', () => {
     render(<ReconstructDialog {...base} phase={IDLE} onConfirm={onConfirm} onClose={() => {}} />);
     const d = screen.getByRole('dialog', { name: 'Reconstruct evidence' });
     expect(d.querySelector('.ui-dialog__description')?.textContent).toBe("Rebuilds this gate's charts from its window. The kept proof is not changed.");
-    expect([...d.querySelectorAll('dt')].map(t => t.textContent)).toEqual(['Loop', 'Gate', 'Window']);
-    for (const t of [base.loopId, base.gate, base.windowText]) expect(within(d).getByText(t)).toBeTruthy();
+    // CHG-200 (final test #21): the loop and the gate on the band (the dialog standard), so the rows say the window only
+    expect(d.querySelector('.ui-dialog__subtitle')?.textContent).toBe(`${base.loopId} · ${base.gate}`);
+    expect([...d.querySelectorAll('dt')].map(t => t.textContent)).toEqual(['Window']);
+    expect(within(d).getByText(base.windowText)).toBeTruthy();
     expect(within(d).queryByText('Run')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(onConfirm).not.toHaveBeenCalled();
@@ -91,5 +93,18 @@ describe('ReconstructDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Keep waiting' }));
     expect(onKeepWaiting).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
+    // CHG-200 (final test #30): the badge says it is still running (neutral), never "Failed" over "it may still finish"
+    const badge = document.querySelector('.cpm-run-progress .ui-badge')!;
+    expect(badge.textContent).toContain('Still running');
+    expect(badge.className).toContain('ui-badge--unknown');
+    expect(document.querySelector('.cpm-run-progress')!.textContent).not.toContain('Failed');
+  });
+
+  // CHG-200 (final test #22; owner rule, no green for normal): Done is a neutral badge with its check, the same in Day and Night
+  it('says Done in a neutral badge', () => {
+    render(<ReconstructDialog {...base} startedAt={Date.now()} phase={{ step: 'DONE' }} onConfirm={() => {}} onClose={() => {}} />);
+    const badge = document.querySelector('.cpm-run-progress .ui-badge')!;
+    expect(badge.textContent).toBe('✓Done');
+    expect(badge.className).toContain('ui-badge--neutral');
   });
 });

@@ -6,8 +6,8 @@
  */
 import type { ResponseEventDetail, ResponseEventSummary, ResponseQuantity, ResponseRetention, ResponseSubgate } from '../../../api/cpm/response';
 import type { CpmTone } from '../shared';
-import { fmt, metricOf, quantityText, stateTone } from './responseSupport';
-import { phrase } from '../vocabulary';
+import { fmt, metricOf, quantityText, stateTone, typographicUnit } from './responseSupport';
+import { codeLabel, phrase } from '../vocabulary';
 
 export const humanise = (code: string | null | undefined): string => (code ?? '').trim() ? phrase(code) : '';
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -39,9 +39,18 @@ export function eventRowView(e: ResponseEventSummary): EventRowView {
 export const KEY_RESULT_IDS: Array<[string, string]> = [
   ['process_gain', 'Process gain K'], ['integrating_gain', 'Integrating gain'], ['dead_time', 'Dead time θ'], ['time_constant', 'Time constant τ'],
   ['time_constant_2', 'Second time constant τ₂'], ['damping_ratio', 'Damping ratio ζ'], ['natural_frequency', 'Natural frequency ωₙ'],
-  ['t63', 't63'], ['rise_time_10_90', 'Rise time 10–90 %'], ['settle_response', 'Settling (response band)'], ['settle_target', 'Settling (target band)'],
+  ['t63', '63 % time'], ['rise_time_10_90', 'Rise time 10–90 %'], ['settle_response', 'Settling (response band)'], ['settle_target', 'Settling (target band)'],
   ['overshoot', 'Overshoot'], ['steady_error', 'Steady-state error'], ['iae', 'IAE'], ['ise', 'ISE'], ['itae', 'ITAE'],
 ];
+/** CHG-200 (final test #7; C6): the other quantities the tables name, in the trends' words. */
+const QUANTITY_WORDS: Record<string, string> = {
+  t10: '10 % time', t50: '50 % time', t90: '90 % time', mae_time: 'Mean absolute error', rmse_time: 'RMS error',
+  prediction_rmse: 'Prediction RMS error', fit_improvement: 'Fit improvement',
+};
+const KEY_LABEL = new Map(KEY_RESULT_IDS);
+/** A quantity's name in words: the key results' names, then the words above, else the id in sentence case. */
+export const quantityLabel = (id: string): string => KEY_LABEL.get(id) ?? QUANTITY_WORDS[id] ?? codeLabel(id);
+
 const MODEL_PARAMETER_IDS = new Set(['process_gain', 'integrating_gain', 'dead_time', 'time_constant', 'time_constant_2', 'damping_ratio', 'natural_frequency']);
 
 export interface KeyResult { id: string; label: string; text: string; applicable: boolean; method: string; pathId: string }
@@ -82,7 +91,8 @@ export function resultSummary(result: ResponseEventDetail['result'], metrics: Re
   const e = result.subgates?.E;
   const parameters = keyResults(metrics).filter(k => MODEL_PARAMETER_IDS.has(k.id) && k.applicable).map(k => {
     const q = metricOf(metrics, k.id)!;
-    return { label: k.label, text: k.text, value: `${fmt(q.value!)}${q.unit ? ` ${q.unit}` : ''}`, spread: q.uncertainty != null ? `± ${fmt(q.uncertainty)}` : null };
+    const unit = typographicUnit(q.unit);
+    return { label: k.label, text: k.text, value: `${fmt(q.value!)}${unit ? ` ${unit}` : ''}`, spread: q.uncertainty != null ? `±\u00a0${fmt(q.uncertainty)}` : null };
   });
   const eReason = humanise(e?.outputs?.reason as string | undefined);
   const eVerdict = humanise(e?.outputs?.verdict as string | undefined);

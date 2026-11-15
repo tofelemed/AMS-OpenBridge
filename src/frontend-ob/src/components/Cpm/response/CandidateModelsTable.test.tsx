@@ -35,7 +35,7 @@ describe('CandidateModelsTable in plain words', () => {
     render(<CandidateModelsTable table={table} delayCurve={curve} intervals={intervals} rejections={rejections} pvUnit="m3/h" />);
     const text = document.body.textContent ?? '';
     for (const words of ['First order with dead time', 'Integrating with dead time', 'OP → PV', 'Gain 3', 'Dead time 4 s', 'Time constant 20 s',
-      'Condition number 10.5', 'Estimated', 'Covariance', 'Process gain', 'Standard error', 'Delay search (best candidate)', 'Step D']) expect(text).toContain(words);
+      'Condition number 10.5', 'Estimated', 'Process gain', 'Standard error', 'Delay search (best candidate)']) expect(text).toContain(words);
     expect(text).not.toMatch(/Subgate|Kernel|ESTIMATED|COVARIANCE|OP_TO_PV|theta=|gain=|cond=|PV_EU|process_gain|parameter_units|std\. error|J\(θ\)/);
     const reasons = screen.getByRole('list', { name: 'Rejection reasons' }).textContent ?? '';
     expect(reasons).not.toMatch(/[A-Z]{2,}_|:/);

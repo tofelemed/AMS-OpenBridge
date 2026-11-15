@@ -3,7 +3,7 @@
  * of dead time with a rise-over-run triangle, the slope and the model's integrating gain. A time constant and settling do not
  * apply to a response that keeps moving, so they are not drawn here (and trends 3-5 do not show).
  */
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import type { Mark } from './annotations';
 import { level, secs, type ResponseFacts } from './responseFacts';
 import { ms, placement, spanMark, pvSeries, stepMark, TREND_HEIGHT, type TrendSpec } from './trendSupport';
@@ -35,10 +35,10 @@ export function slopeTrend(f: ResponseFacts): TrendSpec | null {
     );
   }
   const slopeQ = f.quantity('post_slope')!;
-  marks.push({ kind: 'text', x: ms(f.t0) + 0.01 * (f.xRange[1] - f.xRange[0]), y: place.max, label: { text: 'Slope', value: `${readable(slope)} ${f.unitOf(slopeQ.unit)}` }, side: 'right' });
+  marks.push({ kind: 'text', x: ms(f.t0) + 0.01 * (f.xRange[1] - f.xRange[0]), y: place.max, label: { text: 'Slope', value: `${plainNumber(slope)} ${f.unitOf(slopeQ.unit)}` }, side: 'right' });
   const ki = f.quantity('integrating_gain');
   if (ki?.value != null) {
-    marks.push({ kind: 'text', x: ms(f.t0) + 0.01 * (f.xRange[1] - f.xRange[0]), y: place.max - 0.1 * place.range, label: { text: 'Integrating gain (model)', value: `${readable(ki.value)} ${f.unitOf(ki.unit)}` }, side: 'right' });
+    marks.push({ kind: 'text', x: ms(f.t0) + 0.01 * (f.xRange[1] - f.xRange[0]), y: place.max - 0.1 * place.range, label: { text: 'Integrating gain (model)', value: `${plainNumber(ki.value)} ${f.unitOf(ki.unit)}` }, side: 'right' });
   }
   return {
     id: 'slope', title: 'Slope', unit: f.pvUnit, height: TREND_HEIGHT, marks, series: [pvSeries(f)],

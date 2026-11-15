@@ -80,7 +80,7 @@ describe('StepsDataTab', () => {
     const pick = screen.getByRole('combobox', { name: 'Quantities shown' }) as HTMLSelectElement;
     expect(screen.getByRole('option', { name: 'Reported (2)' })).toBeTruthy();
     expect(document.querySelectorAll('tbody tr')).toHaveLength(2);
-    expect(screen.getByText('5308.07 m3/h*s')).toBeTruthy();                       // the loop's unit, not PV_EU
+    expect(screen.getByText('5,308 m3/h·s')).toBeTruthy();                       // the loop's unit, not PV_EU
     expect(screen.queryByText('OBSERVED_RESPONSE_V1')).toBeNull();
     fireEvent.change(pick, { target: { value: 'all' } });
     const rows = document.querySelectorAll('tbody tr');

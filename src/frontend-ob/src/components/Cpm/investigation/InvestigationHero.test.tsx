@@ -25,7 +25,7 @@ describe('InvestigationHero', () => {
     hero(row(END, { diagnosis: 'CONFIRMED_OSCILLATION', severity: 'HIGH', confidence: 1, metrics: { good_error_pct: 0.13 } }));
     expect(screen.getByRole('heading', { level: 2, name: 'Oscillation confirmed' })).toBeTruthy();
     expect(screen.getByText('Not established')).toBeTruthy();
-    expect(screen.getByText('Engine severity')).toBeTruthy();
+    expect(screen.getByText('Severity')).toBeTruthy();
     expect(screen.getByText('High')).toBeTruthy();
     expect(screen.getByText('13 %')).toBeTruthy();
     expect(screen.getByText('No open episode')).toBeTruthy();

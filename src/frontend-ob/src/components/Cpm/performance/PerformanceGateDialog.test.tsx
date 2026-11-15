@@ -53,10 +53,10 @@ const show = (over: Partial<React.ComponentProps<typeof PerformanceGateDialog>> 
 const columns = () => screen.getByRole('dialog').querySelectorAll<HTMLElement>('.cpm-gate-dialog__cols > .cpm-gate-dialog__col');
 
 describe('PerformanceGateDialog', () => {
-  it('opens as a dialog named loop and gate, with the gate name as the heading', () => {
+  it('opens as a dialog named by the gate and its name, with the loop on the band', () => {
     show();
-    const d = screen.getByRole('dialog', { name: 'FIC10301 · G5' });
-    expect(within(d).getByRole('heading', { name: 'Oscillation (ACF)' })).toBeTruthy();
+    const d = screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' });
+    expect(d.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301');
   });
 
   it('builds check status from gateMark so it agrees with the cell', () => {
@@ -135,7 +135,7 @@ describe('PerformanceGateDialog', () => {
     expect(d.querySelector('.cpm-eyebrow')).toBeNull();
     for (const gone of [/^Diagnostic evidence$/i, /^Purpose$/i, /^Fusion behaviour$/i, /^Observability$/i]) expect(within(d).queryByText(gone)).toBeNull();
     expect(within(d).getAllByRole('heading', { level: 3 }).map(h => h.textContent))
-      .toEqual(['Oscillation (ACF)', 'What this gate asks', 'Effect on the verdict', 'Flags on this window']);
+      .toEqual(['What this gate asks', 'Effect on the verdict', 'Flags on this window']);   // CHG-200: the gate name is in the title
   });
 
   it('CHG-191: is wide with two columns: the result on the left; purpose, effect and flags on the right; nothing behind a disclosure', () => {
@@ -145,7 +145,7 @@ describe('PerformanceGateDialog', () => {
     expect(d.querySelector('details')).toBeNull();
     const [left, right] = Array.from(columns());
     expect(columns()).toHaveLength(2);
-    for (const fact of ['Oscillation (ACF)', '12h window', 'Check status', 'Loop result', 'Reason', 'Samples', '100']) expect(left.textContent).toContain(fact);
+    for (const fact of ['12h window', 'Check status', 'Loop result', 'Reason', 'Samples', '100']) expect(left.textContent).toContain(fact);
     for (const fact of ['What this gate asks', 'Is there a regular oscillation?', 'Effect on the verdict', 'Flags on this window']) expect(right.textContent).toContain(fact);
     expect(right.textContent).not.toContain('Check status');
   });

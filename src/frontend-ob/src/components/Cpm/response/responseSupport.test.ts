@@ -29,7 +29,7 @@ describe('quantityText and candidateRows', () => {
   });
   it('re-shapes the kernel text', () => {
     expect(quantityText(undefined)).toBe('not reported');
-    expect(quantityText(q({ quantityId: 'dead_time', value: 4.2, unit: 's', uncertainty: 2.5 }))).toBe('4.20 s ± 2.50');
+    expect(quantityText(q({ quantityId: 'dead_time', value: 4.2, unit: 's', uncertainty: 2.5 }))).toBe('4.20 s\u00a0±\u00a02.50');
     expect(quantityText(q({ quantityId: 'gain_margin', value: null, unit: 'dB', reasonIfNull: 'CONTROLLER_FORM_UNKNOWN' }))).toBe('not applicable (controller form unknown)');
     const rows = candidateRows('FOPDT(OP_TO_PV: gain=3.0, theta=4.0, tau=20.0, tau2=NaN, zeta=NaN, wn=NaN) bounds_hit=false flat_delay=true sign_uncertain=false cond=10.5;SOPDT(OP_TO_PV: gain=3.1, theta=3.0, tau=18.0, tau2=2.0, zeta=NaN, wn=NaN) bounds_hit=true flat_delay=false sign_uncertain=false cond=1e9');
     expect(rows).toHaveLength(2);

@@ -85,6 +85,16 @@
 .cpm-chart__title { flex: 1; font-size: var(--cpm-text-small); color: var(--traverse-text-secondary); }
 .cpm-chart__note { font-size: var(--cpm-text-caption); color: var(--traverse-text-secondary); }
 .cpm-chart__more { font-size: var(--cpm-text-small); }
+/* CHG-200 (final test #2, C2): the trend labels that have no free place on the plot (on a narrow chart, every label with a value),
+   in one line under the chart: the words as the chart writes them, the value in the value style */
+.cpm-chart__notes { display: flex; flex-wrap: wrap; gap: var(--traverse-space-1) var(--traverse-space-4); margin: 0; font-size: var(--traverse-type-metadata); color: var(--traverse-text-secondary); }
+.cpm-chart__note-value { color: var(--traverse-text-primary); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* CHG-200 (final test #8): below 600 px the title (and its "?") takes the head's first row and the tools sit in one row under it */
+@media (max-width: 600px) {
+  .cpm-chart__bar { flex-wrap: wrap; row-gap: var(--traverse-space-2); }
+  .cpm-chart__title { flex: 1 1 calc(100% - 48px); }
+  .cpm-chart__bar > obc-button, .cpm-chart__bar .chart-zoombar { flex: 0 0 auto; white-space: nowrap; }
+}
 .cpm-chart__more > summary { cursor: pointer; color: var(--traverse-text-secondary); padding: 4px 0; }
 .cpm-chart__more > summary:hover { color: var(--element-active-color); }
 
@@ -106,6 +116,11 @@
   vertical-align: top;
 }
 .cpm-table th { color: var(--traverse-text-secondary); font-weight: 500; }
+/* CHG-200 (final test #28): the Registry, Gate Configuration and Governance tables take the standard table's head (ui-table):
+   upper case, 12 px, weight 600, as Loop Events, Performance and System Response */
+:is(.cpm-reg-table, .cpm-gov-table, .cpm-config-rows, .cpm-config-table, .cpm-config-diff, .cpm-config-draft__levels, table.cpm-table[data-table], table.cpm-table[aria-label="Approvals"]) thead th {
+  font-size: var(--traverse-type-metadata); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+}
 .cpm-table tr[data-best="true"] td { color: var(--element-active-color); font-weight: 600; }
 .cpm-timeline-table { display: flex; flex-direction: column; gap: 6px; }
 .cpm-ranked { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
@@ -122,7 +137,8 @@
 .cpm-gate-state__link { color: var(--element-active-color); }
 
 /* ── Response workspace specifics ── */
-.cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin-bottom: 8px; }
+/* CHG-200 (final test #3): a column never wider than its box (the review dialog at 390 px opened scrolled sideways) */
+.cpm-response-quantities { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 0 24px; margin-bottom: 8px; }
 .cpm-muted { color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
 /* 2026-09-17 audit F5/F19/F20: compact event rows, one state each; censored rows dimmed; skeletons that
    say what they wait for; the subgates as steps; the catalogue behind a disclosure with its
@@ -282,5 +298,7 @@
 .cpm-table-wrap { max-width: 100%; overflow-x: auto; }
 .cpm-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .cpm-nowrap { white-space: nowrap; }
+/* CHG-200 (C9): a value column in the table's figures (tabular numerals), not the identifiers' monospace */
+.cpm-num { font-variant-numeric: tabular-nums; }
 .cpm-table td .cpm-mono { overflow-wrap: anywhere; }
 

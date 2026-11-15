@@ -8,6 +8,9 @@
  * CHG-197 (owner Q10): optional, for the System Response trends only: a fixed shared time range, annotations drawn from this
  * chart's palette (out of the legend and the hover readout), time-only zoom, a dash-dot pen, a help tip in the head and an
  * ECharts connect group so linked trends keep one cursor and one zoom. Without them a chart is drawn exactly as before.
+ * CHG-200 (final test #2, #16; C2, C3): optional, a fixed first value axis (range and step), three value steps on a short chart
+ * (200 px or less) so its numbers never touch, the plot size handed to the annotations so they place their labels, and the labels
+ * they could not place listed in one line under the chart.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ECharts } from 'echarts';
@@ -61,6 +64,8 @@ export interface CpmChartInput {
   palette: ChartPalette;
   height?: number;
   logY?: boolean;
+  /** CHG-200 (final test #6): a value x axis on a log scale (a frequency response). */
+  logX?: boolean;
   /** The drawn width in px when known (measured by CpmChart): the legend's row count depends on it. */
   width?: number;
   /** Phase 5: the current rectangle zoom, carried in the option so a re-applied option keeps it. */
@@ -73,8 +78,23 @@ export interface CpmChartInput {
    * CHG-197: extra ECharts series drawn over the data (marks, spans, dots), built from this chart's palette so they follow
    * the theme; `axisOf(unit)` is the value axis of a unit. They are not in the legend or the hover readout.
    */
-  annotate?: (palette: ChartPalette, axisOf: (unit: string) => number) => Array<Record<string, unknown>>;
+  annotate?: (palette: ChartPalette, axisOf: (unit: string) => number, plot: ChartPlot) => Array<Record<string, unknown>> | Annotations;
+  /** CHG-200: the first value axis drawn over exactly this range and step (the trends place their labels against it). */
+  yRange?: { min: number; max: number; interval: number };
 }
+
+/** CHG-200: the plot area an annotation draws in (px), and whether the chart is narrower than NARROW_CHART. */
+export interface ChartPlot { width: number; height: number; narrow: boolean }
+/** CHG-200: a label an annotation could not place on the plot, listed under the chart: words, then the value. */
+export interface ChartNote { text: string; value?: string }
+export interface Annotations { series: Array<Record<string, unknown>>; notes: ChartNote[] }
+
+/** CHG-200 (final test #2): below this drawn width a chart is narrow; the trends then list their values under the chart. */
+export const NARROW_CHART = 600;
+/** The drawn width assumed before the chart has been measured. */
+const UNMEASURED_WIDTH = 960;
+/** CHG-200 (#16, C3): at this height or less a value axis asks for three steps. */
+const SHORT_CHART = 200;
 
 const nan = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? null : v;
 
@@ -99,6 +119,11 @@ export function legendRowsFor(names: string[], width: number | undefined): numbe
 
 /** Pure option builder (tested): one axis per unit group, no null bridging, stepped holds, labelled bands. */
 export function buildCpmChartOption(input: CpmChartInput) {
+  return buildCpmChart(input).option;
+}
+
+/** The option and (CHG-200) the labels the annotations listed under the chart. */
+export function buildCpmChart(input: CpmChartInput) {
   const { series, xKind, timeZone = 'UTC', palette } = input;
   const pens = penColors(palette);
   const base = baseOption(palette);
@@ -113,12 +138,14 @@ export function buildCpmChartOption(input: CpmChartInput) {
     ? { ...axis, type: 'time' as const, name: `time — ${zoneLabel(timeZone, firstX)}`, nameLocation: 'middle' as const, nameGap: 28,
         axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: tick }, splitLine: { show: false },
         ...(input.xRange ? { min: input.xRange[0], max: input.xRange[1] } : {}) }
-    : { ...axis, type: 'value' as const, name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
+    : { ...axis, type: (input.logX ? 'log' : 'value') as 'log' | 'value', name: input.xUnit ? `${input.xLabel ?? 'x'} (${input.xUnit})` : (input.xLabel ?? 'x'), nameLocation: 'middle' as const, nameGap: 28,
         axisLabel: { ...axis.axisLabel, hideOverlap: true }, splitLine: { show: false }, scale: true };
   const yAxis = units.map((u, i) => ({
     ...axis,
     type: (input.logY ? 'log' : 'value') as 'log' | 'value', name: u, position: i % 2 === 0 ? 'left' : 'right', offset: Math.floor(i / 2) * 48,
     scale: true, splitLine: { show: i === 0, lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } },
+    ...(i === 0 && input.yRange ? { min: input.yRange.min, max: input.yRange.max, interval: input.yRange.interval }
+      : (input.height ?? 320) <= SHORT_CHART ? { splitNumber: 3 } : {}),
   }));
   const echartsSeries = series.map(s => {
     const data: Array<[number, number | null]> = [];
@@ -150,12 +177,17 @@ export function buildCpmChartOption(input: CpmChartInput) {
   // audit F19: the legend sits BELOW the plot and the x-axis name, never over the y-axis name; the bottom
   // margin reserves the rows the legend will take, estimated from the label widths against the drawn width
   const legendRows = legendRowsFor(echartsSeries.map(s => s.name), input.width);
-  const marks = input.annotate ? input.annotate(palette, u => Math.max(0, units.indexOf(u))) : [];
+  const grid = { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 };
+  const drawnWidth = input.width ?? UNMEASURED_WIDTH;
+  const plot: ChartPlot = { width: drawnWidth - grid.left - grid.right, height: (input.height ?? 320) - grid.top - grid.bottom, narrow: drawnWidth < NARROW_CHART };
+  const annotated = input.annotate ? input.annotate(palette, u => Math.max(0, units.indexOf(u)), plot) : [];
+  const marks = Array.isArray(annotated) ? annotated : annotated.series;
+  const notes: ChartNote[] = Array.isArray(annotated) ? [] : annotated.notes;
   const known = new Set(echartsSeries.map(s => s.id));
-  return {
+  const option = {
     ...base,
     animation: false,
-    grid: { left: 64, right: 24 + Math.max(0, units.length - 2) * 48, top: 28, bottom: 64 + legendRows * 22 },
+    grid,
     ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: input.zoomY === false ? undefined : units.map((_, i) => i) }, input.zoom ?? FULL_ZOOM),
     xAxis,
     yAxis,
@@ -180,6 +212,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
     },
     series: [...echartsSeries, ...marks],
   };
+  return { option, notes };
 }
 
 const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -198,7 +231,7 @@ export function toCsv(series: CpmSeries[], ctx?: CsvContext): string {
   const sorted = Array.from(xs).sort((a, b) => a - b);
   const index = series.map(s => { const m = new Map<number, number | null>(); for (let i = 0; i < s.x.length; i++) m.set(s.x[i], nan(s.y[i])); return m; });
   const values = (x: number) => index.map(m => { const v = m.get(x); return v == null ? '' : String(v); });
-  const cols = series.map(s => csvCell(`${s.csvLabel ?? s.label} (${s.unit})`));
+  const cols = series.map(s => csvCell(s.unit ? `${s.csvLabel ?? s.label} (${s.unit})` : (s.csvLabel ?? s.label)));
   if (!ctx) return [['x', ...cols].join(','), ...sorted.map(x => [x, ...values(x)].join(','))].join('\n');
   const tz = ctx.timeZone ?? 'UTC';
   const time = ctx.xKind === 'time';
@@ -248,7 +281,7 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const box = useBoxZoom({ hasY: props.zoomY !== false });
+  const box = useBoxZoom({ hasY: props.zoomY !== false, linked: !!props.connectGroup });
   const { connectGroup } = props;
   const release = useRef<(() => void) | null>(null);
   useEffect(() => () => { release.current?.(); release.current = null; }, []);
@@ -256,7 +289,7 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
     box.onChartReady(chart);
     if (connectGroup && !release.current) release.current = joinTrendGroup(chart, connectGroup);
   }, [box, connectGroup]);
-  const option = useMemo(() => buildCpmChartOption({ ...props, palette: chartPalette(), width, zoom: box.zoom }),
+  const { option, notes } = useMemo(() => buildCpmChart({ ...props, palette: chartPalette(), width, zoom: box.zoom }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- theme is a recompute trigger: the palette is read from CSS variables that change with it.
     [props, theme, width, box.zoom]);
   useKeepSelecting(box, option);
@@ -293,6 +326,11 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
         {props.exportInHead && exportCsv}
       </div>
       <ReactECharts option={option} notMerge style={{ height: props.height ?? 320 }} onChartReady={onChartReady} onEvents={onEvents} />
+      {notes.length > 0 && (
+        <p className="cpm-chart__notes">
+          {notes.map((n, i) => <span key={`${i}-${n.text}`} className="cpm-chart__notes-item">{n.text}{n.value && <> <span className="cpm-chart__note-value">{n.value}</span></>}</span>)}
+        </p>
+      )}
       {!props.exportInHead && <div className="cpm-chart__more">{exportCsv}</div>}
     </div>
   );

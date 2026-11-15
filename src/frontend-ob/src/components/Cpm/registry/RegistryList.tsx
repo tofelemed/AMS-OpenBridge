@@ -12,6 +12,9 @@ import { serviceName } from '../loopName';
 import { vpCellLabel } from '../optionalInputs';
 import { abnormalPill } from '../registryGap';
 
+/** CHG-200 (final test #26): a loop with no type from the plant model reads "Unknown type", not the code. */
+const typeText = (t: string | null | undefined) => (!t || t.toUpperCase() === 'UNKNOWN' ? 'Unknown type' : t);
+
 export const RegistryList: React.FC<{
   rows: CpmLoop[];
   selectedId: string;
@@ -32,7 +35,7 @@ export const RegistryList: React.FC<{
               {pill && <> <TonePill tone={pill.tone} glyph={pill.glyph}>{pill.label}</TonePill></>}
               <div className="cpm-event-row__sub">{serviceName(loop)}</div>
             </td>
-            <td>{loop.loopType}</td>
+            <td>{typeText(loop.loopType)}</td>
             <td>{vpCellLabel(loop)}</td>
           </tr>
         );

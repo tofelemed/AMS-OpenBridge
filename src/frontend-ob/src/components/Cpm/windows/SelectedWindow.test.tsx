@@ -78,14 +78,14 @@ describe('SelectedWindow', () => {
   it('opens engine & timing in a dialog, and has no Record details (CHG-184, owner review Q6)', () => {
     mount(row());
     expect(screen.queryByRole('button', { name: 'Record details' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Engine & timing' }));
-    expect(screen.getByRole('dialog', { name: 'Engine & timing' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Timing' }));
+    expect(screen.getByRole('dialog', { name: 'Timing' })).toBeTruthy();
   });
 
   // CHG-192 (owner review item 16): each of the three dialogs names the loop and the window size under its title
   it('names the loop and the window size under each dialog title, and the raw count as a row', () => {
     mount(row());
-    for (const name of ['Calculated values', 'Feature flags', 'Sample density', 'Engine & timing']) {
+    for (const name of ['Calculated values', 'Feature flags', 'Sample density', 'Timing']) {
       fireEvent.click(screen.getByRole('button', { name }));
       const dialog = screen.getByRole('dialog', { name });
       expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10401 · 15 min window');
@@ -140,7 +140,7 @@ describe('SelectedWindow', () => {
     const grid = screen.getByRole('region', { name: 'Details' });
     expect(grid.closest('.ui-inspector__body')).toBeNull();
     const buttons = within(grid).getAllByRole('button');
-    expect(buttons.map(b => b.textContent)).toEqual(['Calculated values›', 'Feature flags›', 'Sample density›', 'Engine & timing›']);
+    expect(buttons.map(b => b.textContent)).toEqual(['Calculated values›', 'Feature flags›', 'Sample density›', 'Timing›']);
     for (const b of buttons) expect(b.getAttribute('aria-haspopup')).toBe('dialog');
   });
 

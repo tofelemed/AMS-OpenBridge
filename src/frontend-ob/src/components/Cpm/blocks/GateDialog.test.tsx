@@ -12,10 +12,12 @@ afterEach(cleanup);
 const base = { open: true, onClose: () => {}, loop: 'FIC10301', gate: 'G5', status: 'WARN', loopResult: 'Oscillation confirmed', windowLine: '12h window · a → b', actions: <button>Review FIC10301 →</button> };
 
 describe('GateDialog', () => {
-  it('titles the dialog with loop and gate, and shows the gate name, status, result and window', () => {
+  // CHG-200 (final test #21, the dialog standard): the gate and its name as the title, the loop as the subtitle on the band
+  it('titles the dialog with the gate and its name, the loop under it, and shows the status, result and window', () => {
     render(<GateDialog {...base} />);
-    const dialog = screen.getByRole('dialog', { name: 'FIC10301 · G5' });
-    expect(within(dialog).getByRole('heading', { name: 'Oscillation (ACF)' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' });
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301');
+    expect(within(dialog).getAllByText(/Oscillation \(ACF\)/)).toHaveLength(1);
     expect(within(dialog).getByText('Symptom seen')).toBeTruthy();
     expect(within(dialog).getByText('Oscillation confirmed')).toBeTruthy();
     expect(within(dialog).getByText('12h window · a → b')).toBeTruthy();

@@ -47,7 +47,7 @@ describe('ResultCard', () => {
     expect(screen.getByRole('heading', { name: 'FOPDT model' })).toBeTruthy();
     expect(screen.getByText('Candidate')).toBeTruthy();                                  // CHG-165: the state once, as the pill
     expect(screen.getByText('-76.55 PV unit/% OP')).toBeTruthy();                       // no PV unit registered: said so, as on Models
-    expect(screen.getByText('± 22.22')).toBeTruthy();
+    expect(document.querySelector('.cpm-response-param__spread')?.textContent).toBe('±\u00a022.22');
     expect(screen.getByText(/Waiting · no independent event yet/)).toBeTruthy();
     expect(screen.queryByText(/candidate table below/)).toBeNull();
   });
@@ -67,8 +67,8 @@ describe('ResultCard', () => {
     expect(title.querySelector('.cpm-pill')?.textContent).toBe('Candidate');
     const blocks = [...container.querySelectorAll('.cpm-response-param')];
     expect(blocks.map(b => b.querySelector('.cpm-response-param__label')?.textContent)).toEqual(['Process gain K', 'Dead time θ', 'Time constant τ']);
-    expect(blocks.map(b => b.querySelector('.cpm-response-param__value')?.textContent)).toEqual(['-76.55 m3/h/% OP', '71.97 s', '2253.49 s']);
-    expect(blocks.map(b => b.querySelector('.cpm-response-param__spread')?.textContent ?? null)).toEqual(['± 22.22', null, '± 688.20']);
+    expect(blocks.map(b => b.querySelector('.cpm-response-param__value')?.textContent)).toEqual(['-76.55 m3/h/% OP', '71.97 s', '2,253 s']);
+    expect(blocks.map(b => b.querySelector('.cpm-response-param__spread')?.textContent ?? null)).toEqual(['±\u00a022.22', null, '±\u00a0688.20']);
   });
 
   it('says why when no model was estimated', () => {

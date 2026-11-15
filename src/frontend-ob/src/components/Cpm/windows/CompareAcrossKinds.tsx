@@ -28,13 +28,13 @@ const METRIC_OPTIONS: { field: string; label: string; pct?: boolean }[] = [
   { field: 'iae', label: 'IAE' },
   { field: 'good_error_pct', label: 'Good-error time', pct: true },
   { field: 'effort_ratio', label: 'Effort ratio' },
-  { field: 'auto_pct', label: 'In AUTO', pct: true },
+  { field: 'auto_pct', label: 'In Auto', pct: true },
   { field: 'completeness', label: 'Completeness', pct: true },
   { field: 'travel_per_day', label: 'OP travel / day' },
   { field: 'reversals_per_hour', label: 'Reversals / h' },
 ];
 
-const KindRow: React.FC<{
+export const KindRow: React.FC<{
   spec: CpmWindowSpec;
   rows: CpmKpiRow[];
   isLoading: boolean;
@@ -63,10 +63,11 @@ const KindRow: React.FC<{
         {sorted.length > 1 ? `${fmtVal(sorted[0], pct)} – ${fmtVal(sorted[sorted.length - 1], pct)}` : '—'}
       </td>
       <td>
-        {values.length}
+        {/* CHG-200 (final test #31): beside the declined count the number says what it counts */}
+        {declinedCount > 0 ? `${values.length} evaluated` : values.length}
         {declinedCount > 0 && (
           <span title={`${declinedCount} of the latest windows were declined (insufficient data) and are excluded`}>
-            {' '}<TonePill tone="muted">{declinedCount} declined</TonePill>
+            {' · '}<TonePill tone="muted">{declinedCount} declined</TonePill>
           </span>
         )}
       </td>

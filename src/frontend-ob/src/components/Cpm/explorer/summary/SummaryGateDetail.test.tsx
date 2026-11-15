@@ -51,8 +51,8 @@ const show = (gate = 'G3', over: Partial<React.ComponentProps<typeof SummaryGate
 describe('SummaryGateDetail', () => {
   it('opens as a dialog with the status, the loop result and the window on one line', () => {
     show();
-    const d = screen.getByRole('dialog', { name: 'FIC10301 · G3' });
-    expect(within(d).getByRole('heading', { name: 'Base performance' })).toBeTruthy();
+    const d = screen.getByRole('dialog', { name: 'G3 · Base performance' });
+    expect(d.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10301');
     expect(d.textContent).toMatch(/Check status/);
     expect(d.textContent).toMatch(/Oscillation suspected/);
     expect(within(d).getByText(`12h window · ${fmtDateTime(MATRIX.windowStart)} → ${fmtDateTime(MATRIX.windowEnd)}`)).toBeTruthy();

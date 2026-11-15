@@ -102,7 +102,7 @@ export const InvestigationHero: React.FC<{
               </dd>
             </div>
             <div className="cpm-inv-class__cell">
-              <dt className="cpm-inv-label">Engine severity</dt>
+              <dt className="cpm-inv-label">Severity</dt>
               <dd className="cpm-inv-class__value">
                 {matrix.severity && <span className={`cpm-dot cpm-tone-${toneFor(matrix.severity)}`} aria-hidden data-testid="severity-dot" />}
                 {codeLabel(matrix.severity)}

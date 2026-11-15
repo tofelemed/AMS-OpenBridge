@@ -9,6 +9,7 @@
  */
 import { sameInstant } from '../evidence/useWindowAt';
 import { classifyMode, diagnosisBand } from '../shared';
+import { modeWord } from '../../../utils/modeVocabulary';
 import { bandOf, diagnosisLabel } from '../vocabulary';
 import type { Segment } from './chartOption';
 
@@ -54,18 +55,22 @@ export function resultMarkers(
   return { markers, selected: Number.isFinite(startMs) && Number.isFinite(endMs) ? { startMs, endMs } : null };
 }
 
-/** Controller-mode runs from the mode track: neighbours with one mode merge, the last runs to the end of the range. */
+/**
+ * Controller-mode runs from the mode track: neighbours with one mode merge, the last runs to the end of the range. CHG-200 (final
+ * test #13; owner Q3, no green for normal): a normal (auto) mode is neutral, a mode that needs a look (manual, not recognised) is
+ * amber, as the Explorer mode box classifies them; each run is named by its word ("Auto", not "AUT").
+ */
 export function modeSegmentsOf(points: Array<{ ts: number; mode?: unknown }>, toMs: number): Segment[] {
   const pts = points.flatMap(p => (typeof p.mode === 'string' ? [{ ts: p.ts, mode: p.mode }] : []));
   const out: Segment[] = [];
   for (let i = 0; i < pts.length; i++) {
     // classifyMode mirrors the engine's vocabulary (AUT/CAS/CASCADE are auto).
-    const cls = classifyMode(pts[i].mode);
-    const tone = cls === 'auto' ? 'good' : cls === 'manual' ? 'warn' : 'muted';
+    const tone = classifyMode(pts[i].mode) === 'auto' ? 'muted' : 'warn';
+    const label = modeWord(pts[i].mode);
     const endMs = pts[i + 1]?.ts ?? toMs;
     const head = out[out.length - 1];
-    if (head && head.label === pts[i].mode) { head.endMs = endMs; continue; }
-    out.push({ startMs: pts[i].ts, endMs, tone, label: pts[i].mode });
+    if (head && head.label === label) { head.endMs = endMs; continue; }
+    out.push({ startMs: pts[i].ts, endMs, tone, label });
   }
   return out;
 }

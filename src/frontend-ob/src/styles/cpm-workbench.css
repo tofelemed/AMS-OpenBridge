@@ -139,9 +139,13 @@
 .cpm-workbench__head .cpm-run-bar { margin-inline-start: auto; }
 /* CHG-193 (final review M11): from 1280 px the actions stay on the gate's title line; the title takes the room left and wraps
    inside its own column. Below that the head wraps as before. */
+/* CHG-200 (final test #11): at 1440 that squeezed the result pill ("Insufficient evide") and broke the title; the gate's title
+   and its pills now keep their full width, and the run's actions wrap under them when the row cannot hold both */
 @media (min-width: 1280px) {
-  .cpm-workbench__head { flex-wrap: nowrap; }
   .cpm-workbench__gate { flex: 1 1 auto; }
   .cpm-workbench__head .cpm-run-bar { flex: 0 0 auto; }
   .cpm-workbench__head .cpm-run-bar__actions { flex-wrap: nowrap; }
+  .cpm-workbench__gate .cpm-title-row { flex-wrap: nowrap; }
+  .cpm-workbench__gate .cpm-panel-title { white-space: nowrap; }
+  .cpm-workbench__head .ui-badge { flex-shrink: 0; min-width: max-content; white-space: nowrap; }
 }

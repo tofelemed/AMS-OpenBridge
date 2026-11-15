@@ -5,6 +5,8 @@
  * CHG-195 (owner review item 19): a card's "n outputs" opens a dialog (the step name, the loop and step under it) with the
  * outputs as label / value rows in plain words; the Event panel is gone (the band names the event); All quantities takes the
  * full width as the standard table, without the method column (owner Q8).
+ * CHG-200 (final test #7; C6, C7, C9): every quantity named in words (the trends' "63 % time"), numbers without an exponent and
+ * units in typographic form; the support column in the table's own figures.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -14,12 +16,10 @@ import { Dialog } from '../../../ui/Dialog';
 import { DataTable, type Column } from '../../../ui/DataTable';
 import type { ResponseEventDetail, ResponseQuantity } from '../../../api/cpm/response';
 import { codeLabel } from '../vocabulary';
-import { KEY_RESULT_IDS, subgateSteps, type SubgateStep } from './responseCopy';
+import { quantityLabel, subgateSteps, type SubgateStep } from './responseCopy';
 import { outputLabel, outputValue, pathLabel } from './responseLabels';
 import { displayUnit, quantityText } from './responseSupport';
 
-const LABEL = new Map(KEY_RESULT_IDS);
-const quantityLabel = (id: string) => LABEL.get(id) ?? codeLabel(id);
 const support = (q: ResponseQuantity) => (q.supportFromMs != null && q.supportToMs != null ? `${Math.round((q.supportToMs - q.supportFromMs) / 1000)} s` : '—');
 
 export interface StepsDataTabProps {
@@ -50,7 +50,8 @@ export const StepsDataTab: React.FC<StepsDataTabProps> = ({ result, metrics, pvU
     { key: 'quantity', header: 'Quantity', cell: q => quantityLabel(q.quantityId) },
     { key: 'value', header: 'Value', cell: q => <span className="cpm-nowrap">{displayUnit(quantityText(q), q.pathId, pvUnit)}</span> },
     ...(paths.size > 1 ? [{ key: 'path', header: 'Path', cell: (q: ResponseQuantity) => pathLabel(q.pathId) }] : []),
-    { key: 'support', header: 'Support', mono: true, cell: q => <span className="cpm-nowrap">{support(q)}</span> },
+    // CHG-200 (C9): the support in the table's figures, the unit beside the number (not the identifiers' monospace)
+    { key: 'support', header: 'Support', cell: q => <span className="cpm-nowrap cpm-num">{support(q)}</span> },
   ];
   return (
     <>

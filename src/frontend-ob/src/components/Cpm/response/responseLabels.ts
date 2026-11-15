@@ -6,7 +6,7 @@
 import type { ResponseEventSummary, SystemModel } from '../../../api/cpm/response';
 import { fmtInstantBare } from '../context/LoopContextBar';
 import { codeLabel, humanise as words } from '../vocabulary';
-import { readable } from '../evidence/format';
+import { plainNumber } from '../evidence/format';
 import { eventRowView } from './responseCopy';
 import { fmt } from './responseSupport';
 
@@ -59,7 +59,7 @@ export function outputLabel(key: string): string {
 export function outputValue(key: string, v: unknown): string {
   if (v == null) return '—';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : readable(v);
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : plainNumber(v);
   if (typeof v === 'object') return JSON.stringify(v);
   const t = String(v);
   if (key === 'path_id' || /^[A-Z]+(_[A-Z]+)*_TO_[A-Z_]+$/.test(t)) return pathLabel(t);
@@ -82,7 +82,7 @@ const CANDIDATE_PARAM: Record<string, [string, string]> = {
 export function candidateParamText(key: string, raw: string): string {
   const [label, unit] = CANDIDATE_PARAM[key] ?? [words(key), /(_time|time_constant)/.test(key) ? 's' : ''];
   const n = Number(raw);
-  return `${label} ${Number.isFinite(n) ? readable(n) : raw}${unit ? ` ${unit}` : ''}`;
+  return `${label} ${Number.isFinite(n) ? plainNumber(n) : raw}${unit ? ` ${unit}` : ''}`;
 }
 
 /** "ESTIMATION:NOT_ESTIMATED:NO_EXCITATION" → "Estimation · Not estimated · No excitation". */

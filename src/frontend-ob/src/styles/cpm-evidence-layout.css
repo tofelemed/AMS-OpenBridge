@@ -171,8 +171,16 @@
    never inside "Diagnosis band" and never clipped under the sticky result column */
 .cpm-checks__chip > * { white-space: nowrap; }
 .cpm-matrix__cell--muted.cpm-checks__chip { color: var(--traverse-text-secondary); }
+/* CHG-200 (final test #10): below 600 px the findings read as one card per loop, as Loop Events does: the head row is hidden (kept
+   for screen readers), each value names its column (data-label), and nothing runs past the panel edge */
 @media (max-width: 600px) {
-  .cpm-checks .cpm-matrix__loop, .cpm-checks .cpm-matrix__result { min-width: 120px; }
-  .cpm-checks .cpm-matrix__result { position: static; }
-  .cpm-checks__cell { min-width: 180px; }
+  .cpm-matrix-scroll--list:has(> .cpm-checks) { overflow: visible; max-height: none; }
+  .cpm-checks thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cpm-checks, .cpm-checks tbody { display: block; width: 100%; }
+  .cpm-checks tbody tr { display: grid; gap: var(--traverse-space-2); padding: var(--traverse-space-3); border-bottom: 1px solid var(--border-divider-color); }
+  .cpm-matrix.cpm-checks th, .cpm-matrix.cpm-checks td { display: block; position: static; min-width: 0; border: 0; padding: 0; text-align: left; white-space: normal; }
+  .cpm-matrix.cpm-checks td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: var(--traverse-space-1);
+    color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata);
+  }
 }

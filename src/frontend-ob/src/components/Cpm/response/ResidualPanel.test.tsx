@@ -20,7 +20,7 @@ describe('ResidualPanel in plain words', () => {
     render(<ResidualPanel residuals={residuals} acf={acf} timeZone="UTC" pvUnit="m3/h"
       validation={{ state: 'VALIDATED', outputs: { verdict: 'PASS', free_run_rmse: 0.123456, residual_bias: 0.01 } }} />);
     const text = document.body.textContent ?? '';
-    for (const words of ['Step E', 'State', 'Validated', 'Verdict', 'Pass', 'Free-run error (RMSE)', '0.123', 'Residual bias']) expect(text).toContain(words);
+    for (const words of ['State', 'Validated', 'Verdict', 'Pass', 'Free-run error (RMSE)', '0.123', 'Residual bias']) expect(text).toContain(words);
     expect(text).not.toMatch(/Subgate|VALIDATED|PASS|free_run_rmse|residual_bias/);
     const [res, ac] = options;
     expect(res.series[0].name).toBe('Residual (PV − model)');

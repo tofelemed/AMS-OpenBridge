@@ -49,7 +49,7 @@ describe('resultSummary', () => {
     const s = resultSummary(result, metrics);
     expect(s.family).toBe('FOPDT');
     expect(s.headline).toBe('FOPDT model');                                        // CHG-165: the state is the pill beside it, said once
-    expect(s.parameters.map(p => `${p.label}: ${p.text}`)).toEqual(['Process gain K: -76.55 PV_EU/input_EU ± 22.22', 'Dead time θ: 71.97 s', 'Time constant τ: 2253.49 s ± 688.20']);
+    expect(s.parameters.map(p => `${p.label}: ${p.text}`)).toEqual(['Process gain K: -76.55 PV_EU/input_EU\u00a0±\u00a022.22', 'Dead time θ: 71.97 s', 'Time constant τ: 2,253 s\u00a0±\u00a0688.20']);
     expect(s.validation).toEqual({ state: 'WAITING', text: 'Waiting · no independent event yet' });
     expect(s.identifiability).toBe('');                                            // CHG-165: the estimator is on Steps & data and Models
   });
@@ -63,7 +63,7 @@ describe('resultSummary', () => {
     const k = keyResults(metrics);
     expect(k.map(r => r.id)).toEqual(['process_gain', 'integrating_gain', 'dead_time', 'time_constant', 'iae']);
     expect(k.find(r => r.id === 'integrating_gain')).toMatchObject({ applicable: false, text: 'not applicable (not integrating or not identifiable)' });
-    expect(k.find(r => r.id === 'iae')).toMatchObject({ applicable: true, text: '5308.07 PV_EU*s' });
+    expect(k.find(r => r.id === 'iae')).toMatchObject({ applicable: true, text: '5,308 PV_EU·s' });
   });
   it('subgateSteps lists A–H with state and the reason in words', () => {
     const steps = subgateSteps(result.subgates);

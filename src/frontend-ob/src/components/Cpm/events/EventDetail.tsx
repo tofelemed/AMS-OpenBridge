@@ -87,7 +87,8 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
           </span>
           <span className="cpm-episode-strip__item">
             <span className="cpm-episode-strip__value">{event.window_count}</span>
-            <span className="cpm-kv__label">Non-overlap windows</span>
+            {/* CHG-200 (final test #32): "Non-overlap" stays whole, so the label wraps as two lines like its neighbours */}
+            <span className="cpm-kv__label"><span className="cpm-nowrap">Non-overlap</span> windows</span>
           </span>
         </div>
         <div className="cpm-events-links">

@@ -121,3 +121,23 @@ describe('ModelHistory', () => {
     expect(lines[1]).toMatch(/^2026-09-16T12:00:00Z,FOPDT,OP_TO_PV,OUTPUT_ERROR_LM,CANDIDATE,1,,0.21,0.02,m1$/);
   });
 });
+
+// CHG-200 (controller C8; final test #20): one model (or a tiny spread) draws its axis with room around it and a readable step,
+// never six decimals; the family in words, as Fit quality names it; the created stamp on one line
+describe('ModelHistory axis and words', () => {
+  it('one model: the value axis opens around it with at most two decimals', () => {
+    const one = [model({ modelId: 'a', parameters: { process_gain: { value: 2.999978, unit: 'PV_EU/pp', uncertainty: 5.1e-6, method: 'COVARIANCE', reason: null } } })];
+    render(<ModelHistoryBody models={one} timeZone="UTC" pvUnit="m3/h" onReview={() => {}} canReview />);
+    const axis = (captured[0] as { yAxis: Array<{ min: number; max: number; interval: number }> }).yAxis[0];
+    expect(axis.min).toBeLessThan(2.999978);
+    expect(axis.max).toBeGreaterThan(2.999978);
+    for (const v of [axis.min, axis.max, axis.interval]) expect(String(v).split('.')[1]?.length ?? 0).toBeLessThanOrEqual(2);
+  });
+
+  it('names the family in words and keeps the created stamp on one line', () => {
+    render(<ModelHistoryBody models={[model({ modelId: 'a', parameters: { dead_time: { value: 4, unit: 's', uncertainty: null, method: '', reason: null } } })]} timeZone="UTC" onReview={() => {}} canReview />);
+    expect(screen.getByText('First order with dead time')).toBeTruthy();
+    expect(screen.queryByText('FOPDT')).toBeNull();
+    expect(document.querySelector('td .cpm-nowrap')?.textContent).toMatch(/\d{2}:\d{2}/);
+  });
+});

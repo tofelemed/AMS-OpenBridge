@@ -11,6 +11,8 @@
  * page, `redrawn`) shows the trends that can be made, and Model fit, Fit quality and Frequency say they exist only with the
  * stored charts. Stored charts always win over a redraw. CHG-199: an accepted event past the days its stored charts are kept
  * (`chartDays`, the server's acceptedChartDays) says they are no longer kept, with the same redraw.
+ * CHG-200 (final test #1; C4): the redraw dialog's open state lives here and the dialog renders outside the note, so it stays
+ * through Done after the redraw lands; once redrawn the note goes (the one "Redrawn from the historian" line says it).
  */
 import React from 'react';
 import { EmptyState, QueryError } from '../shared';
@@ -25,7 +27,7 @@ import { BodePanel } from './BodePanel';
 import { StepsDataTab } from './StepsDataTab';
 import { ArraysNote, ReportedQuantities, arraysState, chartsGone } from './ResponseNotes';
 import { metricOf } from './responseSupport';
-import { RedrawAction } from './redraw/RedrawAction';
+import { RedrawButton, RedrawDialogHost } from './redraw/RedrawAction';
 import { NotRedrawn, RedrawnTrends } from './redraw/RedrawnTrends';
 import { NOT_REDRAWN } from './redraw/redrawWords';
 import type { Redrawn } from './redraw/useRedraw';
@@ -55,6 +57,7 @@ const Loading: React.FC<{ what: string }> = ({ what }) => (
 );
 
 export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit, redrawn: held, eventName, chartDays }) => {
+  const [redrawOpen, setRedrawOpen] = React.useState(false);
   if (detail.isError) return <QueryError error={detail.error} retry={() => void detail.refetch()} />;
   const result = detail.data?.result;
   const metrics = detail.data?.metrics;
@@ -81,14 +84,17 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
 
   if (tab === 'response') {
     const healthExclusions = Array.isArray(result?.health_exclusions) ? (result!.health_exclusions as string[]) : [];
-    const redrawable = (notKept === 'NOT_KEPT' || notKept === 'EXPIRED' || notKept === 'AGED_OUT') && !redrawn && result;
+    const redrawable = (notKept === 'NOT_KEPT' || notKept === 'EXPIRED' || notKept === 'AGED_OUT') && result;
     return (
       <>
         <ResultCard result={result} metrics={metrics} loading={detail.isLoading} pvUnit={pvUnit} />
-        {notKept && (
+        {notKept && !redrawn && (
           <ArraysNote state={notKept}>
-            {redrawable && <RedrawAction result={result} metrics={metrics} t0Ms={t0Ms} pvUnit={pvUnit} timeZone={timeZone} eventName={eventName} />}
+            {redrawable && <RedrawButton result={result} t0Ms={t0Ms} onOpen={() => setRedrawOpen(true)} />}
           </ArraysNote>
+        )}
+        {redrawOpen && result && (
+          <RedrawDialogHost result={result} metrics={metrics} t0Ms={t0Ms} pvUnit={pvUnit} timeZone={timeZone} eventName={eventName} onClose={() => setRedrawOpen(false)} />
         )}
         {manifestState}
         {((manifest.data && !notKept) || redrawn) && censored && <ArraysNote state="NOT_FITTED" />}

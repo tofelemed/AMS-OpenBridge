@@ -23,6 +23,8 @@ import { buildCpmChartOption } from '../../evidence/CpmChart';
 import { chartPalette } from '../../../../charts/chartTheme';
 import { drawMarks } from './annotations';
 import { buildFacts } from './responseFacts';
+import { trendYRange } from './trendSupport';
+import { layoutLabels } from './labelLayout';
 import { responseTrendSpecs } from './responseTrendSpecs';
 import { ResponseTrends } from './ResponseTrends';
 import { levelLoop, result, selfRegulating, T0S } from './trendFixtures';
@@ -75,9 +77,19 @@ describe('ResponseTrends', () => {
     const f = buildFacts({ ...selfRegulating(), t0Ms: T0S * 1000, pvUnit: 'm3/h' })!;
     const spec = responseTrendSpecs(f).find(s => s.id === 'dead-time')!;
     const chart = echarts.init(null as unknown as HTMLElement, null, { renderer: 'svg', ssr: true, width: 1200, height: 320 });
-    chart.setOption(buildCpmChartOption({ series: spec.series, xKind: 'time', timeZone: 'UTC', palette: chartPalette(), xRange: f.xRange, zoomY: false, annotate: drawMarks(spec.marks, spec.unit) }) as never);
+    const yRange = trendYRange(spec);
+    chart.setOption(buildCpmChartOption({ series: spec.series, xKind: 'time', timeZone: 'UTC', palette: chartPalette(), xRange: f.xRange, yRange, width: 1200, height: 320, zoomY: false, annotate: drawMarks(spec.marks, spec.unit, { series: spec.series, xRange: f.xRange, yRange }) }) as never);
     const svg = chart.renderToSVGString();
     chart.dispose();
     for (const text of ['Step', 'Dead time', '34 s', 'Time constant', '120 s', '63 % of the change', 'Measured 63 %']) expect(svg).toContain(text);
+    // CHG-200: each label is drawn where the layout placed it (its top-left corner at the plot's corner + the layout's box)
+    const plot = { width: 1200 - 64 - 24, height: 320 - 28 - (64 + 22) };
+    const layout = layoutLabels(spec.marks, spec.series, { ...plot, x: f.xRange, y: [yRange.min, yRange.max] });
+    for (const { label, box } of layout.placed) {
+      const at = new RegExp(String.raw`transform="translate\(([\d.]+) ([\d.]+)\)"[^>]*>${label.text} ?<`).exec(svg);
+      expect(at, label.text).not.toBeNull();
+      expect(Math.abs(Number(at![1]) - (64 + box.x))).toBeLessThan(0.5);
+      expect(Math.abs(Number(at![2]) - (28 + box.y))).toBeLessThan(0.5);
+    }
   });
 });

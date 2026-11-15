@@ -31,7 +31,9 @@ export const MeasuredCheck: React.FC<WhyInput & {
         </span>
       )}
       {(measured || more) && <ObcButton variant="normal" aria-haspopup="dialog" onClick={() => setOpen(true)}>{title}</ObcButton>}
-      <Dialog open={open} onClose={() => setOpen(false)} title={title} subtitle={subtitle} size="wide">
+      {/* CHG-200 (final test #21): a Close in the foot, as every other dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)} title={title} subtitle={subtitle} size="wide"
+        footer={<ObcButton variant="flat" onClick={() => setOpen(false)}>Close</ObcButton>}>
         <ExplainWhy why={why} gate={input.gate} onHypotheses={onHypotheses} />
       </Dialog>
     </span>

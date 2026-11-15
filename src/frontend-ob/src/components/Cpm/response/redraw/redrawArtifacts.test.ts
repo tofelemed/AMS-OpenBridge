@@ -99,12 +99,14 @@ describe('the redrawn trends', () => {
 });
 
 describe('plannedTrends', () => {
-  it('names the trends a redraw makes for the event, from its quantities, before anything is read', () => {
+  // CHG-200 (controller C1): only the trends that will draw for sure; Error from the setpoint needs the samples to reproduce the
+  // engine's integrals, so it is never promised beforehand (it simply appears when it reproduces)
+  it('names the trends a redraw makes for sure, from the quantities of the event, before anything is read', () => {
     const e = selfRegulating();
     expect(plannedTrends(wFor(e), e.result, e.metrics, 'm3/h'))
-      .toEqual(['Measured response', 'Input', 'Dead time and time constant', 'Rise time and settling', 'Error from the setpoint']);
+      .toEqual(['Measured response', 'Input', 'Dead time and time constant', 'Rise time and settling']);
     const s = setpointStep();
-    expect(plannedTrends(wFor(s), s.result, s.metrics, 'm3/h')).toEqual(['Measured response', 'Input', 'Rise time and settling', 'Overshoot', 'Error from the setpoint']);
+    expect(plannedTrends(wFor(s), s.result, s.metrics, 'm3/h')).toEqual(['Measured response', 'Input', 'Rise time and settling', 'Overshoot']);
     const l = levelLoop();
     expect(plannedTrends(wFor(l), l.result, l.metrics, 'm3/h')).toEqual(['Measured response', 'Input', 'Slope']);
     expect(plannedTrends(wFor(e), result({ evaluation_state: 'CENSORED' }), e.metrics, 'm3/h')).toEqual(['Measured response', 'Input']);

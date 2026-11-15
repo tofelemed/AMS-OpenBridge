@@ -239,7 +239,15 @@ describe('gate views', () => {
     const arts: GateArtifacts = { byKind: {}, loading: false, errors: [], unavailable: [{ kind: 'psd', roleOrPath: 'OP', readiness: 'EXPIRED', reason: 'RETENTION' }] };
     render(<RequireKinds arts={arts} kinds={['psd']}><div>chart</div></RequireKinds>);
     expect(screen.queryByText('chart')).toBeNull();
-    expect(screen.getByText(/Artifact not available: psd/)).toBeTruthy();
-    expect(screen.getByText(/EXPIRED \(RETENTION\)/)).toBeTruthy();
+    // CHG-200 (final test #12): the chart named in words, never its kind code; the state in words
+    expect(screen.getByText('The PSD is not stored for this run')).toBeTruthy();
+    expect(screen.getByText(/PSD: Expired \(Retention\)/)).toBeTruthy();
+  });
+
+  it('a run that kept no artifact of the kind names it in words and does not claim a verdict', () => {
+    const arts: GateArtifacts = { byKind: {}, loading: false, errors: [], unavailable: [] };
+    render(<RequireKinds arts={arts} kinds={['decision_record']}><div>chart</div></RequireKinds>);
+    expect(screen.getByText('The decision record is not stored for this run')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/decision_record|verdict stands|Artifact/);
   });
 });

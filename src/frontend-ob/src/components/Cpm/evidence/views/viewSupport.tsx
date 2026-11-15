@@ -9,6 +9,7 @@ import type { DecodedArtifact } from '../artifactCodec';
 import type { GateArtifacts } from '../useGateArtifacts';
 import type { CpmSeries, Pen } from '../CpmChart';
 import { fmtQuantity, labelForKey, unitForKey } from '../format';
+import { codeLabel } from '../../vocabulary';
 
 /** audit F5: while artifacts decode the panel keeps its height as a skeleton that names what it waits for. */
 export const ArtifactSkeleton: React.FC<{ kinds: string[]; size?: 'lanes' | 'evidence' | 'result' }> = ({ kinds, size = 'evidence' }) => (
@@ -33,15 +34,22 @@ export const RequireKinds: React.FC<{ arts: GateArtifacts; kinds: string[]; skel
   if (missing.length > 0) {
     const declared = arts.unavailable.filter(u => missing.includes(u.kind));
     if (declared.length === 0 && absent) return <EmptyState title={absent.title} copy={absent.copy} />;
+    // CHG-200 (final test #12): the chart named in words ("The decision record is not stored for this run"), never its kind code
+    // (that stays in the CSV and the record); no claim about a verdict the run may not have
+    const names = missing.map(kindWords);
     return (
-      <EmptyState title={`Artifact${missing.length > 1 ? 's' : ''} not available: ${missing.join(', ')}`}
+      <EmptyState title={`The ${names.join(' and the ')} ${names.length > 1 ? 'are' : 'is'} not stored for this run`}
         copy={declared.length > 0
-          ? declared.map(u => `${u.kind}: ${u.readiness}${u.reason ? ` (${u.reason})` : ''}`).join(' · ')
-          : 'This run retained no such artifact. The verdict stands; reconstruct the evidence to see the arrays.'} />
+          ? declared.map(u => `${kindWords(u.kind)}: ${codeLabel(u.readiness)}${u.reason ? ` (${codeLabel(u.reason)})` : ''}`).map(t => t[0].toUpperCase() + t.slice(1)).join(' · ')
+          : 'Reconstruct the evidence to see it.'} />
     );
   }
   return <>{children}</>;
 };
+
+/** CHG-200: an artifact kind in words: "decision_record" → "decision record", a short code in capitals ("psd" → "PSD"). */
+const ACRONYM = /^(psd|acf|ccf|fft|pv|sp|op|vp)$/i;
+export const kindWords = (kind: string): string => kind.split('_').map(w => (ACRONYM.test(w) ? w.toUpperCase() : w)).join(' ');
 
 export function first(arts: GateArtifacts, kind: string): DecodedArtifact | undefined {
   return arts.byKind[kind]?.[0];

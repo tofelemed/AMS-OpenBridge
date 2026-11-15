@@ -4,7 +4,8 @@
  */
 import type { CpmSeries } from '../../evidence/CpmChart';
 import type { DecodedArtifact } from '../../evidence/artifactCodec';
-import type { Mark, MarkLabel } from './annotations';
+import { niceRange, type NiceRange } from '../../evidence/niceRange';
+import { markLevels, type Mark, type MarkLabel } from './annotations';
 import { pvSpan, type ResponseFacts } from './responseFacts';
 
 /** The Response chart's output pane height before CHG-197; the input pane's. */
@@ -70,3 +71,18 @@ export function insideWindow(d: DecodedArtifact | undefined, f: ResponseFacts): 
 /** A span between two times (ms) at a level; one too short for its label (under 15 % of the window) carries the label after it. */
 export const spanMark = (f: ResponseFacts, x1: number, x2: number, y: number, label: MarkLabel): Mark =>
   ({ kind: 'span', x1, x2, y, label, short: Math.abs(x2 - x1) < 0.15 * (f.xRange[1] - f.xRange[0]) });
+
+/**
+ * CHG-200 (final test #16; C2, C3): the trend's value axis, fixed so its labels can be placed against it: its curves and its marks'
+ * levels with a little room, rounded out to whole steps; the short Input trend holds three steps at most (four numbers), so its
+ * numbers never touch.
+ */
+export function trendYRange(s: TrendSpec): NiceRange {
+  let lo = Infinity, hi = -Infinity;
+  const take = (v: number | null | undefined) => { if (v != null && Number.isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } };
+  for (const c of s.series) for (let i = 0; i < c.y.length; i++) take(c.y[i]);
+  markLevels(s.marks).forEach(take);
+  if (!Number.isFinite(lo)) return niceRange(0, 1, 5);
+  const pad = Math.max((hi - lo) * 0.06, Math.abs(hi) * 1e-3, 1e-9);
+  return s.height <= INPUT_HEIGHT ? niceRange(lo - pad, hi + pad, 2, 3) : niceRange(lo - pad, hi + pad, 5);
+}

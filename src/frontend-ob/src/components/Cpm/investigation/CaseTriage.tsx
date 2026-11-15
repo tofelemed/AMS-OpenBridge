@@ -17,7 +17,7 @@ export const CaseSelect: React.FC<{
   caseFilter: string | null;
   setParams: SetParams;
 }> = ({ cases, caseFilter, setParams }) => (
-  <select className="cpm-select" aria-label="Analysis case" value={caseFilter ?? ''}
+  <select className="cpm-select cpm-inv-case" aria-label="Analysis case" value={caseFilter ?? ''}
       onChange={e => setParams(p => {
         if (e.target.value) { p.set('case', e.target.value); p.delete('loop'); } else p.delete('case');
         return p;

@@ -36,6 +36,7 @@ export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loop
       open={open}
       onClose={onClose}
       title="Reconstruct evidence"
+      subtitle={`${loopId} · ${gate}`}
       description="Rebuilds this gate's charts from its window. The kept proof is not changed."
       footer={(
         <>
@@ -46,8 +47,6 @@ export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loop
       )}
     >
       <dl className="cpm-recon cpm-run-form">
-        <dt>Loop</dt><dd>{loopId}</dd>
-        <dt>Gate</dt><dd>{gate}</dd>
         <dt>Window</dt><dd>{windowText}</dd>
       </dl>
       {phase.step !== 'IDLE' && <RunProgress phase={phase} startedAt={startedAt} />}

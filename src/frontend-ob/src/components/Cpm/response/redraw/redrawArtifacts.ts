@@ -80,17 +80,14 @@ export function redrawArtifacts(points: CpmTrendPoint[], w: RedrawWindow, pathId
 }
 
 /**
- * The names of the trends a redraw makes for the event, before anything is read: the CHG-197 builders run on the event's window
- * with no sample yet, so a trend shows here exactly when its quantities let it show. The error trend also needs the samples to
- * reproduce the engine's integrals, so it is named when the engine reported them on an event that was not interrupted.
+ * The names of the trends a redraw makes for sure, before anything is read: the CHG-197 builders run on the event's window with
+ * no sample yet, so a trend shows here exactly when its quantities let it show. CHG-200 (controller C1): a trend or mark that
+ * needs the samples to reproduce the engine's own number (Error from the setpoint, the setpoint, the settling bands) is never
+ * promised here: it simply appears when it reproduces.
  */
 export function plannedTrends(w: RedrawWindow, result: ResponseEventDetail['result'], metrics: ResponseQuantity[] | undefined, pvUnit?: string | null): string[] {
   const t = [w.t0Ms / 1000, w.tEndMs / 1000];
   const byKind = assemble({ t, pv: [NaN, NaN], sp: [NaN, NaN], u: [NaN, NaN] }, w, String(result.path_id ?? ''), metrics);
   const facts = buildFacts({ byKind, metrics, result, t0Ms: w.t0Ms, pvUnit });
-  if (!facts) return [];
-  const names = responseTrendSpecs(facts).map(s => s.title);
-  const integrals = ['iae', 'ise', 'itae'].every(id => metricOf(metrics, id)?.value != null);
-  if (!facts.censored && integrals && !names.includes(ERROR_TREND_TITLE)) names.push(ERROR_TREND_TITLE);
-  return names;
+  return facts ? responseTrendSpecs(facts).map(s => s.title).filter(name => name !== ERROR_TREND_TITLE) : [];
 }

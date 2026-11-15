@@ -10,6 +10,7 @@
  *
  * Every figure is real; where a metric has no model yet the tile says so.
  */
+import { ReasonedButton } from './ReasonedButton';
 import { usePipelineAccess } from './access';
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -188,12 +189,12 @@ export const CpmPerformance: React.FC = () => {
         // 1m…60m results live in the Window Inspector, and the ? says so. The reason for a disabled button rides on a
         // wrapping span (ObcButton takes no title) and in the text (CHG-098, SME review 2 #29).
         actions={<>
-          <span title={selectedLoop ? `Per-window results for ${selectedLoop}` : 'Select a loop in the list to open its per-window results'}>
-            <ObcButton className="ui-link" variant="flat" disabled={!selectedLoop}
-              onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
-              Window Inspector ↗
-            </ObcButton>
-          </span>
+          {/* CHG-200 (final test #23): the reason for the disabled link is on screen, under it (ReasonedButton) */}
+          <ReasonedButton className="ui-link" variant="flat" disabled={!selectedLoop} reason="Select a loop in the list first."
+            title={selectedLoop ? `Per-window results for ${selectedLoop}` : undefined}
+            onClick={() => { if (selectedLoop) navigate(windowsHref(selectedLoop)); }}>
+            Window Inspector ↗
+          </ReasonedButton>
           <WindowKindToggle value={windowKind} kinds={fusionKinds} onChange={v => write(p => p.set('window', v))} />
           <Toggletip variant="how-to" label="About these windows">
             <p>

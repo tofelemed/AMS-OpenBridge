@@ -7,6 +7,8 @@
  * heading, legend, zoom tools and its own Export CSV in its head; the hover readout stays inside the chart (the shared
  * tooltip chrome). The models in the standard table (ui/DataTable) with the Candidate / Other group rows and Review as a
  * secondary button; no estimator column (owner Q8), the CSV keeps it.
+ * CHG-200 (C8; final test #20): each trend's value axis opens around its estimates with a readable step; the family in words; the
+ * created stamp on one line.
  */
 import React, { useId } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -20,7 +22,8 @@ import { formatInZone } from '../evidence/timezone';
 import { MODEL_PARAMS, displayUnit, fmt, paramLabel, paramPoints, stateTone, uncertaintyMeaning } from './responseSupport';
 import { codeLabel } from '../vocabulary';
 import { downloadTextFile } from '../../../utils/csv';
-import { pathLabel } from './responseLabels';
+import { familyLabel, pathLabel } from './responseLabels';
+import { paddedRange } from '../evidence/niceRange';
 
 const GROUPS: Array<[string, string[]]> = [['Candidate', ['CANDIDATE']], ['Validated', ['VALIDATED']], ['Baseline', ['ACTIVE_BASELINE']]];
 /** Candidate, validated and baseline; any other state (rejected, expired, superseded) follows as Other. */
@@ -58,8 +61,8 @@ export const ModelHistoryBody: React.FC<{
   const charts = MODEL_PARAMS.map(p => ({ param: p, points: paramPoints(models, p) })).filter(c => c.points.length > 0);
   const rows: GroupedModel[] = groupModels(models).flatMap(([group, list]) => list.map(model => ({ model, group: `${group} (${list.length})` })));
   const columns: Array<Column<GroupedModel>> = [
-    { key: 'created', header: 'Created', mono: true, cell: ({ model: m }) => formatInZone(Date.parse(m.createdAt), timeZone) },
-    { key: 'family', header: 'Family', cell: ({ model: m }) => m.family },
+    { key: 'created', header: 'Created', mono: true, cell: ({ model: m }) => <span className="cpm-nowrap">{formatInZone(Date.parse(m.createdAt), timeZone)}</span> },
+    { key: 'family', header: 'Family', cell: ({ model: m }) => familyLabel(m.family) },
     { key: 'path', header: 'Path', cell: ({ model: m }) => <span className="cpm-nowrap">{pathLabel(m.pathId)}</span> },
     { key: 'state', header: 'State', cell: ({ model: m }) => <TonePill tone={stateTone(m.modelState)}>{codeLabel(m.modelState)}</TonePill> },
     { key: 'revision', header: 'Revision', mono: true, cell: ({ model: m }) => m.revision },
@@ -102,7 +105,11 @@ export const ModelHistoryBody: React.FC<{
           { id: `${param}_interval`, label: 'Interval', bandMeaning: meaning, unit, x: points.flatMap(p => [p.tMs, p.tMs]),
             y: points.flatMap(p => [p.upper, p.lower]), pen: 'neutral', markers: true, symbol: 'rect' },
         ];
-        return <CpmChart key={param} title={unit ? `${label} (${unit})` : label} headingLevel={3} exportInHead series={series} xKind="time" timeZone={timeZone} height={240} />;
+        // CHG-200 (C8): the value axis around the estimates and their caps, at least a tenth of their size wide (one model drew
+        // a range of a millionth, with six decimals on every tick)
+        const levels = points.flatMap(p => [p.value, p.lower, p.upper]).filter((v): v is number => v != null && Number.isFinite(v));
+        const yRange = paddedRange(Math.min(...levels), Math.max(...levels), 4);
+        return <CpmChart key={param} title={unit ? `${label} (${unit})` : label} headingLevel={3} exportInHead series={series} xKind="time" timeZone={timeZone} height={240} yRange={yRange} />;
       })}
       </div>
       {!canReview && <p id={noteId} className="cpm-copy">{REVIEW_NEEDS_PERMISSION}</p>}

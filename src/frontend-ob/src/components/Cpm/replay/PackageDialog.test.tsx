@@ -82,7 +82,7 @@ describe('PackageDialog', () => {
     dialog();
     fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
     const result = await screen.findByRole('status');
-    expect(result.querySelector('.ui-badge--success')?.textContent).toContain('Downloaded');
+    expect(result.querySelector('.ui-badge--neutral')?.textContent).toContain('Downloaded');   // CHG-200 (#22): neutral, not green
     expect(result.textContent).toContain('Downloaded');
     expect(result.textContent).toContain('cplm-A-12h-2026-10-05T1230-evidence-package.zip');
     expect(result.querySelectorAll('.cpm-package-result__line')).toHaveLength(1);
@@ -96,9 +96,37 @@ describe('PackageDialog', () => {
     const lines = [...result.querySelectorAll('.cpm-package-result__line')].map(l => l.textContent);
     expect(lines).toHaveLength(3);
     expect(lines[0]).toContain('Downloaded');
-    expect(lines[1]).toBe('!Not readmetrics (Error: 503)');
+    expect(lines[1]).toBe('!Not readmetrics: 503');
     expect(lines[2]).toBe('–Not heldevidence manifests');
     expect(screen.queryByText(/not complete/)).toBeNull();
+  });
+
+  // CHG-200 (final test #14): a part that could not be read says why in plain words, never the error's class name
+  it('says why a part could not be read without the error class name', async () => {
+    vi.mocked(exportsMod.evidencePackage).mockResolvedValue(JSON.stringify({ metrics: { x: 1 },
+      evidence: { manifests: { error: 'ApiError: The service is currently unavailable. Try again shortly.' } } }));
+    dialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
+    const result = await screen.findByRole('status');
+    const line = [...result.querySelectorAll('.cpm-package-result__line')].map(l => l.textContent)[1];
+    expect(line).toBe('!Not readevidence manifests: The service is currently unavailable. Try again shortly.');
+    expect(result.textContent).not.toMatch(/ApiError|Error:/);
+  });
+
+  // CHG-200 (final test #14): a long build shows the parts read so far, not only "Building…"
+  it('shows the parts read so far while it builds', async () => {
+    let release: (v: string) => void = () => {};
+    vi.mocked(exportsMod.evidencePackage).mockImplementation((_c, _w, _s, _signal, onRead) => {
+      onRead?.('metrics');
+      onRead?.('signal samples');
+      return new Promise<string>(r => { release = r; });
+    });
+    dialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
+    expect((await screen.findByText(/^Read so far/)).textContent).toBe('Read so far: metrics · signal samples');
+    release(GOOD);
+    await screen.findByRole('status');
+    expect(screen.queryByText(/^Read so far/)).toBeNull();
   });
 
   it('clears the message when the dialog is closed', async () => {

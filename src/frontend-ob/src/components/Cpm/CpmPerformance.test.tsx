@@ -45,10 +45,18 @@ afterEach(cleanup);
 const page = (url: string) => render(<MemoryRouter initialEntries={[url]}><CpmPerformance /></MemoryRouter>);
 
 describe('Performance list', () => {
+  // CHG-200 (final test #23; CHG-098): a disabled control says why on screen, not in a hover title only
+  it('says on screen why Window Inspector is not open yet, until a loop is chosen', () => {
+    page('/cpm/performance?rows=all');
+    const button = screen.getByRole('button', { name: 'Window Inspector ↗' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByText('Select a loop in the list first.')).toBeTruthy();
+  });
+
   it('opens a gate in a dialog, not a side column', () => {
     const { container } = page('/cpm/performance?rows=all&view=matrix');
     fireEvent.click(screen.getByRole('button', { name: /^FIC10301, gate G5/ }));
-    expect(screen.getByRole('dialog', { name: 'FIC10301 · G5' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'G5 · Oscillation (ACF)' })).toBeTruthy();
     expect(container.querySelector('.cpm-matrix-layout--split')).toBeNull();
     expect(container.querySelector('.cpm-inspector')).toBeNull();
   });

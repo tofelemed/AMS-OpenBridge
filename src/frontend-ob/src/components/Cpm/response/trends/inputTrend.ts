@@ -2,7 +2,7 @@
  * CHG-197 trend 2, every event: the input the process received (held between samples), the step, the measured input change
  * (input_step) and the model's gain, labelled as the fitted value it is.
  */
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import type { Mark } from './annotations';
 import type { ResponseFacts } from './responseFacts';
 import { INPUT_HEIGHT, stepMark, timeSeries, type TrendSpec } from './trendSupport';
@@ -25,11 +25,11 @@ export function inputTrend(f: ResponseFacts): TrendSpec | null {
   const marks: Mark[] = [stepMark(f)];
   const du = f.value('input_step');
   if (du != null && before != null) {
-    marks.push({ kind: 'bracket', x: f.xRange[0] + 0.97 * width, y1: before, y2: before + du, label: { text: `${f.inputName} change`, value: `${readable(du)} ${short(f.inputUnit)}` } });
+    marks.push({ kind: 'bracket', x: f.xRange[0] + 0.97 * width, y1: before, y2: before + du, label: { text: `${f.inputName} change`, value: `${plainNumber(du)} ${short(f.inputUnit)}` } });
   }
   const gain = f.quantity('process_gain');
   if (gain?.value != null && Number.isFinite(lo)) {
-    marks.push({ kind: 'text', x: f.xRange[0] + 0.5 * width, y: (lo + hi) / 2, label: { text: 'Gain (model)', value: `${readable(gain.value)} ${f.unitOf(gain.unit)}` }, side: 'right' });
+    marks.push({ kind: 'text', x: f.xRange[0] + 0.5 * width, y: (lo + hi) / 2, label: { text: 'Gain (model)', value: `${plainNumber(gain.value)} ${f.unitOf(gain.unit)}` }, side: 'right' });
   }
   return {
     id: 'input', title: 'Input', unit: f.inputUnit, height: INPUT_HEIGHT, marks, series: [series],

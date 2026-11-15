@@ -119,6 +119,11 @@
 /* A step ahead of the current one: shown and focusable, not reachable by a click */
 .ui-tabs__tab[aria-disabled='true'],
 .ui-tabs__tab[aria-disabled='true']:hover { background: transparent; color: var(--traverse-text-muted); cursor: not-allowed; }
+/* CHG-200 (final test #9, the owner's ruling: one solution for every tab strip): at phone width the tabs wrap onto further rows,
+   so every tab is on screen; none is hidden off the edge or cut. */
+@media (max-width: 600px) {
+  .ui-tabs { flex-wrap: wrap; overflow-x: visible; }
+}
 
 .ui-field { display: flex; flex-direction: column; gap: var(--traverse-space-1); }
 .ui-field__label { color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); }

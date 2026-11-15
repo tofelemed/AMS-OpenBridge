@@ -55,3 +55,13 @@ describe('GateMatrixChecks', () => {
     expect(container.querySelector('[title*="last verdict" i]')).toBeNull();
   });
 });
+
+// CHG-200 (final test #10): below 600 px each loop is a card (CSS); every cell that is not the loop or a button names its column,
+// so the card reads "Checks behind the result", "Evidence" with the head row hidden
+describe('GateMatrixChecks as cards at phone width', () => {
+  it('each value cell carries its column name', () => {
+    show([row('FIC-1', { G0: 'PASS', G3: 'FAIL', G15: 'SUSPECTED' })]);
+    const cells = [...document.querySelectorAll('tbody td')];
+    expect(cells.map(c => c.getAttribute('data-label'))).toEqual(['Result', 'Checks behind the result', 'Evidence', null]);
+  });
+});

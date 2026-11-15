@@ -34,9 +34,9 @@ describe('WindowVerdictCard', () => {
     fireEvent.change(screen.getByLabelText('Evidence check'), { target: { value: 'G15' } });
     expect(onGate).toHaveBeenCalledWith('G15');
   });
-  it('reads Time in AUTO as Not reported when the window stored none', () => {
+  it('reads Time in Auto as Not reported when the window stored none', () => {
     view();
-    expect(screen.getByText('Time in AUTO').nextSibling?.textContent).toBe('Not reported');
+    expect(screen.getByText('Time in Auto').nextSibling?.textContent).toBe('Not reported');
   });
   it('a metric the window did not store reads Not reported', () => {
     view({ gateKey: 'G3' });
@@ -70,14 +70,14 @@ describe('WindowVerdictCard layout (CHG-189)', () => {
     const withReason = { ...open, gates: [{ key: 'G3', name: 'Control error', status: 'PASS', reason: 'SAMPLING_LIMITED' } as never] };
     const { container } = view({ row: withReason });
     const rows = [...container.querySelectorAll('.cpm-replay-check-panel__rows > .cpm-kv > .cpm-kv__label')].map(l => l.textContent);
-    expect(rows).toEqual(['Check result', 'Reason', 'Time in AUTO', 'MAE', 'IAE', 'Good-error time (%)']);
+    expect(rows).toEqual(['Check result', 'Reason', 'Time in Auto', 'MAE', 'IAE', 'Good-error time (%)']);
     expect(container.querySelector('details')).toBeNull();
     expect(screen.queryByText('G3 metric values')).toBeNull();
   });
   it('says the time in AUTO once on G1, whose own metric it is', () => {
     const { container } = view({ gateKey: 'G1', row: { ...open, metrics: { auto_pct: 1 } } });
     const rows = [...container.querySelectorAll('.cpm-replay-check-panel__rows .cpm-kv__label')].map(l => l.textContent);
-    expect(rows).toEqual(['Check result', 'Time in AUTO']);
-    expect(screen.getByText('Time in AUTO').nextSibling?.textContent).toBe('100.0 %');
+    expect(rows).toEqual(['Check result', 'Time in Auto']);
+    expect(screen.getByText('Time in Auto').nextSibling?.textContent).toBe('100.0 %');
   });
 });

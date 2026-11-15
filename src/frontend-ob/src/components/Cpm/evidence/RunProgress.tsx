@@ -22,12 +22,14 @@ export const RunProgress: React.FC<{ phase: RunPhase; startedAt: number | null; 
       {busy && <span className="cpm-run-progress__spin" aria-hidden="true"><ObcCircularProgress /></span>}
       {phase.step === 'FAILED' ? (
         <span className="cpm-run-progress__failed" role="alert">
-          <StatusBadge tone="danger">Failed</StatusBadge>
+          {/* CHG-200 (final test #30): past the time limit the job may still finish: it is still running, not failed */}
+          {phase.keepWaiting ? <StatusBadge tone="unknown" glyph="…">Still running</StatusBadge> : <StatusBadge tone="danger">Failed</StatusBadge>}
           <span>{phase.reason}</span>
         </span>
       ) : (
         <span className="cpm-run-progress__state" role="status">
-          {phase.step === 'DONE' ? <StatusBadge tone="success">Done</StatusBadge> : (word ?? WORD[phase.step])}
+          {/* CHG-200 (final test #22; owner rule, no green for normal): Done in the neutral badge, the same in Day and Night */}
+          {phase.step === 'DONE' ? <StatusBadge tone="neutral" glyph="✓">Done</StatusBadge> : (word ?? WORD[phase.step])}
         </span>
       )}
       {elapsed && <span className="cpm-run-progress__elapsed">{elapsed}</span>}

@@ -24,7 +24,7 @@ describe('ModelReviewDialog', () => {
   it('names the model and its revision, never its id or the event id', () => {
     render(<ModelReviewDialog model={model} pending={false} error={null} onClose={() => {}} onSubmit={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Review system model' });
-    expect(dialog.textContent).toContain('FOPDT · OP → PV');
+    expect(dialog.textContent).toContain('First order with dead time · OP → PV');
     expect(screen.getByText('Revision').parentElement?.textContent).toBe('Revision4');
     expect(dialog.textContent).not.toMatch(/3f2a9c1e|evt-8c41d2/);
     expect(screen.queryByText('model')).toBeNull();
@@ -38,7 +38,7 @@ describe('ModelReviewDialog', () => {
     render(<ModelReviewDialog model={model} pending={false} error={null} onClose={onClose} onSubmit={onSubmit} />);
     const dialog = screen.getByRole('dialog', { name: 'Review system model' });
     expect(dialog.className).toContain('ui-dialog');
-    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FOPDT · OP → PV');
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('First order with dead time · OP → PV');
     expect(dialog.querySelector('.cpm-eyebrow, .cpm-field__label')).toBeNull();
     expect(within(dialog).getByText('State').parentElement?.textContent).toBe('StateCandidate');
     expect(within(dialog).getByLabelText('Note')).toBeTruthy();
@@ -63,9 +63,9 @@ describe('ModelReviewDialog', () => {
     expect(rows).toEqual([
       ['State', 'Candidate'],
       ['Revision', '4'],
-      ['Process gain', '-1.74 m3/h/% OP ± 16.42'],
-      ['Dead time', '34.01 s ± 195.00'],
-      ['Time constant', '7200.00 s'],
+      ['Process gain', '-1.74 m3/h/% OP\u00a0±\u00a016.42'],
+      ['Dead time', '34.01 s\u00a0±\u00a0195.00'],
+      ['Time constant', '7,200 s'],
     ]);
     expect(dialog.textContent).not.toMatch(/process_gain|dead_time|Estimator|OUTPUT_ERROR_LM|COVARIANCE/);
   });

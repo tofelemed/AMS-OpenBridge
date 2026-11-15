@@ -7,6 +7,8 @@
  * CHG-193 (owner decision 15 Nov 2026): the identifiability flags and the delay uncertainty in words.
  * CHG-197 (owner rule: no technical text): the model families, paths, parameters, states, units and rejection reasons in words,
  * the two tables in the standard table; the CSV keeps its column names.
+ * CHG-200 (final test #5; C6, C9): no step codes or method pill, the path in words where the writer put "fit", the condition number
+ * rounded, the fit error's unit after a comma, every parameter named; a gap before each section that follows the table.
  */
 import React from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
@@ -15,7 +17,8 @@ import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
 import { codeLabel } from '../vocabulary';
-import { candidateRows, displayUnit, fmt, paramLabel, prov, provList, type CandidateRow } from './responseSupport';
+import { plainNumber } from '../evidence/format';
+import { candidateRows, displayUnit, fmt, paramLabel, prov, provList, typographicUnit, type CandidateRow } from './responseSupport';
 import { candidateParamText, familyLabel, pathLabel, reasonText } from './responseLabels';
 
 interface Ranked { row: CandidateRow; rank: number; objective: number | undefined }
@@ -34,21 +37,23 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
     return <EmptyState title="No candidate models" copy="No model was estimated for this event. Steps & data says where it stopped and why." />;
   }
   // "PV_EU^2" reads "(m3/h)²": the square belongs to the whole unit
-  const squared = (u: string | undefined) => displayUnit((u ?? 'PV_EU^2').replace(/PV_EU\^2/g, '(PV_EU)^2'), table?.meta.roleOrPath, pvUnit).replace(/\^2/g, '²');
+  const squared = (u: string | undefined) => displayUnit(typographicUnit(u ?? 'PV_EU^2'), table?.meta.roleOrPath, pvUnit);
+  // CHG-200 (final test #5): the writer puts "fit" where the path goes ("FOPDT(fit: …)"); the path is the artifact's own
+  const pathOf = (row: CandidateRow) => (row.path && row.path.toLowerCase() !== 'fit' ? row.path : table?.meta.roleOrPath ?? '');
   const errorUnit = squared(table?.units.y);
   const ranked: Ranked[] = rows.map((row, i) => ({ row, rank: i + 1, objective: objective && Number.isFinite(objective[i]) ? objective[i] : undefined }));
   const columns: Array<Column<Ranked>> = [
     { key: 'rank', header: 'Rank', cell: r => (r.rank === 1 ? '1 (best)' : String(r.rank)) },
     { key: 'model', header: 'Model', cell: r => familyLabel(r.row.family) },
-    { key: 'path', header: 'Path', cell: r => (r.row.path ? pathLabel(r.row.path) : '—') },
+    { key: 'path', header: 'Path', cell: r => (pathOf(r.row) ? pathLabel(pathOf(r.row)) : '—') },
     { key: 'parameters', header: 'Parameters', cell: r => r.row.parameters.map(([k, v]) => candidateParamText(k, v)).join(' · ') },
-    { key: 'error', header: `Fit error (${errorUnit})`, cell: r => (r.objective != null ? fmt(r.objective) : '—'), align: 'end' },
+    { key: 'error', header: `Fit error, ${errorUnit}`, cell: r => (r.objective != null ? fmt(r.objective) : '—'), align: 'end' },
     { key: 'identifiability', header: 'Identifiability', cell: r => (
       <>
         {r.row.flatDelay && <TonePill tone="warn">Flat delay</TonePill>}{' '}
         {r.row.boundsHit && <TonePill tone="warn">Bounds hit</TonePill>}{' '}
         {r.row.signUncertain && <TonePill tone="warn">Sign uncertain</TonePill>}{' '}
-        {r.row.cond && <span>Condition number {r.row.cond}</span>}
+        {r.row.cond && <span>Condition number {Number.isFinite(Number(r.row.cond)) ? plainNumber(Number(r.row.cond)) : r.row.cond}</span>}
       </>
     ) },
   ];
@@ -58,11 +63,11 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
     { key: 'se', header: 'Standard error', cell: r => (Number.isFinite(r.se) ? fmt(r.se) : 'not available'), align: 'end' },
   ];
   return (
-    <section className="cpm-surface">
-      <PanelHead eyebrow="Step D" title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{codeLabel(prov(table, 'state'))}</TonePill> : undefined} />
+    <section className="cpm-surface cpm-response-candidates">
+      <PanelHead title="Candidate models" right={table ? <TonePill tone={prov(table, 'state') === 'ESTIMATED' ? 'good' : 'warn'}>{codeLabel(prov(table, 'state'))}</TonePill> : undefined} />
       <div className="cpm-response-trend-rows">
       {delayCurve && delayCurve.n > 0 && (
-        <CpmChart title="Delay search (best candidate)" xKind="value" xLabel="Dead time" csvXLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
+        <CpmChart title="Delay search (best candidate)" xKind="value" xLabel="Dead time" csvXLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200} exportInHead
           series={[{ id: 'objective', label: 'Fit error', csvLabel: 'objective J(θ)', unit: squared(delayCurve.units.y), x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
       )}
       {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay search was recorded for the best candidate.</p>}
@@ -70,7 +75,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
       </div>
       {intervals && (
         <>
-          <PanelHead eyebrow="Step D" title="Parameter uncertainty" right={<TonePill tone="muted">{codeLabel(prov(intervals, 'method'))}</TonePill>} />
+          <PanelHead title="Parameter uncertainty" />
           <DataTable caption="Parameter uncertainty of the best candidate" columns={intervalColumns} rows={errors} rowKey={r => r.name} />
           <KvRow label="Delay uncertainty">{prov(intervals, 'theta_uncertainty_s') ?? '—'} s (delay grid resolution bound)</KvRow>
         </>

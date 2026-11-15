@@ -69,7 +69,8 @@ describe('RedrawDialog', () => {
     expect(rows.map(r => r[0])).toEqual(['Window', 'Signals', 'Trends']);
     expect(rows[0][1]).toMatch(/^\d{1,2} \w{3,4} \d{2}:\d{2} → \d{1,2} \w{3,4} \d{2}:\d{2} UTC$/);
     expect(rows[1][1]).toBe('PV, SP, OP');
-    expect(rows[2][1]).toBe('Measured response · Input · Dead time and time constant · Rise time and settling · Error from the setpoint');
+    // CHG-200 (C1): Error from the setpoint is not promised: it draws only when the samples reproduce the engine's integrals
+    expect(rows[2][1]).toBe('Measured response · Input · Dead time and time constant · Rise time and settling');
     expect([...d.querySelectorAll('.ui-dialog__foot button')].map(b => [b.textContent, b.getAttribute('data-variant')]))
       .toEqual([['Cancel', 'normal'], ['Redraw', 'raised']]);
     expect(cpmApi.getRawCursor).not.toHaveBeenCalled();

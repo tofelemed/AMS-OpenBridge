@@ -68,8 +68,8 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
                     <span className="cpm-event-row__sub">{serviceName(row)}</span>
                   </button>
                 </th>
-                <td className="cpm-matrix__result"><ResultCell row={row} /></td>
-                <td className="cpm-checks__cell">
+                <td className="cpm-matrix__result" data-label="Result"><ResultCell row={row} /></td>
+                <td className="cpm-checks__cell" data-label="Checks behind the result">
                   <div className="cpm-checks__list">
                     {gates.map(k => {
                       const g = gateMark(row.gates[k], k, flags);
@@ -87,7 +87,7 @@ export const GateMatrixChecks: React.FC<GateMatrixChecksProps> = ({
                     })}
                   </div>
                 </td>
-                <td className="cpm-checks__score">{score ?? '—'}</td>
+                <td className="cpm-checks__score" data-label="Evidence">{score ?? '—'}</td>
                 <td>
                   <ObcButton className="ui-link" variant="flat" title={`Review ${row.loopId} in Investigation`}
                     onClick={() => navigate(investigationHref(row.loopId, { kind: windowKind }))}>

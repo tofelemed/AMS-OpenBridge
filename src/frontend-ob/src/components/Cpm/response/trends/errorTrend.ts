@@ -4,7 +4,7 @@
  * stored arrays reproduce the engine's three integrals (responseFacts.errorIntervals); otherwise the values stay in the
  * quantities table and nothing approximate is drawn.
  */
-import { readable } from '../../evidence/format';
+import { plainNumber } from '../../evidence/format';
 import type { Mark } from './annotations';
 import { errorIntervals, type ResponseFacts } from './responseFacts';
 import { ms, stepMark, TREND_HEIGHT, type TrendSpec } from './trendSupport';
@@ -28,7 +28,8 @@ export function errorTrend(f: ResponseFacts): TrendSpec | null {
   const marks: Mark[] = [stepMark(f), { kind: 'guide', y: 0, dotted: true, label: { text: 'No error' } }];
   ['iae', 'ise', 'itae'].forEach((id, i) => {
     const qy = f.quantity(id)!;
-    marks.push({ kind: 'text', x: f.xRange[0] + 0.72 * width, y: hi - i * 0.12 * Math.max(hi - lo, 1e-9), label: { text: id.toUpperCase(), value: `${readable(qy.value!)} ${f.unitOf(qy.unit)}` }, side: 'right' });
+    // CHG-200: the three start half a line under the top (off the "No error" line when the error is all below it)
+    marks.push({ kind: 'text', x: f.xRange[0] + 0.72 * width, y: hi - (i + 0.5) * 0.12 * Math.max(hi - lo, 1e-9), label: { text: id.toUpperCase(), value: `${plainNumber(qy.value!)} ${f.unitOf(qy.unit)}` }, side: 'right' });
   });
   return {
     id: 'error', title: ERROR_TREND_TITLE, unit: f.pvUnit, height: TREND_HEIGHT, marks,

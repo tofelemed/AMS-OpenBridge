@@ -6,21 +6,41 @@
 import type { ResponseQuantity, SystemModel } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { phrase } from '../vocabulary';
+import { plainNumber, readable } from '../evidence/format';
+
+/** CHG-200 (C7): the ± and its number never break apart. */
+const PLUS_MINUS = '\u00a0±\u00a0';
 
 /** A null quantity is stated with its reason ("not applicable (integrating)"), never shown as 0. */
 export function quantityText(q: ResponseQuantity | undefined): string {
   if (!q) return 'not reported';
   if (q.value == null) return `not applicable (${q.reasonIfNull ? phrase(q.reasonIfNull) : 'no reason given'})`;
   const v = fmt(q.value);
-  const unc = q.uncertainty != null ? ` ± ${fmt(q.uncertainty)}` : '';
-  return `${v}${q.unit ? ` ${q.unit}` : ''}${unc}`;
+  const unit = typographicUnit(q.unit);
+  const unc = q.uncertainty != null ? `${PLUS_MINUS}${fmt(q.uncertainty)}` : '';
+  return `${v}${unit ? ` ${unit}` : ''}${unc}`;
 }
 
+/**
+ * A quantity's number. CHG-200 (C7): never an exponent: 2 decimals as before; from 1,000 grouped as the trends write it
+ * ("2,679"); below 0.01 three significant figures ("0.00644"), below 0.0001 "< 0.0001". Formatting only.
+ */
 export function fmt(v: number): string {
   if (!Number.isFinite(v)) return String(v);
   const a = Math.abs(v);
-  if (a !== 0 && (a < 0.01 || a >= 1e6)) return v.toExponential(3);
+  if (a >= 1000) return readable(v);
+  if (a !== 0 && a < 0.01) return plainNumber(v);
   return v.toFixed(2);
+}
+
+/**
+ * CHG-200 (C7): a kernel unit in typographic form, its placeholders kept for displayUnit: "PV_EU^2*s" → "(PV_EU)²·s" (the square
+ * belongs to the whole unit), "PV_EU*s^2" → "PV_EU·s²"; a unit word that is not a unit (fraction, dimensionless, 1) reads as none.
+ */
+export function typographicUnit(unit: string | null | undefined): string {
+  const u = (unit ?? '').trim();
+  if (!u || /^(fraction|dimensionless|1|ratio)$/i.test(u)) return '';
+  return u.replace(/PV_EU\^2/g, '(PV_EU)^2').replace(/\*/g, '·').replace(/\^2/g, '²').replace(/\^3/g, '³');
 }
 
 export const metricOf = (metrics: ResponseQuantity[] | undefined, id: string) => metrics?.find(m => m.quantityId === id);
@@ -61,6 +81,7 @@ export const bandMeaningText = (code: string | undefined) => (code ? BAND_MEANIN
 export const PARAM_LABEL: Record<string, string> = {
   process_gain: 'Process gain', integrating_gain: 'Integrating gain', dead_time: 'Dead time', time_constant: 'Time constant',
   time_constant_1: 'Time constant 1', time_constant_2: 'Time constant 2', damping_ratio: 'Damping ratio', natural_frequency: 'Natural frequency',
+  baseline: 'Baseline',   // CHG-200 (final test #5): the fitted model's PV offset
 };
 export const paramLabel = (id: string) => PARAM_LABEL[id] ?? phrase(id);
 

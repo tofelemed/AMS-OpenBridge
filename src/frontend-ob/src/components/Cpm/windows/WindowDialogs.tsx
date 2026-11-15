@@ -67,7 +67,7 @@ export const EngineTimingDialog: React.FC<DialogProps & { spec: CpmWindowSpec | 
     ? `${fmtDuration(spec.allowedLatenessMs)} (event-time)`
     : spec?.cadenceMs != null ? `Not applicable: recomputed every ${fmtDuration(spec.cadenceMs)} from a retained buffer` : '—';
   return createPortal(
-    <Dialog open onClose={onClose} title="Engine & timing" subtitle={subtitle} footer={<Close onClose={onClose} />}>
+    <Dialog open onClose={onClose} title="Timing" subtitle={subtitle} footer={<Close onClose={onClose} />}>
       <KvRow label="Window">{kind}</KvRow>
       <KvRow label="Size / slide">{spec ? `${fmtWindowShape(spec)}${spec.overlapping ? ', overlapping' : ', no overlap'}` : '—'}</KvRow>
       <KvRow label="Allowed lateness">{lateness}</KvRow>

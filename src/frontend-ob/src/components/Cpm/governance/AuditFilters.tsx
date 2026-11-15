@@ -23,7 +23,7 @@ export const AuditFilters: React.FC<{ value: FilterState; onChange: (next: Parti
     <div className="cpm-compact cpm-admin-filters cpm-gov-filters" role="group" aria-label="Audit filters">
       <input className="cpm-input cpm-gov-filters__find" type="search" autoComplete="off" aria-label="Find event" placeholder="Actor, action, entity"
         value={f.search} onChange={e => onChange({ search: e.target.value })} />
-      <input className="cpm-input cpm-gov-filters__user" autoComplete="off" aria-label="User" placeholder="Exact user name"
+      <input className="cpm-input cpm-gov-filters__user" autoComplete="off" aria-label="User" placeholder="User name"
         value={f.user} onChange={e => onChange({ user: e.target.value })} />
       <select className="cpm-select cpm-gov-filters__select" aria-label="Entity" value={f.entityType}
         onChange={e => {

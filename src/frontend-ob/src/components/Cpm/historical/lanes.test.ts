@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resultMarkers, type ResultRow } from './lanes';
+import { modeSegmentsOf, resultMarkers, type ResultRow } from './lanes';
 
 const MIN = 60_000;
 const t0 = Date.UTC(2026, 10, 5, 0, 0, 0);
@@ -56,5 +56,21 @@ describe('resultMarkers', () => {
     expect(none.tone).toBe('good');
     expect(sus.tone).toBe('warn');
     expect(none.label).toBe('No fault identified');
+  });
+});
+
+// CHG-200 (final test #13; owner Q3, no green for normal): the Mode lane draws the normal modes neutral and every mode that needs a
+// look (manual, not recognised) amber, the classification the Explorer mode box uses; each run is named by its word ("Auto", not
+// "AUT"), which the lane prints where the bar is wide enough and the hover readout always says
+describe('modeSegmentsOf', () => {
+  it('normal modes neutral, the rest amber, each named by its word', () => {
+    const segs = modeSegmentsOf([{ ts: 0, mode: 'AUT' }, { ts: 10, mode: 'CAS' }, { ts: 20, mode: 'MAN' }, { ts: 30, mode: 'XYZ' }], 40);
+    expect(segs.map(s => [s.label, s.tone])).toEqual([['Auto', 'muted'], ['Cascade', 'muted'], ['Manual', 'warn'], ['XYZ', 'warn']]);
+    expect(segs.some(s => s.tone === 'good')).toBe(false);
+  });
+
+  it('neighbours with one mode still merge into one run', () => {
+    const segs = modeSegmentsOf([{ ts: 0, mode: 'AUT' }, { ts: 10, mode: 'AUT' }, { ts: 20, mode: 'MAN' }], 30);
+    expect(segs.map(s => [s.label, s.startMs, s.endMs])).toEqual([['Auto', 0, 20], ['Manual', 20, 30]]);
   });
 });

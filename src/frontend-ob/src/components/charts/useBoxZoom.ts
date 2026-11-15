@@ -28,8 +28,13 @@ export interface BoxZoom {
   rearm: () => void;
 }
 
-export function useBoxZoom(opts: { hasY?: boolean } = {}): BoxZoom {
+/**
+ * `linked` (CHG-200, final test #19): the chart shares its zoom with a connect group; a zoom back to the whole range (another
+ * chart's Reset, echoed by the group) clears this chart's undo too, so no chart of the group offers an Undo into a reset zoom.
+ */
+export function useBoxZoom(opts: { hasY?: boolean; linked?: boolean } = {}): BoxZoom {
   const hasY = opts.hasY ?? true;
+  const linked = !!opts.linked;
   const chartRef = useRef<ECharts | null>(null);
   const [zoom, setZoom] = useState<ZoomState>(FULL_ZOOM);
   const [history, setHistory] = useState<ZoomState[]>([]);
@@ -56,9 +61,9 @@ export function useBoxZoom(opts: { hasY?: boolean } = {}): BoxZoom {
     if (sameZoom(next, lastRef.current)) return;
     const prev = lastRef.current;
     lastRef.current = next;
-    setHistory(h => [...h.slice(-(HISTORY_MAX - 1)), prev]);
+    setHistory(h => (linked && !isZoomed(next) ? [] : [...h.slice(-(HISTORY_MAX - 1)), prev]));
     setZoom(next);
-  }, []);
+  }, [linked]);
 
   const apply = useCallback((next: ZoomState) => {
     lastRef.current = next;

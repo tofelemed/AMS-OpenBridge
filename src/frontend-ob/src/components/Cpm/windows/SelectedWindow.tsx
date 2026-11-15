@@ -54,7 +54,7 @@ export const SelectedWindow: React.FC<{
     ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const detail = (label: string, to: Exclude<Dialogs, null>): DetailItem => ({ label, dialog: true, onClick: () => setDialog(to) });
   const details = [detail('Calculated values', 'values'), ...(isLong ? [] : [detail('Feature flags', 'flags')]), detail('Sample density', 'density'),
-    detail('Engine & timing', 'engine')];
+    detail('Timing', 'engine')];
   // CHG-192 (owner review item 16): each dialog names the loop and the window size under its title, as Compare window sizes does
   const subtitle = [loopId, loop ? serviceName(loop) : '', `${windowSize({ windowKind: kind })} window`].filter(Boolean).join(' · ');
   return (

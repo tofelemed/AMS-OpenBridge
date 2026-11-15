@@ -108,15 +108,17 @@ export async function fetchSamples(series: string, from: Date, to: Date, bucketS
 }
 
 /** One evaluated window with everything needed to check it away from the app. */
-export async function evidencePackage(ctx: ExportContext, w: CpmGateMatrix, series: string, signal?: AbortSignal): Promise<string> {
+/** `onRead` (CHG-200, final test #14) hears each part as its read settles: "metrics", "evidence manifests", "signal samples". */
+export async function evidencePackage(ctx: ExportContext, w: CpmGateMatrix, series: string, signal?: AbortSignal, onRead?: (part: string) => void): Promise<string> {
   const start = w.windowStart ? new Date(w.windowStart) : ctx.from;
   const end = w.windowEnd ? new Date(w.windowEnd) : ctx.to;
   const runIds = Object.values(w.methodRunIds ?? {});
   const { bucketS, coarsened } = sampleBucketS(start, end, ctx.loop?.model?.acquisition?.gridSeconds);
+  const read = <T,>(part: string, p: Promise<T>) => p.finally(() => onRead?.(part));
   const [kpis, manifests, samples] = await Promise.all([
-    getKpis(ctx.loopId, w.windowKind, w.windowEnd ?? undefined, w.windowEnd ?? undefined, 1, signal).catch(e => ({ error: String(e) })),
-    runIds.length ? getEvidenceBatch(runIds, signal).catch(e => ({ error: String(e) })) : Promise.resolve(null),
-    fetchSamples(series, start, end, bucketS, signal),
+    read('metrics', getKpis(ctx.loopId, w.windowKind, w.windowEnd ?? undefined, w.windowEnd ?? undefined, 1, signal).catch(e => ({ error: String(e) }))),
+    read('evidence manifests', runIds.length ? getEvidenceBatch(runIds, signal).catch(e => ({ error: String(e) })) : Promise.resolve(null)),
+    read('signal samples', fetchSamples(series, start, end, bucketS, signal)),
   ]);
   const l = ctx.loop;
   return JSON.stringify({

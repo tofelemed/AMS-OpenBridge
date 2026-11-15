@@ -4,10 +4,12 @@
  * brackets between two levels, measured points as dots, shaded bands, free segments (a slope and its rise over run) and
  * labels. Marks are declared here and turned into ECharts series by CpmChart with its own palette (CpmChart `annotate`), so
  * they follow the theme: annotation text in the secondary text colour, values in the primary text colour at weight 600.
- * ECharts does not widen an axis for a mark, so the marks' own lowest and highest levels (with room for their labels) ride on an
- * invisible pair of points.
+ * CHG-200: each trend's value axis is fixed to its curves and its marks' levels (trendSupport.trendYRange), and the labels are
+ * placed by labelLayout against it.
  */
 import type { ChartPalette } from '../../../../charts/chartTheme';
+import type { Annotations, ChartPlot, CpmSeries } from '../../evidence/CpmChart';
+import { layoutLabels } from './labelLayout';
 
 /** A label: words, then the value in the value style ("Dead time" + "34 s"). */
 export interface MarkLabel { text: string; value?: string }
@@ -37,18 +39,27 @@ export function markLevels(marks: Mark[]): number[] {
   return ys.length > 0 ? [Math.min(...ys), Math.max(...ys)] : [];
 }
 
-/** The CpmChart `annotate` callback for these marks, all on the value axis of `unit`. */
-export function drawMarks(marks: Mark[], unit: string) {
-  return (p: ChartPalette, axisOf: (u: string) => number): Array<Record<string, unknown>> => {
-    if (marks.length === 0) return [];
+/** CHG-200: what the labels are placed against: the trend's curves, its time range and its fixed value range. */
+export interface MarkFrame { series: CpmSeries[]; xRange: [number, number]; yRange: { min: number; max: number } }
+
+/**
+ * The CpmChart `annotate` callback for these marks, all on the value axis of `unit`. CHG-200 (final test #2, #4, #15; C2): the
+ * labels are placed by labelLayout so none sits on a drawn line or another label; the ones with no free place (and, on a narrow
+ * chart, the ones with a value) come back as notes, listed under the chart.
+ */
+export function drawMarks(marks: Mark[], unit: string, frame: MarkFrame) {
+  return (p: ChartPalette, axisOf: (u: string) => number, plot: ChartPlot): Annotations => {
+    if (marks.length === 0) return { series: [], notes: [] };
     const yAxisIndex = axisOf(unit);
     const rich = { v: { color: p.text, fontWeight: 600 } };
-    const text = (l: MarkLabel | undefined, position: string) =>
-      (l ? { show: true, position, color: p.tick, formatter: formatter(l), rich } : { show: false });
     const ink = (type: 'solid' | 'dashed' | 'dotted') => ({ color: p.tick, width: 1, type });
-    const lines: unknown[] = [], areas: unknown[] = [], labels: unknown[] = [], dots: unknown[] = [];
-    const say = (x: number, y: number, l: MarkLabel, side: Side) =>
-      labels.push({ coord: [x, y], symbol: 'circle', symbolSize: 0, label: text(l, side) });   // a label only: no symbol
+    const lines: unknown[] = [], areas: unknown[] = [], dots: unknown[] = [];
+    const layout = layoutLabels(marks, frame.series, { width: plot.width, height: plot.height, x: frame.xRange, y: [frame.yRange.min, frame.yRange.max], narrow: plot.narrow });
+    // a label only (no symbol), its top-left corner at the place the layout chose
+    const labels = layout.placed.map(l => ({
+      coord: l.at, symbol: 'circle', symbolSize: 0,
+      label: { show: true, position: [0, 0], align: 'left', verticalAlign: 'top', color: p.tick, formatter: formatter(l.label), rich },
+    }));
     for (const m of marks) {
       switch (m.kind) {
         case 'step':
@@ -58,45 +69,35 @@ export function drawMarks(marks: Mark[], unit: string) {
           lines.push({ xAxis: m.x, lineStyle: ink('dotted'), label: { show: false } });
           break;
         case 'guide':
-          if (m.from == null || m.to == null) lines.push({ yAxis: m.y, lineStyle: ink(m.dotted ? 'dotted' : 'dashed'), label: text(m.label, 'insideStartTop') });
-          else lines.push([{ coord: [m.from, m.y], lineStyle: ink(m.dotted ? 'dotted' : 'dashed'), label: text(m.label, 'insideStartTop') }, { coord: [m.to, m.y] }]);
+          if (m.from == null || m.to == null) lines.push({ yAxis: m.y, lineStyle: ink(m.dotted ? 'dotted' : 'dashed'), label: { show: false } });
+          else lines.push([{ coord: [m.from, m.y], lineStyle: ink(m.dotted ? 'dotted' : 'dashed'), label: { show: false } }, { coord: [m.to, m.y] }]);
           break;
         case 'span':
-          lines.push([{ coord: [m.x1, m.y], symbol: 'arrow', symbolSize: 7, lineStyle: ink('solid'), label: text(m.label, m.short ? 'end' : 'insideMiddleTop') },
-            { coord: [m.x2, m.y], symbol: 'arrow', symbolSize: 7 }]);
+          lines.push([{ coord: [m.x1, m.y], symbol: 'arrow', symbolSize: 7, lineStyle: ink('solid'), label: { show: false } }, { coord: [m.x2, m.y], symbol: 'arrow', symbolSize: 7 }]);
           break;
         case 'bracket':
-          lines.push([{ coord: [m.x, m.y1], symbol: 'arrow', symbolSize: 7, lineStyle: ink('solid'), label: { show: false } },
-            { coord: [m.x, m.y2], symbol: 'arrow', symbolSize: 7 }]);
-          if (m.label) say(m.x, (m.y1 + m.y2) / 2, m.label, m.side ?? 'left');
+          lines.push([{ coord: [m.x, m.y1], symbol: 'arrow', symbolSize: 7, lineStyle: ink('solid'), label: { show: false } }, { coord: [m.x, m.y2], symbol: 'arrow', symbolSize: 7 }]);
           break;
         case 'dot':
-          dots.push({ value: [m.x, m.y], label: text(m.label, m.side ?? 'top') });
+          dots.push({ value: [m.x, m.y], label: { show: false } });
           break;
         case 'band':
-          areas.push([{ coord: [m.x1, m.y1], label: text(m.label, 'insideTopRight') }, { coord: [m.x2, m.y2] }]);
+          areas.push([{ coord: [m.x1, m.y1], label: { show: false } }, { coord: [m.x2, m.y2] }]);
           break;
         case 'segment':
           lines.push([{ coord: [m.x1, m.y1], lineStyle: ink(m.dashed ? 'dashed' : 'solid'), label: { show: false } }, { coord: [m.x2, m.y2] }]);
           break;
         case 'text':
-          say(m.x, m.y, m.label, m.side ?? 'right');
           break;
       }
     }
-    const x0 = marks.map(m => ('x' in m ? m.x : 'x1' in m ? m.x1 : NaN)).find(Number.isFinite) ?? 0;
-    const levels = markLevels(marks);
-    const pad = levels.length > 0 ? Math.max((levels[1] - levels[0]) * 0.12, Math.abs(levels[1]) * 1e-3, 1e-6) : 0;
-    const out: Array<Record<string, unknown>> = [{
-      id: 'marks', type: 'line', data: levels.length > 0 ? [[x0, levels[0] - pad], [x0, levels[1] + pad]] : [], yAxisIndex, silent: true, z: 5,
-      showSymbol: false, symbol: 'none', lineStyle: { opacity: 0 },
+    const series: Array<Record<string, unknown>> = [{
+      id: 'marks', type: 'line', data: [], yAxisIndex, silent: true, z: 5, showSymbol: false, symbol: 'none', lineStyle: { opacity: 0 },
       markLine: { silent: true, animation: false, symbol: ['none', 'none'], data: lines },
       markArea: { silent: true, animation: false, itemStyle: { color: p.cursor, opacity: 0.5 }, data: areas },
       markPoint: { silent: true, animation: false, data: labels },
     }];
-    if (dots.length > 0) {
-      out.push({ id: 'marks-dots', type: 'scatter', yAxisIndex, silent: true, z: 6, symbolSize: 8, itemStyle: { color: p.text }, data: dots });
-    }
-    return out;
+    if (dots.length > 0) series.push({ id: 'marks-dots', type: 'scatter', yAxisIndex, silent: true, z: 6, symbolSize: 8, itemStyle: { color: p.text }, data: dots });
+    return { series, notes: layout.notes };
   };
 }

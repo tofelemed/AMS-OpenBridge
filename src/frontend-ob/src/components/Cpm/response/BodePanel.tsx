@@ -7,6 +7,8 @@
  * not claimed says why, never 0); without a Bode, one line says why instead of a full panel. When the margins stand but the
  * Bode is missing, the arrays were not kept, and the tab's own note says so. CHG-195 (owner review item 19): the margins in the
  * standard table (Margin · Value).
+ * CHG-200 (final test #6; C5, C6): in words: "Loop gain" and "Loop phase" (titles and legends; the CSV keeps its columns), no step
+ * code, no "dimensionless", the safety sentence said once; the frequency on a log axis; Export CSV in each chart's head.
  */
 import React from 'react';
 import { PanelHead, TonePill } from '../shared';
@@ -15,7 +17,7 @@ import type { ResponseQuantity } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
-import { metricOf, prov, provList, quantityText } from './responseSupport';
+import { metricOf, provList, quantityText, typographicUnit } from './responseSupport';
 import { phrase } from '../vocabulary';
 
 // audit F19: catalogue ids - the *_hz / peak_complementary ids never existed, so those rows never rendered
@@ -54,16 +56,16 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
       )}
       {bode && omega && (
         <section className="cpm-surface cpm-response-sub">
-          <PanelHead eyebrow="Subgate F" title="Frequency response" right={<TonePill tone="warn">model-domain estimate</TonePill>} />
+          <PanelHead title="Frequency response" right={<TonePill tone="warn">Model estimate</TonePill>} />
           <div className="cpm-response-trend-rows">
-            <CpmChart title="|L(jω)|" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} logY height={240}
-              series={[{ id: 'mag', label: '|L| = |C·G|', unit: bode.units.y ?? 'dimensionless', x: omega, y: Array.from(bode.columns.y), pen: 'overlay' }]} />
+            <CpmChart title="Loop gain" xKind="value" xLabel="Frequency" csvXLabel="ω" xUnit={bode.units.x ?? 'rad/s'} logX logY height={240} exportInHead
+              series={[{ id: 'mag', label: 'Loop gain', csvLabel: '|L| = |C·G|', unit: typographicUnit(bode.units.y), x: omega, y: Array.from(bode.columns.y), pen: 'overlay' }]} />
             {bode.columns.phase_deg && (
-              <CpmChart title="∠L(jω)" xKind="value" xLabel="ω" xUnit={bode.units.x ?? 'rad/s'} height={240}
-                series={[{ id: 'phase', label: 'phase', unit: bode.units.phase_deg ?? 'degree', x: omega, y: Array.from(bode.columns.phase_deg), pen: 'vp' }]} />
+              <CpmChart title="Loop phase" xKind="value" xLabel="Frequency" csvXLabel="ω" xUnit={bode.units.x ?? 'rad/s'} logX height={240} exportInHead
+                series={[{ id: 'phase', label: 'Loop phase', csvLabel: 'phase', unit: bode.units.phase_deg ?? 'degree', x: omega, y: Array.from(bode.columns.phase_deg), pen: 'vp' }]} />
             )}
           </div>
-          <p className="cpm-copy">{phrase(prov(bode, 'note') ?? 'MODEL_DOMAIN_ESTIMATE_NOT_A_SAFETY_GUARANTEE')}: margins hold inside the model's validated domain and are not a safety guarantee.</p>
+          <p className="cpm-copy">The margins hold inside the model's validated domain; they are not a safety guarantee.</p>
         </section>
       )}
       {rows.length > 0 && (
