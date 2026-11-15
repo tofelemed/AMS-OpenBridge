@@ -5,6 +5,7 @@
  * refusals, shown as "Refused:" / "Conflict:". An approval that ran out after the version was activated no longer reads as a
  * warning: its expiry only matters while the version still waits to be activated.
  * CHG-184 (owner review item 0): the Content column says Current or Previous content, never the hash.
+ * CHG-203: the Approve ? says Governance's approval rule word for word, in plain words (no hash, no server).
  */
 import React, { useState } from 'react';
 import { TonePill } from '../shared';
@@ -68,7 +69,7 @@ export const ApprovalTab: React.FC<{
       <div className="cpm-title-row">
         <h3 className="cpm-howto__title">Approve</h3>
         <Toggletip variant="how-to" label="How an approval binds">
-          <p>An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server.</p>
+          <p>An approval holds only for the content approved, and it expires. Approving your own draft, an expired approval or an approval of content changed since is refused.</p>
         </Toggletip>
       </div>
       <div className="cpm-config-form">

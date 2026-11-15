@@ -3,7 +3,7 @@
  * Ready for analysis: the checklist from the one shared rule (readinessRules, the list column's too), ✓ in the neutral tone and !
  * in amber (owner Q3: no green for a normal state), each missing item with why it matters and how to fix it; the count's pill at
  * the head's end. Linked loops: each link said from this loop's side, the other loop a link to its page (the list's address kept);
- * an empty card says what to do, and a stand-alone loop that none are expected.
+ * an empty card says what to do (CHG-203: in one short sentence), and a stand-alone loop that none are expected.
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -48,7 +48,7 @@ export const LinksSection: React.FC<{ loop: CpmLoop; hrefFor: (loopId: string) =
         <p className="cpm-reg-empty">
           {standAlone
             ? 'A stand-alone loop: no linked loops are expected.'
-            : 'No linked loops yet. Link the loops this one affects, or is affected by, in the plant model, then use Resend to analysis.'}
+            : 'No linked loops yet: link them in the plant model, then use Resend to analysis.'}
         </p>
       )}
     </Section>

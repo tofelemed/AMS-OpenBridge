@@ -5,7 +5,8 @@
  *  - the process value, setpoint, output and mode connected;
  *  - the process value unit and range, and the output range, set;
  *  - the valve position connected, only where one is expected (optionalInputs.inputContextOf);
- *  - linked loops, only where they are expected (optionalInputs.peerApplicabilityOf);
+ *  - linked loops, only where they are expected (optionalInputs.peerApplicabilityOf); CHG-203: its how in one short sentence,
+ *    the one cplm-api's peer_links message also sends (CpmReadinessController.PeerLinksMessage);
  *  - monitoring on (a retired loop is not asked) and a loop type, only when they are not;
  *  - from the server readiness (the detail page reads it): signals the plant model does not hold (binding_provenance).
  *
@@ -80,7 +81,7 @@ export function loopReadiness(loop: CpmLoop, server?: Pick<CpmReadiness, 'checks
     items.push(loop.links.length > 0
       ? { key: 'links', ok: true, title: 'Linked loops set' }
       : { key: 'links', ok: false, title: 'No linked loops',
-        why: 'The interaction checks need the loops this one affects: link them in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.' });
+        why: 'Link its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.' });
   }
   if (loop.isActive && !loop.monitoringEnabled) {
     items.push({ key: 'monitoring', ok: false, title: 'Monitoring off',

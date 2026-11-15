@@ -343,7 +343,9 @@ describe('what the chart says (CHG-175)', () => {
   it('shows the read error with a retry, not Loop not found', () => {
     loopsState = { loading: false, error: new Error('loops unavailable') };
     open('/trend?loop=FIC1');
-    expect(screen.getByText('loops unavailable')).toBeTruthy();
+    // CHG-203: the shared QueryError says it in plain words, never the error's own message
+    expect(screen.getByText('This could not be loaded. Try again.')).toBeTruthy();
+    expect(screen.queryByText('loops unavailable')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(refetch).toHaveBeenCalled();
   });

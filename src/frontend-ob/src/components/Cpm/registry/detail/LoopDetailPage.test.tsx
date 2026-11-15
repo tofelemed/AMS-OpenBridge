@@ -188,7 +188,7 @@ describe('LoopDetailPage sections', () => {
     expect(items).toEqual([
       '✓Done: Process value, setpoint, output and mode connected', '✓Done: Units and ranges set',
       '!To set: Valve position not connectedThe valve checks (sticking, wear) need it. Connect it in Edit loop, or mark the valve position as not fitted.',
-      expect.stringMatching(/^!To set: No linked loopsThe interaction checks need the loops this one affects/),
+      '!To set: No linked loopsLink its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.',
     ]);
     expect(pageText()).not.toMatch(/Flink|jobs|Pipeline Health/);
   });
@@ -217,7 +217,7 @@ describe('LoopDetailPage sections', () => {
 
   it('says what to do when there are no linked loops, and nothing is expected of a stand-alone loop', () => {
     open();
-    expect(within(card('Linked loops')).getByText(/^No linked loops yet\./)).toBeTruthy();
+    expect(within(card('Linked loops')).getByText('No linked loops yet: link them in the plant model, then use Resend to analysis.')).toBeTruthy();
     cleanup();
     loopQuery = { data: base({ engineering: { ...base().engineering, peerApplicability: 'NOT_APPLICABLE' } }) };
     open();

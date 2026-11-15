@@ -4,6 +4,7 @@
  * Explorer › Relationships. The loops this one is linked to (G13 peer topology), each opening that loop's own
  * Relationships tab, then the lineage in a disclosure that starts closed. What G13 needs is behind the ?, and the
  * empty state gives the action instead of restating the consequence the workspace banner already states.
+ * CHG-203: the ? names the Loop Registry's button, Resend to analysis (the old "republish evidence" went), in one plain sentence.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,7 +42,7 @@ export const RelationshipsTab: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
         title="Loop links"
         help={(
           <Toggletip variant="how-to" label="Peer topology (G13)">
-            <p>Create asset relationships, then republish evidence — G13 cannot evaluate without them.</p>
+            <p>Link this loop’s interacting loops in the plant model, then use Resend to analysis on its Loop Registry page.</p>
           </Toggletip>
         )}
       />

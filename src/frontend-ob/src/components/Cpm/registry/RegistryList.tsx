@@ -5,6 +5,8 @@
  * asset-model name, never the slug; Valve position (its words behind the ? in the head); Ready for analysis from the one shared
  * rule (readinessRules); a ›. The whole row opens the loop's page by click or Enter; the tag stays a real link (a new tab, Back)
  * without a second tab stop.
+ * CHG-203 (task-18 concern 6): below 820 px the head row is hidden and each loop is a card, so the Valve position cell carries
+ * its own label with the ? (shown only there, in place of the generated column name); one ? per card, as the brief asked.
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -24,6 +26,14 @@ const VP_HELP = [
   'Not fitted: the valve has no position signal.',
   'Not applicable: the loop drives no valve.',
 ];
+
+/** "Valve position" with its ?: the column head, and (CHG-203) a card's own label at a narrow width. */
+const VpLabel: React.FC<{ className: string }> = ({ className }) => (
+  <span className={className}>
+    Valve position
+    <Toggletip variant="how-to" label="Valve position">{VP_HELP.map(t => <p key={t}>{t}</p>)}</Toggletip>
+  </span>
+);
 
 export const RegistryList: React.FC<{
   rows: CpmLoop[];
@@ -52,13 +62,8 @@ export const RegistryList: React.FC<{
     { key: 'unit', header: 'Plant unit', cell: loop => placeOf(locations, loop).unit ?? '—' },
     {
       key: 'vp', label: 'Valve position',
-      header: (
-        <span className="cpm-title-row">
-          Valve position
-          <Toggletip variant="how-to" label="Valve position">{VP_HELP.map(t => <p key={t}>{t}</p>)}</Toggletip>
-        </span>
-      ),
-      cell: loop => <WordPill word={vpWord(loop)} />,
+      header: <VpLabel className="cpm-title-row" />,
+      cell: loop => <><VpLabel className="cpm-reg-cardlabel" /><WordPill word={vpWord(loop)} /></>,
     },
     {
       key: 'ready', header: 'Ready for analysis',

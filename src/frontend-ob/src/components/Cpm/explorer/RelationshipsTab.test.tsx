@@ -50,6 +50,14 @@ describe('RelationshipsTab', () => {
     expect(String(nav.mock.calls[0][0])).toContain('/cpm/registry');
   });
 
+  // CHG-203: the old button name went; the links come from the plant model and reach the analysis through Resend to analysis
+  it('says in one plain sentence where links come from and names Resend to analysis', () => {
+    tab(loop([]));
+    fireEvent.click(screen.getByRole('button', { name: 'Peer topology (G13)' }));
+    expect(screen.getByText('Link this loop’s interacting loops in the plant model, then use Resend to analysis on its Loop Registry page.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/republish|Re-project/i);
+  });
+
   it('names no engine and no calculation version in the lineage (CHG-184)', () => {
     const { container } = tab(loop([]));
     const d = container.querySelector('details')!;

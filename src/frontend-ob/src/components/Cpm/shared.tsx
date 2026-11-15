@@ -14,6 +14,7 @@ import type { CpmWindowSpec } from '../../api/cpmApi';
 import { activeZone } from '../../cpa/activeZone';
 import { Toggletip } from '../../ui/Toggletip';
 import { CPM_PAGES, type CpmPagePath } from '../nav/cpmTasks';
+import { queryErrorCopy } from './queryErrorCopy';
 import { BAND_WORD, bandOf, diagnosisLabel } from './vocabulary';
 
 export type CpmTone = 'good' | 'warn' | 'bad' | 'muted';
@@ -372,18 +373,22 @@ export const EmptyState: React.FC<{
 
 /**
  * Distinct error state so a fetch failure is never mistaken for "no data".
- * `error` is the react-query error (an ApiError carries a friendly `.message`);
- * `retry` wires the query's refetch. Rendered with the same EmptyState chrome.
+ * `error` is the react-query error; `retry` wires the query's refetch. Rendered with the same EmptyState chrome.
+ * CHG-203: the copy is plain words by the answer's status (queryErrorCopy), never the error's message, which is the server's
+ * detail whenever one is sent; that goes to the console only.
  */
 export const QueryError: React.FC<{
   title?: string;
   error: unknown;
   retry?: () => void;
-}> = ({ title = 'Could not load this data', error, retry }) => (
-  <EmptyState
-    title={title}
-    copy={error instanceof Error ? error.message : 'The service is currently unavailable.'}
-    action={retry ? { label: 'Retry', onClick: retry } : undefined}
-  />
-);
+}> = ({ title = 'Could not load this data', error, retry }) => {
+  React.useEffect(() => { console.warn(title, error); }, [title, error]);
+  return (
+    <EmptyState
+      title={title}
+      copy={queryErrorCopy(error)}
+      action={retry ? { label: 'Retry', onClick: retry } : undefined}
+    />
+  );
+};
 

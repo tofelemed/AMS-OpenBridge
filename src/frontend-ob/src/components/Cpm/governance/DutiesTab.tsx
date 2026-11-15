@@ -15,9 +15,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPermissionCatalog } from '../../../api/rolesApi';
-import { EmptyState } from '../shared';
+import { EmptyState, QueryError } from '../shared';
 import { useRoleMatrix } from '../useRoleMatrix';
-import { ReadFailed } from './ReadFailed';
 
 /** The permissions this page calls out, so the matrix shows which roles hold each instead of describing them in prose. */
 export const DUTY_KEYS: readonly string[] = [
@@ -54,7 +53,7 @@ export const DutiesTab: React.FC = () => {
         <EmptyState title="You do not have permission to view roles" copy="Separation of duties is shown to people who can manage roles." />
       )}
       {matrix.canRead && matrix.isLoading && <EmptyState title="Reading roles…" />}
-      {matrix.canRead && matrix.isError && <ReadFailed title="Roles could not be read" retry={() => void matrix.refetch()} />}
+      {matrix.canRead && matrix.isError && <QueryError title="Roles could not be read" error={matrix.error} retry={() => void matrix.refetch()} />}
       {matrix.canRead && matrix.data && (
         <div className="cpm-gov-duties" role="region" aria-label="Permissions by role" tabIndex={0}>
           <table className="cpm-matrix cpm-rbac">

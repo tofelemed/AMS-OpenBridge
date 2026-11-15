@@ -3,6 +3,8 @@
 // Ready for analysis, and a ›. The whole row opens the loop's page, by click or Enter. CHG-200: a loop with no type reads
 // "Unknown type".
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -32,14 +34,43 @@ const show = (rows: CpmLoop[], onOpen = vi.fn(), locs: typeof locations | null =
   return onOpen;
 };
 const rowOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!;
-const cells = (id: string) => [...rowOf(id).querySelectorAll('td')].map(td => td.textContent);
+/** A cell's value as the wide table shows it: the card-only label (CHG-203) left out. */
+const valueOf = (td: Element) => {
+  const copy = td.cloneNode(true) as Element;
+  copy.querySelectorAll('.cpm-reg-cardlabel').forEach(n => n.remove());
+  return copy.textContent;
+};
+const cells = (id: string) => [...rowOf(id).querySelectorAll('td')].map(valueOf);
 
 describe('RegistryList', () => {
   it('has the six columns of the approved mockup, the Valve position head with its ?', () => {
     show([loop('FIC10401')]);
     expect(screen.getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Loop', 'Type', 'Plant unit', 'Valve position?', 'Ready for analysis', 'Open the loop']);
-    fireEvent.click(screen.getByRole('button', { name: 'Valve position' }));
+    fireEvent.click(within(screen.getAllByRole('columnheader')[3]).getByRole('button', { name: 'Valve position' }));
     expect(screen.getByText(/Not fitted: the valve has no position signal\./)).toBeTruthy();
+  });
+
+  // CHG-203 (task-18 concern 6): below 820 px the head row is hidden and each loop is a card, so the ? sits beside the card's
+  // own "Valve position" label; opening it does not open the loop
+  it('puts the Valve position ? beside the label inside each card', () => {
+    const onOpen = show([loop('FIC10401'), ready]);
+    const vpCell = rowOf('FIC10401').querySelectorAll('td')[3];
+    const label = vpCell.querySelector('.cpm-reg-cardlabel')!;
+    expect(label.textContent).toBe('Valve position?');
+    fireEvent.click(within(label as HTMLElement).getByRole('button', { name: 'Valve position' }));
+    expect(screen.getByText(/Not connected: the valve has a position signal, but it is not connected here\./)).toBeTruthy();
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(rowOf('FIC10302').querySelectorAll('td')[3].querySelector('.cpm-reg-cardlabel')).toBeTruthy();
+  });
+
+  it('shows the card label only where the rows are cards, in place of the generated one', () => {
+    const css = readFileSync(join(__dirname, '..', '..', '..', 'styles', 'cpm-registry.css'), 'utf8').replace(/\r\n/g, '\n');
+    expect(css).toMatch(/\n\.cpm-reg-cardlabel \{ display: none; \}/);
+    const narrow = css.slice(css.indexOf('@media (max-width: 820px)'));
+    expect(narrow).toMatch(/\.cpm-reg-list \.cpm-reg-cardlabel \{[^}]*display: flex/);
+    // as specific as the generated label's rule (class, attribute, pseudo-class) and later, so it wins
+    expect(narrow).toMatch(/\.cpm-reg-list td\[data-label\]:has\(> \.cpm-reg-cardlabel\)::before \{ content: none; \}/);
+    expect(narrow).toMatch(/\.cpm-reg-list thead \.ui-toggletip \{ display: none; \}/);
   });
 
   it('reads each loop in words: description without the tag, type, unit name, valve position and readiness', () => {

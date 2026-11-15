@@ -147,7 +147,8 @@ describe('Fast conditions list (CHG-167)', () => {
     cleanup();
     condHook.mockReturnValue(answer([], { data: undefined, isError: true, error: new Error('boom') }));
     mountView();
-    expect(screen.getByText('boom')).toBeTruthy();
+    expect(screen.getByText('This could not be loaded. Try again.')).toBeTruthy();   // CHG-203: plain words, not the error's message
+    expect(screen.queryByText('boom')).toBeNull();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
     cleanup();
     condHook.mockReturnValue(answer([]));

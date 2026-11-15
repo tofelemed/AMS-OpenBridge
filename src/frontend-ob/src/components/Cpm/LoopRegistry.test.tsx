@@ -256,7 +256,7 @@ describe('LoopRegistry list', () => {
       loop('OFF_1', { monitoringEnabled: false, unit: 'u_unknown_unit' }),
     ];
     open('/cpm/registry?retired=1');
-    fireEvent.click(screen.getByRole('button', { name: 'Valve position' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Valve position' })[0]);   // the head's (CHG-203: each card has one too)
     const text = document.querySelector('.cpm-registry')!.textContent!.replace(/OFF_1/g, '');   // the page, not the test's address probe
     expect(text).toContain('Not fitted: the valve has no position signal.');
     expect(text).not.toMatch(/[A-Za-z0-9]_[A-Za-z0-9]|G13|G14|FAST_SELF_REG|OP_TO_VALVE|PRESET|\w+\/\w+\/\w/);   // a path has two slashes

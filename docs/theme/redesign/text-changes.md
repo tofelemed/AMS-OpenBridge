@@ -2288,3 +2288,62 @@ list, the loop's page and the editor (`registry/loopWords.ts`). CSV export keeps
 | Editor · dialog title (edit) | "Edit configuration" | "Edit loop" |
 | Editor · model fields | Service family, Dynamic class, Objective, Topology, Command path, Mode; first option "preset (FLOW)" | Service, Process behaviour, Control goal, Control structure, Final element, Data arrives; first option "From the loop type (Flow)"; each option its word |
 | Editor · valve position choice | "Not installed" | "Not fitted" (also its ? and the saved readiness pill) |
+
+## CHG-202 Governance in plain words: no ids or backend text (owner, 15 Nov 2026)
+
+From task-19's "CHG-202 text changes". All four tabs and all filters stay; option values and CSV / data keys are unchanged.
+
+| Where | Was | Now |
+|---|---|---|
+| Audit trail · entity types | "CPM loop" / "CPM loops", "CPM event" / "CPM events" | "Loop" / "Loops", "Loop event" / "Loop events" |
+| Audit trail · actions | "Evidence republished", "Evidence republished (bulk)", "Recompute started", "Instrument binding created", "Chain re-hashed" | "Loop settings resent to analysis", "Loop settings resent to analysis (bulk)", "Recalculation started", "Instrument linked", "Audit chain recalculated" |
+| Audit trail · an action code not in the catalog | "CPM something new" | "Something new" (no service prefix) |
+| Audit trail · actor | "Not recorded by name" | "Unknown user"; the signed-in person by full name |
+| Event panel | "Recorded by user id only; the id is in Record details." | removed |
+| Event panel · Record details | button and dialog (event id, codes, raw time, user id, entity id, hash, correlation) | removed; the panel is the one record view |
+| Audit trail · an entity known only by an id | "043f185b…" | the type alone, e.g. "Data source"; no Entity row in the panel |
+| Audit trail · date tooltip | "2026-11-04T13:04:11.48+00:00" | "4 Nov 2026 13:04:11" |
+| Audit trail · no permission | "Audit reads require the admin.audit.view permission" / "Your session does not carry it; …" | "You do not have permission to view the audit trail" / "Changes are still recorded." |
+| Audit trail · refused | "The audit log refused the read" / "Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions." | "The audit log could not be opened" / "Sign in again to refresh your permissions." |
+| Audit trail · nothing matches | "The trail records display, CPM, gate-configuration, data-source, role and user changes." | "The audit trail records changes to loops, loop events, gate configuration, data sources, displays, roles and users." |
+| Audit trail · empty | "Display, CPM, gate-configuration, data-source, role and user changes are recorded here as they happen." | "Changes to loops, loop events, gate configuration, data sources, displays, roles and users are recorded here as they happen." |
+| Every tab · a failed read | the service's message | "Try again shortly." (CHG-203: the shared plain words) |
+| Header · Verify audit chain, disabled | "Needs the admin.audit.view permission" | "Needs permission to view the audit trail" |
+| Verify · intact | "The audit log answered:" + the service's text | "The audit chain is intact: no entry has been changed." |
+| Verify · failed (500) | the service's text + "This answer means the audit log reported possible tampering or could not complete the walk." | "✕ Verify failed" + "An entry may have been changed, or the check could not finish." |
+| Verify · 401 / 403 | the service's text | "You do not have permission to verify the audit chain." |
+| Verify · any other status | "Request failed (HTTP 404).", the server's detail | "The audit log could not complete the check." |
+| Verify · Not served | "The chain range, entry count and algorithm are not served, so this answer cannot be checked here." | removed |
+| Verify · while it checks | "Walking the full chain…" | "Checking every entry…" |
+| Approvals · no permission | "The approval queue needs the cpm.config.read permission" / "Gate-configuration bundles are read with it; approving and activating stay on Gate Configuration." | "You do not have permission to view approvals" / "Approving and activating stay on Gate Configuration." |
+| Approvals · site and profile | "hdpe", "hdpe · v2", "Profile pid_flow", "pid_flow · v3" | "HDPE Plant", "HDPE Plant · v2", "Profile PID flow", "PID flow · v3"; the signed-in author by full name |
+| Separation of duties · no permission | "The live role matrix needs the rbac.manage permission" / "Your session can read the audit trail but not the RBAC model, so this panel will not describe a permission model it cannot verify." | "You do not have permission to view roles" / "Separation of duties is shown to people who can manage roles." |
+| Separation of duties · failed read | "RBAC model unavailable" | "Roles could not be read" |
+| Separation of duties · rows | "cpm.manage" + "Onboard and configure control loops (CPLM)" | "Onboard and configure control loops" (the description only, every row) |
+| Separation of duties · screen reader | "Admin holds cpm.manage" | "Admin: Onboard and configure control loops, held" |
+| Change traceability · calculations | "Calculation engine: v3.0.0 · CplmGateFusionEngine (Flink)" | "Calculations: v3.0.0" |
+| Change traceability · threshold profiles | "pid_flow" | "PID flow" |
+| Change traceability · Build details | button and dialog (service build, engine builds, commits, jar) | removed |
+| How to read · Actor | "a user name"; "A service did it: …"; "Not recorded by name" / "An older Administration event that names its actor by user id; the id is in Record details." | "a name"; "The application did it: …"; "Unknown user" / "An older change recorded without the person's name." |
+| How to read · Filters | "…ask the server, so they reach older records. Find searches only the rows fetched. User matches the exact user name, in any case." | "…search the whole audit trail, older records too. Find searches only the page shown. User matches the whole user name, in any case." |
+| How to read · Audit chain | "…asks the audit log to walk the chain and shows its answer." | "…checks every entry and shows the result." |
+| How to read · Approvals state | "NOT active: activate again once the fleet is fixed." | "NOT active: activate again once the cause is fixed." |
+| How to read · Approve | "Needs cpm.config.approve (by someone other than the author)." | "Someone other than the author, with permission to approve gate configuration." |
+| How to read · Approval | "An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server." | "An approval holds only for the content approved, and it expires. Approving your own draft, an expired approval or an approval of content changed since is refused." |
+| How to read · Site-wide change | "a site-wide or objective / test-permission change needs an approver with the ControlAuthority role" | "A site-wide change, or a change to an objective or a test permission, needs an approver with the ControlAuthority role." |
+| How to read · Why versions are stored | "Every stored window carries these versions in its payload, so any historical verdict can be attributed to the formula that produced it." | "Every stored window keeps these versions, so any past verdict can be traced to the formula that produced it." |
+
+## CHG-203 Registry and Governance follow-ups: plain errors, Resend to analysis everywhere, approval wording
+
+Follow-ups to CHG-201 (task-18) and CHG-202 (task-19). Times keep their format (Q5); no CSV key or option value changes.
+
+| Where | Was | Now |
+|---|---|---|
+| Gate Configuration · Approve, disabled without the permission | "Needs cpm.config.approve (by someone other than the author)." | "Someone other than the author, with permission to approve gate configuration." (Governance's How to read, word for word) |
+| Gate Configuration · Approval tab ? "How an approval binds" | "An approval is bound to the content hash and expires. A self-approval, an expired approval or a stale hash is refused by the server." | "An approval holds only for the content approved, and it expires. Approving your own draft, an expired approval or an approval of content changed since is refused." |
+| Edit loop · saved readiness ? and Loop Explorer · readiness causes (cplm-api's linked-loops message) | "Add the loop's upstream / peer links in the asset model, then use "Re-project links & republish evidence" on this loop in the Loop Registry." | "Link its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop." |
+| Loop Explorer · Relationships ? | "Create asset relationships, then republish evidence — G13 cannot evaluate without them." | "Link this loop's interacting loops in the plant model, then use Resend to analysis on its Loop Registry page." |
+| Loop page · Ready for analysis · No linked loops | "The interaction checks need the loops this one affects: link them in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop." | "Link its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop." |
+| Loop page · Linked loops, none yet | "No linked loops yet. Link the loops this one affects, or is affected by, in the plant model, then use Resend to analysis." | "No linked loops yet: link them in the plant model, then use Resend to analysis." |
+| Loop Registry list · below 820 px (each loop a card) | "Valve position" (no ?: the head row with its ? is hidden there) | "Valve position ?" in each card, the same four words |
+| Every page · a failed read (the shared QueryError; Governance now uses it too) | the error's own message (the server's detail when sent, e.g. "Npgsql…" or "The service is currently unavailable. Try again shortly."); Governance "Try again shortly." | 403 "You do not have permission to see this." · 404 "Not found." · no answer, 5xx or timeout "The service did not answer. Try again." · anything else "This could not be loaded. Try again."; Retry kept; the server's text goes to the console only |

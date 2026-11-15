@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 // CHG-174 (owner review, the approved sample governance-proposal.html, badges 1, 2, 8, 14, and the owner's answers of 11 Nov 2026).
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -131,6 +133,12 @@ describe('words', () => {
   it('How to read names no permission key, hash, server or code on any tab', () => {
     const all = Object.values(HOW_TO).flat().flatMap(p => [p.title, p.text ?? '', ...(p.rows ?? []).map(([, meaning]) => meaning)]);
     expect(technicalIn([...all, APPROVE_RULE, APPROVAL_BINDS, CONTROL_AUTHORITY].join('\n')).join(' | ')).toBe('');
+  });
+
+  // CHG-203: Gate Configuration says the approval rules in the same plain words, word for word (the parity CHG-202 had to drop)
+  it('the approval rules are the words Gate Configuration shows', () => {
+    expect(readFileSync(join(__dirname, 'config', 'lifecycle.ts'), 'utf8')).toContain(`'${APPROVE_RULE}'`);
+    expect(readFileSync(join(__dirname, 'config', 'ApprovalTab.tsx'), 'utf8')).toContain(`<p>${APPROVAL_BINDS}</p>`);
   });
 
   it('the sign-out sentence is the one Roles shows', () => {

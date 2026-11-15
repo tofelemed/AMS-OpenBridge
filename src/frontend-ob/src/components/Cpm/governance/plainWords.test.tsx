@@ -173,21 +173,27 @@ describe('Governance in plain words (CHG-202)', () => {
     expectPlain();
   });
 
+  // CHG-203: in the shared QueryError's words (a 500 here: the service did not answer), so every page says it the same way
   it('a failed read says so in words on every tab, never with the service’s own message', async () => {
     failing = true;
     answer = { isError: true, error: fail(), refetch: vi.fn() };
+    const NO_ANSWER = 'The service did not answer. Try again.';
     mount();
     expect(screen.getByText('Audit log not reached')).toBeTruthy();
+    expect(screen.getByText(NO_ANSWER)).toBeTruthy();
     look();
     fireEvent.click(screen.getByRole('tab', { name: 'Approvals' }));
     await screen.findByText('The bundle list could not be read');
+    expect(screen.getByText(NO_ANSWER)).toBeTruthy();
     look();
     fireEvent.click(screen.getByRole('tab', { name: 'Separation of duties' }));
     await screen.findByText('Roles could not be read');
+    expect(screen.getByText(NO_ANSWER)).toBeTruthy();
     look();
     fireEvent.click(screen.getByRole('tab', { name: 'Change traceability' }));
     look();
     expect(screen.getByText('Calculation versions could not be read')).toBeTruthy();
+    expect(screen.getByText(NO_ANSWER)).toBeTruthy();
     expect(seen.join(' ')).not.toContain('Npgsql');
     expectPlain();
   });

@@ -69,6 +69,18 @@ public sealed class CpmReadinessController : ControllerBase
     public static string? RoleOf(string jobName) => RequiredJobs.FirstOrDefault(j => j.Name == jobName).Role;
 
     /// <summary>
+    /// The peer_links check's message, shown as sent by the editor's saved readiness and Loop Explorer's readiness causes.
+    /// CHG-203: names the button "Resend to analysis" (it was "Re-project links &amp; republish evidence"), in the Loop
+    /// Registry's one sentence (ReadinessMessagesTests).
+    /// </summary>
+    public static string? PeerLinksMessage(InputState state) => state switch
+    {
+        InputState.ExpectedUnmapped => "Link its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.",
+        InputState.NotApplicable or InputState.NotInstalled => "No interacting loops (declared) — peer interaction is not assessed.",
+        _ => null,
+    };
+
+    /// <summary>
     /// How long a Flink /jobs/overview read is reused. Job states change on the
     /// order of a restart, not a request, so a few seconds costs no accuracy —
     /// and readiness is called per loop, so without this, clicking through the
@@ -209,12 +221,7 @@ public sealed class CpmReadinessController : ControllerBase
         var peerApplicability = OptionalInputs.PeerApplicability(engineering);
         var peerState = OptionalInputs.State(peerApplicability, linkCount > 0, null);
         checks.Add(new { id = "peer_links", label = "Peer / upstream links (G13)", ok = peerState != InputState.ExpectedUnmapped,
-            message = peerState switch
-            {
-                InputState.ExpectedUnmapped => "Add the loop's upstream / peer links in the asset model, then use \"Re-project links & republish evidence\" on this loop in the Loop Registry.",
-                InputState.NotApplicable or InputState.NotInstalled => "No interacting loops (declared) — peer interaction is not assessed.",
-                _ => null,
-            },
+            message = PeerLinksMessage(peerState),
             state = OptionalInputs.Code(peerState), applicability = OptionalInputs.Code(peerApplicability) });
         if (peerState == InputState.ExpectedUnmapped)
             warnings.Add("No peer links — G13 stays NOT_EVALUATED and stiction cannot be distinguished from an upstream disturbance.");

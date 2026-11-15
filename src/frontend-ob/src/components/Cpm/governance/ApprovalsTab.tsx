@@ -11,11 +11,10 @@
 import React, { useMemo, useState } from 'react';
 import type { BundleSummary } from '../../../api/cpm/config';
 import { useAuthStore } from '../../../store/authStore';
-import { EmptyState, PanelHead } from '../shared';
+import { EmptyState, PanelHead, QueryError } from '../shared';
 import { actorView } from './auditCatalog';
 import { stamp, zoneTag } from './auditTime';
 import { ApprovalPanel, BundleState, ClassMark, scopeWords } from './ApprovalPanel';
-import { ReadFailed } from './ReadFailed';
 import { bundleName, useBundleSummaries, useSiteName } from './useConfigNames';
 
 export const QUEUE_STATES = new Set(['VALIDATED', 'SHADOW_EVALUATED', 'APPROVED', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED']);
@@ -46,7 +45,7 @@ export const ApprovalsTab: React.FC = () => {
       <section className="cpm-surface cpm-admin-list" aria-label="Waiting for approval or activation">
         <PanelHead title="Waiting for approval or activation" />
         {failed && (
-          <ReadFailed title="The bundle list could not be read"
+          <QueryError title="The bundle list could not be read" error={queries.find(q => q.isError)?.error}
             retry={() => { queries.filter(q => q.isError).forEach(q => void q.refetch()); }} />
         )}
         {!failed && loading && rows.length === 0 && <EmptyState title="Reading the bundles…" />}

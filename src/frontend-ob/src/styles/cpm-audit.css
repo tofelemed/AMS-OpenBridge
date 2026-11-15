@@ -10,16 +10,19 @@
   border-end-end-radius: inherit;
 }
 
-/* ── Header: Verify audit chain with its last run in one line under it ── */
+/* ── Header: Verify audit chain with its last run in one line under it; CHG-203: How to read lines up with its top, not with the
+   middle of the button and its line ── */
+.cpm-gov .cpm-workspace-header__actions { align-items: flex-start; }
 .cpm-gov-verify { display: inline-flex; flex-direction: column; align-items: flex-end; gap: var(--traverse-space-1); }
 .cpm-gov-verify__line { max-width: 20rem; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); text-align: end; }
 .cpm-gov-verify__line .cpm-pill__glyph { margin-inline-end: var(--traverse-space-1); }
 
-/* ── The trail's 32 px filter row: Find takes the room left, the others keep their widths ── */
-.cpm-gov-filters .cpm-gov-filters__find { flex: 1 1 10rem; }
+/* ── The trail's 32 px filter row: Find takes the room left, the others keep their widths. CHG-203: at 9rem (126 px) the time
+   range cut "Last 24 hours" and "Custom range"; it takes 10rem from Find's starting width, so the row stays one line at 768 px ── */
+.cpm-gov-filters .cpm-gov-filters__find { flex: 1 1 9rem; }
 .cpm-gov-filters .cpm-gov-filters__user { flex: 0 1 9rem; }
 .cpm-gov-filters__select { flex: 0 1 9rem; }
-.cpm-gov-filters__range { flex: 0 1 9rem; }
+.cpm-gov-filters__range { flex: 0 0 10rem; }
 .cpm-gov-filters__days { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
 .cpm-admin-filters .cpm-gov-filters__days .cpm-input { flex: 0 1 11rem; }
 
@@ -58,9 +61,8 @@
 }
 .cpm-gov-duties tbody .cpm-gov-duties__key { font-weight: 400; }
 
-/* ── Change traceability: the versions card, Build details in its foot ── */
+/* ── Change traceability: the versions card (CHG-203: its Build details foot went with CHG-202) ── */
 .cpm-gov-trace { max-inline-size: 48rem; }
-.cpm-gov-trace__foot { display: flex; margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-2); border-top: 1px solid var(--border-divider-color); }
 
 /* CHG-170 fix: the trail's row dates are link-buttons. Their rule lived in cpm-pipeline.css as .cpm-pipeline-open and went with
    the Pipeline Health rewrite, so they fell back to grey browser buttons. CHG-174: the date reads as the row's other text. */
@@ -71,6 +73,11 @@
 @media (max-width: 1279.98px) {
   .cpm-gov-pager { flex-direction: column; gap: var(--traverse-space-2); }
   .cpm-gov-pager__cover { position: static; }
+}
+/* CHG-203: the shared rule below 900 px (cpm-responsive.css) makes a .cpm-table a scrolling block, which shrank the trail to its
+   content; these tables are fixed-layout and wrap, so they stay full width until the phone layout takes over */
+@media (min-width: 600.02px) and (max-width: 900px) {
+  .cpm-screen.cpm-gov table.cpm-gov-table { display: table; }
 }
 /* A phone: each row's four cells in two lines (When · Actor, then Action · Entity); the headings stay for screen readers */
 @media (max-width: 600px) {

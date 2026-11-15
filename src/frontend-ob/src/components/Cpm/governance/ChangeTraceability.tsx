@@ -11,9 +11,8 @@
  */
 import React from 'react';
 import { useCpmCalculations, useCpmLoops } from '../../../hooks/useCpm';
-import { EmptyState, KvRow } from '../shared';
+import { EmptyState, KvRow, QueryError } from '../shared';
 import { codeLabel } from '../vocabulary';
-import { ReadFailed } from './ReadFailed';
 
 export const ChangeTraceability: React.FC = () => {
   const calc = useCpmCalculations();
@@ -24,7 +23,7 @@ export const ChangeTraceability: React.FC = () => {
   return (
     <section className="cpm-surface cpm-gov-trace" aria-label="Change traceability">
       <span className="cpm-eyebrow">Producing today&apos;s verdicts</span>
-      {calc.isError && <ReadFailed title="Calculation versions could not be read" retry={() => void calc.refetch()} />}
+      {calc.isError && <QueryError title="Calculation versions could not be read" error={calc.error} retry={() => void calc.refetch()} />}
       {calc.isLoading && <EmptyState title="Reading the calculation versions…" />}
       {calc.data && (
         <>

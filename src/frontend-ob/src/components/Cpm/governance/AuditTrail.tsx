@@ -21,13 +21,12 @@ import { useCpmLoops } from '../../../hooks/useCpm';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuthStore } from '../../../store/authStore';
 import { Pagination } from '../../../ui/forms/Pagination';
-import { EmptyState } from '../shared';
+import { EmptyState, QueryError } from '../shared';
 import { actionView, actorView, entityKind, entityName } from './auditCatalog';
 import { bundleOf } from './auditLinks';
 import { rangeQuery, stamp, stampSeconds, zoneTag } from './auditTime';
 import { AuditEventPanel } from './AuditEventPanel';
 import { AuditFilters, NO_FILTERS, type FilterState } from './AuditFilters';
-import { ReadFailed } from './ReadFailed';
 import { useAuditTrail } from './useAuditTrail';
 import { useConfigNames, type ConfigNames } from './useConfigNames';
 
@@ -87,7 +86,7 @@ export const AuditTrail: React.FC = () => {
           <EmptyState title="The audit log could not be opened" copy="Sign in again to refresh your permissions." />
         )}
         {canRead && audit.isError && !forbidden && (
-          <ReadFailed title="Audit log not reached" retry={() => void audit.refetch()} />
+          <QueryError title="Audit log not reached" error={audit.error} retry={() => void audit.refetch()} />
         )}
         {canRead && audit.data && !audit.isError && t.rows.length === 0 && (filtered
           ? <EmptyState title="No audit events match" copy="The audit trail records changes to loops, loop events, gate configuration, data sources, displays, roles and users." />

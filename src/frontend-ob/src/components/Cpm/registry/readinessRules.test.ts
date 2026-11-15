@@ -61,7 +61,7 @@ describe('loopReadiness', () => {
     const r = loopReadiness(loop({ links: [] }));
     expect(r.items.find(i => i.key === 'links')).toEqual({
       key: 'links', ok: false, title: 'No linked loops',
-      why: 'The interaction checks need the loops this one affects: link them in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.',
+      why: 'Link its interacting loops in the plant model and use Resend to analysis, or set Interacting loops to Not applicable in Edit loop.',
     });
     expect(loopReadiness(loop({ links: [], engineering: { ...ranges, peerApplicability: 'NOT_APPLICABLE' } })).items.some(i => i.key === 'links')).toBe(false);
   });

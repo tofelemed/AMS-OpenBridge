@@ -43,6 +43,8 @@
 .cpm-reg-tag:hover { text-decoration: underline; }
 .cpm-reg-desc { display: block; color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata); font-weight: 400; }
 .cpm-reg-chev { color: var(--traverse-text-muted); font-size: var(--traverse-type-section-title); line-height: 1; }
+/* CHG-203: a card's own "Valve position" label with its ?, only where the rows are cards (the narrow block below) */
+.cpm-reg-cardlabel { display: none; }
 
 /* ── CHG-201 a loop's own page: the head, then the cards (two columns from 1280 px) ── */
 .cpm-reg-detail-head { display: flex; flex-direction: column; gap: var(--traverse-space-2); }
@@ -125,6 +127,14 @@
   .cpm-reg-list tbody tr:hover { background: var(--traverse-surface-hover); }
   .cpm-reg-list tbody tr:hover td { background: transparent; }
   .cpm-reg-list td:last-child { position: absolute; top: var(--traverse-space-3); right: var(--traverse-space-3); width: auto; }
+  /* CHG-203 (task-18 concern 6): the head row is hidden here, so the Valve position ? sits beside the card's own label, which
+     replaces the generated one; the hidden head's ? leaves the tab order */
+  .cpm-reg-list .cpm-reg-cardlabel {
+    display: flex; align-items: center; gap: var(--traverse-space-1);
+    color: var(--traverse-text-secondary); font-size: var(--traverse-type-metadata);
+  }
+  .cpm-reg-list td[data-label]:has(> .cpm-reg-cardlabel)::before { content: none; }
+  .cpm-reg-list thead .ui-toggletip { display: none; }
 }
 @media (max-width: 600px) {
   .cpm-reg-kv { grid-template-columns: minmax(0, 1fr); gap: 0; }

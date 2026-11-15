@@ -32,7 +32,7 @@ describe('lifecycleActions', () => {
   });
   it('names the missing permission before the state', () => {
     const a = lifecycleActions({ state: 'VALIDATED' }, { ...perms, approve: false }, false, false);
-    expect(a.find(x => x.key === 'approve')).toMatchObject({ enabled: false, reason: 'Needs cpm.config.approve (by someone other than the author).' });
+    expect(a.find(x => x.key === 'approve')).toMatchObject({ enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration.' });
     expect(a.find(x => x.key === 'shadow')).toMatchObject({ enabled: true });
   });
   it('an expired approval blocks deploy with that reason; a verified activation enables rollback', () => {

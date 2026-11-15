@@ -61,7 +61,8 @@ export const EDITABLE_STATES = new Set(['DRAFT', 'VALIDATED', 'SHADOW_EVALUATED'
 /** CHG-169: why a version cannot change, in the state's word ("Active (verified)"); said once, under the bundle's tabs. */
 export const frozenSentence = (state: string): string => `This version is ${bundleStateWord(state).label} - create a new version to change it.`;
 
-/** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. */
+/** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. CHG-203: Approve's reason is
+ * Governance's approval rule, word for word (CpmGovernance.test.tsx). */
 export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, hasVerifiedActivation: boolean): LifecycleAction[] {
   const s = bundle.state;
   const frozen = TERMINAL.has(s) ? frozenSentence(s) : null;
@@ -74,7 +75,7 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
     : frozen ? { key: 'shadow', label: 'Shadow', enabled: false, reason: frozen }
     : afterValidate || s === 'APPROVED' ? { key: 'shadow', label: 'Shadow', enabled: true, reason: null }
     : { key: 'shadow', label: 'Shadow', enabled: false, reason: 'Validate the draft first.' };
-  const approve: LifecycleAction = !perms.approve ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Needs cpm.config.approve (by someone other than the author).' }
+  const approve: LifecycleAction = !perms.approve ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration.' }
     : frozen ? { key: 'approve', label: 'Approve', enabled: false, reason: frozen }
     : afterValidate ? { key: 'approve', label: 'Approve', enabled: true, reason: null }
     : s === 'APPROVED' || s === 'EXPIRED' ? { key: 'approve', label: 'Approve', enabled: approvalExpired || s === 'EXPIRED', reason: approvalExpired || s === 'EXPIRED' ? null : 'Already approved for this content.' }
