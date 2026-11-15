@@ -38,14 +38,14 @@ describe('change traceability', () => {
     expect(value('Dynamics profile')).toBe('v2.0.0');
     expect(value('Threshold profiles in use')).toBe('defaults only');
     expect(screen.queryByText('Registered loops')).toBeNull();
-    expect(screen.queryByText('cplm-api build')).toBeNull();
+    expect(screen.queryByText('Service build')).toBeNull();
   });
 
   it('Build details hold the service build and the engine builds, the commit cut to 12 characters', () => {
     render(<ChangeTraceability />);
     fireEvent.click(screen.getByText('Build details'));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('cplm-api build').nextElementSibling?.textContent).toBe('1.0.0 · 2f5ff876aaaa');
+    expect(within(dialog).getByText('Service build').nextElementSibling?.textContent).toBe('1.0.0 · 2f5ff876aaaa');
     expect(within(dialog).getByText('Engine build 1').nextElementSibling?.textContent).toBe('calc 3.0.0 · commit 4e1a9c07b2d3-dirty · jar 9b2f61c0a7e4');
     expect(within(dialog).getAllByRole('heading').map(h => h.textContent)).toEqual(['Build details', 'Service', 'Engine builds observed']);
   });

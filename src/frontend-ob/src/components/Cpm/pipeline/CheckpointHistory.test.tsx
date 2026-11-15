@@ -53,7 +53,7 @@ describe('CheckpointHistory', () => {
       grid: { top: number }; legend: { top: number }; yAxis: Array<{ name: string; nameGap?: number }>; series: Array<{ name: string; data: unknown[] }>;
     };
     expect(option.series.map(s => s.name)).toEqual(['Max checkpoint age', 'Max checkpoint duration']);
-    expect(option.yAxis.map(a => a.name)).toEqual(['ckpt age (s)', 'ckpt dur (ms)']);
+    expect(option.yAxis.map(a => a.name)).toEqual(['Checkpoint age (s)', 'Checkpoint duration (ms)']);
     expect(option.series[0].data).toEqual([[samples[0].t, 168], [samples[1].t, 196]]);
     // the legend takes the top 24 px; an axis name sits nameGap (15) above the plot, so the plot starts low enough to clear it
     expect(option.legend.top).toBe(0);

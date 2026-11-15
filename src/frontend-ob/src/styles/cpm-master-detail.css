@@ -48,6 +48,18 @@
 .cpm-windows-head__title { margin: 0; color: var(--traverse-text-primary); font-size: var(--traverse-type-section-title); font-weight: 600; }
 
 /* Compare window sizes (dialog): the metric and its ? over the table. */
+/*
+ * CHG-193 (sweep D4): a table that scrolls sideways shows it: a shadow on the edge that has more (the classic local / scroll
+ * background pair: the panel-coloured covers travel with the content, the shadows stay at the edges).
+ */
+.cpm-scroll-x {
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--traverse-surface-panel) 30%, transparent) left center / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--traverse-surface-panel) 30%, transparent) right center / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--traverse-text-primary) 28%, transparent), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--traverse-text-primary) 28%, transparent), transparent) right center / 12px 100% no-repeat scroll;
+}
 .cpm-compare-sizes__bar { display: flex; align-items: center; gap: var(--traverse-space-1); margin-bottom: var(--traverse-space-3); }
 /* Method (dialog): the explanation under its rows. */
 .cpm-method-dialog__text { margin-top: var(--traverse-space-3); }

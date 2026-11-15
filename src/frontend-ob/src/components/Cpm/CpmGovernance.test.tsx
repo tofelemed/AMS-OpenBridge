@@ -53,7 +53,7 @@ describe('the header', () => {
     fireEvent.click(screen.getByText('How to read'));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getAllByRole('heading').map(h => h.textContent)).toEqual(['How to read', 'Actor', 'Action', 'Filters', 'Audit chain']);
-    expect(within(dialog).getByText('Entries are hash-chained by audit-service. Verify audit chain asks the service to walk the chain and shows its answer.')).toBeTruthy();
+    expect(within(dialog).getByText('Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain asks the audit log to walk the chain and shows its answer.')).toBeTruthy();
   });
 
   it('on Approvals How to read states the approval rules word for word, ControlAuthority in the server’s words', () => {

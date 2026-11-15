@@ -51,24 +51,25 @@ export function modeWord(token: string): string {
 export type ModeTone = 'good' | 'warn' | 'bad' | 'muted';
 
 /**
- * Display form for a live MODE value: the token, plus what it means for whether this
- * loop is scored at all. `UNKNOWN` is its own case — it means the source has never
- * published a mode, not that it sent something we could not read.
+ * Display form for a live MODE value: the mode as a word (CHG-193, sweep D6: the word Replay shows, `modeWord`), plus what it
+ * means for whether this loop is scored at all. `UNKNOWN` is its own case — it means the source has never published a mode,
+ * not that it sent something we could not read.
  */
 export function modeLabel(value: unknown): { label: string; note: string; tone: ModeTone } {
   if (value === undefined || value === null || value === '') {
     return { label: '—', note: 'no live value, none stored', tone: 'muted' };
   }
   const token = String(value).trim().toUpperCase();
+  const label = modeWord(String(value));
   if (token === 'UNKNOWN') {
-    return { label: 'UNKNOWN', note: 'mode never published · excluded at G1', tone: 'warn' };
+    return { label, note: 'mode never published · excluded at G1', tone: 'warn' };
   }
   switch (classifyMode(token)) {
     case 'auto':
-      return { label: token, note: 'closed loop · analysed', tone: 'good' };
+      return { label, note: 'closed loop · analysed', tone: 'good' };
     case 'manual':
-      return { label: token, note: 'manual · excluded at G1', tone: 'warn' };
+      return { label, note: 'manual · excluded at G1', tone: 'warn' };
     default:
-      return { label: token, note: 'not recognised · excluded at G1', tone: 'bad' };
+      return { label, note: 'not recognised · excluded at G1', tone: 'bad' };
   }
 }

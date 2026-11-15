@@ -24,7 +24,8 @@ const words = (code: string) => {
 export const isStarting = (state: string) => STARTING.has(state);
 
 export function stateView(state: string): StateView {
-  if (state === 'RUNNING') return { tone: 'good', glyph: '✓', word: 'Running' };
+  // CHG-193 (owner Q3): running is the normal state, so neutral; the tick and the word say it
+  if (state === 'RUNNING') return { tone: 'muted', glyph: '✓', word: 'Running' };
   if (STARTING.has(state)) return { tone: 'warn', glyph: '◐', word: 'Starting' };
   if (state === 'MISSING') return { tone: 'bad', glyph: '✕', word: 'Missing' };
   return { tone: 'bad', glyph: '✕', word: STOPPED[state] ?? words(state) };

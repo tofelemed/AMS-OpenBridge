@@ -142,7 +142,7 @@ describe('CpmInvestigation', () => {
   it('shows the values at the window end, from the same trend', () => {
     state.points = [{ ts: 1, pv: 1, sp: 1, op: 1, mode: 'AUTO' }, { ts: 2, pv: 7.5, sp: 8, op: 41, mode: 'MAN' }];
     const { container } = page('/cpm/investigation?loop=FIC10401&tab=Evidence');
-    expect([...container.querySelectorAll('.cpm-signal__value')].map(v => v.textContent)).toEqual(['7.50', '8.00', '41.00', 'MAN']);
+    expect([...container.querySelectorAll('.cpm-signal__value')].map(v => v.textContent)).toEqual(['7.50', '8.00', '41.00', 'Manual']);   // CHG-193 (sweep D6): the mode as a word
   });
 
   it('says a named window is not stored, never showing the newest', () => {

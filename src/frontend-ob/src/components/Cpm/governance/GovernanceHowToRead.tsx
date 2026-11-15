@@ -35,7 +35,7 @@ export const HOW_TO: Record<GovernanceTab, Part[]> = {
       [{ act: [null, '', 'Draft edited'] }, 'Any other change.'],
     ] },
     { title: 'Filters', text: 'Entity, User, Event type and the time range ask the server, so they reach older records. Find searches only the rows fetched. User matches the exact user name, in any case.' },
-    { title: 'Audit chain', text: 'Entries are hash-chained by audit-service. Verify audit chain asks the service to walk the chain and shows its answer.' },
+    { title: 'Audit chain', text: 'Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain asks the audit log to walk the chain and shows its answer.' },
   ],
   approvals: [
     { title: 'State', rows: [

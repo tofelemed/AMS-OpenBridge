@@ -143,7 +143,7 @@
   color: var(--traverse-text-muted);
 }
 
-/* A plain link-button. On an ObcButton host the same class is styled in styles/openbridge-bridge.css (CHG-183). */
+/* A plain link-button. On an ObcButton host the same class is styled in styles/button-standard.css (CHG-183, CHG-193). */
 .ui-link:where(:not(obc-button)) {
   align-self: flex-start;
   padding: 0;

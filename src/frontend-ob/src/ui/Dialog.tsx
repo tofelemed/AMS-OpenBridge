@@ -3,6 +3,7 @@
  * focus returns to the trigger. The close control has a name, and Tab reaches the footer.
  * CHG-183 (owner review 2026-11-14, item 2): the head is a solid band in the action colour with the title, an
  * optional subtitle under it (loop · gate) and the close button.
+ * CHG-193 (final review M5): the subtitle joins aria-describedby, so a screen reader hears the object with the title.
  */
 import React, { useId } from 'react';
 import { ObiCloseGoogle } from '@oicl/openbridge-webcomponents-react/icons/icon-close-google';
@@ -12,6 +13,8 @@ const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, subtitle
   const ref = useDialogA11y<HTMLDivElement>(onClose);
   const titleId = useId();
   const descId = useId();
+  const subId = useId();
+  const describedBy = [subtitle ? subId : '', description ? descId : ''].filter(Boolean).join(' ') || undefined;
   return (
     <div className="ui-overlay ui-overlay--centre">
       <div className="ui-overlay__scrim" aria-hidden="true" onClick={onClose} />
@@ -21,12 +24,12 @@ const Open: React.FC<DialogProps & { onClose: () => void }> = ({ title, subtitle
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
+        aria-describedby={describedBy}
       >
         <div className="ui-dialog__head">
           <div className="ui-dialog__heading">
             <h2 id={titleId} className="ui-dialog__title">{title}</h2>
-            {subtitle && <p className="ui-dialog__subtitle">{subtitle}</p>}
+            {subtitle && <p id={subId} className="ui-dialog__subtitle">{subtitle}</p>}
           </div>
           <button type="button" className="ui-control ui-control--ghost ui-control--icon" aria-label="Close dialog" onClick={onClose}>
             <span className="ui-icon"><ObiCloseGoogle /></span>

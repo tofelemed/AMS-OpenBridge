@@ -65,7 +65,8 @@ export function fusedOptions(rows: CpmWindowSummary[], now: number, timeZone: st
     // CHG-160 (owner review): the end and the state, nothing more; the result says why and how sure
     const state = shortState(diagnosisLabel(insufficient ? 'INSUFFICIENT_DATA' : r.diagnosis));
     const ms = age(r.windowEnd, now);
-    const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'good';
+    // CHG-193 (owner Q3): a window with nothing found is normal, so neutral (it was green)
+    const tone: CpmTone = insufficient ? 'muted' : r.diagnosis === 'NOT_EVALUATED' ? 'muted' : /SUSPECTED|CONFIRMED|FAIL/.test(r.diagnosis!) ? 'bad' : /DEVELOPING|WARN/.test(r.diagnosis!) ? 'warn' : 'muted';
     return {
       windowEnd: r.windowEnd, windowStart: r.windowStart, kind: r.windowKind, tier: 'fused',
       label: `${windowPick({ windowEnd: r.windowEnd }, timeZone)} · ${state}${!hasRunIds && r.source === 'historian' ? HISTORY_ONLY : ''}`,
@@ -99,7 +100,8 @@ export function kpiOptions(rows: CpmKpiRow[], kind: string, tier: 'short' | 'lon
     } else {
       const notPass = gates.filter(g => reviewSeverity(g.status) != null);
       state = notPass.length ? notPass.map(g => `${g.key} ${gateMark(g.status, g.key).word.toLowerCase()}`).join(', ') : gates.length ? 'all gates pass' : 'no gate statuses';
-      tone = notPass.some(g => reviewSeverity(g.status) === 'bad') ? 'bad' : notPass.length ? 'warn' : gates.length ? 'good' : 'muted';
+      // CHG-193 (owner Q3): every gate passing is normal, so neutral
+      tone = notPass.some(g => reviewSeverity(g.status) === 'bad') ? 'bad' : notPass.length ? 'warn' : 'muted';
     }
     const ms = age(r.window_end as string, now);
     return {

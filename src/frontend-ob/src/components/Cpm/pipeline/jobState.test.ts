@@ -11,7 +11,7 @@ const row = (name: string, role: JobRow['role'], required = true): JobRow => ({
 
 describe('stateView', () => {
   it('says Running, Missing and Starting with their glyphs and tones', () => {
-    expect(stateView('RUNNING')).toEqual({ tone: 'good', glyph: '✓', word: 'Running' });
+    expect(stateView('RUNNING')).toEqual({ tone: 'muted', glyph: '✓', word: 'Running' });   // CHG-193 (owner Q3): running is normal, neutral
     expect(stateView('MISSING')).toEqual({ tone: 'bad', glyph: '✕', word: 'Missing' });
     for (const s of ['RESTARTING', 'INITIALIZING', 'CREATED', 'RECONCILING']) {
       expect(stateView(s)).toEqual({ tone: 'warn', glyph: '◐', word: 'Starting' });

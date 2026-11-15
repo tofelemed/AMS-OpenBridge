@@ -27,6 +27,8 @@
 .cpm-signal--warning { border-color: var(--traverse-status-warning-fg); background: var(--traverse-status-warning-bg); }
 .cpm-signal-strip__quality { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3); margin: 0 0 0 auto; }
 .cpm-signal-strip__age { color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); }
+/* CHG-193 (sweep D7): the quality caption in sentence case, like the other labels on the page */
+.cpm-signal-strip__quality .cpm-facet__caption { text-transform: none; letter-spacing: normal; }
 
 /* Loop KPIs: a card opens a dialog, so it is a button that looks like the link card; coverage carries its bar */
 button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor: pointer; }
@@ -49,7 +51,7 @@ button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor
 .cpm-kpicard__bar > span { display: block; height: 100%; background: var(--traverse-text-secondary); }
 .cpm-kpicard--warn .cpm-kpicard__bar > span { background: var(--traverse-status-warning-fg); }
 .cpm-kpicard--bad .cpm-kpicard__bar > span { background: var(--traverse-status-danger-fg); }
-.cpm-kpicard--good .cpm-kpicard__bar > span { background: var(--traverse-status-success-fg); }
+/* CHG-193 (owner Q3): a good card's bar stays neutral (the default above); no green for normal */
 
 /* Gate results: a tile is the mark over the key */
 .cpm-gate-tile {
@@ -61,7 +63,8 @@ button.cpm-kpicard--link { width: 100%; font: inherit; text-align: start; cursor
 .cpm-gate-tile--selected { background: var(--traverse-surface-selected); }
 .cpm-gate-tile:focus-visible { outline: 2px solid var(--traverse-focus); outline-offset: 2px; }
 .cpm-gate-tile__mark { font-weight: 600; }
-.cpm-gate-tile--good .cpm-gate-tile__mark { color: var(--traverse-status-success-fg); }
+/* CHG-193 (sweep D3, owner Q3): a pass is neutral, as in the Performance gate matrix (.cpm-matrix__cell--good); no green */
+.cpm-gate-tile--good .cpm-gate-tile__mark { color: var(--traverse-text-secondary); }
 .cpm-gate-tile--warn .cpm-gate-tile__mark { color: var(--traverse-status-warning-fg); }
 .cpm-gate-tile--bad .cpm-gate-tile__mark { color: var(--traverse-status-danger-fg); }
 .cpm-gate-tile--muted .cpm-gate-tile__mark { color: var(--traverse-text-muted); }

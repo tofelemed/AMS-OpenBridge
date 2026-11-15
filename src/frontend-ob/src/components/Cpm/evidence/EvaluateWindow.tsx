@@ -7,6 +7,8 @@
  * reports it (Queued, Running, with the time since the click), and on Done it closes by itself while the page opens the
  * evaluated window. A failure stays open with the reason and Retry. The run lives here, not in the dialog: closed mid-run, the
  * run goes on and the page still opens the window when it is done; reopened, the dialog shows the run. A new loop starts over.
+ * CHG-193 (final review M1): the window is taken once at the click and shown while the run exists, so it is always the window
+ * sent; the idle form refreshes "Now" at each whole minute (a quarter-hour boundary is a whole minute).
  */
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +21,7 @@ import { formatInZone } from './timezone';
 import { evaluationPhase, evaluationSettled, openableVerdict, requestedEnd, requestedStart } from './evaluationState';
 import { inFlight } from './runPhase';
 import { RunProgress } from './RunProgress';
-import { useAfterDone, useTick } from './useRunClock';
+import { useAfterDone, useMinuteTick, useTick } from './useRunClock';
 
 export interface EvaluateWindowProps {
   loopId: string;
@@ -63,6 +65,8 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
   const [end, setEnd] = useState('');
   const [runId, setRunId] = useState<string | undefined>();
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  /** The window end sent with the run, kept while the run exists. */
+  const [sentEnd, setSentEnd] = useState<number | null>(null);
   const opened = useRef<string | undefined>();
   const qc = useQueryClient();
 
@@ -73,7 +77,7 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
     onSuccess: r => { qc.setQueryData(['cpm', 'evaluation', r.analysisRunId], r); opened.current = undefined; setRunId(r.analysisRunId); },
   });
   const resetStart = start.reset;
-  const reset = useCallback(() => { setRunId(undefined); setStartedAt(null); resetStart(); opened.current = undefined; }, [resetStart]);
+  const reset = useCallback(() => { setRunId(undefined); setStartedAt(null); setSentEnd(null); resetStart(); opened.current = undefined; }, [resetStart]);
   // a different loop starts over (a run of the previous loop must never open here)
   useEffect(() => { reset(); }, [loopId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -89,6 +93,7 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
     pending: start.isPending, startError: start.error, accepted: !!runId, run: data, readError: runId ? poll.error : null, nowMs: Date.now(),
   });
   useTick(inFlight(phase));
+  useMinuteTick(open && phase.step === 'IDLE' && !end);
 
   const verdict = openableVerdict(data);
   useEffect(() => {
@@ -98,8 +103,11 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
 
   const evaluate = () => {
     reset();
-    setStartedAt(Date.now());
-    start.mutate({ kind, endMs: requestedEnd(end, Date.now()) });
+    const now = Date.now();
+    const endMs = requestedEnd(end, now);
+    setStartedAt(now);
+    setSentEnd(endMs);
+    start.mutate({ kind, endMs });
   };
   // closing mid-run leaves the run going; after Done or a failure the next opening starts with the form
   const close = () => { onClose(); if (!inFlight(phase)) reset(); };
@@ -108,7 +116,7 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
 
   const locked = inFlight(phase) || phase.step === 'DONE';
   const failed = phase.step === 'FAILED';
-  const endMs = requestedEnd(end, Date.now());
+  const endMs = phase.step !== 'IDLE' && sentEnd != null ? sentEnd : requestedEnd(end, Date.now());
   return (
     <Dialog open={open} onClose={close} title="Evaluate a window" subtitle={subtitle}
       footer={(
@@ -129,7 +137,8 @@ export const EvaluateWindow: React.FC<EvaluateWindowProps> = ({ loopId, timeZone
         </div>
         <span className="cpm-run-form__label">Window</span>
         <span className="cpm-run-form__value" aria-live="polite">
-          {formatInZone(requestedStart(endMs, kind), timeZone)} → {formatInZone(endMs, timeZone)} ({timeZone})
+          {/* CHG-193 (sweep D5): each timestamp unbroken; the arrow may wrap */}
+          <span className="cpm-run-form__stamp">{formatInZone(requestedStart(endMs, kind), timeZone)}</span> → <span className="cpm-run-form__stamp">{formatInZone(endMs, timeZone)}</span> ({timeZone})
         </span>
       </div>
       {phase.step !== 'IDLE' && <RunProgress phase={phase} startedAt={startedAt} />}

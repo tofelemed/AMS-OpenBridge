@@ -79,4 +79,14 @@ describe('DiffImpactPanel', () => {
     expect(screen.getByText(/above the maximum/)).toBeTruthy();
     expect(screen.getByText('w1')).toBeTruthy();
   });
+
+  // CHG-193 (owner decision 15 Nov 2026, A2): the change class and the window state in words, not their codes
+  it('says what a state-boundary and a deployment-class change do in words', () => {
+    render(<DiffImpactPanel bundle={bundle({ changeClass: 'STATE_BOUNDARY' })} parent={undefined} catalogue={catalogue} siteLoopCount={undefined} validate={idle} />);
+    expect(screen.getByText(/^A state-boundary change opens a new epoch: .* report Waiting \(warm-up\)/)).toBeTruthy();
+    cleanup();
+    render(<DiffImpactPanel bundle={bundle({ changeClass: 'DEPLOYMENT' })} parent={undefined} catalogue={catalogue} siteLoopCount={undefined} validate={idle} />);
+    expect(screen.getByRole('alert').textContent).toMatch(/^A deployment-class change ships in a software release/);
+    expect(document.body.textContent).not.toMatch(/STATE_BOUNDARY|DEPLOYMENT-class|WAITING/);
+  });
 });

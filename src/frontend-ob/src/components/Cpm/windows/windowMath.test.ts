@@ -8,6 +8,7 @@ const row = (o: Record<string, unknown>) => o as unknown as CpmKpiRow;
 describe('countCheck', () => {
   it('labels counts honestly', () => {
     expect(countCheck(180, 180).label).toBe('Matches');
+    expect(countCheck(180, 180).tone).toBe('muted');   // CHG-193 (owner Q3): a matching count is normal, neutral
     expect(countCheck(181, 180).label).toBe('+1 sample');
     expect(countCheck(179, 180).label).toBe('−1 sample');
     expect(countCheck(150, 180).label).toBe('−30 samples');

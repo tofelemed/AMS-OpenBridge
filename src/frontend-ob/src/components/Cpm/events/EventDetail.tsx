@@ -7,6 +7,7 @@
  * open (CHG-184, owner review item 1: no Record details); the note and the actions (EpisodeActions); Activity &
  * notes, the one place for who, when and why. The foot names the episode once ("PIC40102 · EVT-2231 · 24h") beside
  * Investigation → (it was "Review PIC40102 →" under the peak). Below 1280 px the panel is a drawer a row opens.
+ * CHG-193 (sweep D2): Acknowledge is the panel's one primary; Investigation → navigates, so it is a secondary button.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -68,7 +69,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, canManage, poli
         primaryAction={
           <div className="cpm-events-foot">
             <span className="cpm-events-foot__id"><strong>{event.loop_id}</strong> · EVT-{event.id} · {event.window_kind}</span>
-            <ObcButton variant="raised" title="Open Investigation at the window this episode opened on"
+            <ObcButton variant="normal" title="Open Investigation at the window this episode opened on"
               onClick={() => navigate(investigationHref(event.loop_id, { kind: event.window_kind, window: event.opened_at }))}>
               Investigation {'→'}
             </ObcButton>

@@ -296,7 +296,8 @@
 
 /*
  * CHG-183: Secondary A for a plain <button> action (owner review item 17), the same look and size as a normal or
- * flat ObcButton: 40 px, a neutral tint with a strong border; hover turns border and text to the action colour.
+ * flat ObcButton: 40 px, a neutral tint; hover turns border and text to the action colour. CHG-193 (owner decision
+ * 15 Nov 2026): quieter, as the ObcButton: the subtle border and the regular weight.
  */
 .ui-btn {
   display: inline-flex;
@@ -316,8 +317,9 @@
 .ui-btn:focus-visible { outline: var(--traverse-focus-width) solid var(--traverse-focus); outline-offset: var(--traverse-focus-offset); }
 .ui-btn--secondary {
   background: var(--traverse-surface-raised);
-  border-color: var(--traverse-border-strong);
+  border-color: var(--traverse-border-subtle);
   color: var(--traverse-text-primary);
+  font-weight: var(--font-weight-regular);
 }
 .ui-btn--secondary:hover { border-color: var(--traverse-action-primary); color: var(--traverse-action-primary); }
 .ui-btn--secondary:active,

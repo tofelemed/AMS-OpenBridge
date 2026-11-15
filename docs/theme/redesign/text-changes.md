@@ -2053,3 +2053,51 @@ destructive confirms in the destructive look. Times are unchanged (Q5). The full
 
 Looks, not words: every Administration delete confirm and Reset to default, Delete role and Retire loop use the destructive
 button; the Loop notes dialog's card Save is secondary (one primary: Save note); the wide dialog is 880 px (was 720 px).
+
+## CHG-193 Owner follow-up: quieter secondary buttons, technical text removed, final review fixes (owner 15 Nov 2026; final review I1, M1-M8, M11; sweep D1-D9)
+
+Display text only: data keys, series ids, query keys and CSV export column names are unchanged (a renamed legend keeps its key
+as the CSV column). Times are unchanged (Q5).
+
+| Where | Was | Now |
+|---|---|---|
+| Window Inspector › band chip | "CPLM Short Feature Engine · RUNNING · ckpt 12s ago" (green when running) | "Calculation running" (neutral) or "Calculation not running" (red) |
+| Window Inspector › Details | Feature flags · Sample density · Engine & timing | Calculated values (new, first) · Feature flags · Sample density · Engine & timing |
+| Window Inspector › Calculated values · dialog | (removed by CHG-184 with "Record details") | title "Calculated values", the loop and window size under it, a Window row as the panel prints it, then the window's metric values |
+| Governance › Verify audit chain · answer | "audit-service answered:" | "The audit log answered:" |
+| Governance › Verify audit chain · not reached | "audit-service could not be reached, so the chain was not checked." | "The audit log could not be reached, so the chain was not checked." |
+| Governance › line under Verify audit chain | "✕ audit-service not reached · …" | "✕ Audit log not reached · …" |
+| Governance › Verify audit chain · a 500 | "A 500 here means the service reported possible tampering or could not complete the walk." | "This answer means the audit log reported possible tampering or could not complete the walk." |
+| Governance › Audit trail · refused read | "Audit service refused the read (403)" / "The token was accepted by the app but not by audit-service. Sign in again to refresh your permissions." | "The audit log refused the read" / "Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions." |
+| Governance › Audit trail · no answer | "Audit service unreachable" | "Audit log not reached" |
+| Governance › How to read › Audit chain | "Entries are hash-chained by audit-service. Verify audit chain asks the service to walk the chain and shows its answer." | "Each entry is chained to the one before it, so a changed entry breaks the chain. Verify audit chain asks the audit log to walk the chain and shows its answer." |
+| Governance › Change traceability › Build details | row "cplm-api build" | row "Service build" (its value unchanged; item0-sweep owner question 2 is still open) |
+| Performance › stale line › Pipeline Health ↗ tip | "Job states and checkpoint health of the CPLM engines" | "Whether the analysis is running and up to date" |
+| Pipeline Health › Checkpoint history axes | "ckpt age (s)", "ckpt dur (ms)" | "Checkpoint age (s)", "Checkpoint duration (ms)" |
+| Gate Configuration › Deployments | (the rollback fact went with its id in CHG-184) | row "Rollback  Yes / No" |
+| Gate Configuration › Deployments › matrix column | "Active bundle on this job" | "Active bundle on this worker" |
+| Gate Configuration › Diff & impact | "A STATE_BOUNDARY change … report WAITING (warm-up) …" / "A DEPLOYMENT-class change …" | "A state-boundary change … report Waiting (warm-up) …" / "A deployment-class change …" |
+| Loop Explorer › readings › Mode | the stored token ("AUT", "MAN"); an amber box with no word | the word Replay uses ("Auto", "Manual"); an amber box gets "! Not normal" where OP has "! At limit" (the same word on Investigation's readings and the Signals tab) |
+| Loop Explorer › quality chip caption | "SIGNAL QUALITY" (caps by CSS) | "Signal quality" |
+| Reconstruct evidence · after 5 minutes | Close, Retry (primary) | Close, Retry (secondary), Keep waiting (primary) |
+| Reconstruct evidence · after 30 minutes | (polling went on) | "No result after 30 minutes. It may still finish; open this window again later to see it." Close, Retry |
+| Workbench › G0 rows | "quality", "hold kind" | "Quality", "Hold kind" |
+| Workbench › G1 | lane empty "No state_intervals artifact retained."; chart "op_requested vs u_applied (pp lane)", legend op_requested / u_applied; rows "controlling_authority", "mode_native → normalized" | "No mode intervals kept for this run."; "Requested OP and applied input", legend Requested OP / Applied input; "Controlling authority", "Mode as stored → as read" |
+| Workbench › G2 | "SP / PV (shared EU pane) with event markers"; "d_sp_dt (SP rate pane)", legend d_sp_dt; row "event_type" | "SP and PV with the SP change events"; "SP rate of change", legend SP rate of change; "Event type" |
+| Workbench › G2r | axes "u_applied", "pv"; lane "OUT OF REGION" / "in region"; row "region_vertices_or_bounds" | "Applied input", "PV"; "Out of region" / "In region"; "Region bounds" |
+| Workbench › G3 | chart titles "cumulative_iae", "cumulative_ise", "cumulative_itae"; row "benchmark_interval" | "Cumulative IAE", "Cumulative ISE", "Cumulative ITAE"; "Benchmark interval" |
+| Workbench › G4 | "u_applied and vp (pp lane) with reversal markers", legend u_applied / vp; "delta_u per sample", legend delta_u; rows "measured_travel_variation", "activity_basis" | "Applied input and VP (pp) with reversals", legend Applied input / VP; "Change in applied input per sample", legend Change per sample; "Measured travel", "Activity basis" |
+| Workbench › G6 | legend noise_reference; axis "frequency_hz"; pill "… · fft 1024"; rows "detrend / segment / overlap / segments", "peak_indices / harmonic_indices" | Noise reference; "Frequency"; "… · FFT 1024"; "Detrend / segment / overlap / segments", "Peak / harmonic bins" |
+| Workbench › G7 | legend sine_fit / triangle_fit (first accepted cycle); table heads cycle_id, accepted, sse_sine, sse_triangle, cycle_score, amplitude, phase (rad), reject_reason; values true / false, FLAT_CYCLE | Sine fit / Triangle fit (first accepted cycle); Cycle, Accepted, Sine fit error, Triangle fit error, Cycle score, Amplitude, Phase (rad), Reject reason; Yes / No, "Flat cycle" |
+| Workbench › G9 | axes "u_applied", "pv", "u_norm", "pv_norm"; "normalized_pairs"; "turning angle per sample (corner mask as markers)", legend turning_angle; heads cycle_id, area, bbox_area, points scored; row "qualification_steps" | "Applied input", "PV", "Applied input, normalised", "PV, normalised"; "normalised pairs"; "Turning angle per sample, corners marked", legend Turning angle; Cycle, Area, Bounding-box area, Points scored; "Qualification steps" |
+| Workbench › G10 | "u_requested / u_applied / vp (pp)", legend u_requested / u_applied / vp; "tracking_error (u_requested − vp)"; lanes "at LOW limit" / "at HIGH limit"; "HIGH dwell" / "LOW dwell"; row "supply_pressure / actuator_pressure  NOT_MAPPED / NOT_MAPPED" | "Requested and applied input and VP (pp)", legend Requested input / Applied input / VP; "Tracking error (requested input − VP)"; "At low limit" / "At high limit"; "High dwell" / "Low dwell"; "Supply / actuator pressure  Not mapped / Not mapped" |
+| Workbench › G11 | legend pv; "delta_pv with the noise band; spikes marked", legend delta_pv, noise_band; "Health lanes not retained — absence of health is NOT OK (NOT_CONFIGURED)." | PV; "Change in PV per sample, with the noise band; spikes marked", legend Change in PV, Noise band; "Health lanes not kept for this run. Missing health information is not OK: health is not configured." |
+| System Response › candidate models | pills FLAT_DELAY, BOUNDS_HIT, SIGN_UNCERTAIN; axis fallback "dead_time"; row "theta_uncertainty_s" | "Flat delay", "Bounds hit", "Sign uncertain"; "Dead time"; "Delay uncertainty" |
+
+Looks, not words: Secondary buttons (normal / flat ObcButton and `ui-btn--secondary`) in the regular weight with the subtle
+border, the tint kept; Primary keeps semibold. Button symbols on operator displays keep their pre-CHG-183 look. Loop Events
+"Investigation →" is secondary (Acknowledge is the one primary). A passing gate tile, a good Loop KPI bar, a matching sample
+count, a running job and a window with nothing found are neutral, not green (Q3). The Evaluate window keeps each timestamp
+unbroken; the gate dialog's Loop result stacks its lines under the pill; the gate dialog foot puts the "↗" links on their own
+row when narrow; the Compare window sizes table shows an edge shadow when it scrolls; "No notes on this loop yet." is set apart
+from the form; the Workbench gate head keeps its actions on the title line from 1280 px.

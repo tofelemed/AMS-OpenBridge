@@ -10,6 +10,8 @@
  * CHG-190 (owner review item 13, Q7): the page in the look of the selected-window panel, the owner's reference design: the list
  * a panel titled Windows with its filter top right; Compare window sizes left the foot of the page for a wide dialog, opened
  * from the band.
+ * CHG-193 (owner decision 15 Nov 2026): the band's chip says "Calculation running" or "not running", without the engine's name,
+ * its state code or the checkpoint age.
  */
 import { sameInstant } from './evidence/useWindowAt';
 import React, { useId, useMemo, useState } from 'react';
@@ -76,7 +78,8 @@ export const CpmWindows: React.FC = () => {
   const setProfile = (kind: string) =>
     setParams(p => { p.set('profile', kind); p.delete('window'); return p; }, { replace: true });
 
-  // Job state and checkpoint age: watermark lag itself is unavailable from the metrics proxy, so the chip reports what is real.
+  // Whether the calculation behind this window size runs (CHG-193, owner decision 15 Nov: in words, no engine name, state code or
+  // checkpoint age; neutral when it runs, Q3).
   const cplmJob = metrics.data?.jobs.find(j => j.role === 'cplm' && j.name.toLowerCase().includes(isLong ? 'long' : 'short'));
   const anyCplm = cplmJob ?? metrics.data?.jobs.find(j => j.role === 'cplm');
 
@@ -101,9 +104,8 @@ export const CpmWindows: React.FC = () => {
         onLoop={id => setParams(p => { p.set('loop', id); p.delete('window'); return p; }, { replace: true })}
         end={<>
           {anyCplm && (
-            <TonePill tone={anyCplm.state === 'RUNNING' ? 'good' : 'bad'}>
-              {anyCplm.name.replace('AMS - ', '')} {'·'} {anyCplm.state}
-              {anyCplm.checkpoint?.lastCompletedAgeSec != null ? ` · ckpt ${anyCplm.checkpoint.lastCompletedAgeSec}s ago` : ''}
+            <TonePill tone={anyCplm.state === 'RUNNING' ? 'muted' : 'bad'}>
+              {anyCplm.state === 'RUNNING' ? 'Calculation running' : 'Calculation not running'}
             </TonePill>
           )}
           {canManage && <ObcButton className="ui-link" variant="normal" onClick={() => navigate(pipelineHref())}>Pipeline Health {'↗'}</ObcButton>}

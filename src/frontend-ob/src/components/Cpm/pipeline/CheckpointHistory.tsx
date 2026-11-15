@@ -67,8 +67,8 @@ export const CheckpointHistory: React.FC<{ samples: Sample[] }> = ({ samples }) 
       xAxis: { ...axis, type: 'time', axisLabel: { ...axis.axisLabel, hideOverlap: true,
         formatter: siteAxisTick(samples.length > 1 ? samples[samples.length - 1].t - samples[0].t : 3_600_000) } },
       yAxis: [
-        { ...axis, type: 'value', name: 'ckpt age (s)', nameGap: NAME_GAP, splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
-        { ...axis, type: 'value', name: 'ckpt dur (ms)', nameGap: NAME_GAP, splitLine: { show: false } },
+        { ...axis, type: 'value', name: 'Checkpoint age (s)', nameGap: NAME_GAP, splitLine: { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } } },
+        { ...axis, type: 'value', name: 'Checkpoint duration (ms)', nameGap: NAME_GAP, splitLine: { show: false } },
       ],
       series: [
         { name: 'Max checkpoint age', type: 'line', symbol: 'none', color: pv, lineStyle: { color: pv, width: 2 }, data: samples.map(s => [s.t, s.ckptAgeSec]) },

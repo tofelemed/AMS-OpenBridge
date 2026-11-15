@@ -96,7 +96,8 @@ export const CompareAcrossKinds: React.FC<{
           <p>Statistics are per window size over its latest 12 emitted windows; declined windows are excluded. Sizes other than 1m are sliding windows whose samples overlap: values are comparable side by side but must never be summed across rows. Click a row to inspect that size.</p>
         </Toggletip>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      {/* CHG-193 (sweep D4): a table wider than the dialog scrolls with a visible edge shadow on the side that has more */}
+      <div className="cpm-scroll-x">
         <table className="cpm-signal-table">
           <thead>
             <tr>

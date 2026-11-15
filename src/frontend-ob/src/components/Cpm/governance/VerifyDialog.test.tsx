@@ -22,7 +22,7 @@ const ran = new Date('2026-11-11T14:18:06Z');
 describe('verify dialog', () => {
   it('never claims integrity from a button click: the service sentence, when it ran, and what is not served, once', () => {
     render(<VerifyDialog verify={state({ isSuccess: true, data: 'Chain verified. No tampering detected.' })} ranAt={ran} onClose={() => {}} />);
-    expect(screen.getByText('audit-service answered:')).toBeTruthy();
+    expect(screen.getByText('The audit log answered:')).toBeTruthy();
     expect(screen.getByText('Chain verified. No tampering detected.')).toBeTruthy();
     expect(screen.getByText('Run at').nextElementSibling?.textContent).toBe('11 Nov 14:18 UTC');
     expect(screen.getAllByText(NOT_SERVED_NOTE)).toHaveLength(1);
@@ -41,21 +41,21 @@ describe('verify dialog', () => {
     expect(screen.getByText('Verify failed')).toBeTruthy();
     expect(screen.getByText('✕')).toBeTruthy();
     expect(screen.getByText('CHAIN TAMPERING DETECTED.')).toBeTruthy();
-    expect(screen.getByText('A 500 here means the service reported possible tampering or could not complete the walk.')).toBeTruthy();
+    expect(screen.getByText('This answer means the audit log reported possible tampering or could not complete the walk.')).toBeTruthy();
     expect(screen.queryByText('VERIFY FAILED')).toBeNull();
   });
 
   it('a refusal that is not a 500 does not say what a 500 means', () => {
     render(<VerifyDialog verify={state({ isError: true, error: new ApiError(403, 'You do not have permission to view this.') })} ranAt={ran} onClose={() => {}} />);
     expect(screen.getByText('You do not have permission to view this.')).toBeTruthy();
-    expect(screen.queryByText(/A 500 here means/)).toBeNull();
+    expect(screen.queryByText(/This answer means/)).toBeNull();
   });
 
   it('a network failure says plainly that the service was not reached', () => {
     render(<VerifyDialog verify={state({ isError: true, error: new TypeError('Failed to fetch') })} ranAt={ran} onClose={() => {}} />);
     expect(screen.getByText('Verify failed')).toBeTruthy();
-    expect(screen.getByText('audit-service could not be reached, so the chain was not checked.')).toBeTruthy();
-    expect(screen.queryByText(/A 500 here means/)).toBeNull();
+    expect(screen.getByText('The audit log could not be reached, so the chain was not checked.')).toBeTruthy();
+    expect(screen.queryByText(/This answer means/)).toBeNull();
     expect(screen.queryByText('Failed to fetch')).toBeNull();
   });
 
@@ -77,6 +77,6 @@ describe('the line under Verify audit chain', () => {
     rerender(<VerifyLine verify={state({ isError: true, error: new ApiError(500, 'x') })} ranAt={ran} />);
     expect(screen.getByRole('status').textContent).toBe('✕ Verify failed · 11 Nov 14:18 UTC');
     rerender(<VerifyLine verify={state({ isError: true, error: new TypeError('Failed to fetch') })} ranAt={ran} />);
-    expect(screen.getByRole('status').textContent).toBe('✕ audit-service not reached · 11 Nov 14:18 UTC');
+    expect(screen.getByRole('status').textContent).toBe('✕ Audit log not reached · 11 Nov 14:18 UTC');
   });
 });

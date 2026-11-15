@@ -3,6 +3,8 @@
  * (2C.1c field names). Each view has a pure body that takes decoded artifacts, so tests render
  * it on fixtures; the exported view resolves the artifacts of the selected run. CHG-187 (owner review 11.2): no eyebrow over a
  * panel (the gate head names the gate), and no row that repeats one of the gate's KPI cards (their notes are the cards' tips).
+ * CHG-193 (owner decision 15 Nov 2026): chart titles, axes, legends and rows in words (PV / SP / OP / VP, "applied input");
+ * units stay, and each renamed series keeps its key as the CSV column (`csv`).
  */
 import React from 'react';
 import { KvRow, PanelHead, TonePill } from '../../shared';
@@ -32,11 +34,11 @@ export const G0Body: React.FC<{ roles: DecodedArtifact[]; timeZone: string }> = 
       return (
         <section key={role} className="cpm-surface" data-role={role}>
           <PanelHead title={named && named !== role ? `${role} — ${named}` : role}
-            right={<TonePill tone={d.mask && d.mask.every(Boolean) ? 'good' : 'warn'}>{counts(excl)}</TonePill>} />
+            right={<TonePill tone={d.mask && d.mask.every(Boolean) ? 'muted' : 'warn'}>{counts(excl)}</TonePill>} />
           <CpmChart title={`${role} value (accepted; rejected samples marked)`} series={[value, rejected]} xKind="time" timeZone={timeZone} height={180} />
           <CpmChart title={`${role} source age and sample interval (separate axis)`} series={[age, dt]} xKind="time" timeZone={timeZone} height={140} />
-          <KvRow label="quality">{counts(labelsOf(d, 'quality_normalized'))} (native: {counts(labelsOf(d, 'quality_native'))})</KvRow>
-          <KvRow label="hold kind">{counts(labelsOf(d, 'hold_kind'))}</KvRow>
+          <KvRow label="Quality">{counts(labelsOf(d, 'quality_normalized'))} (native: {counts(labelsOf(d, 'quality_native'))})</KvRow>
+          <KvRow label="Hold kind">{counts(labelsOf(d, 'hold_kind'))}</KvRow>
         </section>
       );
     })}
@@ -53,10 +55,10 @@ export const G1Body: React.FC<{ mode: DecodedArtifact; intervals: DecodedArtifac
   return (
     <section className="cpm-surface">
       <PanelHead title="Mode, authority and the applied input" />
-      <IntervalLane heading title="Mode (state intervals)" intervals={lane} fromMs={fromMs} toMs={toMs} timeZone={timeZone} empty="No state_intervals artifact retained." />
-      <CpmChart title="op_requested vs u_applied (pp lane)" series={[col(mode, 'op_requested', 'op_requested', 'op', { unit: 'pp' }), col(mode, 'u_applied', 'u_applied', 'vp', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={180} />
-      <KvRow label="controlling_authority">{counts(labelsOf(mode, 'controlling_authority'))}</KvRow>
-      <KvRow label="mode_native → normalized">{counts(labelsOf(mode, 'mode_native'))} → {counts(labelsOf(mode, 'mode_normalized'))}</KvRow>
+      <IntervalLane heading title="Mode (state intervals)" intervals={lane} fromMs={fromMs} toMs={toMs} timeZone={timeZone} empty="No mode intervals kept for this run." />
+      <CpmChart title="Requested OP and applied input" series={[col(mode, 'op_requested', 'Requested OP', 'op', { unit: 'pp', csv: 'op_requested' }), col(mode, 'u_applied', 'Applied input', 'vp', { unit: 'pp', csv: 'u_applied' })]} xKind="time" timeZone={timeZone} height={180} />
+      <KvRow label="Controlling authority">{counts(labelsOf(mode, 'controlling_authority'))}</KvRow>
+      <KvRow label="Mode as stored → as read">{counts(labelsOf(mode, 'mode_native'))} → {counts(labelsOf(mode, 'mode_normalized'))}</KvRow>
     </section>
   );
 };
@@ -74,9 +76,9 @@ export const G2Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG12?
   return (
     <section className="cpm-surface">
       <PanelHead title="Set-point activity" right={<TonePill tone={eventCount > 0 ? 'warn' : 'good'}>{eventCount} event(s)</TonePill>} />
-      <CpmChart title="SP / PV (shared EU pane) with event markers" series={[col(d, 'y', 'SP', 'sp', { dashed: true }), col(d, 'pv', 'PV', 'pv'), events]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="d_sp_dt (SP rate pane)" series={[col(d, 'd_sp_dt', 'd_sp_dt', 'overlay', { unit: d.units.d_sp_dt ?? 'EU/s' })]} xKind="time" timeZone={timeZone} height={140} />
-      <KvRow label="event_type">{counts(labelsOf(d, 'event_type'))} — no step metrics are computed here</KvRow>
+      <CpmChart title="SP and PV with the SP change events" series={[col(d, 'y', 'SP', 'sp', { dashed: true }), col(d, 'pv', 'PV', 'pv'), events]} xKind="time" timeZone={timeZone} height={200} />
+      <CpmChart title="SP rate of change" series={[col(d, 'd_sp_dt', 'SP rate of change', 'overlay', { unit: d.units.d_sp_dt ?? 'EU/s', csv: 'd_sp_dt' })]} xKind="time" timeZone={timeZone} height={140} />
+      <KvRow label="Event type">{counts(labelsOf(d, 'event_type'))} — no step metrics are computed here</KvRow>
       {onOpenG12 && eventCount > 0 && <ObcButton variant="normal" onClick={onOpenG12}>Open the response analysis of this support (G12) →</ObcButton>}
     </section>
   );
@@ -100,15 +102,15 @@ export const G2rBody: React.FC<{ d: DecodedArtifact; timeZone: string; fromMs: n
   const lane = [];
   for (let i = 0; i < d.n; i++) {
     const next = i + 1 < d.n ? d.columns.x[i + 1] : d.columns.x[i] + 1000;
-    lane.push({ startMs: d.columns.x[i], endMs: next, label: d.mask && !d.mask[i] ? 'OUT OF REGION' : 'in region', tone: (d.mask && !d.mask[i] ? 'bad' : 'good') as 'bad' | 'good' });
+    lane.push({ startMs: d.columns.x[i], endMs: next, label: d.mask && !d.mask[i] ? 'Out of region' : 'In region', tone: (d.mask && !d.mask[i] ? 'bad' : 'muted') as 'bad' | 'muted' });
   }
   return (
     <section className="cpm-surface">
       <PanelHead title="Operating region" right={<TonePill tone={out.some(Boolean) ? 'warn' : 'good'}>{out.filter(Boolean).length} of {d.n} out of region</TonePill>} />
-      <Trajectory title="PV versus applied input, in sample order (region bounds shaded)" x={d.columns.u_applied} y={d.columns.y} xLabel="u_applied" xUnit={d.units.u_applied ?? 'pp'} yLabel="pv" yUnit={d.units.y ?? 'EU'}
+      <Trajectory title="PV versus applied input, in sample order (region bounds shaded)" x={d.columns.u_applied} y={d.columns.y} xLabel="Applied input" xUnit={d.units.u_applied ?? 'pp'} yLabel="PV" yUnit={d.units.y ?? 'EU'}
         highlight={out} highlightLabel="out of region" bounds={parseBounds(d.meta.provenance?.region_vertices_or_bounds)} />
       <IntervalLane heading title="In or out of the region" intervals={lane} fromMs={fromMs} toMs={toMs} timeZone={timeZone} />
-      <KvRow label="region_vertices_or_bounds">{d.meta.provenance?.region_vertices_or_bounds ?? '—'}</KvRow>
+      <KvRow label="Region bounds">{d.meta.provenance?.region_vertices_or_bounds ?? '—'}</KvRow>
     </section>
   );
 };
@@ -129,10 +131,10 @@ export const G3Body: React.FC<{ d: DecodedArtifact; timeZone: string }> = ({ d, 
     <section className="cpm-surface">
       <PanelHead title="Error against the objective" />
       <CpmChart title="error and tolerance band (samples outside the band are unmasked)" series={[col(d, 'y', 'error', 'pv'), ...bandSeries]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="cumulative_iae" series={[col(d, 'cumulative_iae', 'cumulative IAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
-      <CpmChart title="cumulative_ise" series={[col(d, 'cumulative_ise', 'cumulative ISE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
-      <CpmChart title="cumulative_itae" series={[col(d, 'cumulative_itae', 'cumulative ITAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
-      <KvRow label="benchmark_interval">{d.meta.provenance?.benchmark_interval ?? '—'}</KvRow>
+      <CpmChart title="Cumulative IAE" series={[col(d, 'cumulative_iae', 'cumulative IAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title="Cumulative ISE" series={[col(d, 'cumulative_ise', 'cumulative ISE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
+      <CpmChart title="Cumulative ITAE" series={[col(d, 'cumulative_itae', 'cumulative ITAE', 'overlay')]} xKind="time" timeZone={timeZone} height={130} />
+      <KvRow label="Benchmark interval">{d.meta.provenance?.benchmark_interval ?? '—'}</KvRow>
     </section>
   );
 };
@@ -149,10 +151,10 @@ export const G4Body: React.FC<{ d: DecodedArtifact; timeZone: string; onOpenG10?
   return (
     <section className="cpm-surface">
       <PanelHead title="Control activity" right={<TonePill tone="muted">{Array.from(reversals.y).filter(v => v != null).length} reversals</TonePill>} />
-      <CpmChart title={`u_applied${vpMapped ? ' and vp' : ''} (pp lane) with reversal markers`} series={[col(d, 'y', 'u_applied', 'op'), ...(vpMapped ? [col(d, 'vp', 'vp', 'vp', { unit: 'pp' })] : []), reversals]} xKind="time" timeZone={timeZone} height={200} />
-      <CpmChart title="delta_u per sample" series={[col(d, 'delta_u', 'delta_u', 'overlay', { unit: 'pp' })]} xKind="time" timeZone={timeZone} height={130} />
-      <KvRow label="measured_travel_variation">{d.meta.provenance?.measured_travel_variation ?? '—'} pp</KvRow>
-      <KvRow label="activity_basis">{d.meta.provenance?.activity_basis ?? 'basis not declared'}</KvRow>
+      <CpmChart title={`Applied input${vpMapped ? ' and VP' : ''} (pp) with reversals`} series={[col(d, 'y', 'Applied input', 'op', { csv: 'u_applied' }), ...(vpMapped ? [col(d, 'vp', 'VP', 'vp', { unit: 'pp', csv: 'vp' })] : []), reversals]} xKind="time" timeZone={timeZone} height={200} />
+      <CpmChart title="Change in applied input per sample" series={[col(d, 'delta_u', 'Change per sample', 'overlay', { unit: 'pp', csv: 'delta_u' })]} xKind="time" timeZone={timeZone} height={130} />
+      <KvRow label="Measured travel">{d.meta.provenance?.measured_travel_variation ?? '—'} pp</KvRow>
+      <KvRow label="Activity basis">{d.meta.provenance?.activity_basis ?? 'basis not declared'}</KvRow>
       {onOpenG10 && <ObcButton variant="normal" onClick={onOpenG10}>Actuator limits of this window (G10) →</ObcButton>}
     </section>
   );

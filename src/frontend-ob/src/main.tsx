@@ -13,10 +13,13 @@ import './styles/fonts.css';
 
 // OpenBridge Design System - Global CSS (must be imported before any components)
 import '@oicl/openbridge-webcomponents/dist/openbridge.css';
+// CHG-193: every obc-button carries its variant as an attribute (styles/button-standard.css scopes the Secondary weight).
+import './ui/obcButtonVariant';
 
 // Traverse tokens, then the bridge that assigns OpenBridge variables from them (CD1, CD5).
 import './styles/traverse-tokens.css';
 import './styles/openbridge-bridge.css';
+import './styles/button-standard.css';
 import './styles/tones.css';
 import './styles/signal-colours.css';
 import './styles/state-colours.css';

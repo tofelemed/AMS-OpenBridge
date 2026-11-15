@@ -55,3 +55,25 @@
 /* A link has its own padding, so the links sit without a gap and, when they wrap, as one centred cluster. */
 .cpm-gate-actions__links { flex: 1 1 0%; min-width: min-content; gap: 0; justify-content: center; }
 .cpm-gate-actions__primary { margin-inline-start: auto; }
+
+/* CHG-193 (sweep D9): the Loop result value: the pill, then each secondary line under it */
+.cpm-gate-dialog__result { display: inline-flex; flex-direction: column; align-items: flex-end; gap: var(--traverse-space-1); text-align: right; }
+.cpm-gate-dialog__result > .cpm-pill { align-self: flex-end; }
+
+/*
+ * CHG-193 (sweep D1): below the width where the foot fits on one line, Prev / Next and the primary share the first row and the
+ * "↗" links take their own row, left-aligned and evenly spaced. Grid areas place them; the DOM (and so the keyboard) order
+ * stays steps, links, primary.
+ */
+.ui-dialog__foot:has(> .cpm-gate-actions) { container: gate-foot / inline-size; }
+@container gate-foot (max-width: 760px) {
+  .cpm-gate-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'steps . primary' 'links links links';
+    row-gap: var(--traverse-space-2);
+  }
+  .cpm-gate-actions__steps { grid-area: steps; }
+  .cpm-gate-actions__primary { grid-area: primary; margin-inline-start: 0; }
+  .cpm-gate-actions__links { grid-area: links; justify-content: flex-start; gap: var(--traverse-space-1) var(--traverse-space-3); }
+}

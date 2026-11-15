@@ -22,3 +22,15 @@ describe('CpmChart data access', () => {
     expect(document.body.textContent).not.toContain('400');     // no serialised values on the page before a click
   });
 });
+
+// CHG-193 (owner decision 15 Nov 2026, A2): the legend speaks words, the CSV keeps its column names
+describe('CSV column names', () => {
+  it('keeps the series key as the CSV column when the legend name is in words', async () => {
+    const { toCsv } = await import('./CpmChart');
+    const applied: CpmSeries = { id: 'u_applied', label: 'Applied input', csvLabel: 'u_applied', unit: 'pp', x: [1, 2], y: [10, 11], pen: 'op' };
+    expect(toCsv([applied]).split('\n')[0]).toBe('x,u_applied (pp)');
+    expect(toCsv([applied], { xKind: 'value', xLabel: 'Frequency', csvXLabel: 'frequency_hz', xUnit: 'Hz' }).split('\n').find(l => !l.startsWith('#')))
+      .toBe('frequency_hz (Hz),u_applied (pp)');
+    expect(toCsv([pv]).split('\n')[0]).toBe('x,PV (°C)');   // no csvLabel: the legend name, as before
+  });
+});

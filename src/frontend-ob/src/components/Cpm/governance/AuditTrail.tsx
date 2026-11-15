@@ -80,11 +80,11 @@ export const AuditTrail: React.FC = () => {
         )}
         {canRead && audit.isLoading && <EmptyState title="Loading audit trail…" />}
         {canRead && forbidden && (
-          <EmptyState title="Audit service refused the read (403)"
-            copy="The token was accepted by the app but not by audit-service. Sign in again to refresh your permissions." />
+          <EmptyState title="The audit log refused the read"
+            copy="Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions." />
         )}
         {canRead && audit.isError && !forbidden && (
-          <QueryError title="Audit service unreachable" error={audit.error} retry={() => void audit.refetch()} />
+          <QueryError title="Audit log not reached" error={audit.error} retry={() => void audit.refetch()} />
         )}
         {canRead && audit.data && !audit.isError && t.rows.length === 0 && (filtered
           ? <EmptyState title="No audit events match" copy="The trail records display, CPM, gate-configuration, data-source, role and user changes." />

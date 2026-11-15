@@ -326,7 +326,7 @@ export const GateEvidenceWorkspace: React.FC = () => {
       </section>
       </div>
       <ReconstructDialog open={recon.open} loopId={selection.loopId} gate={`${selection.gate} ${entry?.name ?? ''}`.trim()} windowText={runWindowText}
-        phase={recon.phase} startedAt={recon.startedAt} onConfirm={recon.confirm} onClose={recon.close} />
+        phase={recon.phase} startedAt={recon.startedAt} onConfirm={recon.confirm} onKeepWaiting={recon.keepWaiting} onClose={recon.close} />
     </div>
   );
 };

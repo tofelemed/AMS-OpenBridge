@@ -18,7 +18,7 @@ const BuildDetails: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
   const builds = caps.data?.engine.observed ?? [];
   const parts: RecordPart[] = caps.data ? [
     { title: 'Service', rows: [{
-      label: 'cplm-api build', shown: `${caps.data.service.version} · ${shortIdentity(caps.data.service.sourceCommit)}`,
+      label: 'Service build', shown: `${caps.data.service.version} · ${shortIdentity(caps.data.service.sourceCommit)}`,
       copy: `${caps.data.service.version} · ${caps.data.service.sourceCommit}`,
     }] },
     { title: 'Engine builds observed', rows: builds.length === 0

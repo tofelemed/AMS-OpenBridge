@@ -15,6 +15,8 @@
  * amber + "At limit" for OP at a registered range bound, amber for a mode the engine does not count as normal (its name and
  * note are the words); neutral otherwise, no green. PV stays neutral: its good band is not on this page (readingState.ts).
  * `SignalStripAt` shows stored values, so it never takes a state colour.
+ * CHG-193 (final review M6, sweep D6, D7): the amber mode box says "Not normal" where OP says "At limit"; the mode reads as the
+ * word Replay uses ("Auto", not "AUT"); the quality caption is in sentence case.
  */
 import React from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
@@ -24,7 +26,7 @@ import { FacetPill } from '../../FacetPill';
 import { EmptyState } from '../../shared';
 import { registryHref } from '../../cpaHref';
 import { bucketValue, liveSource, useSignalValues } from './useSignalValues';
-import { modeNeedsLook, opReadingState } from './readingState';
+import { modeReadingState, opReadingState } from './readingState';
 import { SignalReading as Signal } from './SignalReading';
 
 export { liveSource };
@@ -43,6 +45,7 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
     );
   }
 
+  const modeState = modeReadingState(v.modeToken, v.modeLive);
   return (
     <div className="cpm-signal-strip" role="group" aria-label="Operating signals">
       <div className="cpm-signal-group">
@@ -50,7 +53,7 @@ export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
           const state = s.role === 'OP' ? opReadingState(s.num, s.live, loop.engineering) : null;
           return <Signal key={s.role} caption={s.role} value={s.value ?? '—'} unit={s.value != null ? s.unit : ''} sub={s.note} warn={!!state} state={state} />;
         })}
-        <Signal caption="MODE" value={v.mode.label} sub={v.modeNote} warn={modeNeedsLook(v.modeToken, v.modeLive)} />
+        <Signal caption="MODE" value={v.mode.label} sub={v.modeNote} warn={!!modeState} state={modeState} />
       </div>
       <p className="cpm-signal-strip__quality">
         <FacetPill facet="signal" tone={v.quality.tone}>{v.quality.text}</FacetPill>

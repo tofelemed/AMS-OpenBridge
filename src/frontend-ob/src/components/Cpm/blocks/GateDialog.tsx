@@ -43,7 +43,8 @@ export const GateDialog: React.FC<{
       {!loopInView && <h3 className="cpm-panel-title cpm-gate-dialog__heading">{gateName(gate)}</h3>}
       {windowLine != null && <p className="cpm-gate-dialog__window">{windowLine}</p>}
       <KvRow label="Check status"><GateBadge status={status} gate={gate} inputFlags={flags} /></KvRow>
-      {loopResult != null && <KvRow label="Loop result">{loopResult}</KvRow>}
+      {/* CHG-193 (sweep D9): the result pill, with the last verdict and the score stacked under it */}
+      {loopResult != null && <KvRow label="Loop result"><span className="cpm-gate-dialog__result">{loopResult}</span></KvRow>}
       {rows?.map(row => <KvRow key={row.label} label={row.label}>{row.value}</KvRow>)}
       {children}
     </>

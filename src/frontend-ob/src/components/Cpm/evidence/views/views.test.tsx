@@ -113,7 +113,7 @@ describe('gate views', () => {
     const o = captured[0] as { yAxis: Array<{ type: string; name: string }>; xAxis: { name: string } };
     expect(o.yAxis[0].type).toBe('log');
     expect(o.yAxis[0].name).toBe('signal^2/Hz');
-    expect(o.xAxis.name).toBe('frequency_hz (Hz)');
+    expect(o.xAxis.name).toBe('Frequency (Hz)');
     expect((seriesOf(captured[0])[1].data as Array<[number, number | null]>).filter(p => p[1] != null)).toHaveLength(1);
   });
 
@@ -123,9 +123,9 @@ describe('gate views', () => {
     const bad = decoded({ gate: 'G7', kind: 'cycle_fit', role: 'CYCLE_1', x: [0, 0.5, 1], y: [0, 0, 0], xQuantity: 'phase', xUnit: 'cycle_fraction', columns: { sine_fit: [0, 0, 0], triangle_fit: [0, 0, 0], original_indices: [3, 4, 5] },
       provenance: { cycle_id: '1', accepted: 'false', reject_reason: 'FLAT_CYCLE', sse_sine: '0', sse_triangle: '0', cycle_score: '0', amplitudes: '0', phases: '0' } });
     render(<G7Body cycles={[ok, bad]} />);
-    expect(screen.getByText('FLAT_CYCLE')).toBeTruthy();
+    expect(screen.getByText('Flat cycle')).toBeTruthy();
     expect(screen.queryByText(/1 accepted of 2/)).toBeNull();                                       // CHG-187: the Accepted cycles card says it
-    expect(seriesOf(captured[0]).map(s => s.name)).toEqual(['cycle 0 measured', 'sine_fit (first accepted cycle)', 'triangle_fit (first accepted cycle)']);
+    expect(seriesOf(captured[0]).map(s => s.name)).toEqual(['cycle 0 measured', 'Sine fit (first accepted cycle)', 'Triangle fit (first accepted cycle)']);
   });
 
   it('G7: every accepted cycle overlay carries its own series id (echarts refuses duplicate ids and the page would blank)', () => {
@@ -156,19 +156,19 @@ describe('gate views', () => {
     expect(screen.getByText(/1 accepted of 100 cycles; none is among the per-cycle fits kept for this run/)).toBeTruthy();
   });
 
-  it('G10 / G11: episodes come from the tables, limits and lanes are intervals, pressures are NOT_MAPPED', () => {
+  it('G10 / G11: episodes come from the tables, limits and lanes are intervals, pressures are Not mapped (CHG-193)', () => {
     const t = times(4);
     const lim = decoded({ gate: 'G10', kind: 'actuator_limits', x: t, y: [99, 100, 100, 50], yUnit: 'pp', columns: { u_requested: [99, 100, 100, 50], vp: [NaN, NaN, NaN, NaN], tracking_error: [NaN, NaN, NaN, NaN], active_low: [0, 0, 0, 0], active_high: [0, 1, 1, 0], validity: [1, 1, 1, 1] },
       provenance: { limit_reason: 'FALLBACK_0_100', supply_pressure: 'NOT_MAPPED', actuator_pressure: 'NOT_MAPPED' } });
     const dwell = decoded({ gate: 'G10', kind: 'DWELL_EVENTS', x: [t[1]], y: [10], xQuantity: 'start_time', yQuantity: 'duration', yUnit: 's', mask: [true] });
     render(<G10Body d={lim} dwell={dwell} timeZone="UTC" />);
-    expect(screen.getByText(/NOT_MAPPED \/ NOT_MAPPED/)).toBeTruthy();
-    expect(screen.getByText('HIGH dwell')).toBeTruthy();
+    expect(screen.getByText(/Not mapped \/ Not mapped/)).toBeTruthy();
+    expect(screen.getByText('High dwell')).toBeTruthy();
     expect(episodes(dwell, () => 'x')[0].durationS).toBe(10);
     cleanup(); captured.length = 0;
     const m = decoded({ gate: 'G11', kind: 'measurement', x: t, y: [1, 1, 1, 1], columns: { delta_pv: [NaN, 0, 0, 0], spikes: [0, 0, 1, 0] }, units: { delta_pv: 'EU' }, provenance: { noise_band: '0.02', quantization: '3' } });
     render(<G11Body d={m} freeze={undefined} health={undefined} timeZone="UTC" />);
-    expect(screen.getByText(/absence of health is NOT OK/)).toBeTruthy();
+    expect(screen.getByText(/Missing health information is not OK/)).toBeTruthy();
     expect(screen.getByText(/No freeze episode retained/)).toBeTruthy();
   });
 

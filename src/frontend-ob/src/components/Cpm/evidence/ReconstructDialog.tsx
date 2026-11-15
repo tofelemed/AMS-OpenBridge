@@ -3,6 +3,7 @@
  * nothing until confirmed. CHG-188 (owner review 15): one line of text, the rows Loop, Gate and Window, Reconstruct as the
  * primary action and Cancel as secondary. After Reconstruct it shows the run's progress (Running, with the time since the
  * click, then Done; the page closes it by itself), or Failed with the reason and Retry. Closing it mid-run leaves the run going.
+ * CHG-193 (final review M2): after the time limit the job may still finish: Keep waiting is the primary, Retry secondary.
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -22,11 +23,14 @@ export interface ReconstructDialogProps {
   startedAt: number | null;
   /** Reconstruct, and Retry after a failure. */
   onConfirm: () => void;
+  /** After the time limit: wait again, with no new request. */
+  onKeepWaiting?: () => void;
   onClose: () => void;
 }
 
-export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, phase, startedAt, onConfirm, onClose }) => {
+export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loopId, gate, windowText, phase, startedAt, onConfirm, onKeepWaiting, onClose }) => {
   const failed = phase.step === 'FAILED';
+  const wait = failed && !!phase.keepWaiting && !!onKeepWaiting;
   return (
     <Dialog
       open={open}
@@ -36,7 +40,8 @@ export const ReconstructDialog: React.FC<ReconstructDialogProps> = ({ open, loop
       footer={(
         <>
           <ObcButton variant="normal" onClick={onClose}>{phase.step === 'IDLE' ? 'Cancel' : 'Close'}</ObcButton>
-          {(phase.step === 'IDLE' || failed) && <ObcButton variant="raised" onClick={onConfirm}>{failed ? 'Retry' : 'Reconstruct'}</ObcButton>}
+          {(phase.step === 'IDLE' || failed) && <ObcButton variant={wait ? 'normal' : 'raised'} onClick={onConfirm}>{failed ? 'Retry' : 'Reconstruct'}</ObcButton>}
+          {wait && <ObcButton variant="raised" onClick={onKeepWaiting}>Keep waiting</ObcButton>}
         </>
       )}
     >

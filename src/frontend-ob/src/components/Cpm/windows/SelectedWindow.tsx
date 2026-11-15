@@ -6,6 +6,7 @@
  * proof table, or Replay).
  * CHG-190 (owner review items 13 and 14): the owner's reference design, built as drawn: Historical ↗ and Trend ↗ top right
  * (they stay links, Q4), the rows even, the dialogs a Details grid of buttons, Inspect this window → full width at the foot.
+ * CHG-193 (final review I1): the window's metric values are back, as the Calculated values item (not Record details).
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,12 +22,12 @@ import { serviceName } from '../loopName';
 import { historicalHref, trendHref } from '../cpaHref';
 import { loopPens } from '../../Designer/trend/loopPens';
 import { SampleDensityDialog } from './SampleDensityDialog';
-import { EngineTimingDialog, FeatureFlagsDialog } from './WindowDialogs';
+import { CalculatedValuesDialog, EngineTimingDialog, FeatureFlagsDialog } from './WindowDialogs';
 import { isDeclined } from './WindowResults';
 import { countCheck, fmtCount, nominalOf } from './windowMath';
 import { inspectTarget, windowRef } from './windowNav';
 
-type Dialogs = 'flags' | 'engine' | 'density' | null;
+type Dialogs = 'values' | 'flags' | 'engine' | 'density' | null;
 
 export const SelectedWindow: React.FC<{
   row: CpmKpiRow;
@@ -52,7 +53,8 @@ export const SelectedWindow: React.FC<{
   const trend = loop && loopPens(loop).length > 0 && row.window_start && row.window_end
     ? trendHref(loopId, { from: new Date(row.window_start).toISOString(), to: new Date(row.window_end).toISOString() }) : null;
   const detail = (label: string, to: Exclude<Dialogs, null>): DetailItem => ({ label, dialog: true, onClick: () => setDialog(to) });
-  const details = [...(isLong ? [] : [detail('Feature flags', 'flags')]), detail('Sample density', 'density'), detail('Engine & timing', 'engine')];
+  const details = [detail('Calculated values', 'values'), ...(isLong ? [] : [detail('Feature flags', 'flags')]), detail('Sample density', 'density'),
+    detail('Engine & timing', 'engine')];
   // CHG-192 (owner review item 16): each dialog names the loop and the window size under its title, as Compare window sizes does
   const subtitle = [loopId, loop ? serviceName(loop) : '', `${windowSize({ windowKind: kind })} window`].filter(Boolean).join(' · ');
   return (
@@ -88,6 +90,7 @@ export const SelectedWindow: React.FC<{
         <KvRow label="Tag"><TonePill tone="muted">{isLong ? 'Long diagnostics' : 'Short features'}</TonePill></KvRow>
         <KvRow label="Stored">{fmtInstant(row.created_at, timeZone)}</KvRow>
       </Inspector>
+      <CalculatedValuesDialog open={dialog === 'values'} onClose={close} row={row} tier={tier} timeZone={timeZone} subtitle={subtitle} />
       <FeatureFlagsDialog open={dialog === 'flags'} onClose={close} row={row} declined={declined} subtitle={subtitle} />
       <SampleDensityDialog open={dialog === 'density'} onClose={close} row={row} loopId={loopId} subtitle={subtitle} />
       <EngineTimingDialog open={dialog === 'engine'} onClose={close} spec={spec} kind={kind} subtitle={subtitle} />

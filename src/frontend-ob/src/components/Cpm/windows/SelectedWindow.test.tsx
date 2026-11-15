@@ -85,7 +85,7 @@ describe('SelectedWindow', () => {
   // CHG-192 (owner review item 16): each of the three dialogs names the loop and the window size under its title
   it('names the loop and the window size under each dialog title, and the raw count as a row', () => {
     mount(row());
-    for (const name of ['Feature flags', 'Sample density', 'Engine & timing']) {
+    for (const name of ['Calculated values', 'Feature flags', 'Sample density', 'Engine & timing']) {
       fireEvent.click(screen.getByRole('button', { name }));
       const dialog = screen.getByRole('dialog', { name });
       expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10401 · 15 min window');
@@ -140,7 +140,7 @@ describe('SelectedWindow', () => {
     const grid = screen.getByRole('region', { name: 'Details' });
     expect(grid.closest('.ui-inspector__body')).toBeNull();
     const buttons = within(grid).getAllByRole('button');
-    expect(buttons.map(b => b.textContent)).toEqual(['Feature flags›', 'Sample density›', 'Engine & timing›']);
+    expect(buttons.map(b => b.textContent)).toEqual(['Calculated values›', 'Feature flags›', 'Sample density›', 'Engine & timing›']);
     for (const b of buttons) expect(b.getAttribute('aria-haspopup')).toBe('dialog');
   });
 
@@ -156,5 +156,26 @@ describe('SelectedWindow', () => {
     mount(row());
     expect(screen.getAllByRole('button', { name: 'Historical ↗' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Trend ↗' })).toHaveLength(1);
+  });
+
+  // CHG-193 (final review I1): the window's metric values came back as a Details item, never named Record details
+  it("opens the window's calculated values from the Details grid, with the window line", () => {
+    mount(row({ mae: 0.5, rmse: 1.25 }));
+    expect(screen.queryByRole('button', { name: /Record details/ })).toBeNull();
+    fireEvent.click(within(screen.getByRole('region', { name: 'Details' })).getByRole('button', { name: 'Calculated values' }));
+    const dialog = screen.getByRole('dialog', { name: 'Calculated values' });
+    expect(dialog.querySelector('.ui-dialog__subtitle')?.textContent).toBe('FIC10401 · 15 min window');
+    expect(within(dialog).getByText('Window').nextSibling?.textContent).toBe(screen.getAllByText('Window')[0].nextSibling?.textContent);
+    expect(within(dialog).getByText('MAE').nextSibling?.textContent).toBe('0.5');
+    expect(within(dialog).getByText('RMSE').nextSibling?.textContent).toBe('1.25');
+    expect(within(dialog).queryByText('Record details')).toBeNull();
+  });
+
+  it('shows the long metrics for a long window', () => {
+    mount(row({ long_metrics_qualified: true, acf_regularity: 0.42 }), '12h', true);
+    fireEvent.click(screen.getByRole('button', { name: 'Calculated values' }));
+    const dialog = screen.getByRole('dialog', { name: 'Calculated values' });
+    expect(within(dialog).getByText('ACF regularity').nextSibling?.textContent).toBe('0.42');
+    expect(within(dialog).queryByText('MAE')).toBeNull();
   });
 });

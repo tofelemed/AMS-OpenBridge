@@ -224,7 +224,7 @@ export const CpmPerformance: React.FC = () => {
             <p className="cpm-freshness cpm-freshness--stale" role="status">
               Stale · Newest fused window emitted {fmtAge(windowAgeMs)} ago ({fmtDateTime(new Date(newestWindow).toISOString())})
               {canPipeline && (
-                <ObcButton className="ui-link" variant="flat" title="Job states and checkpoint health of the CPLM engines"
+                <ObcButton className="ui-link" variant="flat" title="Whether the analysis is running and up to date"
                   onClick={() => navigate(pipelineHref())}>
                   Pipeline Health ↗
                 </ObcButton>

@@ -97,7 +97,7 @@ All 40 px, 6 px radius, `border.strong`, focus 2 px with a 3 px gap. Invalid sho
 
 ## 6.11 Dialog
 
-`Dialog.tsx`. Named by its title, `aria-modal`, described by its description. Focus starts inside and is trapped, including buttons in shadow roots. Esc closes, focus returns to the trigger, the close control is named. Footer actions are right-aligned, primary last.
+`Dialog.tsx`. Named by its title, `aria-modal`, described by its subtitle and its description (CHG-193: the subtitle joins `aria-describedby`, so a destructive confirm names its object). Focus starts inside and is trapped, including buttons in shadow roots. Esc closes, focus returns to the trigger, the close control is named. Footer actions are right-aligned, primary last.
 
 CHG-183 (owner review item 2, Look 1): the head is a solid `action.primary` band with the title and an optional `subtitle` (loop · gate) in `action.on`, and the close button. Its focus ring is `action.on`, since by Day the focus colour is the band colour. The modal Inspector drawer wears the same band.
 
@@ -131,12 +131,12 @@ Keyboard: Up and Down move, Enter selects, Esc closes and clears the search.
 
 ## 6.15 Buttons
 
-CHG-183 (owner review 2026-11-14, items 7 and 17, Look 1): **every action looks like a button.** `Button.tsx` wraps `ObcButton`, which stays (RD2). The looks are variables on the `obc-button` host in `styles/openbridge-bridge.css`, so a bare `ObcButton` follows the same standard.
+CHG-183 (owner review 2026-11-14, items 7 and 17, Look 1): **every action looks like a button.** `Button.tsx` wraps `ObcButton`, which stays (RD2). The looks are variables on the `obc-button` host in `styles/button-standard.css` (CHG-193 moved them out of `styles/openbridge-bridge.css`), so a bare `ObcButton` follows the same standard.
 
 | Level | `Button` variant | ObcButton | Look | Use |
 |---|---|---|---|---|
-| Primary | `primary` | raised | `action.primary` fill, `action.on` text | The one main action of a panel or dialog |
-| Secondary A | `secondary` (default) | normal or flat | `surface.raised` tint, `border.strong`, `text.primary`; hover border and text `action.primary`; pressed `surface.selected` with `action.active` | Every other action, including in-page "→" actions |
+| Primary | `primary` | raised | `action.primary` fill, `action.on` text, semibold | The one main action of a panel or dialog |
+| Secondary A | `secondary` (default) | normal or flat | `surface.raised` tint, `border.subtle`, `text.primary` in the regular weight (CHG-193, owner 15 Nov 2026: quieter); hover border and text `action.primary`; pressed `surface.selected` with `action.active` | Every other action, including in-page "→" actions |
 | Destructive | `destructive` | raised | `status.danger.fg` fill, `action.on` text | Confirms a delete or retire |
 | Ghost | `ghost` | flat + host class `ui-ghost` | transparent, `text.secondary` | Icon-only and dialog close buttons only |
 | Link | `link` | flat + host class `ui-link` | `action.primary`, underlined, no box | Opens another page: every label that ends in "↗" (owner Q4) |
@@ -145,6 +145,8 @@ CHG-183 (owner review 2026-11-14, items 7 and 17, Look 1): **every action looks 
 - A toggle that is on sets `aria-pressed`: it keeps the pressed look.
 - Disabled: `surface.raised`, `border.subtle`, `text.muted`; a disabled link drops its underline. A disabled action says why, on screen, through `reason`.
 - Painted 40 px, 6 px radius, focus 2 px with a 3 px gap (`obc-fit-probe`). `styles/buttonStandard.test.ts` keeps the rules and every "↗" button a link.
+- The weight: OpenBridge reads one weight variable for every variant, so `ui/obcButtonVariant.ts` reflects `variant` to the host attribute and the regular weight is scoped to `[variant='normal']` and `[variant='flat']`.
+- Display content is not app chrome (CHG-193): a button symbol drawn on an operator display (the Designer canvas `.designer-canvas__stage`, the runtime view `.display-viewer__stage`) keeps its earlier look; every Secondary A rule excludes the two roots. The Alarm Console toolbar and the user menu keep the app standard.
 
 ## 6.16 Toast
 

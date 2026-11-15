@@ -23,3 +23,25 @@ describe('Dialog band', () => {
     expect(document.querySelector('.ui-dialog__subtitle')).toBeNull();
   });
 });
+
+// CHG-193 (final review M5): a screen reader hears the subtitle with the dialog ("Delete role" + the role name).
+describe('Dialog subtitle is described', () => {
+  it('joins the subtitle to aria-describedby', () => {
+    render(<Dialog open onClose={() => undefined} title="Delete role" subtitle="Plant engineer"><p>Body</p></Dialog>);
+    expect(screen.getByRole('dialog', { name: 'Delete role' }).getAttribute('aria-describedby')).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Delete role' });
+    const ids = dialog.getAttribute('aria-describedby')!.split(' ');
+    expect(ids.map(id => document.getElementById(id)?.textContent)).toEqual(['Plant engineer']);
+  });
+
+  it('keeps the description id beside the subtitle id, subtitle first', () => {
+    render(<Dialog open onClose={() => undefined} title="Delete role" subtitle="Plant engineer" description="This cannot be undone."><p>Body</p></Dialog>);
+    const ids = screen.getByRole('dialog', { name: 'Delete role' }).getAttribute('aria-describedby')!.split(' ');
+    expect(ids.map(id => document.getElementById(id)?.textContent)).toEqual(['Plant engineer', 'This cannot be undone.']);
+  });
+
+  it('has no aria-describedby with neither a subtitle nor a description', () => {
+    render(<Dialog open onClose={() => undefined} title="Delete role"><p>Body</p></Dialog>);
+    expect(screen.getByRole('dialog', { name: 'Delete role' }).hasAttribute('aria-describedby')).toBe(false);
+  });
+});

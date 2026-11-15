@@ -26,7 +26,7 @@ describe('conditionOf', () => {
     expect(conditionOf('NOT_EVALUATED').kind).toBe('not-evaluated');
   });
   it('treats NORMAL as healthy', () => {
-    expect(conditionOf('NORMAL')).toMatchObject({ kind: 'healthy', tone: 'good' });
+    expect(conditionOf('NORMAL')).toMatchObject({ kind: 'healthy', tone: 'muted' });   // CHG-193 (sweep D3, owner Q3): normal is neutral
   });
   it('reads a judged window with no fault as a result, in grey: never not evaluated, never healthy (CHG-092)', () => {
     for (const d of ['NO_CALL', 'INSUFFICIENT_EVIDENCE'])

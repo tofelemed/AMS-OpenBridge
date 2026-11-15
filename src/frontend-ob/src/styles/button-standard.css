@@ -1,0 +1,149 @@
+/*
+ * The app's one button standard (CHG-183, owner review 2026-11-14, items 7 and 17, Look 1). CHG-193 (final review M10) moved it
+ * out of openbridge-bridge.css, same rules in the same order, loaded right after the bridge (main.tsx).
+ * raised = Primary (the bridge). normal and flat = Secondary A: a neutral tint, so every action looks like a button. The values
+ * sit on the host, so the other users of these families (rows, Login) keep theirs.
+ * CHG-193 (owner decision 15 Nov 2026): Secondary A is quieter: the label in the regular weight (Primary keeps the OpenBridge
+ * semibold) and the subtle border (the tint stays); hover, pressed and disabled are unchanged.
+ * CHG-193 (final review I2): a button drawn on an operator display (the Designer canvas, the runtime view) is display content,
+ * not app chrome: every Secondary A rule excludes the two stage roots, so those buttons keep the bridge's earlier look.
+ * :where() keeps the exclusion at zero specificity, so the rules weigh what they weighed before.
+ * Opt-outs on the host: .ui-ghost (icon-only and close buttons) and .ui-link (opens another page, label ends in ↗).
+ */
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *)) {
+  --normal-enabled-background-color: var(--traverse-surface-raised);
+  --normal-enabled-border-color: var(--traverse-border-subtle);
+  --normal-hover-background-color: var(--traverse-surface-raised);
+  --normal-hover-border-color: var(--traverse-action-primary);
+  --normal-pressed-background-color: var(--traverse-surface-selected);
+  --normal-pressed-border-color: var(--traverse-action-active);
+  --normal-disabled-background-color: var(--traverse-surface-raised);
+  --normal-disabled-border-color: var(--traverse-border-subtle);
+  --on-normal-active-color: var(--traverse-text-primary);
+  --on-normal-neutral-color: var(--traverse-text-primary);
+  --on-normal-disabled-color: var(--traverse-text-muted);
+
+  --flat-enabled-background-color: var(--traverse-surface-raised);
+  --flat-enabled-border-color: var(--traverse-border-subtle);
+  --flat-hover-background-color: var(--traverse-surface-raised);
+  --flat-hover-border-color: var(--traverse-action-primary);
+  --flat-pressed-background-color: var(--traverse-surface-selected);
+  --flat-pressed-border-color: var(--traverse-action-active);
+  --flat-disabled-background-color: var(--traverse-surface-raised);
+  --flat-disabled-border-color: var(--traverse-border-subtle);
+  --on-flat-active-color: var(--traverse-text-primary);
+  --on-flat-neutral-color: var(--traverse-text-primary);
+  --on-flat-disabled-color: var(--traverse-text-muted);
+}
+
+/* CHG-193: OpenBridge has one weight variable for every variant; the host carries its variant (ui/obcButtonVariant.ts). */
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *))[variant='normal'],
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *))[variant='flat'] {
+  --global-typography-ui-button-font-weight: var(--font-weight-regular);
+}
+
+/*
+ * OpenBridge has no hover or pressed text variable, so the host re-points the active one. A disabled button
+ * keeps its muted text: the shadow rule for disabled is !important.
+ */
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *)):hover {
+  --on-normal-active-color: var(--traverse-action-primary);
+  --on-normal-neutral-color: var(--traverse-action-primary);
+  --on-flat-active-color: var(--traverse-action-primary);
+  --on-flat-neutral-color: var(--traverse-action-primary);
+}
+
+/* Pressed; a toggle that is on (aria-pressed) keeps the pressed look. */
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *)):active,
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *))[aria-pressed='true'] {
+  --on-normal-active-color: var(--traverse-action-active);
+  --on-normal-neutral-color: var(--traverse-action-active);
+  --on-flat-active-color: var(--traverse-action-active);
+  --on-flat-neutral-color: var(--traverse-action-active);
+}
+obc-button:not(:where(.designer-canvas__stage *, .display-viewer__stage *))[aria-pressed='true'] {
+  --normal-enabled-background-color: var(--traverse-surface-selected);
+  --normal-enabled-border-color: var(--traverse-action-active);
+  --normal-hover-background-color: var(--traverse-surface-selected);
+  --normal-hover-border-color: var(--traverse-action-active);
+  --flat-enabled-background-color: var(--traverse-surface-selected);
+  --flat-enabled-border-color: var(--traverse-action-active);
+  --flat-hover-background-color: var(--traverse-surface-selected);
+  --flat-hover-border-color: var(--traverse-action-active);
+}
+
+/* Ghost: the earlier transparent flat look, for icon-only buttons and dialog close buttons. */
+obc-button.ui-ghost,
+obc-button.ui-ghost:active,
+obc-button.ui-ghost[aria-pressed='true'] {
+  --normal-enabled-background-color: transparent;
+  --normal-enabled-border-color: transparent;
+  --normal-hover-background-color: var(--traverse-surface-hover);
+  --normal-hover-border-color: transparent;
+  --normal-pressed-background-color: var(--traverse-surface-selected);
+  --normal-pressed-border-color: transparent;
+  --normal-disabled-background-color: transparent;
+  --normal-disabled-border-color: transparent;
+  --flat-enabled-background-color: transparent;
+  --flat-enabled-border-color: transparent;
+  --flat-hover-background-color: var(--traverse-surface-hover);
+  --flat-hover-border-color: transparent;
+  --flat-pressed-background-color: var(--traverse-surface-selected);
+  --flat-pressed-border-color: transparent;
+  --flat-disabled-background-color: transparent;
+  --flat-disabled-border-color: transparent;
+  --on-normal-active-color: var(--traverse-text-secondary);
+  --on-normal-neutral-color: var(--traverse-text-secondary);
+  --on-flat-active-color: var(--traverse-text-secondary);
+  --on-flat-neutral-color: var(--traverse-text-secondary);
+}
+obc-button.ui-ghost:hover {
+  --on-normal-active-color: var(--traverse-text-primary);
+  --on-normal-neutral-color: var(--traverse-text-primary);
+  --on-flat-active-color: var(--traverse-text-primary);
+  --on-flat-neutral-color: var(--traverse-text-primary);
+}
+
+/* Link: opens another page (owner Q4, label ends in ↗). Action colour, underlined, no box; the focus ring stays. */
+obc-button.ui-link,
+obc-button.ui-link[aria-pressed='true'] {
+  --normal-enabled-background-color: transparent;
+  --normal-enabled-border-color: transparent;
+  --normal-hover-background-color: transparent;
+  --normal-hover-border-color: transparent;
+  --normal-pressed-background-color: transparent;
+  --normal-pressed-border-color: transparent;
+  --normal-disabled-background-color: transparent;
+  --normal-disabled-border-color: transparent;
+  --flat-enabled-background-color: transparent;
+  --flat-enabled-border-color: transparent;
+  --flat-hover-background-color: transparent;
+  --flat-hover-border-color: transparent;
+  --flat-pressed-background-color: transparent;
+  --flat-pressed-border-color: transparent;
+  --flat-disabled-background-color: transparent;
+  --flat-disabled-border-color: transparent;
+  --on-normal-active-color: var(--traverse-action-primary);
+  --on-normal-neutral-color: var(--traverse-action-primary);
+  --on-flat-active-color: var(--traverse-action-primary);
+  --on-flat-neutral-color: var(--traverse-action-primary);
+}
+obc-button.ui-link:hover {
+  --on-normal-active-color: var(--traverse-action-hover);
+  --on-normal-neutral-color: var(--traverse-action-hover);
+  --on-flat-active-color: var(--traverse-action-hover);
+  --on-flat-neutral-color: var(--traverse-action-hover);
+}
+obc-button.ui-link:active {
+  --on-normal-active-color: var(--traverse-action-active);
+  --on-normal-neutral-color: var(--traverse-action-active);
+  --on-flat-active-color: var(--traverse-action-active);
+  --on-flat-neutral-color: var(--traverse-action-active);
+}
+/* The underline is set on the inner button and reaches the label; a disabled link drops it. */
+obc-button.ui-link::part(wrapper) {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+obc-button.ui-link:hover::part(wrapper) { text-decoration-thickness: 2px; }
+obc-button.ui-link::part(wrapper):disabled { text-decoration: none; }

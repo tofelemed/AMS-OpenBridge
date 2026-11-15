@@ -14,8 +14,8 @@ const { history } = vi.hoisted(() => ({ history: { current: { isLoading: false, 
 vi.mock('./EpisodeActivity', () => ({ EpisodeActivity: () => null }));   // own fetches, own tests
 vi.mock('./EpisodeActions', () => ({ EpisodeActions: () => React.createElement('div', null, 'the actions') }));   // own tests
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
-  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string }) =>
-    React.createElement('button', { onClick: p.onClick, disabled: p.disabled, title: p.title }, p.children),
+  ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string; variant?: string }) =>
+    React.createElement('button', { onClick: p.onClick, disabled: p.disabled, title: p.title, 'data-variant': p.variant }, p.children),
 }));
 vi.mock('../../../hooks/useCpm', () => ({ useEventActions: () => history.current }));
 
@@ -66,6 +66,13 @@ describe('EventDetail head and foot (CHG-167)', () => {
     expect(url().searchParams.get('loop')).toBe('FIC10301');
     expect(url().searchParams.get('profile')).toBe('12h');
     expect(url().searchParams.get('window')).toBe('2026-09-02T07:30:00Z');
+  });
+
+  // CHG-193 (sweep D2): Acknowledge (EpisodeActions) is the panel's one primary; Investigation → navigates, so it is secondary
+  it('draws Investigation → as a secondary button, the same in the side panel and the drawer', () => {
+    mount(frame({}));
+    const investigation = within(document.querySelector('.ui-inspector__foot') as HTMLElement).getByRole('button', { name: 'Investigation →' });
+    expect(investigation.getAttribute('data-variant')).toBe('normal');
   });
 });
 

@@ -3,7 +3,7 @@
 // result in 5 minutes is a failure with its reason.
 import { describe, expect, it } from 'vitest';
 import type { EvidenceManifest, EvidenceReconstruction } from '../../../api/cpm/evidence';
-import { RECONSTRUCT_TIMEOUT_MS, formatElapsed, inFlight, reconstructionPhase } from './runPhase';
+import { RECONSTRUCT_POLL_CAP_MS, RECONSTRUCT_TIMEOUT_MS, formatElapsed, inFlight, reconstructionPhase } from './runPhase';
 
 const recon = (over: Partial<EvidenceReconstruction> = {}): EvidenceReconstruction => ({
   analysisRunId: 'ar1', state: 'FINISHED', createdAt: '2026-11-15T08:00:00Z', source: 'iotdb', differing: 2, identical: 1,
@@ -57,5 +57,25 @@ describe('reconstructionPhase', () => {
     expect(late.step).toBe('FAILED');
     expect(late.reason).toMatch(/No result after 5 minutes/);
     expect(reconstructionPhase({ ...base, nowMs: T0 + RECONSTRUCT_TIMEOUT_MS - 1 }).step).toBe('RUNNING');
+  });
+
+  // CHG-193 (final review M2, M3): after 5 minutes Keep waiting is offered (a Retry would post a second job), and it counts the
+  // next 5 minutes from itself; 30 minutes after the click the page stops asking, with no Keep waiting
+  it('offers Keep waiting after 5 minutes, counting the next wait from the last Keep waiting', () => {
+    expect(reconstructionPhase({ ...base, nowMs: T0 + RECONSTRUCT_TIMEOUT_MS + 1 })).toMatchObject({ step: 'FAILED', keepWaiting: true });
+    const waitFrom = T0 + 6 * 60_000;
+    expect(reconstructionPhase({ ...base, waitFrom, nowMs: waitFrom + RECONSTRUCT_TIMEOUT_MS - 1 }).step).toBe('RUNNING');
+    expect(reconstructionPhase({ ...base, waitFrom, nowMs: waitFrom + RECONSTRUCT_TIMEOUT_MS + 1 })).toMatchObject({ step: 'FAILED', keepWaiting: true });
+    // other failures offer no Keep waiting
+    expect(reconstructionPhase({ ...base, runState: { state: 'FAILED' } }).keepWaiting).toBeUndefined();
+  });
+
+  it('stops 30 minutes after the click, whatever Keep waiting did, saying it may still finish', () => {
+    const end = reconstructionPhase({ ...base, waitFrom: T0 + 29 * 60_000, nowMs: T0 + RECONSTRUCT_POLL_CAP_MS + 1 });
+    expect(end.step).toBe('FAILED');
+    expect(end.keepWaiting).toBeUndefined();
+    expect(end.reason).toMatch(/^No result after 30 minutes[.] It may still finish/);
+    // a rebuild listed in time is still Done
+    expect(reconstructionPhase({ ...base, nowMs: T0 + RECONSTRUCT_POLL_CAP_MS + 1, manifest: manifest([recon()]) }).step).toBe('DONE');
   });
 });

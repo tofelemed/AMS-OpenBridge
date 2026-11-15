@@ -49,13 +49,16 @@ export function useArtifact(meta: EvidenceArtifactMeta | undefined) {
   });
 }
 
-/** CHG-099: the reconstruction run's state while it is pending — each read refreshes it from the Flink job. */
-export function useAnalysisRunState(analysisRunId: string | undefined, refetchMs: number) {
+/**
+ * CHG-099: the reconstruction run's state while it is pending — each read refreshes it from the Flink job. CHG-193: no
+ * `refetchMs` = no polling (the page stopped asking).
+ */
+export function useAnalysisRunState(analysisRunId: string | undefined, refetchMs: number | undefined) {
   return useQuery({
     queryKey: ['cpm', 'analysis-run', analysisRunId ?? ''],
     queryFn: ({ signal }) => getAnalysisRun(analysisRunId!, signal),
     enabled: !!analysisRunId,
-    refetchInterval: q => (q.state.data && TERMINAL_RUN_STATES.has(q.state.data.state) ? false : refetchMs),
+    refetchInterval: q => (!refetchMs || (q.state.data && TERMINAL_RUN_STATES.has(q.state.data.state)) ? false : refetchMs),
   });
 }
 

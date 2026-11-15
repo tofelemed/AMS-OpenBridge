@@ -94,7 +94,8 @@ export const NoteList: React.FC<{
 }> = ({ notes, loading, error, episodes, canManage, loopId }) => {
   if (loading) return <p className="cpm-copy">Loading notes…</p>;
   if (error) return <p className="cpm-field__error" role="alert">The notes could not be loaded: {error instanceof Error ? error.message : 'the service did not respond'}.</p>;
-  if (notes.length === 0) return <p className="cpm-metric-na">No notes on this loop yet.</p>;
+  // CHG-193 (sweep D8): set apart from the form above it, as the list of notes is
+  if (notes.length === 0) return <p className="cpm-metric-na cpm-notes__empty">No notes on this loop yet.</p>;
   const newest = [...notes].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   return (
     <section className="cpm-notes" aria-label="Notes on this loop">

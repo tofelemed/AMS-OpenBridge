@@ -36,3 +36,6 @@ export function modeNeedsLook(mode: unknown, live: boolean): boolean {
   if (!live || mode === undefined || mode === null || mode === '') return false;
   return classifyMode(String(mode)) !== 'auto';
 }
+
+/** CHG-193 (final review M6): "Not normal" beside an amber mode box, in the place OP says "At limit"; null for a neutral one. */
+export const modeReadingState = (mode: unknown, live: boolean): ReadingState => (modeNeedsLook(mode, live) ? 'Not normal' : null);

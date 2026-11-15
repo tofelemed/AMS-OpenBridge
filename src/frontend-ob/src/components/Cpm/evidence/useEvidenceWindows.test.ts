@@ -33,6 +33,13 @@ describe('fusedOptions', () => {
   });
 });
 
+describe('fusedOptions tone (CHG-193, owner Q3)', () => {
+  it('draws a window whose gates all pass neutral, never green', () => {
+    const o = fusedOptions([summary({ diagnosis: 'NO_CALL', insufficientEvidenceReason: null, gates: [{ key: 'G5', status: 'PASS', reason: null, methodRunId: 'g5' }] })], NOW, 'UTC');
+    expect(o[0].tone).toBe('muted');
+  });
+});
+
 describe('kpiOptions', () => {
   it('turns short KPI rows into the same shape: run ids parsed, the gate statuses from gateN_status, the worst status in the label', () => {
     const rows: CpmKpiRow[] = [

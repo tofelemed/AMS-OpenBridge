@@ -6,6 +6,7 @@
  * in the dialog twice and on the Audit integrity card, which went); a refusal reads "✕ Verify failed" (tone, glyph and word; it
  * read "VERIFY FAILED"); a request that never reached the service says so plainly (it read as a 500, "Failed to fetch"). The last
  * run sits in one line under the button (VerifyLine). The request, its permission and Run again are unchanged.
+ * CHG-193 (owner decision 15 Nov 2026): no service names on screen; the service is "the audit log".
  */
 import React from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -18,8 +19,8 @@ import { stamp, zoneTag } from './auditTime';
 export type VerifyState = ReturnType<typeof useVerifyAuditChain>;
 
 export const NOT_SERVED_NOTE = 'The chain range, entry count and algorithm are not served, so this answer cannot be checked here.';
-export const MEANS_500 = 'A 500 here means the service reported possible tampering or could not complete the walk.';
-export const NOT_REACHED = 'audit-service could not be reached, so the chain was not checked.';
+export const MEANS_500 = 'This answer means the audit log reported possible tampering or could not complete the walk.';
+export const NOT_REACHED = 'The audit log could not be reached, so the chain was not checked.';
 
 /** An answer from the service (any HTTP status) against a request that never reached it. */
 const reached = (error: unknown): error is ApiError => error instanceof ApiError;
@@ -37,7 +38,7 @@ export const VerifyDialog: React.FC<{
       <h3 className="cpm-howto__title">Answer</h3>
       <div role="status">
         {verify.isPending && <p className="cpm-copy">Walking the full chain…</p>}
-        {verify.isSuccess && <><p className="cpm-copy">audit-service answered:</p><p className="cpm-mono">{String(verify.data)}</p></>}
+        {verify.isSuccess && <><p className="cpm-copy">The audit log answered:</p><p className="cpm-mono">{String(verify.data)}</p></>}
         {verify.isError && (
           <>
             <p className="cpm-copy">
@@ -70,7 +71,7 @@ export const VerifyLine: React.FC<{ verify: VerifyState; ranAt: Date | null }> =
       {verify.isError && (
         <span className="cpm-pill--bad">
           <span className="cpm-pill__glyph" aria-hidden>✕</span>
-          {` ${reached(verify.error) ? 'Verify failed' : 'audit-service not reached'}${at}`}
+          {` ${reached(verify.error) ? 'Verify failed' : 'Audit log not reached'}${at}`}
         </span>
       )}
     </span>

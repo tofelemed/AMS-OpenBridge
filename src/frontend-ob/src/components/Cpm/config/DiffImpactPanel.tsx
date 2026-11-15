@@ -41,8 +41,8 @@ export const DiffImpactPanel: React.FC<{
         right={<ClassWord changeClass={bundle.changeClass} />} />
       <KvRow label="Affects">{affected}</KvRow>
       <KvRow label="Rollout">the whole scope switches at the effective time in one deployment</KvRow>
-      {bundle.changeClass === 'STATE_BOUNDARY' && <p className="cpm-copy">A STATE_BOUNDARY change opens a new epoch: windows whose support began before the effective time report WAITING (warm-up) instead of a mixed result.</p>}
-      {bundle.changeClass === 'DEPLOYMENT' && <p className="cpm-field__error" role="alert">A DEPLOYMENT-class change ships in a software release; the workers refuse it as a bundle.</p>}
+      {bundle.changeClass === 'STATE_BOUNDARY' && <p className="cpm-copy">A state-boundary change opens a new epoch: windows whose support began before the effective time report Waiting (warm-up) instead of a mixed result.</p>}
+      {bundle.changeClass === 'DEPLOYMENT' && <p className="cpm-field__error" role="alert">A deployment-class change ships in a software release; the workers refuse it as a bundle.</p>}
       {diff.length > 0 && (
         <div className="cpm-config-table__wrap">
           <table className="cpm-table cpm-config-diff" data-table="diff">

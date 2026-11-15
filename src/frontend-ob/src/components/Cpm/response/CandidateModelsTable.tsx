@@ -3,6 +3,7 @@
  * delay-objective curve of the best candidate (flat curve = unidentifiable delay), the parameter
  * standard errors, and every rejection reason. Rows are the kernel's text; nothing is refit.
  * CHG-165 (owner review): on the Fit quality tab the candidates sit beside the delay curve of the best one.
+ * CHG-193 (owner decision 15 Nov 2026): the identifiability flags and the delay uncertainty in words.
  */
 import React from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill } from '../shared';
@@ -39,9 +40,9 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
                 <td className="cpm-mono">{r.parameters.map(([k, v]) => `${k}=${v}`).join(', ')}</td>
                 <td className="cpm-mono">{objective && Number.isFinite(objective[i]) ? fmt(objective[i]) : '—'}</td>
                 <td>
-                  {r.flatDelay && <TonePill tone="warn">FLAT_DELAY</TonePill>}{' '}
-                  {r.boundsHit && <TonePill tone="warn">BOUNDS_HIT</TonePill>}{' '}
-                  {r.signUncertain && <TonePill tone="warn">SIGN_UNCERTAIN</TonePill>}{' '}
+                  {r.flatDelay && <TonePill tone="warn">Flat delay</TonePill>}{' '}
+                  {r.boundsHit && <TonePill tone="warn">Bounds hit</TonePill>}{' '}
+                  {r.signUncertain && <TonePill tone="warn">Sign uncertain</TonePill>}{' '}
                   <span className="cpm-mono">cond={r.cond}</span>
                 </td>
               </tr>
@@ -50,7 +51,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
         </table></div>
       )}
       {delayCurve && delayCurve.n > 0 && (
-        <CpmChart title="Delay objective curve (best candidate)" xKind="value" xLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
+        <CpmChart title="Delay objective curve (best candidate)" xKind="value" xLabel="Dead time" csvXLabel={delayCurve.meta.x.quantity ?? 'dead_time'} xUnit={delayCurve.units.x ?? 's'} height={200}
           series={[{ id: 'objective', label: 'objective J(θ)', unit: delayCurve.units.y ?? 'PV_EU^2', x: delayCurve.columns.x, y: Array.from(delayCurve.columns.y), pen: 'overlay', markers: true }]} />
       )}
       {delayCurve && delayCurve.n === 0 && <p className="cpm-copy">No delay profile was recorded for the best candidate.</p>}
@@ -66,7 +67,7 @@ export const CandidateModelsTable: React.FC<{ table: DecodedArtifact | undefined
               ))}
             </tbody>
           </table></div>
-          <KvRow label="theta_uncertainty_s">{prov(intervals, 'theta_uncertainty_s') ?? '—'} s (delay grid resolution bound)</KvRow>
+          <KvRow label="Delay uncertainty">{prov(intervals, 'theta_uncertainty_s') ?? '—'} s (delay grid resolution bound)</KvRow>
         </>
       )}
       <PanelHead eyebrow="Kernel" title="Rejection reasons" />

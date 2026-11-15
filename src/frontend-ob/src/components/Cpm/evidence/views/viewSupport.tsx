@@ -48,10 +48,11 @@ export function first(arts: GateArtifacts, kind: string): DecodedArtifact | unde
 }
 
 /** A decoded column as a series (mask applied as gaps when asked). */
-export function col(d: DecodedArtifact, name: string, label: string, pen: Pen, opts: { unit?: string; masked?: boolean; held?: boolean; markers?: boolean; dashed?: boolean; bandMeaning?: string; x?: ArrayLike<number> } = {}): CpmSeries {
+/** `csv`: the CSV column when the legend name is in words (CHG-193: the column keeps the name it was exported under). */
+export function col(d: DecodedArtifact, name: string, label: string, pen: Pen, opts: { unit?: string; masked?: boolean; held?: boolean; markers?: boolean; dashed?: boolean; bandMeaning?: string; x?: ArrayLike<number>; csv?: string } = {}): CpmSeries {
   const raw = d.columns[name];
   const y: Array<number | null> = Array.from(raw ?? [], (v, i) => (opts.masked && d.mask && !d.mask[i]) ? null : Number.isFinite(v) ? v : null);
-  return { id: name, label, unit: opts.unit ?? d.units[name] ?? (name === 'y' ? (d.units.y ?? d.meta.y.unit ?? '') : ''), x: opts.x ?? d.columns.x, y, pen, held: opts.held, markers: opts.markers, dashed: opts.dashed, bandMeaning: opts.bandMeaning };
+  return { id: name, label, csvLabel: opts.csv, unit: opts.unit ?? d.units[name] ?? (name === 'y' ? (d.units.y ?? d.meta.y.unit ?? '') : ''), x: opts.x ?? d.columns.x, y, pen, held: opts.held, markers: opts.markers, dashed: opts.dashed, bandMeaning: opts.bandMeaning };
 }
 
 /** Marker points at given x instants on a fixed y (e.g. zero crossings on a centred signal). */

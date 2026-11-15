@@ -77,6 +77,8 @@
 .cpm-run-form > dt, .cpm-run-form__label { color: var(--traverse-text-secondary); }
 .cpm-run-form > dd, .cpm-run-form__value { margin: 0; min-width: 0; color: var(--traverse-text-primary); overflow-wrap: anywhere; }
 .cpm-run-form__value { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+/* CHG-193 (sweep D5): a timestamp never breaks inside its date; the arrow between two may wrap */
+.cpm-run-form__stamp { white-space: nowrap; }
 .cpm-run-form .cpm-input { min-width: 14rem; max-width: 100%; }
 .cpm-run-form__now { text-align: start; cursor: pointer; }
 .cpm-run-form__now:disabled { color: var(--traverse-text-muted); cursor: not-allowed; }
@@ -135,3 +137,11 @@
 .cpm-hypo__lead { margin-inline-start: var(--traverse-space-2); color: var(--traverse-text-secondary); font-size: var(--cpm-text-caption); font-weight: 400; }
 /* when the head wraps, the run's actions keep to the right, where they sit on one line */
 .cpm-workbench__head .cpm-run-bar { margin-inline-start: auto; }
+/* CHG-193 (final review M11): from 1280 px the actions stay on the gate's title line; the title takes the room left and wraps
+   inside its own column. Below that the head wraps as before. */
+@media (min-width: 1280px) {
+  .cpm-workbench__head { flex-wrap: nowrap; }
+  .cpm-workbench__gate { flex: 1 1 auto; }
+  .cpm-workbench__head .cpm-run-bar { flex: 0 0 auto; }
+  .cpm-workbench__head .cpm-run-bar__actions { flex-wrap: nowrap; }
+}

@@ -7,6 +7,7 @@
  * rows Effective · by, Epoch, Probe; the matrix, the active bundle per job only when one is not this bundle; the mixed-release
  * alert, the semantics and the observers. CHG-184 (owner review item 0): no jar, no hash and no rolled back deployment id; a
  * worker on another build reads "different software releases", a job on another bundle "another bundle".
+ * CHG-193 (final review M8): whether the deployment is a rollback is a row again (Yes / No), without the rolled back id.
  */
 import React from 'react';
 import { KvRow, TonePill } from '../shared';
@@ -39,6 +40,7 @@ export const DeploymentDetail: React.FC<{ deployment: Deployment }> = ({ deploym
     <div className="cpm-config-depdetail" data-testid="deployment-status" data-state={d.state}>
       <KvRow label="Effective">{d.scheduledFor ? stampZoned(d.scheduledFor) : 'immediately'} · by {d.createdBy}</KvRow>
       <KvRow label="Epoch">{d.epoch ?? '—'}</KvRow>
+      <KvRow label="Rollback">{d.kind === 'ROLLBACK' || d.rollbackOf ? 'Yes' : 'No'}</KvRow>
       {probe && <KvRow label="Probe">{probe.pinnedResults ?? 0} result(s) pinned to this bundle{probe.checkedAt ? ` · checked ${stampZoned(probe.checkedAt)}` : ''}</KvRow>}
       {jars.length > 1 && <p className="cpm-field__error" role="alert">Workers answered from {jars.length} different software releases - the control plane never verifies a mixed fleet.</p>}
       <div className="cpm-config-deployment__matrix">
@@ -51,7 +53,7 @@ export const DeploymentDetail: React.FC<{ deployment: Deployment }> = ({ deploym
             <thead>
               <tr>
                 <th>Required worker</th><th>PREPARE</th><th>APPLY</th>
-                {showActive && <th>Active bundle on this job</th>}
+                {showActive && <th>Active bundle on this worker</th>}
               </tr>
             </thead>
             <tbody>

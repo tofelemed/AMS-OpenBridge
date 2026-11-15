@@ -37,7 +37,8 @@ export function conditionOf(diagnosis: string | null | undefined): Condition {
   if (band === 'NO_FAULT') return { kind: 'no-fault', label, tone: 'muted' };
   if (d.startsWith('INSUFFICIENT')) return { kind: 'insufficient', label, tone: 'muted' };
   if (band === 'EXCLUDED') return { kind: 'excluded', label, tone: 'muted' };
-  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { kind: 'healthy', label, tone: 'good' };
+  // CHG-193 (owner Q3): normal is neutral, never green
+  if (d === 'NORMAL' || d === 'NONE' || d === 'HEALTHY') return { kind: 'healthy', label, tone: 'muted' };
   return { kind: 'finding', label, tone: toneFor(d) };
 }
 

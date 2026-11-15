@@ -26,3 +26,27 @@ export function useAfterDone(done: boolean, onDone: () => void, delayMs = DONE_C
     return () => clearTimeout(t);
   }, [done, delayMs]);
 }
+
+/** CHG-193: true once `ms` have passed since `from` (false while `from` is null); re-renders the caller at that moment. */
+export function useDeadline(from: number | null, ms: number): boolean {
+  const [, setPassed] = useState(0);
+  const past = from != null && Date.now() - from >= ms;
+  useEffect(() => {
+    if (from == null || past) return undefined;
+    const t = setTimeout(() => setPassed(n => n + 1), from + ms - Date.now());
+    return () => clearTimeout(t);
+  }, [from, ms, past]);
+  return past;
+}
+
+/** CHG-193: re-renders the caller at each whole minute while `active` (at most once a minute). */
+export function useMinuteTick(active: boolean): void {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return undefined;
+    let t: ReturnType<typeof setTimeout>;
+    const arm = () => { t = setTimeout(() => { setTick(n => n + 1); arm(); }, 60_000 - (Date.now() % 60_000)); };
+    arm();
+    return () => clearTimeout(t);
+  }, [active]);
+}

@@ -186,4 +186,40 @@ describe('EvaluateWindow', () => {
     await waitFor(() => expect(onOpen).toHaveBeenCalledTimes(1));
     expect(evaluation.postEvaluation).toHaveBeenCalledTimes(1);
   });
+
+  // CHG-193 (final review M1): the window shown is the window sent; it is taken once at the click and kept for the run
+  it('keeps showing the window it sent while the run crosses a quarter-hour', async () => {
+    vi.mocked(evaluation.postEvaluation).mockResolvedValue(run());
+    vi.mocked(evaluation.getEvaluation).mockResolvedValue(run({ state: 'RUNNING' }));
+    renderDialog();
+    evaluate();
+    await waitFor(() => expect(evaluation.postEvaluation).toHaveBeenCalledTimes(1));
+    const sent = vi.mocked(evaluation.postEvaluation).mock.calls[0][2];
+    expect(sent).toBe(Date.parse('2026-11-06T20:00:00Z'));
+    await act(() => vi.advanceTimersByTimeAsync(9 * 60_000));   // now 20:16, past the 20:15 boundary
+    await waitFor(() => expect(status()).toBe('Running'));
+    expect(dialog().textContent).toContain('2026-11-06 08:00:00 → 2026-11-06 20:00:00 (UTC)');
+    expect(dialog().textContent).not.toContain('20:15:00');
+  });
+
+  it('refreshes Now on the idle form at the minute, and sends the window it shows', async () => {
+    vi.setSystemTime(Date.parse('2026-11-06T20:14:30Z'));
+    vi.mocked(evaluation.postEvaluation).mockResolvedValue(run());
+    vi.mocked(evaluation.getEvaluation).mockResolvedValue(run({ state: 'RUNNING' }));
+    renderDialog();
+    expect(dialog().textContent).toContain('→ 2026-11-06 20:00:00 (UTC)');
+    await act(() => vi.advanceTimersByTimeAsync(31_000));   // 20:15:01
+    expect(dialog().textContent).toContain('2026-11-06 08:15:00 → 2026-11-06 20:15:00 (UTC)');
+    evaluate();
+    await waitFor(() => expect(evaluation.postEvaluation).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(evaluation.postEvaluation).mock.calls[0][2]).toBe(Date.parse('2026-11-06T20:15:00Z'));
+  });
+
+  // CHG-193 (sweep D5): at 390 px a date never breaks; each timestamp is one unbroken piece, the arrow may wrap (Q5: same format)
+  it('keeps each timestamp of the window unbroken', () => {
+    renderDialog();
+    const stamps = [...dialog().querySelectorAll('.cpm-run-form__stamp')].map(s => s.textContent);
+    expect(stamps).toEqual(['2026-11-06 08:00:00', '2026-11-06 20:00:00']);
+    expect(dialog().textContent).toContain('2026-11-06 08:00:00 → 2026-11-06 20:00:00 (UTC)');
+  });
 });

@@ -36,7 +36,7 @@ describe('SignalStrip', () => {
     expect(container.querySelectorAll('.cpm-signal-strip')).toHaveLength(1);
     const items = [...container.querySelectorAll('.cpm-signal-strip .cpm-signal')];
     expect(items.map(i => i.querySelector('.cpm-signal__caption')?.textContent)).toEqual(['PV', 'SP', 'OP', 'MODE']);
-    expect(items.map(i => i.querySelector('.cpm-signal__value')?.textContent)).toEqual(['12.35', '12.00', '48.20', 'AUTO']);
+    expect(items.map(i => i.querySelector('.cpm-signal__value')?.textContent)).toEqual(['12.35', '12.00', '48.20', 'Auto']);
     expect(container.querySelector('.cpm-kpi')).toBeNull();
     expect(container.querySelector('.cpm-signal-strip')?.textContent).toMatch(/Signal quality.*Good/);
   });
@@ -108,12 +108,14 @@ describe('SignalStrip', () => {
       expect(box(stale.container, 2).classList.contains('cpm-signal--warning')).toBe(false);
     });
 
-    it('marks a live mode that is not a normal mode amber, its name and note being the words', () => {
+    // CHG-193 (final review M6, sweep D6): the amber mode box says Not normal where OP says At limit; the mode reads as a word
+    it('marks a live mode that is not a normal mode amber, with the words Not normal, its name and note', () => {
       hooks.live.mockReturnValue({ pv: metric(12.345), sp: metric(12), op: metric(48.2), mode: metric('MAN'), hasData: true, lastSourceTs: NOW });
       const { container } = ranged();
       const mode = box(container, 3);
       expect(mode.classList.contains('cpm-signal--warning')).toBe(true);
-      expect(mode.querySelector('.cpm-signal__value')?.textContent).toBe('MAN');
+      expect(mode.querySelector('.cpm-signal__state')?.textContent).toBe('!Not normal');
+      expect(mode.querySelector('.cpm-signal__value')?.textContent).toBe('Manual');
       expect(mode.querySelector('.cpm-signal__sub')?.textContent).toBe('manual · excluded at G1 · live');
     });
 
@@ -126,6 +128,7 @@ describe('SignalStrip', () => {
       hooks.live.mockReturnValue({ pv: metric(90), sp: metric(10), op: metric(48.2), mode: metric('AUTO'), hasData: true, lastSourceTs: NOW });
       const live = ranged();
       expect(live.container.querySelectorAll('.cpm-signal--warning')).toHaveLength(0);
+      expect(live.container.querySelectorAll('.cpm-signal__state')).toHaveLength(0);
       expect(live.container.querySelector('.cpm-signal-group [class*="success"], .cpm-signal-group [class*="--good"]')).toBeNull();
     });
   });
@@ -143,7 +146,7 @@ describe('SignalStripAt', () => {
     const { container } = render(<SignalStripAt point={{ ts: 1, pv: 9, pv_avg: 12.345, sp: 12, op_avg: 48.2, mode: 'MAN' }} />);
     const items = [...container.querySelectorAll('.cpm-signal')];
     expect(items.map(i => i.querySelector('.cpm-signal__caption')?.textContent)).toEqual(['PV', 'SP', 'OP', 'MODE']);
-    expect(items.map(i => i.querySelector('.cpm-signal__value')?.textContent)).toEqual(['12.35', '12.00', '48.20', 'MAN']);
+    expect(items.map(i => i.querySelector('.cpm-signal__value')?.textContent)).toEqual(['12.35', '12.00', '48.20', 'Manual']);
     expect(container.textContent).toContain('at window end');
   });
 

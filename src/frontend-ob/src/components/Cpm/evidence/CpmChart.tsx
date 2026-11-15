@@ -25,6 +25,8 @@ const penColors = (p: ChartPalette): Record<Pen, string> => ({
 export interface CpmSeries {
   id: string;
   label: string;
+  /** CHG-193: the CSV column when the legend name is in words (the column keeps the series key, as exported before). */
+  csvLabel?: string;
   unit: string;
   x: ArrayLike<number>;
   y: ArrayLike<number | null>;
@@ -162,7 +164,7 @@ export function buildCpmChartOption(input: CpmChartInput) {
 const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
 /** CHG-097 (SME review 2 #17): what a chart's CSV says about itself — the chart, the loop, the period and the zone. */
-export interface CsvContext { title?: string; loopId?: string | null; xKind?: 'time' | 'value'; timeZone?: string; xLabel?: string; xUnit?: string }
+export interface CsvContext { title?: string; loopId?: string | null; xKind?: 'time' | 'value'; timeZone?: string; xLabel?: string; csvXLabel?: string; xUnit?: string }
 
 /**
  * The chart's values as CSV - the same numbers the chart draws, nothing recomputed. Without a context: the bare table
@@ -175,7 +177,7 @@ export function toCsv(series: CpmSeries[], ctx?: CsvContext): string {
   const sorted = Array.from(xs).sort((a, b) => a - b);
   const index = series.map(s => { const m = new Map<number, number | null>(); for (let i = 0; i < s.x.length; i++) m.set(s.x[i], nan(s.y[i])); return m; });
   const values = (x: number) => index.map(m => { const v = m.get(x); return v == null ? '' : String(v); });
-  const cols = series.map(s => csvCell(`${s.label} (${s.unit})`));
+  const cols = series.map(s => csvCell(`${s.csvLabel ?? s.label} (${s.unit})`));
   if (!ctx) return [['x', ...cols].join(','), ...sorted.map(x => [x, ...values(x)].join(','))].join('\n');
   const tz = ctx.timeZone ?? 'UTC';
   const time = ctx.xKind === 'time';
@@ -188,7 +190,8 @@ export function toCsv(series: CpmSeries[], ctx?: CsvContext): string {
     `# units: in each column header; bands are named with their meaning`,
     `# exported: ${new Date().toISOString()}`,
   ];
-  const xCols = time ? ['time_utc', 'time_site'] : [csvCell(ctx.xUnit ? `${ctx.xLabel ?? 'x'} (${ctx.xUnit})` : (ctx.xLabel ?? 'x'))];
+  const xName = ctx.csvXLabel ?? ctx.xLabel ?? 'x';
+  const xCols = time ? ['time_utc', 'time_site'] : [csvCell(ctx.xUnit ? `${xName} (${ctx.xUnit})` : xName)];
   const rows = sorted.map(x => [...(time ? [new Date(x).toISOString(), formatInZone(x, tz)] : [String(x)]), ...values(x)].join(','));
   return [...head, [...xCols, ...cols].join(','), ...rows].join('\n');
 }
@@ -200,7 +203,11 @@ export function csvFileName(title: string | undefined, loopId: string | null | u
   return `${loopId ? `${loopId}-` : ''}${slug}${when}.csv`;
 }
 
-export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'> & { title?: string; onClick?: (seriesId: string, index: number) => void }> = (props) => {
+export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'> & {
+  title?: string; onClick?: (seriesId: string, index: number) => void;
+  /** CHG-193: the CSV x column when the axis name is in words. */
+  csvXLabel?: string;
+}> = (props) => {
   const theme = useChartTheme();
   // the legend's rows depend on the drawn width: measure the wrapper and rebuild when it changes
   const wrap = useRef<HTMLDivElement>(null);
@@ -224,7 +231,7 @@ export const CpmChart: React.FC<Omit<CpmChartInput, 'palette' | 'width' | 'zoom'
   const csv = () => {
     // the loop from the page URL (?loop=): every CPA evidence page carries it
     const loopId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('loop') : null;
-    const ctx = { title: props.title, loopId, xKind: props.xKind, timeZone: props.timeZone, xLabel: props.xLabel, xUnit: props.xUnit };
+    const ctx = { title: props.title, loopId, xKind: props.xKind, timeZone: props.timeZone, xLabel: props.xLabel, csvXLabel: props.csvXLabel, xUnit: props.xUnit };
     const blob = new Blob([toCsv(props.series, ctx)], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

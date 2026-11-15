@@ -80,4 +80,16 @@ describe('ReconstructDialog', () => {
     render(<ReconstructDialog {...base} open={false} phase={IDLE} onConfirm={() => {}} onClose={() => {}} />);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  // CHG-193 (final review M2): after the time limit the job may still finish, so the default is to keep waiting, not a second job
+  it('after the time limit offers Keep waiting as the primary and Retry as secondary', () => {
+    const onConfirm = vi.fn(); const onKeepWaiting = vi.fn();
+    render(<ReconstructDialog {...base} startedAt={Date.now()} onConfirm={onConfirm} onKeepWaiting={onKeepWaiting} onClose={() => {}}
+      phase={{ step: 'FAILED', reason: 'No result after 5 minutes. It may still finish; this page lists it when it arrives.', keepWaiting: true }} />);
+    const buttons = [...document.querySelectorAll('.ui-dialog__foot button')];
+    expect(buttons.map(b => [b.textContent, b.getAttribute('data-variant')])).toEqual([['Close', 'normal'], ['Retry', 'normal'], ['Keep waiting', 'raised']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Keep waiting' }));
+    expect(onKeepWaiting).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
 });

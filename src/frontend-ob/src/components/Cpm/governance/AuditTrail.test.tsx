@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { AuditTrail } from './AuditTrail';
 import { ENTITIES, EVENTS } from './auditCatalog';
+import { ApiError } from '../../../api/apiFetch';
 
 const GUID = '7c41e0d2-9b1a-4f7e-8d2c-0a1b2c3d4e5f';
 const row = (over: Record<string, unknown>) => ({
@@ -268,5 +269,23 @@ describe('server paging (owner answer 2)', () => {
     render(<AuditTrail />);
     expect(screen.getByText('Audit reads require the admin.audit.view permission')).toBeTruthy();
     expect(asked.mock.calls[0][1]).toBe(false);
+  });
+});
+
+// CHG-193 (owner decision 15 Nov 2026, A2): no service names or status codes on screen; the trail is "the audit log"
+describe('the audit log refusing or not answering', () => {
+  it('says the audit log refused the read, in plain words', () => {
+    answer = { isError: true, error: new ApiError(403, 'Forbidden'), refetch: vi.fn() } as unknown as Record<string, unknown>;
+    render(<AuditTrail />);
+    expect(screen.getByText('The audit log refused the read')).toBeTruthy();
+    expect(screen.getByText('Your sign-in was accepted by the app but not by the audit log. Sign in again to refresh your permissions.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/audit-service|Audit service|403/);
+  });
+
+  it('says the audit log was not reached', () => {
+    answer = { isError: true, error: new Error('Failed to fetch'), refetch: vi.fn() } as unknown as Record<string, unknown>;
+    render(<AuditTrail />);
+    expect(screen.getByText('Audit log not reached')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/audit-service|Audit service/);
   });
 });

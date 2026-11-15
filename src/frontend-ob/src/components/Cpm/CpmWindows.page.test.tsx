@@ -9,7 +9,8 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { CpmKpiRow } from '../../api/cpmApi';
 
-const { kpis, perms, rawSpy, nextSpy, byResSpy } = vi.hoisted(() => ({
+const { kpis, perms, rawSpy, nextSpy, byResSpy, jobs } = vi.hoisted(() => ({
+  jobs: { list: undefined as unknown[] | undefined },
   kpis: { rows: [] as unknown[], hasNext: false },
   perms: { manage: false },
   rawSpy: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('../../hooks/useCpm', () => {
   return {
     useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC10401', displayName: 'Flow controller FIC10401 (FCS0101)', timezone: 'UTC', tags: {} }] } }),
     useCpmResolutions: () => ({ data: { windows: [spec('15m', 900_000, 300_000), spec('1m', 60_000, null)], shortWindows: [], longWindows: [] } }),
-    usePipelineMetrics: () => ({ data: undefined }),
+    usePipelineMetrics: () => ({ data: jobs.list ? { jobs: jobs.list } : undefined }),
     useCpmKpisPaged: () => ({
       data: { pages: [{ samples: kpis.rows }] }, isLoading: false, isError: false, hasNextPage: kpis.hasNext,
       isFetchingNextPage: false, fetchNextPage: nextSpy, refetch: vi.fn(),
@@ -71,6 +72,7 @@ const panel = () => within(screen.getByRole('complementary'));
 const url = () => screen.getByTestId('where').textContent ?? '';
 
 beforeEach(() => {
+  jobs.list = undefined;
   perms.manage = false;
   kpis.hasNext = false;
   kpis.rows = [row(NEWEST, { sample_count: 181 }), row(MID), row(OLD, { sample_count: 4, sufficient_data: false })];
@@ -78,6 +80,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); rawSpy.mockReset(); nextSpy.mockReset(); byResSpy.mockReset(); vi.unstubAllGlobals(); });
 
 describe('Window Inspector', () => {
+  // CHG-193 (owner decision 15 Nov 2026, A2): the band says whether the calculation runs, in words; no engine name, state code
+  // or checkpoint age
+  it('says Calculation running or not running in the band, without the engine name, its state or a checkpoint', () => {
+    jobs.list = [{ role: 'cplm', name: 'AMS - CPLM Short Feature Engine', state: 'RUNNING', checkpoint: { lastCompletedAgeSec: 12 } }];
+    mount();
+    expect(screen.getByText('Calculation running')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Short Feature Engine|RUNNING|ckpt|CPLM/);
+    cleanup();
+    jobs.list = [{ role: 'cplm', name: 'AMS - CPLM Short Feature Engine', state: 'RESTARTING', checkpoint: null }];
+    mount();
+    expect(screen.getByText('Calculation not running')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/RESTARTING/);
+  });
+
   it('selects the newest row by default', () => {
     mount();
     expect(panel().getByText('Samples').nextSibling?.textContent).toMatch(/^181 of /);   // CHG-164: one Samples row

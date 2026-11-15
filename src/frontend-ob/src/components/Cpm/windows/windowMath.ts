@@ -23,7 +23,7 @@ export function nominalOf(row: CpmKpiRow): { value: number; derived: boolean } |
   return null;
 }
 
-export type CountTone = 'good' | 'warn' | 'bad';
+export type CountTone = 'muted' | 'warn' | 'bad';
 
 /** "Matches", "+1 sample", "−1 sample": the difference in words. A ratio above 100 % is never "full". */
 export function countCheck(received: number, nominal: number): { ratio: number; diff: number; label: string; tone: CountTone } {
@@ -31,7 +31,8 @@ export function countCheck(received: number, nominal: number): { ratio: number; 
   const ratio = nominal > 0 ? received / nominal : 0;
   const n = Math.abs(diff);
   const label = diff === 0 ? 'Matches' : `${diff > 0 ? '+' : '−'}${n.toLocaleString()} sample${n === 1 ? '' : 's'}`;
-  const tone: CountTone = diff === 0 ? 'good' : ratio >= 0.9 ? 'warn' : 'bad';
+  // CHG-193 (owner Q3): a matching count is normal, so neutral
+  const tone: CountTone = diff === 0 ? 'muted' : ratio >= 0.9 ? 'warn' : 'bad';
   return { ratio, diff, label, tone };
 }
 

@@ -60,4 +60,14 @@ describe('DeploymentDetail', () => {
     expect(screen.getByText(/Observers: AMS - CPLM Instrument Context Engine/)).toBeTruthy();
     expect(screen.getByText('Short Feature Engine')).toBeTruthy();
   });
+
+  // CHG-193 (final review M8): that a deployment is a rollback is a fact again, as a word; never the rolled back id
+  it('says whether the deployment is a rollback, as Yes or No, with no id', () => {
+    render(<DeploymentDetail deployment={base({ kind: 'ROLLBACK', rollbackOf: '617f2e13-2ef0-4c5d-9a1b-0123456789ab' })} />);
+    expect(screen.getByText('Rollback').nextSibling?.textContent).toBe('Yes');
+    expect(screen.getByTestId('deployment-status').textContent).not.toMatch(/617f2e13/);
+    cleanup();
+    render(<DeploymentDetail deployment={base({})} />);
+    expect(screen.getByText('Rollback').nextSibling?.textContent).toBe('No');
+  });
 });

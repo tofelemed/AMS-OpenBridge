@@ -1,6 +1,6 @@
 /** CHG-185 (owner review item 5, Q3): a live reading's state colour, from thresholds the page holds; never invented. */
 import { describe, expect, it } from 'vitest';
-import { modeNeedsLook, opReadingState } from './readingState';
+import { modeNeedsLook, modeReadingState, opReadingState } from './readingState';
 
 const RANGE = { opMin: 0, opMax: 100 };
 
@@ -40,5 +40,16 @@ describe('modeNeedsLook', () => {
     expect(modeNeedsLook('CAS', true)).toBe(false);
     expect(modeNeedsLook('MAN', false)).toBe(false);
     expect(modeNeedsLook(null, true)).toBe(false);
+  });
+});
+
+// CHG-193 (final review M6): the word beside the amber mode box, as OP has At limit
+describe('modeReadingState', () => {
+  it('says Not normal for a live mode the engine does not count as normal, and nothing otherwise', () => {
+    expect(modeReadingState('MAN', true)).toBe('Not normal');
+    expect(modeReadingState('XYZ', true)).toBe('Not normal');
+    expect(modeReadingState('AUT', true)).toBeNull();
+    expect(modeReadingState('MAN', false)).toBeNull();
+    expect(modeReadingState(undefined, true)).toBeNull();
   });
 });

@@ -3,6 +3,8 @@
  * unexplained string of ticks), Engine & timing the contract the window ran under. Each sits on the page body through a portal.
  * CHG-184 (owner review Q6): Record details (the metric values) went. CHG-192 (owner review item 16): the loop and the window
  * size under each title.
+ * CHG-193 (final review I1): the metric values came back as Calculated values (never the name Record details), with the
+ * window line as the panel prints it.
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -13,7 +15,8 @@ import { GateBadge } from '../../../ui/GateBadge';
 import { Toggletip } from '../../../ui/Toggletip';
 import { KvRow, fmtDuration, fmtWindowShape } from '../shared';
 import { gateName } from '../gateStatus';
-import { SHORT_GATES } from './WindowResults';
+import { fmtInstant } from '../context/LoopContextBar';
+import { SHORT_GATES, WindowResults } from './WindowResults';
 
 interface DialogProps {
   open: boolean;
@@ -44,6 +47,17 @@ export const FeatureFlagsDialog: React.FC<DialogProps & { row: CpmKpiRow; declin
           <span className="cpm-kv__value"><GateBadge status={flagStatus(row, g.key, g.field, declined)} gate={g.key} /></span>
         </div>
       ))}
+    </Dialog>, document.body);
+};
+
+export const CalculatedValuesDialog: React.FC<DialogProps & {
+  row: CpmKpiRow; tier: 'short' | 'long'; timeZone: string;
+}> = ({ open, onClose, subtitle, row, tier, timeZone }) => {
+  if (!open) return null;
+  return createPortal(
+    <Dialog open onClose={onClose} title="Calculated values" subtitle={subtitle} size="wide" footer={<Close onClose={onClose} />}>
+      <KvRow label="Window">{fmtInstant(row.window_start, timeZone)} {'→'} {fmtInstant(row.window_end, timeZone)}</KvRow>
+      <WindowResults row={row} tier={tier} />
     </Dialog>, document.body);
 };
 
