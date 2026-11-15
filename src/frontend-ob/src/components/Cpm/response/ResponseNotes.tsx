@@ -2,7 +2,8 @@
  * CHG-165 (owner review): two small parts of the System Response tabs. ArraysNote: one note per tab when the run's arrays
  * were not kept (or were removed by retention, or failed verification); it replaces the empty "nothing to draw" panels.
  * The note offers no rebuild: the engine refuses to reconstruct an event-keyed G12 run. CHG-195 (owner review item 19): the note
- * is one plain line, with no retention sentence. ReportedQuantities: the key results the event reported, apart from the model
+ * is one plain line, with no retention sentence. CHG-198: on Response, a note for charts that are gone carries "Redraw from
+ * historian" after its line (children). ReportedQuantities: the key results the event reported, apart from the model
  * parameters the result row already says, in the standard table (Quantity · Value); the whole catalogue is on Steps & data.
  */
 import React from 'react';
@@ -34,9 +35,10 @@ const WORDS: Record<ArraysState | 'NOT_FITTED', string> = {
   NOT_FITTED: 'This event was interrupted before the response finished, so no model was fitted.',
 };
 
-export const ArraysNote: React.FC<{ state: ArraysState | 'NOT_FITTED' }> = ({ state }) => (
+export const ArraysNote: React.FC<{ state: ArraysState | 'NOT_FITTED'; children?: React.ReactNode }> = ({ state, children }) => (
   <div className="cpm-gate-state cpm-gate-state--note cpm-response-note" role="note">
     <span className="cpm-gate-state__valid">{WORDS[state]}</span>
+    {children}
   </div>
 );
 

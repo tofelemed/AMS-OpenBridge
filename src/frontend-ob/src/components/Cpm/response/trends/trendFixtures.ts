@@ -72,7 +72,7 @@ export function setpointStep(): EventFixture {
   const tEnd = T0S + 480;
   const e = integrals(t, y, 50, 60, tEnd);
   return {
-    result: result(),
+    result: result({ window_end_ms: tEnd * 1000 }),
     byKind: {
       response_event: [art('response_event', [T0S, tEnd], [0, 1], { yUnit: 'index' })],
       accepted_samples: [art('accepted_samples', t, y, { mask: t.map(() => true) })],
@@ -96,7 +96,7 @@ export function levelLoop(): EventFixture {
   const y = t.map(s => { const k = s - T0S; return k < 30 ? 40 : 40 + 0.02 * (k - 30); });
   const tEnd = T0S + 480;
   return {
-    result: result(),
+    result: result({ window_end_ms: tEnd * 1000 }),
     byKind: {
       response_event: [art('response_event', [T0S, tEnd], [0, 1], { yUnit: 'index' })],
       accepted_samples: [art('accepted_samples', t, y, { mask: t.map(() => true) })],

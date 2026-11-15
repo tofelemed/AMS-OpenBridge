@@ -2187,3 +2187,23 @@ labels count from the step; the time axis keeps its format (Q5). Fit quality los
 CSV: every exported column keeps its series key ("pv", "u_applied", "y_fit", "residual (y − ŷ)", "residual ACF",
 "objective J(θ)", …); the unit in a column head is now the loop's unit, as on the Models trends since CHG-195. Each Response
 trend exports its own curves under its own file name ("FIC1-measured-response-….csv").
+
+## CHG-198 System Response: redraw an event's trends from the historian when its charts are gone (owner, 15 Nov 2026)
+
+New words only; nothing existing was reworded. The charts note keeps its line ("Charts are not available for this event." /
+"Charts for this event were removed by retention.") and now carries the button after it. Times keep their format (Q5).
+
+| Where | Was | Now |
+|---|---|---|
+| Response · charts note (charts not kept, or removed) | the line only | the line, then the secondary button "Redraw from historian" |
+| Response · the button, event past the historian's keep | — | disabled; under it and as its description: "The historian keeps loop samples for 90 days; this event is older." |
+| Redraw dialog · band | — | title "Redraw from historian"; subtitle "<loop> · <the event as the event selector names it>" (an event not in the list: "<time> · <path>") |
+| Redraw dialog · rows | — | "Window" "15 Sept 12:00 → 15 Sept 12:10 UTC"; "Signals" "PV, SP, OP" ("PV, SP, VP" on a VP path); "Trends" the trends that apply, joined by " · " (from "Measured response", "Input", "Dead time and time constant", "Rise time and settling", "Overshoot", "Slope", "Error from the setpoint") |
+| Redraw dialog · buttons | — | "Cancel" (secondary), "Redraw" (primary); after a failure "Close", "Retry"; while reading "Cancel" (cancels the read) |
+| Redraw dialog · progress | — | "Reading the historian", then "Reading the historian · 9,000 points"; "Drawing"; "Done" with the time since the click (closes by itself) |
+| Redraw dialog · failures | — | "The historian has no samples for this window."; "The historian did not answer. Try again in a minute."; "You are not allowed to read this loop's history." |
+| Response · redrawn trends | — | one line above them: "Redrawn from the historian. The values are the engine's; samples the engine left out are not marked."; the trends keep their CHG-197 headings, "?" tips, labels and Export CSV |
+| Response · where Model fit would be (an event with a fitted model) | — | "Model fit exists only with the stored charts." |
+| Fit quality · after a redraw | the charts note | the charts note, then "Fit quality exists only with the stored charts." |
+| Frequency · after a redraw (a margin was reported) | the charts note | the charts note, then "The frequency response exists only with the stored charts." |
+| Response · a redrawn interrupted event | — | "This event was interrupted before the response finished, so no model was fitted.", then "Measured response" and "Input" only |

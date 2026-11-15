@@ -38,6 +38,9 @@
 /* CHG-195: "n outputs" is a button that opens the step's dialog */
 .cpm-response-step-card__outputs { align-self: flex-start; margin-top: var(--traverse-space-1); }
 .cpm-response-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3); }
+/* CHG-198: a redraw's line above the trends and the Model fit line after them keep the rows' own gap */
+.cpm-response-redrawn__lead { margin-bottom: var(--traverse-space-4); }
+.cpm-response-redrawn__foot { margin-top: var(--traverse-space-4); }
 @media (max-width: 1100px) {
   .cpm-response-step-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

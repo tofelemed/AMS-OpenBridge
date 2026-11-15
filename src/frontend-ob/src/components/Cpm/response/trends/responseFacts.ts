@@ -4,6 +4,8 @@
  * Two marks the arrays alone cannot carry are drawn only after this module has reproduced the engine's own number from the
  * stored arrays with the engine's rule (ResponseMetricCalculator, Settling, ErrorIntegrals): the settling bands (the band is not
  * stored) and the error trend (the per-sample setpoint is not stored). Where the reproduction differs, the mark is left out.
+ * CHG-198: a redraw from the historian hands the same arrays built from the historian's samples (redraw/redrawArtifacts), plus
+ * the setpoint of every sample (`historian_sp`), which the error trend then uses with the same reproduction rule.
  */
 import type { ResponseEventDetail, ResponseQuantity } from '../../../../api/cpm/response';
 import type { DecodedArtifact } from '../../evidence/artifactCodec';
@@ -28,6 +30,8 @@ export interface ResponseFacts {
   fit?: DecodedArtifact;
   predict?: DecodedArtifact;
   band?: DecodedArtifact;
+  /** CHG-198: the setpoint of every sample, on the samples' times; only a redraw from the historian has it. */
+  sp?: DecodedArtifact;
   /** The engine's value of a quantity, or null when it marked it unavailable (or did not report it). */
   value: (id: string) => number | null;
   quantity: (id: string) => ResponseQuantity | undefined;
@@ -83,7 +87,7 @@ export function buildFacts(args: {
     inputName: pathId ? pathLabel(pathId).split(' → ')[0] : 'Input',
     inputUnit: unitOf('input_EU'),
     censored,
-    samples, input: one('input_reconstruction'), fit: one('y_fit'), predict: one('y_predict'), band: one('prediction_interval'),
+    samples, input: one('input_reconstruction'), fit: one('y_fit'), predict: one('y_predict'), band: one('prediction_interval'), sp: one('historian_sp'),
     value, quantity, unitOf,
     baseline, final, change: baseline != null && final != null ? final - baseline : null,
     reference: r1,
@@ -157,12 +161,14 @@ export interface ErrorInterval { a: number; b: number; e: number }
 /**
  * ErrorIntegrals.over with the setpoint the engine held (the setpoint before the step for the sample that straddles it, the
  * setpoint after the step from then on). Returns the intervals only when IAE, ISE and ITAE all reproduce the engine's values;
- * a setpoint that moved inside the event (not stored) gives other integrals and nothing is returned.
+ * a setpoint that moved inside the event (not stored) gives other integrals and nothing is returned. CHG-198: with the setpoint
+ * of every sample (a redraw from the historian) each sample's own setpoint is used, as the engine does.
  */
 export function errorIntervals(f: ResponseFacts): ErrorInterval[] | null {
   const iae = f.value('iae'), ise = f.value('ise'), itae = f.value('itae');
   const r1 = f.reference;
-  if (iae == null || ise == null || itae == null || r1 == null) return null;
+  const sp = f.sp?.n === f.samples.n ? f.sp.columns.y : null;
+  if (iae == null || ise == null || itae == null || (r1 == null && !sp)) return null;
   const r0 = f.setpointBefore ?? r1;
   const d = f.samples, t = d.columns.x, y = d.columns.y;
   const out: ErrorInterval[] = [];
@@ -171,7 +177,7 @@ export function errorIntervals(f: ResponseFacts): ErrorInterval[] | null {
     const a = Math.max(t[i], f.t0);
     const b = Math.min(i + 1 < d.n ? t[i + 1] : f.tEnd, f.tEnd);
     if (b <= a || !valid(d, i)) continue;
-    const e = (t[i] >= f.t0 ? r1 : r0) - y[i];
+    const e = (sp ? sp[i] : t[i] >= f.t0 ? r1! : r0!) - y[i];
     if (!Number.isFinite(e)) continue;
     sa += Math.abs(e) * (b - a);
     ss += e * e * (b - a);

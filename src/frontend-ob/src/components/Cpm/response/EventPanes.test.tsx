@@ -51,7 +51,9 @@ describe('EventPanes', () => {
 
   it('says in one plain line on Response that a censored event has no charts', () => {
     draw('response', result({ capture_state: 'CENSORED', model_state: 'NONE' }));
-    expect(screen.getByRole('note').textContent).toBe('Charts are not available for this event.');
+    // CHG-198: the note also carries "Redraw from historian" after its line
+    expect(screen.getByRole('note').querySelector('.cpm-gate-state__valid')?.textContent).toBe('Charts are not available for this event.');
+    expect(screen.getByRole('button', { name: 'Redraw from historian' })).toBeTruthy();
   });
 
   // CHG-197 (owner Q10): the result row, then the trends one per row, then the reported quantities

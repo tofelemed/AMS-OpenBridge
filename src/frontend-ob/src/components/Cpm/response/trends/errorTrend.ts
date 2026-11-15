@@ -9,6 +9,9 @@ import type { Mark } from './annotations';
 import { errorIntervals, type ResponseFacts } from './responseFacts';
 import { ms, stepMark, TREND_HEIGHT, type TrendSpec } from './trendSupport';
 
+/** CHG-198: a redraw names this trend before it can know whether the samples reproduce the engine's integrals. */
+export const ERROR_TREND_TITLE = 'Error from the setpoint';
+
 export function errorTrend(f: ResponseFacts): TrendSpec | null {
   if (f.censored) return null;
   const intervals = errorIntervals(f);
@@ -28,7 +31,7 @@ export function errorTrend(f: ResponseFacts): TrendSpec | null {
     marks.push({ kind: 'text', x: f.xRange[0] + 0.72 * width, y: hi - i * 0.12 * Math.max(hi - lo, 1e-9), label: { text: id.toUpperCase(), value: `${readable(qy.value!)} ${f.unitOf(qy.unit)}` }, side: 'right' });
   });
   return {
-    id: 'error', title: 'Error from the setpoint', unit: f.pvUnit, height: TREND_HEIGHT, marks,
+    id: 'error', title: ERROR_TREND_TITLE, unit: f.pvUnit, height: TREND_HEIGHT, marks,
     series: [{ id: 'error', csvLabel: 'error', label: 'Error (setpoint − PV)', unit: f.pvUnit, x, y, pen: 'neutral', area: true }],
     help: [
       'Error: the setpoint minus PV, held from each sample to the next, from the step to the end of the event. Rejected samples are left out.',

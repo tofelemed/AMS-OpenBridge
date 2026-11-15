@@ -7,6 +7,7 @@
  * six tabs each answer one question (see ResponseTabs). The three columns, the right column and the catalogue card are gone;
  * the result, steps and quantities are each said once; a run whose arrays were not kept says so once per tab.
  * CHG-195 (owner review item 19): no foot line under the tabs (the band names the event).
+ * CHG-198: an event redrawn from the historian is held in the page cache (useRedrawn) and handed to the tabs.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -30,6 +31,8 @@ import { EventSelect } from './EventSelect';
 import { EventsTab } from './EventsTab';
 import { ResponseTabs, needsEvent, tabOf, type ResponseTab } from './ResponseTabs';
 import { EventPanes } from './EventPanes';
+import { eventPick } from './responseLabels';
+import { useRedrawn } from './redraw/useRedraw';
 
 export { responseHref } from '../cpaHref';
 
@@ -71,6 +74,7 @@ export const ResponseWorkspace: React.FC = () => {
   }, [eventParam, selected, showCensored, events.isSuccess, censoredCount, linkedCensored]);
 
   const result = detail.data?.result;
+  const redrawn = useRedrawn(result?.event_id);
   const methodRunId = selected?.methodRunId ?? (result?.method_run_id as string | undefined);
   const manifest = useEvidenceManifest(methodRunId, 15_000);
   const arts = useGateArtifacts(manifest.data, 'G12');
@@ -145,7 +149,7 @@ export const ResponseWorkspace: React.FC = () => {
     body = (
       <EventPanes tab={tab} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
         t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0}
-        pvUnit={loop?.engineering?.pvUnit} />
+        pvUnit={loop?.engineering?.pvUnit} redrawn={redrawn} eventName={selected ? eventPick(selected, timeZone) : undefined} />
     );
   }
 

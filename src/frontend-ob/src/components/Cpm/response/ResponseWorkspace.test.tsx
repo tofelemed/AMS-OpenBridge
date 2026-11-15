@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
 import type { ResponseEventSummary } from '../../../api/cpm/response';
 
@@ -39,7 +40,8 @@ afterEach(() => { cleanup(); state.events = []; state.models = []; state.hasNext
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 const draw = (perms: string[], at = '/cpm/response?loop=FIC1') => {
   useAuthStore.setState({ user: { user_id: 'u', username: 'a', email: '', role: 'Admin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
-  return render(<MemoryRouter initialEntries={[at]}><ResponseWorkspace /><Where /></MemoryRouter>);
+  // CHG-198: the page reads an event's redraw from the query cache
+  return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[at]}><ResponseWorkspace /><Where /></MemoryRouter></QueryClientProvider>);
 };
 const ev = (i: number): ResponseEventSummary => ({
   eventId: `e${i}`, methodRunId: `r${i}`, eventType: 'INPUT_TEST', pathId: 'OP_TO_PV', t0Ms: 1000 + i, tEndMs: null, captureState: 'COMPLETE', censorReason: '',
