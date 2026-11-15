@@ -76,7 +76,7 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
         var size = Math.Max(1, batchSize);
         // 1. captures whose artifacts arrived after the verdict (lookback = the transient lifetime + 1 h)
         var promoted = await EpisodeCaptureStore.PromoteCapturedAsync(db, transientHours + 1, ct);
-        // 1b. CHG-105: the G12 charts of accepted response events leave TRANSIENT before its purge (same lookback)
+        // 1b. CHG-105: the G12 charts of response events (CHG-196: censored too) leave TRANSIENT before its purge (same lookback)
         var chartsKept = await ResponseEvidenceRetention.PromoteAsync(db, transientHours + 1, ct);
         // 2. TRANSIENT by age, then by budget (DELETE cascades the chunks: smaller batches)
         var transient = await EvidenceRetentionTiers.PurgeTransientByAgeAsync(db, transientHours, Math.Min(size, 5_000), ct);

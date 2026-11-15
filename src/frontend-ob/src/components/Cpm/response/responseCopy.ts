@@ -4,7 +4,7 @@
  * units, validation verdict, one sentence on identifiability), the key results apart from the 52-row
  * catalogue, the subgates A–H as steps. Everything here re-shapes what the kernel reported.
  */
-import type { ResponseEventDetail, ResponseEventSummary, ResponseQuantity, ResponseSubgate } from '../../../api/cpm/response';
+import type { ResponseEventDetail, ResponseEventSummary, ResponseQuantity, ResponseRetention, ResponseSubgate } from '../../../api/cpm/response';
 import type { CpmTone } from '../shared';
 import { fmt, metricOf, quantityText, stateTone } from './responseSupport';
 import { phrase } from '../vocabulary';
@@ -100,10 +100,11 @@ export function resultSummary(result: ResponseEventDetail['result'], metrics: Re
   };
 }
 
-/** CHG-105: how long the list's events and their charts are kept (null days = for ever); absent on an older cplm-api. */
-export interface ResponseRetention { acceptedDays: number | null; censoredDays: number | null; censoredChartHours: number }
+/** CHG-105: how long the list's events and their charts are kept (null days = for ever); one type, the API's (CHG-196). */
+export type { ResponseRetention };
 
-const keptFor = (days: number | null) => (days == null ? 'while the event is kept' : `${days} day${days === 1 ? '' : 's'}`);
+const dayCount = (days: number) => `${days} day${days === 1 ? '' : 's'}`;
+const keptFor = (days: number | null) => (days == null ? 'while the event is kept' : dayCount(days));
 
 /**
  * CHG-105: the one statement shown when an event's charts are not stored. G12 charts are event-keyed and cannot be
@@ -112,7 +113,10 @@ const keptFor = (days: number | null) => (days == null ? 'while the event is kep
 export function chartsAbsentCopy(captureState: string | undefined, retention: ResponseRetention | undefined): string {
   if (!retention) return 'This event\'s charts are no longer stored and cannot be rebuilt; its result and quantities are complete.';
   if (captureState === 'CENSORED') {
-    return `Censored candidates keep their charts ${retention.censoredChartHours} hours and their result and quantities ${keptFor(retention.censoredDays)}.`;
+    // CHG-196: a censored event's charts follow the event (censoredDays); censoredChartHours is never read
+    return retention.censoredDays == null
+      ? 'Censored events keep their charts as long as the event.'
+      : `Censored events keep their charts, result and quantities for ${dayCount(retention.censoredDays)}.`;
   }
   return `Accepted events keep their charts ${keptFor(retention.acceptedDays)}. This event's are not stored (older than that, or recorded before charts were kept) and cannot be rebuilt; its result and quantities are complete.`;
 }

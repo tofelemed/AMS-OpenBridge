@@ -5,28 +5,28 @@ namespace Traverse.CplmApi.Services;
 
 /// <summary>
 /// CHG-105 — the System Response (G12) charts live as long as their event. The response job's arrays arrive TRANSIENT (6 h)
-/// like every live artifact; each sweep moves those of an ACCEPTED event (capture_state other than CENSORED) to class
-/// RESPONSE, which follows retention_policy row RESPONSE:
-///   * <see cref="ResponseRetention.PurgeAsync"/> deletes them in the same transaction as their event, so an event a system
-///     model was built from keeps its charts while it is kept;
+/// like every live artifact; each sweep moves them to class RESPONSE, which follows its event:
+///   * <see cref="ResponseRetention.PurgeAsync"/> deletes them in the same transaction as their event (row RESPONSE days for
+///     every event, row RESPONSE_CENSORED days for a censored one), so an event a system model was built from keeps its
+///     charts while it is kept;
 ///   * <see cref="PurgeOrphansAsync"/> removes RESPONSE charts whose event is gone by any other route;
 ///   * row RESPONSE max_bytes caps the class (<see cref="TrimOverBudgetAsync"/>): oldest charts first, the events and their
 ///     quantities stay, and the charts of a kept model (reviewed, baseline, newest, newest VALIDATED) are never trimmed.
-/// Censored candidates keep the TRANSIENT hours. RESPONSE is in the sweeper's NotEvidenceClasses, so the day-based expiry
-/// never touches the class.
+/// CHG-196 (owner Q9): censored events are promoted too (until then they kept the TRANSIENT hours while their event was kept
+/// RESPONSE_CENSORED days); orphan removal and the byte cap treat their charts like any other. RESPONSE is in the sweeper's
+/// NotEvidenceClasses, so the day-based expiry never touches the class.
 /// </summary>
 public static class ResponseEvidenceRetention
 {
     public const string Class = "RESPONSE";
     public const int CommandTimeoutSeconds = 600;
 
-    /// <summary>The TRANSIENT G12 manifests of accepted events created inside the lookback, moved to RESPONSE.</summary>
+    /// <summary>The TRANSIENT G12 manifests of response events (CHG-196: censored included) created inside the lookback, moved to RESPONSE.</summary>
     public const string PromoteSql = """
         UPDATE analytics.evidence_manifest m
         SET retention_class = 'RESPONSE'
         FROM analytics.response_event e
         WHERE e.method_run_id = m.method_run_id
-          AND e.capture_state <> 'CENSORED'
           AND m.gate_id = 'G12'
           AND m.retention_class = 'TRANSIENT' AND m.pinned = FALSE AND m.readiness <> 'EXPIRED'
           AND m.created_at > NOW() - make_interval(hours => @hours)
@@ -46,7 +46,7 @@ public static class ResponseEvidenceRetention
                              WHERE model_state = 'VALIDATED' ORDER BY lower(loop_id), path_id, created_at DESC)
         """;
 
-    /// <summary>Moves the G12 charts of accepted events (created inside the lookback) to RESPONSE. Returns rows moved.</summary>
+    /// <summary>Moves the G12 charts of response events (created inside the lookback) to RESPONSE. Returns rows moved.</summary>
     public static async Task<int> PromoteAsync(NpgsqlDataSource db, int lookbackHours, CancellationToken ct)
     {
         await using var conn = await db.OpenConnectionAsync(ct);

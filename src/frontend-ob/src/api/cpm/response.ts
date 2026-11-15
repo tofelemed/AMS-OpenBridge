@@ -13,7 +13,9 @@ export interface ResponseEventSummary {
 }
 
 /** CHG-178: how long a response event's charts are kept. `null` days = kept for ever. Absent from older cplm-api answers. */
-export interface ResponseRetention { acceptedDays: number | null; censoredDays: number | null; censoredChartHours: number }
+/** CHG-105: how long events and their charts are kept (null days = for ever). CHG-196: a censored event's charts follow
+ * censoredDays too; censoredChartHours is no longer read (an older cplm-api sent the TRANSIENT hours, a newer one days × 24). */
+export interface ResponseRetention { acceptedDays: number | null; censoredDays: number | null; censoredChartHours?: number | null }
 
 /** 2026-09-17 audit F19/F20: `censoredCount` is the range's censored candidates, listed only with includeCensored. */
 export interface ResponseEventPage {

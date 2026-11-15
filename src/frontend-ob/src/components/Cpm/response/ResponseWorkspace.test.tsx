@@ -7,7 +7,10 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 import type { ResponseEventSummary } from '../../../api/cpm/response';
 
-const state = vi.hoisted(() => ({ events: [] as unknown[], hasNext: false, models: [] as unknown[] }));
+const state = vi.hoisted(() => ({
+  events: [] as unknown[], hasNext: false, models: [] as unknown[],
+  censored: [] as unknown[], detail: undefined as unknown, asked: [] as boolean[],
+}));
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
@@ -15,8 +18,13 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
 vi.mock('../../../hooks/useCpm', () => ({ useCpmLoops: () => ({ data: { loops: [{ loopId: 'FIC1' }] }, isError: false }) }));
 vi.mock('../context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode; end?: React.ReactNode }) => React.createElement('div', null, p.children, p.end) }));
 vi.mock('./useResponse', () => ({
-  useResponseEvents: () => ({ data: { pages: [{ events: state.events, censoredCount: 0 }] }, isSuccess: true, isLoading: false, isFetchingNextPage: false, hasNextPage: state.hasNext, fetchNextPage: () => {} }),
-  useResponseEvent: () => ({ data: undefined, isLoading: false, isError: false }),
+  // the censored events are listed only when asked for (includeCensored), and always counted
+  useResponseEvents: (_loop: string, _purpose: string, includeCensored: boolean) => {
+    state.asked.push(includeCensored);
+    const events = includeCensored ? [...state.events, ...state.censored] : state.events;
+    return { data: { pages: [{ events, censoredCount: state.censored.length }] }, isSuccess: true, isLoading: false, isFetchingNextPage: false, hasNextPage: state.hasNext, fetchNextPage: () => {} };
+  },
+  useResponseEvent: () => ({ data: state.detail, isLoading: false, isError: false }),
   useModels: () => ({ data: { models: state.models }, isSuccess: true, isError: false }),
   useReviewModel: () => ({ reset: () => {}, isSuccess: false, isPending: false, error: null, mutate: () => {} }),
 }));
@@ -27,7 +35,7 @@ vi.mock('../evidence/useEvidence', () => ({
 vi.mock('../evidence/useGateArtifacts', () => ({ useGateArtifacts: () => ({ byKind: {}, loading: false }) }));
 import { ResponseWorkspace } from './ResponseWorkspace';
 
-afterEach(() => { cleanup(); state.events = []; state.models = []; state.hasNext = false; });
+afterEach(() => { cleanup(); state.events = []; state.models = []; state.hasNext = false; state.censored = []; state.detail = undefined; state.asked = []; });
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 const draw = (perms: string[], at = '/cpm/response?loop=FIC1') => {
   useAuthStore.setState({ user: { user_id: 'u', username: 'a', email: '', role: 'Admin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
@@ -93,6 +101,22 @@ describe('ResponseWorkspace', () => {
     expect(screen.getByText('No event selected')).toBeTruthy();
     fireEvent.click(screen.getByText('Next: Frequency →'));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/response?loop=FIC1&tab=frequency');
+  });
+
+  // CHG-196 (found by CHG-195): the event detail carries the censored state as evaluation_state, never capture_state
+  it('a link straight to a censored event lists the censored events and selects it', () => {
+    state.events = [ev(1)];
+    state.censored = [{ ...ev(9), eventId: 'c1', methodRunId: 'rc1', captureState: 'CENSORED', censorReason: 'SUPERSEDED_BY_EVENT', evaluationState: 'CENSORED', modelState: 'NONE' }];
+    state.detail = {
+      result: { event_id: 'c1', method_run_id: 'rc1', loop_id: 'FIC1', path_id: 'OP_TO_PV', evaluation_state: 'CENSORED', eligibility: 'ELIGIBLE', finding: 'SUPERSEDED_BY_EVENT',
+        model_state: 'NONE', subgates: {}, window_start_ms: 0, window_end_ms: 0, bundle_hash: 'b', purpose: 'LIVE' },
+      metrics: [],
+    };
+    draw([], '/cpm/response?loop=FIC1&event=c1');
+    expect(state.asked.at(-1)).toBe(true);
+    const select = screen.getByRole('combobox', { name: 'Response event' }) as HTMLSelectElement;
+    expect(select.value).toBe('c1');
+    expect(screen.queryByText('Selected event (not in the list)')).toBeNull();
   });
 
   it('shows a plus on the counts past one page', () => {

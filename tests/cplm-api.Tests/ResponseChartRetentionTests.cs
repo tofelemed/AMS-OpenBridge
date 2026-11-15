@@ -1,4 +1,5 @@
-// CHG-105 - the System Response (G12) charts live as long as their event (class RESPONSE, row RESPONSE). Lab database; only this
+// CHG-105 - the System Response (G12) charts live as long as their event (class RESPONSE, row RESPONSE). CHG-196: censored events
+// too (their event follows row RESPONSE_CENSORED, and their charts leave with it). Lab database; only this
 // test's ids are created and removed. Age-based steps use 3600+ day windows so the lab's own rows are never in reach; the byte
 // cap is driven with batch 1 against test rows that are the oldest of the class, so it stops before any lab row.
 using Dapper;
@@ -80,7 +81,7 @@ public sealed class ResponseChartRetentionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Promote_keeps_the_G12_charts_of_an_accepted_event_only()
+    public async Task Promote_keeps_the_G12_charts_of_every_response_event_censored_included()
     {
         var accepted = await EventAsync("COMPLETE", 0);
         var censored = await EventAsync("CENSORED", 0);
@@ -89,12 +90,33 @@ public sealed class ResponseChartRetentionTests : IAsyncLifetime
         var censoredChart = await ChartAsync(censored, "TRANSIENT");
         var pinned = await ChartAsync(accepted, "PINNED");
 
-        (await ResponseEvidenceRetention.PromoteAsync(_db, 7, CancellationToken.None)).Should().BeGreaterThanOrEqualTo(1);
+        (await ResponseEvidenceRetention.PromoteAsync(_db, 7, CancellationToken.None)).Should().BeGreaterThanOrEqualTo(2);
 
         (await ClassOf(keep)).Should().Be("RESPONSE");
         (await ClassOf(otherGate)).Should().Be("TRANSIENT", "only G12 charts belong to the response event");
-        (await ClassOf(censoredChart)).Should().Be("TRANSIENT", "a censored candidate keeps the TRANSIENT hours");
+        (await ClassOf(censoredChart)).Should().Be("RESPONSE", "CHG-196: a censored event keeps its charts as long as the event");
         (await ClassOf(pinned)).Should().Be("PINNED");
+    }
+
+    [Fact]
+    public async Task CHG196_a_censored_events_charts_are_kept_and_leave_with_it_in_the_censored_purge()
+    {
+        var censored = await EventAsync("CENSORED", 3650);
+        var chart = await ChartAsync(censored, "TRANSIENT");                 // the job's arrays arrive TRANSIENT
+        var accepted = await EventAsync("COMPLETE", 3650);
+        var acceptedChart = await ChartAsync(accepted, "RESPONSE", 3650);
+
+        await ResponseEvidenceRetention.PromoteAsync(_db, 7, CancellationToken.None);
+        (await ClassOf(chart)).Should().Be("RESPONSE", "the sweep keeps the censored event's charts");
+
+        await ResponseRetention.PurgeAsync(_db, 3600, 1000, CancellationToken.None, censoredOnly: true);
+
+        (await ClassOf(chart)).Should().BeNull("the censored purge deletes the charts with their event, in one transaction");
+        (await ChunksOf(chart)).Should().Be(0, "chunks cascade");
+        (await ClassOf(acceptedChart)).Should().Be("RESPONSE", "the censored purge leaves an accepted event and its charts alone");
+        await using var conn = await _db.OpenConnectionAsync();
+        (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE method_run_id = ANY(@runs)",
+            new { runs = new[] { censored, accepted } })).Should().Be(1, "only the censored event is purged");
     }
 
     [Fact]

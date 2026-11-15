@@ -17,13 +17,8 @@ namespace Traverse.CplmApi.Controllers;
 public sealed class CpmResponseController : ControllerBase
 {
     private readonly NpgsqlDataSource _db;
-    private readonly int _transientHours;
 
-    public CpmResponseController([FromKeyedServices("cplm")] NpgsqlDataSource db, IConfiguration config)
-    {
-        _db = db;
-        _transientHours = Math.Max(1, config.GetValue("Cplm:EvidenceTransientHours", 6));   // the sweeper's TRANSIENT lifetime
-    }
+    public CpmResponseController([FromKeyedServices("cplm")] NpgsqlDataSource db) => _db = db;
 
     /// <summary>
     /// 2026-09-17 audit F19/F20: <c>includeCensored=false</c> leaves the censored candidates (superseded, source
@@ -31,7 +26,10 @@ public sealed class CpmResponseController : ControllerBase
     /// holds so the reader knows they exist and can ask for them.
     /// CHG-105: <c>retention</c> says how long what the page shows is kept, from retention_policy (null = for ever):
     /// <c>acceptedDays</c> an accepted event, its quantities and its charts; <c>censoredDays</c> a censored candidate
-    /// (no RESPONSE_CENSORED row = like RESPONSE); <c>censoredChartHours</c> the charts of a censored candidate (TRANSIENT).
+    /// (no RESPONSE_CENSORED row = like RESPONSE).
+    /// CHG-196: a censored event's charts follow <c>censoredDays</c> too. <c>censoredChartHours</c> is no longer used by the
+    /// page; it stays for an older frontend, which prints it as hours, and now says the same in hours (censoredDays × 24,
+    /// null = while the event is kept).
     /// </summary>
     [HttpGet("loops/{loopId}/response-events")]
     public async Task<IActionResult> List(string loopId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to,
@@ -68,12 +66,8 @@ public sealed class CpmResponseController : ControllerBase
             "SELECT record_class, days FROM analytics.retention_policy WHERE record_class IN ('RESPONSE', 'RESPONSE_CENSORED')"))
             .ToDictionary(p => p.recordClass, p => p.days);
         var acceptedDays = policy.GetValueOrDefault("RESPONSE");
-        var retention = new
-        {
-            acceptedDays,
-            censoredDays = policy.TryGetValue("RESPONSE_CENSORED", out var cd) ? cd : acceptedDays,
-            censoredChartHours = _transientHours,
-        };
+        var censoredDays = policy.TryGetValue("RESPONSE_CENSORED", out var cd) ? cd : acceptedDays;
+        var retention = new { acceptedDays, censoredDays, censoredChartHours = censoredDays * 24 };
         return Ok(new { loopId, purpose, count = events.Count, censoredCount, includeCensored, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, retention, events });
     }
 

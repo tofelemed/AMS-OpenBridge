@@ -76,18 +76,25 @@ describe('resultSummary', () => {
 
 // CHG-105: the one statement when an event's charts are not stored, from the API's retention; never a reconstruction
 describe('chartsAbsentCopy', () => {
-  const retention = { acceptedDays: 30, censoredDays: 3, censoredChartHours: 6 };
+  const retention = { acceptedDays: 30, censoredDays: 3 };
   it('an accepted event names the days its charts are kept and that they cannot be rebuilt', () => {
     const t = chartsAbsentCopy('COMPLETE', retention);
     expect(t).toMatch(/keep their charts 30 days/);
     expect(t).toMatch(/cannot be rebuilt/);
     expect(t).not.toMatch(/[Rr]econstruct/);
   });
-  it('a censored candidate names its chart hours and event days', () => {
-    expect(chartsAbsentCopy('CENSORED', retention)).toBe('Censored candidates keep their charts 6 hours and their result and quantities 3 days.');
+  it('CHG-196: a censored event keeps its charts as long as the event, in days, never in hours', () => {
+    expect(chartsAbsentCopy('CENSORED', retention)).toBe('Censored events keep their charts, result and quantities for 3 days.');
+    expect(chartsAbsentCopy('CENSORED', { acceptedDays: 30, censoredDays: 1 })).toBe('Censored events keep their charts, result and quantities for 1 day.');
+    expect(chartsAbsentCopy('CENSORED', { acceptedDays: null, censoredDays: null })).toBe('Censored events keep their charts as long as the event.');
+  });
+  it('CHG-196: an older cplm-api that still sends censoredChartHours reads the same; the hours are never shown', () => {
+    const t = chartsAbsentCopy('CENSORED', { acceptedDays: 30, censoredDays: 3, censoredChartHours: 6 });
+    expect(t).toBe('Censored events keep their charts, result and quantities for 3 days.');
+    expect(t).not.toMatch(/hour/);
   });
   it('no retention row reads as kept with the event; an older cplm-api gets the generic sentence', () => {
-    expect(chartsAbsentCopy('COMPLETE', { acceptedDays: null, censoredDays: null, censoredChartHours: 6 })).toMatch(/while the event is kept/);
+    expect(chartsAbsentCopy('COMPLETE', { acceptedDays: null, censoredDays: null })).toMatch(/while the event is kept/);
     expect(chartsAbsentCopy('COMPLETE', undefined)).toMatch(/no longer stored and cannot be rebuilt/);
   });
 });

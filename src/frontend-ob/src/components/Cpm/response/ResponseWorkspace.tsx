@@ -63,10 +63,12 @@ export const ResponseWorkspace: React.FC = () => {
   const selected: ResponseEventSummary | undefined = flat.find(e => e.eventId === eventParam);
   const noEvents = events.isSuccess && flat.length === 0 && !showCensored;
   const detail = useResponseEvent(eventParam);
-  // a deep link to a censored candidate: list it rather than leave the selection invisible
+  // a deep link to a censored candidate: list it rather than leave the selection invisible. CHG-196: the event's result carries
+  // the state as evaluation_state (as EventPanes reads it); capture_state is read too in case a revision adds it.
+  const linkedCensored = [detail.data?.result.capture_state, detail.data?.result.evaluation_state].includes('CENSORED');
   useEffect(() => {
-    if (eventParam && !selected && !showCensored && events.isSuccess && censoredCount > 0 && detail.data?.result.capture_state === 'CENSORED') setShowCensored(true);
-  }, [eventParam, selected, showCensored, events.isSuccess, censoredCount, detail.data]);
+    if (eventParam && !selected && !showCensored && events.isSuccess && censoredCount > 0 && linkedCensored) setShowCensored(true);
+  }, [eventParam, selected, showCensored, events.isSuccess, censoredCount, linkedCensored]);
 
   const result = detail.data?.result;
   const methodRunId = selected?.methodRunId ?? (result?.method_run_id as string | undefined);

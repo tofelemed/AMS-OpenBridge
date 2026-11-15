@@ -2146,3 +2146,16 @@ stay links (Q4). Sizes are unchanged; CSV exports keep every column (the Models 
 
 Looks, not words: every CPA chart's hover readout stays inside its chart (the shared tooltip chrome confines it), so it no
 longer hides under the sidebar; at 390 px a wide table scrolls inside its panel instead of pushing the tab past the screen.
+
+## CHG-196 Censored response events keep their charts as long as the event (owner Q9)
+
+A censored event's charts are now kept as long as the event itself (3 days), so no text says "hours" for them any more.
+
+| Where | Was | Now |
+|---|---|---|
+| Evidence Workbench · a G12 run with no charts | "An accepted response event keeps its charts as long as the event; a censored candidate only for hours. G12 charts cannot be rebuilt." | "A response event keeps its charts as long as the event. G12 charts cannot be rebuilt." |
+| Evidence Workbench · Reconstruct (disabled) reason on a G12 run | "G12 charts cannot be rebuilt: an accepted response event keeps them as long as the event; a censored candidate only for hours." | "G12 charts cannot be rebuilt: a response event keeps them as long as the event." |
+| System Response · charts-absent sentence for a censored event (`chartsAbsentCopy`; no page shows it since CHG-195) | "Censored candidates keep their charts 6 hours and their result and quantities 3 days." | "Censored events keep their charts, result and quantities for 3 days." (no retention row: "Censored events keep their charts as long as the event.") |
+
+Behaviour, not words: a link straight to a censored event now lists the censored events and selects it in the event
+selector (before, the selector said "Selected event (not in the list)").

@@ -5,7 +5,6 @@ using Dapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
 using Traverse.CplmApi.Controllers;
 using Xunit;
@@ -50,8 +49,7 @@ public sealed class ResponseEventsListTests : IAsyncLifetime
 
     private CpmResponseController Controller()
     {
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Cplm:EvidenceTransientHours"] = "8" }).Build();
-        var c = new CpmResponseController(_db, config) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        var c = new CpmResponseController(_db) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
         return c;
     }
 
@@ -83,7 +81,9 @@ public sealed class ResponseEventsListTests : IAsyncLifetime
         var r = page.GetProperty("retention");
         Days(r.GetProperty("acceptedDays")).Should().Be(accepted);
         Days(r.GetProperty("censoredDays")).Should().Be(censored, "no RESPONSE_CENSORED row = like RESPONSE");
-        r.GetProperty("censoredChartHours").GetInt32().Should().Be(8, "the sweeper's Cplm:EvidenceTransientHours");
+        // CHG-196: a censored event keeps its charts as long as the event; the old field says so in hours for an older frontend
+        var hours = r.GetProperty("censoredChartHours");
+        (hours.ValueKind == System.Text.Json.JsonValueKind.Null ? (int?)null : hours.GetInt32()).Should().Be(censored * 24);
     }
 
     private static int? Days(System.Text.Json.JsonElement e) => e.ValueKind == System.Text.Json.JsonValueKind.Null ? null : e.GetInt32();

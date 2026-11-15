@@ -119,7 +119,8 @@ export const reconstructionSettled = (m: EvidenceManifest | undefined, analysisR
 /** The disabled Reconstruct button's reason, from the API's reconstruction.reason code. */
 export function reconstructRefusal(reason: string | null | undefined): string {
   if (reason === 'NOT_RECONSTRUCTABLE_EVENT_KEYED')
-    // CHG-105: nothing rebuilds G12 (the System Response page has no rebuild either); say what is kept instead
-    return 'G12 charts cannot be rebuilt: an accepted response event keeps them as long as the event; a censored candidate only for hours.';
+    // CHG-105: nothing rebuilds G12 (the System Response page has no rebuild either); say what is kept instead.
+    // CHG-196: a censored event keeps its charts as long as the event too.
+    return 'G12 charts cannot be rebuilt: a response event keeps them as long as the event.';
   return reason ? `Reconstruction is not available for this run (${reason.toLowerCase().replace(/_/g, ' ')}).` : 'Reconstruction is not available for this run.';
 }
