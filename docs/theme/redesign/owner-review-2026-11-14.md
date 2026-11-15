@@ -453,3 +453,11 @@ settling, Overshoot, Slope, Error. Not Model fit, Fit quality or Frequency (only
   Read as: accepted events' stored charts 30 days, then the redraw from the historian (up to its 90 days), so their
   record and values stay 90 days; censored events 3 days (record, values, charts). Build = CHG-199 (plant script cpm-22).
   **Confirmed by the owner (2026-11-15): "yes approved".**
+
+## 21. Loop Registry: list page + Loop detail sub-page (owner, 2026-11-15)
+
+Owner: the first page lists all loops; clicking a loop opens a Loop detail sub-page with everything about the loop, well
+designed and organized; no ids, no backend text, labels from the user's perspective (users: owner, I&C head / admin,
+developer, site engineer; a rare setup task). Mockup approved "perfect, go ahead": `samples/loop-detail-proposal.html`
+(renders `samples/registry-list-SAMPLE-day.png`, `registry-detail-SAMPLE-day.png` / `-night.png`). Build = CHG-201.
+Ruling: the "✓ Ready" pill is neutral, not green (owner Q3).
