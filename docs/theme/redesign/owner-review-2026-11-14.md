@@ -309,6 +309,74 @@ but nothing uses it.
 - [ ] Add the rule to the design notes so new screens follow it.
 - [ ] Sample sheet of all levels and states first, then the owner approves it.
 
+## Second batch (owner, 2026-11-15): items 18-19
+
+Sent after CHG-183..192 were built. These are not started yet; they wait for the owner to say go, as the first batch did.
+The Q1-Q7 decisions and the 15 Nov rulings (Secondary buttons, technical text removed) apply here too.
+
+## 18. Sidebar and header
+
+Screen: `18-header-sidebar.png`. Files: `ui/shell/ShellNav.tsx`, `ui/shell/shell.css`, `cpa/destinations.ts`.
+
+- [ ] Sidebar: remove the "CPA" module name above the section headings.
+- [ ] Section headings (Find problems, Check a loop, Understand the cause, Engineering, Set up, System) in bold.
+- [ ] Order: Engineering comes before Set up.
+- [ ] Header: the plant selector and the search are narrower, and the plant selector starts exactly at the
+      sidebar's edge (220 px). "Traverse CPA" stays in the header above the sidebar.
+- [ ] When the sidebar is the 64 px rail, and below 1024 px, the header still fits: the selector then follows the brand.
+
+## 19. System Response page
+
+Screens: `19-response-tab.png`, `19-steps-data.png`, `19-models-tab.png`. Files: `components/Cpm/response/`.
+
+All tabs
+- [ ] Remove the line at the bottom of every tab ("Input test · 13 Nov 07:20 → 13 Nov 07:24 UTC · OP → PV · run
+      0e7f95f0"): `ResponseTabs.tsx` `foot`, `responseLabels.ts` `eventFoot`. The event selector at the top already
+      names the event. "Next →" stays.
+- [ ] Every button in the button standard (item 17 and the 15 Nov Secondary look): Next, Export CSV, Zoom area,
+      Undo, Reset, Review.
+
+Events tab (`EventsTab.tsx`, `ResponseSummary.tsx`)
+- [ ] Redesign as the other redesigned pages: the three counts as KPI cards in the Overview style (each still opens
+      what is behind it), the events table in the standard table look.
+
+Response tab (`ResultCard.tsx`, `ResponseNotes.tsx`)
+- [ ] Design the result row: the model and its state pill, then Process gain, Dead time and Time constant as value
+      blocks, each with its ± on a quieter second line.
+- [ ] "Reported quantities" as a designed table (Quantity · Value) instead of the loose three-column list.
+- [ ] Charts and trends stay as they are.
+
+Fit quality tab
+- [ ] "Charts not kept": find why and fix it. The note shows when the server holds no charts for the chosen event.
+      This event is accepted (eligible, candidate model), and since CHG-105 (in the plant build) accepted events
+      keep their charts 30 days, so it should have them. Check on plant data: were the charts written for this
+      event, is the event older than the v2.9.0 deploy, does the Response tab draw from another source. If an event
+      truly has no charts, one plain line without the retention sentence (technical text rule).
+
+Frequency tab (`BodePanel.tsx`)
+- [ ] The margins table in the standard table look.
+
+Steps & data tab (`StepsDataTab.tsx`): redesign
+- [ ] The eight step cards A-H stay as cards: name, state pill, one plain reason line.
+- [ ] "n outputs" opens a dialog (item 2 header, subtitle loop · step) with the outputs as label / value rows,
+      instead of opening inside the card. Plain words, not codes (`path_id`, `OP_TO_PV`, `NOT_ASSESSED`,
+      `u_applied_available`).
+- [ ] Remove the Event panel (Window, Eligibility, Method, Run, Bundle, Purpose) from this tab.
+- [ ] "All quantities" then takes the full width, in the standard table look. The Reported / All choice stays.
+- [ ] Remove the "Method" column (Q8); the CSV export keeps it.
+
+Models tab (`ModelHistory.tsx`): IMPORTANT
+- [ ] The three trends (Process gain, Dead time, Time constant) one per row, full width, each with its own heading,
+      legend and zoom buttons.
+- [ ] The hover readout stays inside the chart and never hides under the sidebar. Check the other CPA charts for the
+      same fault.
+- [ ] Each "Export CSV" goes in its own chart's head. Today the three sit loose above the table columns.
+- [ ] The models table in the standard table look: Candidate / Other group rows, Review as a button.
+- [ ] Remove the "estimator" column (Q8); the CSV export keeps it.
+- [ ] Review dialog (`ModelReviewDialog.tsx`), owner: "it should also be fixed". CHG-192 already gave it the dialog
+      standard (not yet at the plant). Still to fix: the parameter rows show raw keys (`process_gain`, `dead_time`) →
+      Process gain, Dead time, Time constant; remove the "Estimator / uncertainty" row (Q8); the state as its pill word.
+
 ## Seen while reviewing (not asked, check before release)
 
 - [ ] Sample counts disagree for the same 12 h window: the Loop KPI card says "8641 of 8640 samples"
@@ -343,3 +411,10 @@ but nothing uses it.
   Events (item 1)?
 - **Q7 (item 13):** "Every short granularity": open it from a "Compare window sizes" button as a dialog (my
   recommendation), or as a tab beside the window list?
+
+## Questions for the owner (second batch)
+
+- **Q8 (item 19):** The Steps & data "Method" column (HELD_INTERVAL_INTEGRALS_V1, THEIL_SEN) and the Models
+  "estimator" column (OE_LM_DELAY_PROFILE) show engine method codes. Remove the column from the page, keeping it in
+  the CSV export (my recommendation)? Or show a plain name for each method?
+  **Answer (2026-11-15): remove them.**
