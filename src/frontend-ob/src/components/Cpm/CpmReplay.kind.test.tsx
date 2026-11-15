@@ -14,11 +14,11 @@ vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => (
     React.createElement('button', { onClick: p.onClick, disabled: p.disabled }, p.children),
 }));
 vi.mock('./context/LoopBand', () => ({ LoopBand: (p: { children?: React.ReactNode; end?: React.ReactNode }) => React.createElement('div', null, p.children, p.end) }));
-vi.mock('./investigation/LoopNotes', () => ({ LoopNotes: () => null }));
+vi.mock('./investigation/LoopNotes', () => ({ LoopNotes: (p: { subtitle?: string }) => React.createElement('button', { 'data-subtitle': p.subtitle }, 'Loop notes') }));
 vi.mock('./evidence/EvidenceToolbar', () => ({ EvidenceMore: () => null, EvidenceWindowSelect: () => null }));
 vi.mock('./replay/ReplayChart', () => ({ ReplayChart: () => null }));
 vi.mock('./replay/ReplayStages', () => ({ ReplayStages: () => null }));
-vi.mock('./replay/WindowVerdictCard', () => ({ WindowVerdictCard: () => null }));
+vi.mock('./replay/WindowVerdictCard', () => ({ WindowVerdictCard: () => React.createElement('section', { 'data-testid': 'evidence-check' }) }));
 vi.mock('./replay/WindowResultSelect', () => ({ WindowResultSelect: () => null }));
 vi.mock('./replay/RerunCard', () => ({ RerunCard: () => null }));
 vi.mock('./replay/PackageDialog', () => ({ PackageDialog: () => null }));
@@ -34,7 +34,7 @@ vi.mock('../../hooks/useCpm', () => ({
   useCpmCalculations: () => ({ ...noQuery, data: { gates: [] } }),
   useCpmEvents: () => noQuery,
   useCpmKpisRange: (l: unknown) => (loopsAsked.push({ hook: 'kpis', loop: l }), { data: { samples: [{ window_end: '2026-11-05T08:00:00Z', sample_period_sec: 7 }] } }),
-  useCpmLoops: () => ({ data: { loops: [{ loopId: 'L1', timezone: 'UTC', tags: {} }] } }),
+  useCpmLoops: () => ({ data: { loops: [{ loopId: 'L1', displayName: 'Feed flow L1', timezone: 'UTC', tags: {} }] } }),
   useGateCatalogue: () => noQuery,
   useRawSlice: (series: unknown) => (loopsAsked.push({ hook: 'raw', loop: series }), { ...noQuery, data: undefined }),
 }));
@@ -92,5 +92,31 @@ describe('Replay window kinds', () => {
     expect(container.textContent).not.toMatch(/Calculation v/);
     fireEvent.click(screen.getByRole('button', { name: 'Workbench ↗' }));
     expect(screen.getByTestId('where').textContent).toContain('methodRun=r3');   // the chosen check's run
+  });
+
+  // CHG-189 (owner review item 12): the loop notes are a button under the evidence check panel; the foot strip is the Workbench's
+  // one compact line, its full text in its title
+  it('puts the Loop notes button under the evidence check panel, naming the loop for its dialog', () => {
+    atRow.row = { windowEnd: '2026-11-05T08:00:00Z', windowStart: '2026-11-04T20:00:00Z', diagnosis: 'X', gates: [], metadata: {}, methodRunIds: { G15: 'r' } };
+    mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z');
+    const notes = screen.getAllByRole('button', { name: 'Loop notes' });
+    expect(notes).toHaveLength(1);
+    expect(screen.getByTestId('evidence-check').nextElementSibling?.contains(notes[0])).toBe(true);
+    expect(notes[0].getAttribute('data-subtitle')).toBe('L1 · Feed flow');
+  });
+
+  it('keeps the Loop notes button when no window is open', () => {
+    mount('?loop=L1&kind=12h');
+    expect(screen.getByRole('button', { name: 'Loop notes' })).toBeTruthy();
+  });
+
+  it('says the window, its samples and the run on one compact line', () => {
+    atRow.row = { windowEnd: '2026-11-05T08:00:00Z', windowStart: '2026-11-04T20:00:00Z', diagnosis: 'X', gates: [], sampleCount: 8639, metadata: {}, methodRunIds: { G15: 'r' } };
+    const { container } = mount('?loop=L1&kind=12h&window=2026-11-05T08:00:00Z');
+    const facts = container.querySelector('.cpm-replay-foot > .cpm-workbench__foot-facts') as HTMLElement;
+    expect(facts.textContent).toMatch(/^12 h window · .* · 8,639 samples$/);
+    expect(facts.getAttribute('title')).toBe(facts.textContent);
+    expect(container.querySelector('.cpm-replay-foot')?.textContent).toContain('Original run · pinned');
+    expect(screen.getByRole('button', { name: 'Run details' })).toBeTruthy();
   });
 });

@@ -73,14 +73,42 @@ describe('PackageDialog', () => {
     expect(w).toBe(win);
     expect(series).toBe('root.x.A');
     expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
+  // CHG-189 (owner review item 12): after the download the dialog says so, with the file's name, in the result line the run
+  // dialogs use; nothing else when the package is whole
+  it('says it downloaded the zip, naming the file', async () => {
+    vi.mocked(exportsMod.evidencePackage).mockResolvedValue(GOOD);
+    dialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
+    const result = await screen.findByRole('status');
+    expect(result.querySelector('.ui-badge--success')?.textContent).toContain('Downloaded');
+    expect(result.textContent).toContain('Downloaded');
+    expect(result.textContent).toContain('cplm-A-12h-2026-10-05T1230-evidence-package.zip');
+    expect(result.querySelectorAll('.cpm-package-result__line')).toHaveLength(1);
+  });
+
+  it('adds a line for each part that could not be read, and for one the window does not hold', async () => {
+    vi.mocked(exportsMod.evidencePackage).mockResolvedValue(JSON.stringify({ metrics: { error: 'Error: 503' }, evidence: { manifests: null } }));
+    dialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
+    const result = await screen.findByRole('status');
+    const lines = [...result.querySelectorAll('.cpm-package-result__line')].map(l => l.textContent);
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toContain('Downloaded');
+    expect(lines[1]).toBe('!Not readmetrics (Error: 503)');
+    expect(lines[2]).toBe('–Not heldevidence manifests');
     expect(screen.queryByText(/not complete/)).toBeNull();
   });
 
-  it('says what is missing when a part could not be read', async () => {
-    vi.mocked(exportsMod.evidencePackage).mockResolvedValue(JSON.stringify({ metrics: { error: 'Error: 503' }, evidence: { manifests: {} } }));
-    dialog();
+  it('clears the message when the dialog is closed', async () => {
+    vi.mocked(exportsMod.evidencePackage).mockResolvedValue(GOOD);
+    const { rerender } = dialog();
     fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
-    expect(await screen.findByText(/Downloaded, but not complete: metrics could not be read \(Error: 503\)/)).toBeTruthy();
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    rerender(<PackageDialog open onClose={() => {}} loopId="A" row={win} series="root.x.A" timeZone="UTC" />);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('says why when the package could not be built', async () => {

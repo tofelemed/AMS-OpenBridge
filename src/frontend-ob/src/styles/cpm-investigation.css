@@ -61,7 +61,9 @@
   padding: var(--traverse-space-3) var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle);
   border-end-start-radius: inherit; border-end-end-radius: inherit; background: var(--traverse-surface-page);
 }
-.cpm-inv-review-step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
+/* CHG-189 (owner review item 12): the review is recorded through the Loop notes button in the Next checks head, so the step is one column */
+.cpm-inv-review-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
+.cpm-inv-notes { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
 .cpm-inv-checks__lead { margin: 0 0 var(--traverse-space-1); }
 /* Three to a row at every desktop width: the six mechanisms read 3 + 3, never 4 + 2. */
 .cpm-hypo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--traverse-space-2); margin-bottom: var(--traverse-space-2); }
@@ -117,20 +119,17 @@
 }
 .cpm-inv-checks li:first-child { border-top: 0; }
 
-.cpm-inv-review { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--traverse-space-3); align-items: start; }
-.cpm-inv-review__links { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); margin-top: var(--traverse-space-2); }
 
 .cpm-inv-allgates .cpm-tier-row__tier { flex-basis: 100%; }
 .cpm-inv-allgates .cpm-tier-row__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 var(--traverse-space-3); }
 
 @media (max-width: 1100px) {
-  .cpm-inv-hero__top, .cpm-inv-work, .cpm-inv-review-step, .cpm-hypo-lower { grid-template-columns: minmax(0, 1fr); }
+  .cpm-inv-hero__top, .cpm-inv-work, .cpm-hypo-lower { grid-template-columns: minmax(0, 1fr); }
   .cpm-inv-gaps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-hypo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 736px) {
-  .cpm-inv-review { grid-template-columns: minmax(0, 1fr); }
   .cpm-inv-hero__facts, .cpm-hypo-grid, .cpm-inv-gaps, .cpm-inv-class { grid-template-columns: minmax(0, 1fr); }
   .cpm-inv-class__cell + .cpm-inv-class__cell { border-left: 0; border-top: 1px solid var(--traverse-border-subtle); }
   .cpm-kpicards--5.cpm-inv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

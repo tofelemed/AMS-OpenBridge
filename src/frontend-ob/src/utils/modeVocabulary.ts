@@ -31,6 +31,23 @@ export function classifyMode(token: string): ModeClass {
   return 'unrecognised';
 }
 
+/**
+ * CHG-189 (owner review item 12): a stored mode token as the word an engineer says ("Auto", not "AUT"). Only tokens with one
+ * meaning are named; any other token reads as stored, so a word never hides what the historian holds.
+ */
+const WORDS: Record<string, string> = {
+  AUTO: 'Auto', AUT: 'Auto', A: 'Auto', AUTOMATIC: 'Auto',
+  CAS: 'Cascade', CASC: 'Cascade', CASCADE: 'Cascade', RSP: 'Remote setpoint',
+  NORMAL: 'Normal', NORM: 'Normal', SUP: 'Supervisory', SUPERVISORY: 'Supervisory',
+  MAN: 'Manual', MANUAL: 'Manual', M: 'Manual', LO: 'Local', LOCAL: 'Local', OFF: 'Off', TRACK: 'Track',
+  UNKNOWN: 'Unknown',
+};
+
+export function modeWord(token: string): string {
+  const t = token.trim();
+  return WORDS[t.toUpperCase()] ?? t;
+}
+
 export type ModeTone = 'good' | 'warn' | 'bad' | 'muted';
 
 /**

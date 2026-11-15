@@ -17,12 +17,12 @@ const show = (truncated: boolean) => render(<ReplayChart points={points} phasePl
 describe('ReplayChart truncated slice', () => {
   it('labels the count as loaded and explains the budget', () => {
     show(true);
-    expect(screen.getByText('Sample 5 / 5 loaded')).toBeTruthy();
+    expect(screen.getByText('Sample 5 of 5 loaded')).toBeTruthy();
     expect(document.body.textContent).toMatch(/the slice hit the replay budget/);
   });
   it('is silent on a whole slice', () => {
     show(false);
-    expect(screen.getByText('Sample 5 / 5')).toBeTruthy();
+    expect(screen.getByText('Sample 5 of 5')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/replay budget/);
   });
 });
@@ -35,5 +35,20 @@ describe('ReplayChart axis names (CHG-184, owner review item 12)', () => {
     const plane = buildReplayOption({ points, cursorTs: null, phasePlane: true, palette, pvUnit: '', timeZone: 'UTC' }) as unknown as { yAxis: { name: string } };
     expect(plane.yAxis.name).toBe('PV');
     expect((buildReplayOption({ points, cursorTs: null, phasePlane: true, palette, pvUnit: 'kg/h', timeZone: 'UTC' }) as unknown as { yAxis: { name: string } }).yAxis.name).toBe('PV (kg/h)');
+  });
+});
+
+// CHG-189 (owner review item 12): "PV / SP" lost its first letter under the sidebar. As the CHG-181 fix on the loop trend, each
+// axis name starts at its own axis line and reads into the plot (left axis) or ends at it (right axis), so it never spills past.
+describe('ReplayChart axis names never clip (CHG-189)', () => {
+  it('aligns each axis name to its own axis line', () => {
+    const palette = chartPalette();
+    const time = buildReplayOption({ points, cursorTs: null, phasePlane: false, palette, pvUnit: 'kg/h', timeZone: 'UTC' }) as unknown as
+      { yAxis: Array<{ name: string; nameTextStyle: { align?: string } }> };
+    expect(time.yAxis[0]).toMatchObject({ name: 'PV / SP (kg/h)', nameTextStyle: { align: 'left' } });
+    expect(time.yAxis[1]).toMatchObject({ name: 'OP / VP (%)', nameTextStyle: { align: 'right' } });
+    const plane = buildReplayOption({ points, cursorTs: null, phasePlane: true, palette, pvUnit: 'kg/h', timeZone: 'UTC' }) as unknown as
+      { yAxis: { nameTextStyle: { align?: string } } };
+    expect(plane.yAxis.nameTextStyle.align).toBe('left');
   });
 });

@@ -1,23 +1,36 @@
 /* Task 17: Evidence Replay. Placement only: no size is set here. */
 .cpm-replay-main, .cpm-replay-aside { display: flex; flex-direction: column; gap: var(--traverse-space-3); min-width: 0; }
 .cpm-replay-stages { display: flex; flex-direction: column; gap: var(--traverse-space-2); min-width: 0; }
-.cpm-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--traverse-space-2) var(--traverse-space-4); }
-.cpm-readout__values { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2) var(--traverse-space-4); margin: 0; }
-.cpm-readout__item { display: flex; flex-direction: column; gap: 2px; margin: 0; }
-.cpm-readout__item dd { margin: 0; }
+/* CHG-189 (owner review item 12): the cursor readout is the Loop Explorer readings (.cpm-signal-group), then the sample and its time */
+.cpm-readout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-4); }
+.cpm-readout__at { display: flex; flex-direction: column; gap: var(--traverse-space-1); color: var(--traverse-text-secondary); font-size: var(--cpm-text-small); }
+.cpm-readout__time { font-variant-numeric: tabular-nums; }
 .cpm-replay-check { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); justify-content: flex-end; }
-.cpm-replay-reason { margin: 0; padding: var(--traverse-space-2); border: 1px solid var(--border-divider-color); overflow-wrap: anywhere; }
-.cpm-replay-metrics { min-width: 0; }
+/* CHG-189: the window's verdict line as a headline (key text), not a box that looks like a field; then even label / value rows */
+.cpm-replay-verdict { margin: 0 0 var(--traverse-space-3); color: var(--traverse-text-primary); font-size: var(--traverse-type-key); font-weight: 600; overflow-wrap: anywhere; }
+.cpm-replay-check-panel__gate { margin: 0 0 var(--traverse-space-2); }
+.cpm-replay-check-panel__rows .cpm-kv { align-items: center; min-height: var(--traverse-size-row); padding: var(--traverse-space-2) 0; }
 .cpm-rerun-config { display: flex; flex-direction: column; gap: var(--traverse-space-2); margin: var(--traverse-space-3) 0 0; padding: 0; border: 0; min-width: 0; }
 /* CHG-163 (owner review): the chart panel's foot strip (the window, its samples, the run, Run details), edge to edge,
    and Re-run at the foot of the evidence check panel. */
 .cpm-replay-main > .cpm-surface { padding-bottom: 0; }
 .cpm-replay-foot {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3);
+  display: flex; flex-wrap: nowrap; align-items: center; gap: var(--traverse-space-2) var(--traverse-space-3);
   margin: var(--traverse-space-3) calc(-1 * var(--traverse-space-4)) 0; padding: var(--traverse-space-1) var(--traverse-space-4);
   border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page);
   border-end-start-radius: inherit; border-end-end-radius: inherit;
 }
-.cpm-replay-foot .cpm-copy { flex: 1 1 auto; max-width: none; }
+/* CHG-189 (owner review item 12): the Workbench's compact strip: the facts on one line (cpm-workbench__foot-facts, full text in its
+   title), the run and Run details beside them; narrower than 1280 px it may wrap */
+.cpm-replay-foot > :not(.cpm-workbench__foot-facts) { flex: none; }
+@media (max-width: 1279px) {
+  .cpm-replay-foot { flex-wrap: wrap; }
+}
 .cpm-replay-check-panel__foot { margin-top: var(--traverse-space-3); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); }
 .cpm-rerun-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); }
+/* CHG-189: the Loop notes button under the evidence check panel; the package dialog's result after a download */
+.cpm-replay-notes { display: flex; flex-wrap: wrap; gap: var(--traverse-space-2); }
+.cpm-package-result { display: flex; flex-direction: column; gap: var(--traverse-space-2); padding-top: var(--traverse-space-3); border-top: 1px solid var(--traverse-border-subtle); color: var(--traverse-text-primary); }
+.cpm-package-result__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); margin: 0; }
+.cpm-package-result__line > .ui-badge { flex: none; }
+.cpm-package-result__file { min-width: 0; overflow-wrap: anywhere; }

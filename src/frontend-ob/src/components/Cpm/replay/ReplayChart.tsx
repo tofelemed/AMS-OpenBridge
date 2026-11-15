@@ -38,7 +38,9 @@ export function buildReplayOption(i: ReplayChartInput) {
   const base = plainOption(palette);
   const axis = axisChrome(palette);
   const faintGrid = { lineStyle: { ...axis.splitLine.lineStyle, opacity: 0.2 } };
-  const axisName = { ...axis.nameTextStyle, fontSize: 12 };
+  // CHG-189: each axis name starts (left axis) or ends (right axis) at its axis line and reads into the plot, as the CHG-181 fix in
+  // trendOption.ts; centred on the line, "PV / SP" spilled past the chart's left edge and lost its first letter.
+  const axisName = (align: 'left' | 'right') => ({ ...axis.nameTextStyle, fontSize: 12, align });
   const zoom = i.zoom ?? FULL_ZOOM;
   if (i.phasePlane) {
     const pairs = points.map(p => ({ ts: p.ts, pv: num(p.pv), op: num(p.op) })).filter(p => p.pv != null && p.op != null);
@@ -49,7 +51,7 @@ export function buildReplayOption(i: ReplayChartInput) {
       ...boxZoomOption({ xAxisIndex: 0, yAxisIndex: 0 }, zoom),
       tooltip: { ...base.tooltip, trigger: 'item' as const },
       xAxis: { ...axis, type: 'value' as const, name: 'OP (%)', scale: true },
-      yAxis: { ...axis, type: 'value' as const, name: pvUnit ? `PV (${pvUnit})` : 'PV', scale: true, splitLine: faintGrid },   // CHG-184: no "unit not set"
+      yAxis: { ...axis, type: 'value' as const, name: pvUnit ? `PV (${pvUnit})` : 'PV', nameTextStyle: axisName('left'), scale: true, splitLine: faintGrid },   // CHG-184: no "unit not set"
       series: [
         { name: 'trajectory', type: 'scatter' as const, symbolSize: 3, itemStyle: { color: tick, opacity: 0.35 },
           data: pairs.filter(p => cursorTs == null || p.ts > cursorTs).map(p => [p.op, p.pv]) },
@@ -79,8 +81,8 @@ export function buildReplayOption(i: ReplayChartInput) {
     xAxis: { ...axis, type: 'time' as const,
       axisLabel: { ...axis.axisLabel, hideOverlap: true, formatter: siteAxisTick(points.length > 1 ? points[points.length - 1].ts - points[0].ts : 3_600_000) } },
     yAxis: [
-      { ...axis, type: 'value' as const, name: pvAxisName(pvUnit), scale: true, nameTextStyle: axisName, splitLine: faintGrid },
-      { ...axis, type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, nameTextStyle: axisName, splitLine: { show: false } },
+      { ...axis, type: 'value' as const, name: pvAxisName(pvUnit), scale: true, nameTextStyle: axisName('left'), splitLine: faintGrid },
+      { ...axis, type: 'value' as const, name: 'OP / VP (%)', position: 'right' as const, scale: true, nameTextStyle: axisName('right'), splitLine: { show: false } },
     ],
     series: [
       { name: 'PV', type: 'line' as const, symbol: 'none', connectNulls: false, yAxisIndex: 0, color: pv, lineStyle: { color: pv, width: 1.5 },
@@ -122,7 +124,7 @@ export const ReplayChart: React.FC<{
         <span className="cpm-copy">Replay cursor</span>
         <input type="range" min={0} max={100} value={cursorPct} onChange={e => onCursor(Number(e.target.value))} aria-label="Replay cursor position" />
       </div>
-      <CursorReadout points={points} cursorPct={cursorPct} timeZone={timeZone} truncated={truncated} />
+      <CursorReadout points={points} cursorPct={cursorPct} timeZone={timeZone} truncated={truncated} pvUnit={pvUnit} />
       {truncated && (
         <p className="cpm-copy" role="status">
           Showing the first {points.length.toLocaleString()} raw points of the window — the slice hit the replay budget; export includes only what is shown.

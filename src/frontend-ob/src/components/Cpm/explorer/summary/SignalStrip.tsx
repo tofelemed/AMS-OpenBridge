@@ -25,25 +25,9 @@ import { EmptyState } from '../../shared';
 import { registryHref } from '../../cpaHref';
 import { bucketValue, liveSource, useSignalValues } from './useSignalValues';
 import { modeNeedsLook, opReadingState } from './readingState';
+import { SignalReading as Signal } from './SignalReading';
 
 export { liveSource };
-
-/** `warn` paints the box amber; `state` is the word beside the caption (G05: never colour alone). */
-const Signal: React.FC<{ caption: string; value: string; unit?: string; sub?: string; warn?: boolean; state?: string | null }> = ({
-  caption, value, unit, sub, warn = false, state,
-}) => (
-  <div className={`cpm-signal${warn ? ' cpm-signal--warning' : ''}`}>
-    <span className="cpm-signal__head">
-      <span className="cpm-signal__caption">{caption}</span>
-      {state ? <span className="cpm-signal__state"><span aria-hidden="true">!</span>{state}</span> : null}
-    </span>
-    <span className="cpm-signal__reading">
-      <span className="cpm-signal__value">{value}</span>
-      {unit ? <span className="cpm-signal__unit">{unit}</span> : null}
-    </span>
-    {sub ? <span className="cpm-signal__sub">{sub}</span> : null}
-  </div>
-);
 
 export const SignalStrip: React.FC<{ loop: CpmLoop }> = ({ loop }) => {
   const v = useSignalValues(loop);

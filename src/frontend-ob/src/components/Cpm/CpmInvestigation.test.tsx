@@ -69,7 +69,7 @@ vi.mock('./context/LoopBand', () => ({
 }));
 vi.mock('./trend/SignalTrend', () => ({ default: (p: { foot?: React.ReactNode; resetLabel?: string; height?: number }) => <div data-testid="trend" data-height={p.height} data-reset={p.resetLabel}>{p.foot}</div> }));
 vi.mock('./investigation/LoopNotes', () => ({
-  LoopNotes: (p: { title?: string; saveLabel?: string; links?: React.ReactNode }) => <section><h2>{p.title}</h2><span>{p.saveLabel}</span>{p.links}</section>,
+  LoopNotes: (p: { subtitle?: string }) => <button type="button" data-subtitle={p.subtitle}>Loop notes</button>,
 }));
 
 import { CpmInvestigation } from './CpmInvestigation';
@@ -236,8 +236,24 @@ describe('CpmInvestigation', () => {
   it('leads the Review tab with the result\'s next check', () => {
     page('/cpm/investigation?loop=FIC10401&tab=Review');
     expect(screen.getByText('Compare PV, SP and OP over this window.')).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Record your review' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Hypothesis comparison ↗' })).toBeNull();
+  });
+
+  // CHG-189 (owner review item 12): the review is recorded through the shared Loop notes button and dialog, in the Next checks
+  // head beside Related events; the inline "Record your review" form is gone
+  it('records the review through the Loop notes button in the Next checks head', () => {
+    page('/cpm/investigation?loop=FIC10401&tab=Review');
+    expect(screen.queryByRole('heading', { level: 2, name: 'Record your review' })).toBeNull();
+    const notes = screen.getByRole('button', { name: 'Loop notes' });
+    expect(notes.closest('.cpm-panel-head__right')?.textContent).toContain('Related events ↗');
+    expect(notes.getAttribute('data-subtitle')).toMatch(/^FIC10401/);
+  });
+
+  it('keeps the Loop notes button on a loop with no verdict yet', () => {
+    state.latest = { data: undefined, isError: false, isLoading: false };
+    page('/cpm/investigation?loop=FIC10401');
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Loop notes' })).toBeTruthy();
   });
 
   it('runs the checks that stay on the page as tabs: Signals opens Evidence', () => {

@@ -8,6 +8,8 @@
  * is stored on the loop (LoopNotes). CHG-163 (owner review, the pattern of Historical, Investigation and the Workbench):
  * 12h / 24h in the header; the band a card (loop, window, result, ‹ › … Workbench ↗, Evidence package), no More; the chart
  * panel's foot strip says the window, its samples and the run once; the evidence check panel holds Re-run; 32 px controls.
+ * CHG-189 (owner review item 12): the loop notes are a "Loop notes (n)" button under the evidence check panel that opens them
+ * in a dialog; the foot strip is the Workbench's one compact line (the full text in its title).
  */
 import { pipelineStep, usePipelineAccess } from './access';
 import React, { useMemo, useState } from 'react';
@@ -33,6 +35,7 @@ import { WindowVerdictCard } from './replay/WindowVerdictCard';
 import { diagnosisLabel } from './vocabulary';
 import { shortState, windowLabel, windowPick } from './windowLabel';
 import { LoopNotes } from './investigation/LoopNotes';
+import { serviceName } from './loopName';
 import { ReasonedButton } from './ReasonedButton';
 import { useEvidenceWindows } from './evidence/useEvidenceWindows';
 import { EvidenceWindowSelect } from './evidence/EvidenceToolbar';
@@ -117,11 +120,21 @@ export const CpmReplay: React.FC = () => {
   const events = useCpmEvents({ loopId, openOnly: true, limit: 5 }, 60_000, !!fetchLoop);
   const openFrame = events.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED');
 
+  // SME #22 (CHG-058): loop notes replace "acknowledge with note" — a note never acknowledges by itself
+  const notes = loopId ? (
+    <div className="cpm-replay-notes">
+      <LoopNotes loopId={loopId} openFrame={openFrame ?? null} subtitle={[loopId, loop ? serviceName(loop) : ''].filter(Boolean).join(' · ')}
+        window={selected ? { methodRunId: selected.methodRunIds?.G15 ?? null, label: windowLabel(selected) } : null} />
+    </div>
+  ) : null;
   const dropWindow = (p: URLSearchParams) => { p.delete('window'); p.delete('rerun'); };
   const openEnd = (end: string) => setParams(p => { p.set('window', end); p.delete('rerun'); return p; }, { replace: true });
   // the open window's place in the loaded list, for ‹ ›
   const index = selected ? windows.findIndex(w => sameInstant(w.windowEnd, selected.windowEnd)) : -1;
   const gateRun = selected?.methodRunIds?.[gateKey] ?? null;
+  const footText = selected
+    ? `${windowSpan(selected, timeZone)} · ${selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-GB')} samples` : 'samples not reported'}`
+    : '';
   const catalogueError = calc.isError && (
     <span className="cpm-replay-catalogue-note">
       <span className="cpm-field__error">
@@ -230,11 +243,9 @@ export const CpmReplay: React.FC = () => {
                 <ReplayChart points={points} pvUnit={loop?.engineering?.pvUnit ?? ''} phasePlane={isShapeGate} cursorPct={cursorPct} onCursor={setCursorPct}
                   truncated={raw.data?.truncated ?? false} timeZone={timeZone} />
               )}
-              {/* CHG-163: the window, its samples and the run, said once; the versions are in Run details */}
+              {/* CHG-163: the window, its samples and the run, said once; the versions are in Run details. CHG-189: one line */}
               <div className="cpm-replay-foot">
-                <span className="cpm-copy">
-                  {`${windowSpan(selected, timeZone)} · ${selected.sampleCount != null ? `${selected.sampleCount.toLocaleString('en-GB')} samples` : 'samples not reported'}`}
-                </span>
+                <span className="cpm-workbench__foot-facts" title={footText}>{footText}</span>
                 <TonePill tone="muted">{selected.metadata.replayId ? 'Re-run' : 'Original run · pinned'}</TonePill>
                 <ObcButton variant="flat" onClick={() => setDialog('details')}>Run details</ObcButton>
               </div>
@@ -246,6 +257,7 @@ export const CpmReplay: React.FC = () => {
               question={def?.question} onGate={g => setParams(p => { p.set('gate', g); return p; }, { replace: true })}>
               {loopId && <RerunCard loopId={loopId} row={selected} timeZone={timeZone} />}
             </WindowVerdictCard>
+            {notes}
           </div>
         </div>
       )}
@@ -255,11 +267,8 @@ export const CpmReplay: React.FC = () => {
           <RunDetailsDialog open={dialog === 'details'} onClose={() => setDialog(null)} row={selected} timeZone={timeZone} />
         </>
       )}
-      {/* SME #22 (CHG-058): loop notes replace "acknowledge with note" — a note never acknowledges by itself */}
-      {loopId && (
-        <LoopNotes loopId={loopId} openFrame={openFrame ?? null}
-          window={selected ? { methodRunId: selected.methodRunIds?.G15 ?? null, label: windowLabel(selected) } : null} />
-      )}
+      {/* a note needs no window: with none open the button sits under the page's message */}
+      {!selected && notes}
     </div>
   );
 };

@@ -1,168 +1,99 @@
 /**
  * SME review #22 (CHG-058): loop notes — always available, not only while an episode is open. A note belongs to
  * the loop; it can name the evaluated window it was written on (the window's decision evidence is pinned) and the
- * diagnosis episode it is about, now or later ("Link to episode…"). Acknowledging an open episode is a separate,
- * explicit choice (ISA-18.2: acknowledgement is a deliberate act) — the old box sent the note AS the
- * acknowledgement. Replaces the "Investigation note" card on Investigation and Evidence Replay. Saving a note never
- * changes the engine's result. A page can name the section and the button, and add links beside the notes (CHG-141).
+ * diagnosis episode it is about, now or later. Acknowledging an open episode is a separate, explicit choice (ISA-18.2:
+ * acknowledgement is a deliberate act). Saving a note never changes the engine's result.
+ *
+ * CHG-189 (owner review item 12): a "Loop notes (n)" button that opens a dialog (the cyan band, subtitle loop tag · name) with
+ * the new-note form, "Save note" as its primary action, and the notes as cards (NoteList), each changed through its Edit action.
+ * The same button serves Evidence Replay (under the Evidence check card) and Investigation's Review tab. The episodes and the
+ * window's evidence list are read only while the dialog is open; the count on the button is the one read on page load.
  */
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import type { CpmEventFrame } from '../../../api/cpmApi';
-import { MAX_NOTE_LENGTH, type LoopNote, type NoteOutcome } from '../../../api/cpm/investigations';
+import { MAX_NOTE_LENGTH } from '../../../api/cpm/investigations';
 import { useAcknowledgeEvent, useCpmEvents } from '../../../hooks/useCpm';
-import { useCreateLoopNote, useLinkLoopNote, useLoopNotes, useSetLoopNoteOutcome } from '../../../hooks/useLoopNotes';
+import { useCreateLoopNote, useLoopNotes } from '../../../hooks/useLoopNotes';
 import { useAuthStore } from '../../../store/authStore';
+import { Dialog } from '../../../ui/Dialog';
 import { useEvidenceManifest } from '../evidence/useEvidence';
-import { PanelHead, TonePill, type CpmTone } from '../shared';
-import { Toggletip } from '../../../ui/Toggletip';
+import { TonePill } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
-import { diagnosisLabel } from '../vocabulary';
-import { fmtInstant } from '../context/LoopContextBar';
-import { eventsHref } from '../cpaHref';
-import { workbenchHref } from '../evidence/selection';
+import { NoteForm } from './NoteForm';
+import { NoteList } from './NoteList';
+import { EMPTY_DRAFT, notesButtonLabel, type NoteDraft } from './noteText';
 
-const OUTCOMES: Array<{ value: NoteOutcome; label: string; tone: CpmTone }> = [
-  { value: 'INCONCLUSIVE', label: 'Inconclusive', tone: 'muted' },
-  { value: 'WORK_COMPLETED', label: 'Work completed', tone: 'warn' },
-  { value: 'PERFORMANCE_RESTORED', label: 'Performance restored', tone: 'good' },
-];
-const outcomeOf = (o: NoteOutcome) => OUTCOMES.find(x => x.value === o) ?? OUTCOMES[0];
-const episodeLabel = (e: CpmEventFrame) => `EVT-${e.id} · ${diagnosisLabel(e.peak_diagnosis)} · ${fmtInstant(e.opened_at)}${e.closed_at ? '' : ' (open)'}`;
-
-export const LoopNotes: React.FC<{
+interface NotesProps {
   loopId: string;
   /** The evaluated window on screen: its decision run (G15) and a short name. */
   window?: { methodRunId?: string | null; label: string } | null;
   /** The loop's open, unacknowledged episode, if any. */
   openFrame?: CpmEventFrame | null;
-  /** The section's heading and its button, where the page names them. */
-  title?: string;
-  saveLabel?: string;
-  /** Links beside the note list. */
-  links?: React.ReactNode;
-}> = ({ loopId, window, openFrame, title, saveLabel = 'Save note', links }) => {
+  /** Under the dialog title: the loop's tag · name. */
+  subtitle?: string;
+}
+
+const NotesDialog: React.FC<NotesProps & {
+  notes: ReturnType<typeof useLoopNotes>;
+  draft: NoteDraft;
+  onDraft: (d: NoteDraft) => void;
+  onClose: () => void;
+}> = ({ loopId, window, openFrame, subtitle, notes, draft, onDraft, onClose }) => {
   const canManage = useAuthStore(s => s.hasPermission('cpm.manage'));
-  const notes = useLoopNotes(loopId);
   const episodes = useCpmEvents({ loopId, openOnly: false, limit: 20, sort: 'recent' }, 60_000, !!loopId);
   const manifest = useEvidenceManifest(window?.methodRunId ?? undefined);
   const create = useCreateLoopNote();
   const ack = useAcknowledgeEvent();
-  const [text, setText] = useState('');
-  const [outcome, setOutcome] = useState<NoteOutcome>('INCONCLUSIVE');
-  const [attach, setAttach] = useState(true);
-  const [alsoAck, setAlsoAck] = useState(false);
 
-  const trimmed = text.trim();
-  const reason = !canManage ? 'Needs the cpm.manage permission' : trimmed.length === 0 ? null : trimmed.length > MAX_NOTE_LENGTH ? `Keep the note under ${MAX_NOTE_LENGTH} characters` : null;
+  const trimmed = draft.text.trim();
+  const reason = !canManage ? 'Needs the cpm.manage permission' : trimmed.length > MAX_NOTE_LENGTH ? `Keep the note under ${MAX_NOTE_LENGTH} characters` : null;
   const save = () => {
-    const methodRunId = attach ? window?.methodRunId ?? null : null;
+    const methodRunId = draft.attach ? window?.methodRunId ?? null : null;
+    const alsoAck = !!openFrame && draft.alsoAck;
     create.mutate({
-      loopId, note: trimmed, outcome, methodRunId,
-      evidenceIds: attach && methodRunId ? (manifest.data?.artifacts ?? []).map(a => a.artifactId) : [],
-      eventId: openFrame && alsoAck ? openFrame.id : null,
+      loopId, note: trimmed, outcome: draft.outcome, methodRunId,
+      evidenceIds: draft.attach && methodRunId ? (manifest.data?.artifacts ?? []).map(a => a.artifactId) : [],
+      eventId: alsoAck ? openFrame!.id : null,
     }, {
       onSuccess: () => {
-        if (openFrame && alsoAck) ack.mutate({ id: openFrame.id, note: `Acknowledged with a loop note: ${trimmed.slice(0, 200)}` });
-        setText(''); setOutcome('INCONCLUSIVE'); setAlsoAck(false);
+        if (alsoAck) ack.mutate({ id: openFrame!.id, note: `Acknowledged with a loop note: ${trimmed.slice(0, 200)}` });
+        onDraft({ ...draft, text: '', outcome: 'INCONCLUSIVE', alsoAck: false });
       },
     });
   };
 
   return (
-    <section className="cpm-surface cpm-loop-notes" data-testid="loop-notes">
-      <PanelHead eyebrow={title ? undefined : 'Record it'} title={title ?? 'Loop notes'}
-        help={<Toggletip variant="how-to" label="About loop notes"><p>A note stays on the loop and never changes the engine’s result. Saving it never acknowledges an episode unless you tick that box; link it to an episode now or later.</p></Toggletip>}
-        right={<span className="cpm-copy">{notes.data?.count ? `${notes.data.count} note(s)` : ''}</span>} />
-      <div className={links ? 'cpm-inv-review' : undefined}>
-        <div>
-          <textarea className="cpm-textarea" rows={3} value={text} maxLength={MAX_NOTE_LENGTH + 1}
-            placeholder="Observation, action taken, follow-up owner… (no episode needed)" aria-label="Loop note"
-            onChange={e => setText(e.target.value)} />
-          <div className="cpm-loop-notes__options">
-            <label className="cpm-field cpm-field--compact">
-              <span className="cpm-field__label">Outcome</span>
-              <select className="cpm-select" value={outcome} onChange={e => setOutcome(e.target.value as NoteOutcome)}>
-                {OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </label>
-            {window?.methodRunId && (
-              // CHG-160 (owner review): the band names the window; the box names it on hover only
-              <label className="cpm-check" title={window.label}>
-                <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
-                Attach to this window — its evidence is kept
-              </label>
-            )}
-            {openFrame && (
-              <label className="cpm-check">
-                <input type="checkbox" checked={alsoAck} onChange={e => setAlsoAck(e.target.checked)} />
-                Also acknowledge the open episode EVT-{openFrame.id} and link the note to it
-              </label>
-            )}
-          </div>
-          <div className="cpm-filter-row">
-            <ReasonedButton variant="raised" disabled={!canManage || trimmed.length === 0 || !!reason || create.isPending} reason={reason} onClick={save}>
-              {create.isPending ? 'Saving…' : saveLabel}
-            </ReasonedButton>
-            {create.isSuccess && <TonePill tone="good">Saved</TonePill>}
-            {create.isError && <span className="cpm-field__error" role="alert">{(create.error as Error)?.message ?? 'The note was not saved.'}</span>}
-          </div>
-        </div>
-        <div>
-          <NoteList notes={notes.data?.investigations ?? []} loading={notes.isLoading} episodes={episodes.data?.events ?? []} canManage={canManage} loopId={loopId} />
-          {links && <div className="cpm-inv-review__links">{links}</div>}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const NoteList: React.FC<{ notes: LoopNote[]; loading: boolean; episodes: CpmEventFrame[]; canManage: boolean; loopId: string }> = ({ notes, loading, episodes, canManage, loopId }) => {
-  if (loading) return <p className="cpm-copy">Loading notes…</p>;
-  if (notes.length === 0) return <p className="cpm-metric-na">No notes on this loop yet.</p>;
-  return (
-    <ol className="cpm-loop-notes__list">
-      {notes.map(n => <NoteRow key={n.refId} n={n} episodes={episodes} canManage={canManage} loopId={loopId} />)}
-    </ol>
-  );
-};
-
-const NoteRow: React.FC<{ n: LoopNote; episodes: CpmEventFrame[]; canManage: boolean; loopId: string }> = ({ n, episodes, canManage, loopId }) => {
-  const link = useLinkLoopNote();
-  const setOutcome = useSetLoopNoteOutcome();
-  const [pick, setPick] = useState('');
-  const o = outcomeOf(n.outcome);
-  const episode = episodes.find(e => e.id === n.eventId);
-  return (
-    <li className="cpm-loop-notes__item">
-      <div className="cpm-loop-notes__meta">
-        <TonePill tone={o.tone}>{o.label}</TonePill>
-        <span>{n.createdBy ?? 'unknown'} · {fmtInstant(n.createdAt)}</span>
-        {n.methodRunId && <Link className="cpm-link" to={workbenchHref(loopId, n.methodRunId, 'G15')}>evaluated window ↗</Link>}
-        {n.eventId != null && <Link className="cpm-link" to={eventsHref({ loop: loopId, event: n.eventId, filter: 'all' })}>{episode ? episodeLabel(episode) : `EVT-${n.eventId}`} ↗</Link>}
-      </div>
-      <p className="cpm-loop-notes__text">{n.note || <span className="cpm-metric-na">(no text)</span>}</p>
-      {canManage && (
-        <div className="cpm-loop-notes__actions">
-          <label className="cpm-field cpm-field--compact">
-            <span className="cpm-field__label">{n.eventId != null ? 'Linked episode' : 'Link to episode'}</span>
-            <select className="cpm-select" value={pick || String(n.eventId ?? '')} disabled={link.isPending}
-              onChange={e => { const v = e.target.value; setPick(v); link.mutate({ refId: n.refId, eventId: v ? Number(v) : null }); }}>
-              <option value="">{n.eventId != null ? '— unlink —' : '— none —'}</option>
-              {episodes.map(e => <option key={e.id} value={e.id}>{episodeLabel(e)}</option>)}
-            </select>
-          </label>
-          <label className="cpm-field cpm-field--compact">
-            <span className="cpm-field__label">Outcome</span>
-            <select className="cpm-select" value={n.outcome} disabled={setOutcome.isPending}
-              onChange={e => setOutcome.mutate({ refId: n.refId, outcome: e.target.value as NoteOutcome })}>
-              {OUTCOMES.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
-            </select>
-          </label>
-          {(link.isError || setOutcome.isError) && <span className="cpm-field__error" role="alert">{((link.error ?? setOutcome.error) as Error)?.message}</span>}
-        </div>
+    <Dialog open onClose={onClose} title="Loop notes" subtitle={subtitle} size="wide"
+      footer={<>
+        <ObcButton variant="normal" onClick={onClose}>Close</ObcButton>
+        <ReasonedButton variant="raised" disabled={!canManage || trimmed.length === 0 || !!reason || create.isPending} reason={reason} onClick={save}>
+          {create.isPending ? 'Saving…' : 'Save note'}
+        </ReasonedButton>
+      </>}>
+      <NoteForm draft={draft} onDraft={onDraft} window={window} openFrame={openFrame} />
+      {(create.isSuccess || create.isError) && (
+        <p className="cpm-note-form__status">
+          {create.isSuccess && <TonePill tone="good">Saved</TonePill>}
+          {create.isError && <span className="cpm-field__error" role="alert">{(create.error as Error)?.message ?? 'The note was not saved.'}</span>}
+        </p>
       )}
-    </li>
+      <NoteList notes={notes.data?.investigations ?? []} loading={notes.isLoading} error={notes.isError ? notes.error : null}
+        episodes={episodes.data?.events ?? []} canManage={canManage} loopId={loopId} />
+    </Dialog>
+  );
+};
+
+export const LoopNotes: React.FC<NotesProps> = props => {
+  const notes = useLoopNotes(props.loopId);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<NoteDraft>(EMPTY_DRAFT);
+  const count = notes.data?.count ?? notes.data?.investigations.length ?? 0;
+  return (
+    <>
+      <ObcButton variant="normal" aria-haspopup="dialog" onClick={() => setOpen(true)}>{notesButtonLabel(count)}</ObcButton>
+      {open && <NotesDialog {...props} notes={notes} draft={draft} onDraft={setDraft} onClose={() => setOpen(false)} />}
+    </>
   );
 };
 

@@ -47,6 +47,7 @@ import { INPUT_LIMITS_GATE, effectiveInputFlags } from './inputLimits';
 import { fmtInstant } from './context/LoopContextBar';
 import { explorerHref, pipelineHref } from './cpaHref';
 import { loopHealthSummary } from './health/TransmitterHealthPanel';
+import { serviceName } from './loopName';
 
 /** What belongs to one loop and goes with it; the step stays. */
 const LOOP_KEYS = ['window', 'tier', 'gate'];
@@ -109,6 +110,8 @@ export const CpmInvestigation: React.FC = () => {
   const openFrame = openEvents.data?.events.find(e => e.ack_state === 'UNACKNOWLEDGED') ?? null;
   const episode = openEvents.data && recentEvents.data ? episodeAt([...openEvents.data.events, ...recentEvents.data.events], matrix?.windowEnd) : undefined;
 
+  // CHG-189: the notes dialog names the loop under its title
+  const notesSubtitle = loopId ? [loopId, loop ? serviceName(loop) : ''].filter(Boolean).join(' · ') : undefined;
   const step = stepOf(params);
   const setStep = (s: InvestigationStep) => patch(p => { p.set('tab', s); });
   const gate = params.get('gate');
@@ -189,7 +192,7 @@ export const CpmInvestigation: React.FC = () => {
           {step === 'Windows' && <WindowsStep loopId={loopId} matrix={matrix} windowKind={windowKind} list={list} onWindow={openWindow} />}
           {step === 'Hypotheses' && <HypothesisPanel verdict={matrix.verdictV2} metrics={matrix.metrics ?? {}} vpAbsentOnLoop={vpAbsent(inputs)} />}
           {step === 'Review' && (
-            <ReviewStep loopId={loopId} matrix={matrix} windowKind={windowKind} openFrame={openFrame} episodeId={episode?.id}
+            <ReviewStep loopId={loopId} matrix={matrix} windowKind={windowKind} openFrame={openFrame} episodeId={episode?.id} notesSubtitle={notesSubtitle}
               onSignals={() => setStep('Evidence')} onGate={g => patch(p => { p.delete('tier'); p.set('gate', g); p.set('tab', 'Evidence'); })}
               onDialog={onCheck} />
           )}
@@ -197,7 +200,9 @@ export const CpmInvestigation: React.FC = () => {
       )}
 
       {/* SME #22 (CHG-058): notes on the loop with or without a verdict; with one they sit on the Review step */}
-      {loopId && !matrix && <ReviewNotes loopId={loopId} matrix={undefined} windowKind={windowKind} openFrame={openFrame} />}
+      {loopId && !matrix && (
+        <div className="cpm-inv-notes"><ReviewNotes loopId={loopId} matrix={undefined} windowKind={windowKind} openFrame={openFrame} subtitle={notesSubtitle} /></div>
+      )}
       {matrix && loopId && (
         <InvestigationDialogs dialog={dialog} onDialog={setDialog} loopId={loopId} matrix={matrix} windowKind={windowKind} flags={flags} />
       )}

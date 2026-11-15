@@ -1952,3 +1952,24 @@ not a "↗" link (Q4 covers links that open another page).
 | Reconstruct · actions | "Cancel" + "Reconstruct" (both outline) / "Requesting…" | "Cancel" + "Reconstruct" (primary); while it runs "Close"; after a failure "Close" + "Retry" (primary) |
 | Reconstruct · state | the dialog closed on acceptance; the page said "Reconstruction accepted · submitted. It is stored beside …" until left | spinner + "Running" + "0:03", then "✓ Done" and the dialog closes by itself (the rebuilt charts show); the page line shows only while a run goes on with the dialog closed |
 | Reconstruct · failure | "Reconstruction refused: 403 Forbidden" | "✕ Failed" + "Reconstruction refused: 403 Forbidden"; new: "The reconstruction job failed: …", "The reconstruction job was cancelled.", "The reconstruction failed.", "A rebuilt chart failed verification.", "It produced no evidence for this run.", "Its outcome was not recorded.", "No result after 5 minutes. It may still finish; this page lists it when it arrives." |
+
+## CHG-189 Evidence Replay: Evidence check card, Loop notes dialog, cursor readout and package message (owner review item 12; Q4, Q5)
+
+Times keep their format (Q5): the cursor readout's time ("2026-11-14 19:59:54 UTC (UTC+00:00)"), the foot strip's window and
+each note's author time print exactly as before; only the readout's time leaves the monospace face. "↗" links stay links (Q4).
+
+| Where | Was | Now |
+|---|---|---|
+| Replay · chart | left axis name "PV / SP" lost its first letter under the sidebar ("V / SP") | the whole name; it starts at its axis line (the right axis name ends at its line) |
+| Replay · Evidence check | the verdict line in a bordered box that read like a field ("Stiction ruled out: no stiction-shaped cycles") | the same text as a headline above the check selector |
+| Replay · Evidence check | disclosure "▶ G5 metric values" opening the metric rows | the metric rows ("ACF period (s)", "ACF regularity" …) as rows under Time in AUTO, the same height as the others; G1's "In AUTO (%)" is not repeated beside "Time in AUTO" |
+| Replay · loop notes | a section at the page foot: caps "RECORD IT", heading "Loop notes ?", "1 note(s)", the form and the list | button "Loop notes (1)" ("Loop notes" with none) under the Evidence check panel, opening the dialog below |
+| Loop notes dialog | — | title "Loop notes", subtitle "FIC10401 · Flow controller (FCS0101)"; footer "Close" + "Save note" (primary) |
+| Loop notes · form | caps "OUTCOME" over the select; the text box with no label | rows "Note ?" (the text box, same placeholder; the ? holds the old "About loop notes" tip), "Outcome"; the two check boxes unchanged |
+| Loop notes · list | "1 note(s)" in the head | "1 note" / "3 notes" over the cards; "No notes on this loop yet." unchanged |
+| Loop notes · each note | always-open selects "LINKED EPISODE" / "LINK TO EPISODE" ("— unlink —" / "— none —") and "OUTCOME" under every note | a card: outcome badge, "admin · 10 Oct 10:06 UTC", the text, "evaluated window ↗" and the episode link; button "Edit" opens "Episode" ("No episode" + the episodes) and "Outcome" with "Cancel" + "Save" |
+| Investigation · Review tab | a "Record your review ?" panel beside Next checks: the form, "Save review", the list | button "Loop notes (n)" in the Next checks head beside "Related events ↗", opening the same dialog ("Save note"); the tab is one column |
+| Investigation · no verdict | the "Record your review" panel under the message | the "Loop notes (n)" button under the message |
+| Evidence package · after the download | nothing when the zip was whole; "Downloaded, but not complete: metrics could not be read (Error: 503); evidence manifests is not held for this window. manifest.json says so." | "✓ Downloaded cplm-FIC10401-12h-2026-11-06T2000-evidence-package.zip", then one line per part left out: "! Not read metrics (Error: 503)", "– Not held evidence manifests" |
+| Replay · cursor readout | caps "PV SP OP MODE" over "785.73 800.00 27.81 AUT" in monospace, "Sample 8,639 / 8,639" | the Loop Explorer readings: "PV 785.73 kg/h", "SP 800.00 kg/h", "OP 27.81 %", "MODE Auto" (a token with one meaning is named: Auto, Cascade, Manual …; any other reads as stored), then "Sample 8,639 of 8,639" and the time |
+| Replay · foot strip | "12 h window · 14 Nov 08:00 → 14 Nov 20:00 UTC · 8,639 samples" could wrap | the same text on one line at desktop widths (the Workbench's strip; the full text on hover), "Original run · pinned" and "Run details" beside it |
