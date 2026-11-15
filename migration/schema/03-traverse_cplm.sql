@@ -1203,3 +1203,10 @@ END $$;
 -- scripts/cpm-21). cplm-api's evidence sweeper moves them from TRANSIENT to class RESPONSE (row RESPONSE: days, max_bytes cap).
 UPDATE analytics.retention_policy SET days = 30, max_bytes = 2147483648
 WHERE record_class = 'RESPONSE' AND days = 14 AND max_bytes IS NULL;
+
+-- CHG-199 (owner Q11): accepted response events keep their record and quantities 90 days (row RESPONSE) so the System Response
+-- page can redraw their trends from the historian (loop samples 90 d), and their stored charts 30 days (row RESPONSE_CHARTS,
+-- read by cplm-api's evidence sweeper; no row = with the event) (database/scripts/70_; plant: scripts/cpm-22).
+UPDATE analytics.retention_policy SET days = 90 WHERE record_class = 'RESPONSE' AND days = 30;
+INSERT INTO analytics.retention_policy (record_class, days) VALUES ('RESPONSE_CHARTS', 30)
+    ON CONFLICT (record_class) DO NOTHING;

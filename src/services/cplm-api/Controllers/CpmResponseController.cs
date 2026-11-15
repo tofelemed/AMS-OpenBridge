@@ -30,6 +30,8 @@ public sealed class CpmResponseController : ControllerBase
     /// CHG-196: a censored event's charts follow <c>censoredDays</c> too. <c>censoredChartHours</c> is no longer used by the
     /// page; it stays for an older frontend, which prints it as hours, and now says the same in hours (censoredDays × 24,
     /// null = while the event is kept).
+    /// CHG-199: <c>acceptedChartDays</c> how long an accepted event's charts are kept (row RESPONSE_CHARTS; null = as long as the
+    /// event); <c>acceptedDays</c> is then the event and its quantities only. The earlier fields keep their names and meaning.
     /// </summary>
     [HttpGet("loops/{loopId}/response-events")]
     public async Task<IActionResult> List(string loopId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to,
@@ -63,11 +65,12 @@ public sealed class CpmResponseController : ControllerBase
             resultRevision = (int)r.result_revision, emittedAtMs = (long?)r.emitted_at_ms,
         }).ToList();
         var policy = (await conn.QueryAsync<(string recordClass, int? days)>(
-            "SELECT record_class, days FROM analytics.retention_policy WHERE record_class IN ('RESPONSE', 'RESPONSE_CENSORED')"))
+            "SELECT record_class, days FROM analytics.retention_policy WHERE record_class IN ('RESPONSE', 'RESPONSE_CENSORED', 'RESPONSE_CHARTS')"))
             .ToDictionary(p => p.recordClass, p => p.days);
         var acceptedDays = policy.GetValueOrDefault("RESPONSE");
         var censoredDays = policy.TryGetValue("RESPONSE_CENSORED", out var cd) ? cd : acceptedDays;
-        var retention = new { acceptedDays, censoredDays, censoredChartHours = censoredDays * 24 };
+        var acceptedChartDays = policy.GetValueOrDefault("RESPONSE_CHARTS");
+        var retention = new { acceptedDays, acceptedChartDays, censoredDays, censoredChartHours = censoredDays * 24 };
         return Ok(new { loopId, purpose, count = events.Count, censoredCount, includeCensored, nextCursor = events.Count == limit ? events[^1].t0Ms : (long?)null, retention, events });
     }
 

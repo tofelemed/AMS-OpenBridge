@@ -19,6 +19,7 @@ public sealed record SweepResult(int Promoted, int TransientPurged, int Expired,
 ///   PINNED     an investigation reference: never touched;
 ///   RESPONSE   CHG-105: the G12 charts of an accepted response event, moved out of TRANSIENT each sweep; they live and
 ///              die with the event (row RESPONSE, see ResponseEvidenceRetention), capped by the row's max_bytes.
+///              CHG-199: an accepted event's charts leave earlier, after row RESPONSE_CHARTS days (the event stays).
 /// The sweep runs every Cplm:EvidenceSweepIntervalMinutes (15): it must run several times inside the TRANSIENT
 /// lifetime, because it also promotes the captured manifests that arrived after their verdict. The v1 result
 /// rows are NOT swept here (FeaturePartitionMaintenance owns those).
@@ -66,8 +67,8 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
         }
     }
 
-    // CHG-049: RESPONSE is response_event retention, not an evidence class; CHG-091: nor is RESPONSE_CENSORED
-    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE", "RESPONSE_CENSORED", "KPI_DAILY", "EVIDENCE_ARCHIVE" };   // KPI_DAILY: CHG-102, FleetKpiDaily; EVIDENCE_ARCHIVE: CHG-102, EvidenceArchiveRetention
+    // CHG-049: RESPONSE is response_event retention, not an evidence class; CHG-091: nor is RESPONSE_CENSORED; CHG-199: nor RESPONSE_CHARTS
+    private static readonly string[] NotEvidenceClasses = { "TRANSIENT", "SHORT_FEATURES", "LONG_FEATURES", "GATE_RESULTS", "RESPONSE", "RESPONSE_CENSORED", ResponseEvidenceRetention.ChartsPolicy, "KPI_DAILY", "EVIDENCE_ARCHIVE" };   // KPI_DAILY: CHG-102, FleetKpiDaily; EVIDENCE_ARCHIVE: CHG-102, EvidenceArchiveRetention
 
     /// <summary>One sweep. Static so a test can drive it against the lab database.</summary>
     public static async Task<SweepResult> SweepOnceAsync(NpgsqlDataSource db, CancellationToken ct,
@@ -99,14 +100,17 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
         // 4. CHG-049: response_event / response_metric; no RESPONSE row (or null days) = keep forever.
         //    CHG-091: unreviewed models first (that unpins their events), then the events, then CENSORED by its own row.
         //    CHG-105: the event purge takes its RESPONSE charts with it; then orphans, then the class's byte cap.
+        //    CHG-199: then the accepted events' charts older than row RESPONSE_CHARTS days (no row = with the event).
         int responsePurged = 0, modelsPurged = 0, chartsDeleted = 0;
-        int? responseDays, censoredDays;
+        int? responseDays, censoredDays, chartDays;
         long? responseMaxBytes;
         await using (var conn = await db.OpenConnectionAsync(ct))
         {
             (responseDays, responseMaxBytes) = await conn.QueryFirstOrDefaultAsync<(int?, long?)>(
                 "SELECT days, max_bytes FROM analytics.retention_policy WHERE record_class = 'RESPONSE'");
             censoredDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CENSORED'");
+            chartDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = @c",
+                new { c = ResponseEvidenceRetention.ChartsPolicy });
         }
         if (responseDays is { } rd)
         {
@@ -115,6 +119,7 @@ public sealed class EvidenceRetentionSweeper : BackgroundService
             chartsDeleted = await ResponseEvidenceRetention.PurgeOrphansAsync(db, rd, 5_000, ct);
         }
         if (censoredDays is { } cd) responsePurged += await ResponseRetention.PurgeAsync(db, cd, 5_000, ct, censoredOnly: true);
+        chartsDeleted += await ResponseEvidenceRetention.PurgeAgedChartsAsync(db, chartDays, 5_000, ct);
         if (responseMaxBytes is { } cap) chartsDeleted += await ResponseEvidenceRetention.TrimOverBudgetAsync(db, cap, 2_000, ct);
         return new SweepResult(promoted, transient, expired, chunks, purged, responsePurged, modelsPurged, chartsKept, chartsDeleted);
     }

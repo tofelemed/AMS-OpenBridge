@@ -149,7 +149,8 @@ export const ResponseWorkspace: React.FC = () => {
     body = (
       <EventPanes tab={tab} timeZone={timeZone} detail={detail} manifest={manifest} arts={arts}
         t0Ms={selected?.t0Ms ?? (result?.window_start_ms as number | undefined) ?? 0}
-        pvUnit={loop?.engineering?.pvUnit} redrawn={redrawn} eventName={selected ? eventPick(selected, timeZone) : undefined} />
+        pvUnit={loop?.engineering?.pvUnit} redrawn={redrawn} eventName={selected ? eventPick(selected, timeZone) : undefined}
+        chartDays={events.data?.pages[0]?.retention?.acceptedChartDays} />
     );
   }
 

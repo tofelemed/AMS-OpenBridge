@@ -79,9 +79,10 @@ export function classifyGateResult(i: GateStateInput): GateState {
   if (readiness === 'FAILED') return { kind: 'EVIDENCE_EXPIRED', title: 'Evidence failed verification', detail: 'A chunk did not verify; the artifacts are not trusted.',
     stillValid: 'The verdict is unaffected. Reconstruction re-emits the artifacts.', action: 'RECONSTRUCT', tone: 'bad' };
   if (readiness === 'NONE' && gate === 'G12') {
-    // CHG-105: G12 charts are event-keyed and never rebuilt; an event keeps them as long as the event itself (CHG-196: censored too)
+    // CHG-105: G12 charts are event-keyed and never rebuilt. CHG-199: an accepted event's charts are kept fewer days than the event
+    // (30 against 90 at the factory), and System Response redraws its trends from the historian (CHG-198)
     return { kind: 'NOT_RETAINED', title: 'Charts not stored for this response event',
-      detail: 'A response event keeps its charts as long as the event. G12 charts cannot be rebuilt.',
+      detail: 'A response event keeps its charts for a limited time; G12 charts cannot be rebuilt. System Response can redraw its trends from the historian.',
       stillValid: 'The verdict, the result and every quantity of this event are valid; only the charts are gone.', action: 'NONE', tone: 'muted' };
   }
   if (readiness === 'NONE') {

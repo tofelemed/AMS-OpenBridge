@@ -120,7 +120,8 @@ export const reconstructionSettled = (m: EvidenceManifest | undefined, analysisR
 export function reconstructRefusal(reason: string | null | undefined): string {
   if (reason === 'NOT_RECONSTRUCTABLE_EVENT_KEYED')
     // CHG-105: nothing rebuilds G12 (the System Response page has no rebuild either); say what is kept instead.
-    // CHG-196: a censored event keeps its charts as long as the event too.
-    return 'G12 charts cannot be rebuilt: a response event keeps them as long as the event.';
+    // CHG-196: a censored event keeps its charts as long as the event too. CHG-199: an accepted event's charts leave before the
+    // event; System Response redraws its trends from the historian (CHG-198).
+    return 'G12 charts cannot be rebuilt: a response event keeps them for a limited time. System Response can redraw its trends from the historian.';
   return reason ? `Reconstruction is not available for this run (${reason.toLowerCase().replace(/_/g, ' ')}).` : 'Reconstruction is not available for this run.';
 }

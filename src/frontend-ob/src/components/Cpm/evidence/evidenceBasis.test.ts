@@ -54,6 +54,8 @@ describe('evidence basis (SME review 2 #18)', () => {
     expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).toMatch(/cannot be rebuilt/);
     expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).not.toMatch(/rebuild it from/);   // CHG-105: no page rebuilds G12
     expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).not.toMatch(/hours/);   // CHG-196: censored events keep them as long as the event
+    expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).not.toMatch(/as long as the event/);   // CHG-199: accepted charts leave before the event
+    expect(reconstructRefusal('NOT_RECONSTRUCTABLE_EVENT_KEYED')).toMatch(/redraw/);
   });
 });
 

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { EvidenceManifest } from '../../../api/cpm/evidence';
 import type { ResponseQuantity } from '../../../api/cpm/response';
-import { ArraysNote, arraysState, ReportedQuantities } from './ResponseNotes';
+import { ArraysNote, arraysState, chartsGone, ReportedQuantities } from './ResponseNotes';
 
 afterEach(cleanup);
 const manifest = (readiness: string, gates: string[] = []) => ({ methodRunId: 'r1', readiness, count: gates.length, artifacts: gates.map(g => ({ gate: g, kind: 'x', readiness: 'COMPLETE' })) }) as unknown as EvidenceManifest;
@@ -21,6 +21,32 @@ describe('arraysState', () => {
     expect(arraysState(manifest('FAILED'))).toBe('FAILED');
     expect(arraysState(manifest('COMPLETE', ['G12']))).toBeNull();
     expect(arraysState(manifest('PENDING'))).toBeNull();
+  });
+});
+
+// CHG-199 (owner Q11): an accepted event's stored charts are kept fewer days than the event (the server's acceptedChartDays); an
+// accepted event past them reads "no longer kept". A censored event, an older server (no field) or no row (null) read as before.
+describe('chartsGone', () => {
+  const DAY = 86_400_000, now = Date.UTC(2026, 10, 15);
+  const at = (ageDays: number, over: { censored?: boolean; chartDays?: number | null } = {}) =>
+    ({ censored: over.censored ?? false, endMs: now - ageDays * DAY, chartDays: 'chartDays' in over ? over.chartDays : 30, nowMs: now });
+  it('an accepted event past the chart days had its stored charts aged out', () => {
+    expect(chartsGone('NOT_KEPT', at(31))).toBe('AGED_OUT');
+    expect(chartsGone('NOT_KEPT', at(29))).toBe('NOT_KEPT');
+  });
+  it('a censored event, an older server and no chart row keep the plain "not available"', () => {
+    expect(chartsGone('NOT_KEPT', at(31, { censored: true }))).toBe('NOT_KEPT');
+    expect(chartsGone('NOT_KEPT', at(31, { chartDays: undefined }))).toBe('NOT_KEPT');
+    expect(chartsGone('NOT_KEPT', at(31, { chartDays: null }))).toBe('NOT_KEPT');
+  });
+  it('leaves removed, failed and held charts as they are', () => {
+    expect(chartsGone('EXPIRED', at(31))).toBe('EXPIRED');
+    expect(chartsGone('FAILED', at(31))).toBe('FAILED');
+    expect(chartsGone(null, at(31))).toBeNull();
+  });
+  it('says it in one plain line', () => {
+    render(<ArraysNote state="AGED_OUT" />);
+    expect(screen.getByRole('note').textContent).toBe('The stored charts of this event are no longer kept.');
   });
 });
 

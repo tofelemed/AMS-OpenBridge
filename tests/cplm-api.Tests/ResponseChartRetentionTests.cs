@@ -1,5 +1,6 @@
 // CHG-105 - the System Response (G12) charts live as long as their event (class RESPONSE, row RESPONSE). CHG-196: censored events
-// too (their event follows row RESPONSE_CENSORED, and their charts leave with it). Lab database; only this
+// too (their event follows row RESPONSE_CENSORED, and their charts leave with it). CHG-199 (owner Q11): an accepted event's charts
+// age out after row RESPONSE_CHARTS days while the event and its quantities stay. Lab database; only this
 // test's ids are created and removed. Age-based steps use 3600+ day windows so the lab's own rows are never in reach; the byte
 // cap is driven with batch 1 against test rows that are the oldest of the class, so it stops before any lab row.
 using Dapper;
@@ -78,6 +79,62 @@ public sealed class ResponseChartRetentionTests : IAsyncLifetime
     {
         await using var conn = await _db.OpenConnectionAsync();
         return await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.evidence_chunk WHERE evidence_id = @manifest", new { manifest });
+    }
+
+    private async Task<(int events, int metrics)> RecordOf(Guid run)
+    {
+        await using var conn = await _db.OpenConnectionAsync();
+        return (await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_event WHERE method_run_id = @run", new { run }),
+                await conn.ExecuteScalarAsync<int>("SELECT count(*) FROM analytics.response_metric WHERE method_run_id = @run", new { run }));
+    }
+
+    [Fact]
+    public async Task CHG199_an_accepted_events_charts_age_out_while_the_event_and_its_quantities_stay()
+    {
+        var accepted = await EventAsync("COMPLETE", 3650);
+        var old = await ChartAsync(accepted, "RESPONSE", 3650);
+        var recentRun = await EventAsync("COMPLETE", 3650);
+        var recent = await ChartAsync(recentRun, "RESPONSE", 3500);              // younger than the chart days
+
+        (await ResponseEvidenceRetention.PurgeAgedChartsAsync(_db, 3600, 1000, CancellationToken.None)).Should().BeGreaterThanOrEqualTo(1);
+
+        (await ClassOf(old)).Should().BeNull("the chart is past the chart days");
+        (await ChunksOf(old)).Should().Be(0, "chunks cascade");
+        (await RecordOf(accepted)).Should().Be((1, 1), "the event and its quantities stay, so its trends can be redrawn from the historian");
+        (await ClassOf(recent)).Should().Be("RESPONSE");
+    }
+
+    [Fact]
+    public async Task CHG199_the_chart_age_never_takes_a_kept_models_chart_a_pinned_chart_or_a_censored_events_chart()
+    {
+        var keptRun = await EventAsync("COMPLETE", 3650, loop: Loop + "_K2");
+        var keptChart = await ChartAsync(keptRun, "RESPONSE", 3650);
+        await ModelFromAsync(keptRun, Loop + "_K2");                             // the only model of its loop = the newest = kept
+        var pinnedRun = await EventAsync("COMPLETE", 3650);
+        var pinnedFlag = await ChartAsync(pinnedRun, "RESPONSE", 3650);
+        var pinnedClass = await ChartAsync(pinnedRun, "PINNED", 3650);
+        await using (var conn = await _db.OpenConnectionAsync())
+            await conn.ExecuteAsync("UPDATE analytics.evidence_manifest SET pinned = TRUE WHERE evidence_id = @pinnedFlag", new { pinnedFlag });
+        var censoredRun = await EventAsync("CENSORED", 3650);
+        var censoredChart = await ChartAsync(censoredRun, "RESPONSE", 3650);
+
+        await ResponseEvidenceRetention.PurgeAgedChartsAsync(_db, 3600, 1000, CancellationToken.None);
+
+        (await ClassOf(keptChart)).Should().Be("RESPONSE", "a kept model's chart is never aged out");
+        (await ClassOf(pinnedFlag)).Should().Be("RESPONSE", "a pinned chart stays");
+        (await ClassOf(pinnedClass)).Should().Be("PINNED");
+        (await ClassOf(censoredChart)).Should().Be("RESPONSE", "a censored event's charts follow the event (CHG-196), whatever the chart days");
+    }
+
+    [Fact]
+    public async Task CHG199_without_a_RESPONSE_CHARTS_row_the_charts_live_as_long_as_the_event()
+    {
+        var run = await EventAsync("COMPLETE", 3650);
+        var chart = await ChartAsync(run, "RESPONSE", 3650);
+
+        (await ResponseEvidenceRetention.PurgeAgedChartsAsync(_db, null, 1000, CancellationToken.None)).Should().Be(0);
+
+        (await ClassOf(chart)).Should().Be("RESPONSE");
     }
 
     [Fact]

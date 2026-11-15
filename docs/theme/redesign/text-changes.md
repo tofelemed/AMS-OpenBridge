@@ -2207,3 +2207,15 @@ New words only; nothing existing was reworded. The charts note keeps its line ("
 | Fit quality · after a redraw | the charts note | the charts note, then "Fit quality exists only with the stored charts." |
 | Frequency · after a redraw (a margin was reported) | the charts note | the charts note, then "The frequency response exists only with the stored charts." |
 | Response · a redrawn interrupted event | — | "This event was interrupted before the response finished, so no model was fitted.", then "Measured response" and "Input" only |
+
+## CHG-199 Accepted response events keep their values 90 days and their stored charts 30 days (owner Q11)
+
+An accepted event's stored charts now leave before the event (30 days against 90 at the factory); two Workbench sentences
+that said "as long as the event" would have become false.
+
+| Where | Was | Now |
+|---|---|---|
+| System Response · charts note, an accepted event older than the days its stored charts are kept | "Charts are not available for this event." | "The stored charts of this event are no longer kept." (then "Redraw from historian"); a censored event, an older server or no chart row read as before |
+| Evidence Workbench · a G12 run with no charts | "A response event keeps its charts as long as the event. G12 charts cannot be rebuilt." | "A response event keeps its charts for a limited time; G12 charts cannot be rebuilt. System Response can redraw its trends from the historian." |
+| Evidence Workbench · Reconstruct (disabled) reason on a G12 run | "G12 charts cannot be rebuilt: a response event keeps them as long as the event." | "G12 charts cannot be rebuilt: a response event keeps them for a limited time. System Response can redraw its trends from the historian." |
+| System Response · `chartsAbsentCopy` (no page shows it since CHG-195) | "Accepted events keep their charts <acceptedDays> days. …" | the days are the charts' own (`acceptedChartDays`; the event's days when the server sends none or null) |

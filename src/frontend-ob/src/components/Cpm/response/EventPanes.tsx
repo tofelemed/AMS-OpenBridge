@@ -9,7 +9,8 @@
  * and the reported quantities; a censored event with its charts held says why it has only the measured response and the input.
  * CHG-198: when the charts are gone (not kept, or removed), the Response note offers "Redraw from historian"; a redraw (held in the
  * page, `redrawn`) shows the trends that can be made, and Model fit, Fit quality and Frequency say they exist only with the
- * stored charts. Stored charts always win over a redraw.
+ * stored charts. Stored charts always win over a redraw. CHG-199: an accepted event past the days its stored charts are kept
+ * (`chartDays`, the server's acceptedChartDays) says they are no longer kept, with the same redraw.
  */
 import React from 'react';
 import { EmptyState, QueryError } from '../shared';
@@ -22,7 +23,7 @@ import { ResidualPanel } from './ResidualPanel';
 import { CandidateModelsTable } from './CandidateModelsTable';
 import { BodePanel } from './BodePanel';
 import { StepsDataTab } from './StepsDataTab';
-import { ArraysNote, ReportedQuantities, arraysState } from './ResponseNotes';
+import { ArraysNote, ReportedQuantities, arraysState, chartsGone } from './ResponseNotes';
 import { metricOf } from './responseSupport';
 import { RedrawAction } from './redraw/RedrawAction';
 import { NotRedrawn, RedrawnTrends } from './redraw/RedrawnTrends';
@@ -43,6 +44,8 @@ export interface EventPanesProps {
   redrawn?: Redrawn;
   /** The event as the event selector names it (the redraw dialog's band). */
   eventName?: string;
+  /** CHG-199: how many days an accepted event's stored charts are kept (null = with the event; undefined = an older server). */
+  chartDays?: number | null;
 }
 
 const Loading: React.FC<{ what: string }> = ({ what }) => (
@@ -51,13 +54,17 @@ const Loading: React.FC<{ what: string }> = ({ what }) => (
   </div>
 );
 
-export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit, redrawn: held, eventName }) => {
+export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, manifest, arts, t0Ms, pvUnit, redrawn: held, eventName, chartDays }) => {
   if (detail.isError) return <QueryError error={detail.error} retry={() => void detail.refetch()} />;
   const result = detail.data?.result;
   const metrics = detail.data?.metrics;
   if (tab === 'steps') return result ? <StepsDataTab result={result} metrics={metrics} timeZone={timeZone} pvUnit={pvUnit} /> : <Loading what="the event" />;
 
-  const notKept = arraysState(manifest.data);
+  // a censored event was cut short before its response finished: it never has a fit, whatever charts are held. The event's
+  // result carries the state as evaluation_state (the list's captureState has no key of its own there).
+  const censored = [result?.capture_state, result?.evaluation_state].includes('CENSORED');
+  const endMs = Number(result?.window_end_ms) || t0Ms;
+  const notKept = chartsGone(arraysState(manifest.data), { censored, endMs, chartDays, nowMs: Date.now() });
   const note = notKept && <ArraysNote state={notKept} />;
   // a redraw stands in only while the stored charts are gone
   const redrawn = notKept ? held : undefined;
@@ -72,12 +79,9 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
     ? <p className="cpm-copy" role="status">Evidence readiness: {manifest.data.readiness} ({manifest.data.count} artifact(s)). The manifest refreshes while artifacts arrive.</p>
     : null;
 
-  // a censored event was cut short before its response finished: it never has a fit, whatever charts are held. The event's
-  // result carries the state as evaluation_state (the list's captureState has no key of its own there).
-  const censored = [result?.capture_state, result?.evaluation_state].includes('CENSORED');
   if (tab === 'response') {
     const healthExclusions = Array.isArray(result?.health_exclusions) ? (result!.health_exclusions as string[]) : [];
-    const redrawable = (notKept === 'NOT_KEPT' || notKept === 'EXPIRED') && !redrawn && result;
+    const redrawable = (notKept === 'NOT_KEPT' || notKept === 'EXPIRED' || notKept === 'AGED_OUT') && !redrawn && result;
     return (
       <>
         <ResultCard result={result} metrics={metrics} loading={detail.isLoading} pvUnit={pvUnit} />

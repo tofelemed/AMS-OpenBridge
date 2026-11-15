@@ -118,7 +118,8 @@ export function chartsAbsentCopy(captureState: string | undefined, retention: Re
       ? 'Censored events keep their charts as long as the event.'
       : `Censored events keep their charts, result and quantities for ${dayCount(retention.censoredDays)}.`;
   }
-  return `Accepted events keep their charts ${keptFor(retention.acceptedDays)}. This event's are not stored (older than that, or recorded before charts were kept) and cannot be rebuilt; its result and quantities are complete.`;
+  // CHG-199: an accepted event's charts have their own days (acceptedChartDays; null or an older server = the event's days)
+  return `Accepted events keep their charts ${keptFor(retention.acceptedChartDays ?? retention.acceptedDays)}. This event's are not stored (older than that, or recorded before charts were kept) and cannot be rebuilt; its result and quantities are complete.`;
 }
 
 export const SUBGATE_NAMES: Array<[string, string]> =[['A', 'Eligibility'], ['B', 'Event capture'], ['C', 'Observed metrics'], ['D', 'Estimation'], ['E', 'Validation'], ['F', 'Controller / frequency'], ['G', 'Model comparison'], ['H', 'Advisory']];

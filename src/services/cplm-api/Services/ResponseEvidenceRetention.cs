@@ -15,10 +15,16 @@ namespace Traverse.CplmApi.Services;
 /// CHG-196 (owner Q9): censored events are promoted too (until then they kept the TRANSIENT hours while their event was kept
 /// RESPONSE_CENSORED days); orphan removal and the byte cap treat their charts like any other. RESPONSE is in the sweeper's
 /// NotEvidenceClasses, so the day-based expiry never touches the class.
+/// CHG-199 (owner Q11): an accepted event's charts have their own age, row RESPONSE_CHARTS days (30), while the event and its
+/// quantities stay row RESPONSE days (90): the System Response page redraws the trends of an older event from the historian, which
+/// keeps loop samples 90 days (<see cref="PurgeAgedChartsAsync"/>). No row = the charts live as long as the event. A censored
+/// event's charts still follow the event; the charts of a kept model and pinned charts are never aged out.
 /// </summary>
 public static class ResponseEvidenceRetention
 {
     public const string Class = "RESPONSE";
+    /// <summary>CHG-199: the retention_policy row whose days age out an accepted event's charts (max_bytes unused).</summary>
+    public const string ChartsPolicy = "RESPONSE_CHARTS";
     public const int CommandTimeoutSeconds = 600;
 
     /// <summary>The TRANSIENT G12 manifests of response events (CHG-196: censored included) created inside the lookback, moved to RESPONSE.</summary>
@@ -69,6 +75,33 @@ public static class ResponseEvidenceRetention
                       AND NOT EXISTS (SELECT 1 FROM analytics.response_event e WHERE e.method_run_id = m.method_run_id)
                     ORDER BY m.created_at LIMIT @batch FOR UPDATE SKIP LOCKED)
                 """, new { days = Math.Max(0, days), batch }, commandTimeout: CommandTimeoutSeconds, cancellationToken: ct));
+            total += n;
+            if (n < batch) return total;
+        }
+    }
+
+    /// <summary>
+    /// CHG-199: the RESPONSE charts of accepted (not censored) events that still exist, older than <paramref name="days"/>, outside
+    /// <see cref="KeptModelRuns"/> and not pinned, are deleted (chunks cascade); the events and their quantities stay. Null days (no
+    /// RESPONSE_CHARTS row) deletes nothing: the charts then live as long as the event. Returns rows deleted.
+    /// </summary>
+    public static async Task<int> PurgeAgedChartsAsync(NpgsqlDataSource db, int? days, int batch, CancellationToken ct)
+    {
+        if (days is not { } d) return 0;
+        var total = 0;
+        while (true)
+        {
+            await using var conn = await db.OpenConnectionAsync(ct);
+            var n = await conn.ExecuteAsync(new CommandDefinition($"""
+                DELETE FROM analytics.evidence_manifest WHERE evidence_id IN (
+                    SELECT m.evidence_id FROM analytics.evidence_manifest m
+                    JOIN analytics.response_event e ON e.method_run_id = m.method_run_id
+                    WHERE m.retention_class = 'RESPONSE' AND m.pinned = FALSE AND m.readiness <> 'EXPIRED'
+                      AND m.created_at < NOW() - make_interval(days => @days)
+                      AND e.capture_state <> 'CENSORED'
+                      AND m.method_run_id NOT IN ({KeptModelRuns})
+                    ORDER BY m.created_at LIMIT @batch FOR UPDATE OF m SKIP LOCKED)
+                """, new { days = Math.Max(0, d), batch }, commandTimeout: CommandTimeoutSeconds, cancellationToken: ct));
             total += n;
             if (n < batch) return total;
         }

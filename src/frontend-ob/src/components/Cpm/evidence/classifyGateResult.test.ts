@@ -58,6 +58,9 @@ describe('classifyGateResult', () => {
     expect(g12.detail).toMatch(/cannot be rebuilt/);
     expect(g12.detail).not.toMatch(/Reconstruct/);
     expect(g12.detail).not.toMatch(/hours/);                   // CHG-196: a censored event keeps its charts as long as the event too
+    // CHG-199: an accepted event's charts now leave before the event; System Response redraws its trends from the historian
+    expect(g12.detail).not.toMatch(/as long as the event/);
+    expect(g12.detail).toMatch(/redraw/);
   });
   // audit F8: G1-G4 opened on a fused (24h) row read "NOT_EVALUATED - no reason recorded - this is a verdict";
   // the truth is that short-tier gates are judged on the 1m-60m windows, and the fused row carries no

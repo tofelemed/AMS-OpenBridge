@@ -93,6 +93,11 @@ describe('chartsAbsentCopy', () => {
     expect(t).toBe('Censored events keep their charts, result and quantities for 3 days.');
     expect(t).not.toMatch(/hour/);
   });
+  it('CHG-199: an accepted event names the days its charts are kept, not the longer days of the event', () => {
+    expect(chartsAbsentCopy('COMPLETE', { acceptedDays: 90, acceptedChartDays: 30, censoredDays: 3 })).toMatch(/keep their charts 30 days/);
+    // no chart row: the charts live as long as the event
+    expect(chartsAbsentCopy('COMPLETE', { acceptedDays: 90, acceptedChartDays: null, censoredDays: 3 })).toMatch(/keep their charts 90 days/);
+  });
   it('no retention row reads as kept with the event; an older cplm-api gets the generic sentence', () => {
     expect(chartsAbsentCopy('COMPLETE', { acceptedDays: null, censoredDays: null })).toMatch(/while the event is kept/);
     expect(chartsAbsentCopy('COMPLETE', undefined)).toMatch(/no longer stored and cannot be rebuilt/);

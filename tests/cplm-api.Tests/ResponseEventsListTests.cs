@@ -86,5 +86,18 @@ public sealed class ResponseEventsListTests : IAsyncLifetime
         (hours.ValueKind == System.Text.Json.JsonValueKind.Null ? (int?)null : hours.GetInt32()).Should().Be(censored * 24);
     }
 
+    [Fact]
+    public async Task CHG199_the_list_says_how_long_an_accepted_events_charts_are_kept_null_meaning_with_the_event()
+    {
+        int? chartDays;
+        await using (var conn = await _db.OpenConnectionAsync())
+            chartDays = await conn.ExecuteScalarAsync<int?>("SELECT days FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CHARTS'");
+        var page = System.Text.Json.JsonSerializer.SerializeToElement(((OkObjectResult)await Controller().List(_loop, null, null, null, 50, "LIVE", false, CancellationToken.None)).Value);
+        var r = page.GetProperty("retention");
+        Days(r.GetProperty("acceptedChartDays")).Should().Be(chartDays, "row RESPONSE_CHARTS; no row = the charts live as long as the event");
+        r.TryGetProperty("acceptedDays", out _).Should().BeTrue("the earlier fields stay");
+        r.TryGetProperty("censoredDays", out _).Should().BeTrue();
+    }
+
     private static int? Days(System.Text.Json.JsonElement e) => e.ValueKind == System.Text.Json.JsonValueKind.Null ? null : e.GetInt32();
 }

@@ -8,7 +8,9 @@ namespace Traverse.CplmApi.Services;
 /// CHG-091: every system model pinned its event for ever, and the engine creates ~1,000 models a day (none reviewed at Marun:
 /// VALIDATED is set automatically), so the purge never caught up. Unreviewed models now age out with the RESPONSE days, and
 /// CENSORED events (rejected captures, ~73 % of all events) keep only row RESPONSE_CENSORED's days. CHG-196: their charts are class
-/// RESPONSE too, so the censored purge takes them with the event, in the same transaction.
+/// RESPONSE too, so the censored purge takes them with the event, in the same transaction. CHG-199: row RESPONSE is 90 days (the
+/// events, their quantities and the unreviewed models); an accepted event's charts leave earlier, at row RESPONSE_CHARTS days
+/// (<see cref="ResponseEvidenceRetention.PurgeAgedChartsAsync"/>).
 /// </summary>
 public static class ResponseRetention
 {

@@ -28,11 +28,11 @@ const manifest = (readiness: string, artifacts: unknown[] = []) =>
 const held = manifest('COMPLETE', [{ gate: 'G12', kind: 'accepted_samples', readiness: 'COMPLETE' }]);
 const redrawn: Redrawn = { byKind: redrawArtifacts(historianPoints(e, () => 130), redrawWindow(e.result, 0)!, 'OP_TO_PV', e.metrics)!, points: 331 };
 
-function draw(tab: EventPanesProps['tab'], over: { manifest?: EvidenceManifest; redrawn?: Redrawn; result?: ResponseEventDetail['result']; metrics?: typeof e.metrics } = {}) {
+function draw(tab: EventPanesProps['tab'], over: { manifest?: EvidenceManifest; redrawn?: Redrawn; result?: ResponseEventDetail['result']; metrics?: typeof e.metrics; chartDays?: number | null } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <EventPanes tab={tab} timeZone="UTC" t0Ms={T0S * 1000} pvUnit="m3/h" redrawn={over.redrawn} eventName="15 Sept 12:00 · Input test · OP → PV · Candidate"
+      <EventPanes tab={tab} timeZone="UTC" t0Ms={T0S * 1000} pvUnit="m3/h" redrawn={over.redrawn} chartDays={over.chartDays} eventName="15 Sept 12:00 · Input test · OP → PV · Candidate"
         detail={{ data: { result: over.result ?? e.result, metrics: over.metrics ?? e.metrics }, isError: false, isLoading: false } as unknown as EventPanesProps['detail']}
         manifest={{ data: over.manifest ?? manifest('EXPIRED'), isError: false } as unknown as EventPanesProps['manifest']}
         arts={{ byKind: {}, loading: false, errors: [], unavailable: [] }} />
@@ -54,6 +54,19 @@ describe('Redraw from historian on the System Response tabs', () => {
       expect((button as HTMLButtonElement).disabled).toBe(false);
       cleanup();
     }
+  });
+
+  // CHG-199 (owner Q11): an accepted event keeps its stored charts 30 days and its values 90; past the chart days the note says so
+  it('an accepted event past the chart days says its stored charts are no longer kept, and offers the redraw', () => {
+    vi.setSystemTime(T0S * 1000 + 40 * DAY);
+    draw('response', { manifest: manifest('NONE'), chartDays: 30 });
+    const note = screen.getByRole('note');
+    expect(note.querySelector('.cpm-gate-state__valid')?.textContent).toBe('The stored charts of this event are no longer kept.');
+    expect(within(note).getByRole('button', { name: 'Redraw from historian' })).toBeTruthy();
+    cleanup();
+    // an older server sends no chart days: the note reads as before
+    draw('response', { manifest: manifest('NONE') });
+    expect(screen.getByRole('note').querySelector('.cpm-gate-state__valid')?.textContent).toBe('Charts are not available for this event.');
   });
 
   it('never offers it while the stored charts exist, nor on another tab', () => {
