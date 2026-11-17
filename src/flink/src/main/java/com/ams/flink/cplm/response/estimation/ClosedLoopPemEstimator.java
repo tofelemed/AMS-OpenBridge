@@ -37,6 +37,9 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
     public String methodVersion() { return METHOD_VERSION; }
 
     @Override
+    public boolean requiresUniformGrid() { return true; }
+
+    @Override
     public EstimationResult estimate(EventDataset d, double u0, ModelFamily family, EstimatorSettings s) {
         int n = d.size();
         if (n < 40) return EstimationResult.none(EstimationResult.State.NOT_ESTIMATED, "INSUFFICIENT_SUPPORT");

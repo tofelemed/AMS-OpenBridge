@@ -14,4 +14,7 @@ public interface ModelEstimator {
     String methodId();
 
     String methodVersion();
+
+    /** True when the method needs exactly evenly spaced samples; the evaluator then resamples the event for it alone. */
+    default boolean requiresUniformGrid() { return false; }
 }

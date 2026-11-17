@@ -148,10 +148,17 @@ public final class ResponseEvaluator implements Serializable {
             rejections.add("ESTIMATION:" + (censored ? c.event.censorReason : legality));
         } else {
             long started = System.currentTimeMillis();
+            // CHG-205: the historian's grid is uneven; a method that needs an even one gets a resampled copy (metrics, evidence and validation keep the raw samples)
+            EventDataset fitData = c.data;
+            if (estimator.requiresUniformGrid() && !c.data.isUniform(1e-6)) {
+                double gridStep = c.data.medianDt();
+                fitData = c.data.resampledUniform(gridStep);
+                d.outputs.put("resampled_grid_s", gridStep);
+            }
             // CHG-075: the budget is a deadline the fit honours (it used to be checked only after a fit that could run an hour)
             String budgetStage = null;
             try {
-                est = estimator.estimate(c.data, c.u0, family, estimatorSettings(System.nanoTime() + cfg.fitBudgetMs * 1_000_000L));
+                est = estimator.estimate(fitData, c.u0, family, estimatorSettings(System.nanoTime() + cfg.fitBudgetMs * 1_000_000L));
             } catch (FitBudgetExceeded x) {
                 if (x.interrupted()) throw x;     // a cancel, not a budget: no result; the event is re-evaluated after restore
                 budgetStage = x.stage().isEmpty() ? x.getMessage() : x.stage();
