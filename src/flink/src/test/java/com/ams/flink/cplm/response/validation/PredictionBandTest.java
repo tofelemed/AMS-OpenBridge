@@ -1,7 +1,9 @@
 package com.ams.flink.cplm.response.validation;
 
 import com.ams.flink.cplm.response.estimation.OutputErrorEstimatorTest;
+import com.ams.flink.cplm.response.estimation.ResponseFitFixtures;
 import com.ams.flink.cplm.response.metrics.EventDataset;
+import com.ams.flink.cplm.response.model.ModelFamily;
 import com.ams.flink.cplm.response.model.ProcessModel;
 import com.ams.flink.cplm.response.simulation.ZohSimulator;
 import org.junit.Test;
@@ -265,7 +267,8 @@ public class PredictionBandTest {
 
     /**
      * CHG-211: a band started at the holdout's own pre-step level does not use the training fit's level or drift, so their
-     * standard errors stay out; on the fallback (the training level) they stay in, with the numbers of the y0 / v0 form.
+     * standard errors stay out - the start's own uncertainty enters instead (fix round 1, F2); on the fallback (the training level)
+     * they stay in, with the numbers of the y0 / v0 form.
      */
     @Test
     public void theHoldoutStartLeavesTheTrainingBaselineOut() {
@@ -275,18 +278,19 @@ public class PredictionBandTest {
         se.put("baseline", 0.2);
         se.put("baseline_slope", 0.001);
         se.put("time_constant", 0.05 * TRUTH.tau);
-        HoldoutStart own = HoldoutStart.of(h, 60, 70, 0.01);                 // 20 pre-step samples around 100
+        HoldoutStart own = HoldoutStart.of(h, ModelFamily.FOPDT, 60, 70, 0.01);                 // 20 pre-step samples around 100
         assertTrue(own.fromHoldout);
         PredictionBand.Result r = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, own, 60);
         assertFiniteAndOrdered(r, h);
-        assertEquals(Arrays.asList("process_gain", "time_constant"), r.parameters);
+        assertEquals(Arrays.asList("process_gain", "time_constant", "holdout_start"), r.parameters);
         assertArrayEquals("centred on the free run from the holdout's level, no drift",
                 ZohSimulator.simulate(TRUTH, h.t, h.u, 40, own.y0, 0, h.t0, 60).yHat, r.predict, 0);
+        double startVar = Math.PI / 2 * own.sigmaPre * own.sigmaPre / own.samples;     // F2: the median start of N samples
         for (int i = 0; i < h.size() && h.t[i] - h.t0 <= 3; i++) {
-            assertEquals("before the dead time only the noise, t " + h.t[i], 1.96 * SIGMA, halfWidth(r, i), 1e-9);
+            assertEquals("before the dead time the noise and the start, t " + h.t[i], 1.96 * Math.sqrt(SIGMA * SIGMA + startVar), halfWidth(r, i), 1e-9);
         }
 
-        HoldoutStart fallback = HoldoutStart.of(h, 0, 100, 0);              // no window: the training level
+        HoldoutStart fallback = HoldoutStart.of(h, ModelFamily.FOPDT, 0, 100, 0);              // no window: the training level
         assertFalse(fallback.fromHoldout);
         PredictionBand.Result viaStart = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, fallback, 60);
         PredictionBand.Result viaLevel = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, 100, 0, 60);
@@ -295,5 +299,59 @@ public class PredictionBandTest {
         assertArrayEquals(viaLevel.predict, viaStart.predict, 0);
         assertArrayEquals(viaLevel.lower, viaStart.lower, 0);
         assertArrayEquals(viaLevel.upper, viaStart.upper, 0);
+    }
+
+    /**
+     * CHG-211 fix round 1 (F2): the median start of N pre-step samples carries (pi/2) sigma^2 / N of its own. With 3 samples the
+     * band is wider than with 120 by the difference of the two terms, at a sample before the dead time (nothing else moves there).
+     */
+    @Test
+    public void startUncertaintyWidensBandWithFewPreStepSamples() {
+        double[] t = ResponseFitFixtures.times(0, 320, 1000, 0, 43);
+        EventDataset many = ResponseFitFixtures.stepEvent("FOPDT", new double[] {3, 4, 20}, t, 120, SIGMA, 43);
+        int k = 0;
+        while (many.t[k] < many.t0) k++;                                   // the step sample; 120 pre-step samples before it
+        boolean[] valid = many.valid.clone();
+        for (int i = 0; i < k - 3; i++) valid[i] = false;                  // the last 3 pre-step samples are left
+        // fixed values, MAD 0.1 (a 3-sample MAD is the smaller of two deviations - very noisy itself; this test is about the band)
+        double[] y = many.y.clone();
+        y[k - 3] = 99.9;
+        y[k - 2] = 100.1;
+        y[k - 1] = 100.0;
+        EventDataset few = new EventDataset(many.t, y, many.r, many.u, valid, many.t0, many.tEnd);
+        HoldoutStart s120 = HoldoutStart.of(many, ModelFamily.FOPDT, 120, 100, 0), s3 = HoldoutStart.of(few, ModelFamily.FOPDT, 120, 100, 0);
+        assertEquals(120, s120.samples);
+        assertEquals(3, s3.samples);
+        assertEquals(1.4826 * 0.1, s3.sigmaPre, 1e-12);
+        PredictionBand.Result r120 = PredictionBand.compute(TRUTH, relativeSe(0.05), Double.NaN, SIGMA, many, 40, s120, 60);
+        PredictionBand.Result r3 = PredictionBand.compute(TRUTH, relativeSe(0.05), Double.NaN, SIGMA, few, 40, s3, 60);
+        assertEquals(Arrays.asList("process_gain", "dead_time", "time_constant", "holdout_start"), r3.parameters);
+        assertEquals(r3.parameters, r120.parameters);
+        int pre = k + 2;                                                   // 2 s after the step, the dead time is 4 s
+        double var3 = Math.PI / 2 * s3.sigmaPre * s3.sigmaPre / 3, var120 = Math.PI / 2 * s120.sigmaPre * s120.sigmaPre / 120;
+        assertEquals(1.96 * Math.sqrt(SIGMA * SIGMA + var3), halfWidth(r3, pre), 1e-9);
+        assertEquals(1.96 * Math.sqrt(SIGMA * SIGMA + var120), halfWidth(r120, pre), 1e-9);
+        assertTrue("N = 3: " + halfWidth(r3, pre) + " vs N = 120: " + halfWidth(r120, pre), halfWidth(r3, pre) > halfWidth(r120, pre));
+        double z3 = halfWidth(r3, pre) / 1.96, z120 = halfWidth(r120, pre) / 1.96;
+        assertEquals("wider by the difference of the two start terms", var3 - var120, z3 * z3 - z120 * z120, 1e-12);
+    }
+
+    /** F2 on the line (an integrating start): the slope's standard error adds ((t - t0) se_v)^2, growing both ways from t0. */
+    @Test
+    public void lineStartAddsTheSlopeTermFromT0() {
+        ProcessModel ipdt = ProcessModel.ipdt("OP_TO_PV", 0.02, 10.0);
+        double[] t = ResponseFitFixtures.times(0, 320, 1000, 0, 44);
+        EventDataset h = ResponseFitFixtures.stepEvent("IPDT", new double[] {0.02, 10.0, 0.005}, t, 120, SIGMA, 44);
+        HoldoutStart line = HoldoutStart.of(h, ModelFamily.IPDT, 120, 100, 0);
+        assertTrue(line.onLine);
+        PredictionBand.Result r = PredictionBand.compute(ipdt, Collections.<String, Double>emptyMap(), Double.NaN, SIGMA, h, 40, line, 60);
+        assertEquals(Collections.singletonList("holdout_start"), r.parameters);
+        assertArrayEquals("centred on the free run from the line", ZohSimulator.simulate(ipdt, h.t, h.u, 40, line.y0, line.v0, h.t0, 60).yHat,
+                r.predict, 0);
+        double level = Math.PI / 2 * line.sigmaPre * line.sigmaPre / line.samples;
+        for (int i = 0; i < h.size(); i++) {
+            double s = h.t[i] - h.t0, slope = s * line.slopeSe;
+            assertEquals("half-width at s " + s, 1.96 * Math.sqrt(SIGMA * SIGMA + level + slope * slope), halfWidth(r, i), 1e-9);
+        }
     }
 }

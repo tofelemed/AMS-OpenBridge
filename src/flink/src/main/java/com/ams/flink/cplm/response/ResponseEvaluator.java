@@ -214,10 +214,11 @@ public final class ResponseEvaluator implements Serializable {
         boolean validated = false;
         if (est != null && est.best() != null && priorHoldout != null) {
             EstimationResult.Candidate best = est.best();
-            // CHG-211: the prior event is replayed from its OWN pre-step level (else this fit's y0 / v0) - the check, its flat
-            // baseline, y_predict and the band all take this one start
-            start = HoldoutStart.of(priorHoldout, cfg.preSupportS, best.y0, best.v0);
+            // CHG-211: the prior event is replayed from its OWN pre-step state (else this fit's y0 / v0) - its level, and for an
+            // integrating model its pre-step line - the check, its flat baseline, y_predict and the band all take this one start
+            start = HoldoutStart.of(priorHoldout, best.model.family, cfg.preSupportS, best.y0, best.v0);
             report = ModelValidator.validate(best.model, start, priorHoldout, priorU0, ResponseScale.of(cfg).noiseFloorEu(Double.NaN), cfg.maxGapS);
+            e.outputs.put("holdout_start", start.provenance());
             g.put(report.validationRmse);
             g.put(report.predictionRmse);
             g.put(report.fitImprovement);
@@ -308,7 +309,8 @@ public final class ResponseEvaluator implements Serializable {
      * prediction band on the same times: the parameter standard errors, the delay profile's half-width and the training fit's
      * free-run residual noise. The band is best effort: it runs after y_predict, under its own deadline (bandBudgetMs); on any
      * failure or overrun no band artifact is written and y_predict records why. A cancel is re-thrown, as in the fit.
-     * CHG-211: both start where the model check started (start); y_predict records which level that was ("holdout_start").
+     * CHG-211: both start where the model check started (start); y_predict records which start that was ("holdout_start") and,
+     * on an integrating model's pre-step line, its slope ("holdout_start_slope", PV_EU/s).
      */
     private List<EvidenceArtifact> modelCheckEvidence(String methodRunId, String pathId, EstimationResult.Candidate best, double[] residuals,
                                                       EventDataset holdout, double holdoutU0, HoldoutStart start) {
@@ -317,6 +319,7 @@ public final class ResponseEvaluator implements Serializable {
         EvidenceArtifact predict = EvidenceArtifact.series(methodRunId, "G12", "y_predict", pathId, "time", "s", "pv_predict_holdout", "PV_EU",
                 holdout.t, nominal.yHat, holdout.valid);
         predict.provenance.put("holdout_start", start.provenance());
+        if (start.onLine) predict.provenance.put("holdout_start_slope", start.v0);
         out.add(predict);
         try {
             long deadline = System.nanoTime() + bandBudgetMs * 1_000_000L;

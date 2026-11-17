@@ -22,9 +22,12 @@ import java.util.Map;
  * {@link ProcessModel#withParameter}, and the fitted baseline ("baseline", y0) and drift ("baseline_slope", v0), which ride the
  * same map. A missing or non-finite standard error, or a name this model does not have, is skipped.
  *
- * <p>CHG-211, the start ({@link HoldoutStart}): the free run starts at the holdout's own pre-step level, with no drift; the
- * training fit's level and drift are then not used, so "baseline" and "baseline_slope" are not perturbed either. On the fallback
- * start (the training level: fewer than 3 valid pre-step samples on the holdout) they are, as before CHG-211.
+ * <p>CHG-211, the start ({@link HoldoutStart}): the free run starts at the holdout's own pre-step state - its level, and for an
+ * integrating model its pre-step line; the training fit's level and drift are then not used, so "baseline" and "baseline_slope"
+ * are not perturbed either. The start's own uncertainty enters instead, as "holdout_start": {@link HoldoutStart#variance}
+ * ((pi/2) sigma^2 / N for the median start, plus ((t - t0) se_v)^2 on the line) is added to every sample's variance. On the
+ * fallback start (the training level: fewer than 3 valid pre-step samples on the holdout) "baseline" and "baseline_slope" are
+ * perturbed as before CHG-211 and "holdout_start" is not added.
  *
  * <p>Dead time: no estimator gives it a standard error - it is profiled, and its uncertainty is the delay profile's half-width
  * h (EstimationResult.Candidate.thetaUncertaintyS). When the map has no finite "dead_time" entry and h > 0, h is treated as the
@@ -42,6 +45,8 @@ public final class PredictionBand {
     static final String BASELINE = "baseline", BASELINE_SLOPE = "baseline_slope";
     /** The profiled delay: its uncertainty arrives as a half-width, not as a standard error. */
     static final String DEAD_TIME = "dead_time";
+    /** CHG-211: the holdout's own start, when the free run starts there. */
+    static final String HOLDOUT_START = "holdout_start";
     /** Fewer valid free-run residuals than this and the noise term falls back to the fit's objective. */
     static final int MIN_FREE_RUN_RESIDUALS = 3;
 
@@ -52,7 +57,10 @@ public final class PredictionBand {
         public final double[] lower, upper;
         /** Share of the valid holdout samples inside the band; NaN without one. */
         public final double coverage;
-        /** The parameters whose uncertainty entered the band: the map's order, then "dead_time" when its half-width did. */
+        /**
+         * The parameters whose uncertainty entered the band: the map's order, then "dead_time" when its half-width did, then
+         * "holdout_start" when the free run started at the holdout's own pre-step state.
+         */
         public final List<String> parameters;
         /** The delay profile's half-width (s) that entered the band; NaN when it did not. */
         public final double deadTimeHalfWidthS;
@@ -142,6 +150,10 @@ public final class PredictionBand {
                 used.add(DEAD_TIME);
                 halfWidthUsed = thetaHalfWidthS;
             }
+        }
+        if (start.fromHoldout) {                                                   // CHG-211: the start's own uncertainty
+            for (int i = 0; i < n; i++) var[i] += start.variance(holdout.t[i] - holdout.t0);
+            used.add(HOLDOUT_START);
         }
         double noise = Double.isFinite(residualSigma) && residualSigma > 0 ? residualSigma * residualSigma : 0;
         double[] lower = new double[n], upper = new double[n];

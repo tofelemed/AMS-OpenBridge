@@ -8,10 +8,12 @@ import com.ams.flink.cplm.response.event.EventType;
 import com.ams.flink.cplm.response.event.ResponseEvent;
 import com.ams.flink.cplm.response.metrics.EventDataset;
 import com.ams.flink.cplm.response.model.ModelFamily;
+import com.ams.flink.cplm.response.validation.HoldoutStart;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -43,8 +45,13 @@ public class ResponsePredictionBandTest {
 
     /** An exogenous input test on FOPDT(K 3, dead time 4 s, tau 20 s): 400 s at 1 s, the step 60 s in, noise 0.05. */
     private static ResponseCapture.Closed inputTest(long baseMs, long seed) {
+        return stepTest("FOPDT", new double[] {3, 4, 20}, baseMs, seed);
+    }
+
+    /** An exogenous input test on the analytic step of family / p (ResponseFitFixtures.stepEvent): 400 s at 1 s, the step 60 s in, noise 0.05. */
+    private static ResponseCapture.Closed stepTest(String family, double[] p, long baseMs, long seed) {
         double[] t = ResponseFitFixtures.times(baseMs, 400, 1000, 0, seed);
-        EventDataset d = ResponseFitFixtures.stepEvent("FOPDT", new double[] {3, 4, 20}, t, 60, 0.05, seed);
+        EventDataset d = ResponseFitFixtures.stepEvent(family, p, t, 60, 0.05, seed);
         ResponseEvent e = new ResponseEvent(ResponseEvent.idFor("FIC10302", Math.round(d.t0 * 1000), EventType.INPUT_TEST, "b"), "FIC10302",
                 EventType.INPUT_TEST, "OP_TO_PV", d.t0 * 1000, ResponseFitFixtures.U_BEFORE, ResponseFitFixtures.U_BEFORE + ResponseFitFixtures.DU,
                 Collections.singletonList(new double[] {d.t0 * 1000, ResponseFitFixtures.U_BEFORE + ResponseFitFixtures.DU}));
@@ -283,5 +290,68 @@ public class ResponsePredictionBandTest {
         assertNotNull(band);
         assertTrue("the training level's uncertainty stays in the band",
                 Arrays.asList(((String) band.provenance.get("parameters")).split(";")).contains("baseline"));
+    }
+
+    private static List<String> parameters(EvidenceArtifact band) {
+        return Arrays.asList(((String) band.provenance.get("parameters")).split(";"));
+    }
+
+    /** CHG-211 fix round 1 (F3): subgate E records where the replay started, next to the verdict; the check's method tag is V2. */
+    @Test
+    public void subgateECarriesTheHoldoutStart() {
+        ResponseEvaluator ev = new ResponseEvaluator(cfg());
+        ResponseEvaluator.Outcome first = ev.evaluate(inputTest(ResponseFitFixtures.EPOCH_MS, 1), ModelFamily.FOPDT, null, 0,
+                ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        assertFalse("no check, no start", first.result.subgates.get("E").outputs.containsKey("holdout_start"));
+        ResponseCapture.Closed event = inputTest(ResponseFitFixtures.EPOCH_MS + 1_000_000, 2);
+        ResponseEvaluator.Outcome second = ev.evaluate(event, ModelFamily.FOPDT, first.holdoutCandidate, first.holdoutU0,
+                ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        G12Result.Subgate e = second.result.subgates.get("E");
+        EvidenceArtifact predict = kind(second, "y_predict");
+        assertEquals(String.valueOf(e.outputs), "HOLDOUT_PRE_STEP_LEVEL", e.outputs.get("holdout_start"));
+        assertEquals("the same value as y_predict's provenance", predict.provenance.get("holdout_start"), e.outputs.get("holdout_start"));
+        assertFalse("no line for a self-regulating model", predict.provenance.containsKey("holdout_start_slope"));
+        assertEquals("HOLDOUT_FREE_RUN_V2", second.result.metrics.get("validation_rmse").method);
+        assertEquals("HOLDOUT_FREE_RUN_V2", second.result.metrics.get("residual_bias").method);
+        assertTrue("the start's own uncertainty is in the band", parameters(kind(second, "prediction_interval")).contains("holdout_start"));
+
+        EventDataset h = first.holdoutCandidate;
+        boolean[] valid = h.valid.clone();
+        for (int i = 0; i < valid.length; i++) if (h.t[i] < h.t0) valid[i] = false;
+        ResponseEvaluator.Outcome fallback = ev.evaluate(event, ModelFamily.FOPDT, new EventDataset(h.t, h.y, h.r, h.u, valid, h.t0, h.tEnd),
+                first.holdoutU0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        assertEquals("TRAINING_LEVEL", fallback.result.subgates.get("E").outputs.get("holdout_start"));
+        assertFalse("the training level's standard errors stand for the start",
+                parameters(kind(fallback, "prediction_interval")).contains("holdout_start"));
+    }
+
+    /**
+     * CHG-211 fix round 1 (F1): an integrating model replays a holdout that was drifting before its step (and ran 30 EU higher) from
+     * that event's own pre-step line - subgate E and y_predict say HOLDOUT_PRE_STEP_LINE and y_predict records the slope.
+     */
+    @Test
+    public void integratingHoldoutReplaysItsPreStepLine() {
+        ResponseEvaluator ev = new ResponseEvaluator(cfg());
+        double drift = 0.005;
+        ResponseEvaluator.Outcome first = ev.evaluate(stepTest("IPDT", new double[] {0.02, 10, drift}, ResponseFitFixtures.EPOCH_MS, 5),
+                ModelFamily.IPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        assertNotNull(first.holdoutCandidate);
+        EventDataset holdout = shifted(first.holdoutCandidate, 30);
+        ResponseEvaluator.Outcome second = ev.evaluate(stepTest("IPDT", new double[] {0.02, 10, 0}, ResponseFitFixtures.EPOCH_MS + 1_000_000, 6),
+                ModelFamily.IPDT, holdout, first.holdoutU0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        G12Result.Subgate e = second.result.subgates.get("E");
+        EvidenceArtifact predict = kind(second, "y_predict");
+        assertNotNull(predict);
+        String what = "E " + e.outputs + ", y_predict " + predict.provenance + ", bias " + second.result.metrics.get("residual_bias").value;
+        assertEquals(what, "HOLDOUT_PRE_STEP_LINE", e.outputs.get("holdout_start"));
+        assertEquals(what, "HOLDOUT_PRE_STEP_LINE", predict.provenance.get("holdout_start"));
+        HoldoutStart line = HoldoutStart.of(holdout, ModelFamily.IPDT, cfg().preSupportS, Double.NaN, Double.NaN);
+        assertTrue(line.onLine);
+        assertEquals(what, line.v0, number(predict, "holdout_start_slope"), 0);
+        assertEquals(what, drift, line.v0, 0.3 * drift);
+        int start = firstValid(predict);
+        assertEquals("y_predict starts on the line", line.y0 + line.v0 * (holdout.t[start] - holdout.t0), predict.y[start], 1e-9);
+        assertTrue(parameters(kind(second, "prediction_interval")).contains("holdout_start"));
+        assertEquals(what, "VALIDATED", e.outputs.get("verdict"));
     }
 }

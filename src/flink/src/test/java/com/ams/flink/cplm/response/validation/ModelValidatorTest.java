@@ -1,7 +1,9 @@
 package com.ams.flink.cplm.response.validation;
 
 import com.ams.flink.cplm.response.estimation.OutputErrorEstimatorTest;
+import com.ams.flink.cplm.response.estimation.ResponseFitFixtures;
 import com.ams.flink.cplm.response.metrics.EventDataset;
+import com.ams.flink.cplm.response.model.ModelFamily;
 import com.ams.flink.cplm.response.model.ProcessModel;
 import org.junit.Test;
 
@@ -58,7 +60,7 @@ public class ModelValidatorTest {
         ProcessModel truth = ProcessModel.fopdt("OP_TO_PV", 3.0, 4.0, 20.0);
         EventDataset at100 = OutputErrorEstimatorTest.synthetic(truth, 0.05, 23, 1, 200, 5);   // 20 pre-step samples
         EventDataset holdout = shifted(at100, -20);
-        HoldoutStart start = HoldoutStart.of(holdout, 60, 50, 0);
+        HoldoutStart start = HoldoutStart.of(holdout, ModelFamily.FOPDT, 60, 50, 0);
         ModelValidator.Report r = ModelValidator.validate(truth, start, holdout, 40, 0.2, 60);
         assertEquals(what(r), "VALIDATED", r.verdict);
         assertTrue(what(r), Math.abs(r.residualBias.value) < 0.1);
@@ -70,7 +72,7 @@ public class ModelValidatorTest {
 
         // the other way round (fitted around 80, previous event around 50): from 80 the offset model lost to the offset baseline
         EventDataset lower = shifted(at100, -50);
-        ModelValidator.Report down = ModelValidator.validate(truth, HoldoutStart.of(lower, 60, 80, 0), lower, 40, 0.2, 60);
+        ModelValidator.Report down = ModelValidator.validate(truth, HoldoutStart.of(lower, ModelFamily.FOPDT, 60, 80, 0), lower, 40, 0.2, 60);
         assertEquals(what(down), "VALIDATED", down.verdict);
         assertTrue(what(down), Math.abs(down.residualBias.value) < 0.1);
         ModelValidator.Report downFromTraining = ModelValidator.validate(truth, 80, 0, lower, 40, 0.2, 60);
@@ -87,7 +89,7 @@ public class ModelValidatorTest {
         for (int i = 0; i < valid.length; i++) if (full.t[i] < full.t0) valid[i] = false;       // the pre-step samples are lost
         EventDataset h = new EventDataset(full.t, full.y, full.r, full.u, valid, full.t0, full.tEnd);
         for (double v0 : new double[] {0, 0.002}) {
-            HoldoutStart start = HoldoutStart.of(h, 60, 99.7, v0);
+            HoldoutStart start = HoldoutStart.of(h, ModelFamily.FOPDT, 60, 99.7, v0);
             assertFalse(start.fromHoldout);
             ModelValidator.Report today = ModelValidator.validate(truth, 99.7, v0, h, 40, 0.2, 60);
             ModelValidator.Report now = ModelValidator.validate(truth, start, h, 40, 0.2, 60);
@@ -99,5 +101,48 @@ public class ModelValidatorTest {
             assertEquals(today.residualBias.value, now.residualBias.value, 0);
             assertEquals(today.aicc, now.aicc, 0);
         }
+    }
+
+    private static String what(ModelValidator.Report r, HoldoutStart s) {
+        return what(r) + "; start " + s.provenance() + " y0 " + s.y0 + " v0 " + s.v0;
+    }
+
+    /**
+     * CHG-211 fix round 1 (F1): a level loop's previous event (the holdout) was off balance before its step - drift 0.005 EU/s at the
+     * pre-step OP - and ran 30 EU above the training level. For an integrating model the drift is part of the initial state: the
+     * replay starts on the holdout's own pre-step line (y0 its level AT t0, v0 its slope), not flat from the mid-window median.
+     */
+    @Test
+    public void integratingHoldoutWithPreStepDriftStartsOnItsOwnLine() {
+        ProcessModel truth = ProcessModel.ipdt("OP_TO_PV", 0.02, 10.0);
+        double drift = 0.005;
+        double[] t = ResponseFitFixtures.times(0, 400, 1000, 0, 25);
+        // 120 pre-step samples at 1 s; the PV is 100 at t0 on the line 100 + drift (t - t0), the ramp 0.1 EU/s from t0 + 10 s
+        EventDataset at100 = ResponseFitFixtures.stepEvent("IPDT", new double[] {0.02, 10.0, drift}, t, 120, 0.05, 25);
+        EventDataset holdout = shifted(at100, 30);
+        HoldoutStart start = HoldoutStart.of(holdout, ModelFamily.IPDT, 120, 100, 0);       // fallback: the training level 100
+        ModelValidator.Report r = ModelValidator.validate(truth, start, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
+        assertEquals(what(r, start), "VALIDATED", r.verdict);
+        assertTrue(what(r, start), Math.abs(r.residualBias.value) < 0.1);
+        assertEquals(what(r, start), HoldoutStart.HOLDOUT_PRE_STEP_LINE, start.provenance());
+        assertEquals(what(r, start), drift, start.v0, 0.1 * drift);
+        assertEquals("the true level at t0 is 130: " + what(r, start), 130, start.y0, 0.1);
+        assertEquals("the flat baseline stays a constant y0", ModelValidator.BASELINE, r.fitImprovement.method);
+
+        // the self-regulating rule on the same holdout (c6c0db48's start for every family): flat from the mid-window median
+        HoldoutStart flat = HoldoutStart.of(holdout, ModelFamily.FOPDT, 120, 100, 0);
+        ModelValidator.Report fromFlat = ModelValidator.validate(truth, flat, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
+        assertTrue(what(fromFlat, flat), Math.abs(fromFlat.residualBias.value) > 0.3);
+    }
+
+    /** F3: the verdicts after CHG-211's fix round carry a new method tag, so they can be told from the ones before. */
+    @Test
+    public void methodIsHoldoutFreeRunV2() {
+        assertEquals("HOLDOUT_FREE_RUN_V2", ModelValidator.METHOD);
+        ProcessModel truth = ProcessModel.fopdt("OP_TO_PV", 3.0, 4.0, 20.0);
+        ModelValidator.Report r = ModelValidator.validate(truth, 100, 0, OutputErrorEstimatorTest.synthetic(truth, 0.2, 21, 5, 200, 5), 40, 0.2, 60);
+        assertEquals("HOLDOUT_FREE_RUN_V2", r.validationRmse.method);
+        assertEquals("HOLDOUT_FREE_RUN_V2", r.residualBias.method);
+        assertEquals("CONSTANT_BASELINE_Y0", r.fitImprovement.method);
     }
 }

@@ -1,8 +1,6 @@
 package com.ams.flink.cplm.response.metrics;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Arrays;
 
 /**
  * Robust rates (spec §2.5 catalogue: pre_slope "robust pre-event rate", post_slope "robust post-event rate"):
@@ -16,25 +14,36 @@ public final class Slopes {
 
     /** Slope in y-units per second over valid samples with from <= t < to (or <= to when inclusiveEnd), or null. */
     public static Double theilSen(EventDataset d, double from, double to, boolean inclusiveEnd, int minSamples) {
-        List<double[]> pts = new ArrayList<>();
+        double[] t = new double[d.size()], y = new double[d.size()];
+        int n = 0;
         for (int i = 0; i < d.size(); i++) {
             boolean inside = d.t[i] >= from && (inclusiveEnd ? d.t[i] <= to : d.t[i] < to);
             if (!inside || !d.valid[i] || !Double.isFinite(d.y[i])) continue;
-            pts.add(new double[] {d.t[i], d.y[i]});
+            t[n] = d.t[i];
+            y[n] = d.y[i];
+            n++;
         }
-        if (pts.size() < Math.max(3, minSamples)) return null;
-        double span = pts.get(pts.size() - 1)[0] - pts.get(0)[0];
+        if (n < Math.max(3, minSamples)) return null;
+        double span = t[n - 1] - t[0];
         if (span < 0.5 * (to - from) || span <= 0) return null;
-        List<Double> slopes = new ArrayList<>();
-        for (int i = 0; i < pts.size(); i++) {
-            for (int j = i + 1; j < pts.size(); j++) {
-                double dt = pts.get(j)[0] - pts.get(i)[0];
-                if (dt > 0) slopes.add((pts.get(j)[1] - pts.get(i)[1]) / dt);
+        return theilSen(t, y, n);
+    }
+
+    /**
+     * CHG-211: the Theil-Sen slope itself - the median of the pairwise slopes (y_j - y_i) / (t_j - t_i) over the first n points,
+     * pairs with t_j > t_i only - with no support rule; null without such a pair.
+     */
+    public static Double theilSen(double[] t, double[] y, int n) {
+        double[] slopes = new double[(int) Math.min((long) n * (n - 1) / 2, Integer.MAX_VALUE - 8)];
+        int m = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                double dt = t[j] - t[i];
+                if (dt > 0) slopes[m++] = (y[j] - y[i]) / dt;
             }
         }
-        if (slopes.isEmpty()) return null;
-        Collections.sort(slopes);
-        int n = slopes.size();
-        return n % 2 == 1 ? slopes.get(n / 2) : 0.5 * (slopes.get(n / 2 - 1) + slopes.get(n / 2));
+        if (m == 0) return null;
+        Arrays.sort(slopes, 0, m);
+        return m % 2 == 1 ? slopes[m / 2] : 0.5 * (slopes[m / 2 - 1] + slopes[m / 2]);
     }
 }

@@ -11,10 +11,12 @@ import org.apache.commons.math3.distribution.ChiSquaredDistribution;
  * prediction RMSE reported separately, fit improvement against the named constant-baseline model,
  * residual bias, Ljung-Box whiteness (lags 1..10), residual-vs-PAST-input correlation (positive
  * lags only - the declared convention; feedback correlates residuals with FUTURE inputs), AICc.
- * CHG-211: the free run and the constant baseline start at the holdout's own pre-step level ({@link HoldoutStart}).
+ * CHG-211: the free run starts at the holdout's own pre-step state ({@link HoldoutStart}: its level, and for an integrating
+ * model its pre-step line) and the constant baseline at its level y0. METHOD V2 marks the verdicts on that start (V1: the
+ * current event's fitted level and drift), so results before and after the change can be told apart.
  */
 public final class ModelValidator {
-    public static final String METHOD = "HOLDOUT_FREE_RUN_V1";
+    public static final String METHOD = "HOLDOUT_FREE_RUN_V2";
     public static final String LAG_CONVENTION = "POSITIVE_LAGS_RESIDUAL_VS_PAST_INPUT";
     public static final String BASELINE = "CONSTANT_BASELINE_Y0";
     public static final int ACF_LAGS = 10;
@@ -48,8 +50,9 @@ public final class ModelValidator {
     private ModelValidator() {}
 
     /**
-     * CHG-211: the check as the evaluator runs it - the free run of m on the holdout AND the flat-line baseline both start at
-     * start (the holdout's own pre-step level, else the training fit's level and drift; see {@link HoldoutStart}).
+     * CHG-211: the check as the evaluator runs it - the free run of m on the holdout from start.y0 with drift start.v0 (the
+     * holdout's own pre-step level, or line for an integrating model, else the training fit's level and drift; see
+     * {@link HoldoutStart}) and the flat-line baseline the constant start.y0.
      */
     public static Report validate(ProcessModel m, HoldoutStart start, EventDataset h, double u0, double noiseFloorEu, double maxBridgeS) {
         return validate(m, start.y0, start.v0, h, u0, noiseFloorEu, maxBridgeS);
