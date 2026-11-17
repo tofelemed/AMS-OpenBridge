@@ -230,3 +230,30 @@ declared ranges carried on `ResponseJobConfig`. Only Task 4 touches the frontend
 - Item 1 (capture in Manual) and the operating regions: SME decisions.
 - Item 4 (controller tuning from the DCS) and item 6 "tuning changed": wait for I&C to confirm the CENTUM P, I, D items on the OPC server.
 - Item 5b (servo-step models for integrating loops): engine owner's method choice; after Task 2.
+
+### Task 8: Closed-loop fits free-run from the right baseline (CHG-210, found in Task 6)
+
+**Why:** `ClosedLoopPemEstimator` fits the ARX model in deviations from the event's means (`yMean`, `uMean`) and returns
+`y0 = yMean`, but every free run (`ResponseEvaluator` y_fit, y_predict, `ModelValidator`, the band) starts the model at
+`y0` with the input baseline `c.u0` (the pre-step input). The free run is then offset by about `K·(uMean − u0)`, so
+servo-step fits, their holdout prediction and their validation are wrong. Task 2 makes this path run on plant data
+for the first time.
+
+**Files:**
+- Modify: `src/flink/src/main/java/com/ams/flink/cplm/response/estimation/ClosedLoopPemEstimator.java`
+- Test: `src/flink/src/test/java/com/ams/flink/cplm/response/estimation/ClosedLoopPemEstimatorTest.java` and/or `ResponseUniformGridTest.java`
+
+**Interfaces:**
+- The candidate's `y0` becomes the PV level consistent with the input baseline `u0` passed to `estimate`:
+  `y0 = yMean − Kss · (uMean − u0)`, where `Kss` is the fitted model's steady-state gain (`process_gain` of the
+  returned `ProcessModel`). `v0` stays 0. Nothing else in the estimator changes; parameter estimates are unchanged.
+
+- [ ] **Step 1: Failing tests.** `pemFreeRunMatchesTrainingEvent`: a simulated closed-loop FOPDT servo step (the PI
+  loop used in `ResponseUniformGridTest`, noise-free) → the free run of the PEM model from `(y0, u0)` on the training
+  event has RMS error < 2 % of the PV step, and `y0` is within 2 % of the step of the pre-step PV mean. On the current
+  code both fail (offset ≈ `K·(uMean − u0)`). `pemFitValidatesOnSimilarHoldout`: the same loop's next servo step as a
+  holdout → the model check is not REJECTED for offset.
+- [ ] **Step 2: Run, expect failures.**
+- [ ] **Step 3: Implement** the y0 formula.
+- [ ] **Step 4: Run the response package.** All pass.
+- [ ] **Step 5: Commit** `fix(cplm): CHG-210 closed-loop servo-step fits free-run from the pre-step baseline`.
