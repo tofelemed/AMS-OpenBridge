@@ -319,6 +319,7 @@ public final class ResponseEvaluator implements Serializable {
         s.maxGapS = cfg.maxGapS;
         s.minResponseEu = scale.minResponseEu();
         s.targetBandEu = scale.targetBandEu();
+        s.preNoiseSigmaEu = noiseSigmaEu;
         return s;
     }
 

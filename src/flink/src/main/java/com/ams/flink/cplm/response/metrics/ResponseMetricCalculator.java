@@ -19,6 +19,7 @@ public final class ResponseMetricCalculator {
     public static final class Settings {
         public double preSupportS = 60, tailDwellS = 30, stableBandEu = 0.5, absSettlingBandEu = 0.1, relSettlingBand = 0.02;
         public double noiseFloorEu = 0.05, crossingDwellS = 5, maxGapS = 60, minResponseEu = 0.5, targetBandEu = 0.5;
+        public double preNoiseSigmaEu = Double.NaN;                          // event's pre-step noise; NaN = unknown
         public int minSamples = 3;
     }
 
@@ -95,7 +96,7 @@ public final class ResponseMetricCalculator {
         q.put("settle_target", tt == null
                 ? Quantity.unavailable("settle_target", "s", "TARGET_NOT_REACHED_OR_NO_OBJECTIVE")
                 : Quantity.of("settle_target", tt, "s", "OBSERVED_THROUGH_T"));
-        Overshoot.Peaks pk = Overshoot.of(d, p, y0, dy, s.minResponseEu, band);
+        Overshoot.Peaks pk = Overshoot.of(d, p, y0, dy, s.minResponseEu, band, s.preNoiseSigmaEu);
         q.put("overshoot", pk.overshootPct == null
                 ? Quantity.unavailable("overshoot", PCT_OF_RESPONSE, "NO_MEANINGFUL_RESPONSE")
                 : Quantity.of("overshoot", pk.overshootPct, PCT_OF_RESPONSE, METHOD));
