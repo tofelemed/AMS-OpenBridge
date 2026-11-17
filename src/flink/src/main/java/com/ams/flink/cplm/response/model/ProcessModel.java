@@ -114,6 +114,34 @@ public final class ProcessModel implements Serializable {
         return p;
     }
 
+    /**
+     * CHG-209: a copy with one parameter - by its catalogue name, an available key of {@link #parameters()} - set to value, built
+     * through the family's factory so its checks apply (a time constant <= 0 or a damping ratio >= 1 is refused).
+     */
+    public ProcessModel withParameter(String name, double value) {
+        Quantity q = parameters().get(name);
+        if (q == null || !q.available()) throw new IllegalArgumentException(name + " is not a parameter of " + family);
+        double g = gain, th = theta, t1 = tau, t2 = tau2, z = zeta, w = wn;
+        switch (name) {
+            case "process_gain":
+            case "integrating_gain": g = value; break;
+            case "dead_time": th = value; break;
+            case "time_constant":
+            case "time_constant_1": t1 = value; break;
+            case "time_constant_2": t2 = value; break;
+            case "damping_ratio": z = value; break;
+            case "natural_frequency": w = value; break;
+            default: throw new IllegalArgumentException(name + " is not a parameter of " + family);
+        }
+        switch (family) {
+            case FOPDT: return fopdt(pathId, g, th, t1);
+            case SOPDT: return sopdt(pathId, g, th, t1, t2);
+            case SO_UNDERDAMPED: return underdamped(pathId, g, th, z, w);
+            case IPDT: return ipdt(pathId, g, th);
+            default: return integratorLag(pathId, g, th, t1);
+        }
+    }
+
     @Override
     public String toString() {
         return family + "(" + pathId + ": gain=" + gain + ", theta=" + theta + ", tau=" + tau + ", tau2=" + tau2 + ", zeta=" + zeta + ", wn=" + wn + ")";

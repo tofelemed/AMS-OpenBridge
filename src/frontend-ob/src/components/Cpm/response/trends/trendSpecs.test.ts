@@ -3,6 +3,7 @@
 // censored event shows the measured response and the input only; a level event shows measured, input, slope, error (when the
 // stored arrays reproduce the engine's integrals) and model fit, never dead time / time constant or rise / settling.
 import { describe, expect, it } from 'vitest';
+import { decoded } from '../../evidence/views/fixtures';
 import type { Mark } from './annotations';
 import { buildFacts, errorIntervals, responseBand } from './responseFacts';
 import { responseTrendSpecs } from './responseTrendSpecs';
@@ -127,6 +128,28 @@ describe('Response trends: labels carry the engine values with units', () => {
     expect(fit.label).toBe('Model fit (training)');
     expect(fit.dashDot).toBe(true);
     expect(s.series[0].label).toBe('PV');
+  });
+
+  // CHG-209: the engine writes the 95 % band on the holdout's times, next to y_predict; the band is drawn exactly when the prediction is
+  it('drawsBandAlongsideHoldoutPrediction', () => {
+    const e = selfRegulating();
+    const holdout = (from: number, to: number) => { const t: number[] = []; for (let s = from; s <= to; s += 2) t.push(T0S + s); return t; };
+    const art = (kind: string, t: number[], y: number, extra: Partial<Parameters<typeof decoded>[0]> = {}) =>
+      decoded({ gate: 'G12', kind, role: 'OP_TO_PV', x: t, y: t.map(() => y), xQuantity: 'time', xUnit: 's', yUnit: 'PV_EU', ...extra });
+    const withCheck = (t: number[]) => ({
+      ...e.byKind,
+      y_predict: [art('y_predict', t, 125, { mask: t.map(() => true) })],
+      prediction_interval: [art('prediction_interval', t, 126, {
+        columns: { lower: t.map(() => 124) }, provenance: { band_meaning: 'PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE', coverage: '0.96' },
+      })],
+    });
+    const seriesIds = (t: number[]) => trend(specs(e, { byKind: withCheck(t) }), 'model-fit')!.series.map(s => s.id);
+    expect(seriesIds(holdout(-60, 600))).toEqual(['pv', 'y_fit', 'y_predict', 'pi_upper', 'pi_lower']);      // inside this event's window
+    expect(seriesIds(holdout(-500, -20))).toEqual(['pv', 'y_fit', 'y_predict', 'pi_upper', 'pi_lower']);     // the previous event's tail overlaps it
+    expect(seriesIds(holdout(-2000, -1400))).toEqual(['pv', 'y_fit']);                                       // the previous event, wholly before it
+    const band = trend(specs(e, { byKind: withCheck(holdout(-60, 600)) }), 'model-fit')!;
+    expect(band.series.find(s => s.id === 'pi_lower')!.bandMeaning).toBe('prediction interval of the output, not parameter confidence');
+    expect(band.help.join(' ')).toMatch(/prediction interval of the output, not a confidence interval of the parameters/);
   });
 
   it('every trend has a heading in words and a tip saying how the engine measures it', () => {

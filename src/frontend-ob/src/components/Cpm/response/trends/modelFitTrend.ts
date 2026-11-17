@@ -1,8 +1,8 @@
 /**
  * CHG-197 trend 8: measured PV against the model fit on this event (training), the holdout prediction and the prediction band,
  * the band named with its meaning. The engine runs the holdout prediction on the PREVIOUS event's samples
- * (ResponseEvaluator: priorHoldout.t), so it is drawn only where it falls inside this event's window; the live engine writes no
- * prediction band yet (no noise model), and a band it writes later is drawn with its meaning.
+ * (ResponseEvaluator: priorHoldout.t), so it is drawn only where it falls inside this event's window; CHG-209: the engine writes
+ * the 95 % prediction band on the same holdout times, so the band is drawn exactly when the prediction is, with its meaning.
  */
 import { bandMeaningText, prov } from '../responseSupport';
 import { insideWindow, pvSeries, stepMark, timeSeries, TREND_HEIGHT, type TrendSpec } from './trendSupport';

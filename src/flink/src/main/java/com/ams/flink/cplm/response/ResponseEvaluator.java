@@ -21,6 +21,7 @@ import com.ams.flink.cplm.response.model.ProcessModel;
 import com.ams.flink.cplm.response.model.Quantity;
 import com.ams.flink.cplm.response.simulation.ZohSimulator;
 import com.ams.flink.cplm.response.validation.ModelValidator;
+import com.ams.flink.cplm.response.validation.PredictionBand;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -285,17 +286,25 @@ public final class ResponseEvaluator implements Serializable {
         }
         Map<String, Quantity> times = new java.util.LinkedHashMap<>();
         for (String k : new String[] {"t10", "t50", "t63", "t90"}) times.put(k, observed.get(k));
-        // y_predict is the model's free-run on the INDEPENDENT holdout (report != null); the fit on the
-        // training event is y_fit. Prediction bands need a noise model - none installed yet (null).
-        double[] yPredict = null;
+        // y_predict is the model's free-run on the INDEPENDENT holdout (report != null); the fit on the training event is y_fit.
+        // CHG-209: its 95 % prediction band (parameter standard errors + the fit's residual noise) on the same holdout times.
+        PredictionBand.Result band = null;
+        double residualSigma = Double.NaN;
         if (report != null && priorHoldout != null && est != null && est.best() != null) {
-            yPredict = ZohSimulator.simulate(est.best().model, priorHoldout.t, priorHoldout.u, priorU0, est.best().y0, est.best().v0, priorHoldout.t0, cfg.maxGapS).yHat;
+            EstimationResult.Candidate best = est.best();
+            residualSigma = PredictionBand.residualSigma(best.objective, best.samples, best.stdErr.size());
+            band = PredictionBand.compute(best.model, best.stdErr, residualSigma, priorHoldout, priorU0, best.y0, best.v0, cfg.maxGapS);
         }
         List<EvidenceArtifact> artifacts = ResponseEvidenceWriter.artifacts(g.methodRunId, c.event, c.data, fit,
                 null, null, null, y0, c.r1, times, residuals, resAcf, est, freq, rejections);
-        if (yPredict != null) {
+        if (band != null) {
             artifacts.add(EvidenceArtifact.series(g.methodRunId, "G12", "y_predict", c.event.pathId, "time", "s", "pv_predict_holdout", "PV_EU",
-                    priorHoldout.t, yPredict, priorHoldout.valid));
+                    priorHoldout.t, band.predict, priorHoldout.valid));
+            EvidenceArtifact pi = ResponseEvidenceWriter.predictionInterval(g.methodRunId, c.event.pathId, priorHoldout.t, band.lower, band.upper);
+            pi.provenance.put("coverage", band.coverage);
+            pi.provenance.put("residual_sigma", residualSigma);
+            pi.provenance.put("parameters", String.join(";", band.parameters));
+            artifacts.add(pi);
         }
         EventDataset holdout = !censored && c.uAppliedAvailable ? c.data : null;
         return new Outcome(g, artifacts, holdout, c.u0);

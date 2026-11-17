@@ -43,6 +43,17 @@ public final class ResponseEvidenceWriter {
         return values == null ? "" : String.join(";", values);
     }
 
+    /**
+     * The band artifact on the times it was computed on: upper as y, lower as an aligned column (never a provenance string), its
+     * meaning in provenance. CHG-209: the model check's band rides the holdout's times, as y_predict does.
+     */
+    public static EvidenceArtifact predictionInterval(String methodRunId, String path, double[] t, double[] lower, double[] upper) {
+        EvidenceArtifact band = EvidenceArtifact.series(methodRunId, GATE, "prediction_interval", path, "time", "s", "pv_prediction_upper", "PV_EU", t, upper, null);
+        band.column("lower", "PV_EU", lower);
+        band.provenance.put("band_meaning", "PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE");
+        return band;
+    }
+
     public static List<EvidenceArtifact> artifacts(String methodRunId, ResponseEvent e, EventDataset d, ZohSimulator.Result fit, double[] yPredict,
                                                    double[] predLo, double[] predHi, double y0, double r1, Map<String, Quantity> times, double[] residuals,
                                                    double[] residualAcf, EstimationResult est, FrequencyResponse.Result freq, List<String> rejectionReasons) {
@@ -62,12 +73,7 @@ public final class ResponseEvidenceWriter {
         if (yPredict != null) {
             out.add(EvidenceArtifact.series(methodRunId, GATE, "y_predict", path, "time", "s", "pv_predict", "PV_EU", d.t, yPredict, fit == null ? null : fit.valid));
         }
-        if (predLo != null && predHi != null) {
-            EvidenceArtifact band = EvidenceArtifact.series(methodRunId, GATE, "prediction_interval", path, "time", "s", "pv_prediction_upper", "PV_EU", d.t, predHi, null);
-            band.column("lower", "PV_EU", predLo);                           // an aligned array is a column, never a provenance string
-            band.provenance.put("band_meaning", "PREDICTION_INTERVAL_OF_OUTPUT_NOT_PARAMETER_CONFIDENCE");
-            out.add(band);
-        }
+        if (predLo != null && predHi != null) out.add(predictionInterval(methodRunId, path, d.t, predLo, predHi));
         out.add(EvidenceArtifact.series(methodRunId, GATE, "baseline", path, "time", "s", "baseline_pv", "PV_EU", marker, new double[] {y0, y0}, null));
         out.add(EvidenceArtifact.series(methodRunId, GATE, "target", path, "time", "s", "reference", "PV_EU", marker, new double[] {r1, r1}, null));
         List<double[]> tm = new ArrayList<>();
