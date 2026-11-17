@@ -201,4 +201,87 @@ public class ResponsePredictionBandTest {
         assertEquals(ok.result.modelState, broken.result.modelState);
         assertEquals(ok.artifacts.size() - 1, broken.artifacts.size());
     }
+
+    /** The same dataset with every PV moved by offset: the loop ran at another operating level on that event. */
+    private static EventDataset shifted(EventDataset d, double offset) {
+        double[] y = new double[d.size()];
+        for (int i = 0; i < y.length; i++) y[i] = d.y[i] + offset;
+        return new EventDataset(d.t, y, d.r, d.u, d.valid, d.t0, d.tEnd);
+    }
+
+    /** The median of the valid PV samples in [t0 - window, t0), worked out here apart from HoldoutStart. */
+    private static double preStepMedian(EventDataset d, double window) {
+        double[] pre = new double[d.size()];
+        int n = 0;
+        for (int i = 0; i < d.size(); i++) if (d.valid[i] && d.t[i] >= d.t0 - window && d.t[i] < d.t0) pre[n++] = d.y[i];
+        Arrays.sort(pre, 0, n);
+        return n % 2 == 1 ? pre[n / 2] : 0.5 * (pre[n / 2 - 1] + pre[n / 2]);
+    }
+
+    private static int firstValid(EvidenceArtifact a) {
+        for (int i = 0; i < a.y.length; i++) if (a.mask[i] && Double.isFinite(a.y[i])) return i;
+        return -1;
+    }
+
+    /**
+     * CHG-211: the previous event ran 30 EU above this one. y_predict starts at that event's own pre-step level and the band is
+     * centred on it, without the training baseline's uncertainty; the check's numbers are those of the same holdout at this level.
+     */
+    @Test
+    public void yPredictStartsAtHoldoutLevel() {
+        ResponseEvaluator ev = new ResponseEvaluator(cfg());
+        ResponseEvaluator.Outcome first = ev.evaluate(inputTest(ResponseFitFixtures.EPOCH_MS, 1), ModelFamily.FOPDT, null, 0,
+                ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        EventDataset higher = shifted(first.holdoutCandidate, 30);
+        double level = preStepMedian(higher, cfg().preSupportS);
+        ResponseCapture.Closed event = inputTest(ResponseFitFixtures.EPOCH_MS + 1_000_000, 2);
+        ResponseEvaluator.Outcome second = ev.evaluate(event, ModelFamily.FOPDT, higher, first.holdoutU0, ControllerSnapshot.unknown(), 0,
+                "LIVE", "", 0);
+        EvidenceArtifact predict = kind(second, "y_predict"), band = kind(second, "prediction_interval");
+        assertNotNull(predict);
+        assertNotNull(band);
+        int start = firstValid(predict);
+        assertTrue(start >= 0);
+        assertEquals("y_predict starts at the holdout's pre-step level " + level + ", not this event's", level, predict.y[start], 0.1);
+        assertEquals("HOLDOUT_PRE_STEP_LEVEL", predict.provenance.get("holdout_start"));
+        double[] lower = band.columns.get("lower");
+        for (int i = 0; i < predict.y.length; i++) {
+            if (!predict.mask[i] || !Double.isFinite(predict.y[i])) continue;
+            assertEquals("the band is centred on y_predict at " + i, predict.y[i], 0.5 * (band.y[i] + lower[i]), 1e-9);
+        }
+        assertFalse("the training level is not used: nor is its uncertainty",
+                Arrays.asList(((String) band.provenance.get("parameters")).split(";")).contains("baseline"));
+
+        // the same holdout at this event's level: y_predict moves with it, the check does not change
+        ResponseEvaluator.Outcome same = ev.evaluate(event, ModelFamily.FOPDT, first.holdoutCandidate, first.holdoutU0,
+                ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        assertEquals(same.result.subgates.get("E").outputs.get("verdict"), second.result.subgates.get("E").outputs.get("verdict"));
+        assertEquals(same.result.subgates.get("E").outputs.get("reason"), second.result.subgates.get("E").outputs.get("reason"));
+        for (String q : new String[] {"validation_rmse", "prediction_rmse", "fit_improvement", "residual_bias"}) {
+            assertEquals(q, same.result.metrics.get(q).value, second.result.metrics.get(q).value, 1e-9);
+        }
+        EvidenceArtifact samePredict = kind(same, "y_predict");
+        for (int i = 0; i < predict.y.length; i++) {
+            if (predict.mask[i] && Double.isFinite(predict.y[i])) assertEquals("at " + i, samePredict.y[i] + 30, predict.y[i], 1e-9);
+        }
+    }
+
+    /** CHG-211 fallback: the previous event kept no valid pre-step sample - the replay starts at the training fit's level, as before. */
+    @Test
+    public void holdoutWithoutPreStepKeepsTheTrainingStart() {
+        ResponseEvaluator ev = new ResponseEvaluator(cfg());
+        ResponseEvaluator.Outcome first = ev.evaluate(inputTest(ResponseFitFixtures.EPOCH_MS, 1), ModelFamily.FOPDT, null, 0,
+                ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        EventDataset h = first.holdoutCandidate;
+        boolean[] valid = h.valid.clone();
+        for (int i = 0; i < valid.length; i++) if (h.t[i] < h.t0) valid[i] = false;
+        EventDataset noPreStep = new EventDataset(h.t, h.y, h.r, h.u, valid, h.t0, h.tEnd);
+        ResponseEvaluator.Outcome second = ev.evaluate(inputTest(ResponseFitFixtures.EPOCH_MS + 1_000_000, 2), ModelFamily.FOPDT, noPreStep,
+                first.holdoutU0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0);
+        assertEquals("TRAINING_LEVEL", kind(second, "y_predict").provenance.get("holdout_start"));
+        EvidenceArtifact band = kind(second, "prediction_interval");
+        assertNotNull(band);
+        assertTrue("the training level's uncertainty stays in the band",
+                Arrays.asList(((String) band.provenance.get("parameters")).split(";")).contains("baseline"));
+    }
 }

@@ -11,6 +11,7 @@ import org.apache.commons.math3.distribution.ChiSquaredDistribution;
  * prediction RMSE reported separately, fit improvement against the named constant-baseline model,
  * residual bias, Ljung-Box whiteness (lags 1..10), residual-vs-PAST-input correlation (positive
  * lags only - the declared convention; feedback correlates residuals with FUTURE inputs), AICc.
+ * CHG-211: the free run and the constant baseline start at the holdout's own pre-step level ({@link HoldoutStart}).
  */
 public final class ModelValidator {
     public static final String METHOD = "HOLDOUT_FREE_RUN_V1";
@@ -46,6 +47,15 @@ public final class ModelValidator {
 
     private ModelValidator() {}
 
+    /**
+     * CHG-211: the check as the evaluator runs it - the free run of m on the holdout AND the flat-line baseline both start at
+     * start (the holdout's own pre-step level, else the training fit's level and drift; see {@link HoldoutStart}).
+     */
+    public static Report validate(ProcessModel m, HoldoutStart start, EventDataset h, double u0, double noiseFloorEu, double maxBridgeS) {
+        return validate(m, start.y0, start.v0, h, u0, noiseFloorEu, maxBridgeS);
+    }
+
+    /** The check from a caller-chosen start: the free run from y0 with drift v0, the named baseline the constant y0. */
     public static Report validate(ProcessModel m, double y0, double v0, EventDataset h, double u0, double noiseFloorEu, double maxBridgeS) {
         ZohSimulator.Result sim = ZohSimulator.simulate(m, h.t, h.u, u0, y0, v0, h.t0, maxBridgeS);
         int n = 0;

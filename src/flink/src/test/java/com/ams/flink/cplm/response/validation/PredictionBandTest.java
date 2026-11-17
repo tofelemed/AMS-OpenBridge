@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -260,5 +261,39 @@ public class PredictionBandTest {
         for (int i = 0; i < h.size(); i++) if (h.t[i] - h.t0 == 3) onset = i;    // between theta - h (1.5 s) and theta (4 s)
         assertTrue("the delay's half-width widens the onset", halfWidth(r, onset) > halfWidth(withoutDelay, onset));
         assertArrayEquals("the same centre", withoutDelay.predict, r.predict, 0);
+    }
+
+    /**
+     * CHG-211: a band started at the holdout's own pre-step level does not use the training fit's level or drift, so their
+     * standard errors stay out; on the fallback (the training level) they stay in, with the numbers of the y0 / v0 form.
+     */
+    @Test
+    public void theHoldoutStartLeavesTheTrainingBaselineOut() {
+        EventDataset h = holdout(39);
+        Map<String, Double> se = new LinkedHashMap<>();
+        se.put("process_gain", 0.05 * TRUTH.gain);
+        se.put("baseline", 0.2);
+        se.put("baseline_slope", 0.001);
+        se.put("time_constant", 0.05 * TRUTH.tau);
+        HoldoutStart own = HoldoutStart.of(h, 60, 70, 0.01);                 // 20 pre-step samples around 100
+        assertTrue(own.fromHoldout);
+        PredictionBand.Result r = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, own, 60);
+        assertFiniteAndOrdered(r, h);
+        assertEquals(Arrays.asList("process_gain", "time_constant"), r.parameters);
+        assertArrayEquals("centred on the free run from the holdout's level, no drift",
+                ZohSimulator.simulate(TRUTH, h.t, h.u, 40, own.y0, 0, h.t0, 60).yHat, r.predict, 0);
+        for (int i = 0; i < h.size() && h.t[i] - h.t0 <= 3; i++) {
+            assertEquals("before the dead time only the noise, t " + h.t[i], 1.96 * SIGMA, halfWidth(r, i), 1e-9);
+        }
+
+        HoldoutStart fallback = HoldoutStart.of(h, 0, 100, 0);              // no window: the training level
+        assertFalse(fallback.fromHoldout);
+        PredictionBand.Result viaStart = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, fallback, 60);
+        PredictionBand.Result viaLevel = PredictionBand.compute(TRUTH, se, Double.NaN, SIGMA, h, 40, 100, 0, 60);
+        assertEquals(Arrays.asList("process_gain", "baseline", "baseline_slope", "time_constant"), viaStart.parameters);
+        assertEquals(viaLevel.parameters, viaStart.parameters);
+        assertArrayEquals(viaLevel.predict, viaStart.predict, 0);
+        assertArrayEquals(viaLevel.lower, viaStart.lower, 0);
+        assertArrayEquals(viaLevel.upper, viaStart.upper, 0);
     }
 }

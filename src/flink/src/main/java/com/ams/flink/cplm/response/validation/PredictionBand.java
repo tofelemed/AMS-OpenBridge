@@ -22,6 +22,10 @@ import java.util.Map;
  * {@link ProcessModel#withParameter}, and the fitted baseline ("baseline", y0) and drift ("baseline_slope", v0), which ride the
  * same map. A missing or non-finite standard error, or a name this model does not have, is skipped.
  *
+ * <p>CHG-211, the start ({@link HoldoutStart}): the free run starts at the holdout's own pre-step level, with no drift; the
+ * training fit's level and drift are then not used, so "baseline" and "baseline_slope" are not perturbed either. On the fallback
+ * start (the training level: fewer than 3 valid pre-step samples on the holdout) they are, as before CHG-211.
+ *
  * <p>Dead time: no estimator gives it a standard error - it is profiled, and its uncertainty is the delay profile's half-width
  * h (EstimationResult.Candidate.thetaUncertaintyS). When the map has no finite "dead_time" entry and h > 0, h is treated as the
  * half-width of a rectangular interval (GUM type B: u = h / sqrt 3) and g is the SECANT over theta+ = theta + h,
@@ -91,23 +95,29 @@ public final class PredictionBand {
         return Math.sqrt(sse / Math.max(1, n - parameters));
     }
 
-    /** The band around its own free run of the model, without a deadline. */
+    /** The band from the training fit's level y0 and drift v0 ({@link HoldoutStart#trainingLevel}), without a deadline. */
     public static Result compute(ProcessModel model, Map<String, Double> stdErr, double thetaHalfWidthS, double residualSigma,
                                  EventDataset holdout, double u0, double y0, double v0, double maxGapS) {
-        ZohSimulator.Result nominal = ZohSimulator.simulate(model, holdout.t, holdout.u, u0, y0, v0, holdout.t0, maxGapS);
-        return compute(model, stdErr, thetaHalfWidthS, residualSigma, holdout, u0, y0, v0, maxGapS, nominal, 0);
+        return compute(model, stdErr, thetaHalfWidthS, residualSigma, holdout, u0, HoldoutStart.trainingLevel(y0, v0), maxGapS);
+    }
+
+    /** The band around its own free run of the model from start, without a deadline. */
+    public static Result compute(ProcessModel model, Map<String, Double> stdErr, double thetaHalfWidthS, double residualSigma,
+                                 EventDataset holdout, double u0, HoldoutStart start, double maxGapS) {
+        ZohSimulator.Result nominal = ZohSimulator.simulate(model, holdout.t, holdout.u, u0, start.y0, start.v0, holdout.t0, maxGapS);
+        return compute(model, stdErr, thetaHalfWidthS, residualSigma, holdout, u0, start, maxGapS, nominal, 0);
     }
 
     /**
-     * The band around nominal - the caller's free run of the model on the holdout with these arguments (y_predict) - with every
+     * The band around nominal - the caller's free run of the model on the holdout from start (y_predict) - with every
      * perturbed simulation under deadlineNanos (System.nanoTime() scale, 0 = none; {@link FitBudgetExceeded} once it passes).
      * thetaHalfWidthS: the delay profile's half-width (NaN or <= 0 = none). A non-finite residualSigma counts as none (the band
      * is then the parameter part alone, still finite).
      */
     public static Result compute(ProcessModel model, Map<String, Double> stdErr, double thetaHalfWidthS, double residualSigma,
-                                 EventDataset holdout, double u0, double y0, double v0, double maxGapS,
+                                 EventDataset holdout, double u0, HoldoutStart start, double maxGapS,
                                  ZohSimulator.Result nominal, long deadlineNanos) {
-        Runs runs = new Runs(holdout, u0, y0, v0, maxGapS, deadlineNanos);
+        Runs runs = new Runs(holdout, u0, start.y0, start.v0, maxGapS, deadlineNanos);
         double[] predict = nominal.yHat;
         int n = predict.length;
         double[] var = new double[n];
@@ -116,6 +126,7 @@ public final class PredictionBand {
             for (Map.Entry<String, Double> e : stdErr.entrySet()) {
                 Double se = e.getValue();
                 if (se == null || !Double.isFinite(se)) continue;                  // a missing standard error is skipped
+                if (start.fromHoldout && isTrainingStart(e.getKey())) continue;     // CHG-211: the fitted level is not where the run starts
                 double[] g = sensitivity(e.getKey(), model, runs, predict);
                 if (g == null) continue;                                           // not a parameter of this model
                 add(var, g, se * se);
@@ -150,6 +161,11 @@ public final class PredictionBand {
             }
         }
         return new Result(predict, lower, upper, counted == 0 ? Double.NaN : (double) inside / counted, used, halfWidthUsed);
+    }
+
+    /** The training fit's level and drift: they move the run only when it starts from them (the fallback start). */
+    private static boolean isTrainingStart(String name) {
+        return BASELINE.equals(name) || BASELINE_SLOPE.equals(name);
     }
 
     private static void add(double[] var, double[] g, double uSquared) {

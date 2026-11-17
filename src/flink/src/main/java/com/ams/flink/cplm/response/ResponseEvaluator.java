@@ -20,6 +20,7 @@ import com.ams.flink.cplm.response.model.ModelFamily;
 import com.ams.flink.cplm.response.model.ProcessModel;
 import com.ams.flink.cplm.response.model.Quantity;
 import com.ams.flink.cplm.response.simulation.ZohSimulator;
+import com.ams.flink.cplm.response.validation.HoldoutStart;
 import com.ams.flink.cplm.response.validation.ModelValidator;
 import com.ams.flink.cplm.response.validation.PredictionBand;
 
@@ -209,10 +210,14 @@ public final class ResponseEvaluator implements Serializable {
         // E - validation on the PRIOR event (independent support); this event becomes the next holdout
         G12Result.Subgate e = g.subgates.get("E");
         ModelValidator.Report report = null;
+        HoldoutStart start = null;
         boolean validated = false;
         if (est != null && est.best() != null && priorHoldout != null) {
             EstimationResult.Candidate best = est.best();
-            report = ModelValidator.validate(best.model, best.y0, best.v0, priorHoldout, priorU0, ResponseScale.of(cfg).noiseFloorEu(Double.NaN), cfg.maxGapS);
+            // CHG-211: the prior event is replayed from its OWN pre-step level (else this fit's y0 / v0) - the check, its flat
+            // baseline, y_predict and the band all take this one start
+            start = HoldoutStart.of(priorHoldout, cfg.preSupportS, best.y0, best.v0);
+            report = ModelValidator.validate(best.model, start, priorHoldout, priorU0, ResponseScale.of(cfg).noiseFloorEu(Double.NaN), cfg.maxGapS);
             g.put(report.validationRmse);
             g.put(report.predictionRmse);
             g.put(report.fitImprovement);
@@ -292,7 +297,7 @@ public final class ResponseEvaluator implements Serializable {
         List<EvidenceArtifact> artifacts = ResponseEvidenceWriter.artifacts(g.methodRunId, c.event, c.data, fit,
                 null, null, null, y0, c.r1, times, residuals, resAcf, est, freq, rejections);
         if (report != null && priorHoldout != null && est != null && est.best() != null) {
-            artifacts.addAll(modelCheckEvidence(g.methodRunId, c.event.pathId, est.best(), residuals, priorHoldout, priorU0));
+            artifacts.addAll(modelCheckEvidence(g.methodRunId, c.event.pathId, est.best(), residuals, priorHoldout, priorU0, start));
         }
         EventDataset holdout = !censored && c.uAppliedAvailable ? c.data : null;
         return new Outcome(g, artifacts, holdout, c.u0);
@@ -303,20 +308,22 @@ public final class ResponseEvaluator implements Serializable {
      * prediction band on the same times: the parameter standard errors, the delay profile's half-width and the training fit's
      * free-run residual noise. The band is best effort: it runs after y_predict, under its own deadline (bandBudgetMs); on any
      * failure or overrun no band artifact is written and y_predict records why. A cancel is re-thrown, as in the fit.
+     * CHG-211: both start where the model check started (start); y_predict records which level that was ("holdout_start").
      */
     private List<EvidenceArtifact> modelCheckEvidence(String methodRunId, String pathId, EstimationResult.Candidate best, double[] residuals,
-                                                      EventDataset holdout, double holdoutU0) {
+                                                      EventDataset holdout, double holdoutU0, HoldoutStart start) {
         List<EvidenceArtifact> out = new ArrayList<>();
-        ZohSimulator.Result nominal = ZohSimulator.simulate(best.model, holdout.t, holdout.u, holdoutU0, best.y0, best.v0, holdout.t0, cfg.maxGapS);
+        ZohSimulator.Result nominal = ZohSimulator.simulate(best.model, holdout.t, holdout.u, holdoutU0, start.y0, start.v0, holdout.t0, cfg.maxGapS);
         EvidenceArtifact predict = EvidenceArtifact.series(methodRunId, "G12", "y_predict", pathId, "time", "s", "pv_predict_holdout", "PV_EU",
                 holdout.t, nominal.yHat, holdout.valid);
+        predict.provenance.put("holdout_start", start.provenance());
         out.add(predict);
         try {
             long deadline = System.nanoTime() + bandBudgetMs * 1_000_000L;
             // a free-run band takes its noise from the free-run residuals (a PEM objective is the one-step innovation SSE)
             double sigma = PredictionBand.noiseSigma(residuals, best.stdErr.size(), best.objective, best.samples);
             PredictionBand.Result band = PredictionBand.compute(best.model, best.stdErr, best.thetaUncertaintyS, sigma, holdout, holdoutU0,
-                    best.y0, best.v0, cfg.maxGapS, nominal, deadline == 0 ? 1 : deadline);
+                    start, cfg.maxGapS, nominal, deadline == 0 ? 1 : deadline);
             EvidenceArtifact pi = ResponseEvidenceWriter.predictionInterval(methodRunId, pathId, holdout.t, band.lower, band.upper);
             pi.provenance.put("coverage", band.coverage);
             pi.provenance.put("residual_sigma", sigma);
