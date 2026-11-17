@@ -119,8 +119,8 @@ public final class CplmResponseAnalysisJob {
             String hash = s.resolvedProfile == null ? null : s.resolvedProfile.bundleHash;
             String currentHash = current == null ? null : current.config().governingBundleHash;
             boolean sameBundle = hash == null ? currentHash == null : hash.equals(currentHash);
-            // the ranges are compared on a plain copy, so the bundle is applied only when a capture is replaced
-            if (current != null && sameBundle && current.config().sameRanges(cfg.withProfileRanges(s.resolvedProfile))) return current;
+            // no copy per sample: the span is compared directly; the settings are built only when a capture is replaced
+            if (current != null && sameBundle && current.config().samePvSpan(ResponseJobConfig.declaredPvSpan(s.resolvedProfile))) return current;
             ResponseJobConfig settings = (hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues))
                     .withProfileRanges(s.resolvedProfile);
             return new ResponseCapture(s.loopId, settings);
@@ -128,7 +128,10 @@ public final class CplmResponseAnalysisJob {
 
         /** One evaluator per distinct settings: the bundle (or the job defaults) and every range withProfileRanges sets. */
         ResponseEvaluator evaluatorFor(ResponseJobConfig settings) {
-            if (settings.governingBundleHash == null && Double.isNaN(settings.pvSpanEu)) return evaluator;
+            if (settings.governingBundleHash == null && Double.isNaN(settings.pvSpanEu)) {
+                if (evaluator == null) evaluator = new ResponseEvaluator(cfg);          // open() builds it; lazily outside the runtime
+                return evaluator;
+            }
             if (bundleEvaluators == null) bundleEvaluators = new java.util.HashMap<>();
             return bundleEvaluators.computeIfAbsent(settings.governingBundleHash + "|" + settings.pvSpanEu, h -> new ResponseEvaluator(settings));
         }

@@ -54,7 +54,7 @@ public final class ResponseJobConfig implements Serializable {
      * Set per loop by {@link #withProfileRanges}; the PV-side tolerances scale with it through {@link ResponseScale}.
      */
     public double pvSpanEu = Double.NaN;
-    /** CHG-204: the settle band is at least this multiple of the PV range before the step (the loop's normal noise band). */
+    /** CHG-204: the settle band is at least this multiple of the loop's normal noise band before the step (4 x its noise sigma). */
     public double settleNoiseMultiplier = 1.5;
     /** CHG-204: the PV-unit properties ({@link ResponseScale#BUNDLE_EU_KEYS}) the governing bundle set - in loop units, never scaled. */
     public java.util.Set<String> bundleEuKeys = new java.util.HashSet<>();
@@ -113,14 +113,25 @@ public final class ResponseJobConfig implements Serializable {
     public ResponseJobConfig withProfileRanges(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
         ResponseJobConfig c = copy();
         if (p == null) return c;
-        double span = p.pvEngMax - p.pvEngMin;
-        c.pvSpanEu = p.pvRangeDeclared && Double.isFinite(span) && span > 0 ? span : Double.NaN;
+        c.pvSpanEu = declaredPvSpan(p);
         return c;
     }
 
-    /** CHG-204: true when both settings carry the same loop ranges (NaN equals NaN: both undeclared). */
+    /** CHG-204: the profile's usable declared PV span (EU) - the rule withProfileRanges applies - else NaN (also for no profile). */
+    public static double declaredPvSpan(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        if (p == null || !p.pvRangeDeclared) return Double.NaN;
+        double span = p.pvEngMax - p.pvEngMin;
+        return Double.isFinite(span) && span > 0 ? span : Double.NaN;
+    }
+
+    /** CHG-204: true when these settings carry this PV span (NaN equals NaN: both undeclared). */
+    public boolean samePvSpan(double spanEu) {
+        return Double.compare(pvSpanEu, spanEu) == 0;
+    }
+
+    /** CHG-204: true when both settings carry the same loop ranges. */
     public boolean sameRanges(ResponseJobConfig other) {
-        return other != null && Double.compare(pvSpanEu, other.pvSpanEu) == 0;
+        return other != null && samePvSpan(other.pvSpanEu);
     }
 
     public ResponseJobConfig copy() {

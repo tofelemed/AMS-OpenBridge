@@ -197,6 +197,7 @@ public final class ResponseCapture implements Serializable {
         String pathId = InputPathResolver.resolve(commandPath, vpMapped, false).path.name();
         ResponseEvent next = new ResponseEvent(ResponseEvent.idFor(loopId, (long) (t0 * 1000), type, bundleHash), loopId, type, pathId,
                 t0 * 1000, level, changeValue, Collections.singletonList(new double[] {t0 * 1000, changeValue}));
+        next.preNoiseSigmaEu = open.preNoiseSigmaEu;                             // CHG-204: the noise before the chain's FIRST step
         lastEventT0 = t0;
         changeSinceS = Double.NaN;
         machine.onCandidate(next, nowS);                                          // censors the open one (SUPERSEDED_BY_EVENT) and opens the merged next
@@ -234,6 +235,7 @@ public final class ResponseCapture implements Serializable {
         double post = isReference ? sp[c.index] : u[c.index];
         ResponseEvent e = new ResponseEvent(ResponseEvent.idFor(loopId, (long) (t0 * 1000), type, bundleHash), loopId, type, pathId,
                 t0 * 1000, pre, post, Collections.singletonList(new double[] {t0 * 1000, post}));
+        e.preNoiseSigmaEu = preNoiseSigma(t0);                                   // CHG-204: measured once, here
         lastEventT0 = t0;
         vpMappedAtCapture = vpMapped;
         machine.onCandidate(e, t0);
@@ -245,8 +247,9 @@ public final class ResponseCapture implements Serializable {
      * stableBandEu over tailDwellS, spec §2.5 endpoints) AND inside the settle band around that endpoint for the
      * whole tail dwell - the same B_resp = max(abs, rel x |dy|, noise floor) the metric uses. Closing on the range
      * test alone left settle_response right-censored on captures the job itself had declared settled (lab, 2B).
-     * CHG-204: both bands are in the loop's units and widen to its pre-step noise band (ResponseScale); the metric
-     * (ResponseEvaluator) reads that band from the same pre-step samples, so the two still agree.
+     * CHG-204: both bands are in the loop's units and widen to its pre-step noise band (ResponseScale) from the
+     * noise sigma stored on the event at detection; the metric (ResponseEvaluator) reads the same stored value for
+     * its settle, baseline and endpoint bands, so the job's settle decision and settle_response use the same band.
      */
     private boolean settled(double nowS) {
         ResponseEvent e = machine.open();
@@ -267,16 +270,13 @@ public final class ResponseCapture implements Serializable {
             min = Math.min(min, v);
             max = Math.max(max, v);
         }
-        List<double[]> preRows = new ArrayList<>();
-        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0) preRows.add(row);
-        double preRange = preStepRange(preRows, t0);
         ResponseScale scale = ResponseScale.of(cfg);
-        if (max - min > scale.stableBandEu(preRange)) return false;
+        if (max - min > scale.stableBandEu(e.preNoiseSigmaEu)) return false;
         double yss = median(tail);
         List<Double> pre = new ArrayList<>();
-        for (double[] row : preRows) if (row[4] > 0) pre.add(row[1]);
+        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0 && row[4] > 0) pre.add(row[1]);
         double dy = pre.size() >= 3 ? yss - median(pre) : 0;
-        double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(scale.absSettlingBandEu(), cfg.relSettlingBand, dy, scale.noiseFloorEu(preRange));
+        double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(scale.absSettlingBandEu(), cfg.relSettlingBand, dy, scale.noiseFloorEu(e.preNoiseSigmaEu));
         // the settle dwell is measured from the band ENTRY - the earliest sample from which every later sample is
         // in band - exactly as the metric measures it; "every sample inside the trailing window is in band" is
         // weaker when the window's start falls between samples (lab: entry 4.3 s inside the window -> censored)
@@ -291,8 +291,10 @@ public final class ResponseCapture implements Serializable {
         return !Double.isNaN(entry) && nowS - entry >= cfg.tailDwellS;
     }
 
-    /** CHG-204: the PV range before t0 on the samples the event dataset counts valid (good, AUTO), as the metric reads it. */
-    private double preStepRange(List<double[]> rows, double t0) {
+    /** CHG-204: the PV noise sigma before t0 on the samples the event dataset counts valid (good, AUTO), as the metric would read it. */
+    private double preNoiseSigma(double t0) {
+        List<double[]> rows = new ArrayList<>();
+        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0) rows.add(row);
         int m = rows.size();
         double[] t = new double[m], y = new double[m];
         boolean[] v = new boolean[m];
@@ -302,7 +304,7 @@ public final class ResponseCapture implements Serializable {
             y[i] = row[1];
             v[i] = row[4] > 0 && row[5] > 0;
         }
-        return ResponseScale.preStepRange(t, y, v, t0, cfg.preSupportS);
+        return ResponseScale.preStepNoiseSigma(t, y, v, t0, cfg.preSupportS);
     }
 
     private static double median(List<Double> vals) {

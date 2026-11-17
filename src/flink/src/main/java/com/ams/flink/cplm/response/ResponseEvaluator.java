@@ -128,7 +128,7 @@ public final class ResponseEvaluator implements Serializable {
         }
 
         // C - observed response
-        ResponseMetricCalculator.Settings ms = metricSettings(c.data);
+        ResponseMetricCalculator.Settings ms = metricSettings(c.event.preNoiseSigmaEu);
         Map<String, Quantity> observed = ResponseMetricCalculator.compute(c.data, c.r0, c.r1, c.duApplied, ms);
         for (Quantity q : observed.values()) g.put(q);
         g.subgates.get("C").state = "EVALUATED";
@@ -295,20 +295,19 @@ public final class ResponseEvaluator implements Serializable {
     }
 
     /**
-     * CHG-204: the PV-side bands in the loop's units (ResponseScale), widened by the noise band of the event's own
-     * pre-step samples - the window and samples ResponseCapture.settled() uses - so settle_response and the stable
-     * endpoint agree with the capture's settled decision.
+     * CHG-204: the PV-side bands in the loop's units (ResponseScale), widened by the noise sigma stored on the event
+     * at detection (never recomputed here) - the value ResponseCapture.settled() uses - so settle_response and the
+     * stable baseline and endpoint use the band of the capture's settled decision.
      */
-    private ResponseMetricCalculator.Settings metricSettings(EventDataset d) {
+    private ResponseMetricCalculator.Settings metricSettings(double noiseSigmaEu) {
         ResponseScale scale = ResponseScale.of(cfg);
-        double preRange = ResponseScale.preStepRange(d.t, d.y, d.valid, d.t0, cfg.preSupportS);
         ResponseMetricCalculator.Settings s = new ResponseMetricCalculator.Settings();
         s.preSupportS = cfg.preSupportS;
         s.tailDwellS = cfg.tailDwellS;
-        s.stableBandEu = scale.stableBandEu(preRange);
+        s.stableBandEu = scale.stableBandEu(noiseSigmaEu);
         s.absSettlingBandEu = scale.absSettlingBandEu();
         s.relSettlingBand = cfg.relSettlingBand;
-        s.noiseFloorEu = scale.noiseFloorEu(preRange);
+        s.noiseFloorEu = scale.noiseFloorEu(noiseSigmaEu);
         s.crossingDwellS = cfg.crossingDwellS;
         s.maxGapS = cfg.maxGapS;
         s.minResponseEu = scale.minResponseEu();

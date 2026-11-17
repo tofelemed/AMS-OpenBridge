@@ -13,6 +13,7 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -69,5 +70,19 @@ public class CplmResponseAnalysisJobTest {
         ResponseCapture next = fn.captureFor(withRange(0, 10), capture);
         assertNotSame("the new range takes over between events", capture, next);
         assertEquals(10.0, next.config().pvSpanEu, 0);
+    }
+
+    @Test
+    public void evaluatorPerDeclaredSpan() {
+        ResponseJobConfig job = new ResponseJobConfig();
+        CplmResponseAnalysisJob.ResponseProcessFunction fn = new CplmResponseAnalysisJob.ResponseProcessFunction(job, "LIVE", "");
+        ResponseEvaluator byDefault = fn.evaluatorFor(job.withProfileRanges(null));
+        ResponseEvaluator span6 = fn.evaluatorFor(fn.captureFor(withRange(0, 6), null).config());
+        ResponseEvaluator span10 = fn.evaluatorFor(fn.captureFor(withRange(0, 10), null).config());
+        assertNotNull(byDefault);
+        assertSame("no bundle, no range: the job-default evaluator", byDefault, fn.evaluatorFor(job));
+        assertNotSame("a declared span without a bundle is not judged by the default evaluator", byDefault, span6);
+        assertNotSame("two spans, two evaluators", span6, span10);
+        assertSame("one evaluator per span", span6, fn.evaluatorFor(fn.captureFor(withRange(0, 6), null).config()));
     }
 }

@@ -12,7 +12,7 @@ import static org.junit.Assert.assertTrue;
  * CHG-204 (spec item 3): the PV-side tolerances scale with the loop's declared PV span (k = span / 100), so a
  * 0-100 loop and a loop with no usable declared range keep today's values. A value a governing bundle set is
  * already in the loop's units and is never scaled. The settle band widens to the loop's pre-step noise band
- * when that is wider; with no pre-step support the noise term is left out.
+ * (4 robust sigmas) when that is wider; with no pre-step support the noise term is left out.
  */
 public class ResponseScaleTest {
     private static final double EPS = 1e-9;
@@ -79,10 +79,18 @@ public class ResponseScaleTest {
     }
 
     @Test
+    public void refStepFloorScalesTheJobArgs() {
+        ResponseJobConfig c = new ResponseJobConfig();
+        c.stepMinInputEu = 2.0;                                                 // the job argument g12-step-min-eu
+        assertEquals("undeclared: today's floor", 2.0, ResponseScale.of(c).refStepFloorEu(), EPS);
+        assertEquals("declared 0-6: the job's floor x k", 0.12, ResponseScale.of(c.withProfileRanges(range(0, 6))).refStepFloorEu(), EPS);
+    }
+
+    @Test
     public void noiseBandWidensSettle() {
         ResponseScale k = scale(0, 1800);
-        assertEquals(30.0, k.stableBandEu(20), EPS);                            // 1.5 x the pre-step range beats 0.5 % of span
-        assertEquals(15.0, k.noiseFloorEu(20), EPS);                            // half of it
+        assertEquals(30.0, k.stableBandEu(5), EPS);                             // 1.5 x the 4-sigma noise band beats 0.5 % of span
+        assertEquals(15.0, k.noiseFloorEu(5), EPS);                             // half of it
         assertEquals("a quiet pre-step leaves the scaled band", 9.0, k.stableBandEu(1), EPS);
     }
 
@@ -100,20 +108,42 @@ public class ResponseScaleTest {
     public void noPreStepSamplesIgnoresNoiseTerm() {
         double[] t = {100, 110}, y = {500, 520};
         boolean[] v = {true, true};
-        double pre = ResponseScale.preStepRange(t, y, v, 120, 60);
-        assertTrue("fewer than 3 valid samples: noise unknown", Double.isNaN(pre));
+        double sigma = ResponseScale.preStepNoiseSigma(t, y, v, 120, 60);
+        assertTrue("one difference: noise unknown", Double.isNaN(sigma));
         ResponseScale k = scale(0, 1800);
-        assertEquals(0.5 * 18, k.stableBandEu(pre), EPS);
-        assertEquals(0.05 * 18, k.noiseFloorEu(pre), EPS);
+        assertEquals(0.5 * 18, k.stableBandEu(sigma), EPS);
+        assertEquals(0.05 * 18, k.noiseFloorEu(sigma), EPS);
     }
 
     @Test
-    public void preStepRangeUsesValidSamplesInsideTheWindowOnly() {
-        double[] t = {10, 60, 70, 80, 90, 100, 120};
-        double[] y = {0, 500, 504, 900, 498, 501, 700};
-        boolean[] v = {true, true, true, false, true, true, true};
-        // window [60, 120): t = 10 is before it, t = 80 is invalid, t = 120 is the event instant itself
-        assertEquals(6.0, ResponseScale.preStepRange(t, y, v, 120, 60), EPS);
+    public void preStepNoiseSigmaUsesValidSamplesInsideTheWindowOnly() {
+        double[] t = {10, 60, 70, 80, 90, 100, 110, 120};
+        double[] y = {0, 500, 501, 900, 500, 501, 500, 700};
+        boolean[] v = {true, true, true, false, true, true, true, true};
+        // window [60, 120): t = 10 is before it, t = 80 is invalid, t = 120 is the event instant itself; the rest
+        // differ by +1 -1 +1 -1, so MAD = 1 (any excluded sample let in would change it)
+        assertEquals(1.0 / (0.6745 * Math.sqrt(2)), ResponseScale.preStepNoiseSigma(t, y, v, 120, 60), EPS);
+    }
+
+    @Test
+    public void preStepNoiseSigmaOfWhiteNoiseDriftAndRamp() {
+        int n = 200;
+        double[] t = new double[n], noise = new double[n], drift = new double[n], ramp = new double[n];
+        boolean[] v = new boolean[n];
+        java.util.Random rnd = new java.util.Random(4);
+        for (int i = 0; i < n; i++) {
+            t[i] = i;
+            v[i] = true;
+            noise[i] = 50 + rnd.nextGaussian();                                  // sigma 1.0
+            drift[i] = 50 + 0.05 * i;                                            // 10 EU of linear drift
+            ramp[i] = 50 + 20 * (1 - Math.exp(-i / 40.0));                       // a smooth transient spanning ~20 EU
+        }
+        double white = ResponseScale.preStepNoiseSigma(t, noise, v, n, n);
+        assertTrue("white noise sigma 1.0 -> " + white, white >= 0.85 && white <= 1.15);
+        assertTrue("a linear drift is not noise", ResponseScale.preStepNoiseSigma(t, drift, v, n, n) < 0.01);
+        assertTrue("a smooth transient is far below its range", ResponseScale.preStepNoiseSigma(t, ramp, v, n, n) < 0.2);
+        double[] three = {0, 1, 2};
+        assertTrue("2 differences: noise unknown", Double.isNaN(ResponseScale.preStepNoiseSigma(three, new double[] {5, 7, 4}, new boolean[] {true, true, true}, 3, 3)));
     }
 
     @Test

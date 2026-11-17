@@ -72,6 +72,7 @@ public final class CaptureStateMachine {
             if (!known) carried.add(change);
         }
         ResponseEvent merged = new ResponseEvent(next.eventId, next.loopId, next.type, next.pathId, next.t0Ms, next.preAmplitude, next.postAmplitude, carried);
+        merged.preNoiseSigmaEu = next.preNoiseSigmaEu;
         open = merged;
         merged.captureState = "CAPTURING";
         events.add(merged);

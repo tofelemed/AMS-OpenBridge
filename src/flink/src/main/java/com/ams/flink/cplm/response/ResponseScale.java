@@ -7,7 +7,9 @@ package com.ams.flink.cplm.response;
  * are not here: the applied input is already in %, so the input-step floor stays as configured. A value a governing
  * bundle set ({@link ResponseJobConfig#bundleEuKeys}) is already in the loop's units and is returned unscaled. The
  * settle band also widens to the loop's normal noise band before the step when that is wider (the spec's "or
- * within its normal noise band, if that is wider"), declared range or not; a NaN pre-step range contributes nothing.
+ * within its normal noise band, if that is wider"), declared range or not. The noise is a robust sigma of the
+ * pre-step PV ({@link #preStepNoiseSigma}), measured once per event, and its band is 4 sigma wide; a NaN sigma
+ * (too few pre-step samples) contributes nothing.
  */
 public final class ResponseScale {
     /** The bundle properties that are PV / gain quantities in the loop's own units. */
@@ -17,6 +19,10 @@ public final class ResponseScale {
     static final String[] BUNDLE_EU_KEYS = {STEP_MIN_INPUT_EU, SETTLING_ABS_BAND_PV_EU, GAIN_ABS_MAX};
     /** The span the job defaults are calibrated on (EU). */
     static final double REFERENCE_SPAN_EU = 100.0;
+    /** The width of the loop's normal noise band in noise sigmas (+-2 sigma). */
+    static final double NOISE_BAND_SIGMAS = 4.0;
+    /** MAD of a normal variable / its sigma; the differences of white noise have sigma x sqrt(2). */
+    private static final double MAD_PER_SIGMA = 0.6745;
 
     private final ResponseJobConfig cfg;
     private final boolean declared;
@@ -38,24 +44,30 @@ public final class ResponseScale {
     /** True when the loop declared a usable PV range (finite, positive span). */
     public boolean spanDeclared() { return declared; }
 
-    /** The reference (SP) step floor before the noise term (EU). */
+    /**
+     * The reference (SP) step floor before the noise term (EU): today's floor, scaled with the span when one is
+     * declared, so it stays proportional to whatever the job arguments set. A floor the bundle set is in loop units.
+     */
     public double refStepFloorEu() {
-        if (!declared) return Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.fallbackSpanEu);
-        double fromSpan = cfg.stepMinSpanFraction * cfg.pvSpanEu;
-        return bundleSet(STEP_MIN_INPUT_EU) ? Math.max(cfg.stepMinInputEu, fromSpan) : fromSpan;
+        double today = Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.fallbackSpanEu);
+        if (!declared) return today;
+        return bundleSet(STEP_MIN_INPUT_EU) ? Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.pvSpanEu) : today * k;
     }
 
     /** The slope a reference ramp must reach (EU/s). */
     public double rampMinSlopeEuPerS() { return cfg.rampMinSlopeEuPerS * k; }
 
-    /** The range the PV tail may span over the tail dwell to count as settled (EU); {@code preRangeEu} = the pre-step PV range. */
-    public double stableBandEu(double preRangeEu) {
-        return withNoise(cfg.stableBandEu * k, cfg.settleNoiseMultiplier * preRangeEu);
+    /**
+     * The range a stable window may span (EU): the settled tail, the baseline and the endpoint. {@code noiseSigmaEu}
+     * is the event's pre-step noise sigma ({@link com.ams.flink.cplm.response.event.ResponseEvent#preNoiseSigmaEu}).
+     */
+    public double stableBandEu(double noiseSigmaEu) {
+        return withNoise(cfg.stableBandEu * k, cfg.settleNoiseMultiplier * NOISE_BAND_SIGMAS * noiseSigmaEu);
     }
 
     /** The noise floor of the settle band B_resp (EU), widened to half the pre-step noise band. */
-    public double noiseFloorEu(double preRangeEu) {
-        return withNoise(cfg.noiseFloorEu * k, 0.5 * cfg.settleNoiseMultiplier * preRangeEu);
+    public double noiseFloorEu(double noiseSigmaEu) {
+        return withNoise(cfg.noiseFloorEu * k, 0.5 * cfg.settleNoiseMultiplier * NOISE_BAND_SIGMAS * noiseSigmaEu);
     }
 
     public double absSettlingBandEu() { return bundleSet(SETTLING_ABS_BAND_PV_EU) ? cfg.absSettlingBandEu : cfg.absSettlingBandEu * k; }
@@ -68,17 +80,32 @@ public final class ResponseScale {
     /** The process-gain bound for the estimator (PV EU per input %). */
     public double gainAbsMax() { return bundleSet(GAIN_ABS_MAX) ? cfg.gainAbsMax : cfg.gainAbsMax * k; }
 
-    /** max - min of the valid y in [t0S - windowS, t0S); NaN when fewer than 3 valid samples (the noise is then unknown). */
-    public static double preStepRange(double[] t, double[] y, boolean[] valid, double t0S, double windowS) {
-        double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
+    /**
+     * A robust noise sigma of the valid y in [t0S - windowS, t0S): MAD(dy) / (0.6745 x sqrt 2) over the differences
+     * of consecutive valid samples. White noise of sigma s gives s; a linear drift gives ~0 and a smooth transient far
+     * less than its range, so neither is read as noise. NaN when there are fewer than 3 differences (noise unknown).
+     */
+    public static double preStepNoiseSigma(double[] t, double[] y, boolean[] valid, double t0S, double windowS) {
+        double[] d = new double[t.length];
         int n = 0;
+        double prev = Double.NaN;
         for (int i = 0; i < t.length; i++) {
             if (t[i] < t0S - windowS || t[i] >= t0S || !valid[i] || !Double.isFinite(y[i])) continue;
-            min = Math.min(min, y[i]);
-            max = Math.max(max, y[i]);
-            n++;
+            if (!Double.isNaN(prev)) d[n++] = y[i] - prev;
+            prev = y[i];
         }
-        return n < 3 ? Double.NaN : max - min;
+        if (n < 3) return Double.NaN;
+        double[] diffs = java.util.Arrays.copyOf(d, n);
+        double med = median(diffs);
+        for (int i = 0; i < n; i++) diffs[i] = Math.abs(diffs[i] - med);
+        return median(diffs) / (MAD_PER_SIGMA * Math.sqrt(2.0));
+    }
+
+    /** The median; sorts {@code v} in place. */
+    private static double median(double[] v) {
+        java.util.Arrays.sort(v);
+        int n = v.length;
+        return n % 2 == 1 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
     }
 
     private boolean bundleSet(String key) {

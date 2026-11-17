@@ -20,6 +20,12 @@ public final class ResponseEvent implements Serializable {
     public final List<double[]> inputSequence;
     public String captureState = "CANDIDATE";
     public String censorReason = "";
+    /**
+     * CHG-204: the robust noise sigma of the valid PV before the FIRST step of this event's chain (EU), measured once
+     * at detection over the pre-support window; a superseding event inherits it, so an earlier step's transient is
+     * never read as noise. The settle decision and the metric bands both read it. NaN = unknown (no noise term).
+     */
+    public double preNoiseSigmaEu = Double.NaN;
 
     public ResponseEvent(String eventId, String loopId, EventType type, String pathId, double t0Ms,
                          double preAmplitude, double postAmplitude, List<double[]> inputSequence) {
