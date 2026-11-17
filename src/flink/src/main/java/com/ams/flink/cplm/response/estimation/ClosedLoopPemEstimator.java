@@ -92,7 +92,9 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             se.put("process_gain", t.gainSe);
             // CHG-210: every free run starts at the input baseline u0, so y0 is the PV level the model holds there
             double y0 = yRef - t.model.gain * (uRef - u0);
-            out.add(new EstimationResult.Candidate(t.model, y0, 0, t.objective, n, se, false, false, false, t.condition, ts * 0.5, new double[0], new double[0]));
+            // final review M5: the dead-time uncertainty is one grid step, not half - not below the known bias (about one step short
+            // on resampled jittered data, CHG-210, root cause open); back to ts / 2 only when that bias is fixed
+            out.add(new EstimationResult.Candidate(t.model, y0, 0, t.objective, n, se, false, false, false, t.condition, ts, new double[0], new double[0]));
             if (out.size() >= 3) break;
         }
         if (out.isEmpty()) return EstimationResult.none(EstimationResult.State.NOT_ESTIMATED, "NO_CONTINUOUS_EQUIVALENT");

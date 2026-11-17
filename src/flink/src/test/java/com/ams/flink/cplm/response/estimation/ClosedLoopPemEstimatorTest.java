@@ -154,6 +154,17 @@ public class ClosedLoopPemEstimatorTest {
         assertEquals("PEM_ARMAX_INNOVATION", new ClosedLoopPemEstimator().methodId());
     }
 
+    /** Final review M5 (CHG-210): the dead-time uncertainty is not below its known bias (about one grid step) until that bias is fixed. */
+    @Test
+    public void deadTimeUncertaintyIsOneGridStep() {
+        EstimatorSettings s = new EstimatorSettings();
+        s.delayGridS = 5;
+        s.thetaMaxS = 30;
+        EstimationResult res = new ClosedLoopPemEstimator().estimate(closedLoop(10.0, 0.2, 2, 400), 50, ModelFamily.FOPDT, s);
+        assertNotNull(res.state + " " + res.reason, res.best());
+        for (EstimationResult.Candidate c : res.candidates) assertEquals("the 5 s grid step", 5.0, c.thetaUncertaintyS, 0);
+    }
+
     @Test
     public void theRegistryRefusesEndpointRatiosOnClosedLoopData() {
         assertEquals("PEM_REQUIRED_FOR_CLOSED_LOOP", EstimatorRegistry.legality(InputPathResolver.Path.OP_TO_PV, EventType.ROUTINE_IDENTIFICATION, ModelFamily.FOPDT));
