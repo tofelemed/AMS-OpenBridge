@@ -59,6 +59,8 @@ public final class CplmLoopDynamicsProfile implements Serializable {
     public String calculationVersion = CALCULATION_VERSION;
     public String gateProfileId = "UNKNOWN";
     public DynamicClass dynamicClass = DynamicClass.FAST_SELF_REG;
+    /** True only when dynamicClass came from an EXPLICIT registry declaration (a person's), not a loop-type preset (CHG-208). */
+    public boolean dynamicClassDeclared = false;
     public ServiceObjective serviceObjective = ServiceObjective.TIGHT;
 
     public double tauMinS;
@@ -258,6 +260,7 @@ public final class CplmLoopDynamicsProfile implements Serializable {
         p.calculationVersion = calculationVersion;
         p.gateProfileId = gateProfileId;
         p.dynamicClass = dynamicClass;
+        p.dynamicClassDeclared = dynamicClassDeclared;
         p.serviceObjective = serviceObjective;
         p.g6SegmentSamples = g6SegmentSamples;
         p.g6OverlapFraction = g6OverlapFraction;

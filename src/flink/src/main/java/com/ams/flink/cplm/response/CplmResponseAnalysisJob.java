@@ -3,6 +3,7 @@ package com.ams.flink.cplm.response;
 import com.ams.flink.cplm.CplmIngestPipeline;
 import com.ams.flink.cplm.CplmJobConfig;
 import com.ams.flink.cplm.CplmKafkaSink;
+import com.ams.flink.cplm.CplmLoopDynamicsProfile;
 import com.ams.flink.cplm.CplmNormalizedSample;
 import com.ams.flink.cplm.contract.CplmTopics;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
@@ -175,8 +176,19 @@ public final class CplmResponseAnalysisJob {
             capture.update(c);
         }
 
-        /** Phase 2G replaces this with the registry's explicit dynamic class; until then the loop-type preset. */
+        /**
+         * CHG-208: the model family follows the loop's DECLARED process behaviour (a per-sample override, else an
+         * EXPLICIT registry class); a loop that declares none keeps the loop-type rule (LIC integrating, else FOPDT).
+         */
         static ModelFamily familyFor(CplmNormalizedSample s) {
+            if (s.dynamicClassOverride != null) {
+                CplmLoopDynamicsProfile.DynamicClass o = CplmLoopDynamicsProfile.DynamicClass.parse(s.dynamicClassOverride);
+                if (o != CplmLoopDynamicsProfile.DynamicClass.UNKNOWN) return o.integrating() ? ModelFamily.IPDT : ModelFamily.FOPDT;
+            }
+            CplmLoopDynamicsProfile p = s.resolvedProfile;
+            if (p != null && p.dynamicClassDeclared && p.dynamicClass != null) {
+                return p.dynamicClass.integrating() ? ModelFamily.IPDT : ModelFamily.FOPDT;
+            }
             String lt = s.loopType == null ? "" : s.loopType.toUpperCase();
             if (lt.startsWith("LIC")) return ModelFamily.IPDT;
             return ModelFamily.FOPDT;

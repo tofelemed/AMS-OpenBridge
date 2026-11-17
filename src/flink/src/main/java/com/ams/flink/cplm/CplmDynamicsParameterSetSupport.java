@@ -151,6 +151,7 @@ public final class CplmDynamicsParameterSetSupport implements Serializable {
                 if (dc != CplmLoopDynamicsProfile.DynamicClass.UNKNOWN) {
                     p.dynamicClass = dc;
                     p.integrating = dc.integrating();
+                    p.dynamicClassDeclared = true;
                 }
             }
             if (n.hasNonNull("objective_type")) {
