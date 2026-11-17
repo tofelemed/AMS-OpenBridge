@@ -58,6 +58,9 @@ public final class ResponseEvaluator implements Serializable {
 
     private final ResponseJobConfig cfg;
     private final String bundleHash;
+    /** CHG-209: the prediction band's wall-clock budget, apart from the fit's (ms); package-private so a test can force an overrun. */
+    long bandBudgetMs = BAND_BUDGET_MS;
+    static final long BAND_BUDGET_MS = 2_000;
 
     public ResponseEvaluator(ResponseJobConfig cfg) {
         this.cfg = cfg;
@@ -286,28 +289,47 @@ public final class ResponseEvaluator implements Serializable {
         }
         Map<String, Quantity> times = new java.util.LinkedHashMap<>();
         for (String k : new String[] {"t10", "t50", "t63", "t90"}) times.put(k, observed.get(k));
-        // y_predict is the model's free-run on the INDEPENDENT holdout (report != null); the fit on the training event is y_fit.
-        // CHG-209: its 95 % prediction band (parameter standard errors + the fit's residual noise) on the same holdout times.
-        PredictionBand.Result band = null;
-        double residualSigma = Double.NaN;
-        if (report != null && priorHoldout != null && est != null && est.best() != null) {
-            EstimationResult.Candidate best = est.best();
-            residualSigma = PredictionBand.residualSigma(best.objective, best.samples, best.stdErr.size());
-            band = PredictionBand.compute(best.model, best.stdErr, residualSigma, priorHoldout, priorU0, best.y0, best.v0, cfg.maxGapS);
-        }
         List<EvidenceArtifact> artifacts = ResponseEvidenceWriter.artifacts(g.methodRunId, c.event, c.data, fit,
                 null, null, null, y0, c.r1, times, residuals, resAcf, est, freq, rejections);
-        if (band != null) {
-            artifacts.add(EvidenceArtifact.series(g.methodRunId, "G12", "y_predict", c.event.pathId, "time", "s", "pv_predict_holdout", "PV_EU",
-                    priorHoldout.t, band.predict, priorHoldout.valid));
-            EvidenceArtifact pi = ResponseEvidenceWriter.predictionInterval(g.methodRunId, c.event.pathId, priorHoldout.t, band.lower, band.upper);
-            pi.provenance.put("coverage", band.coverage);
-            pi.provenance.put("residual_sigma", residualSigma);
-            pi.provenance.put("parameters", String.join(";", band.parameters));
-            artifacts.add(pi);
+        if (report != null && priorHoldout != null && est != null && est.best() != null) {
+            artifacts.addAll(modelCheckEvidence(g.methodRunId, c.event.pathId, est.best(), residuals, priorHoldout, priorU0));
         }
         EventDataset holdout = !censored && c.uAppliedAvailable ? c.data : null;
         return new Outcome(g, artifacts, holdout, c.u0);
+    }
+
+    /**
+     * y_predict - the model's free run on the INDEPENDENT holdout (the fit on the training event is y_fit) - then, CHG-209, its 95 %
+     * prediction band on the same times: the parameter standard errors, the delay profile's half-width and the training fit's
+     * free-run residual noise. The band is best effort: it runs after y_predict, under its own deadline (bandBudgetMs); on any
+     * failure or overrun no band artifact is written and y_predict records why. A cancel is re-thrown, as in the fit.
+     */
+    private List<EvidenceArtifact> modelCheckEvidence(String methodRunId, String pathId, EstimationResult.Candidate best, double[] residuals,
+                                                      EventDataset holdout, double holdoutU0) {
+        List<EvidenceArtifact> out = new ArrayList<>();
+        ZohSimulator.Result nominal = ZohSimulator.simulate(best.model, holdout.t, holdout.u, holdoutU0, best.y0, best.v0, holdout.t0, cfg.maxGapS);
+        EvidenceArtifact predict = EvidenceArtifact.series(methodRunId, "G12", "y_predict", pathId, "time", "s", "pv_predict_holdout", "PV_EU",
+                holdout.t, nominal.yHat, holdout.valid);
+        out.add(predict);
+        try {
+            long deadline = System.nanoTime() + bandBudgetMs * 1_000_000L;
+            // a free-run band takes its noise from the free-run residuals (a PEM objective is the one-step innovation SSE)
+            double sigma = PredictionBand.noiseSigma(residuals, best.stdErr.size(), best.objective, best.samples);
+            PredictionBand.Result band = PredictionBand.compute(best.model, best.stdErr, best.thetaUncertaintyS, sigma, holdout, holdoutU0,
+                    best.y0, best.v0, cfg.maxGapS, nominal, deadline == 0 ? 1 : deadline);
+            EvidenceArtifact pi = ResponseEvidenceWriter.predictionInterval(methodRunId, pathId, holdout.t, band.lower, band.upper);
+            pi.provenance.put("coverage", band.coverage);
+            pi.provenance.put("residual_sigma", sigma);
+            pi.provenance.put("parameters", String.join(";", band.parameters));
+            if (Double.isFinite(band.deadTimeHalfWidthS)) pi.provenance.put("dead_time_half_width_s", band.deadTimeHalfWidthS);
+            out.add(pi);
+        } catch (FitBudgetExceeded x) {
+            if (x.interrupted()) throw x;                                   // a cancel, not an overrun
+            predict.provenance.put("prediction_band", "NOT_COMPUTED:BUDGET_EXCEEDED");
+        } catch (RuntimeException x) {
+            predict.provenance.put("prediction_band", "NOT_COMPUTED:" + x.getClass().getSimpleName());
+        }
+        return out;
     }
 
     /**

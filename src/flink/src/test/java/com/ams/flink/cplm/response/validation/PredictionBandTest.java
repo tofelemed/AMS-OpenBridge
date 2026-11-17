@@ -3,6 +3,7 @@ package com.ams.flink.cplm.response.validation;
 import com.ams.flink.cplm.response.estimation.OutputErrorEstimatorTest;
 import com.ams.flink.cplm.response.metrics.EventDataset;
 import com.ams.flink.cplm.response.model.ProcessModel;
+import com.ams.flink.cplm.response.simulation.ZohSimulator;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -10,6 +11,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -18,6 +20,8 @@ import static org.junit.Assert.assertTrue;
  * parameter standard errors (linearised: central-difference sensitivities of the ZOH simulation) and the fit's residual noise.
  * A well-identified model's band holds the holdout; more parameter uncertainty widens it; without standard errors it is the
  * residual band +-1.96 sigma; the baseline's standard error widens every sample alike; invalid samples carry no band.
+ * Fix round 1: the delay profile's half-width h (thetaUncertaintyS) enters as a rectangular interval (u = h / sqrt 3) through
+ * the secant over [max(0, theta - h), theta + h]; the noise term comes from the training fit's free-run residuals.
  */
 public class PredictionBandTest {
     private static final ProcessModel TRUTH = ProcessModel.fopdt("OP_TO_PV", 3.0, 4.0, 20.0);
@@ -38,7 +42,20 @@ public class PredictionBandTest {
     }
 
     private static PredictionBand.Result band(Map<String, Double> se, double sigma, EventDataset h) {
-        return PredictionBand.compute(TRUTH, se, sigma, h, 40, 100, 0, 60);
+        return band(se, Double.NaN, sigma, h);
+    }
+
+    private static PredictionBand.Result band(Map<String, Double> se, double thetaHalfWidthS, double sigma, EventDataset h) {
+        return PredictionBand.compute(TRUTH, se, thetaHalfWidthS, sigma, h, 40, 100, 0, 60);
+    }
+
+    /** The free run of m on the holdout from the band's operating point (u0 40, y0 100, no drift). */
+    private static double[] freeRun(ProcessModel m, EventDataset h) {
+        return ZohSimulator.simulate(m, h.t, h.u, 40, 100, 0, h.t0, 60).yHat;
+    }
+
+    private static double halfWidth(PredictionBand.Result r, int i) {
+        return 0.5 * (r.upper[i] - r.lower[i]);
     }
 
     private static void assertFiniteAndOrdered(PredictionBand.Result r, EventDataset h) {
@@ -75,6 +92,12 @@ public class PredictionBandTest {
         // once the response is under way the gain and the time constant widen it
         int late = h.size() - 1;
         assertTrue(0.5 * (r.upper[late] - r.lower[late]) > 1.96 * SIGMA * 1.5);
+        // a finite dead-time standard error wins: the delay profile's half-width is then not added a second time
+        PredictionBand.Result withHalfWidth = band(relativeSe(0.05), 2.5, SIGMA, h);
+        assertEquals(r.parameters, withHalfWidth.parameters);
+        assertArrayEquals(r.upper, withHalfWidth.upper, 0);
+        assertArrayEquals(r.lower, withHalfWidth.lower, 0);
+        assertTrue(Double.isNaN(withHalfWidth.deadTimeHalfWidthS));
     }
 
     @Test
@@ -117,7 +140,7 @@ public class PredictionBandTest {
     public void theDriftStandardErrorGrowsWithTimeFromTheHoldoutStart() {
         ProcessModel ipdt = ProcessModel.ipdt("OP_TO_PV", 0.002, 4.0);
         EventDataset h = OutputErrorEstimatorTest.synthetic(ipdt, SIGMA, 35, 1, 200, 5);
-        PredictionBand.Result r = PredictionBand.compute(ipdt, Collections.singletonMap("baseline_slope", 0.001), SIGMA, h, 40, 100, 0, 60);
+        PredictionBand.Result r = PredictionBand.compute(ipdt, Collections.singletonMap("baseline_slope", 0.001), Double.NaN, SIGMA, h, 40, 100, 0, 60);
         for (int i = 0; i < h.size(); i++) {
             double g = h.t[i] - h.t0;                                // d yhat / d v0 = t - t0
             assertEquals("half-width at " + i, 1.96 * Math.sqrt(g * g * 1e-6 + SIGMA * SIGMA), 0.5 * (r.upper[i] - r.lower[i]), 1e-6);
@@ -155,5 +178,87 @@ public class PredictionBandTest {
         EventDataset h = holdout(37);
         PredictionBand.Result r = band(Collections.<String, Double>emptyMap(), Double.NaN, h);
         assertFiniteAndOrdered(r, h);
+    }
+
+    /** F2: the noise term of a free-run band is the training fit's free-run residual sigma; below 3 valid residuals, the objective formula. */
+    @Test
+    public void noiseSigmaUsesTheFreeRunResidualsAndFallsBackBelowThree() {
+        double[] residuals = {0.3, Double.NaN, -0.4, 0.5, Double.NaN, 0.1};     // NaN: the data or the fit was not valid there
+        double sse = 0.09 + 0.16 + 0.25 + 0.01;
+        assertEquals("over the 4 valid samples, 2 parameters", Math.sqrt(sse / 2), PredictionBand.noiseSigma(residuals, 2, 1e-6, 6), 1e-12);
+        assertEquals("never divides by fewer than one", Math.sqrt(sse), PredictionBand.noiseSigma(residuals, 5, 1e-6, 6), 1e-12);
+        double[] two = {0.3, Double.NaN, -0.4};
+        double objectiveFormula = PredictionBand.residualSigma(4.5, 48, 3);
+        assertEquals("fewer than 3 valid: the objective formula", objectiveFormula, PredictionBand.noiseSigma(two, 3, 4.5, 48), 1e-12);
+        assertEquals("no residuals: the objective formula", objectiveFormula, PredictionBand.noiseSigma(null, 3, 4.5, 48), 1e-12);
+    }
+
+    /** F1: FOPDT dead time 20 s, tau 30 s, no standard errors, h = 5 s: the band widens from theta - h on, by the secant term. */
+    @Test
+    public void deadTimeUncertaintyWidensTheOnset() {
+        ProcessModel m = ProcessModel.fopdt("OP_TO_PV", 2.0, 20.0, 30.0);
+        double sigma = 0.05, h = 5;
+        EventDataset d = OutputErrorEstimatorTest.synthetic(m, sigma, 41, 1, 200, 5);
+        PredictionBand.Result r = PredictionBand.compute(m, Collections.<String, Double>emptyMap(), h, sigma, d, 40, 100, 0, 60);
+        assertFiniteAndOrdered(r, d);
+        assertEquals(Collections.singletonList("dead_time"), r.parameters);
+        assertEquals(h, r.deadTimeHalfWidthS, 0);
+        double[] plus = freeRun(m.withParameter("dead_time", 25), d), minus = freeRun(m.withParameter("dead_time", 15), d);
+        int chosen = -1, inWindow = 0;
+        for (int i = 0; i < d.size(); i++) {
+            double s = d.t[i] - d.t0;                                          // time after the input step
+            if (s <= 15) assertEquals("before theta - h nothing moves, s " + s, 1.96 * sigma, halfWidth(r, i), 1e-12);
+            if (s > 15 && s < 55) {
+                assertTrue("wider than the residual band at s " + s + ": " + halfWidth(r, i), halfWidth(r, i) > 1.96 * sigma);
+                inWindow++;
+            }
+            if (s == 22) chosen = i;
+        }
+        assertTrue(inWindow > 30);
+        double delta = plus[chosen] - minus[chosen];
+        assertTrue("the two delays disagree at s 22", Math.abs(delta) > 1);
+        // u_theta = h / sqrt(3) and g = delta / (2 h), so g^2 u_theta^2 = delta^2 / 12
+        assertEquals(1.96 * Math.sqrt(sigma * sigma + delta * delta / 12), halfWidth(r, chosen), 1e-9);
+    }
+
+    /** F1: theta = 0 is common; the lower delay is clamped to 0 and the secant runs over [0, h]: g^2 h^2 / 3 = (yhat(h) - yhat(0))^2 / 3. */
+    @Test
+    public void deadTimeAtZeroUsesClampedSecant() {
+        ProcessModel m = ProcessModel.fopdt("OP_TO_PV", 2.0, 0.0, 30.0);
+        double sigma = 0.05, h = 5;
+        EventDataset d = OutputErrorEstimatorTest.synthetic(m, sigma, 42, 1, 200, 5);
+        PredictionBand.Result r = PredictionBand.compute(m, Collections.<String, Double>emptyMap(), h, sigma, d, 40, 100, 0, 60);
+        assertFiniteAndOrdered(r, d);
+        assertEquals(Collections.singletonList("dead_time"), r.parameters);
+        double[] plus = freeRun(m.withParameter("dead_time", h), d), zero = freeRun(m, d);
+        assertArrayEquals("theta minus = 0 is the nominal model", zero, r.predict, 0);
+        int wider = 0;
+        for (int i = 0; i < d.size(); i++) {
+            double delta = plus[i] - zero[i];
+            assertEquals("half-width at " + i, 1.96 * Math.sqrt(sigma * sigma + delta * delta / 3), halfWidth(r, i), 1e-9);
+            if (halfWidth(r, i) > 1.96 * sigma * 2) wider++;
+        }
+        assertTrue("the onset is wider than the residual band", wider > 0);
+    }
+
+    /** F1 with the production map (OutputErrorEstimator FOPDT: process_gain, time_constant, baseline) plus h. */
+    @Test
+    public void productionParameterMap() {
+        EventDataset h = holdout(38);
+        Map<String, Double> se = new LinkedHashMap<>();
+        se.put("process_gain", 0.05 * TRUTH.gain);
+        se.put("time_constant", 0.05 * TRUTH.tau);
+        se.put("baseline", 0.05);
+        PredictionBand.Result r = band(se, 2.5, SIGMA, h);
+        assertFiniteAndOrdered(r, h);
+        assertEquals(Arrays.asList("process_gain", "time_constant", "baseline", "dead_time"), r.parameters);
+        assertEquals(2.5, r.deadTimeHalfWidthS, 0);
+        assertTrue("coverage " + r.coverage, r.coverage >= 0 && r.coverage <= 1);
+        PredictionBand.Result withoutDelay = band(se, Double.NaN, SIGMA, h);
+        assertEquals(Arrays.asList("process_gain", "time_constant", "baseline"), withoutDelay.parameters);
+        int onset = -1;
+        for (int i = 0; i < h.size(); i++) if (h.t[i] - h.t0 == 3) onset = i;    // between theta - h (1.5 s) and theta (4 s)
+        assertTrue("the delay's half-width widens the onset", halfWidth(r, onset) > halfWidth(withoutDelay, onset));
+        assertArrayEquals("the same centre", withoutDelay.predict, r.predict, 0);
     }
 }
