@@ -127,20 +127,25 @@ public final class CplmResponseAnalysisJob {
             return new ResponseCapture(s.loopId, settings);
         }
 
-        /** One evaluator per distinct settings: the bundle (or the job defaults) and every range withProfileRanges sets. */
+        /**
+         * One evaluator per distinct settings. Final review I1 (CHG-204/207): keyed by the settings' own hash - the one the capture
+         * names its event with, which covers the OP range and the region too - so a result always names the settings that ran; the
+         * job-default evaluator only for settings with the job defaults' hash. The PV span stays in the key: under a governed bundle
+         * the hash is the bundle's and does not cover it, and the evaluator scales its bands with it.
+         */
         ResponseEvaluator evaluatorFor(ResponseJobConfig settings) {
-            if (settings.governingBundleHash == null && Double.isNaN(settings.pvSpanEu)) {
+            String hash = settings.bundleHash();
+            if (hash.equals(cfg.bundleHash())) {
                 if (evaluator == null) evaluator = new ResponseEvaluator(cfg);          // open() builds it; lazily outside the runtime
                 return evaluator;
             }
             if (bundleEvaluators == null) bundleEvaluators = new java.util.HashMap<>();
-            return bundleEvaluators.computeIfAbsent(settings.governingBundleHash + "|" + settings.pvSpanEu, h -> new ResponseEvaluator(settings));
+            return bundleEvaluators.computeIfAbsent(hash + "|" + settings.pvSpanEu, h -> new ResponseEvaluator(settings));
         }
 
         @Override
         public void processElement(CplmNormalizedSample s, Context ctx, Collector<String> out) throws Exception {
             ResponseCapture c = captureFor(s, capture.value());
-            ResponseEvaluator evaluator = evaluatorFor(c.config());
             ResponseJobConfig cfg = c.config();
             // VP is the applied input only while it is evidence: a held positioner value past vp_max_age_s
             // is not (spec §2.7) - presence alone froze u_applied on the lab and hid every OP step
@@ -160,6 +165,7 @@ public final class CplmResponseAnalysisJob {
             }
             if (c.droppedDuplicate > dup0) droppedDuplicate.inc(c.droppedDuplicate - dup0);
             if (c.droppedLate > late0) droppedLate.inc(c.droppedLate - late0);
+            ResponseEvaluator evaluator = closedNow.isEmpty() ? null : evaluatorFor(cfg);   // the settings hash only when a capture closed
             for (ResponseCapture.Closed closed : closedNow) {
                 ModelFamily family = familyFor(s);
                 ResponseEvaluator.Outcome o = evaluator.evaluate(closed, family, holdout.value(), holdoutU0.value() == null ? 0 : holdoutU0.value(),

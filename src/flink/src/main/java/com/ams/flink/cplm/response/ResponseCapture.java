@@ -156,7 +156,7 @@ public final class ResponseCapture implements Serializable {
         if (healthIneligible) return closed;
 
         if (machine.open() == null) {
-            if (auto && good) detect(vpMapped, tS);                              // no authority, no capture (spec §2.4)
+            if (auto && good) closed.addAll(detect(vpMapped, tS));               // no authority, no capture (spec §2.4)
         } else {
             // NR-007 (lab finding: the streaming capture never looked for a second step while one was open, so an interrupted
             // step read COMPLETE): a sustained change of the open event's driving signal supersedes it - the first event is
@@ -164,14 +164,13 @@ public final class ResponseCapture implements Serializable {
             // CHG-207: a valve sitting at its limit, or the PV outside its operating region, makes the event unmodellable
             String guard = guards.onSample(tS, uApplied, s.pv, good);
             if (guard != null) {
-                if ("ACTUATOR_CONSTRAINT".equals(guard)) machine.onActuatorConstraint(tS); else machine.onRegionExit(tS);
-                guards.reset();
-                closed.addAll(closeLast());
+                closed.addAll(censorByGuard(guard, tS));
                 return closed;
             }
             if (good && auto && supersedeOnChange(s.sp, uApplied, tS, vpMapped)) {
-                guards.reset();
                 closed.addAll(closeSuperseded());
+                closed.addAll(guardFromStep(lastEventT0));                       // the merged event from its own step (lastEventT0, just set)
+                if (machine.open() == null) return closed;
             }
             machine.onSample(tS);
             if (machine.state() == CaptureStateMachine.State.CENSORED) {
@@ -219,13 +218,13 @@ public final class ResponseCapture implements Serializable {
         return true;
     }
 
-    private void detect(boolean vpMapped, double nowS) {
+    private List<Closed> detect(boolean vpMapped, double nowS) {
         int n = ring.size();
-        if (n < 4) return;
+        if (n < 4) return Collections.emptyList();
         int from = 0;
         while (from < n - 1 && nowS - ring.get(from)[0] > cfg.preSupportS + cfg.eventDwellS) from++;
         int m = n - from;
-        if (m < 4) return;
+        if (m < 4) return Collections.emptyList();
         double[] t = new double[m], sp = new double[m], u = new double[m];
         boolean[] valid = new boolean[m];
         for (int i = 0; i < m; i++) {
@@ -240,7 +239,7 @@ public final class ResponseCapture implements Serializable {
         ResponseEventDetector.Candidate inp = ref == null ? ResponseEventDetector.detect(t, u, valid, inputDetectorSettings()) : null;
         if (inp != null && !Double.isNaN(lastEventT0) && t[inp.index] <= lastEventT0) inp = null;
         ResponseEventDetector.Candidate c = ref != null ? ref : inp;
-        if (c == null) return;
+        if (c == null) return Collections.emptyList();
         boolean isReference = ref != null;
         double t0 = t[c.index];
         EventType type = isReference ? (c.type == EventType.RAMP_TRACKING ? EventType.RAMP_TRACKING : EventType.SERVO_STEP)
@@ -253,9 +252,27 @@ public final class ResponseCapture implements Serializable {
         e.preNoiseSigmaEu = preNoiseSigma(t0);                                   // CHG-204: measured once, here
         lastEventT0 = t0;
         vpMappedAtCapture = vpMapped;
-        guards.reset();
         machine.onCandidate(e, t0);
-        machine.onSample(nowS);
+        List<Closed> censored = guardFromStep(t0);                                // the event opened eventDwellS after its step
+        machine.onSample(nowS);                                                   // a no-op when the replay closed it
+        return censored;
+    }
+
+    /**
+     * CHG-207 final review I2: the guards see the open event from its step t0, not from the sample that opened it (eventDwellS
+     * later): the ring from t0 is replayed through them; a guard met there censors and closes the event as a live sample would.
+     */
+    private List<Closed> guardFromStep(double t0) {
+        if (machine.open() == null) return Collections.emptyList();
+        EventGuards.Censor c = guards.replayFrom(ring, t0);
+        return c == null ? Collections.<Closed>emptyList() : censorByGuard(c.reason, c.atS);
+    }
+
+    /** CHG-207: a guard met at tS censors the open event (ACTUATOR_CONSTRAINT or REGION_EXIT) and closes it. */
+    private List<Closed> censorByGuard(String guard, double tS) {
+        if ("ACTUATOR_CONSTRAINT".equals(guard)) machine.onActuatorConstraint(tS); else machine.onRegionExit(tS);
+        guards.reset();
+        return closeLast();
     }
 
     /**

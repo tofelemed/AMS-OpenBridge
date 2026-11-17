@@ -93,6 +93,11 @@ public final class ResponseJobConfig implements Serializable {
         c.lambdaS = num(args, "g12-lambda-s", c.lambdaS);
         c.tauMinS = num(args, "g12-tau-min-s", c.tauMinS);
         c.gainAbsMax = num(args, "g12-gain-abs-max", c.gainAbsMax);
+        // final review M2: the CHG-204 / CHG-207 defaults are job arguments too, so a site value needs no new jar
+        c.settleNoiseMultiplier = num(args, "g12-settle-noise-multiplier", c.settleNoiseMultiplier);
+        c.actuatorLimitBandFraction = num(args, "g12-actuator-limit-band-fraction", c.actuatorLimitBandFraction);
+        c.actuatorLimitDwellS = num(args, "g12-actuator-limit-dwell-s", c.actuatorLimitDwellS);
+        c.regionExitDwellS = num(args, "g12-region-exit-dwell-s", c.regionExitDwellS);
         return c;
     }
 
@@ -153,14 +158,22 @@ public final class ResponseJobConfig implements Serializable {
         return opRangeUsable(p) ? p.opEngMax : 100;
     }
 
-    /** CHG-207: the profile's operating-region lower PV bound; -infinity when none (or NaN). */
-    public static double regionMin(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
-        return p == null || Double.isNaN(p.regionPvMin) ? Double.NEGATIVE_INFINITY : p.regionPvMin;
+    /**
+     * CHG-207 final review M1: a region whose bounds are both finite with min >= max is bad registry data - no region, like an
+     * unusable PV span. Taken as it is, every PV would be outside it and every event would censor REGION_EXIT.
+     */
+    private static boolean regionInvalid(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return Double.isFinite(p.regionPvMin) && Double.isFinite(p.regionPvMax) && p.regionPvMin >= p.regionPvMax;
     }
 
-    /** CHG-207: the profile's operating-region upper PV bound; +infinity when none (or NaN). */
+    /** CHG-207: the profile's operating-region lower PV bound; -infinity when none (or NaN, or an invalid region). */
+    public static double regionMin(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return p == null || Double.isNaN(p.regionPvMin) || regionInvalid(p) ? Double.NEGATIVE_INFINITY : p.regionPvMin;
+    }
+
+    /** CHG-207: the profile's operating-region upper PV bound; +infinity when none (or NaN, or an invalid region). */
     public static double regionMax(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
-        return p == null || Double.isNaN(p.regionPvMax) ? Double.POSITIVE_INFINITY : p.regionPvMax;
+        return p == null || Double.isNaN(p.regionPvMax) || regionInvalid(p) ? Double.POSITIVE_INFINITY : p.regionPvMax;
     }
 
     /** CHG-207: true when these settings carry exactly the ranges this profile declares (no copy, per sample). */
