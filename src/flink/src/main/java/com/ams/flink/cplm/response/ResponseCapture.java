@@ -64,6 +64,7 @@ public final class ResponseCapture implements Serializable {
     /** A change of the open event's driving signal seen since (s) and its value - a second step supersedes after eventDwellS (NR-007). */
     private double changeSinceS = Double.NaN;
     private double changeValue = Double.NaN;
+    private final EventGuards guards;
     private final java.util.Set<String> emitted = new java.util.HashSet<>();
 
     /** The settings this capture runs under (a bundle pins a capture for its whole event; a new bundle takes effect between events). */
@@ -84,6 +85,7 @@ public final class ResponseCapture implements Serializable {
         this.cfg = cfg;
         this.bundleHash = cfg.bundleHash();
         this.machine = new CaptureStateMachine(cfg.preSupportS, cfg.minCaptureS, cfg.maxCaptureS);
+        this.guards = new EventGuards(cfg);
         this.retainedS = cfg.preSupportS + cfg.maxCaptureS + cfg.tailDwellS;
     }
 
@@ -159,11 +161,24 @@ public final class ResponseCapture implements Serializable {
             // NR-007 (lab finding: the streaming capture never looked for a second step while one was open, so an interrupted
             // step read COMPLETE): a sustained change of the open event's driving signal supersedes it - the first event is
             // CENSORED SUPERSEDED_BY_EVENT and emitted, the second carries the whole input sequence
-            if (good && auto && supersedeOnChange(s.sp, uApplied, tS, vpMapped)) closed.addAll(closeSuperseded());
+            // CHG-207: a valve sitting at its limit, or the PV outside its operating region, makes the event unmodellable
+            String guard = guards.onSample(tS, uApplied, s.pv, good);
+            if (guard != null) {
+                if ("ACTUATOR_CONSTRAINT".equals(guard)) machine.onActuatorConstraint(tS); else machine.onRegionExit(tS);
+                guards.reset();
+                closed.addAll(closeLast());
+                return closed;
+            }
+            if (good && auto && supersedeOnChange(s.sp, uApplied, tS, vpMapped)) {
+                guards.reset();
+                closed.addAll(closeSuperseded());
+            }
             machine.onSample(tS);
             if (machine.state() == CaptureStateMachine.State.CENSORED) {
+                guards.reset();
                 closed.addAll(closeLast());
             } else if (settled(tS)) {
+                guards.reset();
                 machine.qualified(tS);
                 if (machine.state() == CaptureStateMachine.State.QUALIFIED) {
                     machine.complete(tS);
@@ -238,6 +253,7 @@ public final class ResponseCapture implements Serializable {
         e.preNoiseSigmaEu = preNoiseSigma(t0);                                   // CHG-204: measured once, here
         lastEventT0 = t0;
         vpMappedAtCapture = vpMapped;
+        guards.reset();
         machine.onCandidate(e, t0);
         machine.onSample(nowS);
     }

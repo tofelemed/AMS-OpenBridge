@@ -59,6 +59,17 @@ public final class ResponseJobConfig implements Serializable {
     /** CHG-204: the PV-unit properties ({@link ResponseScale#BUNDLE_EU_KEYS}) the governing bundle set - in loop units, never scaled. */
     public java.util.Set<String> bundleEuKeys = new java.util.HashSet<>();
 
+    /** CHG-207: the valve is "at its limit" within this fraction of the OP span of either end. */
+    public double actuatorLimitBandFraction = 0.01;
+    /** CHG-207: the valve at its limit for this long (s) while an event is open censors it ACTUATOR_CONSTRAINT. */
+    public double actuatorLimitDwellS = 10;
+    /** CHG-207: the PV outside the operating region for this long (s) while an event is open censors it REGION_EXIT. */
+    public double regionExitDwellS = 10;
+    /** CHG-207: the OP range (EU); 0-100 when the profile declares none. Set per loop by {@link #withProfileRanges}. */
+    public double opLowEu = 0, opHighEu = 100;
+    /** CHG-207: the PV operating region from the loop profile; infinite = no region, no REGION_EXIT. */
+    public double regionPvMin = Double.NEGATIVE_INFINITY, regionPvMax = Double.POSITIVE_INFINITY;
+
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
         c.preSupportS = num(args, "g12-pre-support-s", c.preSupportS);
@@ -114,6 +125,10 @@ public final class ResponseJobConfig implements Serializable {
         ResponseJobConfig c = copy();
         if (p == null) return c;
         c.pvSpanEu = declaredPvSpan(p);
+        c.opLowEu = declaredOpLow(p);
+        c.opHighEu = declaredOpHigh(p);
+        c.regionPvMin = regionMin(p);
+        c.regionPvMax = regionMax(p);
         return c;
     }
 
@@ -124,6 +139,36 @@ public final class ResponseJobConfig implements Serializable {
         return Double.isFinite(span) && span > 0 ? span : Double.NaN;
     }
 
+    private static boolean opRangeUsable(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return p != null && p.opRangeDeclared && Double.isFinite(p.opEngMin) && Double.isFinite(p.opEngMax) && p.opEngMax > p.opEngMin;
+    }
+
+    /** CHG-207: the profile's declared OP low (EU), 0 when none or unusable. */
+    public static double declaredOpLow(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return opRangeUsable(p) ? p.opEngMin : 0;
+    }
+
+    /** CHG-207: the profile's declared OP high (EU), 100 when none or unusable. */
+    public static double declaredOpHigh(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return opRangeUsable(p) ? p.opEngMax : 100;
+    }
+
+    /** CHG-207: the profile's operating-region lower PV bound; -infinity when none (or NaN). */
+    public static double regionMin(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return p == null || Double.isNaN(p.regionPvMin) ? Double.NEGATIVE_INFINITY : p.regionPvMin;
+    }
+
+    /** CHG-207: the profile's operating-region upper PV bound; +infinity when none (or NaN). */
+    public static double regionMax(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return p == null || Double.isNaN(p.regionPvMax) ? Double.POSITIVE_INFINITY : p.regionPvMax;
+    }
+
+    /** CHG-207: true when these settings carry exactly the ranges this profile declares (no copy, per sample). */
+    public boolean sameRangesAs(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        return samePvSpan(declaredPvSpan(p)) && Double.compare(opLowEu, declaredOpLow(p)) == 0 && Double.compare(opHighEu, declaredOpHigh(p)) == 0
+                && Double.compare(regionPvMin, regionMin(p)) == 0 && Double.compare(regionPvMax, regionMax(p)) == 0;
+    }
+
     /** CHG-204: true when these settings carry this PV span (NaN equals NaN: both undeclared). */
     public boolean samePvSpan(double spanEu) {
         return Double.compare(pvSpanEu, spanEu) == 0;
@@ -131,7 +176,8 @@ public final class ResponseJobConfig implements Serializable {
 
     /** CHG-204: true when both settings carry the same loop ranges. */
     public boolean sameRanges(ResponseJobConfig other) {
-        return other != null && samePvSpan(other.pvSpanEu);
+        return other != null && samePvSpan(other.pvSpanEu) && Double.compare(opLowEu, other.opLowEu) == 0 && Double.compare(opHighEu, other.opHighEu) == 0
+                && Double.compare(regionPvMin, other.regionPvMin) == 0 && Double.compare(regionPvMax, other.regionPvMax) == 0;
     }
 
     public ResponseJobConfig copy() {
@@ -144,6 +190,8 @@ public final class ResponseJobConfig implements Serializable {
         c.tauMinS = tauMinS; c.gainAbsMax = gainAbsMax; c.fitBudgetMs = fitBudgetMs; c.fallbackSpanEu = fallbackSpanEu; c.vpMaxAgeS = vpMaxAgeS;
         c.delayMinS = delayMinS; c.fitMaxIterations = fitMaxIterations; c.fitRelativeTolerance = fitRelativeTolerance; c.lambdaS = lambdaS;
         c.pvSpanEu = pvSpanEu; c.settleNoiseMultiplier = settleNoiseMultiplier;
+        c.actuatorLimitBandFraction = actuatorLimitBandFraction; c.actuatorLimitDwellS = actuatorLimitDwellS; c.regionExitDwellS = regionExitDwellS;
+        c.opLowEu = opLowEu; c.opHighEu = opHighEu; c.regionPvMin = regionPvMin; c.regionPvMax = regionPvMax;
         c.bundleEuKeys = bundleEuKeys == null ? new java.util.HashSet<>() : new java.util.HashSet<>(bundleEuKeys);
         c.governingBundleHash = governingBundleHash;
         return c;
@@ -157,7 +205,9 @@ public final class ResponseJobConfig implements Serializable {
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu
                 + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS + "|" + delayMinS
                 + "|" + fitMaxIterations + "|" + fitRelativeTolerance + "|" + lambdaS + "|" + tauMinS + "|" + gainAbsMax
-                + "|" + pvSpanEu + "|" + settleNoiseMultiplier;
+                + "|" + pvSpanEu + "|" + settleNoiseMultiplier
+                + "|" + actuatorLimitBandFraction + "|" + actuatorLimitDwellS + "|" + regionExitDwellS + "|" + opLowEu + "|" + opHighEu
+                + "|" + regionPvMin + "|" + regionPvMax;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 

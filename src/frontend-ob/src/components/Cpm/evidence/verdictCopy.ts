@@ -30,6 +30,8 @@ const REASONS: Record<string, string> = {
   NO_SPAN: 'no engineering span is declared for the loop',
   PEER_UNOBSERVED: 'the peer loop has no samples in the window',
   MODE_TRANSFER: 'the controller changed mode during the capture',
+  ACTUATOR_CONSTRAINT: 'the valve sat at its limit',
+  REGION_EXIT: 'the PV left its operating region',
   SUPERSEDED_BY_EVENT: 'a later event superseded the capture',
   CAPTURE_MAX: 'the capture reached its maximum length',
   HEALTH_INELIGIBLE: 'the transmitter health made the window ineligible',

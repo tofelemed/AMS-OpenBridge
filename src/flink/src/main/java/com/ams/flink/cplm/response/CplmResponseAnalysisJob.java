@@ -119,8 +119,8 @@ public final class CplmResponseAnalysisJob {
             String hash = s.resolvedProfile == null ? null : s.resolvedProfile.bundleHash;
             String currentHash = current == null ? null : current.config().governingBundleHash;
             boolean sameBundle = hash == null ? currentHash == null : hash.equals(currentHash);
-            // no copy per sample: the span is compared directly; the settings are built only when a capture is replaced
-            if (current != null && sameBundle && current.config().samePvSpan(ResponseJobConfig.declaredPvSpan(s.resolvedProfile))) return current;
+            // no copy per sample: the ranges are compared directly; the settings are built only when a capture is replaced
+            if (current != null && sameBundle && current.config().sameRangesAs(s.resolvedProfile)) return current;
             ResponseJobConfig settings = (hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues))
                     .withProfileRanges(s.resolvedProfile);
             return new ResponseCapture(s.loopId, settings);

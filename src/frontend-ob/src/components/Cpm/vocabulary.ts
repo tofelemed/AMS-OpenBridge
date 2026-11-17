@@ -59,7 +59,7 @@ const REASON: Record<string, string> = {
   NO_POSITIVE_EVIDENCE: 'No positive evidence', VP_TRACKING_HEALTHY: 'Valve position tracks its command',
   NON_FOLLOWING_DWELL: 'Valve did not follow its command', DISABLED_BY_CONFIG: 'Switched off in configuration',
   NO_OBJECTIVE: 'No control objective declared', NO_SPAN: 'No engineering span declared', PEER_UNOBSERVED: 'Peer loop has no samples',
-  MODE_TRANSFER: 'Controller changed mode', SUPERSEDED_BY_EVENT: 'Superseded by a later event', CAPTURE_MAX: 'Capture reached its maximum length',
+  MODE_TRANSFER: 'Controller changed mode', ACTUATOR_CONSTRAINT: 'Valve at its limit', REGION_EXIT: 'PV left its operating region', SUPERSEDED_BY_EVENT: 'Superseded by a later event', CAPTURE_MAX: 'Capture reached its maximum length',
   INTERACTION_NOT_ANALYSED_BY_LONG_TIER: 'Peer interaction not analysed', G0_FAIL: 'Window failed data qualification',
   INSUFFICIENT_SAMPLES_FOR_METHOD: 'Too few samples for this method', EXCLUDED_MODE: 'Excluded: loop not in automatic',
   NO_CALL: 'Not evaluated', NONE_OPEN: 'No open condition', FREEZE_OPEN: 'Freeze condition open',
