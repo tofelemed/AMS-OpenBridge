@@ -128,7 +128,7 @@ public final class ResponseEvaluator implements Serializable {
         }
 
         // C - observed response
-        ResponseMetricCalculator.Settings ms = metricSettings();
+        ResponseMetricCalculator.Settings ms = metricSettings(c.data);
         Map<String, Quantity> observed = ResponseMetricCalculator.compute(c.data, c.r0, c.r1, c.duApplied, ms);
         for (Quantity q : observed.values()) g.put(q);
         g.subgates.get("C").state = "EVALUATED";
@@ -201,7 +201,7 @@ public final class ResponseEvaluator implements Serializable {
         boolean validated = false;
         if (est != null && est.best() != null && priorHoldout != null) {
             EstimationResult.Candidate best = est.best();
-            report = ModelValidator.validate(best.model, best.y0, best.v0, priorHoldout, priorU0, cfg.noiseFloorEu, cfg.maxGapS);
+            report = ModelValidator.validate(best.model, best.y0, best.v0, priorHoldout, priorU0, ResponseScale.of(cfg).noiseFloorEu(Double.NaN), cfg.maxGapS);
             g.put(report.validationRmse);
             g.put(report.predictionRmse);
             g.put(report.fitImprovement);
@@ -294,18 +294,25 @@ public final class ResponseEvaluator implements Serializable {
         return new Outcome(g, artifacts, holdout, c.u0);
     }
 
-    private ResponseMetricCalculator.Settings metricSettings() {
+    /**
+     * CHG-204: the PV-side bands in the loop's units (ResponseScale), widened by the noise band of the event's own
+     * pre-step samples - the window and samples ResponseCapture.settled() uses - so settle_response and the stable
+     * endpoint agree with the capture's settled decision.
+     */
+    private ResponseMetricCalculator.Settings metricSettings(EventDataset d) {
+        ResponseScale scale = ResponseScale.of(cfg);
+        double preRange = ResponseScale.preStepRange(d.t, d.y, d.valid, d.t0, cfg.preSupportS);
         ResponseMetricCalculator.Settings s = new ResponseMetricCalculator.Settings();
         s.preSupportS = cfg.preSupportS;
         s.tailDwellS = cfg.tailDwellS;
-        s.stableBandEu = cfg.stableBandEu;
-        s.absSettlingBandEu = cfg.absSettlingBandEu;
+        s.stableBandEu = scale.stableBandEu(preRange);
+        s.absSettlingBandEu = scale.absSettlingBandEu();
         s.relSettlingBand = cfg.relSettlingBand;
-        s.noiseFloorEu = cfg.noiseFloorEu;
+        s.noiseFloorEu = scale.noiseFloorEu(preRange);
         s.crossingDwellS = cfg.crossingDwellS;
         s.maxGapS = cfg.maxGapS;
-        s.minResponseEu = cfg.minResponseEu;
-        s.targetBandEu = cfg.targetBandEu;
+        s.minResponseEu = scale.minResponseEu();
+        s.targetBandEu = scale.targetBandEu();
         return s;
     }
 
@@ -320,7 +327,7 @@ public final class ResponseEvaluator implements Serializable {
         s.maxIterations = cfg.fitMaxIterations;
         s.relTol = cfg.fitRelativeTolerance;
         s.tauMinS = cfg.tauMinS;
-        s.gainAbsMax = cfg.gainAbsMax;
+        s.gainAbsMax = ResponseScale.of(cfg).gainAbsMax();
         return s;
     }
 

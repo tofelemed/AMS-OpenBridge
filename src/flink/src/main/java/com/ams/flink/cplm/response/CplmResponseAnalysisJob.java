@@ -110,21 +110,27 @@ public final class CplmResponseAnalysisJob {
 
         /**
          * v2.5 (3C.1): the settings for this loop under the bundle its profile carries - pinned for a
-         * capture in flight (G12 pins at event start), taken over between events.
+         * capture in flight (G12 pins at event start), taken over between events. CHG-204: the same for the
+         * loop's declared ranges - an open event keeps its settings until it closes; a range edit takes over
+         * between events.
          */
         ResponseCapture captureFor(CplmNormalizedSample s, ResponseCapture current) {
+            if (current != null && !current.idle()) return current;
             String hash = s.resolvedProfile == null ? null : s.resolvedProfile.bundleHash;
             String currentHash = current == null ? null : current.config().governingBundleHash;
-            boolean same = hash == null ? currentHash == null : hash.equals(currentHash);
-            if (current != null && (same || !current.idle())) return current;
-            ResponseJobConfig settings = hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues);
+            boolean sameBundle = hash == null ? currentHash == null : hash.equals(currentHash);
+            // the ranges are compared on a plain copy, so the bundle is applied only when a capture is replaced
+            if (current != null && sameBundle && current.config().sameRanges(cfg.withProfileRanges(s.resolvedProfile))) return current;
+            ResponseJobConfig settings = (hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues))
+                    .withProfileRanges(s.resolvedProfile);
             return new ResponseCapture(s.loopId, settings);
         }
 
+        /** One evaluator per distinct settings: the bundle (or the job defaults) and every range withProfileRanges sets. */
         ResponseEvaluator evaluatorFor(ResponseJobConfig settings) {
-            if (settings.governingBundleHash == null) return evaluator;
+            if (settings.governingBundleHash == null && Double.isNaN(settings.pvSpanEu)) return evaluator;
             if (bundleEvaluators == null) bundleEvaluators = new java.util.HashMap<>();
-            return bundleEvaluators.computeIfAbsent(settings.governingBundleHash, h -> new ResponseEvaluator(settings));
+            return bundleEvaluators.computeIfAbsent(settings.governingBundleHash + "|" + settings.pvSpanEu, h -> new ResponseEvaluator(settings));
         }
 
         @Override

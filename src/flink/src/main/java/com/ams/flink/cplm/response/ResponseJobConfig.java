@@ -49,6 +49,15 @@ public final class ResponseJobConfig implements Serializable {
     public double fitRelativeTolerance = 1e-9;
     /** v2.5 (3A.2): the APPROVED closed-loop time constant for the SIMC advisory (G12.lambda_s); 0 = not approved, no advice. */
     public double lambdaS = 0;
+    /**
+     * CHG-204: the loop's declared PV span (EU), NaN when the profile declares no usable range (today's values).
+     * Set per loop by {@link #withProfileRanges}; the PV-side tolerances scale with it through {@link ResponseScale}.
+     */
+    public double pvSpanEu = Double.NaN;
+    /** CHG-204: the settle band is at least this multiple of the PV range before the step (the loop's normal noise band). */
+    public double settleNoiseMultiplier = 1.5;
+    /** CHG-204: the PV-unit properties ({@link ResponseScale#BUNDLE_EU_KEYS}) the governing bundle set - in loop units, never scaled. */
+    public java.util.Set<String> bundleEuKeys = new java.util.HashSet<>();
 
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
@@ -90,9 +99,28 @@ public final class ResponseJobConfig implements Serializable {
             org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode n = new org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
             for (java.util.Map.Entry<String, Double> e : g12Values.entrySet()) n.put(e.getKey(), e.getValue());
             com.ams.flink.cplm.config.BundleProfileMapper.apply(c, n);
+            for (String key : ResponseScale.BUNDLE_EU_KEYS) if (g12Values.get(key) != null) c.bundleEuKeys.add(key);
         }
         c.governingBundleHash = bundleHash;
         return c;
+    }
+
+    /**
+     * CHG-204: these settings on a loop with the profile's declared ranges (a copy). The PV span is taken only when
+     * the range is declared and its span is finite and positive; anything else (bad registry data) is NaN, today's
+     * values. A null profile leaves the ranges as they are.
+     */
+    public ResponseJobConfig withProfileRanges(com.ams.flink.cplm.CplmLoopDynamicsProfile p) {
+        ResponseJobConfig c = copy();
+        if (p == null) return c;
+        double span = p.pvEngMax - p.pvEngMin;
+        c.pvSpanEu = p.pvRangeDeclared && Double.isFinite(span) && span > 0 ? span : Double.NaN;
+        return c;
+    }
+
+    /** CHG-204: true when both settings carry the same loop ranges (NaN equals NaN: both undeclared). */
+    public boolean sameRanges(ResponseJobConfig other) {
+        return other != null && Double.compare(pvSpanEu, other.pvSpanEu) == 0;
     }
 
     public ResponseJobConfig copy() {
@@ -104,6 +132,8 @@ public final class ResponseJobConfig implements Serializable {
         c.minResponseEu = minResponseEu; c.targetBandEu = targetBandEu; c.delayGridS = delayGridS; c.thetaMaxS = thetaMaxS; c.tauMaxS = tauMaxS;
         c.tauMinS = tauMinS; c.gainAbsMax = gainAbsMax; c.fitBudgetMs = fitBudgetMs; c.fallbackSpanEu = fallbackSpanEu; c.vpMaxAgeS = vpMaxAgeS;
         c.delayMinS = delayMinS; c.fitMaxIterations = fitMaxIterations; c.fitRelativeTolerance = fitRelativeTolerance; c.lambdaS = lambdaS;
+        c.pvSpanEu = pvSpanEu; c.settleNoiseMultiplier = settleNoiseMultiplier;
+        c.bundleEuKeys = bundleEuKeys == null ? new java.util.HashSet<>() : new java.util.HashSet<>(bundleEuKeys);
         c.governingBundleHash = governingBundleHash;
         return c;
     }
@@ -115,7 +145,8 @@ public final class ResponseJobConfig implements Serializable {
                 + "|" + stepMinInputEu + "|" + stepMinSpanFraction + "|" + noiseMultiplier + "|" + eventDwellS + "|" + rampMinSlopeEuPerS + "|" + rampMinDurationS
                 + "|" + absSettlingBandEu + "|" + relSettlingBand + "|" + noiseFloorEu + "|" + crossingDwellS + "|" + minResponseEu + "|" + targetBandEu
                 + "|" + delayGridS + "|" + thetaMaxS + "|" + tauMaxS + "|" + fitBudgetMs + "|" + vpMaxAgeS + "|" + delayMinS
-                + "|" + fitMaxIterations + "|" + fitRelativeTolerance + "|" + lambdaS + "|" + tauMinS + "|" + gainAbsMax;
+                + "|" + fitMaxIterations + "|" + fitRelativeTolerance + "|" + lambdaS + "|" + tauMinS + "|" + gainAbsMax
+                + "|" + pvSpanEu + "|" + settleNoiseMultiplier;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 

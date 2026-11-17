@@ -183,7 +183,8 @@ public final class ResponseCapture implements Serializable {
         boolean isReference = open.type != EventType.INPUT_TEST;
         double now = isReference ? sp : uApplied;
         if (Double.isNaN(now)) return false;
-        double threshold = Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.fallbackSpanEu);
+        // CHG-204: a reference event's signal is in PV units (the loop-scaled floor); an input test's is in % (unchanged)
+        double threshold = isReference ? ResponseScale.of(cfg).refStepFloorEu() : inputStepFloorEu();
         // the signal's level after the LAST change of the open event (its post amplitude, or the newest carried change)
         double level = open.postAmplitude;
         if (!open.inputSequence.isEmpty()) level = open.inputSequence.get(open.inputSequence.size() - 1)[1];
@@ -218,10 +219,9 @@ public final class ResponseCapture implements Serializable {
             u[i] = row[3];
             valid[i] = row[4] > 0 && row[5] > 0;
         }
-        ResponseEventDetector.Settings ds = detectorSettings();
-        ResponseEventDetector.Candidate ref = ResponseEventDetector.detect(t, sp, valid, ds);
+        ResponseEventDetector.Candidate ref = ResponseEventDetector.detect(t, sp, valid, referenceDetectorSettings());
         if (ref != null && !Double.isNaN(lastEventT0) && t[ref.index] <= lastEventT0) ref = null;   // already captured
-        ResponseEventDetector.Candidate inp = ref == null ? ResponseEventDetector.detect(t, u, valid, ds) : null;
+        ResponseEventDetector.Candidate inp = ref == null ? ResponseEventDetector.detect(t, u, valid, inputDetectorSettings()) : null;
         if (inp != null && !Double.isNaN(lastEventT0) && t[inp.index] <= lastEventT0) inp = null;
         ResponseEventDetector.Candidate c = ref != null ? ref : inp;
         if (c == null) return;
@@ -245,6 +245,8 @@ public final class ResponseCapture implements Serializable {
      * stableBandEu over tailDwellS, spec §2.5 endpoints) AND inside the settle band around that endpoint for the
      * whole tail dwell - the same B_resp = max(abs, rel x |dy|, noise floor) the metric uses. Closing on the range
      * test alone left settle_response right-censored on captures the job itself had declared settled (lab, 2B).
+     * CHG-204: both bands are in the loop's units and widen to its pre-step noise band (ResponseScale); the metric
+     * (ResponseEvaluator) reads that band from the same pre-step samples, so the two still agree.
      */
     private boolean settled(double nowS) {
         ResponseEvent e = machine.open();
@@ -265,12 +267,16 @@ public final class ResponseCapture implements Serializable {
             min = Math.min(min, v);
             max = Math.max(max, v);
         }
-        if (max - min > cfg.stableBandEu) return false;
+        List<double[]> preRows = new ArrayList<>();
+        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0) preRows.add(row);
+        double preRange = preStepRange(preRows, t0);
+        ResponseScale scale = ResponseScale.of(cfg);
+        if (max - min > scale.stableBandEu(preRange)) return false;
         double yss = median(tail);
         List<Double> pre = new ArrayList<>();
-        for (double[] row : ring) if (row[0] >= t0 - cfg.preSupportS && row[0] < t0 && row[4] > 0) pre.add(row[1]);
+        for (double[] row : preRows) if (row[4] > 0) pre.add(row[1]);
         double dy = pre.size() >= 3 ? yss - median(pre) : 0;
-        double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(cfg.absSettlingBandEu, cfg.relSettlingBand, dy, cfg.noiseFloorEu);
+        double band = com.ams.flink.cplm.response.metrics.Settling.responseBand(scale.absSettlingBandEu(), cfg.relSettlingBand, dy, scale.noiseFloorEu(preRange));
         // the settle dwell is measured from the band ENTRY - the earliest sample from which every later sample is
         // in band - exactly as the metric measures it; "every sample inside the trailing window is in band" is
         // weaker when the window's start falls between samples (lab: entry 4.3 s inside the window -> censored)
@@ -283,6 +289,20 @@ public final class ResponseCapture implements Serializable {
             entry = row[0];
         }
         return !Double.isNaN(entry) && nowS - entry >= cfg.tailDwellS;
+    }
+
+    /** CHG-204: the PV range before t0 on the samples the event dataset counts valid (good, AUTO), as the metric reads it. */
+    private double preStepRange(List<double[]> rows, double t0) {
+        int m = rows.size();
+        double[] t = new double[m], y = new double[m];
+        boolean[] v = new boolean[m];
+        for (int i = 0; i < m; i++) {
+            double[] row = rows.get(i);
+            t[i] = row[0];
+            y[i] = row[1];
+            v[i] = row[4] > 0 && row[5] > 0;
+        }
+        return ResponseScale.preStepRange(t, y, v, t0, cfg.preSupportS);
     }
 
     private static double median(List<Double> vals) {
@@ -347,7 +367,13 @@ public final class ResponseCapture implements Serializable {
         while (!ring.isEmpty() && nowS - ring.get(0)[0] > retainedS) ring.remove(0);
     }
 
-    private ResponseEventDetector.Settings detectorSettings() {
+    /** The applied-input step floor: the input is in %, so it is the configured floor on the fallback span, whatever the PV range. */
+    private double inputStepFloorEu() {
+        return Math.max(cfg.stepMinInputEu, cfg.stepMinSpanFraction * cfg.fallbackSpanEu);
+    }
+
+    /** Applied-input (OP / VP) events: today's settings, on the fallback span. */
+    private ResponseEventDetector.Settings inputDetectorSettings() {
         ResponseEventDetector.Settings s = new ResponseEventDetector.Settings();
         s.stepMinInputEu = cfg.stepMinInputEu;
         s.stepMinSpanFraction = cfg.stepMinSpanFraction;
@@ -357,6 +383,16 @@ public final class ResponseCapture implements Serializable {
         s.eventDwellS = cfg.eventDwellS;
         s.rampMinSlopeEuPerS = cfg.rampMinSlopeEuPerS;
         s.rampMinDurationS = cfg.rampMinDurationS;
+        return s;
+    }
+
+    /** CHG-204: reference (SP) events, in PV units: the loop's span, and the floor and ramp slope scaled with it. */
+    private ResponseEventDetector.Settings referenceDetectorSettings() {
+        ResponseScale scale = ResponseScale.of(cfg);
+        ResponseEventDetector.Settings s = inputDetectorSettings();
+        s.stepMinInputEu = scale.refStepFloorEu();
+        s.span = scale.spanDeclared() ? cfg.pvSpanEu : cfg.fallbackSpanEu;
+        s.rampMinSlopeEuPerS = scale.rampMinSlopeEuPerS();
         return s;
     }
 }

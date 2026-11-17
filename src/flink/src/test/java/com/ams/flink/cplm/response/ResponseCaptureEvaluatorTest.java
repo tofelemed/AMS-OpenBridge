@@ -1,9 +1,11 @@
 package com.ams.flink.cplm.response;
 
+import com.ams.flink.cplm.CplmLoopDynamicsProfile;
 import com.ams.flink.cplm.CplmNormalizedSample;
 import com.ams.flink.cplm.contract.RoleObservation;
 import com.ams.flink.cplm.evidence.EvidenceArtifact;
 import com.ams.flink.cplm.response.controller.ControllerSnapshot;
+import com.ams.flink.cplm.response.event.EventType;
 import com.ams.flink.cplm.response.metrics.EventDataset;
 import com.ams.flink.cplm.response.model.ModelFamily;
 import com.ams.flink.cplm.response.model.ProcessModel;
@@ -47,6 +49,14 @@ public class ResponseCaptureEvaluatorTest {
         c.tauMaxS = 300;
         c.fitBudgetMs = 60_000;
         return c;
+    }
+
+    /** CHG-204: the test settings on a loop that declares its PV range as min..max. */
+    private static ResponseJobConfig ranged(double min, double max) {
+        CplmLoopDynamicsProfile p = new CplmLoopDynamicsProfile();
+        p.pvEngMin = min; p.pvEngMax = max;
+        p.pvRangeDeclared = true;
+        return cfg().withProfileRanges(p);
     }
 
     private static CplmNormalizedSample sample(String loop, double tS, double pv, double sp, double op, boolean auto) {
@@ -444,5 +454,46 @@ public class ResponseCaptureEvaluatorTest {
         assertTrue(r.metrics.get("t10").available());
         assertTrue(r.metrics.get("pre_slope").available());
         assertEquals(0.0, r.metrics.get("pre_slope").value, 1e-9);
+    }
+
+    @Test
+    public void smallSpanLoopCapturesSetpointStepBelowOneUnit() {               // CHG-204: a 0.5 bar step on a 0-6 bar loop
+        ResponseCapture scaled = new ResponseCapture("PIC00551", ranged(0, 6)), today = new ResponseCapture("PIC00551", cfg());
+        for (double t = 0; t <= 300; t += 5) {
+            double sp = t < 150 ? 3.0 : 3.5, pv = t < 154 ? 3.0 : 3.0 + 0.5 * (1 - Math.exp(-(t - 154) / 20));
+            scaled.onSample(sample("PIC00551", t, pv, sp, 40, true), false);
+            today.onSample(sample("PIC00551", t, pv, sp, 40, true), false);
+        }
+        assertEquals(EventType.SERVO_STEP, scaled.machine().events().get(0).type);
+        assertEquals(150_000.0, scaled.machine().events().get(0).t0Ms, 1e-6);
+        assertTrue("no declared range: below the fixed 1.0-unit floor", today.machine().events().isEmpty());
+    }
+
+    @Test
+    public void inputStepThresholdUnchangedBySpan() {                            // CHG-204: OP is in %, whatever the PV range
+        for (double step : new double[] {0.8, 1.5}) {
+            ResponseCapture cap = new ResponseCapture("PIC00551", ranged(0, 6));
+            for (double t = 0; t <= 300; t += 5) cap.onSample(sample("PIC00551", t, 3.0, 3.0, t < 150 ? 40 : 40 + step, true), false);
+            if (step < 1.0) assertTrue("0.8 % stays below the unchanged 1 % floor", cap.machine().events().isEmpty());
+            else assertEquals(EventType.INPUT_TEST, cap.machine().events().get(0).type);
+        }
+    }
+
+    @Test
+    public void largeSpanNoisyFlowLoopSettles() {                                // CHG-204: +-3 noise on a 0-1800 flow loop
+        ResponseJobConfig cfg = ranged(0, 1800);
+        ResponseCapture cap = new ResponseCapture("FIC20101", cfg);           // command path: the default OP_TO_VALVE
+        ResponseEvaluator ev = new ResponseEvaluator(cfg);
+        Random rnd = new Random(7);
+        List<G12Result> results = new ArrayList<>();
+        for (double t = 0; t <= 900; t += 1) {
+            double pv = 900 + (t < 120 ? 0 : 100 * (1 - Math.exp(-(t - 120) / 60))) + 3 * (2 * rnd.nextDouble() - 1);
+            for (ResponseCapture.Closed c : cap.onSample(sample("FIC20101", t, pv, 900, t < 120 ? 40 : 50, true), false)) {
+                results.add(ev.evaluate(c, ModelFamily.FOPDT, null, 0, ControllerSnapshot.unknown(), 0, "LIVE", "", 0).result);
+            }
+        }
+        assertEquals(1, results.size());
+        assertEquals("COMPLETE", results.get(0).subgates.get("B").outputs.get("capture_state"));
+        assertTrue("the settle metric agrees with the settled decision", results.get(0).metrics.get("settle_response").available());
     }
 }
