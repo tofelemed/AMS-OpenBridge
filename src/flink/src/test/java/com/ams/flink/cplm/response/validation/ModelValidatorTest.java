@@ -127,12 +127,41 @@ public class ModelValidatorTest {
         assertEquals(what(r, start), HoldoutStart.HOLDOUT_PRE_STEP_LINE, start.provenance());
         assertEquals(what(r, start), drift, start.v0, 0.1 * drift);
         assertEquals("the true level at t0 is 130: " + what(r, start), 130, start.y0, 0.1);
-        assertEquals("the flat baseline stays a constant y0", ModelValidator.BASELINE, r.fitImprovement.method);
+        assertEquals("final review M4: on the line the baseline is the line", ModelValidator.TREND_BASELINE, r.fitImprovement.method);
+        assertEquals(ModelValidator.TREND_BASELINE, r.baseline);
 
         // the self-regulating rule on the same holdout (c6c0db48's start for every family): flat from the mid-window median
         HoldoutStart flat = HoldoutStart.of(holdout, ModelFamily.FOPDT, 120, 100, 0);
         ModelValidator.Report fromFlat = ModelValidator.validate(truth, flat, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
         assertTrue(what(fromFlat, flat), Math.abs(fromFlat.residualBias.value) > 0.3);
+    }
+
+    /**
+     * Final review M4 (CHG-211): a level drifting 0.1 EU/s before its step, with a small integrating response (0.0004 EU/s per EU of
+     * input, 10 s dead time). On the holdout's pre-step line the do-nothing reference is that line: a model that only carries the
+     * drift on (zero gain) improves nothing on it and is not validated. The true model still is.
+     */
+    @Test
+    public void driftingLevelHoldoutIsJudgedAgainstItsTrend() {
+        double[] t = ResponseFitFixtures.times(0, 400, 1000, 0, 25);
+        EventDataset holdout = ResponseFitFixtures.stepEvent("IPDT", new double[] {0.0004, 10.0, 0.1}, t, 120, 0.05, 25);
+        HoldoutStart start = HoldoutStart.of(holdout, ModelFamily.IPDT, 120, 100, 0);
+        assertEquals(HoldoutStart.HOLDOUT_PRE_STEP_LINE, start.provenance());
+        ModelValidator.Report driftOnly = ModelValidator.validate(ProcessModel.ipdt("OP_TO_PV", 0, 10.0), start, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
+        assertNotEquals(what(driftOnly, start), "VALIDATED", driftOnly.verdict);
+        assertTrue(what(driftOnly, start), driftOnly.fitImprovement.value <= 1e-12);
+        ModelValidator.Report truth = ModelValidator.validate(ProcessModel.ipdt("OP_TO_PV", 0.0004, 10.0), start, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
+        assertEquals(what(truth, start), "VALIDATED", truth.verdict);
+        assertEquals(ModelValidator.TREND_BASELINE, truth.baseline);
+        assertEquals(ModelValidator.TREND_BASELINE, truth.fitImprovement.method);
+
+        // every other start keeps the constant y0: the level start, and a caller-chosen start even with a drift
+        HoldoutStart level = HoldoutStart.of(holdout, ModelFamily.FOPDT, 120, 100, 0);
+        ProcessModel zeroGain = ProcessModel.ipdt("OP_TO_PV", 0, 10.0);
+        assertEquals(ModelValidator.BASELINE, ModelValidator.validate(zeroGain, level, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60).baseline);
+        ModelValidator.Report chosen = ModelValidator.validate(zeroGain, start.y0, start.v0, holdout, ResponseFitFixtures.U_BEFORE, 0.2, 60);
+        assertEquals(ModelValidator.BASELINE, chosen.baseline);
+        assertTrue("against the constant y0 the drift alone looks like a model: " + what(chosen), chosen.fitImprovement.value > 0.5);
     }
 
     /** F3: the verdicts after CHG-211's fix round carry a new method tag, so they can be told from the ones before. */

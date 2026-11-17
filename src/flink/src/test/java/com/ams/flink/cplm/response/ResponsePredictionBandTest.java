@@ -311,6 +311,7 @@ public class ResponsePredictionBandTest {
         assertEquals(String.valueOf(e.outputs), "HOLDOUT_PRE_STEP_LEVEL", e.outputs.get("holdout_start"));
         assertEquals("the same value as y_predict's provenance", predict.provenance.get("holdout_start"), e.outputs.get("holdout_start"));
         assertFalse("no line for a self-regulating model", predict.provenance.containsKey("holdout_start_slope"));
+        assertEquals("final review M4: off the line, the constant y0", "CONSTANT_BASELINE_Y0", e.outputs.get("baseline"));
         assertEquals("HOLDOUT_FREE_RUN_V2", second.result.metrics.get("validation_rmse").method);
         assertEquals("HOLDOUT_FREE_RUN_V2", second.result.metrics.get("residual_bias").method);
         assertTrue("the start's own uncertainty is in the band", parameters(kind(second, "prediction_interval")).contains("holdout_start"));
@@ -353,5 +354,7 @@ public class ResponsePredictionBandTest {
         assertEquals("y_predict starts on the line", line.y0 + line.v0 * (holdout.t[start] - holdout.t0), predict.y[start], 1e-9);
         assertTrue(parameters(kind(second, "prediction_interval")).contains("holdout_start"));
         assertEquals(what, "VALIDATED", e.outputs.get("verdict"));
+        assertEquals("final review M4: on the line, the line", "TREND_BASELINE_PRE_STEP_LINE", e.outputs.get("baseline"));
+        assertEquals("TREND_BASELINE_PRE_STEP_LINE", second.result.metrics.get("fit_improvement").method);
     }
 }

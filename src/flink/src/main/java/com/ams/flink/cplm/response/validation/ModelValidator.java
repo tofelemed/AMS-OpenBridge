@@ -14,11 +14,16 @@ import org.apache.commons.math3.distribution.ChiSquaredDistribution;
  * CHG-211: the free run starts at the holdout's own pre-step state ({@link HoldoutStart}: its level, and for an integrating
  * model its pre-step line) and the constant baseline at its level y0. METHOD V2 marks the verdicts on that start (V1: the
  * current event's fitted level and drift), so results before and after the change can be told apart.
+ * Final review M4: on an integrating holdout's pre-step line the do-nothing reference is that line, y0 + v0 (t - t0), not the
+ * constant y0 - a drifting level beat a flat line with no model at all. {@link Report#baseline} names the reference used.
  */
 public final class ModelValidator {
     public static final String METHOD = "HOLDOUT_FREE_RUN_V2";
     public static final String LAG_CONVENTION = "POSITIVE_LAGS_RESIDUAL_VS_PAST_INPUT";
+    /** The do-nothing reference: the constant start level y0 (every start but the pre-step line). */
     public static final String BASELINE = "CONSTANT_BASELINE_Y0";
+    /** The do-nothing reference on an integrating holdout's pre-step line ({@link HoldoutStart#HOLDOUT_PRE_STEP_LINE}). */
+    public static final String TREND_BASELINE = "TREND_BASELINE_PRE_STEP_LINE";
     public static final int ACF_LAGS = 10;
 
     public static final class Report {
@@ -28,9 +33,11 @@ public final class ModelValidator {
         public final boolean whitenessPassed;
         public final double whitenessP, inputResidualMaxCorr, aicc;
         public final String lagConvention, reason;
+        /** The do-nothing reference fit_improvement is measured against: {@link #BASELINE} or {@link #TREND_BASELINE}. */
+        public final String baseline;
 
         Report(String verdict, Quantity vr, Quantity pr, Quantity fi, Quantity rb, double[] residuals, double[] acf, boolean white, double whiteP,
-               double corr, double aicc, String reason) {
+               double corr, double aicc, String reason, String baseline) {
             this.verdict = verdict;
             validationRmse = vr;
             predictionRmse = pr;
@@ -44,6 +51,7 @@ public final class ModelValidator {
             this.aicc = aicc;
             lagConvention = LAG_CONVENTION;
             this.reason = reason;
+            this.baseline = baseline;
         }
     }
 
@@ -52,18 +60,25 @@ public final class ModelValidator {
     /**
      * CHG-211: the check as the evaluator runs it - the free run of m on the holdout from start.y0 with drift start.v0 (the
      * holdout's own pre-step level, or line for an integrating model, else the training fit's level and drift; see
-     * {@link HoldoutStart}) and the flat-line baseline the constant start.y0.
+     * {@link HoldoutStart}) and the do-nothing baseline the constant start.y0 - on the pre-step line that line (final review M4).
      */
     public static Report validate(ProcessModel m, HoldoutStart start, EventDataset h, double u0, double noiseFloorEu, double maxBridgeS) {
-        return validate(m, start.y0, start.v0, h, u0, noiseFloorEu, maxBridgeS);
+        return validate(m, start.y0, start.v0, start.onLine, h, u0, noiseFloorEu, maxBridgeS);
     }
 
     /** The check from a caller-chosen start: the free run from y0 with drift v0, the named baseline the constant y0. */
     public static Report validate(ProcessModel m, double y0, double v0, EventDataset h, double u0, double noiseFloorEu, double maxBridgeS) {
+        return validate(m, y0, v0, false, h, u0, noiseFloorEu, maxBridgeS);
+    }
+
+    /** trend: the baseline is the line y0 + v0 (t - t0) (TREND_BASELINE), else the constant y0 (BASELINE). */
+    private static Report validate(ProcessModel m, double y0, double v0, boolean trend, EventDataset h, double u0, double noiseFloorEu,
+                                   double maxBridgeS) {
+        String baseline = trend ? TREND_BASELINE : BASELINE;
         ZohSimulator.Result sim = ZohSimulator.simulate(m, h.t, h.u, u0, y0, v0, h.t0, maxBridgeS);
         int n = 0;
         for (int i = 0; i < h.size(); i++) if (h.valid[i] && sim.valid[i]) n++;
-        if (n < 8) return unavailable("INSUFFICIENT_HOLDOUT_SUPPORT");
+        if (n < 8) return unavailable("INSUFFICIENT_HOLDOUT_SUPPORT", baseline);
         double[] res = new double[n], uDev = new double[n];
         double sse = 0, sseP = 0, sseB = 0, bias = 0;
         int k = 0;
@@ -78,7 +93,7 @@ public final class ModelValidator {
             double ep = h.y[i] - pred;
             sseP += ep * ep;
             prevErr = e;
-            double eb = h.y[i] - y0;                                          // the named baseline: constant y0
+            double eb = h.y[i] - (trend ? y0 + v0 * (h.t[i] - h.t0) : y0);    // the named baseline: the pre-step line, else constant y0
             sseB += eb * eb;
             uDev[k] = h.u[i] - u0;
             k++;
@@ -116,17 +131,17 @@ public final class ModelValidator {
                 Quantity.of("prediction_rmse", rmseP, "PV_EU", "ONE_STEP_INNOVATION_CARRY"),
                 Double.isNaN(improvement)
                         ? Quantity.unavailable("fit_improvement", "fraction", "DEGENERATE_OR_UNSPECIFIED_BASELINE")
-                        : Quantity.of("fit_improvement", improvement, "fraction", BASELINE),
-                Quantity.of("residual_bias", bias, "PV_EU", METHOD), res, acf, white, p, corr, aicc, reason);
+                        : Quantity.of("fit_improvement", improvement, "fraction", baseline),
+                Quantity.of("residual_bias", bias, "PV_EU", METHOD), res, acf, white, p, corr, aicc, reason, baseline);
     }
 
-    private static Report unavailable(String reason) {
+    private static Report unavailable(String reason, String baseline) {
         return new Report("CANDIDATE",
                 Quantity.unavailable("validation_rmse", "PV_EU", "NO_INDEPENDENT_VALIDATION"),
                 Quantity.unavailable("prediction_rmse", "PV_EU", "PREDICTOR_UNAVAILABLE"),
                 Quantity.unavailable("fit_improvement", "fraction", "DEGENERATE_OR_UNSPECIFIED_BASELINE"),
                 Quantity.unavailable("residual_bias", "PV_EU", "NO_RESIDUAL_SUPPORT"),
-                new double[0], new double[0], false, Double.NaN, Double.NaN, Double.NaN, reason);
+                new double[0], new double[0], false, Double.NaN, Double.NaN, Double.NaN, reason, baseline);
     }
 
     static double[] acf(double[] x, int lags) {

@@ -219,6 +219,7 @@ public final class ResponseEvaluator implements Serializable {
             start = HoldoutStart.of(priorHoldout, best.model.family, cfg.preSupportS, best.y0, best.v0);
             report = ModelValidator.validate(best.model, start, priorHoldout, priorU0, ResponseScale.of(cfg).noiseFloorEu(Double.NaN), cfg.maxGapS);
             e.outputs.put("holdout_start", start.provenance());
+            e.outputs.put("baseline", report.baseline);                          // final review M4: the pre-step line, else constant y0
             g.put(report.validationRmse);
             g.put(report.predictionRmse);
             g.put(report.fitImprovement);
