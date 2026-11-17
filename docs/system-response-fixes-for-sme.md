@@ -27,15 +27,57 @@ IMAN (initialization manual: the output follows another block).
 
 ## Summary
 
-| # | Gap | Recommended fix |
+| # | Gap | Recommended fix | Status (17 Nov) |
+|---|---|---|---|
+| 1 | Models come only from the controller's own output moves; real bump tests are missed | Also capture output steps made in Manual; label which kind of event each model came from | **Needs your decision** |
+| 2 | Model type is chosen from the tag name, not the loop's declared process behaviour | Use the declared behaviour, and declare it for the loops where the tag name is wrong | Built; **needs your list of loops** |
+| 3 | Step size and the settle test use fixed units, the same on a 0–2.5 loop and a 0–100,000 loop | Scale both with each loop's PV range | Built (defaults below) |
+| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Read the PID tuning from the DCS (or enter it in the loop settings) | **Needs I&C** (tuning tags) and **your decision** on λ |
+| 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops | Even grid built; integrating loops later |
+| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed waits for the tuning tags |
+| 7 | Decay ratio is unreliable on noisy data; no prediction band on the model check | Stricter peak rule; add a 95 % prediction band | Built (defaults below) |
+
+"Built" means the change is coded and tested on our side and goes to the plant with the next engine release. It is
+not running at the plant yet.
+
+## What we need from you
+
+| # | Decision | Our recommendation | Section |
+|---|---|---|---|
+| 1 | Capture bump tests made in Manual (this changes the design rule "capture only in Auto") | Yes, in MAN only (not IMAN) | 1 |
+| 1 | Keep or stop the events from the controller's own output moves in Auto | Keep them for now, labelled "Output move (Auto)"; decide after a month of bump-test data | 1 |
+| 2 | Which loops other than level loops are integrating, and any level loop that is self-regulating | Your list; we declare them in the loop settings | 2 |
+| 6 | Whether to set operating regions, and the values for the main loops | Set them on the main loops | 6 |
+| 4 | How λ (closed-loop time constant for the tuning advice) is approved | A rule (λ = dead time for tight loops, larger for averaging loops) with per-loop overrides | 4 |
+| — | The defaults below | Confirm or give other values | Next table |
+
+## Defaults now built in (please confirm or change)
+
+| Setting | Default | Item |
 |---|---|---|
-| 1 | Models come only from the controller's own output moves; real bump tests are missed | Also capture output steps made in Manual; label which kind of event each model came from |
-| 2 | Model type is chosen from the tag name, not the loop's declared process behaviour | Use the declared behaviour, and declare it for the loops where the tag name is wrong |
-| 3 | Step size and the settle test use fixed units, the same on a 0–2.5 loop and a 0–100,000 loop | Scale both with each loop's PV range |
-| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Read the PID tuning from the DCS (or enter it in the loop settings) |
-| 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops |
-| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them |
-| 7 | Decay ratio is unreliable on noisy data; no prediction band on the model check | Stricter peak rule; add a 95 % prediction band |
+| Setpoint step | At least 1 % of the PV range and 4 × the noise of the 2 minutes before | 3 |
+| Ramp | At least 0.02 % of the PV range per second for 2 minutes | 3 |
+| Settled | PV within 0.5 % of its range for 2 minutes, or within its normal noise band (measured before the first step) if that is wider | 3 |
+| Smallest PV move for rise time and settling | 0.5 % of the PV range | 3 |
+| Loops without a recorded PV range | Today's fixed values | 3 |
+| Valve at its limit | Output (or valve position, where mapped) within 1 % of either end for 10 s or more during the event: the event is censored | 6 |
+| PV left its operating region | Outside the region set for the loop for 10 s or more: the event is censored | 6 |
+| Decay ratio | A second peak counts only after the PV crosses back through its final value; both peaks above 4 × the noise; otherwise "not applicable" | 7a |
+| Prediction band | 95 %, from the parameter uncertainty (gain, time constant, dead time, baseline) and the fit's noise | 7b |
+| "Residuals not white" | Stays a note on a Validated model, never a rejection | 7b |
+
+## Tuning tags (question for I&C)
+
+Frequency analysis (gain margin, phase margin, Bode plot) and the "controller tuning changed" rule need each loop's
+PID tuning. The DCS is Yokogawa CENTUM; the gateway reads `FCS0101.<loop>.PV`, `.SV`, `.MV` and `.MODE` today.
+
+- Can the OPC server read each PID block's P (proportional band, %), I (integral time, s) and D (derivative time, s)
+  items, for example `FCS0101.PIC80105.P`, `.I` and `.D`?
+- Which control algorithm do the loops use: PID, PI-D or I-PD?
+- Are bump tests in Manual a planned practice on this plant, and how often?
+
+If the tags can be read, the tuning comes from the DCS with its time, and nobody enters it by hand. If not, a
+"Controller tuning" section is added to the loop settings instead.
 
 ---
 
@@ -249,26 +291,27 @@ fit's residual noise.
 
 ## Proposed order
 
-| Release | Items | Why this order |
+| Release | Items | Status |
 |---|---|---|
-| 1 | 3, 5a, 6 (valve at limit, PV left region), 7a, 2 | Small changes, no new data needed. Items 2 and 6 (region) take effect as behaviours and regions are declared |
-| 2 | 1 | Needs your approval of the Manual rule and the I&C answer on bump tests; adds clean models on about 7 loops |
-| 3 | 4, 6 (tuning changed), 5b, 7b | Tuning from the DCS (or entered by hand); turns on frequency analysis and tuning advice |
+| Next engine release | 2, 3, 5a, 6 (valve at limit, PV left region), 7a, 7b | Built with the defaults above. Items 2 and 6 (region) take effect as behaviours and regions are declared |
+| After your decision | 1 | Needs your approval of the Manual rule and the I&C answer on bump tests; adds clean models on about 7 loops |
+| After I&C confirms the tuning tags | 4, 6 (tuning changed) | Turns on frequency analysis; tuning advice also needs λ |
+| Later | 5b | Setpoint-step models for integrating loops; method chosen by the engine owner |
 
 Nothing changes in the page layout: the existing Response, Fit quality, Frequency and Models tabs fill in, and the
 Events list shows the new event names from item 1.
 
 ## Approval
 
-| # | Approve / Change / Reject | Comments and values |
+| Decision | Approve / Change / Reject | Comments and values |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
+| 1. Capture bump tests in Manual | | |
+| 1. Keep the Auto output moves (labelled) for now | | |
+| 2. Integrating loops other than level loops; self-regulating level loops | | List: |
+| 4. How λ is approved | | |
+| 5b. Method for integrating setpoint steps (optional) | | |
+| 6. Operating regions on the main loops | | Loops and values: |
+| Defaults now built in (items 3, 6, 7) | | Changes: |
 
 Reviewed by: ____________________ Date: ____________
 
