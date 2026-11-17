@@ -20,10 +20,18 @@ import java.util.Set;
  * inside the unit circle) or the candidate is discarded; excitation must come from the REFERENCE
  * (the exogenous signal), never inferred from feedback-driven input motion. Competing orders
  * within the ambiguity tolerance are AMBIGUOUS_MODELS. Requires a uniform sample grid.
+ *
+ * <p>CHG-210 (1.1.0): the regression is in deviations from the pre-step steady state - the means (uPre, yPre) of the valid
+ * samples before t0, i.e. the capture's pre-support - not from the event means: over a step event the means are not a steady
+ * state (the PV lags the input by theta + tau), so centring on them biased the gain and left every free run offset by about
+ * K du (theta + tau) / T. The candidate's y0 is the PV level the model holds at the free run's input baseline u0:
+ * y0 = yPre - K (uPre - u0). Fewer than {@link #MIN_PRE_STEP_SAMPLES} valid pre-step samples: centred on the event means.
  */
 public final class ClosedLoopPemEstimator implements ModelEstimator {
     public static final String METHOD_ID = "PEM_ARMAX_INNOVATION";
-    public static final String METHOD_VERSION = "1.0.0";
+    public static final String METHOD_VERSION = "1.1.0";
+    /** CHG-210: below this many valid samples before t0 the regression falls back to the event means. */
+    static final int MIN_PRE_STEP_SAMPLES = 3;
 
     @Override
     public Set<ModelFamily> supportedFamilies() {
@@ -53,11 +61,8 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         for (double v : d.r) rEnergy += (v - rMean) * (v - rMean);
         if (rEnergy < s.minInputEnergy * n * 0.01) return EstimationResult.none(EstimationResult.State.NO_EXCITATION, "NO_REFERENCE_EXCITATION");
 
-        double yMean = 0, uMean = 0;
-        for (int i = 0; i < n; i++) {
-            yMean += d.y[i] / n;
-            uMean += d.u[i] / n;
-        }
+        double[] ref = centre(d);
+        double yRef = ref[0], uRef = ref[1];
         int maxOrder = family == ModelFamily.FOPDT ? 1 : 2;
         List<Trial> trials = new ArrayList<>();
         int nkMax = (int) Math.max(1, Math.round(s.thetaMaxS / ts));
@@ -65,7 +70,7 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             for (int nk = 0; nk <= nkMax; nk++) {
                 try {                                                          // CHG-075: the deadline stops the order/delay scan
                     FitBudgetExceeded.check(s.deadlineNanos);
-                    Trial t = fit(d, yMean, uMean, order, nk, ts, s);
+                    Trial t = fit(d, yRef, uRef, order, nk, ts, s);
                     if (t != null) trials.add(t);
                 } catch (FitBudgetExceeded e) {
                     throw e.atStage("PEM_ORDER " + order + " NK " + nk + "/" + nkMax);
@@ -85,12 +90,37 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             if (t.model == null) continue;
             Map<String, Double> se = new LinkedHashMap<>();
             se.put("process_gain", t.gainSe);
-            out.add(new EstimationResult.Candidate(t.model, yMean, 0, t.objective, n, se, false, false, false, t.condition, ts * 0.5, new double[0], new double[0]));
+            // CHG-210: every free run starts at the input baseline u0, so y0 is the PV level the model holds there
+            double y0 = yRef - t.model.gain * (uRef - u0);
+            out.add(new EstimationResult.Candidate(t.model, y0, 0, t.objective, n, se, false, false, false, t.condition, ts * 0.5, new double[0], new double[0]));
             if (out.size() >= 3) break;
         }
         if (out.isEmpty()) return EstimationResult.none(EstimationResult.State.NOT_ESTIMATED, "NO_CONTINUOUS_EQUIVALENT");
         return new EstimationResult(ambiguous ? EstimationResult.State.AMBIGUOUS_MODELS : EstimationResult.State.ESTIMATED,
                 ambiguous ? "COMPETING_ORDERS" : "", out);
+    }
+
+    /**
+     * CHG-210: the regression's operating point {yRef, uRef} - the means of the valid samples before t0 (the capture's
+     * pre-support), or the event means (all samples, as before) when fewer than MIN_PRE_STEP_SAMPLES are valid.
+     */
+    static double[] centre(EventDataset d) {
+        double yPre = 0, uPre = 0;
+        int pre = 0;
+        for (int i = 0; i < d.size() && d.t[i] < d.t0; i++) {
+            if (!d.valid[i]) continue;
+            yPre += d.y[i];
+            uPre += d.u[i];
+            pre++;
+        }
+        if (pre >= MIN_PRE_STEP_SAMPLES) return new double[] {yPre / pre, uPre / pre};
+        int n = d.size();
+        double yMean = 0, uMean = 0;
+        for (int i = 0; i < n; i++) {
+            yMean += d.y[i] / n;
+            uMean += d.u[i] / n;
+        }
+        return new double[] {yMean, uMean};
     }
 
     static final class Trial {
@@ -108,15 +138,15 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         }
     }
 
-    private static Trial fit(EventDataset d, double yMean, double uMean, int order, int nk, double ts, EstimatorSettings s) {
+    private static Trial fit(EventDataset d, double yRef, double uRef, int order, int nk, double ts, EstimatorSettings s) {
         int n = d.size();
         int start = order + nk + 1;
         if (n - start < 4 * order + 4) return null;
         // regressor condition (excitation rank) on the ARX part
         double[][] phi = new double[n - start][2 * order];
         for (int t = start; t < n; t++) {
-            for (int i = 1; i <= order; i++) phi[t - start][i - 1] = d.y[t - i] - yMean;
-            for (int j = 1; j <= order; j++) phi[t - start][order + j - 1] = d.u[t - nk - j] - uMean;
+            for (int i = 1; i <= order; i++) phi[t - start][i - 1] = d.y[t - i] - yRef;
+            for (int j = 1; j <= order; j++) phi[t - start][order + j - 1] = d.u[t - nk - j] - uRef;
         }
         double cond;
         try {
@@ -148,10 +178,10 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             double ePrev = 0;
             for (int t = st; t < n; t++) {
                 double yhat = 0;
-                for (int i = 1; i <= order; i++) yhat += p[i - 1] * (d.y[t - i] - yMean);
-                for (int j = 1; j <= order; j++) yhat += p[order + j - 1] * (d.u[t - nk - j] - uMean);
+                for (int i = 1; i <= order; i++) yhat += p[i - 1] * (d.y[t - i] - yRef);
+                for (int j = 1; j <= order; j++) yhat += p[order + j - 1] * (d.u[t - nk - j] - uRef);
                 yhat += p[np - 1] * ePrev;
-                double e = (d.y[t] - yMean) - yhat;
+                double e = (d.y[t] - yRef) - yhat;
                 r[t - st] = e;
                 ePrev = e;
             }
