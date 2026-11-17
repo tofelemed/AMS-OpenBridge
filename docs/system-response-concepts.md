@@ -156,3 +156,21 @@ no redraw; models nobody reviewed go after 30 days; censored events keep their r
   apart, so no servo step gets a model there.
 - Decay ratio is unreliable on noisy data.
 - The validation prediction is computed on the previous event's times, and no prediction band is computed.
+
+## 8. Changes in the next engine release (CHG-204 to CHG-211, not yet at the plant)
+
+| Rule in sections 2-6 | After the release |
+|---|---|
+| Step size: 1.0 unit, 1 % of a span of 100 | 1 % of the loop's PV range and 4 × the noise (setpoint steps); output steps unchanged |
+| Ramp: 0.02 units/s | 0.02 % of the PV range per second |
+| Settled: PV within 0.5 units for 2 min | Within 0.5 % of the PV range, or within the loop's noise band (measured before the first step) if wider |
+| Rise time / settling need the PV to move 0.5 units | 0.5 % of the PV range |
+| Censor reasons never raised: actuator constraint, region exit | Raised: "Valve at its limit" (within 1 % of either end for 10 s), "PV left its operating region" (10 s, where a region is set) |
+| Model type from the loop type only | From the declared process behaviour when the loop declares one; otherwise from the loop type |
+| Servo steps on non-level loops: "not estimated" because samples are uneven | Resampled to an even grid, then fitted by the closed-loop method; the fit starts from the pre-step level |
+| Decay ratio unreliable on noisy data | Two real peaks a full oscillation apart, both above 4 × the noise; otherwise "not applicable" |
+| No prediction band | 95 % band on the model check (parameter uncertainty incl. dead time + the fit's noise) |
+| The model check replays the previous event from the current event's level | From the previous event's own pre-step level (a change of operating level between events no longer offsets the check) |
+
+Loops without a recorded PV range keep today's values. Still not changed: capture in Manual, frequency analysis and
+tuning advice (need the controller tuning), servo steps on level loops.
