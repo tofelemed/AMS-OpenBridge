@@ -47,7 +47,7 @@ Items 1 and 4's data source were decided by the owner on 22 Nov (see those secti
 | # | Decision | Our recommendation | Section |
 |---|---|---|---|
 | 2 | Which loops other than level loops are integrating, and any level loop that is self-regulating | Your list; we declare them in the loop settings | 2 |
-| 6 | Whether to set operating regions, and the values for the main loops | Set them on the main loops | 6 |
+| 6 | Whether to set operating regions, and the values for the main loops (they also feed the G2r check and can exclude verdicts) | Set them on the main loops, starting from our proposal for the 9 priority-A loops | 6 |
 | 4 | How λ (closed-loop time constant for the tuning advice) is approved, and which loops are averaging | A rule (λ = dead time for tight loops, larger for averaging loops) with per-loop overrides; your list of averaging loops | 4 |
 | — | The defaults below | Confirm or give other values | Next table |
 
@@ -61,7 +61,7 @@ Items 1 and 4's data source were decided by the owner on 22 Nov (see those secti
 | Smallest PV move for rise time and settling | 0.5 % of the PV range | 3 |
 | Loops without a recorded PV range | Today's fixed values | 3 |
 | Valve at its limit | Output (or valve position, where mapped) within 1 % of either end for 10 s or more during the event: the event is censored | 6 |
-| PV left its operating region | Outside the region set for the loop for 10 s or more: the event is censored | 6 |
+| PV left its operating region | Outside the region set for the loop for 10 s or more: the event is censored. The same region also drives G2r (verdict excluded above 20 % of a window outside), see item 6 | 6 |
 | Decay ratio | A second peak counts only after the PV crosses back through its final value; both peaks above 4 × the noise; otherwise "not applicable" | 7a |
 | Prediction band | 95 %, from the parameter uncertainty (gain, time constant, dead time, baseline) and the fit's noise | 7b |
 | "Residuals not white" | Stays a note on a Validated model, never a rejection | 7b |
@@ -257,8 +257,15 @@ fitted, from data that should not be used.
 | PV left its operating region | The PV leaves the operating region set for the loop (only loops with a region set) |
 | Controller tuning changed | P, I or D changes during the event (needs P, I and D over MQTT, item 4) |
 
-**Please confirm.** The 1 % / 10 s limit; censoring (no model) rather than keeping the event with a warning; and
-whether operating regions should be set for the main loops.
+**Important: a region is not only a System Response setting.** The same region values drive the operating-region
+check G2r on every evaluated window: when the PV is outside the region more than 20 % of the window, G2r fails and
+the loop's verdict for that window is excluded ("outside its operating region"), so the Overview and the KPIs change
+too (5–20 % outside is a warning only). A region that is too narrow would exclude a loop's verdicts. Regions are
+therefore entered only after you confirm the values; our proposal for the 9 priority-A loops comes from their PV band
+in Auto over 30 days.
+
+**Please confirm.** The 1 % / 10 s limit; censoring (no model) rather than keeping the event with a warning; and the
+operating regions for the main loops, knowing they also feed G2r as above.
 
 ## 7. Decay ratio and prediction band
 
