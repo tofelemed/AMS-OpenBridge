@@ -76,7 +76,7 @@ export const TuningPanel: React.FC<{
   ] : [];
   const rows = (history.data?.history ?? []).map(r => historyRow(r, timeZone));
   return (
-    <section className="cpm-surface cpm-response-sub" aria-label="Controller tuning">
+    <section className="cpm-surface cpm-response-sub cpm-response-tuning" aria-label="Controller tuning">
       <PanelHead title="Controller tuning" />
       {snapshot ? (
         <>

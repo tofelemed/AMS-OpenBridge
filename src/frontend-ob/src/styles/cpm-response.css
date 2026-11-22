@@ -68,3 +68,5 @@
 /* CHG-200 (final test #5, C9): a section that follows the candidate models table starts after a gap, not against the table */
 .cpm-response-candidates > .cpm-panel-head:not(:first-child) { margin-top: var(--traverse-space-5); }
 .cpm-response-candidates > .cpm-kv { margin-bottom: var(--traverse-space-2); }
+/* CHG-215 (lab check 23 Nov): Tuning advice and Tuning history start after a gap, as the sections after the candidates table */
+.cpm-response-tuning > .cpm-panel-head:not(:first-child) { margin-top: var(--traverse-space-5); }

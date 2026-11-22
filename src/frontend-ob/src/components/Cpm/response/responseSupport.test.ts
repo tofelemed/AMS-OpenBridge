@@ -2,7 +2,7 @@
 // what it is — the kernel's placeholders (PV_EU, input_EU) and raw ids never reach the screen.
 import { describe, expect, it } from 'vitest';
 import type { ResponseQuantity } from '../../../api/cpm/response';
-import { candidateRows, displayUnit, paramLabel, quantityText, uncertaintyMeaning } from './responseSupport';
+import { candidateRows, crossings, displayUnit, paramLabel, quantityText, uncertaintyMeaning } from './responseSupport';
 
 describe('model parameter presentation (SME review 2 #15)', () => {
   it('maps the kernel unit placeholders to the loop PV unit and the path input', () => {
@@ -36,5 +36,13 @@ describe('quantityText and candidateRows', () => {
     expect(rows[0]).toMatchObject({ family: 'FOPDT', path: 'OP_TO_PV', flatDelay: true, boundsHit: false, cond: '10.5' });
     expect(rows[0].parameters).toEqual([['gain', '3.0'], ['theta', '4.0'], ['tau', '20.0']]);
     expect(rows[1].boundsHit).toBe(true);
+  });
+});
+
+describe('crossings', () => {
+  it('reads the stored crossing frequencies rounded; none when there are none', () => {
+    expect(crossings(['0.0042220015595964555', '0.42279098345285626'])).toBe('0.00422, 0.423');
+    expect(crossings([])).toBe('none');
+    expect(crossings(['n/a'])).toBe('n/a');
   });
 });

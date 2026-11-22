@@ -17,7 +17,7 @@ import type { ResponseQuantity } from '../../../api/cpm/response';
 import type { DecodedArtifact } from '../evidence/artifactCodec';
 import { CpmChart } from '../evidence/CpmChart';
 import { ArtifactSkeleton } from '../evidence/views/viewSupport';
-import { metricOf, provList, quantityText, typographicUnit } from './responseSupport';
+import { crossings, metricOf, provList, quantityText, typographicUnit } from './responseSupport';
 import { phrase } from '../vocabulary';
 
 // audit F19: catalogue ids - the *_hz / peak_complementary ids never existed, so those rows never rendered
@@ -42,8 +42,8 @@ export const BodePanel: React.FC<{ bode: DecodedArtifact | undefined; metrics: R
   const rows: MarginRow[] = [
     ...margins.map(([label, q]) => ({ label, value: notClaimed && q?.value == null ? 'not claimed' : quantityText(q) })),
     ...(bode ? [
-      { label: 'Gain crossings (rad/s)', value: provList(bode, 'gain_crossings').join(', ') || 'none' },
-      { label: 'Phase crossings (rad/s)', value: provList(bode, 'phase_crossings').join(', ') || 'none' },
+      { label: 'Gain crossings (rad/s)', value: crossings(provList(bode, 'gain_crossings')) },
+      { label: 'Phase crossings (rad/s)', value: crossings(provList(bode, 'phase_crossings')) },
     ] : []),
   ];
   return (

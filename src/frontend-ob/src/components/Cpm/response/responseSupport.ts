@@ -55,6 +55,10 @@ export function epochMs(d: DecodedArtifact): Float64Array {
 export const prov = (d: DecodedArtifact | undefined, key: string): string | undefined => d?.meta.provenance?.[key];
 export const provList = (d: DecodedArtifact | undefined, key: string): string[] => (prov(d, key) ?? '').split(';').map(s => s.trim()).filter(Boolean);
 
+/** Crossing frequencies as stored ("0.0042220015595964555"), read rounded like every other number (lab check 23 Nov). */
+export const crossings = (values: string[]): string =>
+  values.map(v => (v !== '' && Number.isFinite(Number(v)) ? plainNumber(Number(v)) : v)).join(', ') || 'none';
+
 export interface CandidateRow {
   family: string; path: string; parameters: Array<[string, string]>; boundsHit: boolean; flatDelay: boolean; signUncertain: boolean; cond: string; raw: string;
 }
