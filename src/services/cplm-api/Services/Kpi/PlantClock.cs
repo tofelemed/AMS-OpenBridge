@@ -6,6 +6,9 @@
 //   <IANA id>  - any other zone (Europe/Berlin, ...), DST included.
 //   +HH:MM     - a fixed offset (-HH:MM too).
 // An unknown value fails startup: a silently wrong day boundary would shift three years of KPI history.
+// CHG-106: Cpm:PlantDayStart (compose: PLANT_DAY_START, HH:MM, a whole quarter hour, default 00:00) is the local time the
+// plant day starts, e.g. 06:00 for 06:00 / 18:00 shifts. A day is named by the date it starts on. The Flink submitters
+// pass the same value, so KPI days and evidence boundaries stay on one clock.
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -14,8 +17,9 @@ namespace Traverse.CplmApi.Services.Kpi;
 public sealed partial class PlantClock
 {
     public const string ConfigKey = "Cpm:PlantTimeZone";
+    public const string DayStartKey = "Cpm:PlantDayStart";
 
-    public static readonly PlantClock Utc = new(TimeZoneInfo.Utc, "UTC", "UTC");
+    public static readonly PlantClock Utc = new(TimeZoneInfo.Utc, "UTC", "UTC", TimeOnly.MinValue);
 
     /// <summary>The zone the plant day is computed in.</summary>
     public TimeZoneInfo Zone { get; }
@@ -26,15 +30,42 @@ public sealed partial class PlantClock
     /// <summary>The zone's IANA id, or "UTC+03:30" for a fixed offset.</summary>
     public string ZoneId { get; }
 
-    private PlantClock(TimeZoneInfo zone, string setting, string zoneId)
+    /// <summary>CHG-106: the local time the plant day starts (default midnight).</summary>
+    public TimeOnly DayStartTime { get; }
+
+    private PlantClock(TimeZoneInfo zone, string setting, string zoneId, TimeOnly dayStart)
     {
         Zone = zone;
         Setting = setting;
         ZoneId = zoneId;
+        DayStartTime = dayStart;
     }
+
+    private PlantClock(TimeZoneInfo zone, string setting, string zoneId) : this(zone, setting, zoneId, TimeOnly.MinValue) { }
 
     [GeneratedRegex(@"^(?:UTC)?([+-])(\d{1,2}):?(\d{2})$", RegexOptions.IgnoreCase)]
     private static partial Regex OffsetPattern();
+
+    [GeneratedRegex(@"^(\d{1,2}):(\d{2})$")]
+    private static partial Regex DayStartPattern();
+
+    /// <summary>
+    /// CHG-106: this clock with the plant day starting at <paramref name="hhmm"/> ("06:00"); blank = midnight. Throws
+    /// ArgumentException for anything but a whole quarter hour: the Flink long job fires on 15-minute steps, so any other
+    /// start would put the KPI days and the evidence boundaries on different clocks.
+    /// </summary>
+    public PlantClock WithDayStart(string? hhmm)
+    {
+        var s = (hhmm ?? "").Trim();
+        if (s.Length == 0) return new PlantClock(Zone, Setting, ZoneId, TimeOnly.MinValue);
+        var m = DayStartPattern().Match(s);
+        if (!m.Success) throw new ArgumentException($"{DayStartKey} '{s}' is not HH:MM (06:00)");
+        var h = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+        var min = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+        if (h > 23 || min > 59) throw new ArgumentException($"{DayStartKey} '{s}' is out of range");
+        if (min % 15 != 0) throw new ArgumentException($"{DayStartKey} '{s}' must be a whole quarter hour (06:00, 06:15, ...)");
+        return new PlantClock(Zone, Setting, ZoneId, new TimeOnly(h, min));
+    }
 
     /// <summary>Resolve a setting; throws ArgumentException for a value that is not a zone.</summary>
     public static PlantClock Parse(string? setting)
@@ -68,8 +99,8 @@ public sealed partial class PlantClock
         return new PlantClock(found, s, UtcAliases.Contains(found.Id) ? "UTC" : found.Id);
     }
 
-    /// <summary>The plant clock from configuration (Cpm:PlantTimeZone, default local).</summary>
-    public static PlantClock From(IConfiguration config) => Parse(config[ConfigKey]);
+    /// <summary>The plant clock from configuration (Cpm:PlantTimeZone, default local; Cpm:PlantDayStart, default 00:00).</summary>
+    public static PlantClock From(IConfiguration config) => Parse(config[ConfigKey]).WithDayStart(config[DayStartKey]);
 
     private static TimeZoneInfo? TryFind(string id)
     {
@@ -93,13 +124,15 @@ public sealed partial class PlantClock
         return o == TimeSpan.Zero ? "UTC" : "UTC" + (o < TimeSpan.Zero ? "-" : "+") + o.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>The plant calendar day containing <paramref name="instant"/>.</summary>
-    public DateOnly DayOf(DateTimeOffset instant) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, Zone).DateTime);
+    /// <summary>The plant day containing <paramref name="instant"/>, named by the date it starts on (CHG-106).</summary>
+    public DateOnly DayOf(DateTimeOffset instant) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, Zone).DateTime - DayStartTime.ToTimeSpan());
 
-    /// <summary>The instant a plant day starts (its local midnight; a midnight skipped by DST = the first valid minute).</summary>
+    /// <summary>The instant a plant day starts (its local day-start time, midnight by default; a start skipped by DST = the
+    /// first valid minute).</summary>
     public DateTimeOffset DayStart(DateOnly day)
     {
-        var local = day.ToDateTime(TimeOnly.MinValue);
+        var local = day.ToDateTime(DayStartTime);
         while (Zone.IsInvalidTime(local)) local = local.AddMinutes(30);
         // an ambiguous midnight (DST fall-back) takes the first occurrence: the larger offset
         var offset = Zone.IsAmbiguousTime(local) ? Zone.GetAmbiguousTimeOffsets(local).Max() : Zone.GetUtcOffset(local);
@@ -123,8 +156,12 @@ public sealed partial class PlantClock
         return (o < TimeSpan.Zero ? "-" : "+") + o.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>What the API reports: the setting, the zone and today's offset.</summary>
-    public object Describe(DateTimeOffset now) => new { setting = Setting, zone = ZoneId, utcOffset = OffsetNow(now) };
+    /// <summary>The day start as "06:00".</summary>
+    public string DayStartText => DayStartTime.ToString("HH:mm", CultureInfo.InvariantCulture);
 
-    public override string ToString() => $"{Setting} ({ZoneId}, UTC{OffsetNow(DateTimeOffset.UtcNow)})";
+    /// <summary>What the API reports: the setting, the zone, today's offset and (CHG-106) the day start.</summary>
+    public object Describe(DateTimeOffset now) => new { setting = Setting, zone = ZoneId, utcOffset = OffsetNow(now), dayStart = DayStartText };
+
+    public override string ToString() =>
+        $"{Setting} ({ZoneId}, UTC{OffsetNow(DateTimeOffset.UtcNow)}{(DayStartTime == TimeOnly.MinValue ? "" : $", day starts {DayStartText}")})";
 }

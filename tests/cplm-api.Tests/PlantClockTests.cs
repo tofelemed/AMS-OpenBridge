@@ -61,4 +61,43 @@ public sealed class PlantClockTests
     [InlineData("+15:00")]
     public void An_unknown_zone_fails_loudly(string setting) =>
         FluentActions.Invoking(() => PlantClock.Parse(setting)).Should().Throw<ArgumentException>().WithMessage("*PlantTimeZone*");
+
+    // CHG-106: a plant on 06:00 / 18:00 shifts. Iran 06:00 = 02:30Z. A day is named by the date it starts on.
+    [Fact]
+    public void A_0600_plant_day_runs_from_0600_to_0600_and_is_named_by_its_start_date()
+    {
+        var c = PlantClock.Parse("IR").WithDayStart("06:00");
+        var d22 = new DateOnly(2026, 11, 22);
+        c.DayStart(d22).Should().Be(DateTimeOffset.Parse("2026-11-22T02:30:00Z"));
+        c.DayEnd(d22).Should().Be(DateTimeOffset.Parse("2026-11-23T02:30:00Z"));
+        c.DayOf(DateTimeOffset.Parse("2026-11-22T20:30:00Z")).Should().Be(d22, "local midnight still belongs to the day that started at 06:00");
+        c.DayOf(DateTimeOffset.Parse("2026-11-23T02:29:59Z")).Should().Be(d22);
+        c.DayOf(DateTimeOffset.Parse("2026-11-23T02:30:00Z")).Should().Be(d22.AddDays(1));
+        c.DayEndingAt(DateTimeOffset.Parse("2026-11-23T02:30:00Z")).Should().Be(d22);
+        c.DayEndingAt(DateTimeOffset.Parse("2026-11-22T20:30:00Z")).Should().BeNull("midnight is no longer a day end");
+    }
+
+    [Fact]
+    public void The_day_start_comes_from_configuration_and_defaults_to_midnight()
+    {
+        PlantClock.From(new ConfigurationBuilder().Build()).DayStartText.Should().Be("00:00");
+        var c = PlantClock.From(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [PlantClock.ConfigKey] = "IR",
+            [PlantClock.DayStartKey] = "06:00",
+        }).Build());
+        c.DayStartTime.Should().Be(new TimeOnly(6, 0));
+        c.Describe(DateTimeOffset.Parse("2026-11-22T00:00:00Z")).Should().BeEquivalentTo(
+            new { setting = "IR", zone = "Asia/Tehran", utcOffset = "+03:30", dayStart = "06:00" });
+        PlantClock.Parse("UTC").WithDayStart("  ").DayEnd(Day).Should().Be(DateTimeOffset.Parse("2026-11-04T00:00:00Z"));
+    }
+
+    [Theory]
+    [InlineData("6")]
+    [InlineData("06:10")]
+    [InlineData("24:00")]
+    [InlineData("06:60")]
+    [InlineData("6am")]
+    public void A_bad_day_start_fails_loudly(string start) =>
+        FluentActions.Invoking(() => PlantClock.Parse("IR").WithDayStart(start)).Should().Throw<ArgumentException>().WithMessage("*PlantDayStart*");
 }

@@ -77,6 +77,41 @@ public class PlantClockTest {
         }
     }
 
+    // CHG-106: a plant on 06:00 / 18:00 shifts. Iran 06:00 = 02:30Z, 18:00 = 14:30Z.
+    @Test public void dayStartMovesTheBoundariesToTheShifts() {
+        PlantClock c = PlantClock.parse("IR").withDayStart("06:00");
+        assertEquals(java.time.LocalTime.of(6, 0), c.dayStart());
+        assertTrue(c.isBoundary("24h", at("2026-11-23T02:30:00Z")));       // 23 Nov 06:00
+        assertFalse(c.isBoundary("24h", at("2026-11-23T14:30:00Z")));      // 18:00 is a 12 h boundary only
+        assertTrue(c.isBoundary("12h", at("2026-11-23T02:30:00Z")));       // night shift ends
+        assertTrue(c.isBoundary("12h", at("2026-11-23T14:30:00Z")));       // day shift ends
+        assertFalse("midnight no longer bounds", c.isBoundary("24h", at("2026-11-22T20:30:00Z")));
+        assertFalse("noon no longer bounds", c.isBoundary("12h", at("2026-11-23T08:30:00Z")));
+        assertEquals("2026-11-23T06:00:00+03:30", c.localIso(at("2026-11-23T02:30:00Z")));
+    }
+
+    @Test public void dayStartDefaultsToMidnight() {
+        assertEquals(java.time.LocalTime.MIDNIGHT, PlantClock.parse("IR").dayStart());
+        for (String blank : new String[]{null, "", "  "}) {
+            PlantClock c = PlantClock.parse("UTC").withDayStart(blank);
+            assertTrue(c.isBoundary("24h", at("2026-11-03T00:00:00Z")));
+            assertTrue(c.isBoundary("12h", at("2026-11-03T12:00:00Z")));
+        }
+        PlantClock late = PlantClock.parse("UTC").withDayStart("18:30");
+        assertTrue("12 h after 18:30 wraps to 06:30", late.isBoundary("12h", at("2026-11-03T06:30:00Z")));
+    }
+
+    @Test public void badDayStartIsRejected() {
+        for (String bad : new String[]{"6", "06:07", "24:00", "06:60", "6am", "-01:00"}) {
+            try {
+                PlantClock.parse("UTC").withDayStart(bad);
+                fail("accepted " + bad);
+            } catch (IllegalArgumentException expected) {
+                // ok
+            }
+        }
+    }
+
     @Test public void offGridZoneWarns() {
         assertNotNull(PlantClock.parse("+05:20").quarterHourWarning(Instant.now()));
         assertNull("Nepal +05:45 is 23 quarter hours", PlantClock.parse("+05:45").quarterHourWarning(Instant.now()));

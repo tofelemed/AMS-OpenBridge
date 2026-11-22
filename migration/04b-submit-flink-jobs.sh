@@ -105,10 +105,11 @@ resolve_plant_tz() {
 PLANT_TZ="$(resolve_plant_tz)"
 BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
 [[ -n "$BOUNDARY_KINDS" ]] || BOUNDARY_KINDS=none     # an empty program argument is fragile through flink run
-info "plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); boundary kinds: ${BOUNDARY_KINDS}"
+info "plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); day start: ${PLANT_DAY_START:-00:00}; boundary kinds: ${BOUNDARY_KINDS}"
 EVIDENCE_CLOCK=(
   --plant-time-zone "$PLANT_TZ"
   --evidence-boundary-kinds "$BOUNDARY_KINDS"
+  --plant-day-start "${PLANT_DAY_START:-00:00}"   # CHG-106: e.g. 06:00 for 06:00 / 18:00 shifts
 )
 
 # Short → Long → Live RBE → Fusion last (latest() sources).

@@ -49,6 +49,10 @@ public class LongBoundaryEmissionTest {
 
     /** emitted_at (min after 22:00) -> window kinds, separately for FINDING and BOUNDARY manifests. */
     private static Map<String, Map<Long, Set<String>>> run(EvidencePolicy policy) throws Exception {
+        return run(policy, "2026-11-03T00:00:00Z");
+    }
+
+    private static Map<String, Map<Long, Set<String>>> run(EvidencePolicy policy, String boundaryLocalEnd) throws Exception {
         CplmLongDiagnosticsStreamJob.LongDiagnosticsProcessFunction fn = new CplmLongDiagnosticsStreamJob.LongDiagnosticsProcessFunction(policy);
         Map<String, Map<Long, Set<String>>> out = new TreeMap<>();
         try (KeyedOneInputStreamOperatorTestHarness<String, CplmNormalizedSample, CplmLongDiagnosticsResult> h =
@@ -71,7 +75,7 @@ public class LongBoundaryEmissionTest {
                 if ("BOUNDARY".equals(p.path("emission_reason").asText())) {
                     assertEquals(p.path("window_kind").asText(), p.path("boundary_kind").asText());
                     assertEquals("Z", p.path("plant_tz").asText());
-                    assertEquals("2026-11-03T00:00:00Z", p.path("boundary_local_end").asText());
+                    assertEquals(boundaryLocalEnd, p.path("boundary_local_end").asText());
                     assertEquals(36, p.path("boundary_set_id").asText().length());
                 }
             }
@@ -92,6 +96,16 @@ public class LongBoundaryEmissionTest {
         assertEquals(1, boundary.size());
         assertEquals(new TreeSet<>(java.util.Arrays.asList("12h", "24h")), boundary.get(120L));
         assertFalse(finding.containsKey(120L));
+    }
+
+    // CHG-106: with the plant day starting at 23:00 the boundary record lands at 23:00 (minute 60), not at midnight
+    @Test
+    public void dayStartMovesTheBoundaryTick() throws Exception {
+        Map<String, Map<Long, Set<String>>> out = run(new EvidencePolicy(EvidencePolicy.Mode.ALL, 12, 60 * MIN,
+                PlantClock.parse("UTC").withDayStart("23:00"), EvidencePolicy.parseKinds("12h,24h")), "2026-11-02T23:00:00Z");
+        Map<Long, Set<String>> boundary = out.get("BOUNDARY");
+        assertEquals(new TreeSet<>(java.util.Collections.singletonList(60L)), boundary.keySet());
+        assertEquals(new TreeSet<>(java.util.Arrays.asList("12h", "24h")), boundary.get(60L));
     }
 
     @Test

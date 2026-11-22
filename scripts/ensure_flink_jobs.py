@@ -140,8 +140,11 @@ CORE_JOBS: tuple[FlinkJobSpec, ...] = (
 PLANT_TIME_ZONE = resolve_plant_time_zone()
 # CHG-102 5a: empty = boundary emission off, passed as "none" (an empty program argument is fragile through flink run)
 EVIDENCE_BOUNDARY_KINDS = os.getenv("CPLM_EVIDENCE_BOUNDARY_KINDS", "12h,24h").strip() or "none"
+# CHG-106: the local time the plant day starts (06:00 for 06:00 / 18:00 shifts); the same value cplm-api uses
+PLANT_DAY_START = os.getenv("PLANT_DAY_START", "00:00").strip() or "00:00"
 _CPLM_EVIDENCE_CLOCK_ARGS: tuple[str, ...] = (
     "--plant-time-zone", PLANT_TIME_ZONE,
+    "--plant-day-start", PLANT_DAY_START,
     "--evidence-boundary-kinds", EVIDENCE_BOUNDARY_KINDS,
 )
 _CPLM_COMMON_ARGS: tuple[str, ...] = (
@@ -432,7 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    log(f"CPLM plant time zone for boundary evidence: {PLANT_TIME_ZONE}; boundary kinds: {EVIDENCE_BOUNDARY_KINDS!r}")
+    log(f"CPLM plant time zone for boundary evidence: {PLANT_TIME_ZONE}; day start: {PLANT_DAY_START}; boundary kinds: {EVIDENCE_BOUNDARY_KINDS!r}")
 
     try:
         wait_for_jobmanager()

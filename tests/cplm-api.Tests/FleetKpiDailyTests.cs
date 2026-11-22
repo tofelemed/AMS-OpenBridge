@@ -247,6 +247,26 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
         Json(await Api(iran).GetKpiLoops("oscillating", site: Site, asOf: oldAsOf)).GetProperty("source").GetString().Should().Be("daily");
     }
 
+    // CHG-106: moving the plant day to 06:00 re-stores every kept day on the shift clock, through the same as_of check
+    [Fact]
+    public async Task A_day_start_change_re_stores_the_kept_days_on_the_shift_clock()
+    {
+        (await RunAsync()).Computed.Should().Be(26);
+        var shift = PlantClock.Parse("UTC").WithDayStart("06:00");
+        var re = await RunAsync(shift);
+        (re.Computed + re.Recomputed).Should().BeGreaterThan(0);
+        var last = shift.DayOf(DateTimeOffset.UtcNow).AddDays(-1);
+        var first = last.AddDays(-12);
+        await using var conn = await Db.OpenConnectionAsync();
+        var runs = (await conn.QueryAsync<(string Day, DateTime AsOf)>(
+            "SELECT day::text, as_of FROM analytics.cplm_kpi_daily_run WHERE day BETWEEN @f::date AND @l::date",
+            new { f = first.ToString("yyyy-MM-dd"), l = last.ToString("yyyy-MM-dd") })).ToList();
+        runs.Should().HaveCount(26, "13 shift days x 2 windows");
+        runs.Should().OnlyContain(r => r.AsOf.TimeOfDay == new TimeSpan(6, 0, 0), "a shift day ends at 06:00");
+        (await RunAsync(shift)).Recomputed.Should().Be(0, "stable once on the shift clock");
+        Json(await Api(shift).GetTrend(days: 14, site: Site)).GetProperty("plantDay").GetProperty("dayStart").GetString().Should().Be("06:00");
+    }
+
     [Fact]
     public async Task Days_past_KPI_DAILY_are_deleted_and_a_null_row_keeps_everything()
     {

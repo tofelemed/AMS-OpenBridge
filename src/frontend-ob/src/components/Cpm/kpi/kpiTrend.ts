@@ -39,11 +39,13 @@ export function pointLabel(d: Pick<KpiTrendDay, 'asOf' | 'day'>, withYear = fals
 }
 
 /** Lowest / highest share over the days with data, for the caption ("between 12 % and 31 %"). */
-/** CHG-102: what a plant day is, for labels: "UTC day", "Asia/Tehran day (UTC+03:30)". An older cplm-api = UTC. */
+/** CHG-102: what a plant day is, for labels: "UTC day", "Asia/Tehran day (UTC+03:30)". An older cplm-api = UTC.
+ *  CHG-106: a day that does not start at midnight says so: "Asia/Tehran day from 06:00 (UTC+03:30)". */
 export function plantDayLabel(trend: Pick<FleetKpiTrend, 'plantDay'> | undefined): string {
   const p = trend?.plantDay;
-  if (!p || /^(Etc\/)?(UTC|UCT|GMT|Universal|Zulu)$/i.test(p.zone)) return 'UTC day';
-  return p.zone.startsWith('UTC') ? `${p.zone} day` : `${p.zone} day (UTC${p.utcOffset})`;
+  const from = p?.dayStart && p.dayStart !== '00:00' ? ` from ${p.dayStart}` : '';
+  if (!p || /^(Etc\/)?(UTC|UCT|GMT|Universal|Zulu)$/i.test(p.zone)) return `UTC day${from}`;
+  return p.zone.startsWith('UTC') ? `${p.zone} day${from}` : `${p.zone} day${from} (UTC${p.utcOffset})`;
 }
 
 export function seriesRange(days: KpiTrendDay[]): { min: number; max: number } | null {

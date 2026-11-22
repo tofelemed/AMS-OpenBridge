@@ -6845,3 +6845,37 @@ IoTDB for 3 years with long Model history ranges; "Rebuild this event" from IoTD
 **Verification.** Flink: 25 new tests (`CplmNormalizedSampleTuningTest` 4, `CentumTuningTest` 7, `ResponseCaptureTuningTest` 7, `ResponseTuningEvaluatorTest` 7); response package 210, full Flink suite run before the commit. Frontend: `TuningPanel.test.tsx` 7; `src/components/Cpm` 1997 pass; `tsc` clean; eslint clean on the changed files. Not yet: lab replay with P / I / D (the lab gateway does not publish them; a lab simulator field would be needed).
 
 **Open:** whether the historian also keeps P / I / D (cpm_raw has no p, i, d) — cplm-api's tuning history covers the analysis need. The PID algorithm (PID / PI-D / I-PD) is taken as PID; it affects only the setpoint-response advice (I&C to confirm).
+
+## CHG-106 — Plant day start setting: KPI days and evidence boundaries can follow the shifts (2026-11-22, branch feat/sr-mine, unreleased)
+
+**Why:** Marun works 06:00–18:00 and 18:00–06:00 shifts. Since v2.9.0 the saved 12 h evidence sets end at 00:00 / 12:00 plant time, and the 24 h set and the daily KPI history run 00:00–00:00, so no saved set matches one shift. Proposal: `docs/next-release/shift-time-change.md` (AMS-open). Owner, 22 Nov: build it with the defaults; the SME confirms later.
+
+**Change:** one setting, `PLANT_DAY_START` (HH:MM, a whole quarter hour; default `00:00` = no change).
+- Flink: `PlantClock.withDayStart` / `dayStart()`; `isBoundary` puts 24 h at the day start and 12 h at the day start and twelve hours later. `EvidencePolicy` job argument `--plant-day-start` (default `00:00`; a bad value fails the submit, like an unknown zone); the startup log line names the day start.
+- Submit scripts pass it to the long and fusion jobs: `migration/04b-submit-flink-jobs.sh`, `infra/docker/flink-submit-cplm.sh`, `infra/docker/flink-job-supervisor.sh`, `scripts/ensure_flink_jobs.py`.
+- cplm-api: `Services/Kpi/PlantClock.cs` reads `Cpm:PlantDayStart` (compose `PLANT_DAY_START`). A plant day runs from one day start to the next and is **named by the date it starts on**; a bad value stops startup. `GET fleet/kpis/trend` and `GET fleet/kpis/loops` report `plantDay.dayStart`. The daily KPI job needed no change: it already re-stores every kept day whose stored end differs from the current day end.
+- Compose: `Cpm__PlantDayStart` for cplm-api, `PLANT_DAY_START` for the two Flink submitters. `migration/.env.example` documents it.
+- ams-frontend: the KPI history label reads "Asia/Tehran day from 06:00 (UTC+03:30)" when the day does not start at midnight (`kpiTrend.plantDayLabel`).
+
+**Services updated:** Flink jar (long + fusion jobs), cplm-api, ams-frontend; compose. No migration, no topic.
+
+**Tests:** Flink `PlantClockTest` 11 (+3), `EvidencePolicyTest` 8 (+2), `LongBoundaryEmissionTest` 3 (+1): 22 pass. cplm-api `PlantClockTests` + `FleetKpiDailyTests` (new: a 06:00 day and its naming; configuration and `Describe`; bad values; a day-start change re-stores the kept days at 06:00): 28 pass on the lab database. Frontend `kpiTrend.test.ts` 6 pass.
+
+**Deploy:** ships in the System Response release (one jar). With the default nothing changes. To switch the plant: add `PLANT_DAY_START=06:00` to `migration/.env` **before** the Flink swap and `deploy.sh`. The long and fusion jobs must be resubmitted to take it (a full swap does that; their 12 h / 24 h verdicts refill within a day). cplm-api re-stores the kept KPI days on its first daily pass: only days whose gate results are still kept (14 d) can be recomputed; older days keep their midnight end and stay readable. Record the switch date in `prod_decision.md`.
+
+**Waiting on the SME:** the shift pattern; a 06:00–06:00 production day (if the production day stays at midnight, only the 12 h sets should move, which needs a second setting: not built); whether a day is named by its start or its end date (default: start date).
+
+## CHG-107 — Controller tuning history from the System Response results (2026-11-22, branch feat/sr-mine, unreleased)
+
+**Why:** System Response plan Phase 2d. The plant will publish each loop's P / I / D on MQTT like PV / SP / OP (owner, 22 Nov). The response engine (CHG-212/213, CPA Redesign) puts the tuning on every G12 result whose event had a known P; cplm-api keeps it as a dated history and records which tuning each model was estimated under.
+
+**Change (cplm-api):**
+- `Services/ControllerSnapshotStore.cs` (new), called from `ResponseResultStore.ApplyAsync` in the result's transaction: reads `controller_snapshot_ref` + `controller_snapshot` and writes `cpm.controller_snapshot` (table from the v2.5 schema, already on the plant). One row per loop and tuning, from `effective_from` (the first sample with those values) until the next different tuning starts. A result whose tuning equals the row in force changes nothing (also after a stateless resubmit moves `effective_from` later); A → B → A gives three rows; a late result for an older tuning is closed by the newer row. Row id = v5 UUID of loop, ref and `effective_from` (idempotent re-delivery). `native` = the CENTUM values as received (P band %, I s, D s, PV span, OP range); `normalized` = ref, Kc, Ti, Td, action, scan, usable, reason. `vendor` CENTUM, `source` DCS, `imported_by` response-engine.
+- `analytics.system_model.controller_snapshot_id` is set to the row the event ran under (a re-delivery without tuning keeps the link).
+- New read API `GET /api/v1/cpm/loops/{loopId}/controller-tuning?limit=50` (`analytics.view`): `{ loopId, count, current, history[] }`, newest first, each row with `validFrom`, `validTo` (null = in force), `form`, `native`, `normalized`, `adapterVersion`, `source` (`Controllers/CpmControllerTuningController.cs`).
+
+**Services updated:** cplm-api. No migration (the table and the model column exist; `ams_user` has ALL on schema `cpm`), no topic.
+
+**Tests:** `ControllerSnapshotStoreTests` (6: stored once and linked; same tuning later continues the row; A → B → A; late older result; no tuning = no row; history API) + `ResponseResultStoreTests` (3) pass on the lab database.
+
+**Depends on:** the engine's CHG-212/213 result fields. Until the plant publishes P / I / D (and that jar runs), results carry an empty ref and nothing is written.
