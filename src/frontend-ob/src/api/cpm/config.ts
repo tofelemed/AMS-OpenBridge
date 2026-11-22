@@ -132,7 +132,8 @@ export const listDeployments = (q: { bundleId?: string; site?: string; limit?: n
 
 export const getDeployment = (id: string, signal?: AbortSignal) => apiJson<Deployment>(`${CPM_BASE}/configuration/deployments/${encodeURIComponent(id)}`, { signal });
 
-async function send<T>(path: string, method: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+/** A configuration write; its error message says what the server refused in words. Shared with configRegions (CHG-219). */
+export async function send<T>(path: string, method: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await apiFetch(`${CPM_BASE}${path}`, {
     method, headers: { 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body),
   });

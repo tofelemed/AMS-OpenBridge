@@ -9,6 +9,8 @@
  * A bundle opens under Bundles (`view=editor&bundle=`) as five tabs. No overview page, no tiles, no Technical details, no Gate
  * role policy card: How to read (a dialog) took the five ? and the card; Workers is a dialog. The band holds the loop, the open
  * bundle with its state, and Open loop ↗. CHG-184 (owner review item 0, Q6): no Record details, Build details or hashes.
+ * CHG-219 (owner-approved design docs/next-release/gate-configuration-per-loop-design.md): a third view, Per-loop settings
+ * (`view=per-loop&batch=`): each loop's own operating region apart from the plant-wide settings, edited many at once.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -29,10 +31,13 @@ import { BundlesView } from './BundlesView';
 import { EditorView, TABS, type ConfigTab } from './EditorView';
 import { ConfigHowToRead } from './ConfigHowToRead';
 import { BundleStatePill } from './configBits';
+import { PerLoopSettings } from './PerLoopSettings';
 
-export type ConfigView = 'effective' | 'bundles' | 'editor';
-type Toggle = 'effective' | 'bundles';
-const TOGGLE: ReadonlyArray<{ value: Toggle; label: string }> = [{ value: 'effective', label: 'Effective' }, { value: 'bundles', label: 'Bundles' }];
+export type ConfigView = 'effective' | 'bundles' | 'editor' | 'per-loop';
+type Toggle = 'effective' | 'bundles' | 'per-loop';
+const TOGGLE: ReadonlyArray<{ value: Toggle; label: string }> = [
+  { value: 'effective', label: 'Effective' }, { value: 'bundles', label: 'Bundles' }, { value: 'per-loop', label: 'Per-loop settings' },
+];
 
 /** The warning stays on screen: results from a worker on another catalogue cannot be compared. */
 export const CatalogueNote: React.FC<{ catalogue: ConfigCatalogue | undefined }> = ({ catalogue }) =>
@@ -49,7 +54,8 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const loop = loopList.find(l => l.loopId.toLowerCase() === (loopId ?? '').toLowerCase());
   const bundleId = params.get('bundle') || undefined;
   const viewParam = params.get('view');
-  const view: ConfigView = bundleId && viewParam === 'editor' ? 'editor' : viewParam === 'bundles' ? 'bundles' : 'effective';
+  const view: ConfigView = bundleId && viewParam === 'editor' ? 'editor' : viewParam === 'bundles' ? 'bundles' : viewParam === 'per-loop' ? 'per-loop' : 'effective';
+  const batchId = params.get('batch') || undefined;
   const gate = params.get('gate');
   const tab: ConfigTab = TABS.includes(params.get('tab') as ConfigTab) ? (params.get('tab') as ConfigTab) : 'properties';
 
@@ -59,6 +65,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
     approve: useAuthStore(s => s.hasPermission('cpm.config.approve')), activate: useAuthStore(s => s.hasPermission('cpm.config.activate')),
     rollback: useAuthStore(s => s.hasPermission('cpm.config.rollback')),
   };
+  const viewer = useAuthStore(s => s.user);
 
   // the automatic landing replaces the URL; every user navigation pushes (the back button retraces views)
   useEffect(() => { if (loopId && !viewParam) setParams(p => { p.set('view', 'effective'); return p; }, { replace: true }); }, [loopId, viewParam, setParams]);
@@ -92,13 +99,19 @@ export const GateConfigurationWorkspace: React.FC = () => {
   const inProgress = useMemo(() => progress.flatMap(q => q.data?.bundles ?? []), [progress]);
   // the open bundle, for the band (the editor reads the same cache entry)
   const open = useBundle(view === 'editor' ? bundleId : undefined).data;
+  // per-loop settings are kept per site: the header's site, the open loop's, or the only one there is
+  const loopSites = useMemo(() => [...new Set(loopList.map(l => l.site).filter(Boolean))], [loopList]);
+  const perLoopSite = scope.params.site || loop?.site || (loopSites.length === 1 ? loopSites[0] : undefined);
+  const byId = useMemo(() => new Map(loopList.map(l => [l.loopId, l])), [loopList]);
+  const inScope = useCallback((id: string) => { const l = byId.get(id); return l ? scope.matches(l) : !scope.params.area && !scope.params.unit; }, [byId, scope]);
 
   if (!perms.read) return <div className="cpm-screen"><EmptyState title="Gate configuration" copy="Reading the governed configuration needs cpm.config.read." /></div>;
 
   const toggle = (v: Toggle) => {
-    if (v === 'effective' && view !== 'effective') go({ view: 'effective', bundle: null, tab: null });
-    if (v === 'bundles' && view === 'effective') go({ view: 'bundles', bundle: null, tab: null });
+    if (v === 'effective' && view !== 'effective') go({ view: 'effective', bundle: null, tab: null, batch: null });
+    if (v === 'bundles' && (view === 'effective' || view === 'per-loop')) go({ view: 'bundles', bundle: null, tab: null, batch: null });
     if (v === 'bundles' && view === 'editor') go({ view: 'bundles', bundle: null, gate: null, tab: null });   // ‹ Bundles was this
+    if (v === 'per-loop' && view !== 'per-loop') go({ view: 'per-loop', bundle: null, gate: null, tab: null });
   };
   const toBundles = () => go({ view: 'bundles', bundle: null, gate: null, tab: null });
 
@@ -110,7 +123,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
           <ObcButton variant="flat" onClick={() => setGuide(true)}>How to read</ObcButton>
         </>} />
       <LoopBand card loopId={loopId}
-        onLoop={id => go({ loop: id, view: view === 'bundles' ? 'bundles' : 'effective', bundle: null, gate: null, tab: null })}
+        onLoop={id => go({ loop: id, view: view === 'bundles' ? 'bundles' : 'effective', bundle: null, gate: null, tab: null, batch: null })}
         end={loopId ? <ObcButton className="ui-link" variant="flat" onClick={() => navigate(explorerHref(loopId))}>Open loop ↗</ObcButton> : undefined}>
         {view === 'editor' && open && (
           <span className="cpm-config-band">
@@ -145,6 +158,10 @@ export const GateConfigurationWorkspace: React.FC = () => {
         <BundlesView activeBundleId={undefined} canDraft={perms.draft} creating={false} createError={null}
           progress={{ bundles: inProgress, loading: progress.some(q => q.isLoading), error: progress.find(q => q.isError)?.error ?? null, retry: () => progress.forEach(q => void q.refetch()) }}
           onOpen={id => go({ view: 'editor', bundle: id, gate: null, tab: null })} onCreate={() => undefined} />
+      )}
+      {view === 'per-loop' && (
+        <PerLoopSettings site={perLoopSite} inScope={inScope} perms={{ draft: perms.draft, approve: perms.approve, activate: perms.activate }}
+          viewer={viewer} batchId={batchId} onBatch={id => go({ batch: id })} />
       )}
       {view === 'editor' && bundleId && (
         <EditorView key={bundleId} bundleId={bundleId} gate={gate ?? 'G0'} tab={tab} perms={perms} loopId={loopId}

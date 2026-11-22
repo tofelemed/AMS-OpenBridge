@@ -1,0 +1,59 @@
+/**
+ * CHG-219: per-loop settings - operating regions in bulk, their batches (approve / deploy), and the loops whose own settings sit on
+ * an older plant-wide base (re-stack). Mirrors cplm-api CHG-108, base /api/v1/cpm/configuration.
+ */
+import { apiJson } from '../apiFetch';
+import { CPM_BASE } from './base';
+import { send } from './config';
+
+/** Where a loop's region comes from: its own LOOP bundle, a plant-wide PROFILE / SITE bundle, or nowhere. */
+export type RegionSource = 'LOOP' | 'PROFILE' | 'SITE' | 'NONE';
+
+export interface LoopRegion {
+  loopId: string; displayName: string | null; loopType: string | null; site: string;
+  pvRangeMin: number | null; pvRangeMax: number | null; regionMin: number | null; regionMax: number | null;
+  source: RegionSource; bundleId: string | null; bundleVersion: number | null;
+}
+export interface RegionsPage { count: number; loops: LoopRegion[] }
+
+export interface BatchRow {
+  loopId: string; site: string; bundleId: string | null; version: number | null; state: string;
+  pvMin: number | null; pvMax: number | null; previousMin: number | null; previousMax: number | null;
+  error: string | null; problems: string[]; deploymentId: string | null; deploymentState: string | null;
+  /** The draft author's username. */
+  createdBy?: string | null;
+}
+export interface BatchResult { batchId: string; count: number; drafts?: number; failed: number; rows: BatchRow[] }
+/** `createdBy`: the author's username; with the viewer's role it decides Approve / "Approve alone (Admin)" (the server enforces the same rule). */
+export interface Batch { batchId: string; site: string; count: number; rows: BatchRow[]; createdBy?: string | null }
+
+export interface StaleLoop {
+  loopId: string; displayName: string | null; loopType: string | null; bundleId: string; version: number;
+  base: 'PROFILE' | 'SITE' | 'FACTORY'; baseBundleId: string | null; baseVersion: number | null; ownProperties: string[];
+}
+export interface StalePage { site: string; count: number; loops: StaleLoop[] }
+
+export interface RegionChange { loopId: string; pvMin: number | null; pvMax: number | null }
+
+const q = (site: string) => `site=${encodeURIComponent(site)}`;
+
+export const getRegions = (site: string, signal?: AbortSignal) =>
+  apiJson<RegionsPage>(`${CPM_BASE}/configuration/regions?${q(site)}`, { signal });
+
+/** Changed rows only; both values null clears the loop's own region. One batch for all of them. */
+export const postRegions = (regions: RegionChange[], note: string) => send<BatchResult>('/configuration/regions', 'POST', { regions, note });
+
+export const getStaleLoops = (site: string, signal?: AbortSignal) =>
+  apiJson<StalePage>(`${CPM_BASE}/configuration/loop-settings/stale?${q(site)}`, { signal });
+
+export const restackLoops = (site: string, note: string, loopIds?: string[]) =>
+  send<BatchResult>('/configuration/loop-settings/restack', 'POST', { site, note, ...(loopIds ? { loopIds } : {}) });
+
+export const getBatch = (batchId: string, site: string, signal?: AbortSignal) =>
+  apiJson<Batch>(`${CPM_BASE}/configuration/batches/${encodeURIComponent(batchId)}?${q(site)}`, { signal });
+
+export const approveBatch = (batchId: string, site: string, note: string, validityHours = 72) =>
+  send<{ approved: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/approve?${q(site)}`, 'POST', { note, validityHours });
+
+export const deployBatch = (batchId: string, site: string) =>
+  send<{ scheduled: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/deploy?${q(site)}`, 'POST');

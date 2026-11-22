@@ -99,3 +99,10 @@
 
 /* a row that holds a short, copyable identifier: the label sits level with it */
 .cpm-config-workspace .cpm-kv:has(.cpm-copy-id), .cpm-config-details .cpm-kv:has(.cpm-copy-id) { align-items: center; }
+
+/* ── CHG-219 Per-loop settings: the stale notice, the batch panel, the region inputs in the table ── */
+.cpm-region-stale { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-3); }
+.cpm-region-stale .cpm-copy { margin: 0; }
+.cpm-config-filters .cpm-input.cpm-region-note { flex: 2 1 14rem; }
+.cpm-region-rows .cpm-region-cell { width: 8rem; max-width: 100%; height: var(--traverse-space-8); padding-block: 0; text-align: end; }
+.cpm-region-rows tr[data-invalid] .cpm-region-cell { border-color: var(--traverse-status-danger-fg); }
