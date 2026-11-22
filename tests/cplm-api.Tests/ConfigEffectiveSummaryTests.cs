@@ -15,6 +15,9 @@ using Xunit;
 namespace Traverse.CplmApi.Tests;
 
 [Trait("Category", "Integration")]
+// CHG-109: in the shared lab collection - the summary test reads "the newest bundle", which the bundle-writing tests
+// (ConfigLifecycleTests, RegionBulkServiceTests) create and delete; run in parallel it could read a deleted id
+[Collection("instrument-bindings-lab")]
 public sealed class ConfigEffectiveSummaryTests : IAsyncLifetime
 {
     private NpgsqlDataSource _db = null!;
