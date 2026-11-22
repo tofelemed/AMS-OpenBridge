@@ -33,7 +33,7 @@ IMAN (initialization manual: the output follows another block).
 | 2 | Model type is chosen from the tag name, not the loop's declared process behaviour | Use the declared behaviour, and declare it for the loops where the tag name is wrong | Built; **needs your list of loops** |
 | 3 | Step size and the settle test use fixed units, the same on a 0–2.5 loop and a 0–100,000 loop | Scale both with each loop's PV range | Built (defaults below) |
 | 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Owner, 22 Nov: P, I and D come over MQTT with PV, SP and OP; the engine reads them | **Decided**; built; **your decision** on λ |
-| 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops | Even grid built; integrating loops later |
+| 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops | Built: even grid and integrating loops |
 | 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed built, works once P, I and D arrive (item 4) |
 | 7 | Decay ratio is unreliable on noisy data; no prediction band on the model check | Stricter peak rule; add a 95 % prediction band | Built (defaults below) |
 
@@ -226,6 +226,7 @@ independent excitation.
 - **5b.** For integrating loops, apply the same method to the **rate of change of the PV** instead of the PV. The
   integrating process then behaves as a self-regulating one, and the gain of that model divided by the sample time
   is the integrating gain. Excitation must still come from the setpoint.
+  **Built (23 Nov):** level loops' setpoint steps now get an integrating model this way.
 
 **Alternative for 5b.** The indirect method: identify the closed loop from setpoint to PV, then remove the known
 controller. It needs the tuning from item 4, so it can only come later.

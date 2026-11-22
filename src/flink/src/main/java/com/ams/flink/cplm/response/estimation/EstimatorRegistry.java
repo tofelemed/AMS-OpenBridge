@@ -12,7 +12,8 @@ public final class EstimatorRegistry {
         if (!family.supported()) return "UNSUPPORTED_MODEL_FAMILY";
         if (path == InputPathResolver.Path.SLAVE_SP_TO_PV) return "CASCADE_MASTER_OP_IS_NOT_AN_APPLIED_INPUT";
         if (type == EventType.ROUTINE_IDENTIFICATION || type == EventType.SERVO_STEP || type == EventType.CASCADE_SP_STEP) {
-            return family.integrating() ? "PEM_NOT_INSTALLED_FOR_INTEGRATING" : "PEM_REQUIRED_FOR_CLOSED_LOOP";
+            // CHG-216: integrating loops use the closed-loop method on the PV's rate of change
+            return family.integrating() ? "PEM_RATE_FOR_INTEGRATING" : "PEM_REQUIRED_FOR_CLOSED_LOOP";
         }
         return "OK";
     }
@@ -20,6 +21,7 @@ public final class EstimatorRegistry {
     public static ModelEstimator forPath(InputPathResolver.Path path, EventType type, ModelFamily family) {
         String l = legality(path, type, family);
         if ("PEM_REQUIRED_FOR_CLOSED_LOOP".equals(l)) return new ClosedLoopPemEstimator();
+        if ("PEM_RATE_FOR_INTEGRATING".equals(l)) return new ClosedLoopIntegratingEstimator();
         if (!"OK".equals(l)) return null;
         return family.integrating() ? new IntegratingEstimator() : new OutputErrorEstimator();
     }
