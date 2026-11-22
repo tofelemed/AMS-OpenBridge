@@ -54,6 +54,20 @@ public sealed class CpmModelsController : ControllerBase
         return Ok(new { loopId, at = instant, count = rows.Count, models = rows });
     }
 
+    /// <summary>
+    /// CHG-109: the review shortlist - one row per active loop and path with a VALIDATED model nobody has reviewed: the newest
+    /// such model, the ACTIVE_BASELINE it would replace, how many are pending and the last review. Loops without a baseline
+    /// first, then the oldest candidate.
+    /// </summary>
+    [HttpGet("models/review-queue")]
+    [Authorize(Policy = "analytics.view")]
+    public async Task<IActionResult> ReviewQueue([FromQuery] string? site, [FromQuery] int limit = 100, CancellationToken ct = default)
+    {
+        limit = Math.Clamp(limit, 1, 500);
+        var rows = await ModelReviewQueue.ReadAsync(_db, string.IsNullOrWhiteSpace(site) ? null : site.Trim(), limit, ct);
+        return Ok(new { count = rows.Count, rows });
+    }
+
     [HttpGet("models/{modelId:guid}")]
     [Authorize(Policy = "analytics.view")]
     public async Task<IActionResult> Get(Guid modelId, CancellationToken ct)

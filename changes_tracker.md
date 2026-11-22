@@ -6896,3 +6896,13 @@ IoTDB for 3 years with long Model history ranges; "Rebuild this event" from IoTD
 **Tests:** `RegionBulkServiceTests` 8 (rows and errors; batch approve by another user and deploy; Admin / SuperAdmin self-approval recorded, an Engineer refused; update on the active LOOP bundle and clear; a loop under an active PROFILE bundle keeps that content; the current table; a new plant-wide profile makes a loop with its own region stale and the re-stack keeps both; named re-stack and an unchanged base) plus `ConfigLifecycleTests`, `ConfigEffectiveSummaryTests`, `EvaluationApiTests`, `LoopRetireTests`: 32 pass on the lab database.
 
 **Screen:** CPA Redesign, CHG-219 (Gate Configuration: "Plant-wide" and "Per-loop" areas, the bulk region table, the re-stack prompt after a plant-wide change).
+
+## CHG-109 — Model review queue: one row per loop and path to review (2026-11-23, branch feat/sr-mine, unreleased)
+
+**Why:** System Response plan Phase 4. About 600 models arrive a day at Marun and none has ever been reviewed (0 of 22,179). The CHG-218 review shortlist (CPA Updates) needs one row per loop instead of every model.
+
+**Change (cplm-api):** `GET /api/v1/cpm/models/review-queue?site=&limit=100` (`analytics.view`, limit 1-500), `Services/ModelReviewQueue.cs` + `CpmModelsController.ReviewQueue`. One row per active loop and path that has a VALIDATED model with no review decision: `candidate` (the newest such model: id, revision, family, state, createdAt, createdFromEvent, gain = process_gain or integrating_gain, timeConstant, deadTime from the model parameters; fitImprovement and validationRmse from the metrics of the event it was estimated on), `baseline` (the ACTIVE_BASELINE of that loop / path, or null), `pendingCount` (unreviewed VALIDATED models of that loop / path), `lastReviewedAt`. Loops without a baseline first, then the oldest candidate. Retired loops are left out. The per-loop page keeps `GET loops/{id}/models`.
+
+**Services updated:** cplm-api. No migration (reads `analytics.system_model`, `analytics.response_metric`, `cpm.loop_registry`; the model table holds ~16-22 k rows at Marun after the 14-day purge of unreviewed models, so the per-loop DISTINCT ON is cheap).
+
+**Tests:** `ModelReviewQueueTests` 2 (newest unreviewed candidate per loop, baseline, pending count, last review, metrics; no-baseline first; reviewed and retired loops left out; site filter and limit) pass on the lab database.
