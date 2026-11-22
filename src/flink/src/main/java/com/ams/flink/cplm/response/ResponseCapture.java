@@ -270,9 +270,9 @@ public final class ResponseCapture implements Serializable {
             valid[i] = row[4] > 0 && row[5] > 0;
         }
         ResponseEventDetector.Candidate ref = ResponseEventDetector.detect(t, sp, valid, referenceDetectorSettings());
-        if (ref != null && !Double.isNaN(lastEventT0) && t[ref.index] <= lastEventT0) ref = null;   // already captured
+        if (ref != null && alreadyCaptured(t[ref.index])) ref = null;
         ResponseEventDetector.Candidate inp = ref == null ? ResponseEventDetector.detect(t, u, valid, inputDetectorSettings()) : null;
-        if (inp != null && !Double.isNaN(lastEventT0) && t[inp.index] <= lastEventT0) inp = null;
+        if (inp != null && alreadyCaptured(t[inp.index])) inp = null;
         ResponseEventDetector.Candidate c = ref != null ? ref : inp;
         if (c == null) return Collections.emptyList();
         boolean isReference = ref != null;
@@ -293,6 +293,15 @@ public final class ResponseCapture implements Serializable {
         List<Closed> censored = guardFromStep(t0);                                // the event opened eventDwellS after its step
         machine.onSample(nowS);                                                   // a no-op when the replay closed it
         return censored;
+    }
+
+    /**
+     * Lab end-to-end run, 23 Nov: a step at or within the step dwell after the last event's step is that same move. An event
+     * censored early (region exit, tuning change) closes while its step is still in the detection window; when the grid caught
+     * the move part-way (OP 40 -> 42.5 -> 45), the detector found its second half one sample later and opened a second event.
+     */
+    private boolean alreadyCaptured(double candidateT0) {
+        return !Double.isNaN(lastEventT0) && candidateT0 <= lastEventT0 + cfg.eventDwellS;
     }
 
     /**
