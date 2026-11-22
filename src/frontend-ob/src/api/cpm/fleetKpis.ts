@@ -179,8 +179,9 @@ export interface FleetKpiTrendPoint {
   kpis: Array<{ key: FleetKpiKey; count: number; denominator: number }>;
 }
 
-/** CHG-102: the zone plant days are counted in (Cpm:PlantTimeZone): setting local | UTC | IR | ..., zone id, offset "+03:30". */
-export interface FleetKpiPlantDay { setting: string; zone: string; utcOffset: string }
+/** CHG-102: the zone plant days are counted in (Cpm:PlantTimeZone): setting local | UTC | IR | ..., zone id, offset "+03:30".
+ *  CHG-106: dayStart = the local time the day starts ("06:00" on shift days; older cplm-api: absent = midnight). */
+export interface FleetKpiPlantDay { setting: string; zone: string; utcOffset: string; dayStart?: string }
 
 export interface FleetKpiTrend {
   basis: FleetKpiBasis; days: number; anchor: string; points: FleetKpiTrendPoint[];

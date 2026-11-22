@@ -56,6 +56,22 @@ public class EvidencePolicyTest {
             () -> EvidencePolicy.fromArgs(new String[]{"--plant-time-zone", "Mars/Olympus"}));
     }
 
+    // CHG-106
+    @Test public void plantDayStartArgumentMovesTheBoundaries() {
+        assertEquals(java.time.LocalTime.MIDNIGHT, EvidencePolicy.fromArgs(new String[0]).plantClock.dayStart());
+        EvidencePolicy p = EvidencePolicy.fromArgs(new String[]{"--plant-time-zone", "IR", "--plant-day-start", "06:00"});
+        assertTrue(p.boundary("24h", at("2026-11-23T02:30:00Z")));
+        assertTrue(p.boundary("12h", at("2026-11-23T14:30:00Z")));
+        assertFalse(p.boundary("24h", at("2026-11-22T20:30:00Z")));
+        EvidencePolicy dashless = EvidencePolicy.fromArgs(new String[]{"plant-day-start", "06:00"});
+        assertEquals(java.time.LocalTime.of(6, 0), dashless.plantClock.dayStart());
+    }
+
+    @Test public void badPlantDayStartFailsTheSubmit() {
+        assertThrows(IllegalArgumentException.class,
+            () -> EvidencePolicy.fromArgs(new String[]{"--plant-day-start", "06:10"}));
+    }
+
     @Test public void kindsAreTrimmedAndLowerCased() {
         assertEquals(new LinkedHashSet<>(Arrays.asList("12h", "24h")), EvidencePolicy.parseKinds(" 12H , 24h ,"));
     }

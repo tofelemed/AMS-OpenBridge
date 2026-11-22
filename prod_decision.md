@@ -352,3 +352,22 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 - **Deploy rule:** the Response job is cancelled and resubmitted without state (new fields in keyed state); never a savepoint upgrade (`scripts/flink-upgrade-job.ps1`) or a lab ZK-HA restore for this jar. Event and result identities change for loops without a bundle. Under a bundle the PV span, OP range and region are not in the identity, so a range edit changes results without changing their ids.
 - **First checks after the deploy:** the model check and the band start from each loop's second accepted event (the stored previous event is dropped by the stateless resubmit).
 - **Waiting on others:** bump tests in Manual, declarations of integrating loops, operating regions, λ (SME); CENTUM P / I / D tags for frequency analysis and "tuning changed" (I&C).
+
+## Plant day start (CHG-106, unreleased, branch feat/sr-mine)
+
+| Setting | Where | Value | Why |
+|---|---|---|---|
+| `PLANT_DAY_START` | `migration/.env` → cplm-api `Cpm__PlantDayStart` and the Flink submitters (`--plant-day-start`, long + fusion jobs) | default `00:00` (unchanged). **Marun: `06:00` once the SME confirms** the shifts (06:00–18:00 / 18:00–06:00) and a 06:00–06:00 production day | each saved 12 h evidence set = one shift; the 24 h set and the daily KPI day = one production day. One value for both, so KPI days and evidence boundaries stay on one clock |
+
+- Rules: HH:MM, a whole quarter hour (the long job fires on 15-minute steps). A bad value stops cplm-api and fails the Flink submit. A day is named by the date it starts on.
+- Changing it: set it before the Flink swap and `deploy.sh`; the long and fusion jobs are resubmitted (fresh state, verdicts refill within a day). The kept KPI days (14 d of gate results) are re-stored on the new day; older days keep their old end and stay readable. **Record the switch date here: it is where the daily KPI definition changes.** Evidence sets saved before stay readable until their 30 days pass.
+- At a new plant: set it with `PLANT_TIME_ZONE` before the first data; then nothing needs re-storing.
+
+## Controller tuning history (CHG-107, unreleased, branch feat/sr-mine)
+
+| Data | Where | Retention | Why |
+|---|---|---|---|
+| Each loop's controller tuning (P / I / D as published by the DCS, and Kc / Ti / Td derived by the engine) | `cpm.controller_snapshot`, one row per loop and tuning, effective-dated; written by cplm-api from the System Response results | **kept (no purge)**: a row is written only when the tuning changes, so a few rows per loop per year | frequency analysis, tuning advice and "tuning changed" need the tuning in force at each event; a model names the tuning it was estimated under (`system_model.controller_snapshot_id`); read with `GET /api/v1/cpm/loops/{loopId}/controller-tuning` |
+
+- The source is the plant feed (MQTT, the same payload and rules as PV / SP / OP; ingestion maps P → p, I → i, D → d). Nobody enters tuning by hand.
+- At a new plant: publish P / I / D with the loop's other signals; if the gateway names them differently, map them with a `param_roles` overlay on the ingestion source (configuration, no code). CENTUM convention: P = proportional band %, I and D in seconds; another DCS needs its own adapter in the engine.

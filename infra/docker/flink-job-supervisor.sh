@@ -57,8 +57,9 @@ BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
 EVIDENCE_CLOCK=(
   --plant-time-zone "${PLANT_TZ}"
   --evidence-boundary-kinds "${BOUNDARY_KINDS}"
+  --plant-day-start "${PLANT_DAY_START:-00:00}"   # CHG-106: e.g. 06:00 for 06:00 / 18:00 shifts
 )
-echo "[supervisor] plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); boundary kinds: ${BOUNDARY_KINDS}"
+echo "[supervisor] plant time zone for boundary evidence: ${PLANT_TZ} (PLANT_TIME_ZONE=${PLANT_TIME_ZONE:-local}); day start: ${PLANT_DAY_START:-00:00}; boundary kinds: ${BOUNDARY_KINDS}"
 
 wait_jm() {
   for _ in $(seq 1 60); do

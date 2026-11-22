@@ -33,6 +33,9 @@ public final class EvidencePolicy implements Serializable {
     public static final int DEFAULT_MIN_INTERVAL_MIN = 60;
     /** CHG-102 phase 5a: the plant's zone (PlantClock.parse); boundary evidence lands on its local 00:00 / 12:00. */
     public static final String ARG_PLANT_TZ = "--plant-time-zone";
+    /** CHG-106: the local time the plant day starts (HH:MM, a whole quarter hour); the boundaries follow it. */
+    public static final String ARG_PLANT_DAY_START = "--plant-day-start";
+    public static final String DEFAULT_PLANT_DAY_START = "00:00";
     /** CHG-102 phase 5a: window kinds that emit at every plant boundary; an empty value switches boundary emission off. */
     public static final String ARG_BOUNDARY_KINDS = "--evidence-boundary-kinds";
     public static final String DEFAULT_BOUNDARY_KINDS = "12h,24h";
@@ -91,6 +94,7 @@ public final class EvidencePolicy implements Serializable {
         int minIntervalMin = DEFAULT_MIN_INTERVAL_MIN;
         boolean intervalSeen = false;
         String tzSpec = null;
+        String dayStart = null;
         String kinds = null;
         for (int i = 0; i + 1 < args.length; i++) {
             if (!modeSeen && (ARG.equals(args[i]) || ARG.substring(2).equals(args[i]))) {
@@ -116,15 +120,19 @@ public final class EvidencePolicy implements Serializable {
                 }
             } else if (tzSpec == null && (ARG_PLANT_TZ.equals(args[i]) || ARG_PLANT_TZ.substring(2).equals(args[i]))) {
                 tzSpec = args[i + 1];
+            } else if (dayStart == null && (ARG_PLANT_DAY_START.equals(args[i]) || ARG_PLANT_DAY_START.substring(2).equals(args[i]))) {
+                dayStart = args[i + 1];
             } else if (kinds == null && (ARG_BOUNDARY_KINDS.equals(args[i]) || ARG_BOUNDARY_KINDS.substring(2).equals(args[i]))) {
                 kinds = args[i + 1];
             }
         }
-        PlantClock clock = plantClock(tzSpec);
+        // CHG-106: a bad day start FAILS the submit, like an unknown zone (cplm-api refuses the same value at startup)
+        PlantClock clock = plantClock(tzSpec).withDayStart(dayStart == null ? DEFAULT_PLANT_DAY_START : dayStart);
         Set<String> boundaryKinds = parseKinds(kinds == null ? DEFAULT_BOUNDARY_KINDS : kinds);
         String warning = clock.quarterHourWarning(Instant.now());
         if (warning != null && !boundaryKinds.isEmpty()) LOG.warn("CHG-102: {}", warning);
-        LOG.info("CHG-102: evidence emit={} plant time zone={} ({}) boundary kinds={}", mode, clock.spec, clock.zone, boundaryKinds);
+        LOG.info("CHG-102: evidence emit={} plant time zone={} ({}) day start={} boundary kinds={}", mode, clock.spec, clock.zone,
+                clock.dayStart(), boundaryKinds);
         return new EvidencePolicy(mode, maxCycles, minIntervalMin * 60_000L, clock, boundaryKinds);
     }
 

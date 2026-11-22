@@ -105,6 +105,9 @@ public sealed class ResponseResultStore
             }
         }
 
+        // CHG-107: the controller tuning the event ran under (dated history row), linked to the model below
+        var snapshotId = await ControllerSnapshotStore.ApplyAsync(conn, tx, loopId, root, ct);
+
         // a model row whenever the job produced a candidate (model_state CANDIDATE / VALIDATED / REJECTED by validation)
         var modelState = S(root, "model_state") ?? "NONE";
         if (modelState is "CANDIDATE" or "VALIDATED" or "REJECTED")
@@ -134,10 +137,11 @@ public sealed class ResponseResultStore
             await conn.ExecuteAsync("""
                 INSERT INTO analytics.system_model
                     (model_id, loop_id, path_id, family, parameters, estimator, training_support, validation_support, model_state,
-                     context_revision, created_from_event, method_run_id, bundle_hash)
-                VALUES (@id, @loop, @path, @family, @params::jsonb, @estimator, @train::jsonb, @valid::jsonb, @state, @ctxRev, @event, @run, @bundle)
+                     context_revision, created_from_event, method_run_id, bundle_hash, controller_snapshot_id)
+                VALUES (@id, @loop, @path, @family, @params::jsonb, @estimator, @train::jsonb, @valid::jsonb, @state, @ctxRev, @event, @run, @bundle, @snapshot)
                 ON CONFLICT (model_id) DO UPDATE SET
                     parameters = EXCLUDED.parameters, estimator = EXCLUDED.estimator, validation_support = EXCLUDED.validation_support,
+                    controller_snapshot_id = COALESCE(EXCLUDED.controller_snapshot_id, analytics.system_model.controller_snapshot_id),
                     -- a review decision (revision > 1) is server-owned and never overwritten by a re-delivered job result
                     model_state = CASE WHEN analytics.system_model.revision > 1 THEN analytics.system_model.model_state ELSE EXCLUDED.model_state END
                 """, new
@@ -148,7 +152,7 @@ public sealed class ResponseResultStore
                 train = JsonSerializer.Serialize(new { from_ms = L(root, "window_start_ms"), to_ms = L(root, "window_end_ms"), event_id = eventId, dataset_hash = S(root, "dataset_hash") }),
                 valid = e.ValueKind == JsonValueKind.Object ? JsonSerializer.Serialize(new { verdict = S(e, "verdict"), reason = S(e, "reason"), whiteness_p = D(e, "whiteness_p"), lag_convention = S(e, "lag_convention") }) : "{}",
                 state = modelState, ctxRev = (int)(L(root, "context_revision") ?? 0), @event = eventId.Value, run = methodRunId.Value,
-                bundle = S(root, "bundle_hash") ?? "legacy",
+                bundle = S(root, "bundle_hash") ?? "legacy", snapshot = snapshotId,
             }, tx);
         }
         await tx.CommitAsync(ct);

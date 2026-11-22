@@ -107,8 +107,9 @@ BOUNDARY_KINDS="${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}"
 EVIDENCE_CLOCK=(
   --plant-time-zone "${PLANT_TZ}"
   --evidence-boundary-kinds "${BOUNDARY_KINDS}"
+  --plant-day-start "${PLANT_DAY_START:-00:00}"   # CHG-106: e.g. 06:00 for 06:00 / 18:00 shifts
 )
-echo "[CPLM Submit] Plant time zone for boundary evidence: ${PLANT_TZ}; boundary kinds: ${BOUNDARY_KINDS}"
+echo "[CPLM Submit] Plant time zone for boundary evidence: ${PLANT_TZ}; day start: ${PLANT_DAY_START:-00:00}; boundary kinds: ${BOUNDARY_KINDS}"
 
 submit_if_missing "AMS - CPLM Short Feature Engine" \
   com.ams.flink.cplm.CplmShortFeatureStreamJob \

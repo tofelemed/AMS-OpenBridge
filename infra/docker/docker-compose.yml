@@ -1444,6 +1444,9 @@ services:
       # below; containers are UTC without it) | UTC | IR (Asia/Tehran, +03:30) | IANA id | +HH:MM. A bad value
       # stops cplm-api at startup; the zone in use is logged and returned as plantDay by GET fleet/kpis/trend.
       Cpm__PlantTimeZone:      ${PLANT_TIME_ZONE:-local}
+      # CHG-106: the local time the plant day starts (HH:MM, a whole quarter hour; 06:00 for 06:00 / 18:00 shifts).
+      # The SAME value goes to the Flink submitters below, so KPI days and evidence boundaries stay on one clock.
+      Cpm__PlantDayStart:      ${PLANT_DAY_START:-00:00}
       # Platform auth (RBAC): validate RS256 tokens from auth-service; X-Service-Key authenticates
       # internal service-to-service calls that carry no user token.
       Auth__JwksUrl:   http://auth-service:3002/api/auth/.well-known/jwks.json
@@ -1599,6 +1602,7 @@ services:
       FLINK_JAR_PATH:        /opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar
       CPLM_INPUT_TOPIC:      traverse.cpa.loop.samples.v1
       PLANT_TIME_ZONE:       ${PLANT_TIME_ZONE:-local}          # CHG-102: same plant day as cplm-api
+      PLANT_DAY_START:       ${PLANT_DAY_START:-00:00}          # CHG-106: same day start as cplm-api
       CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
       LOOP_ROOT_PREFIX:      ${LOOP_ROOT_PREFIX:-root.site1.cpm}   # CHG-102 5c: on-demand evaluation fallback device
     volumes:
@@ -1646,6 +1650,7 @@ services:
       IOTDB_PORT:                  "6667"
       # CHG-102: the long + fusion jobs' boundary evidence follows the SAME plant day as cplm-api
       PLANT_TIME_ZONE:             ${PLANT_TIME_ZONE:-local}
+      PLANT_DAY_START:             ${PLANT_DAY_START:-00:00}    # CHG-106
       CPLM_EVIDENCE_BOUNDARY_KINDS: ${CPLM_EVIDENCE_BOUNDARY_KINDS-12h,24h}
       # CHG-102 5c: the on-demand evaluation job's fallback device prefix (a request names its device)
       LOOP_ROOT_PREFIX:            ${LOOP_ROOT_PREFIX:-root.site1.cpm}

@@ -16,20 +16,50 @@ import java.util.regex.Pattern;
  * CHG-102 phase 5a: the plant's wall clock, so boundary evidence lands on the plant's local midnight
  * (24h) and midnight/noon (12h), not on UTC's. Iran is a fixed +03:30 (no DST since 2022) and is never
  * looked up in the JDK's tzdata, which may predate the abolition. Job argument {@code --plant-time-zone}.
+ * CHG-106: the plant day may start at another quarter hour (a plant on 06:00 / 18:00 shifts), job argument
+ * {@code --plant-day-start}; the 12 h boundaries are then the day start and twelve hours later.
  */
 public final class PlantClock implements Serializable {
     private static final long serialVersionUID = 1L;
     public static final ZoneOffset IRAN = ZoneOffset.ofHoursMinutes(3, 30);
     private static final Pattern OFFSET = Pattern.compile("([+-])(\\d{1,2}):(\\d{2})");
+    private static final Pattern DAY_START = Pattern.compile("(\\d{1,2}):(\\d{2})");
     private static final long QUARTER_HOUR_S = 15L * 60L;
 
     /** The spec as given (for provenance and logs). */
     public final String spec;
     public final ZoneId zone;
+    /** CHG-106: the local time the plant day starts (default midnight). Null only in a form serialized before CHG-106. */
+    public final LocalTime dayStart;
 
     private PlantClock(String spec, ZoneId zone) {
+        this(spec, zone, LocalTime.MIDNIGHT);
+    }
+
+    private PlantClock(String spec, ZoneId zone, LocalTime dayStart) {
         this.spec = spec;
         this.zone = zone;
+        this.dayStart = dayStart;
+    }
+
+    /** The day start in force; midnight for a clock serialized before CHG-106. */
+    public LocalTime dayStart() {
+        return dayStart == null ? LocalTime.MIDNIGHT : dayStart;
+    }
+
+    /**
+     * CHG-106: this clock with the plant day starting at {@code hhmm} ("06:00"). Blank keeps midnight. The time must be a
+     * whole quarter hour, because the long job fires on 15-minute steps: any other start would never meet a boundary.
+     */
+    public PlantClock withDayStart(String hhmm) {
+        if (hhmm == null || hhmm.trim().isEmpty()) return new PlantClock(spec, zone, LocalTime.MIDNIGHT);
+        Matcher m = DAY_START.matcher(hhmm.trim());
+        if (!m.matches()) throw new IllegalArgumentException("plant day start is not HH:MM: " + hhmm);
+        int h = Integer.parseInt(m.group(1));
+        int min = Integer.parseInt(m.group(2));
+        if (h > 23 || min > 59) throw new IllegalArgumentException("plant day start out of range: " + hhmm);
+        if (min % 15 != 0) throw new IllegalArgumentException("plant day start must be a whole quarter hour: " + hhmm);
+        return new PlantClock(spec, zone, LocalTime.of(h, min));
     }
 
     public static PlantClock utc() {
@@ -68,13 +98,17 @@ public final class PlantClock implements Serializable {
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 
-    /** 12h: the window ends at local 00:00 or 12:00; 24h: at local 00:00; any other kind never. */
+    /**
+     * 12h: the window ends at the local day start or twelve hours later (00:00 / 12:00 by default); 24h: at the day
+     * start; any other kind never.
+     */
     public boolean isBoundary(String windowKind, long windowEndMs) {
         if (windowKind == null) return false;
         LocalTime t = ZonedDateTime.ofInstant(Instant.ofEpochMilli(windowEndMs), zone).toLocalTime();
+        LocalTime start = dayStart();
         switch (windowKind) {
-            case "24h": return t.equals(LocalTime.MIDNIGHT);
-            case "12h": return t.equals(LocalTime.MIDNIGHT) || t.equals(LocalTime.NOON);
+            case "24h": return t.equals(start);
+            case "12h": return t.equals(start) || t.equals(start.plusHours(12));
             default: return false;
         }
     }
