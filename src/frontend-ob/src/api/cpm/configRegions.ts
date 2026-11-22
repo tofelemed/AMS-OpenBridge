@@ -37,23 +37,31 @@ export interface RegionChange { loopId: string; pvMin: number | null; pvMax: num
 
 const q = (site: string) => `site=${encodeURIComponent(site)}`;
 
-export const getRegions = (site: string, signal?: AbortSignal) =>
-  apiJson<RegionsPage>(`${CPM_BASE}/configuration/regions?${q(site)}`, { signal });
+// cplm-api leaves null fields out of its answers: an absent region must read null, or `undefined !== null` counts as a change
+const LOOP_NULLS = { displayName: null, loopType: null, pvRangeMin: null, pvRangeMax: null, regionMin: null, regionMax: null, bundleId: null, bundleVersion: null };
+const ROW_NULLS = { bundleId: null, version: null, pvMin: null, pvMax: null, previousMin: null, previousMax: null, error: null, deploymentId: null, deploymentState: null, createdBy: null };
+const fullRow = (r: Partial<BatchRow>): BatchRow => ({ ...ROW_NULLS, ...r, problems: r.problems ?? [] } as BatchRow);
+const fullRows = <T extends { rows: BatchRow[] }>(b: T): T => ({ ...b, rows: (b.rows ?? []).map(fullRow) });
+
+export const getRegions = async (site: string, signal?: AbortSignal): Promise<RegionsPage> => {
+  const page = await apiJson<RegionsPage>(`${CPM_BASE}/configuration/regions?${q(site)}`, { signal });
+  return { ...page, loops: (page.loops ?? []).map(l => ({ ...LOOP_NULLS, ...l })) };
+};
 
 /** Changed rows only; both values null clears the loop's own region. One batch for all of them. */
-export const postRegions = (regions: RegionChange[], note: string) => send<BatchResult>('/configuration/regions', 'POST', { regions, note });
+export const postRegions = (regions: RegionChange[], note: string) => send<BatchResult>('/configuration/regions', 'POST', { regions, note }).then(fullRows);
 
 export const getStaleLoops = (site: string, signal?: AbortSignal) =>
   apiJson<StalePage>(`${CPM_BASE}/configuration/loop-settings/stale?${q(site)}`, { signal });
 
 export const restackLoops = (site: string, note: string, loopIds?: string[]) =>
-  send<BatchResult>('/configuration/loop-settings/restack', 'POST', { site, note, ...(loopIds ? { loopIds } : {}) });
+  send<BatchResult>('/configuration/loop-settings/restack', 'POST', { site, note, ...(loopIds ? { loopIds } : {}) }).then(fullRows);
 
 export const getBatch = (batchId: string, site: string, signal?: AbortSignal) =>
-  apiJson<Batch>(`${CPM_BASE}/configuration/batches/${encodeURIComponent(batchId)}?${q(site)}`, { signal });
+  apiJson<Batch>(`${CPM_BASE}/configuration/batches/${encodeURIComponent(batchId)}?${q(site)}`, { signal }).then(fullRows);
 
 export const approveBatch = (batchId: string, site: string, note: string, validityHours = 72) =>
-  send<{ approved: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/approve?${q(site)}`, 'POST', { note, validityHours });
+  send<{ approved: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/approve?${q(site)}`, 'POST', { note, validityHours }).then(fullRows);
 
 export const deployBatch = (batchId: string, site: string) =>
-  send<{ scheduled: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/deploy?${q(site)}`, 'POST');
+  send<{ scheduled: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/deploy?${q(site)}`, 'POST').then(fullRows);

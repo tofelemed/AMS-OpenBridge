@@ -28,7 +28,8 @@ vi.mock('@oicl/openbridge-webcomponents-react/icons/icon-close-google', () => ({
 const ALL = ['cpm.config.read', 'cpm.config.draft', 'cpm.config.validate', 'cpm.config.shadow', 'cpm.config.approve', 'cpm.config.activate', 'cpm.config.rollback'];
 const REGIONS = { count: 2, loops: [
   { loopId: 'FIC10302', displayName: 'Reactor feed flow', loopType: 'FIC', site: 'hdpe', pvRangeMin: 0, pvRangeMax: 120, regionMin: 20, regionMax: 100, source: 'LOOP', bundleId: 'l6', bundleVersion: 6 },
-  { loopId: 'FIC10301', displayName: null, loopType: 'FIC', site: 'hdpe', pvRangeMin: 0, pvRangeMax: 50, regionMin: null, regionMax: null, source: 'NONE', bundleId: null, bundleVersion: null },
+  { loopId: 'FIC10301', loopType: 'FIC', site: 'hdpe', pvRangeMin: 0, pvRangeMax: 50, source: 'NONE' },
+  { loopId: 'FIC10303', displayName: 'Own bundle, no region', loopType: 'FIC', site: 'hdpe', source: 'LOOP', bundleId: 'l9', bundleVersion: 3 },
 ] };
 const BATCH = { batchId: 'b1', site: 'hdpe', count: 1, createdBy: 'admin', rows: [
   { loopId: 'FIC10301', site: 'hdpe', bundleId: 'n1', version: 1, state: 'VALIDATED', pvMin: 5, pvMax: 45, previousMin: null, previousMax: null, error: null, problems: [], deploymentId: null, deploymentState: null, createdBy: 'admin' },
@@ -77,7 +78,7 @@ describe('Per-loop settings', () => {
     await screen.findByRole('button', { name: 'Per-loop settings' });
     fireEvent.click(screen.getByRole('button', { name: 'Per-loop settings' }));
     await waitFor(() => expect(loc()).toBe('/cpm/config?view=per-loop'));
-    await waitFor(() => expect(within(table()).getAllByRole('row').length).toBe(3));
+    await waitFor(() => expect(within(table()).getAllByRole('row').length).toBe(4));
     const [, first, second] = within(table()).getAllByRole('row').map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent));
     expect(first).toEqual(['FIC10301', 'FIC', '0 – 50', '', '', 'None', '—']);
     expect(second).toEqual(['FIC10302Reactor feed flow', 'FIC', '0 – 120', '20', '100', 'Own', '—']);
@@ -87,6 +88,7 @@ describe('Per-loop settings', () => {
   it('Edit regions -> Save sends only the changed rows as one batch, which opens above the table', async () => {
     renderAt('?view=per-loop');
     fireEvent.click(await screen.findByRole('button', { name: 'Edit regions' }));
+    // a loop with its own bundle but no region, as cplm-api sends it (null fields left out): opening the editor changes nothing
     expect((screen.getByRole('button', { name: 'Save 0 changes' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('FIC10301 region min'), { target: { value: '5' } });
     expect((screen.getByRole('button', { name: 'Save 0 changes' }) as HTMLButtonElement).disabled).toBe(true);   // half a region
