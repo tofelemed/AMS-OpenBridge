@@ -8,6 +8,7 @@
  * the result, steps and quantities are each said once; a run whose arrays were not kept says so once per tab.
  * CHG-195 (owner review item 19): no foot line under the tabs (the band names the event).
  * CHG-198: an event redrawn from the historian is held in the page cache (useRedrawn) and handed to the tabs.
+ * CHG-218: with no loop chosen, the review shortlist under "Pick a loop" (one row per loop and path with a model to review).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -26,7 +27,9 @@ import { explorerHref } from '../cpaHref';
 import { ResponseEmpty } from './ResponseSummary';
 import { ModelReviewDialog } from './ModelReviewDialog';
 import { ModelHistoryBody } from './ModelHistory';
-import { useModels, useResponseEvent, useResponseEvents, useReviewModel } from './useResponse';
+import { useModels, useResponseEvent, useResponseEvents, useReviewModel, useReviewQueue } from './useResponse';
+import { ReviewShortlist } from './ReviewShortlist';
+import { useCpmScope } from '../plantScope';
 import { EventSelect } from './EventSelect';
 import { EventsTab } from './EventsTab';
 import { ResponseTabs, needsEvent, tabOf, type ResponseTab } from './ResponseTabs';
@@ -50,6 +53,12 @@ export const ResponseWorkspace: React.FC = () => {
   const timeZone = siteZoneOf(loop);
   const canReview = useAuthStore(s => s.hasPermission('cpm.model.review'));
   const canConfig = useAuthStore(s => s.hasPermission('cpm.config.read'));
+  const scope = useCpmScope();
+  const queue = useReviewQueue(scope.params.site, !loopId);
+  const queueRows = useMemo(() => {
+    const byId = new Map(loopList.map(l => [l.loopId.toLowerCase(), l]));
+    return (queue.data?.rows ?? []).filter(r => { const l = byId.get(r.loopId.toLowerCase()); return l ? scope.matches(l) : !scope.params.area && !scope.params.unit; });
+  }, [queue.data, loopList, scope]);
 
   // audit F20: censored candidates are most of the table; they are counted, and listed only on request
   const [showCensored, setShowCensored] = useState(false);
@@ -118,6 +127,8 @@ export const ResponseWorkspace: React.FC = () => {
         {band}
         {loops.isError && <QueryError error={loops.error} retry={() => void loops.refetch()} />}
         <EmptyState level={2} title="Pick a loop" copy="Choose a loop above. Its response events (setpoint or output steps) then appear on the Events tab; choose one to read the model and the evidence behind it." />
+        <ReviewShortlist rows={queueRows} loading={queue.isLoading} error={queue.isError ? queue.error : null} onRetry={() => void queue.refetch()}
+          onOpen={id => setParams(p => { p.set('loop', id); p.set('tab', 'models'); ['event', 'methodRun'].forEach(k => p.delete(k)); return p; })} />
       </div>
     );
   }

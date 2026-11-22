@@ -10,7 +10,7 @@ import type { ResponseEventSummary } from '../../../api/cpm/response';
 
 const state = vi.hoisted(() => ({
   events: [] as unknown[], hasNext: false, models: [] as unknown[],
-  censored: [] as unknown[], detail: undefined as unknown, asked: [] as boolean[],
+  censored: [] as unknown[], detail: undefined as unknown, asked: [] as boolean[], queue: [] as unknown[], queueSite: [] as Array<string | undefined>,
 }));
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -29,6 +29,10 @@ vi.mock('./useResponse', () => ({
   useModels: () => ({ data: { models: state.models }, isSuccess: true, isError: false }),
   useReviewModel: () => ({ reset: () => {}, isSuccess: false, isPending: false, error: null, mutate: () => {} }),
   useControllerTuning: () => ({ data: undefined, isError: false }),
+  useReviewQueue: (site: string | undefined, enabled: boolean) => {
+    if (enabled) state.queueSite.push(site);
+    return { data: enabled ? { count: state.queue.length, rows: state.queue } : undefined, isLoading: false, isError: false, refetch: () => {} };
+  },
 }));
 vi.mock('../evidence/useEvidence', () => ({
   useEvidenceManifest: () => ({ data: undefined, isLoading: false, isError: false }),
@@ -37,7 +41,7 @@ vi.mock('../evidence/useEvidence', () => ({
 vi.mock('../evidence/useGateArtifacts', () => ({ useGateArtifacts: () => ({ byKind: {}, loading: false }) }));
 import { ResponseWorkspace } from './ResponseWorkspace';
 
-afterEach(() => { cleanup(); state.events = []; state.models = []; state.hasNext = false; state.censored = []; state.detail = undefined; state.asked = []; });
+afterEach(() => { cleanup(); state.events = []; state.models = []; state.hasNext = false; state.censored = []; state.detail = undefined; state.asked = []; state.queue = []; state.queueSite = []; });
 const Where: React.FC = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
 const draw = (perms: string[], at = '/cpm/response?loop=FIC1') => {
   useAuthStore.setState({ user: { user_id: 'u', username: 'a', email: '', role: 'Admin', is_active: true, permissions: perms }, status: 'authenticated', accessToken: 't' });
@@ -50,6 +54,27 @@ const ev = (i: number): ResponseEventSummary => ({
 });
 
 describe('ResponseWorkspace', () => {
+  it('CHG-218: with no loop, the models to review under Pick a loop; a row opens the loop on Models', () => {
+    const model = (gain: number, timeConstant: number | null) => ({ modelId: 'm', revision: 1, family: 'FOPDT', modelState: 'VALIDATED', createdAt: '2026-11-20T08:00:00Z',
+      createdFromEvent: null, gain, timeConstant, deadTime: 10, fitImprovement: null, validationRmse: null });
+    state.queue = [
+      { loopId: 'FIC1', displayName: 'Feed flow', loopType: 'FIC', site: 'hdpe', pathId: 'OP_TO_PV', candidate: model(2.1, 30), baseline: null, pendingCount: 12, lastReviewedAt: null },
+      { loopId: 'FIC2', displayName: 'Recycle flow', loopType: 'FIC', site: 'hdpe', pathId: 'OP_TO_PV', candidate: model(1.5, null), baseline: model(1.4, 25), pendingCount: 3, lastReviewedAt: null },
+    ];
+    draw(['cpm.model.review'], '/cpm/response');
+    expect(screen.getByText('Pick a loop')).toBeTruthy();
+    expect(state.queueSite).toContain(undefined);                          // no plant scope: every site
+    const list = screen.getByRole('region', { name: 'Models to review' });
+    const rows = list.querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(2);
+    expect(Array.from(rows[0].querySelectorAll('td')).map(td => td.textContent)).toEqual([
+      'FIC1Feed flow', expect.any(String), 'First order with dead timegain 2.1 · time constant 30 s · dead time 10 s', 'None yet', '12', expect.any(String),
+    ]);
+    expect(rows[1].querySelectorAll('td')[3].textContent).toContain('gain 1.4 · time constant 25 s');
+    fireEvent.click(rows[1]);
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/response?loop=FIC2&tab=models');
+  });
+
   it('titles the page as the sidebar does', () => {
     draw(['cpm.config.read']);
     expect(screen.getByRole('heading', { level: 1, name: 'System Response' })).toBeTruthy();

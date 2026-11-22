@@ -5,6 +5,7 @@
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getControllerTuning, getModels, getResponseEvent, getResponseEvents, reviewModel, type ReviewDecision } from '../../../api/cpm/response';
+import { getReviewQueue } from '../../../api/cpm/reviewQueue';
 
 /** CHG-215: the loop's tuning history, read only where it is shown (the Frequency tab). An older cplm-api has no such route. */
 export function useControllerTuning(loopId: string | undefined) {
@@ -52,6 +53,20 @@ export function useReviewModel(loopId: string | undefined) {
   return useMutation({
     mutationFn: (args: { modelId: string; revision: number; decision: ReviewDecision; note?: string; domain?: Record<string, unknown> }) =>
       reviewModel(args.modelId, args.revision, args.decision, args.note, args.domain),
-    onSettled: () => { void qc.invalidateQueries({ queryKey: ['cpm', 'models', loopId ?? ''] }); },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['cpm', 'models', loopId ?? ''] });
+      void qc.invalidateQueries({ queryKey: ['cpm', 'review-queue'] });
+    },
+  });
+}
+
+/** CHG-218: the review shortlist, read only while the page shows it (no loop chosen). An older cplm-api has no such route. */
+export function useReviewQueue(site: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['cpm', 'review-queue', site ?? ''],
+    queryFn: ({ signal }) => getReviewQueue(site, 200, signal),
+    enabled,
+    staleTime: 60_000,
+    retry: false,
   });
 }
