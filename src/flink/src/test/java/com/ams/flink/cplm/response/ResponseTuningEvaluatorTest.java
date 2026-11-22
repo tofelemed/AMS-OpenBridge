@@ -117,6 +117,19 @@ public class ResponseTuningEvaluatorTest {
     }
 
     @Test
+    public void tuningWithoutAPvRangeSaysSoInsteadOfNotReceived() {
+        ResponseJobConfig c = cfg();
+        c.pvSpanEu = Double.NaN;                                               // the loop declares no PV range
+        com.ams.flink.cplm.response.controller.CentumTuning t = com.ams.flink.cplm.response.controller.CentumTuning.of(new double[] {1_789_600_000.0, 120, 30, 0}, c);
+        assertFalse(t.usable);
+        G12Result.Subgate h = secondResult(ProcessModel.fopdt("OP_TO_PV", 3.0, 10.0, 20.0), c, t.snapshot).subgates.get("H");
+        assertEquals("WAITING", h.state);
+        assertEquals("PV_RANGE_NOT_SET", h.outputs.get("reason"));
+        G12Result.Subgate none = secondResult(ProcessModel.fopdt("OP_TO_PV", 3.0, 10.0, 20.0), cfg(), ControllerSnapshot.unknown()).subgates.get("H");
+        assertEquals("no tuning at all still reads as not received", "CONTROLLER_FORM_UNKNOWN", none.outputs.get("reason"));
+    }
+
+    @Test
     public void approvedOnlyWaitsForAnApprovedLambda() {
         ResponseJobConfig c = cfg();
         c.lambdaRule = "APPROVED_ONLY";

@@ -28,7 +28,8 @@ public final class SimcAdvisor {
 
     public static Advice advise(ProcessModel m, boolean validated, ControllerSnapshot c, Double lambdaS) {
         if (!validated) return new Advice(null, null, null, RULE, "MODEL_NOT_VALIDATED");
-        if (c == null || !c.known()) return new Advice(null, null, null, RULE, "CONTROLLER_FORM_UNKNOWN");
+        // the tuning's own reason when it arrived but cannot be used (no PV range): "not received" would be wrong
+        if (c == null || !c.known()) return new Advice(null, null, null, RULE, c != null && c.unknownReason != null ? c.unknownReason : "CONTROLLER_FORM_UNKNOWN");
         if (lambdaS == null || lambdaS <= 0) return new Advice(null, null, null, RULE, "LAMBDA_NOT_APPROVED");
         double tc = lambdaS + m.theta;
         switch (m.family) {

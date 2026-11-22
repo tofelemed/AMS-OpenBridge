@@ -9,9 +9,17 @@ public final class ControllerSnapshot implements Serializable {
     public final String form;
     public final Double kc, ti, td, kpC, kiC, kdC, scanS, derivativeFilter;
     public final String action, adapterVersion;
+    /** Why the form is UNKNOWN when the tuning itself arrived (PV_RANGE_NOT_SET); null = no tuning received. */
+    public final String unknownReason;
 
     ControllerSnapshot(String form, Double kc, Double ti, Double td, Double kpC, Double kiC, Double kdC, Double scanS,
                        Double derivativeFilter, String action, String adapterVersion) {
+        this(form, kc, ti, td, kpC, kiC, kdC, scanS, derivativeFilter, action, adapterVersion, null);
+    }
+
+    private ControllerSnapshot(String form, Double kc, Double ti, Double td, Double kpC, Double kiC, Double kdC, Double scanS,
+                               Double derivativeFilter, String action, String adapterVersion, String unknownReason) {
+        this.unknownReason = unknownReason;
         this.form = form;
         this.kc = kc;
         this.ti = ti;
@@ -39,6 +47,11 @@ public final class ControllerSnapshot implements Serializable {
 
     public static ControllerSnapshot unknown() {
         return new ControllerSnapshot("UNKNOWN", null, null, null, null, null, null, null, null, "UNKNOWN", "NONE");
+    }
+
+    /** The tuning arrived but cannot be used, for {@code reason} (e.g. PV_RANGE_NOT_SET): still UNKNOWN to every consumer. */
+    public static ControllerSnapshot unknown(String reason) {
+        return new ControllerSnapshot("UNKNOWN", null, null, null, null, null, null, null, null, "UNKNOWN", "NONE", reason);
     }
 
     public boolean known() {

@@ -41,7 +41,7 @@ public final class CentumTuning implements Serializable {
         usable = Double.isFinite(pvSpan) && pvSpan > 0 && opHigh > opLow;
         snapshot = usable
                 ? ControllerSnapshot.ideal((100.0 / p) * (opHigh - opLow) / pvSpan, positive(i), positive(d), scan, "UNKNOWN")
-                : ControllerSnapshot.unknown();
+                : ControllerSnapshot.unknown("PV_RANGE_NOT_SET");
         String canonical = "centum|" + p + "|" + i + "|" + d + "|" + pvSpan + "|" + opLow + "|" + opHigh + "|" + ADAPTER;
         ref = "ctl:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
