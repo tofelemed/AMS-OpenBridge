@@ -26,6 +26,8 @@ public class RegistryStub : DispatchProxy
     {
         if (m?.Name == nameof(ICpmLoopRegistryService.GetAsync) && args?[0] is string id)
             return Task.FromResult(Loops.TryGetValue(id, out var l) ? l : null);
+        if (m?.Name == nameof(ICpmLoopRegistryService.GetAllAsync))   // CHG-108: the current-regions table
+            return Task.FromResult<IReadOnlyList<CpmLoopDto>>(Loops.Values.ToList());
         throw new NotSupportedException(m?.Name);
     }
 

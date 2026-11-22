@@ -377,3 +377,14 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 
 - The source is the plant feed (MQTT, the same payload and rules as PV / SP / OP; ingestion maps P → p, I → i, D → d). Nobody enters tuning by hand.
 - At a new plant: publish P / I / D with the loop's other signals; if the gateway names them differently, map them with a `param_roles` overlay on the ingestion source (configuration, no code). CENTUM convention: P = proportional band %, I and D in seconds; another DCS needs its own adapter in the engine.
+
+## Per-loop settings and operating regions (CHG-108, unreleased, branch feat/sr-mine)
+
+| Setting | Where | Rule | Why |
+|---|---|---|---|
+| Operating region per loop (`G2r.pv_region_min` / `_max`, PV units) | Gate Configuration, one LOOP bundle per loop; many loops at once with `POST /api/v1/cpm/configuration/regions`, then `batches/{id}/approve` (a second person; an Admin or SuperAdmin may approve their own, recorded as a self-approval) and `batches/{id}/deploy` | none until set (rule off); Marun: the 9 recommended priority-A regions (`docs/next-release/system-response-plant-queries.md`) are loaded with the release, **the SME confirms them later** (owner, 22 Nov) | a region drives gate G2r (a window more than 20 % outside fails G2r and loses its fused verdict) and System Response censoring (REGION_EXIT) |
+| Plant-wide settings vs per-loop settings | SITE / PROFILE bundles (plant-wide) and LOOP bundles (per loop) | one bundle governs a loop; a LOOP bundle carries the plant-wide layers it was built on | every result names the one configuration it ran under |
+| After a plant-wide change | `GET .../loop-settings/stale?site=` lists the loops with their own settings on the old base; `POST .../loop-settings/restack` makes one batch that re-stacks them (current plant-wide layers + their own layer), approved and deployed like any batch | run it after every SITE / PROFILE deployment | otherwise the change does not reach loops that have their own settings |
+
+- A region change needs **no Flink restart**: a deployed bundle reaches the running jobs through the gate-config broadcast and applies from its effective time; the workers' ACKs make it active.
+- After a release with a new factory layer, loops with their own bundle and no plant-wide bundle also show as stale (their base is the build's factory layers): re-stacking them takes the new factory values.
