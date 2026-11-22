@@ -156,7 +156,9 @@ public final class ResponseEvaluator implements Serializable {
             // CHG-205: the historian's grid is uneven; a method that needs an even one gets a resampled copy (metrics, evidence and validation keep the raw samples)
             EventDataset fitData = c.data;
             if (estimator.requiresUniformGrid() && !c.data.isUniform(1e-6)) {
-                double gridStep = c.data.medianDt();
+                // CHG-217: half the median spacing - interpolation then places the step and the response onset within half a read
+                // of where they were, and the fit resolves the dead time finer (lab bench: bias 5 s -> about 1.5 s at 4-6 s reads)
+                double gridStep = c.data.medianDt() / 2;
                 fitData = c.data.resampledUniform(gridStep);
                 d.outputs.put("resampled_grid_s", gridStep);
             }

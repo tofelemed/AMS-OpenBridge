@@ -2,7 +2,7 @@
   "schema": "traverse.cpa.gate-config.property-catalogue/v1",
   "source": "docs/next-release/spec/xlsx_Gate_properties.tsv (spec v6 sheet '165 PROPOSED GATE PROPERTIES')",
   "generated_by": "scripts/gen-property-catalogue.py",
-  "catalogue_hash": "8bbcbbbb7da04ddcd639454605d56a7f9edab7cde7585825672836e0aa93766d",
+  "catalogue_hash": "aee935937ba8b49434645c35bf93a1a4adc9860de10a732662767472fe66af4a",
   "count": 165,
   "change_classes": [
     "POLICY",
@@ -1360,7 +1360,8 @@
       },
       "change_class": "POLICY",
       "consumers": [
-        "flink:short"
+        "flink:short",
+        "flink:response"
       ],
       "dependencies": [],
       "effect": "Approved model/operating domain, not alarm/trip limit"
@@ -1378,7 +1379,8 @@
       },
       "change_class": "POLICY",
       "consumers": [
-        "flink:short"
+        "flink:short",
+        "flink:response"
       ],
       "dependencies": [
         "G2r.pv_region_min"

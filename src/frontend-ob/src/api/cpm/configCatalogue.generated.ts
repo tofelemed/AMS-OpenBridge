@@ -9,7 +9,7 @@ export interface CatalogueProperty {
   validation: Record<string, unknown> | string[];
   change_class: ChangeClass; consumers: string[]; dependencies: string[]; effect: string;
 }
-export const CATALOGUE_HASH = '8bbcbbbb7da04ddcd639454605d56a7f9edab7cde7585825672836e0aa93766d';
+export const CATALOGUE_HASH = 'aee935937ba8b49434645c35bf93a1a4adc9860de10a732662767472fe66af4a';
 export const CATALOGUE_COUNT = 165;
 export const CATALOGUE: CatalogueProperty[] = [
   {
@@ -1354,7 +1354,8 @@ export const CATALOGUE: CatalogueProperty[] = [
     },
     "change_class": "POLICY",
     "consumers": [
-      "flink:short"
+      "flink:short",
+      "flink:response"
     ],
     "dependencies": [],
     "effect": "Approved model/operating domain, not alarm/trip limit"
@@ -1372,7 +1373,8 @@ export const CATALOGUE: CatalogueProperty[] = [
     },
     "change_class": "POLICY",
     "consumers": [
-      "flink:short"
+      "flink:short",
+      "flink:response"
     ],
     "dependencies": [
       "G2r.pv_region_min"

@@ -94,8 +94,10 @@ public class ResponseUniformGridTest {
         assertEquals("ESTIMATED", d.state);
         Object grid = d.outputs.get("resampled_grid_s");
         assertNotNull(grid);
-        assertEquals(5.0, ((Number) grid).doubleValue(), 0.3);
+        assertEquals("CHG-217: half the 5 s median read spacing", 2.5, ((Number) grid).doubleValue(), 0.15);
         assertEquals(2.0, r.metrics.get("process_gain").value, 0.4);
+        // CHG-217: was 5 s (one read short) for the true 10 s; now within the reported one-grid-step uncertainty plus a margin
+        assertEquals(10.0, r.metrics.get("dead_time").value, 3.5);
     }
 
     @Test
@@ -124,12 +126,17 @@ public class ResponseUniformGridTest {
         G12Result.Subgate e = r.subgates.get("E");
         assertEquals("EVALUATED", e.state);
         String what = "verdict " + e.outputs.get("verdict") + " " + e.outputs.get("reason") + ", validation_rmse " + r.metrics.get("validation_rmse").value
-                + ", residual_bias " + r.metrics.get("residual_bias").value + ", fit_improvement " + r.metrics.get("fit_improvement").value;
-        // reported, not asserted yet: the dead time each jittered event recovers against the true 10 s
-        System.out.println("CHG-210 PEM jittered: dead time holdout event " + first.result.metrics.get("dead_time").value + " s, training event "
-                + r.metrics.get("dead_time").value + " s (true 10 s); gain " + first.result.metrics.get("process_gain").value + " / "
-                + r.metrics.get("process_gain").value + "; " + what);
+                + ", residual_bias " + r.metrics.get("residual_bias").value + ", fit_improvement " + r.metrics.get("fit_improvement").value
+                + ", dead time " + first.result.metrics.get("dead_time").value + " / " + r.metrics.get("dead_time").value
+                + ", gain " + first.result.metrics.get("process_gain").value + " / " + r.metrics.get("process_gain").value
+                + ", tau " + first.result.metrics.get("time_constant").value + " / " + r.metrics.get("time_constant").value;
+        // CHG-217: the dead time each jittered event recovers against the true 10 s (was about 5 s before the fix)
+        assertEquals(10.0, first.result.metrics.get("dead_time").value, 3.5);
+        assertEquals(10.0, r.metrics.get("dead_time").value, 3.5);
         assertFalse(what, "REJECTED".equals(e.outputs.get("verdict")));
-        assertTrue("an offset free run: " + what, Math.abs(r.metrics.get("residual_bias").value) < 0.02 * 10);
+        // CHG-217 trade-off: the input interpolated between reads (needed for the dead time) biases the closed-loop gain about
+        // 3 % high on this loop (8-seed bench: mean 2.06 for the true 2.0, was 2.00 with the held input and a 5 s dead time),
+        // which leaves a residual bias near 2-3 % of the 10-unit step. Still no offset free run (CHG-210): the bias tracks the gain.
+        assertTrue("no offset free run: " + what, Math.abs(r.metrics.get("residual_bias").value) < 0.035 * 10);
     }
 }

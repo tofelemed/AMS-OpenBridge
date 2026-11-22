@@ -29,7 +29,8 @@ import java.util.Set;
  */
 public final class ClosedLoopPemEstimator implements ModelEstimator {
     public static final String METHOD_ID = "PEM_ARMAX_INNOVATION";
-    public static final String METHOD_VERSION = "1.1.0";
+    /** 1.2.0 (CHG-217): first order carries two input terms, so the dead time includes a fraction of a grid step. */
+    public static final String METHOD_VERSION = "1.2.0";
     /** CHG-210: below this many valid samples before t0 the regression falls back to the event means. */
     static final int MIN_PRE_STEP_SAMPLES = 3;
 
@@ -92,8 +93,8 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             se.put("process_gain", t.gainSe);
             // CHG-210: every free run starts at the input baseline u0, so y0 is the PV level the model holds there
             double y0 = yRef - t.model.gain * (uRef - u0);
-            // final review M5: the dead-time uncertainty is one grid step, not half - not below the known bias (about one step short
-            // on resampled jittered data, CHG-210, root cause open); back to ts / 2 only when that bias is fixed
+            // final review M5: the dead-time uncertainty is one grid step. CHG-217: on resampled data the grid is half the read spacing
+            // and the remaining bias (about 1.5 s at 4-6 s reads) is inside it
             out.add(new EstimationResult.Candidate(t.model, y0, 0, t.objective, n, se, false, false, false, t.condition, ts, new double[0], new double[0]));
             if (out.size() >= 3) break;
         }
@@ -140,15 +141,25 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         }
     }
 
+    /**
+     * CHG-217: the number of input terms of an order. Order 1 carries two (b1 u[t-nk-1] + b2 u[t-nk-2]): the split between them
+     * is the fraction of a grid step in the dead time (a ZOH-discretised FOPDT with delay (nk + f) ts has exactly this form), so
+     * the dead time is no longer rounded down to whole steps.
+     */
+    static int inputTerms(int order) {
+        return order == 1 ? 2 : order;
+    }
+
     private static Trial fit(EventDataset d, double yRef, double uRef, int order, int nk, double ts, EstimatorSettings s) {
         int n = d.size();
-        int start = order + nk + 1;
+        int nb = inputTerms(order);
+        int start = Math.max(order, nk + nb) + 1;
         if (n - start < 4 * order + 4) return null;
         // regressor condition (excitation rank) on the ARX part
-        double[][] phi = new double[n - start][2 * order];
+        double[][] phi = new double[n - start][order + nb];
         for (int t = start; t < n; t++) {
             for (int i = 1; i <= order; i++) phi[t - start][i - 1] = d.y[t - i] - yRef;
-            for (int j = 1; j <= order; j++) phi[t - start][order + j - 1] = d.u[t - nk - j] - uRef;
+            for (int j = 1; j <= nb; j++) phi[t - start][order + j - 1] = d.u[t - nk - j] - uRef;
         }
         double cond;
         try {
@@ -159,15 +170,15 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         }
         if (cond > 1e8) return null;
 
-        int np = 2 * order + 1;
+        int np = order + nb + 1;
         double[] p0 = new double[np], lo = new double[np], hi = new double[np];
         for (int i = 0; i < order; i++) {
             p0[i] = i == 0 ? 0.8 : 0.0;
             lo[i] = -2;
             hi[i] = 2;
         }
-        for (int j = 0; j < order; j++) {
-            p0[order + j] = 0.1;
+        for (int j = 0; j < nb; j++) {
+            p0[order + j] = j == 0 ? 0.1 : 0.0;
             lo[order + j] = -100;
             hi[order + j] = 100;
         }
@@ -181,7 +192,7 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
             for (int t = st; t < n; t++) {
                 double yhat = 0;
                 for (int i = 1; i <= order; i++) yhat += p[i - 1] * (d.y[t - i] - yRef);
-                for (int j = 1; j <= order; j++) yhat += p[order + j - 1] * (d.u[t - nk - j] - uRef);
+                for (int j = 1; j <= nb; j++) yhat += p[order + j - 1] * (d.u[t - nk - j] - uRef);
                 yhat += p[np - 1] * ePrev;
                 double e = (d.y[t] - yRef) - yhat;
                 r[t - st] = e;
@@ -194,18 +205,34 @@ public final class ClosedLoopPemEstimator implements ModelEstimator {
         ProcessModel model = toContinuous(fit.p, order, nk, ts);
         double denom = 1;
         for (int i = 0; i < order; i++) denom -= fit.p[i];
-        double gainSe = Double.isNaN(fit.stdErr[order]) || denom == 0 ? Double.NaN : Math.abs(fit.stdErr[order] / denom);
+        double bSe = order == 1 && inputTerms(1) == 2 && Double.isFinite(fit.stdErr[1]) && Double.isFinite(fit.stdErr[2])
+                ? Math.hypot(fit.stdErr[1], fit.stdErr[2]) : fit.stdErr[order];
+        double gainSe = Double.isNaN(bSe) || denom == 0 ? Double.NaN : Math.abs(bSe / denom);
         return new Trial(order, nk, fit.objective, cond, gainSe, model);
+    }
+
+    /**
+     * CHG-217: the fraction of a grid step in the dead time from the two input terms of a first-order fit. For y[t] = a y[t-1] +
+     * b1 u[t-nk-1] + b2 u[t-nk-2], a ZOH FOPDT with delay (nk + f) ts gives b1 / (b1 + b2) = (1 - a^(1-f)) / (1 - a); f = 0 when the
+     * split is outside its range (b1 and b2 of opposite sign, or no gain).
+     */
+    static double fractionalDelay(double a, double b1, double b2) {
+        double b = b1 + b2;
+        if (!(a > 0 && a < 1) || b == 0 || b1 / b < 0 || b1 / b > 1) return 0;
+        double q = 1 - (1 - a) * b1 / b;                                         // = a^(1-f)
+        if (!(q > 0)) return 0;
+        double f = 1 - Math.log(q) / Math.log(a);
+        return Double.isFinite(f) ? Math.max(0, Math.min(1, f)) : 0;
     }
 
     /** Discrete ARX part -> continuous family; null when unstable or not representable (never a fake FOPDT). */
     static ProcessModel toContinuous(double[] p, int order, int nk, double ts) {
         double theta = nk * ts;
         if (order == 1) {
-            double a = p[0], b = p[1];
+            double a = p[0], b1 = p[1], b2 = inputTerms(1) == 2 ? p[2] : 0;
             if (!(a > 0 && a < 1)) return null;
             double tau = -ts / Math.log(a);
-            return ProcessModel.fopdt("OP_TO_PV", b / (1 - a), theta, tau);
+            return ProcessModel.fopdt("OP_TO_PV", (b1 + b2) / (1 - a), (nk + fractionalDelay(a, b1, b2)) * ts, tau);
         }
         double a1 = p[0], a2 = p[1], b1 = p[2], b2 = p[3];
         double disc = a1 * a1 + 4 * a2;

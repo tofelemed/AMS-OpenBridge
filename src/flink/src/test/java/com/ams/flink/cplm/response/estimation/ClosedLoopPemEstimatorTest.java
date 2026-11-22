@@ -165,6 +165,21 @@ public class ClosedLoopPemEstimatorTest {
         for (EstimationResult.Candidate c : res.candidates) assertEquals("the 5 s grid step", 5.0, c.thetaUncertaintyS, 0);
     }
 
+    /** CHG-217: a ZOH FOPDT with delay (nk + f) ts splits its input between b1 and b2; the split gives f back. */
+    @Test
+    public void theInputSplitGivesTheFractionOfAStepInTheDeadTime() {
+        double a = 0.8, k = 2;
+        for (double f : new double[] {0, 0.25, 0.4, 0.9}) {
+            double b1 = k * (1 - Math.pow(a, 1 - f)), b2 = k * (Math.pow(a, 1 - f) - a);
+            assertEquals("f " + f, f, ClosedLoopPemEstimator.fractionalDelay(a, b1, b2), 1e-9);
+        }
+        assertEquals("opposite signs: no fraction", 0.0, ClosedLoopPemEstimator.fractionalDelay(0.8, 1, -2), 0);
+        assertEquals("no gain: no fraction", 0.0, ClosedLoopPemEstimator.fractionalDelay(0.8, 0, 0), 0);
+        assertEquals("unstable pole: no fraction", 0.0, ClosedLoopPemEstimator.fractionalDelay(1.2, 1, 1), 0);
+        assertEquals(2, ClosedLoopPemEstimator.inputTerms(1));
+        assertEquals(2, ClosedLoopPemEstimator.inputTerms(2));
+    }
+
     @Test
     public void theRegistryRefusesEndpointRatiosOnClosedLoopData() {
         assertEquals("PEM_REQUIRED_FOR_CLOSED_LOOP", EstimatorRegistry.legality(InputPathResolver.Path.OP_TO_PV, EventType.ROUTINE_IDENTIFICATION, ModelFamily.FOPDT));

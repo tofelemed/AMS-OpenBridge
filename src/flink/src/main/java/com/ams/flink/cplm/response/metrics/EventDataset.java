@@ -46,9 +46,11 @@ public final class EventDataset implements Serializable {
     }
 
     /**
-     * The event on an even grid of step ts from t[0] up to t[n-1]: PV by linear interpolation; reference and applied input
-     * by zero-order hold (DCS commands are piecewise constant). A grid sample is valid only when both neighbours are valid
-     * (a grid time on a raw sample needs only that sample). The event bounds are unchanged.
+     * The event on an even grid of step ts from t[0] up to t[n-1]: PV and applied input by linear interpolation, reference by
+     * zero-order hold (a setpoint is a step). CHG-217: the input used to be held too, but in AUT the controller output moves every
+     * scan, so between historian reads 4-6 s apart it is a continuously moving signal; holding its last read made it lag by half
+     * a spacing on average, and the closed-loop fit read the dead time about one step short. A grid sample is valid only when
+     * both neighbours are valid (a grid time on a raw sample needs only that sample). The event bounds are unchanged.
      */
     public EventDataset resampledUniform(double ts) {
         int n = t.length;
@@ -75,7 +77,7 @@ public final class EventDataset implements Serializable {
                 double f = (g - t[i]) / (t[i + 1] - t[i]);
                 gy[k] = y[i] + f * (y[i + 1] - y[i]);
                 gr[k] = r[i];
-                gu[k] = u[i];
+                gu[k] = u[i] + f * (u[i + 1] - u[i]);
                 gv[k] = valid[i] && valid[i + 1];
             }
         }

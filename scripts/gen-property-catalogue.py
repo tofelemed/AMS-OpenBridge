@@ -42,6 +42,9 @@ EXTRA_CONSUMERS = {
     "G12.model_max_age_s": ["api"], "G14.require_independent_review": ["api"], "G14.confirmation_record_max_age_s": ["api"],
     "G15.notification_repeat_s": ["api"], "G15.recovery_support_s": ["api"], "G15.episode_persistence_s": ["api"],
     "G13.peer_binding_ids": ["api"], "G0.acquisition_mode": ["api"],
+    # CHG-219: since CHG-207 the response job censors an event when the PV leaves the region (REGION_EXIT), so it reads the region
+    # too; listing it makes its CAPABILITY record name the region and a region deployment wait for its ACK as well
+    "G2r.pv_region_min": ["flink:response"], "G2r.pv_region_max": ["flink:response"],
 }
 API_ONLY = {"evidence_retention_days"}                       # the retention sweeper reads these, no job does
 

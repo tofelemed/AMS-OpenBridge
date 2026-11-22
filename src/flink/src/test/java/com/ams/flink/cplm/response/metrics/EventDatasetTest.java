@@ -14,14 +14,17 @@ public class EventDatasetTest {
         return new EventDataset(t, y, r, u, valid, t[0], t[t.length - 1]);
     }
 
+    /** CHG-217: the controller output is interpolated like the PV (it moves every scan); only the setpoint is held. */
     @Test
-    public void resampleUniformInterpolatesPvAndHoldsInputs() {
+    public void resampleUniformInterpolatesPvAndInputAndHoldsTheReference() {
         double[] t = {0, 4, 10, 15};
-        EventDataset d = of(t, new double[]{0, 4, 10, 15}, new double[]{1, 1, 2, 2}, new boolean[]{true, true, true, true});
+        EventDataset d = new EventDataset(t, new double[]{0, 4, 10, 15}, new double[]{50, 50, 55, 55}, new double[]{1, 1, 2, 2},
+                new boolean[]{true, true, true, true}, t[0], t[t.length - 1]);
         EventDataset g = d.resampledUniform(5);
         assertArrayEquals(new double[]{0, 5, 10, 15}, g.t, 1e-9);
         assertArrayEquals(new double[]{0, 5, 10, 15}, g.y, 1e-9);
-        assertArrayEquals(new double[]{1, 1, 2, 2}, g.u, 1e-9);
+        assertArrayEquals("5 s is 1/6 of the way from 4 s to 10 s", new double[]{1, 1 + 1.0 / 6, 2, 2}, g.u, 1e-9);
+        assertArrayEquals("the setpoint step stays a step", new double[]{50, 50, 55, 55}, g.r, 1e-9);
         assertEquals(d.t0, g.t0, 0);
         assertEquals(d.tEnd, g.tEnd, 0);
         assertTrue(g.isUniform(1e-6));

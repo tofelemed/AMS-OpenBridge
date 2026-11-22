@@ -1,6 +1,6 @@
 {
   "schema" : "traverse.cpa.gate-config.factory-layer/v1",
-  "catalogue_hash" : "8bbcbbbb7da04ddcd639454605d56a7f9edab7cde7585825672836e0aa93766d",
+  "catalogue_hash" : "aee935937ba8b49434645c35bf93a1a4adc9860de10a732662767472fe66af4a",
   "factory" : {
     "G0.mode" : "OPERATIONAL",
     "G0.role" : "REQUIRED_CONTEXT",
