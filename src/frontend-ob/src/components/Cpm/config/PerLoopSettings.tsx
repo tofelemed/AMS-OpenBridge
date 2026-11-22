@@ -5,14 +5,14 @@
  * the changed rows as one batch, which opens in the panel above the table (approve, deploy). After a plant-wide change, the loops
  * whose own settings sit on the previous plant-wide settings are offered new versions.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { EmptyState, QueryError } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
 import { Pagination } from '../../../ui/forms/Pagination';
 import { serviceName } from '../loopName';
 import type { BatchRow, LoopRegion } from '../../../api/cpm/configRegions';
-import { useBatch, useRegionActions, useRegions, useStaleLoops } from './useConfigRegions';
+import { batchMoving, useBatch, useRegionActions, useRegions, useStaleLoops } from './useConfigRegions';
 import { RegionBatchPanel, BatchRowState } from './RegionBatchPanel';
 import { SOURCE_WORD, approveAction, changedRows, deployAction, draftOf, numberText, outsideRange, parseDraft, rangeText, type RegionDraft } from './regionEdit';
 
@@ -30,6 +30,8 @@ export interface PerLoopSettingsProps {
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : e ? String(e) : null);
+/** loopId -> the server's reason, for the rows of an answer it left out. */
+const errorsOf = (rows: BatchRow[]) => Object.fromEntries(rows.filter(r => r.error).map(r => [r.loopId, r.error!]));
 const matches = (l: LoopRegion, q: string) => !q || l.loopId.toLowerCase().includes(q) || (l.displayName ?? '').toLowerCase().includes(q) || (l.loopType ?? '').toLowerCase().includes(q);
 
 export const PerLoopSettings: React.FC<PerLoopSettingsProps> = ({ site, inScope, perms, viewer, batchId, onBatch }) => {
@@ -41,9 +43,19 @@ export const PerLoopSettings: React.FC<PerLoopSettingsProps> = ({ site, inScope,
   const [drafts, setDrafts] = useState<Record<string, RegionDraft>>({});
   const [note, setNote] = useState('');
   const [notSaved, setNotSaved] = useState<Record<string, string>>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [restackErrors, setRestackErrors] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [query, site]);
+  useEffect(() => { setRowErrors({}); }, [batchId]);
+  // a deployment that finishes changes the regions and their source: read them again once nothing moves any more
+  const moving = batchMoving(batch.data);
+  const wasMoving = useRef(false);
+  useEffect(() => {
+    if (wasMoving.current && !moving) { void regions.refetch(); void stale.refetch(); }
+    wasMoving.current = moving;
+  }, [moving]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loops = useMemo(() => (regions.data?.loops ?? []).filter(l => inScope(l.loopId)), [regions.data, inScope]);
   const q = query.trim().toLowerCase();
@@ -66,7 +78,12 @@ export const PerLoopSettings: React.FC<PerLoopSettingsProps> = ({ site, inScope,
       if (r.drafts !== 0) onBatch(r.batchId);
     },
   });
-  const restack = () => actions.restack.mutate({ note: 'New versions on the current plant-wide settings' }, { onSuccess: r => onBatch(r.batchId) });
+  const restack = () => actions.restack.mutate({ note: 'New versions on the current plant-wide settings' }, {
+    onSuccess: r => {
+      setRestackErrors(r.rows.filter(x => x.error).map(x => `${x.loopId}: ${x.error}`));
+      if (r.drafts !== 0) { onBatch(r.batchId); setRowErrors(errorsOf(r.rows)); }
+    },
+  });
   const blocked = Object.keys(errors).length > 0;
   const staleCount = stale.data?.count ?? 0;
 
@@ -79,14 +96,16 @@ export const PerLoopSettings: React.FC<PerLoopSettingsProps> = ({ site, inScope,
             {actions.restack.isPending ? 'Preparing…' : 'Prepare their new versions'}
           </ReasonedButton>
           {actions.restack.isError && <p className="cpm-field__error" role="alert">{message(actions.restack.error)}</p>}
+          {restackErrors.map(e => <p key={e} className="cpm-field__error">{e}</p>)}
         </section>
       )}
       {batchId && (
         <RegionBatchPanel batch={batch.data} loading={batch.isLoading} error={batch.isError ? batch.error : null} onRetry={() => void batch.refetch()}
           approve={approveAction(batch.data, viewer, perms.approve)} deploy={deployAction(batch.data, perms.activate)}
           approving={actions.approve.isPending} deploying={actions.deploy.isPending}
-          actionError={message(actions.approve.error) ?? message(actions.deploy.error)}
-          onApprove={n => actions.approve.mutate({ batchId, note: n })} onDeploy={() => actions.deploy.mutate(batchId)}
+          actionError={message(actions.approve.error) ?? message(actions.deploy.error)} rowErrors={rowErrors}
+          onApprove={n => actions.approve.mutate({ batchId, note: n }, { onSuccess: r => setRowErrors(errorsOf(r.rows)) })}
+          onDeploy={() => actions.deploy.mutate(batchId, { onSuccess: r => setRowErrors(errorsOf(r.rows)) })}
           onClose={() => { actions.approve.reset(); actions.deploy.reset(); onBatch(null); }} />
       )}
       <section className="cpm-surface cpm-config-list cpm-config-list--foot" aria-label="Per-loop settings">

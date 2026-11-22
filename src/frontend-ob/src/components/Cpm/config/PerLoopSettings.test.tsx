@@ -117,6 +117,24 @@ describe('Per-loop settings', () => {
     expect(within(again).getByText('Needs a second person')).toBeTruthy();
   });
 
+  it('a row the server left out of an approve says why on its row; a re-stack with no draft opens no batch', async () => {
+    vi.mocked(fetchMod.apiFetch).mockImplementation(async () => ok({ batchId: 'b1', site: 'hdpe', approved: 0, failed: 1,
+      rows: [{ ...BATCH.rows[0], error: 'the approval of this content has expired' }] }));
+    renderAt('?view=per-loop&batch=b1');
+    const panel = await screen.findByRole('region', { name: 'Batch' });
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Approve alone (Admin)' }));
+    expect(await within(panel).findByText('the approval of this content has expired')).toBeTruthy();
+    cleanup();
+    stale = { site: 'hdpe', count: 1, loops: [{}] };
+    vi.mocked(fetchMod.apiFetch).mockImplementation(async () => ok({ batchId: 'b9', count: 1, drafts: 0, failed: 1,
+      rows: [{ ...BATCH.rows[0], bundleId: null, error: 'unchanged base' }] }));
+    renderAt('?view=per-loop');
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare their new versions' }));
+    expect(await screen.findByText('FIC10301: unchanged base')).toBeTruthy();
+    expect(loc()).toBe('/cpm/config?view=per-loop');
+    expect(screen.queryByRole('region', { name: 'Batch' })).toBeNull();
+  });
+
   it('after a plant-wide change the stale notice prepares new versions in one batch', async () => {
     stale = { site: 'hdpe', count: 2, loops: [{}, {}] };
     renderAt('?view=per-loop');
