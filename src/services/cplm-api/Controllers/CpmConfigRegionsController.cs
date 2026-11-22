@@ -79,7 +79,10 @@ public sealed class CpmConfigRegionsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(site)) return BadRequest(new { error = "site is required" });
         var rows = await _batches.GetAsync(site.Trim(), batchId, ct);
-        return rows.Count == 0 ? NotFound(new { error = $"no drafts of batch {batchId} in site '{site}'" }) : Ok(new { batchId, site, count = rows.Count, rows });
+        // createdBy: the batch author - the screen offers "Approve" (someone else's batch), "Approve alone (Admin)" (the
+        // author with Admin / SuperAdmin) or a disabled Approve "Needs a second person" (the author without them)
+        return rows.Count == 0 ? NotFound(new { error = $"no drafts of batch {batchId} in site '{site}'" })
+            : Ok(new { batchId, site, createdBy = rows[0].CreatedBy, count = rows.Count, rows });
     }
 
     /// <summary>An independent reviewer approves every validated draft of the batch.</summary>

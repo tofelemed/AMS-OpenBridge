@@ -118,6 +118,8 @@ public sealed class RegionBulkServiceTests : IAsyncLifetime
 
         var drafts = await _batches.GetAsync(Site, batch, default);
         drafts.Select(d => d.LoopId).Should().Equal("RG_FIC1", "RG_LIC1");
+        drafts.Should().OnlyContain(d => d.CreatedBy == "alice", "the screen needs the author to offer the right Approve button");
+        rows.Where(r => r.BundleId != null).Should().OnlyContain(r => r.CreatedBy == "alice");
         drafts[0].PvMin.Should().Be(10);
         drafts[0].PvMax.Should().Be(20);
         var b = (await _store.GetAsync(drafts[0].BundleId!.Value, default))!;
