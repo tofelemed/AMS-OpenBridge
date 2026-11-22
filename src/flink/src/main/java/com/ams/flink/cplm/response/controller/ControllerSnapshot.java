@@ -44,4 +44,20 @@ public final class ControllerSnapshot implements Serializable {
     public boolean known() {
         return "IDEAL".equals(form) || "PARALLEL".equals(form);
     }
+
+    /** True when the published action says which way the controller acts. */
+    public boolean actionKnown() {
+        return "DIRECT".equals(action) || "REVERSE".equals(action);
+    }
+
+    /**
+     * CHG-214: this controller with its gain carrying {@code sign} - the loop taken as correctly acting (negative feedback)
+     * when the action is not published. Only the ideal-form gain changes; the integral and derivative times do not.
+     */
+    public ControllerSnapshot withGainSign(double sign) {
+        if (!known() || sign == 0 || Double.isNaN(sign)) return this;
+        ControllerSnapshot i = ControllerFormAdapter.toIdeal(this);
+        double kc = Math.copySign(Math.abs(i.kc), sign);
+        return new ControllerSnapshot("IDEAL", kc, i.ti, i.td, null, null, null, i.scanS, i.derivativeFilter, i.action, i.adapterVersion);
+    }
 }

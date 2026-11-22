@@ -32,6 +32,7 @@ const REASONS: Record<string, string> = {
   MODE_TRANSFER: 'the controller changed mode during the capture',
   ACTUATOR_CONSTRAINT: 'the valve sat at its limit',
   REGION_EXIT: 'the PV left its operating region',
+  TUNING_CHANGED: 'the controller tuning changed during the capture',
   SUPERSEDED_BY_EVENT: 'a later event superseded the capture',
   CAPTURE_MAX: 'the capture reached its maximum length',
   HEALTH_INELIGIBLE: 'the transmitter health made the window ineligible',

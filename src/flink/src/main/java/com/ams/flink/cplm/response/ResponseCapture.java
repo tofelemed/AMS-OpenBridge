@@ -33,8 +33,15 @@ public final class ResponseCapture implements Serializable {
         public final Double duApplied;
         public final String pathReason;
         public final boolean uAppliedAvailable;
+        /** CHG-212: the tuning in force at the step, {@code [sinceS, p, i, d]} (NaN = not sent); null when none had arrived. */
+        public final double[] tuningAtT0;
 
         Closed(ResponseEvent event, EventDataset data, double u0, double r0, double r1, Double duApplied, String pathReason, boolean uAppliedAvailable) {
+            this(event, data, u0, r0, r1, duApplied, pathReason, uAppliedAvailable, null);
+        }
+
+        Closed(ResponseEvent event, EventDataset data, double u0, double r0, double r1, Double duApplied, String pathReason, boolean uAppliedAvailable,
+               double[] tuningAtT0) {
             this.event = event;
             this.data = data;
             this.u0 = u0;
@@ -43,6 +50,7 @@ public final class ResponseCapture implements Serializable {
             this.duApplied = duApplied;
             this.pathReason = pathReason;
             this.uAppliedAvailable = uAppliedAvailable;
+            this.tuningAtT0 = tuningAtT0;
         }
     }
 
@@ -66,6 +74,8 @@ public final class ResponseCapture implements Serializable {
     private double changeValue = Double.NaN;
     private final EventGuards guards;
     private final java.util.Set<String> emitted = new java.util.HashSet<>();
+    /** CHG-212: the loop's P / I / D as they changed (see TuningHistory). */
+    private final TuningHistory tuning = new TuningHistory();
 
     /** The settings this capture runs under (a bundle pins a capture for its whole event; a new bundle takes effect between events). */
     public ResponseJobConfig config() {
@@ -90,6 +100,20 @@ public final class ResponseCapture implements Serializable {
     }
 
     public CaptureStateMachine machine() { return machine; }
+
+    /** CHG-212: a capture that replaces this loop's previous one (new bundle or ranges, between events) keeps its tuning history. */
+    public void inheritTuning(ResponseCapture previous) {
+        if (previous != null && previous != this) tuning.copyFrom(previous.tuning);
+    }
+
+    /** CHG-212: the open event (step at t0) is censored TUNING_CHANGED when P, I or D changed after its step. */
+    private List<Closed> tuningFromStep(double t0) {
+        double at = tuning.firstChangeAfter(t0);
+        if (machine.open() == null || Double.isNaN(at)) return Collections.emptyList();
+        machine.onTuningChanged(at);
+        guards.reset();
+        return closeLast();
+    }
 
     public void setCommandPath(String commandPath) { this.commandPath = commandPath == null ? "UNKNOWN" : commandPath; }
 
@@ -154,6 +178,7 @@ public final class ResponseCapture implements Serializable {
         lastTs = tS;
         lastMode = auto ? "AUT" : "MAN";
         lastVpUsable = vpMapped;
+        boolean tuningChanged = tuning.note(s.p, s.i, s.d, tS, retainedS);
         if (healthIneligible) return closed;
 
         if (machine.open() == null) {
@@ -162,6 +187,13 @@ public final class ResponseCapture implements Serializable {
             // NR-007 (lab finding: the streaming capture never looked for a second step while one was open, so an interrupted
             // step read COMPLETE): a sustained change of the open event's driving signal supersedes it - the first event is
             // CENSORED SUPERSEDED_BY_EVENT and emitted, the second carries the whole input sequence
+            // CHG-212: a retune while the event is open makes it a response to two controllers
+            if (tuningChanged && tS * 1000 > machine.open().t0Ms) {
+                machine.onTuningChanged(tS);
+                guards.reset();
+                closed.addAll(closeLast());
+                return closed;
+            }
             // CHG-207: a valve sitting at its limit, or the PV outside its operating region, makes the event unmodellable
             String guard = guards.onSample(tS, uApplied, s.pv, good);
             if (guard != null) {
@@ -170,6 +202,8 @@ public final class ResponseCapture implements Serializable {
             }
             if (good && auto && supersedeOnChange(s.sp, uApplied, tS, vpMapped)) {
                 closed.addAll(closeSuperseded());
+                closed.addAll(tuningFromStep(lastEventT0));
+                if (machine.open() == null) return closed;
                 closed.addAll(guardFromStep(lastEventT0));                       // the merged event from its own step (lastEventT0, just set)
                 if (machine.open() == null) return closed;
             }
@@ -254,6 +288,8 @@ public final class ResponseCapture implements Serializable {
         lastEventT0 = t0;
         vpMappedAtCapture = vpMapped;
         machine.onCandidate(e, t0);
+        List<Closed> retuned = tuningFromStep(t0);                                // CHG-212: a retune between the step and now
+        if (!retuned.isEmpty()) return retuned;
         List<Closed> censored = guardFromStep(t0);                                // the event opened eventDwellS after its step
         machine.onSample(nowS);                                                   // a no-op when the replay closed it
         return censored;
@@ -396,7 +432,7 @@ public final class ResponseCapture implements Serializable {
         InputPathResolver.Resolution res = InputPathResolver.resolve(commandPath, vpMappedAtCapture, false);
         Double du = e.type == EventType.INPUT_TEST ? e.postAmplitude - e.preAmplitude : null;
         EventDataset d = new EventDataset(t, y, r, u, v, t0, tEnd);
-        return Collections.singletonList(new Closed(e, d, u0, r0, r1, du, res.reason, res.uAppliedAvailable));
+        return Collections.singletonList(new Closed(e, d, u0, r0, r1, du, res.reason, res.uAppliedAvailable, tuning.at(t0)));
     }
 
     private void evict(double nowS) {

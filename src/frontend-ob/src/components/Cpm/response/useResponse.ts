@@ -4,7 +4,18 @@
  * loop's models so the recorded decision - not the optimistic one - is what renders.
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getModels, getResponseEvent, getResponseEvents, reviewModel, type ReviewDecision } from '../../../api/cpm/response';
+import { getControllerTuning, getModels, getResponseEvent, getResponseEvents, reviewModel, type ReviewDecision } from '../../../api/cpm/response';
+
+/** CHG-215: the loop's tuning history, read only where it is shown (the Frequency tab). An older cplm-api has no such route. */
+export function useControllerTuning(loopId: string | undefined) {
+  return useQuery({
+    queryKey: ['cpm', 'controller-tuning', loopId ?? ''],
+    queryFn: ({ signal }) => getControllerTuning(loopId!, 50, signal),
+    enabled: !!loopId,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
 
 /** audit F19/F20: censored candidates (most of the table) are left out by default; the page still counts them. */
 export function useResponseEvents(loopId: string | undefined, purpose = 'LIVE', includeCensored = false) {

@@ -60,6 +60,9 @@ const REASON: Record<string, string> = {
   NON_FOLLOWING_DWELL: 'Valve did not follow its command', DISABLED_BY_CONFIG: 'Switched off in configuration',
   NO_OBJECTIVE: 'No control objective declared', NO_SPAN: 'No engineering span declared', PEER_UNOBSERVED: 'Peer loop has no samples',
   MODE_TRANSFER: 'Controller changed mode', ACTUATOR_CONSTRAINT: 'Valve at its limit', REGION_EXIT: 'PV left its operating region', SUPERSEDED_BY_EVENT: 'Superseded by a later event', CAPTURE_MAX: 'Capture reached its maximum length',
+  // CHG-212 / CHG-214: controller tuning from the DCS (P, I, D) and the tuning advice
+  TUNING_CHANGED: 'Controller tuning changed', CONTROLLER_FORM_UNKNOWN: 'Tuning not received from the DCS', PV_RANGE_NOT_SET: 'No PV range recorded',
+  LAMBDA_NOT_APPROVED: 'No approved λ', DEAD_TIME_ZERO: 'The model has no dead time', DEAD_TIME_RULE: 'Dead time (default until approved)',
   INTERACTION_NOT_ANALYSED_BY_LONG_TIER: 'Peer interaction not analysed', G0_FAIL: 'Window failed data qualification',
   INSUFFICIENT_SAMPLES_FOR_METHOD: 'Too few samples for this method', EXCLUDED_MODE: 'Excluded: loop not in automatic',
   NO_CALL: 'Not evaluated', NONE_OPEN: 'No open condition', FREEZE_OPEN: 'Freeze condition open',

@@ -83,6 +83,8 @@ public final class G12Result implements Serializable {
     public Map<String, Quantity> metrics = new LinkedHashMap<>();
     public boolean hasApprovedTestRecord;
     public String controllerSnapshotRef = "";
+    /** CHG-213: the loop's tuning record for the event (CentumTuning.body), on every result whose event had a known P; null otherwise. */
+    public ObjectNode controllerSnapshot;
     public List<String> healthExclusions = new ArrayList<>();
     public String methodRunId = "", bundleHash = "legacy", datasetHash = "", purpose = "LIVE", analysisRunId = "";
     public int contextRevision, resultRevision = 1;
@@ -136,6 +138,7 @@ public final class G12Result implements Serializable {
         }
         n.putObject("evidence").put("has_approved_test_record", hasApprovedTestRecord);
         n.put("controller_snapshot_ref", controllerSnapshotRef);
+        if (controllerSnapshot != null) n.set("controller_snapshot", controllerSnapshot);
         ArrayNode hx = n.putArray("health_exclusions");
         for (String h : healthExclusions) hx.add(h);
         n.put("method_run_id", methodRunId);
@@ -182,6 +185,7 @@ public final class G12Result implements Serializable {
             }
             g.hasApprovedTestRecord = n.path("evidence").path("has_approved_test_record").asBoolean(false);
             g.controllerSnapshotRef = n.path("controller_snapshot_ref").asText("");
+            if (n.path("controller_snapshot").isObject()) g.controllerSnapshot = (ObjectNode) n.get("controller_snapshot");
             for (JsonNode h : n.path("health_exclusions")) g.healthExclusions.add(h.asText());
             g.methodRunId = n.path("method_run_id").asText("");
             g.bundleHash = n.path("bundle_hash").asText("legacy");

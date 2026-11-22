@@ -69,6 +69,16 @@ export const getResponseEvent = (eventId: string, signal?: AbortSignal) =>
 export const getModels = (loopId: string, at?: string, signal?: AbortSignal) =>
   apiJson<{ loopId: string; at: string; count: number; models: SystemModel[] }>(`${CPM_BASE}/loops/${encodeURIComponent(loopId)}/models${at ? `?at=${encodeURIComponent(at)}` : ''}`, { signal });
 
+/** CHG-215: one row of a loop's controller tuning history (cplm-api CHG-107); validTo null = in force. */
+export interface ControllerTuningRow {
+  snapshotId: string; loopId: string; validFrom: string; validTo: string | null; vendor: string | null; algorithmFamily: string | null;
+  form: string | null; native: Record<string, unknown> | null; normalized: Record<string, unknown> | null; adapterVersion: string | null; source: string | null;
+}
+export interface ControllerTuningPage { loopId: string; count: number; current: ControllerTuningRow | null; history: ControllerTuningRow[] }
+
+export const getControllerTuning = (loopId: string, limit = 50, signal?: AbortSignal) =>
+  apiJson<ControllerTuningPage>(`${CPM_BASE}/loops/${encodeURIComponent(loopId)}/controller-tuning?limit=${limit}`, { signal });
+
 export type ReviewDecision = 'VALIDATED' | 'REJECTED' | 'ACTIVE_BASELINE' | 'EXPIRED';
 
 /** Server-owned review guarded by If-Match on the model's revision (409 when stale). */

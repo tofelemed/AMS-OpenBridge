@@ -124,7 +124,9 @@ public final class CplmResponseAnalysisJob {
             if (current != null && sameBundle && current.config().sameRangesAs(s.resolvedProfile)) return current;
             ResponseJobConfig settings = (hash == null ? cfg : cfg.underBundle(hash, s.resolvedProfile.bundleResponseValues))
                     .withProfileRanges(s.resolvedProfile);
-            return new ResponseCapture(s.loopId, settings);
+            ResponseCapture next = new ResponseCapture(s.loopId, settings);
+            next.inheritTuning(current);                                         // CHG-212: the tuning history outlives the settings
+            return next;
         }
 
         /**
@@ -168,8 +170,12 @@ public final class CplmResponseAnalysisJob {
             ResponseEvaluator evaluator = closedNow.isEmpty() ? null : evaluatorFor(cfg);   // the settings hash only when a capture closed
             for (ResponseCapture.Closed closed : closedNow) {
                 ModelFamily family = familyFor(s);
+                // CHG-212: the tuning in force at the event's step (CENTUM P / I / D over MQTT); unknown until the plant publishes it
+                com.ams.flink.cplm.response.controller.CentumTuning tuning = com.ams.flink.cplm.response.controller.CentumTuning.of(closed.tuningAtT0, cfg);
+                ControllerSnapshot controller = tuning == null ? ControllerSnapshot.unknown() : tuning.snapshot;
                 ResponseEvaluator.Outcome o = evaluator.evaluate(closed, family, holdout.value(), holdoutU0.value() == null ? 0 : holdoutU0.value(),
-                        ControllerSnapshot.unknown(), ctx.timerService().currentProcessingTime(), purpose, analysisRunId, 0);
+                        controller, ctx.timerService().currentProcessingTime(), purpose, analysisRunId, 0);
+                withTuning(o.result, tuning, MAPPER);
                 out.collect(o.result.toJson());
                 for (EvidenceArtifact a : o.artifacts) {
                     for (String record : EvidenceKafkaRecords.records(a, MAPPER, o.result.emittedAtMs)) ctx.output(EVIDENCE, record);
@@ -199,6 +205,13 @@ public final class CplmResponseAnalysisJob {
             if (lt.startsWith("LIC")) return ModelFamily.IPDT;
             return ModelFamily.FOPDT;
         }
+    }
+
+    /** CHG-213: the event's tuning record on its result, so cplm-api keeps the loop's tuning history; nothing without a known P. */
+    static void withTuning(G12Result r, com.ams.flink.cplm.response.controller.CentumTuning t, ObjectMapper m) {
+        if (t == null) return;
+        r.controllerSnapshotRef = t.ref;
+        r.controllerSnapshot = t.body(m);
     }
 
     private static String argOr(String[] args, String key, String def) {

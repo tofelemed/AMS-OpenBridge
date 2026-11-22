@@ -88,6 +88,9 @@ public final class CaptureStateMachine {
 
     public void onBindingOrConfigChange(double atS) { censor("CONTEXT_CHANGED", atS); }
 
+    /** CHG-212: the loop's P, I or D changed while the event was open. */
+    public void onTuningChanged(double atS) { censor("TUNING_CHANGED", atS); }
+
     public void onRegionExit(double atS) { censor("REGION_EXIT", atS); }
 
     public void onActuatorConstraint(double atS) { censor("ACTUATOR_CONSTRAINT", atS); }

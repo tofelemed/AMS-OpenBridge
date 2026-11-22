@@ -24,6 +24,7 @@ import { RequireKinds } from '../evidence/views/viewSupport';
 import { ResidualPanel } from './ResidualPanel';
 import { CandidateModelsTable } from './CandidateModelsTable';
 import { BodePanel } from './BodePanel';
+import { TuningPanel } from './TuningPanel';
 import { StepsDataTab } from './StepsDataTab';
 import { ArraysNote, ReportedQuantities, arraysState, chartsGone } from './ResponseNotes';
 import { metricOf } from './responseSupport';
@@ -136,6 +137,8 @@ export const EventPanes: React.FC<EventPanesProps> = ({ tab, timeZone, detail, m
         {claimed && redrawn && <NotRedrawn text={NOT_REDRAWN.frequency} />}
         {manifestState}
         {manifest.data && <BodePanel bode={notKept ? undefined : one('bode')} metrics={metrics} controller={result?.subgates?.F} loading={!notKept && decoding('bode')} />}
+        <TuningPanel loopId={result?.loop_id} snapshot={result?.controller_snapshot as Record<string, unknown> | null | undefined}
+          advice={result?.subgates?.H} timeZone={timeZone} />
       </>
     );
   }

@@ -20,6 +20,11 @@ public final class CplmNormalizedSample implements Serializable {
     public double sp;
     public double op;
     public Double vp;
+    /**
+     * CHG-212: the controller's tuning as the DCS publishes it - CENTUM P (proportional band, %), I and D (seconds) - from
+     * the extra fields p, i, d (ingestion maps P / I / D). Null when absent or not a finite number, never 0.
+     */
+    public Double p, i, d;
     public String mode = "UNKNOWN";
     /** Normalised verdict of the 1.0 field: GOOD | UNCERTAIN | BAD | UNKNOWN. Absent = UNKNOWN (v2.5 R04). */
     public String quality = "UNKNOWN";
@@ -98,6 +103,9 @@ public final class CplmNormalizedSample implements Serializable {
         c.sp = sp;
         c.op = op;
         c.vp = vp;
+        c.p = p;
+        c.i = i;
+        c.d = d;
         c.mode = mode;
         c.quality = quality;
         c.isValid = isValid;
@@ -161,6 +169,9 @@ public final class CplmNormalizedSample implements Serializable {
                 double v = root.get("vp").asDouble();
                 s.vp = Double.isFinite(v) ? v : null;   // optional: dropped, never a NaN in the engine
             }
+            s.p = optionalNumber(root, "p");
+            s.i = optionalNumber(root, "i");
+            s.d = optionalNumber(root, "d");
             s.mode = root.has("mode") ? root.get("mode").asText("UNKNOWN") : "UNKNOWN";
             JsonNode q = root.get("quality");
             if (q != null && !q.isNull() && !q.asText().trim().isEmpty()) {
@@ -186,6 +197,21 @@ public final class CplmNormalizedSample implements Serializable {
             s.invalidReason = "PARSE_ERROR";
         }
         return s;
+    }
+
+    /** CHG-212: an optional numeric field - a finite number, else null (absent, JSON null, text, NaN or infinite). */
+    private static Double optionalNumber(JsonNode root, String key) {
+        JsonNode v = root.get(key);
+        if (v == null || v.isNull()) return null;
+        double x;
+        if (v.isNumber()) {
+            x = v.asDouble();
+        } else if (v.isTextual()) {
+            try { x = Double.parseDouble(v.asText().trim()); } catch (NumberFormatException e) { return null; }
+        } else {
+            return null;
+        }
+        return Double.isFinite(x) ? x : null;
     }
 
     /**

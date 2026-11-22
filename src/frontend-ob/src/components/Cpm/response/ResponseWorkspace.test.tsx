@@ -28,6 +28,7 @@ vi.mock('./useResponse', () => ({
   useResponseEvent: () => ({ data: state.detail, isLoading: false, isError: false }),
   useModels: () => ({ data: { models: state.models }, isSuccess: true, isError: false }),
   useReviewModel: () => ({ reset: () => {}, isSuccess: false, isPending: false, error: null, mutate: () => {} }),
+  useControllerTuning: () => ({ data: undefined, isError: false }),
 }));
 vi.mock('../evidence/useEvidence', () => ({
   useEvidenceManifest: () => ({ data: undefined, isLoading: false, isError: false }),

@@ -32,9 +32,9 @@ IMAN (initialization manual: the output follows another block).
 | 1 | Models come only from the controller's own output moves; real bump tests are missed | Owner, 22 Nov: Auto only. No capture in Manual; the Auto output moves stay; events are captured in AUT only (Cascade is the next phase) | **Decided**; AUT only built |
 | 2 | Model type is chosen from the tag name, not the loop's declared process behaviour | Use the declared behaviour, and declare it for the loops where the tag name is wrong | Built; **needs your list of loops** |
 | 3 | Step size and the settle test use fixed units, the same on a 0–2.5 loop and a 0–100,000 loop | Scale both with each loop's PV range | Built (defaults below) |
-| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Owner, 22 Nov: P, I and D come over MQTT with PV, SP and OP; the engine reads them | **Decided**; engine work planned; **your decision** on λ |
+| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Owner, 22 Nov: P, I and D come over MQTT with PV, SP and OP; the engine reads them | **Decided**; built; **your decision** on λ |
 | 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops | Even grid built; integrating loops later |
-| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed comes with P, I and D (item 4) |
+| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed built, works once P, I and D arrive (item 4) |
 | 7 | Decay ratio is unreliable on noisy data; no prediction band on the model check | Stricter peak rule; add a 95 % prediction band | Built (defaults below) |
 
 "Built" means the change is coded and tested on our side and goes to the plant with the next engine release. It is
@@ -66,6 +66,8 @@ Items 1 and 4's data source were decided by the owner on 22 Nov (see those secti
 | Prediction band | 95 %, from the parameter uncertainty (gain, time constant, dead time, baseline) and the fit's noise | 7b |
 | "Residuals not white" | Stays a note on a Validated model, never a rejection | 7b |
 | Capture modes | AUT only. A loop leaving AUT (to CAS or MAN) during an event censors it | 1 |
+| λ for the tuning advice | The model's dead time (SIMC "tight") on every loop, until you name the averaging loops | 4 |
+| Controller tuning changed | Any change of P, I or D after the step censors the event | 6 |
 
 ## Controller tuning (questions for I&C)
 
@@ -188,9 +190,13 @@ items, for example `FCS0101.PIC80105.P`. I&C must confirm that the OPC server ex
 and MODE. A retune is then picked up with its time, item 6's "tuning changed" rule comes with it, and nobody enters
 tuning by hand.
 - Ingestion already accepts P, I and D (no change needed if the gateway names them so).
-- To build in the engine: read P, I and D; build the controller tuning from them (CENTUM: gain = 100 / proportional
-  band, in % of span, scaled by the PV and output ranges; I and D in seconds); apply "tuning changed". Then the
-  frequency analysis and the tuning advice run.
+- Built for the next release: the engine reads P, I and D and builds the controller tuning from them (CENTUM: gain =
+  100 / proportional band, in % of span, scaled by the PV and output ranges; I and D in seconds; 0 = off); "tuning
+  changed" censors an event; the frequency analysis and the tuning advice run; the System Response page shows the
+  tuning, the advice and the tuning history. The plant does not send the controller action, so the loop is taken
+  as correctly acting.
+- Until the SME decides on λ, the advice uses λ = the model's dead time on every loop (SIMC "tight"). It is shown as
+  advice only, never applied.
 - To decide on our side: whether the historian keeps P, I and D, or a log of tuning changes is kept instead.
 - **λ for the advice:** approved by the control engineer. No advice is shown without it.
 
@@ -280,7 +286,7 @@ fit's residual noise.
 | Release | Items | Status |
 |---|---|---|
 | Next engine release | 1 (capture in AUT only), 2, 3, 5a, 6 (valve at limit, PV left region), 7a, 7b | Built with the defaults above. Items 2 and 6 (region) take effect as behaviours and regions are declared |
-| Next | 4, 6 (tuning changed) | P, I and D over MQTT; the engine reads them. Turns on frequency analysis; tuning advice also needs λ |
+| Next engine release | 4, 6 (tuning changed) | Built. Takes effect when the plant publishes P, I and D over MQTT; advice uses λ = dead time until you decide |
 | Next phase | Cascade and master/slave analysis | Own event type and pair analysis; after a plant check of the loops that run mostly in CAS |
 | Later | 5b | Setpoint-step models for integrating loops; method chosen by the engine owner |
 
@@ -308,7 +314,7 @@ Reviewed by: ____________________ Date: ____________
 | 1 | Built: `ResponseCapture` detects only when `ResponseJobConfig.capturesIn(mode)` (job argument `--response-capture-modes`, default `AUT`; part of the settings hash); leaving a capture mode censors `MODE_TRANSFER`. `CplmNormalizedSample.isAutoMode()` is unchanged (short features, authority, Overview KPI count CAS). Cascade phase: add `CAS` plus its own event type |
 | 2 | `CplmResponseAnalysisJob.familyFor()` → `resolvedProfile.dynamicClass.integrating()`; plant registry has `dynamic_class` null on every active loop |
 | 3 | `ResponseJobConfig`: `fallbackSpanEu`, `stableBandEu`, `minResponseEu`, `absSettlingBandEu`, `targetBandEu`, `noiseFloorEu`, `rampMinSlopeEuPerS` → fractions of the profile PV span; `ResponseCapture.settled()` (tail range ≤ `stableBandEu`), `detectorSettings()` / `supersedeOnChange()`; PV range from the registry `engineering` JSON (`pvMin`, `pvMax`) carried with the profile |
-| 4 | Ingestion done (`LoopIngestConfig.DefaultParamRoles` P/I/D → p/i/d, `LoopJoiner` extra fields on `traverse.cpa.loop.samples.v1`). To build: `CplmNormalizedSample` p, i, d; `ControllerSnapshot` from them in `CplmResponseAnalysisJob` (today `unknown()`); `CONTEXT_CHANGED` on a tuning change. Historian `cpm_raw` has no p, i, d (add measurements or a Postgres tuning-change log) |
+| 4 | Ingestion done (`LoopIngestConfig.DefaultParamRoles` P/I/D → p/i/d, `LoopJoiner` extra fields on `traverse.cpa.loop.samples.v1`). Built (CHG-212..215): `CplmNormalizedSample` p, i, d; `CentumTuning` → `ControllerSnapshot` per event (tuning at its step) in `CplmResponseAnalysisJob`; `TUNING_CHANGED` censor; result `controller_snapshot`; λ rule `--g12-lambda-rule`. Historian `cpm_raw` has no p, i, d (add measurements or a Postgres tuning-change log) |
 | 5 | 5a: `ClosedLoopPemEstimator.estimate()` rejects any `abs(Δt − ts) > 1e-6·ts` (`NON_UNIFORM_GRID`); resample the `EventDataset` first. 5b: `EstimatorRegistry` (`PEM_NOT_INSTALLED_FOR_INTEGRATING`) |
 | 6 | censor reasons `ACTUATOR_CONSTRAINT` (on OP: no VP mapped at the plant), `REGION_EXIT` (profile `regionPvMin/Max`; no gate-config bundles at the plant), `CONTEXT_CHANGED` |
 | 7 | `metrics/Overshoot.decayRatio()`; `prediction_interval` artifact (never produced); `validation/ModelValidator` Ljung-Box p ≤ 0.05 → `RESIDUALS_NOT_WHITE` note on VALIDATED |

@@ -240,15 +240,24 @@ public final class ResponseEvaluator implements Serializable {
         // F - controller / frequency (model-domain; UNAVAILABLE without a known form or a validated model)
         G12Result.Subgate f = g.subgates.get("F");
         FrequencyResponse.Result freq = null;
-        if (controller != null && controller.known()) {
+        boolean controllerKnown = controller != null && controller.known();
+        if (controllerKnown) {
             ControllerSnapshot ideal = com.ams.flink.cplm.response.controller.ControllerFormAdapter.toIdeal(controller);
             g.put(Quantity.of("controller_gain", ideal.kc, "native_units", "CONFIGURED"));
             if (ideal.ti != null) g.put(Quantity.of("controller_ti", ideal.ti, "s", "CONFIGURED"));
             if (ideal.td != null) g.put(Quantity.of("controller_td", ideal.td, "s", "CONFIGURED"));
             if (ideal.scanS != null) g.put(Quantity.of("controller_scan", ideal.scanS, "s", "CONFIGURED"));
+            // CHG-214: the gain as the DCS shows it (CENTUM proportional band), when the PV range is known
+            f.outputs.put("controller_p_band_pct", com.ams.flink.cplm.response.controller.CentumTuning.proportionalBand(ideal.kc, cfg));
+        }
+        // CHG-214: without a published action the loop is taken as correctly acting (negative feedback), so the controller
+        // gain carries the process gain's sign; otherwise a reverse-acting process would read as an unstable loop
+        ControllerSnapshot forLoop = controller;
+        if (controllerKnown && !controller.actionKnown() && est != null && est.best() != null) {
+            forLoop = controller.withGainSign(Math.signum(est.best().model.gain));
         }
         if (est != null && est.best() != null) {
-            freq = FrequencyResponse.of(est.best().model, controller, 1e-4, 10, 2000, validated);
+            freq = FrequencyResponse.of(est.best().model, forLoop, 1e-4, 10, 2000, validated);
             g.put(freq.gainMarginDb);
             g.put(freq.phaseMarginDeg);
             g.put(freq.gainCrossover);
@@ -267,19 +276,30 @@ public final class ResponseEvaluator implements Serializable {
         g.subgates.get("G").outputs.put("model_state", g.modelState);
         G12Result.Subgate h = g.subgates.get("H");
         if (validated && est != null && est.best() != null) {
+            // CHG-214: an approved λ wins; otherwise the DEAD_TIME rule (SIMC tight, λ = the model's dead time) until one is approved
+            ProcessModel model = est.best().model;
+            Double lambda = cfg.lambdaS > 0 ? Double.valueOf(cfg.lambdaS) : null;
+            String lambdaSource = lambda != null ? "APPROVED" : null;
+            if (lambda == null && "DEAD_TIME".equals(cfg.lambdaRule) && model.theta > 0) {
+                lambda = model.theta;
+                lambdaSource = "DEAD_TIME_RULE";
+            }
             com.ams.flink.cplm.response.controller.SimcAdvisor.Advice adv = com.ams.flink.cplm.response.controller.SimcAdvisor.advise(
-                    est.best().model, true, controller, cfg.lambdaS > 0 ? cfg.lambdaS : null);
+                    model, true, forLoop, lambda);
             h.outputs.put("rule", adv.rule);
-            h.outputs.put("lambda_s", cfg.lambdaS > 0 ? cfg.lambdaS : null);
+            h.outputs.put("lambda_s", lambda);
+            h.outputs.put("lambda_source", lambdaSource);
             if (adv.kc != null) {
                 h.state = "EVALUATED";
                 h.outputs.put("kc", adv.kc);
                 h.outputs.put("ti_s", adv.ti);
                 h.outputs.put("td_s", adv.td);
+                h.outputs.put("p_band_pct", com.ams.flink.cplm.response.controller.CentumTuning.proportionalBand(adv.kc, cfg));
                 h.outputs.put("reason", "ADVISORY_ONLY_NEVER_APPLIED");
             } else {
                 h.state = "WAITING";
-                h.outputs.put("reason", adv.reason);
+                boolean zeroDeadTime = "LAMBDA_NOT_APPROVED".equals(adv.reason) && "DEAD_TIME".equals(cfg.lambdaRule) && cfg.lambdaS <= 0;
+                h.outputs.put("reason", zeroDeadTime ? "DEAD_TIME_ZERO" : adv.reason);
             }
         } else {
             h.state = "NOT_EVALUATED";

@@ -47,8 +47,15 @@ public final class ResponseJobConfig implements Serializable {
     /** v2.5 (3A.2): the bundle-governed estimator budget (G12.fit_max_iterations / G12.fit_relative_tolerance). */
     public int fitMaxIterations = 200;
     public double fitRelativeTolerance = 1e-9;
-    /** v2.5 (3A.2): the APPROVED closed-loop time constant for the SIMC advisory (G12.lambda_s); 0 = not approved, no advice. */
+    /** v2.5 (3A.2): the APPROVED closed-loop time constant for the SIMC advisory (G12.lambda_s); 0 = not approved (see lambdaRule). */
     public double lambdaS = 0;
+    /**
+     * CHG-214 (owner, 22 Nov: use the defaults until the SME confirms): without an approved λ, DEAD_TIME uses the model's own
+     * dead time (SIMC "tight"); APPROVED_ONLY gives no advice until one is approved.
+     */
+    public String lambdaRule = "DEAD_TIME";
+    /** CHG-212: the controller's scan period (s), recorded with the tuning; CENTUM's basic scan is 1 s. */
+    public double controllerScanS = 1.0;
     /**
      * CHG-204: the loop's declared PV span (EU), NaN when the profile declares no usable range (today's values).
      * Set per loop by {@link #withProfileRanges}; the PV-side tolerances scale with it through {@link ResponseScale}.
@@ -127,7 +134,18 @@ public final class ResponseJobConfig implements Serializable {
         c.actuatorLimitDwellS = num(args, "g12-actuator-limit-dwell-s", c.actuatorLimitDwellS);
         c.regionExitDwellS = num(args, "g12-region-exit-dwell-s", c.regionExitDwellS);
         c.captureModes = modes(args, "response-capture-modes", c.captureModes);
+        c.controllerScanS = num(args, "g12-controller-scan-s", c.controllerScanS);
+        String rule = text(args, "g12-lambda-rule", c.lambdaRule).trim().toUpperCase(java.util.Locale.ROOT);
+        if ("DEAD_TIME".equals(rule) || "APPROVED_ONLY".equals(rule)) c.lambdaRule = rule;
         return c;
+    }
+
+    private static String text(String[] args, String key, String def) {
+        for (int i = 0; i + 1 < args.length; i++) {
+            String a = args[i].startsWith("--") ? args[i].substring(2) : args[i];
+            if (a.equals(key)) return args[i + 1];
+        }
+        return def;
     }
 
     /** v2.5 (3C.1): the governing bundle's content hash when the settings came from a bundle; null = the job defaults (hash = settings hash). */
@@ -236,6 +254,8 @@ public final class ResponseJobConfig implements Serializable {
         c.opLowEu = opLowEu; c.opHighEu = opHighEu; c.regionPvMin = regionPvMin; c.regionPvMax = regionPvMax;
         c.bundleEuKeys = bundleEuKeys == null ? new java.util.HashSet<>() : new java.util.HashSet<>(bundleEuKeys);
         c.captureModes = captureModes == null ? new java.util.HashSet<>(java.util.Set.of("AUT")) : new java.util.HashSet<>(captureModes);
+        c.lambdaRule = lambdaRule;
+        c.controllerScanS = controllerScanS;
         c.governingBundleHash = governingBundleHash;
         return c;
     }
@@ -251,7 +271,8 @@ public final class ResponseJobConfig implements Serializable {
                 + "|" + pvSpanEu + "|" + settleNoiseMultiplier
                 + "|" + actuatorLimitBandFraction + "|" + actuatorLimitDwellS + "|" + regionExitDwellS + "|" + opLowEu + "|" + opHighEu
                 + "|" + regionPvMin + "|" + regionPvMax
-                + "|modes=" + String.join(",", new java.util.TreeSet<>(captureModes == null ? java.util.Set.of("AUT") : captureModes));
+                + "|modes=" + String.join(",", new java.util.TreeSet<>(captureModes == null ? java.util.Set.of("AUT") : captureModes))
+                + "|lambda=" + lambdaRule + "|scan=" + controllerScanS;
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
     }
 
