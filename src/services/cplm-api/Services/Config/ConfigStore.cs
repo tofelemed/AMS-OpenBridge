@@ -101,8 +101,11 @@ public sealed class ConfigStore
     /// <summary>
     /// A new draft for a scope: version = previous + 1; layers = the parent's (or the factory + profile
     /// layers from the build's factory-layer.json for a fresh scope); resolved and hashed at once.
+    /// CHG-108: <paramref name="layersOverride"/> = the exact layer stack (a loop re-stacked on the current plant-wide bundle);
+    /// the parent then only records the lineage (version chain, change class against the parent's resolved values).
     /// </summary>
-    public async Task<BundleView> CreateDraftAsync(string site, string scopeKind, string? scopeRef, Guid? parentBundleId, string? profileId, string createdBy, string? note, CancellationToken ct)
+    public async Task<BundleView> CreateDraftAsync(string site, string scopeKind, string? scopeRef, Guid? parentBundleId, string? profileId, string createdBy, string? note, CancellationToken ct,
+        JsonElement? layersOverride = null)
     {
         scopeKind = scopeKind.ToUpperInvariant();
         if (!EffectiveConfigResolver.Order.Contains(scopeKind) || scopeKind == "FACTORY") throw new ArgumentException("scopeKind must be SITE, PROFILE, LOOP or REGIME");
@@ -110,11 +113,18 @@ public sealed class ConfigStore
         var reference = scopeKind == "SITE" ? "" : scopeRef!.Trim();
         await using var conn = await _db.OpenConnectionAsync(ct);
         JsonElement layers;
-        if (parentBundleId is { } pid)
+        if (layersOverride is { } given)
+        {
+            layers = given;
+        }
+        else if (parentBundleId is { } pid)
         {
             var parent = await conn.QueryFirstOrDefaultAsync("SELECT layers::text AS layers, content_hash FROM cpm.gate_config_bundle WHERE bundle_id = @pid", new { pid })
                 ?? throw new KeyNotFoundException($"parent bundle {pid} not found");
             layers = JsonDocument.Parse((string)parent.layers).RootElement.Clone();
+            // CHG-108: a LOOP / PROFILE draft started from the bundle the loop runs under (a PROFILE or SITE bundle) keeps that
+            // content and gets its own, empty layer on top - before, it had no layer to edit (PatchAsync refused it)
+            if (scopeKind is "LOOP" or "PROFILE") layers = WithOwnLayer(layers, scopeKind, reference);
         }
         else
         {
@@ -136,6 +146,21 @@ public sealed class ConfigStore
             layers = layers.GetRawText(), resolved = resolved.ResolvedJson, createdBy, etag, note,
         });
         return (await GetAsync(id, ct))!;
+    }
+
+    /// <summary>The layers with an empty layer of <paramref name="kind"/> appended when they have none (ordinal = last + 1).</summary>
+    internal static JsonElement WithOwnLayer(JsonElement layers, string kind, string reference)
+    {
+        var list = System.Text.Json.Nodes.JsonNode.Parse(layers.GetRawText())!.AsArray();
+        if (list.Any(l => l?["kind"]?.GetValue<string>() == kind)) return layers;
+        var ordinal = list.Select(l => l?["ordinal"]?.GetValue<int>() ?? 0).DefaultIfEmpty(0).Max() + 1;
+        var empty = JsonDocument.Parse("{}").RootElement;
+        list.Add(new System.Text.Json.Nodes.JsonObject
+        {
+            ["kind"] = kind, ["ref"] = reference, ["ordinal"] = ordinal,
+            ["content"] = new System.Text.Json.Nodes.JsonObject(), ["content_hash"] = CanonicalJson.Sha256(empty),
+        });
+        return JsonDocument.Parse(list.ToJsonString()).RootElement.Clone();
     }
 
     public sealed record PatchOp(string Op, string Property, JsonElement? Value);
@@ -216,11 +241,14 @@ public sealed class ConfigStore
     }
 
     /// <summary>An independent reviewer approves THIS content hash; self-approval is refused; the approval expires.</summary>
-    public async Task<BundleView> ApproveAsync(Guid id, string approver, string role, string? note, TimeSpan validity, bool controlAuthorityRequired, IReadOnlyList<string> approverRoles, CancellationToken ct)
+    /// <param name="allowSelfApproval">CHG-108 (owner, 22 Nov): per-loop settings batches only - an Admin or SuperAdmin may approve
+    /// what they drafted themselves; everyone else needs a second person. The caller records it as a self-approval.</param>
+    public async Task<BundleView> ApproveAsync(Guid id, string approver, string role, string? note, TimeSpan validity, bool controlAuthorityRequired, IReadOnlyList<string> approverRoles, CancellationToken ct,
+        bool allowSelfApproval = false)
     {
         var b = await GetAsync(id, ct) ?? throw new KeyNotFoundException($"bundle {id} not found");
         if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED")) throw new ConfigStateException($"only a VALIDATED or SHADOW_EVALUATED bundle can be approved (state {b.State})");
-        if (string.Equals(b.CreatedBy, approver, StringComparison.OrdinalIgnoreCase)) throw new ConfigForbiddenException("self-approval is refused: the approver must differ from the author");
+        if (!allowSelfApproval && string.Equals(b.CreatedBy, approver, StringComparison.OrdinalIgnoreCase)) throw new ConfigForbiddenException("self-approval is refused: the approver must differ from the author");
         if (controlAuthorityRequired && !approverRoles.Contains("ControlAuthority", StringComparer.OrdinalIgnoreCase))
             throw new ConfigForbiddenException("a site-wide or objective / test-permission change needs an approver with the ControlAuthority role");
         await using var conn = await _db.OpenConnectionAsync(ct);

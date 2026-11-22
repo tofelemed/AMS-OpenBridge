@@ -157,6 +157,10 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigStore>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.IGateConfigPublisher, Traverse.CplmApi.Services.Config.KafkaGateConfigPublisher>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigDeploymentService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ShadowComparison>();
+// CHG-108: per-loop settings apart from the plant-wide ones: regions for many loops, re-stack on a new plant-wide base, batches
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigBatchService>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.RegionBulkService>();
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.LoopSettingsService>();
 // v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();

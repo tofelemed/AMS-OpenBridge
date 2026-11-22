@@ -85,6 +85,11 @@ def main(argv=None):
     ap.add_argument("--post-s", type=float, default=330.0, help="capture + settled tail after the step (s)")
     ap.add_argument("--interval", type=float, default=5.0)
     ap.add_argument("--repeat", type=int, default=1, help="run the scenario N times back to back (v2.5 load probe)")
+    # CHG-212..215 / CHG-107 end-to-end: the controller tuning, published ON CHANGE like the plant (CENTUM: P = proportional
+    # band %, I = integral time s, D = derivative time s) on .../PIDParams/P|I|D; ingestion maps them to p / i / d.
+    ap.add_argument("--tuning", default=None, help="P,I,D published once at the start of each run, e.g. 120,30,0")
+    ap.add_argument("--tuning-change", default=None, help="P,I,D published once at --tuning-change-at (a change during the event)")
+    ap.add_argument("--tuning-change-at", type=float, default=None, help="seconds after the step to publish --tuning-change")
     ap.add_argument("--host", default=os.environ.get("SIM_OT_MQTT_HOST", "127.0.0.1"))
     ap.add_argument("--port", type=int, default=int(os.environ.get("SIM_OT_MQTT_PORT", "1884")))
     ap.add_argument("--username", default=os.environ.get("SIM_OT_MQTT_USERNAME", "ams_ingest"))
@@ -105,6 +110,13 @@ def main(argv=None):
     runs = 0
     print(f"{args.scenario} on {loop}: pre {args.pre_s:.0f}s, step at t0, post {args.post_s:.0f}s, every {args.interval}s, x{max(1, args.repeat)} "
           f"(OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/*)", flush=True)
+    def publish_tuning(spec, label):
+        p, i, d = (float(x) for x in spec.split(","))
+        for item, value in (("P", p), ("I", i), ("D", d)):
+            client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}", envelope(fcs, cls, loop, item, value, ""), qos=1)
+        print(f"  tuning {label}: P={p} I={i} D={d}", flush=True)
+
+    tuning_sent = changed_sent = False
     try:
         while True:
             t = time.time() - started
@@ -114,6 +126,13 @@ def main(argv=None):
                     break
                 started = time.time()            # the next scenario starts from its own stable pre-support
                 t = 0.0
+                tuning_sent = changed_sent = False
+            if args.tuning and not tuning_sent:
+                publish_tuning(args.tuning, "start")
+                tuning_sent = True
+            if args.tuning_change and args.tuning_change_at is not None and not changed_sent and t >= t0 + args.tuning_change_at:
+                publish_tuning(args.tuning_change, "change")
+                changed_sent = True
             pv, sp, op = scenario_values(args.scenario, t, t0)
             for item, (value, unit) in {"PV": (round(pv, 4), ""), "SP": (sp, ""), "OP": (round(op, 4), "%"), "MODE": (1.0, "")}.items():
                 client.publish(f"OT/HDPE/{fcs}/{cls}/{loop}/PIDParams/{item}", envelope(fcs, cls, loop, item, value, unit), qos=1)
