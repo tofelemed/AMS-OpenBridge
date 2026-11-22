@@ -1,7 +1,7 @@
 # System Response: proposed engine fixes for SME approval
 
-17 Nov 2026. Seven gaps in the System Response engine, each with the plant's own figures, our recommended fix
-and the points we need you to confirm. The figures come from read-only checks run on the plant on 17 Nov.
+17 Nov 2026, updated 22 Nov 2026 with the owner's decisions on items 1 and 4. Seven gaps in the System Response
+engine, each with the plant's own figures, our recommended fix and the points we need you to confirm. The figures come from read-only checks run on the plant on 17 Nov.
 The plant's loop list changed on 16 Nov (old loops retired, the real loops added), so per-loop figures cover the
 current loops in the 16 hours after that change, unless stated. The engine's current rules are described in
 `system-response-concepts.md`.
@@ -29,12 +29,12 @@ IMAN (initialization manual: the output follows another block).
 
 | # | Gap | Recommended fix | Status (17 Nov) |
 |---|---|---|---|
-| 1 | Models come only from the controller's own output moves; real bump tests are missed | Also capture output steps made in Manual; label which kind of event each model came from | **Needs your decision** |
+| 1 | Models come only from the controller's own output moves; real bump tests are missed | Owner, 22 Nov: Auto only. No capture in Manual; the Auto output moves stay; events are captured in AUT only (Cascade is the next phase) | **Decided**; AUT only built |
 | 2 | Model type is chosen from the tag name, not the loop's declared process behaviour | Use the declared behaviour, and declare it for the loops where the tag name is wrong | Built; **needs your list of loops** |
 | 3 | Step size and the settle test use fixed units, the same on a 0–2.5 loop and a 0–100,000 loop | Scale both with each loop's PV range | Built (defaults below) |
-| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Read the PID tuning from the DCS (or enter it in the loop settings) | **Needs I&C** (tuning tags) and **your decision** on λ |
+| 4 | Frequency analysis and tuning advice never run: no controller tuning reaches the engine | Owner, 22 Nov: P, I and D come over MQTT with PV, SP and OP; the engine reads them | **Decided**; engine work planned; **your decision** on λ |
 | 5 | No setpoint step has ever got a model | Put the samples on an even time grid; add a method for integrating loops | Even grid built; integrating loops later |
-| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed waits for the tuning tags |
+| 6 | Three interruption rules are never applied (output at limit, PV out of region, tuning changed) | Apply them | Valve at limit built; region built, **needs regions set**; tuning changed comes with P, I and D (item 4) |
 | 7 | Decay ratio is unreliable on noisy data; no prediction band on the model check | Stricter peak rule; add a 95 % prediction band | Built (defaults below) |
 
 "Built" means the change is coded and tested on our side and goes to the plant with the next engine release. It is
@@ -42,13 +42,13 @@ not running at the plant yet.
 
 ## What we need from you
 
+Items 1 and 4's data source were decided by the owner on 22 Nov (see those sections). Still open with you:
+
 | # | Decision | Our recommendation | Section |
 |---|---|---|---|
-| 1 | Capture bump tests made in Manual (this changes the design rule "capture only in Auto") | Yes, in MAN only (not IMAN) | 1 |
-| 1 | Keep or stop the events from the controller's own output moves in Auto | Keep them for now, labelled "Output move (Auto)"; decide after a month of bump-test data | 1 |
 | 2 | Which loops other than level loops are integrating, and any level loop that is self-regulating | Your list; we declare them in the loop settings | 2 |
 | 6 | Whether to set operating regions, and the values for the main loops | Set them on the main loops | 6 |
-| 4 | How λ (closed-loop time constant for the tuning advice) is approved | A rule (λ = dead time for tight loops, larger for averaging loops) with per-loop overrides | 4 |
+| 4 | How λ (closed-loop time constant for the tuning advice) is approved, and which loops are averaging | A rule (λ = dead time for tight loops, larger for averaging loops) with per-loop overrides; your list of averaging loops | 4 |
 | — | The defaults below | Confirm or give other values | Next table |
 
 ## Defaults now built in (please confirm or change)
@@ -65,19 +65,20 @@ not running at the plant yet.
 | Decay ratio | A second peak counts only after the PV crosses back through its final value; both peaks above 4 × the noise; otherwise "not applicable" | 7a |
 | Prediction band | 95 %, from the parameter uncertainty (gain, time constant, dead time, baseline) and the fit's noise | 7b |
 | "Residuals not white" | Stays a note on a Validated model, never a rejection | 7b |
+| Capture modes | AUT only. A loop leaving AUT (to CAS or MAN) during an event censors it | 1 |
 
-## Tuning tags (question for I&C)
+## Controller tuning (questions for I&C)
 
 Frequency analysis (gain margin, phase margin, Bode plot) and the "controller tuning changed" rule need each loop's
-PID tuning. The DCS is Yokogawa CENTUM; the gateway reads `FCS0101.<loop>.PV`, `.SV`, `.MV` and `.MODE` today.
+PID tuning. Owner decision, 22 Nov: the plant publishes each loop's P (proportional band, %), I (integral time, s)
+and D (derivative time, s) on MQTT, in the same payload and with the same rules as PV, SP, OP and MODE. Nobody
+enters tuning by hand, and no "Controller tuning" section is added to the loop settings.
 
-- Can the OPC server read each PID block's P (proportional band, %), I (integral time, s) and D (derivative time, s)
-  items, for example `FCS0101.PIC80105.P`, `.I` and `.D`?
-- Which control algorithm do the loops use: PID, PI-D or I-PD?
-- Are bump tests in Manual a planned practice on this plant, and how often?
-
-If the tags can be read, the tuning comes from the DCS with its time, and nobody enters it by hand. If not, a
-"Controller tuning" section is added to the loop settings instead.
+Still to ask I&C:
+- The exact MQTT field names (we expect P, I and D).
+- Whether P, I and D are sent when they change or periodically.
+- Which control algorithm the loops use: PID, PI-D or I-PD. Only the setpoint-response prediction and the tuning
+  advice need this; the gain and phase margins do not, because the feedback path is the same in all three.
 
 ---
 
@@ -102,36 +103,19 @@ looked for in Manual.
 
 **Why it matters.** A model fitted to the controller's own corrections is biased: the output is driven by the PV
 through feedback, not independent of it. The 41–45 % of models that predict the previous event worse than a flat
-line fit this. Bump tests in Manual give clean open-loop data, and today they are thrown away. The volume (about
-600 models a day on the current loops) is more than anyone can review.
+line fit this. The volume (about 600 models a day on the current loops) is more than anyone can review.
 
-**Recommended fix.**
-- Capture output steps made **in MAN** as input tests and fit them with the open-loop method. IMAN is excluded
-  (the output follows another block, not the operator).
-- The event is accepted when the PV settles while the loop is still in Manual. Returning to Auto before the PV
-  settles censors it ("Controller changed mode").
-- Step size as today: at least 1 % of output and 4 × the noise of the 2 minutes before, held 30 s.
-- **Keep the Auto output moves for now**: today they give the plant's only validated models. The Events list names
-  each one "Bump test (Manual)" or "Output move (Auto)" instead of "Input test", so a reviewer can prefer bump-test
-  models.
-- After about a month of bump-test data, compare the two kinds and decide whether to stop the Auto output moves.
+**Decision (owner, 22 Nov).**
+- **Auto only, no Manual.** No bump-test capture in Manual, so nothing is built for it.
+- **The Auto output moves stay.** They are the plant's only source of models today. Events keep their current name.
+- **Capture in AUT only.** Cascade (CAS) no longer counts as Auto for System Response. A loop that leaves AUT for CAS
+  while an event is open censors it ("Controller changed mode"), the same as AUT to MAN. The Overview "in auto mode"
+  KPI still counts Cascade as automatic control; only System Response changes.
+- **Cascade and master/slave analysis are the next phase**, with their own event type and pair analysis. Before it, a
+  read-only plant check lists the loops that run mostly in CAS; those loops get no System Response events until then.
 
-**Alternative.** Stop creating events for Auto output moves now (our first proposal). Since the loop change every
-event has been such a move, so the plant would have almost no events or models until bump tests come in.
-
-**Manual use on the current loops.** Over the last 7 days, 7 current loops had the output moved by hand in Manual:
-PIC20317 (6.3 days, 19–27 %), FIC20209 (1.7 days, 29–35 %), LIC20202 (3.5 h, 10–33 %), FIC10303B (51 min,
-32–55 %), LIC30608 (41 min, 19–73 %), LIC20401 (34 min, 5–66 %) and FIC10301 (26 min, 25–36 %). In the 16 hours
-after the change, only PIC20317.
-
-A bump test needs at least about 5 minutes in Manual (2 minutes of calm data, then at least 3 minutes of response).
-Bump-test capture would therefore add clean models on a handful of loops, not replace the Auto moves. Whether those
-manual moves are clean steps or many small nudges, only the capture itself will show. Still to ask I&C: are bump
-tests a planned practice?
-
-**Please confirm.**
-- Capture bump tests in Manual (this changes the design rule "capture only in Auto").
-- Keep the Auto output moves, labelled, for now; or stop them.
+Built for the next engine release: the capture modes are a job setting, AUT by default, so adding Cascade later is a
+setting change and a resubmit, not a new engine build.
 
 ## 2. Model type comes from the tag name
 
@@ -200,19 +184,21 @@ setpoint, output and mode are mapped, and no model has controller tuning (0 of 2
 tuning is normally available as its P (proportional band, %), I (integral time, s) and D (derivative time, s)
 items, for example `FCS0101.PIC80105.P`. I&C must confirm that the OPC server exposes them.
 
-**Recommended fix.**
-- **If I&C confirms the items:** read P, I and D from the DCS for each loop, as three more tags on the same
-  gateway. A retune is then picked up with its time, item 6's "tuning changed" rule comes with it, and nobody has
-  to enter tuning by hand.
-- **Otherwise:** add a "Controller tuning" section to the loop settings (proportional band, integral time,
-  derivative time, direct or reverse action, the date it applies from), and read it from the DCS later.
-- The proportional band is converted to gain (100 / band), scaled by the PV and output ranges.
-- **λ for the advice:** approved per loop by the control engineer. No advice is shown without it.
+**Decision (owner, 22 Nov).** P, I and D arrive over MQTT in the same payload and with the same rules as PV, SP, OP
+and MODE. A retune is then picked up with its time, item 6's "tuning changed" rule comes with it, and nobody enters
+tuning by hand.
+- Ingestion already accepts P, I and D (no change needed if the gateway names them so).
+- To build in the engine: read P, I and D; build the controller tuning from them (CENTUM: gain = 100 / proportional
+  band, in % of span, scaled by the PV and output ranges; I and D in seconds); apply "tuning changed". Then the
+  frequency analysis and the tuning advice run.
+- To decide on our side: whether the historian keeps P, I and D, or a log of tuning changes is kept instead.
+- **λ for the advice:** approved by the control engineer. No advice is shown without it.
 
 **Please confirm.**
-- The PID form and control algorithm in use (PID, PI-D or I-PD). The algorithm changes the setpoint response, not
-  the margins.
-- How λ is approved: per loop, or a rule (for example λ = dead time for tight loops, larger for averaging loops).
+- How λ is approved: per loop, or a rule (for example λ = dead time for tight loops, larger for averaging loops),
+  and which loops are averaging.
+- The control algorithm in use (PID, PI-D or I-PD) comes from I&C (questions above). It changes the setpoint
+  response, not the margins.
 
 ## 5. No setpoint step has ever got a model
 
@@ -263,7 +249,7 @@ fitted, from data that should not be used.
 |---|---|
 | Valve at its limit | The controller output (or the valve position, where mapped) is within 1 % of 0 % or 100 % for 10 s or more during the event |
 | PV left its operating region | The PV leaves the operating region set for the loop (only loops with a region set) |
-| Controller tuning changed | The tuning changes during the event (needs the DCS read from item 4) |
+| Controller tuning changed | P, I or D changes during the event (needs P, I and D over MQTT, item 4) |
 
 **Please confirm.** The 1 % / 10 s limit; censoring (no model) rather than keeping the event with a warning; and
 whether operating regions should be set for the main loops.
@@ -293,22 +279,19 @@ fit's residual noise.
 
 | Release | Items | Status |
 |---|---|---|
-| Next engine release | 2, 3, 5a, 6 (valve at limit, PV left region), 7a, 7b | Built with the defaults above. Items 2 and 6 (region) take effect as behaviours and regions are declared |
-| After your decision | 1 | Needs your approval of the Manual rule and the I&C answer on bump tests; adds clean models on about 7 loops |
-| After I&C confirms the tuning tags | 4, 6 (tuning changed) | Turns on frequency analysis; tuning advice also needs λ |
+| Next engine release | 1 (capture in AUT only), 2, 3, 5a, 6 (valve at limit, PV left region), 7a, 7b | Built with the defaults above. Items 2 and 6 (region) take effect as behaviours and regions are declared |
+| Next | 4, 6 (tuning changed) | P, I and D over MQTT; the engine reads them. Turns on frequency analysis; tuning advice also needs λ |
+| Next phase | Cascade and master/slave analysis | Own event type and pair analysis; after a plant check of the loops that run mostly in CAS |
 | Later | 5b | Setpoint-step models for integrating loops; method chosen by the engine owner |
 
-Nothing changes in the page layout: the existing Response, Fit quality, Frequency and Models tabs fill in, and the
-Events list shows the new event names from item 1.
+Nothing changes in the page layout: the existing Response, Fit quality, Frequency and Models tabs fill in.
 
 ## Approval
 
 | Decision | Approve / Change / Reject | Comments and values |
 |---|---|---|
-| 1. Capture bump tests in Manual | | |
-| 1. Keep the Auto output moves (labelled) for now | | |
 | 2. Integrating loops other than level loops; self-regulating level loops | | List: |
-| 4. How λ is approved | | |
+| 4. How λ is approved; averaging loops | | List: |
 | 5b. Method for integrating setpoint steps (optional) | | |
 | 6. Operating regions on the main loops | | Loops and values: |
 | Defaults now built in (items 3, 6, 7) | | Changes: |
@@ -322,10 +305,10 @@ Reviewed by: ____________________ Date: ____________
 
 | # | Code |
 |---|---|
-| 1 | `cplm/response/ResponseCapture.java` (detection only when `auto && good`, `auto` = `CplmNormalizedSample.isAutoMode()`: CAS is auto, IMAN/ROUT manual; mode-transfer censor). MAN-only capture needs the raw mode token, not the boolean |
+| 1 | Built: `ResponseCapture` detects only when `ResponseJobConfig.capturesIn(mode)` (job argument `--response-capture-modes`, default `AUT`; part of the settings hash); leaving a capture mode censors `MODE_TRANSFER`. `CplmNormalizedSample.isAutoMode()` is unchanged (short features, authority, Overview KPI count CAS). Cascade phase: add `CAS` plus its own event type |
 | 2 | `CplmResponseAnalysisJob.familyFor()` → `resolvedProfile.dynamicClass.integrating()`; plant registry has `dynamic_class` null on every active loop |
 | 3 | `ResponseJobConfig`: `fallbackSpanEu`, `stableBandEu`, `minResponseEu`, `absSettlingBandEu`, `targetBandEu`, `noiseFloorEu`, `rampMinSlopeEuPerS` → fractions of the profile PV span; `ResponseCapture.settled()` (tail range ≤ `stableBandEu`), `detectorSettings()` / `supersedeOnChange()`; PV range from the registry `engineering` JSON (`pvMin`, `pvMax`) carried with the profile |
-| 4 | `controller/ControllerSnapshot` (job passes `unknown()`); tag-map roles for P/I/D + ingest, or registry schema + cplm-api + Edit loop |
+| 4 | Ingestion done (`LoopIngestConfig.DefaultParamRoles` P/I/D → p/i/d, `LoopJoiner` extra fields on `traverse.cpa.loop.samples.v1`). To build: `CplmNormalizedSample` p, i, d; `ControllerSnapshot` from them in `CplmResponseAnalysisJob` (today `unknown()`); `CONTEXT_CHANGED` on a tuning change. Historian `cpm_raw` has no p, i, d (add measurements or a Postgres tuning-change log) |
 | 5 | 5a: `ClosedLoopPemEstimator.estimate()` rejects any `abs(Δt − ts) > 1e-6·ts` (`NON_UNIFORM_GRID`); resample the `EventDataset` first. 5b: `EstimatorRegistry` (`PEM_NOT_INSTALLED_FOR_INTEGRATING`) |
 | 6 | censor reasons `ACTUATOR_CONSTRAINT` (on OP: no VP mapped at the plant), `REGION_EXIT` (profile `regionPvMin/Max`; no gate-config bundles at the plant), `CONTEXT_CHANGED` |
 | 7 | `metrics/Overshoot.decayRatio()`; `prediction_interval` artifact (never produced); `validation/ModelValidator` Ljung-Box p ≤ 0.05 → `RESIDUALS_NOT_WHITE` note on VALIDATED |

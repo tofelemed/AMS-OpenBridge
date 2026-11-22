@@ -110,7 +110,8 @@ public final class ResponseCapture implements Serializable {
      */
     public List<Closed> onSample(CplmNormalizedSample s, boolean vpUsable) {
         double tS = s.eventTsMs / 1000.0;
-        boolean auto = s.isAutoMode();
+        // owner decision 22 Nov 2026: capture only in the job's capture modes (default AUT); CAS is the next phase
+        boolean auto = cfg.capturesIn(s.mode);
         boolean good = s.isGoodQuality() && Double.isFinite(s.pv) && Double.isFinite(s.sp) && Double.isFinite(s.op);
         boolean vpMapped = vpUsable && s.vp != null && Double.isFinite(s.vp);
         double uApplied = vpMapped ? s.vp : s.op;

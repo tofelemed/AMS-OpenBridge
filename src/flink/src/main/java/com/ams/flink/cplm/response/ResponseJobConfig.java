@@ -69,6 +69,34 @@ public final class ResponseJobConfig implements Serializable {
     public double opLowEu = 0, opHighEu = 100;
     /** CHG-207: the PV operating region from the loop profile; infinite = no region, no REGION_EXIT. */
     public double regionPvMin = Double.NEGATIVE_INFINITY, regionPvMax = Double.POSITIVE_INFINITY;
+    /**
+     * Owner decision 22 Nov 2026: the controller modes this job captures events in, canonical names (default AUT only).
+     * Cascade is the next phase; adding it is this setting plus a resubmit. Leaving a capture mode censors the open event
+     * MODE_TRANSFER, so AUT to CAS behaves like AUT to MAN. Deliberately not {@code CplmNormalizedSample.isAutoMode()}, which
+     * also counts CAS for the KPIs and the short features.
+     */
+    public java.util.Set<String> captureModes = new java.util.HashSet<>(java.util.Set.of("AUT"));
+
+    private static final java.util.Set<String> MANUAL_MODES = java.util.Set.of("MAN", "MANUAL", "M", "IMAN", "ROUT", "LO", "LOCAL", "OFF", "TRACK");
+
+    /** A DCS mode string as one canonical name: the Auto and Cascade spellings collapse to AUT and CAS; null when blank. */
+    public static String canonicalMode(String mode) {
+        if (mode == null) return null;
+        String m = mode.trim().toUpperCase(java.util.Locale.ROOT);
+        switch (m) {
+            case "": case "UNKNOWN": return null;
+            case "AUT": case "AUTO": case "A": case "AUTOMATIC": return "AUT";
+            case "CAS": case "CASC": case "CASCADE": return "CAS";
+            case "SUP": case "SUPERVISORY": return "SUP";
+            default: return m;
+        }
+    }
+
+    /** True when this job captures events while the loop is in {@code mode}. A manual mode never qualifies. */
+    public boolean capturesIn(String mode) {
+        String m = canonicalMode(mode);
+        return m != null && !MANUAL_MODES.contains(m) && captureModes != null && captureModes.contains(m);
+    }
 
     public static ResponseJobConfig fromArgs(String[] args) {
         ResponseJobConfig c = new ResponseJobConfig();
@@ -98,6 +126,7 @@ public final class ResponseJobConfig implements Serializable {
         c.actuatorLimitBandFraction = num(args, "g12-actuator-limit-band-fraction", c.actuatorLimitBandFraction);
         c.actuatorLimitDwellS = num(args, "g12-actuator-limit-dwell-s", c.actuatorLimitDwellS);
         c.regionExitDwellS = num(args, "g12-region-exit-dwell-s", c.regionExitDwellS);
+        c.captureModes = modes(args, "response-capture-modes", c.captureModes);
         return c;
     }
 
@@ -206,6 +235,7 @@ public final class ResponseJobConfig implements Serializable {
         c.actuatorLimitBandFraction = actuatorLimitBandFraction; c.actuatorLimitDwellS = actuatorLimitDwellS; c.regionExitDwellS = regionExitDwellS;
         c.opLowEu = opLowEu; c.opHighEu = opHighEu; c.regionPvMin = regionPvMin; c.regionPvMax = regionPvMax;
         c.bundleEuKeys = bundleEuKeys == null ? new java.util.HashSet<>() : new java.util.HashSet<>(bundleEuKeys);
+        c.captureModes = captureModes == null ? new java.util.HashSet<>(java.util.Set.of("AUT")) : new java.util.HashSet<>(captureModes);
         c.governingBundleHash = governingBundleHash;
         return c;
     }
@@ -220,8 +250,24 @@ public final class ResponseJobConfig implements Serializable {
                 + "|" + fitMaxIterations + "|" + fitRelativeTolerance + "|" + lambdaS + "|" + tauMinS + "|" + gainAbsMax
                 + "|" + pvSpanEu + "|" + settleNoiseMultiplier
                 + "|" + actuatorLimitBandFraction + "|" + actuatorLimitDwellS + "|" + regionExitDwellS + "|" + opLowEu + "|" + opHighEu
-                + "|" + regionPvMin + "|" + regionPvMax;
+                + "|" + regionPvMin + "|" + regionPvMax
+                + "|modes=" + String.join(",", new java.util.TreeSet<>(captureModes == null ? java.util.Set.of("AUT") : captureModes));
         return "g12:" + com.ams.flink.cplm.identity.ProfileHash.sha256Prefix(canonical, 16);
+    }
+
+    /** A comma list of capture modes, canonical, manual modes dropped; missing, blank or nothing left keeps {@code def}. */
+    private static java.util.Set<String> modes(String[] args, String key, java.util.Set<String> def) {
+        for (int i = 0; i + 1 < args.length; i++) {
+            String a = args[i].startsWith("--") ? args[i].substring(2) : args[i];
+            if (!a.equals(key)) continue;
+            java.util.Set<String> out = new java.util.HashSet<>();
+            for (String part : args[i + 1].split(",")) {
+                String m = canonicalMode(part);
+                if (m != null && !MANUAL_MODES.contains(m)) out.add(m);
+            }
+            return out.isEmpty() ? def : out;
+        }
+        return def;
     }
 
     private static double num(String[] args, String key, double def) {
