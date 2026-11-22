@@ -13,7 +13,13 @@ public sealed class ConfigBatchService
     public const string MaxProperty = "G2r.pv_region_max";
 
     public sealed record RowResult(string LoopId, string? Site, Guid? BundleId, int? Version, string? State, double? PvMin, double? PvMax,
-        double? PreviousMin, double? PreviousMax, string? Error, IReadOnlyList<string> Problems, Guid? DeploymentId = null, string? DeploymentState = null);
+        double? PreviousMin, double? PreviousMax, string? Error, IReadOnlyList<string> Problems, Guid? DeploymentId = null, string? DeploymentState = null,
+        string? CreatedBy = null);
+
+    // State values (schema CHECKs): bundle DRAFT | VALIDATED | SHADOW_EVALUATED | APPROVED | SCHEDULED | PREPARED | ACTIVE_VERIFIED |
+    // REJECTED (failed validation) | EXPIRED | PARTIALLY_ACKNOWLEDGED | ACTIVATION_FAILED | ROLLED_BACK | SUPERSEDED; deployment
+    // SCHEDULED | PREPARING | PREPARED | APPLYING | APPLIED | PROBING | ACTIVE_VERIFIED | PARTIALLY_ACKNOWLEDGED | ACTIVATION_FAILED |
+    // ROLLED_BACK | SUPERSEDED. Approvable: VALIDATED, SHADOW_EVALUATED. Deployable: APPROVED, PARTIALLY_ACKNOWLEDGED, ACTIVATION_FAILED.
 
     private readonly ConfigStore _store;
     private readonly ConfigDeploymentService _deployments;
@@ -37,7 +43,7 @@ public sealed class ConfigBatchService
         {
             var (min, max) = RegionOf(b.Resolved);
             var dep = (await _deployments.ListAsync(b.BundleId, null, 1, ct)).FirstOrDefault();
-            results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, null, Problems(b.Validation), dep?.DeploymentId, dep?.State));
+            results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, null, Problems(b.Validation), dep?.DeploymentId, dep?.State, b.CreatedBy));
         }
         return results;
     }
@@ -56,7 +62,7 @@ public sealed class ConfigBatchService
         foreach (var b in await BundlesAsync(site, batchId, ct))
         {
             var (min, max) = RegionOf(b.Resolved);
-            RowResult Row(string state, string? error) => new(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, state, min, max, null, null, error, Array.Empty<string>());
+            RowResult Row(string state, string? error) => new(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, state, min, max, null, null, error, Array.Empty<string>(), CreatedBy: b.CreatedBy);
             if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED"))
             {
                 results.Add(Row(b.State, b.State == "APPROVED" ? null : $"not approvable in state {b.State}"));
@@ -90,17 +96,17 @@ public sealed class ConfigBatchService
             var (min, max) = RegionOf(b.Resolved);
             if (b.State is not ("APPROVED" or "PARTIALLY_ACKNOWLEDGED" or "ACTIVATION_FAILED"))
             {
-                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, $"not deployable in state {b.State}", Array.Empty<string>()));
+                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, $"not deployable in state {b.State}", Array.Empty<string>(), CreatedBy: b.CreatedBy));
                 continue;
             }
             try
             {
                 var d = await _deployments.CreateAsync(b.BundleId, "ACTIVATE", null, null, actor, ct);
-                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, "SCHEDULED", min, max, null, null, null, Array.Empty<string>(), d.DeploymentId, d.State));
+                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, "SCHEDULED", min, max, null, null, null, Array.Empty<string>(), d.DeploymentId, d.State, b.CreatedBy));
             }
             catch (Exception ex) when (ex is ConfigStateException or ConfigConflictException or KeyNotFoundException)
             {
-                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, ex.Message, Array.Empty<string>()));
+                results.Add(new RowResult(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, b.State, min, max, null, null, ex.Message, Array.Empty<string>(), CreatedBy: b.CreatedBy));
             }
         }
         return results;

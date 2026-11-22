@@ -54,7 +54,7 @@ public sealed class LoopSettingsService
                 var (min, max) = RegionOf(draft.Resolved);
                 _audit.Emit("CONFIG_DRAFT_CREATED", actor, "gate_config_bundle", draft.BundleId.ToString(),
                     new { draft.Site, draft.ScopeKind, draft.ScopeRef, draft.Version, draft.ContentHash, batchId, restackedOn = plan.Stale.Base, plan.Stale.BaseBundleId });
-                results.Add(new RowResult(plan.Stale.LoopId, site, draft.BundleId, draft.Version, draft.State, min, max, prevMin, prevMax, null, Problems(draft.Validation)));
+                results.Add(new RowResult(plan.Stale.LoopId, site, draft.BundleId, draft.Version, draft.State, min, max, prevMin, prevMax, null, Problems(draft.Validation), CreatedBy: actor));
             }
             catch (Exception ex) when (ex is ArgumentException or ConfigStateException or KeyNotFoundException)
             {

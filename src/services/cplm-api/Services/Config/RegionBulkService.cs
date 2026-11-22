@@ -63,7 +63,7 @@ public sealed class RegionBulkService
                     problems.Add($"the region {a} - {b} reaches outside the PV range {rMin} - {rMax}");
                 _audit.Emit("CONFIG_DRAFT_CREATED", actor, "gate_config_bundle", draft.BundleId.ToString(),
                     new { draft.Site, draft.ScopeKind, draft.ScopeRef, draft.Version, draft.ContentHash, batchId, region = new { row.PvMin, row.PvMax } });
-                results.Add(new RowResult(loop.LoopId, loop.Site, draft.BundleId, draft.Version, draft.State, row.PvMin, row.PvMax, prevMin, prevMax, null, problems));
+                results.Add(new RowResult(loop.LoopId, loop.Site, draft.BundleId, draft.Version, draft.State, row.PvMin, row.PvMax, prevMin, prevMax, null, problems, CreatedBy: actor));
             }
             catch (Exception ex) when (ex is ArgumentException or ConfigStateException or ConfigConflictException or KeyNotFoundException)
             {
