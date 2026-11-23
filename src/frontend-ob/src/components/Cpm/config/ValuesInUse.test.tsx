@@ -28,6 +28,35 @@ const eff = (over: Partial<EffectiveConfig> = {}) => ({
 }) as unknown as EffectiveConfig;
 const rowOf = (name: string) => screen.getByText(name).closest('tr') as HTMLElement;
 
+describe('ValuesInUse re-check follow-up (words, scaled basis, one number format)', () => {
+  it('a code value reads in words in the value column', () => {
+    const e = [entry('G7.role', { value: 'SUPPORTING', configured: 'SUPPORTING', level: 'LOOP' })];
+    render(<ValuesInUse eff={eff({ entries: e, properties: { 'G7.role': 'SUPPORTING' } })} gate="G7" onGate={() => {}} />);
+    expect(screen.getByText('Supporting')).toBeTruthy();
+    expect(screen.queryByText('SUPPORTING')).toBeNull();
+  });
+
+  it('a PV-scaled value on a plant page carries its per-PV-range basis on hover; an unscaled one does not', () => {
+    const props = { 'G12.step_min_input_eu': 1, 'G12.settling_abs_band_pv_eu': 0.1, 'G12.noise_multiplier': 4 };
+    const cat = new Map(Object.keys(props).map(k => [k, { property: k, editable: true } as unknown as CatalogueEntry]));
+    render(<ValuesInUse eff={{ properties: props, sources: { 'G12.step_min_input_eu': 'FACTORY' } } as never} catalogue={cat} gate="G12" onGate={() => {}} />);
+    expect(rowOf('Step minimum input eu').querySelector('td:nth-child(2)')?.getAttribute('title')).toBe("1 per 100 of each loop's PV range");
+    expect(rowOf('Settling abs band PV eu').querySelector('td:nth-child(2)')?.getAttribute('title')).toBe("0.1 per 100 of each loop's PV range");
+    expect(rowOf('Noise multiplier').querySelector('td:nth-child(2)')?.getAttribute('title')).toBeNull();
+  });
+
+  it('numbers use thousands separators and never scientific notation, on the plant page and the loop page alike', () => {
+    const props = { 'G12.gain_abs_max': 1000, 'G12.noise_multiplier': 14400, 'G12.lambda_s': 1e-9, 'G12.step_min_input_eu': 2000.5 };
+    render(<ValuesInUse eff={{ properties: props, sources: {} } as never} gate="G12" onGate={() => {}} />);
+    const text = screen.getByRole('table').textContent ?? '';
+    expect(text).toMatch(/1,000/); expect(text).toMatch(/14,400/); expect(text).toMatch(/0\.000000001/); expect(text).toMatch(/2,000\.5/);
+    expect(text).not.toMatch(/e-9/);
+    cleanup();
+    render(<ValuesInUse eff={eff({ entries: [entry('G12.gain_abs_max', { value: 2000, unit: 'm3/h' })] })} gate="G12" onGate={() => {}} />);
+    expect(screen.getByText('2,000 m3/h')).toBeTruthy();
+  });
+});
+
 describe('ValuesInUse on a loop page (entries)', () => {
   it('lists only the editable properties: no retention, registry, fixed, derived or unapplied value', () => {
     render(<ValuesInUse eff={eff()} gate="G12" onGate={() => {}} />);

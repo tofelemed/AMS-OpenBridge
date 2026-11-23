@@ -61,6 +61,16 @@ export const enumWords = (s: string): string => {
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
+/** A number as the scope pages read it: thousands separators, never scientific notation, exact (2,000 · 14,400 · 0.000000001). */
+export const numberText = (v: number): string => Number.isFinite(v) ? Number(v.toPrecision(10)).toLocaleString('en-US', { maximumFractionDigits: 20 }) : String(v);
+
+/** The properties the server scales by each loop's PV range (property-sources.json, resolver PV_SCALED): on a page without a loop they carry no absolute value. */
+const PV_SCALED = new Set(['G12.step_min_input_eu', 'G12.settling_abs_band_pv_eu', 'G12.gain_abs_max']);
+
+/** The hover basis of a PV-scaled value on a page without a loop ("1 per 100 of each loop's PV range"), else null. */
+export const pvScaledBasis = (property: string, v: unknown): string | null =>
+  PV_SCALED.has(property) && typeof v === 'number' ? `${numberText(v)} per 100 of each loop's PV range` : null;
+
 /** A value as words: an unset one reads a dash (CHG-224: never "No value"); a code reads as a word. */
 export const valueWords = (v: unknown): string => (v === null || v === undefined ? '—' : typeof v === 'string' ? enumWords(valueText(v)) : valueText(v));
 

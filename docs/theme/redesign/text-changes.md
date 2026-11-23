@@ -2475,3 +2475,11 @@ Lab-retest fixes (23 Nov 2026, combined deploy 91d9b2aa). Source: retestfix-A an
 | Gate Configuration · changes in progress | Note "[batch <id> inherit] text" | "text" |
 | Gate Configuration · plant-wide settings version | Edit, Check and Try shown "✓ done" | not used (no tick) |
 | Gate Configuration · Check and Approve | Phantom change rows while the settings list is still loading | none until the list is read |
+| Gate Configuration · values in use | Role value as a code ("SUPPORTING") | in words ("Supporting") |
+| Gate Configuration · values in use (plant and type pages) | PV-scaled value ("1 · Factory", "0.1", "1000") with no hover | hover: "1 per 100 of each loop's PV range" |
+| Gate Configuration · values in use | Numbers as typed ("2000", "14400", "1e-9") | one format on every scope page: "2,000", "14,400", "0.000000001" |
+| Gate Configuration · steps | Try on past data "✓ done" on a version where no try ran | no tick |
+| Gate Configuration · Try on past data (loop change) | "No data in the chosen period" | "No data in the last 24 hours" |
+| Gate Configuration · Try on past data (type or plant change) | "No data in the chosen period" | "No data in the last 3 days" ("1 day" singular; the run's own period) |
+| Gate Configuration · Approve, on past data | "Not compared — no data in the period" | "Not compared — no data in the last 24 hours" (or "n days") |
+| Gate Configuration · deployments (past deployment) | Red alert "Different software versions are running." | Plain line "At this deployment, parts ran different software versions"; the red alert stays only while the deployment is still going out |

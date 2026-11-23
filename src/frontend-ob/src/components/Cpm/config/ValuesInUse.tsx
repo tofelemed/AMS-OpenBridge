@@ -11,18 +11,19 @@ import { gateName } from '../gateStatus';
 import type { CatalogueEntry, EffectiveConfig, EffectiveEntry } from '../../../api/cpm/config';
 import { runsElsewhere, valueText } from './configSupport';
 import { GATES } from './configLists';
-import { settingName, sourceWord } from './configWords';
+import { enumWords, numberText, pvScaledBasis, settingName, sourceWord } from './configWords';
 
 /** A value for the table: a dash when there is none, a fraction property reads as a percent, a unit follows a number. */
 export function displayValue(property: string, v: unknown, unit?: string | null): string {
   if (v === null || v === undefined) return '—';
-  if (typeof v === 'number' && property.endsWith('_fraction')) return `${Number((v * 100).toPrecision(10))} %`;
-  return unit && typeof v === 'number' ? `${valueText(v)} ${unit}` : valueText(v);
+  if (typeof v === 'number' && property.endsWith('_fraction')) return `${numberText(v * 100)} %`;
+  if (typeof v === 'number') return unit ? `${numberText(v)} ${unit}` : numberText(v);
+  return typeof v === 'string' ? enumWords(valueText(v)) : valueText(v);
 }
 
 const gateRank = (g: string) => { const i = GATES.indexOf(g); return i < 0 ? GATES.length : i; };
 
-interface Row { key: string; value: string; from: string; basis: string | null; muted: boolean }
+interface Row { key: string; value: string; from: string; basis: string | null; muted: boolean; valueBasis?: string | null }
 
 /** A row from the server's entry (loop page). */
 function entryRow(e: EffectiveEntry): Row {
@@ -38,7 +39,7 @@ function entryRow(e: EffectiveEntry): Row {
 
 /** A row from the resolved values (type and plant pages). */
 const resolvedRow = (key: string, eff: Pick<EffectiveConfig, 'properties' | 'sources'>): Row =>
-  ({ key, value: displayValue(key, eff.properties[key]), from: sourceWord(eff.sources[key]), basis: null, muted: !eff.sources[key] });
+  ({ key, value: displayValue(key, eff.properties[key]), from: sourceWord(eff.sources[key]), basis: null, muted: !eff.sources[key], valueBasis: pvScaledBasis(key, eff.properties[key]) });
 
 export const ValuesInUse: React.FC<{
   eff: Pick<EffectiveConfig, 'properties' | 'sources'> & Partial<Pick<EffectiveConfig, 'entries' | 'workers' | 'bundle'>>;
@@ -82,7 +83,7 @@ export const ValuesInUse: React.FC<{
             {rows.map(r => (
               <tr key={r.key} title={r.key}>
                 <td>{settingName(r.key)}</td>
-                <td>{r.value}</td>
+                <td title={r.valueBasis ?? undefined}>{r.value}</td>
                 <td className={r.muted ? 'cpm-muted' : undefined} title={r.basis ?? undefined}>{r.from}</td>
               </tr>
             ))}

@@ -56,6 +56,12 @@ const STARTING = 'Starting… (about 30 s)';
 export const waitingForCapacity = (runState: string | undefined, startedAt: string | undefined, now = Date.now()): boolean =>
   (runState === 'SUBMITTED' || runState === 'RUNNING') && !!startedAt && now - Date.parse(startedAt) > QUEUED_AFTER_MS;
 
+/** "No data in the last 24 hours" for a loop change (the server takes the newest 24 h); a type or plant change says the days the run covered. */
+export const noDataWords = (isLoop: boolean, fromMs: number | null, toMs: number | null): string => {
+  const days = !isLoop && fromMs != null && toMs != null ? Math.max(1, Math.round((toMs - fromMs) / 86400000)) : 0;
+  return days > 0 ? `No data in the last ${days} ${days === 1 ? 'day' : 'days'}` : 'No data in the last 24 hours';
+};
+
 /** The days typed as the hours the server reads: a whole number of days, 1 to 7 (blank or not a number: 1). */
 export const daysToHours = (text: string): number => {
   const d = Math.round(Number(text));
@@ -137,7 +143,7 @@ export const ShadowComparison: React.FC<{
               </tbody>
             </table>
           )}
-          {report.data.runState === 'FINISHED' && report.data.comparedWindows === 0 && <p className="cpm-copy">{report.data.shadowRows === 0 ? 'No data in the chosen period' : 'No matching live results to compare'}</p>}
+          {report.data.runState === 'FINISHED' && report.data.comparedWindows === 0 && <p className="cpm-copy">{report.data.shadowRows === 0 ? noDataWords(isLoop, report.data.fromMs, report.data.toMs) : 'No matching live results to compare'}</p>}
           {report.data.runState === 'FINISHED' && report.data.comparedWindows > 0 && report.data.windows.length === 0 && (
             <p className="cpm-copy">Same result in {report.data.comparedWindows === 1 ? 'the compared window' : `all ${report.data.comparedWindows} compared windows`}</p>
           )}

@@ -35,7 +35,7 @@ describe('DeploymentDetail', () => {
 
   it('a refusal shows its reason and a mixed fleet is called out in words, with no jar (CHG-184)', () => {
     render(<DeploymentDetail deployment={base({
-      state: 'ACTIVATION_FAILED',
+      state: 'PREPARING',
       ackMatrix: [
         { jobName: 'AMS - CPLM Short Feature Engine', prepare: { status: 'ACK', bundleHash: HASH, jarSha256: 'jar-A', reason: null, receivedAt: 't' }, apply: null },
         { jobName: 'AMS - CPLM Long Diagnostics Engine', prepare: { status: 'NACK', bundleHash: HASH, jarSha256: 'jar-B', reason: 'UNKNOWN_PROPERTY G4.activity_warn_ratioX', receivedAt: 't' }, apply: null },
@@ -43,7 +43,8 @@ describe('DeploymentDetail', () => {
       ],
     })} />);
     expect(screen.getByText(/^Setting not known: /)).toBeTruthy();
-    expect(screen.getByText('Different software versions are running.')).toBeTruthy();
+    const note = screen.getByText('Different software versions are running.');
+    expect(note.getAttribute('role')).toBe('alert');
     expect(screen.queryByText(/jar/)).toBeNull();
   });
 
@@ -95,5 +96,16 @@ describe('DeploymentDetail', () => {
       { jobName: 'x', prepare: a('jar-A'), apply: null }, { jobName: 'y', prepare: a('jar-B'), apply: null }] })} />);
     expect(screen.getByText('Different software versions are running.')).toBeTruthy();
     expect(screen.getByTestId('deployment-status').textContent).not.toMatch(/Worker/i);
+  });
+
+  it('a settled deployment keeps the mixed-software note as a neutral line, not an alert', () => {
+    const a = (jar: string) => ({ status: 'ACK' as const, bundleHash: HASH, jarSha256: jar, reason: null, receivedAt: 't' });
+    for (const state of ['ACTIVE_VERIFIED', 'SUPERSEDED', 'ROLLED_BACK', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED'] as const) {
+      cleanup();
+      render(<DeploymentDetail deployment={base({ state, ackMatrix: [{ jobName: 'x', prepare: a('jar-A'), apply: null }, { jobName: 'y', prepare: a('jar-B'), apply: null }] })} />);
+      const note = screen.getByText('At this deployment, parts ran different software versions');
+      expect(note.getAttribute('role')).toBeNull();
+      expect(screen.queryByText('Different software versions are running.')).toBeNull();
+    }
   });
 });

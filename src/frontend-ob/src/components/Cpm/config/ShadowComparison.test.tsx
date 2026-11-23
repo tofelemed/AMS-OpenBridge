@@ -215,10 +215,21 @@ describe('ShadowComparison retest fixes (issue 5)', () => {
   const rep = (over: Record<string, unknown>) => ({ bundleId: 'b1', analysisRunId: 'r1', runState: 'FINISHED', loopId: 'FIC10301', fromMs: 0, toMs: 1, shadowRows: 0,
     comparedWindows: 0, symptomsRemoved: 0, symptomsAdded: 0, reclassification: null, comparedAt: 't', windows: [], ...over });
   const tried = () => bundle({ state: 'SHADOW_EVALUATED', shadow: { analysisRunId: 'r1', loopId: 'FIC10301', contentHash: 'h' } as never });
-  it('0 of 0 windows says No data in the chosen period', async () => {
-    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({}) as never);
+  it('0 of 0 windows on a type change says the days of the run, 1 day singular', async () => {
+    const h = 3600000;
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ fromMs: 0, toMs: 3 * 24 * h }) as never);
+    view({ ...tried(), scopeKind: 'PROFILE', scopeRef: 'FIC' } as never);
+    expect(await screen.findByText('No data in the last 3 days')).toBeTruthy();
+    cleanup();
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ fromMs: 0, toMs: 24 * h }) as never);
+    view({ ...tried(), scopeKind: 'PROFILE', scopeRef: 'FIC' } as never);
+    expect(await screen.findByText('No data in the last 1 day')).toBeTruthy();
+  });
+  it('0 of 0 windows on a loop change says No data in the last 24 hours', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ fromMs: null, toMs: null }) as never);
     view(tried());
-    expect(await screen.findByText('No data in the chosen period')).toBeTruthy();
+    expect(await screen.findByText('No data in the last 24 hours')).toBeTruthy();
+    expect(screen.queryByText(/chosen period/)).toBeNull();
     expect(screen.queryByText('No matching live results to compare')).toBeNull();
   });
   it('compared windows with no change say the result is the same', async () => {

@@ -94,7 +94,7 @@ describe('ApprovalTab retest fixes (issues 3, 4, 7)', () => {
   it('On past data says Not compared when 0 windows were compared, No result changes only when some were', async () => {
     vi.mocked(fetchMod.apiJson).mockResolvedValue({ runState: 'FINISHED', comparedWindows: 0, shadowRows: 0, windows: [] } as never);
     view(bundle({ shadow: { analysisRunId: 'r1', contentHash: 'h' } as never }));
-    expect(await screen.findByText('Not compared — no data in the period')).toBeTruthy();
+    expect(await screen.findByText('Not compared — no data in the last 24 hours')).toBeTruthy();
     cleanup();
     vi.mocked(fetchMod.apiJson).mockResolvedValue({ runState: 'FINISHED', comparedWindows: 1, shadowRows: 1, windows: [] } as never);
     view(bundle({ shadow: { analysisRunId: 'r1', contentHash: 'h' } as never }));

@@ -66,6 +66,8 @@ export const ConfigChangePage: React.FC = () => {
   // Edit is done exactly when Check lists a change (the same editable-filtered list); null = the catalogue is still loading
   const changes = !b ? [] : editableChanges(diffProperties(parent.data?.resolved.properties ?? resolveBelow(b.layers, b.scopeKind), b.resolved.properties), catalogue.data ? entries : null);
   const marks = stepMarks(b?.state ?? 'DRAFT', changes.length > 0);
+  // no try ran on this version: the Try step is not done, whatever the state
+  if (marks.try === 'done' && !(b?.shadow as { analysisRunId?: string } | null)?.analysisRunId) marks.try = null;
   // a marker for the plant-wide settings has nothing to edit, check or try: those steps carry no mark
   if (b?.inherits) {
     marks.edit = null; marks.check = null; marks.try = null;

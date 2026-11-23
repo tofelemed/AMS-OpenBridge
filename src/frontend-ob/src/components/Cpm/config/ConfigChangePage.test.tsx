@@ -69,7 +69,16 @@ describe('ConfigChangePage', () => {
     expect(document.body.textContent).not.toMatch(/SET UP/);
   });
 
+  it('Try carries no done mark when no try ran (a settled version with no shadow run)', async () => {
+    table = { ...BUNDLES, v13: { ...v13, state: 'ACTIVE_VERIFIED', shadow: null } };
+    renderAt('/cpm/config/changes/v13');
+    await screen.findByRole('heading', { name: 'Own settings v13' });
+    expect(stepButton('Try on past data').textContent).not.toContain('done');
+    expect(stepButton('Check').textContent).toContain('done');
+  });
+
   it('steps: Edit and Check done, Try done, Approve current; the default step is the current one', async () => {
+    table = { ...BUNDLES, v13: { ...v13, shadow: { analysisRunId: 'r1', loopId: 'FIC10302', contentHash: 'h' } } };
     renderAt('/cpm/config/changes/v13');
     await screen.findByRole('heading', { name: 'Own settings v13' });
     expect(stepButton('Edit').textContent).toContain('done');
@@ -104,6 +113,7 @@ describe('ConfigChangePage', () => {
   });
 
   it('a running version: every step done, lands on Deploy, no edit control, the reason once', async () => {
+    table = { ...table, l6: { ...(table.l6 as object), shadow: { analysisRunId: 'r1', loopId: 'FIC10301', contentHash: 'h' } } };
     renderAt('/cpm/config/changes/l6');
     expect(await screen.findByRole('heading', { name: 'Own settings v6' })).toBeTruthy();
     for (const s of ['Edit', 'Check', 'Try on past data', 'Approve', 'Deploy']) expect(stepButton(s).textContent).toContain('done');

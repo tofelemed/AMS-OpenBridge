@@ -15,7 +15,7 @@ import { ReasonedButton } from '../ReasonedButton';
 import { changeNames, plainNote, stampZoned, valueWords } from './configWords';
 import type { Bundle } from '../../../api/cpm/config';
 import { errorText, type LifecycleAction, type SettingChange } from './lifecycle';
-import { useShadowReport } from './ShadowComparison';
+import { noDataWords, useShadowReport } from './ShadowComparison';
 
 /** The states in which an expired approval still blocks something (approving again, activating again). */
 const AWAITING = new Set(['APPROVED', 'EXPIRED', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED']);
@@ -59,7 +59,7 @@ export const ApprovalTab: React.FC<{
   const report = useShadowReport(bundle.bundleId, recorded?.analysisRunId, tried);
   const changed = report.data ? report.data.windows.filter(w => w.changed.length > 0 || w.diagnosisBefore !== w.diagnosisAfter).length : 0;
   const past = !tried ? 'Not tried' : report.data?.runState !== 'FINISHED' ? (report.isError ? 'Not read' : 'Not finished')
-    : report.data.comparedWindows === 0 ? (report.data.shadowRows === 0 ? 'Not compared — no data in the period' : 'Not compared — no live results to compare')
+    : report.data.comparedWindows === 0 ? (report.data.shadowRows === 0 ? `Not compared — ${noDataWords(bundle.scopeKind === 'LOOP', report.data.fromMs, report.data.toMs).toLowerCase()}` : 'Not compared — no live results to compare')
     : changed === 0 ? 'No result changes' : `${changed} ${changed === 1 ? 'result changes' : 'results change'}`;
   return (
     <section className="cpm-config-tabpanel" aria-label="Approval">

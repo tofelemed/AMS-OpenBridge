@@ -28,6 +28,9 @@ export const refusalWords = (reason: string): string => {
   return /HASH|CATALOGUE/i.test(reason) ? 'Different settings list' : 'Refused';
 };
 
+/** A deployment still going out: only then is mixed software a live problem; afterwards it is history. */
+const IN_FLIGHT = new Set(['SCHEDULED', 'PREPARING', 'PREPARED', 'APPLYING', 'PROBING']);
+
 export const DeploymentDetail: React.FC<{ deployment: Deployment }> = ({ deployment: d }) => {
   const mixed = jarsOf(d).length > 1;
   const probe = d.probeResults as { pinnedResults?: number; checkedAt?: string } | null;
@@ -39,7 +42,9 @@ export const DeploymentDetail: React.FC<{ deployment: Deployment }> = ({ deploym
       <KvRow label="Ready"><span className={summary.complete ? undefined : 'cpm-config-deployment__partial'}>{summary.text}</span></KvRow>
       <KvRow label="Rollback">{d.kind === 'ROLLBACK' || d.rollbackOf ? 'Yes' : 'No'}</KvRow>
       {probe && <KvRow label="Results on it">{probe.pinnedResults ?? 0}{probe.checkedAt ? ` · checked ${stampZoned(probe.checkedAt)}` : ''}</KvRow>}
-      {mixed && <p className="cpm-field__error" role="alert">Different software versions are running.</p>}
+      {mixed && (IN_FLIGHT.has(d.state)
+        ? <p className="cpm-field__error" role="alert">Different software versions are running.</p>
+        : <p className="cpm-copy">At this deployment, parts ran different software versions</p>)}
       {refusals.map((r, i) => <p key={i} className="cpm-field__error" role="alert" title={r}>{refusalWords(r)}</p>)}
     </div>
   );
