@@ -43,8 +43,11 @@ public sealed class KafkaGateConfigPublisher : IGateConfigPublisher, IDisposable
 /// NACK → ACTIVATION_FAILED (audited CONFIG_REJECTED). A rollback is a new deployment of the
 /// previously active bundle; history is kept. Membership = the jobs that announced a capability.
 /// </summary>
-public sealed class ConfigDeploymentService
+public sealed partial class ConfigDeploymentService
 {
+    /// <summary>Gap #9: a SCHEDULED / PREPARED deployment untouched this long had its PREPARE / APPLY message lost (Kafka down): re-send it.</summary>
+    internal static readonly TimeSpan StuckAfter = TimeSpan.FromMinutes(1);
+
     private readonly NpgsqlDataSource _db;
     private readonly ConfigStore _store;
     private readonly IGateConfigPublisher _publisher;
@@ -145,6 +148,28 @@ public sealed class ConfigDeploymentService
         await using var conn = await _db.OpenConnectionAsync(ct);
         switch (d.State)
         {
+            // gap #9: the PREPARE (SCHEDULED) or APPLY (PREPARED) broadcast threw - re-send it once the deployment has sat for a
+            // minute (never while CreateAsync / the PREPARING step is still in flight); past the ACK window, give up
+            case "SCHEDULED" or "PREPARED" when DateTimeOffset.UtcNow - d.UpdatedAt >= StuckAfter:
+            {
+                if (DateTimeOffset.UtcNow - d.UpdatedAt > AckWindow + StuckAfter)
+                {
+                    await FailAsync(conn, d, b, "the workers could not be reached: the " + (d.State == "SCHEDULED" ? "PREPARE" : "APPLY") + " message was never sent", ct);
+                    break;
+                }
+                try
+                {
+                    var phase = d.State == "SCHEDULED" ? "PREPARE" : "APPLY";
+                    await BroadcastAsync(d.DeploymentId, b, phase, d.ScheduledFor ?? DateTimeOffset.UtcNow, ct);
+                    await conn.ExecuteAsync("UPDATE cpm.config_deployment SET state = @next, updated_at = now() WHERE deployment_id = @id AND state = @state",
+                        new { id = d.DeploymentId, state = d.State, next = phase == "PREPARE" ? "PREPARING" : "APPLYING" });
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Configuration deployment {Deployment}: re-sending {State} failed; retried until the ACK window ends", d.DeploymentId, d.State);
+                }
+                break;
+            }
             case "PREPARING":
             {
                 var nacks = d.Acks.Where(a => a.Phase == "PREPARE" && a.Status == "NACK").ToList();
@@ -205,7 +230,11 @@ public sealed class ConfigDeploymentService
                  + (SELECT count(*) FROM analytics.cplm_long_feature_results WHERE bundle_hash = @hash)
                  + (SELECT count(*) FROM analytics.cplm_gate_results WHERE bundle_hash = @hash)
             """, new { hash = d.ContentHash });
-        var verified = pinned > 0 || DateTimeOffset.UtcNow - d.UpdatedAt >= ProbeWindow;
+        // gap #2b: a bundle scheduled for the future is never verified before its effective time (the engine waits for it), and
+        // the probe window counts from whichever is later, the last move or the effective time
+        var now = DateTimeOffset.UtcNow;
+        var notBefore = d.ScheduledFor is { } at && at > d.UpdatedAt ? at : d.UpdatedAt;
+        var verified = now >= (d.ScheduledFor ?? DateTimeOffset.MinValue) && (pinned > 0 || now - notBefore >= ProbeWindow);
         // CHG-066: record HOW it verified — RESULT (a result carries the hash) or ACK_WINDOW (every worker applied it but no
         // loop in scope produced a result within the probe window); the UI must not call the latter "verified by a result"
         var probe = JsonSerializer.Serialize(new
@@ -235,22 +264,6 @@ public sealed class ConfigDeploymentService
             if (prevBundle is { } pb) await _store.SetStateAsync(pb, "ROLLED_BACK", ct);
         }
         _audit.Emit("CONFIG_ACTIVE_VERIFIED", "system", "config_deployment", d.DeploymentId.ToString(), new { bundleId = b.BundleId, contentHash = b.ContentHash, pinnedResults = pinned });
-    }
-
-    /// <summary>A new deployment of the previously active bundle of the same scope; the current one is marked ROLLED_BACK once the previous is verified again.</summary>
-    public async Task<DeploymentView> RollbackAsync(Guid deploymentId, string actor, CancellationToken ct)
-    {
-        var d = await GetAsync(deploymentId, ct) ?? throw new KeyNotFoundException($"deployment {deploymentId} not found");
-        var b = await _store.GetAsync(d.BundleId, ct) ?? throw new KeyNotFoundException("bundle missing");
-        await using var conn = await _db.OpenConnectionAsync(ct);
-        var previous = await conn.ExecuteScalarAsync<Guid?>("""
-            SELECT bundle_id FROM cpm.gate_config_bundle
-             WHERE site = @site AND scope_kind = @kind AND scope_ref IS NOT DISTINCT FROM @ref AND bundle_id <> @bundleId AND state IN ('SUPERSEDED', 'ACTIVE_VERIFIED')
-             ORDER BY updated_at DESC LIMIT 1
-            """, new { site = b.Site, kind = b.ScopeKind, @ref = b.ScopeRef, bundleId = b.BundleId })
-            ?? throw new ConfigStateException("no previously active bundle of this scope to roll back to");
-        await _store.SetStateAsync(previous, "APPROVED", ct);            // the previous bundle's content was approved when it went active; re-deploying it needs no new approval
-        return await CreateAsync(previous, "ROLLBACK", null, deploymentId, actor, ct);
     }
 
     public async Task<DeploymentView?> GetAsync(Guid id, CancellationToken ct)
@@ -284,9 +297,14 @@ public sealed class ConfigDeploymentService
         return views;
     }
 
+    /// <summary>The deployments the sweep advances: in flight, or (gap #9) stuck in SCHEDULED / PREPARED after a lost broadcast.</summary>
     public async Task<IReadOnlyList<Guid>> OpenDeploymentIdsAsync(CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        return (await conn.QueryAsync<Guid>("SELECT deployment_id FROM cpm.config_deployment WHERE state IN ('PREPARING','APPLYING','PROBING')")).ToList();
+        return (await conn.QueryAsync<Guid>("""
+            SELECT deployment_id FROM cpm.config_deployment
+             WHERE state IN ('PREPARING','APPLYING','PROBING')
+                OR (state IN ('SCHEDULED','PREPARED') AND updated_at < now() - make_interval(secs => @stuck))
+            """, new { stuck = StuckAfter.TotalSeconds })).ToList();
     }
 }

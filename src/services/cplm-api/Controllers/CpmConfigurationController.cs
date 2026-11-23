@@ -68,6 +68,10 @@ public sealed class CpmConfigurationController : ControllerBase
         var profileId = ConfigStore.ProfileIdFor(loop.LoopType);
         var active = await _store.ActiveForLoopAsync(loop.Site, loop.LoopId, profileId, ct);
         var members = await _deployments.MembershipAsync(ct);
+        // gap #2a: the bundle each worker really runs for this loop (its newest APPLY ACK per scope) - differs from config_active
+        // while a deployment is partial; the page warns "Some workers run vN"
+        var runs = await _deployments.WorkerRunsAsync(loop.Site, loop.LoopId, profileId, ct);
+        object? Runs(string job) => runs.TryGetValue(job, out var w) ? new { w.BundleId, w.Version, w.ScopeKind } : null;
         if (active is null)
         {
             var factory = FactoryLayers.Factory();
@@ -76,16 +80,22 @@ public sealed class CpmConfigurationController : ControllerBase
             if (profile is { } p) layers.Add(new ConfigLayer("PROFILE", profileId, p));
             var r = EffectiveConfigResolver.Resolve(layers);
             return Ok(new { loopId = loop.LoopId, site = loop.Site, profileId, bundle = (object?)null, state = "NO_ACTIVE_BUNDLE", note = "no governed bundle is active for this loop: the engine runs the factory layer (class packs) exactly as before v2.5",
-                properties = r.Properties, sources = r.Sources, effectiveHash = r.Hash, workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties }) });
+                properties = r.Properties, sources = r.Sources, effectiveHash = r.Hash,
+                workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties, runs = Runs(m.JobName) }) });
         }
         var activeRow = (await _store.ActiveAsync(loop.Site, ct)).FirstOrDefault(a => a.BundleId == active.BundleId);
         var acks = activeRow?.DeploymentId is { } did ? await _deployments.GetAsync(did, ct) : null;
+        // gap #1: the loop's values the engine's way - the bundle's layers over the loop's class pack (a SITE bundle's own
+        // resolution starts from FACTORY only)
+        var effective = LoopEffective.Resolve(active, profileId);
         return Ok(new
         {
             loopId = loop.LoopId, site = loop.Site, profileId, at, regime, state = active.State,
             bundle = new { active.BundleId, active.Version, active.ContentHash, active.ScopeKind, active.ScopeRef, active.ChangeClass, active.EffectiveFrom, active.CatalogueHash },
-            properties = active.Resolved.GetProperty("properties"), sources = active.Resolved.GetProperty("sources"), layers = active.Layers,
-            workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties, ack = acks?.Acks.Where(a => a.JobName == m.JobName && a.Phase == "APPLY").Select(a => new { a.Status, a.BundleHash, a.JarSha256, a.ReceivedAt }).LastOrDefault() }),
+            properties = effective.Properties, sources = effective.Sources, effectiveHash = effective.Hash, layers = active.Layers,
+            workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties,
+                ack = acks?.Acks.Where(a => a.JobName == m.JobName && a.Phase == "APPLY").Select(a => new { a.Status, a.BundleHash, a.JarSha256, a.ReceivedAt }).LastOrDefault(),
+                runs = Runs(m.JobName) }),
         });
     }
 
@@ -229,7 +239,9 @@ public sealed class CpmConfigurationController : ControllerBase
         try
         {
             var offset = await _recompute.GetWindowOffsetMsAsync(loop.LoopId, ct);
-            var handle = await _recompute.StartShadowAsync(loop.LoopId, b.ContentHash, b.Resolved.GetProperty("properties").GetRawText(), offset, Actor(),
+            // gap #1: the shadow run evaluates the loop's values the engine's way (the draft's layers over the loop's class pack)
+            var loopProperties = LoopEffective.Resolve(b, ConfigStore.ProfileIdFor(loop.LoopType)).PropertiesElement().GetRawText();
+            var handle = await _recompute.StartShadowAsync(loop.LoopId, b.ContentHash, loopProperties, offset, Actor(),
                 new ReplaySupport("iotdb", from, to, loop.Site, loop.LoopType), ct);
             var shadow = JsonSerializer.Serialize(new { analysisRunId = handle.AnalysisRunId, loopId = loop.LoopId, fromMs = from, toMs = to, state = "RUNNING", startedAt = DateTimeOffset.UtcNow, contentHash = b.ContentHash });
             await _store.SetStateAsync(id, "SHADOW_EVALUATED", ct, null, shadow);
