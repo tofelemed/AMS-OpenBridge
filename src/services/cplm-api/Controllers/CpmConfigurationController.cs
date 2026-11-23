@@ -48,24 +48,33 @@ public sealed class CpmConfigurationController : ControllerBase
     {
         var members = await _deployments.MembershipAsync(ct);
         var c = PropertyCatalogue.Current;
+        // CHG-224: where each property is set (source map) - the bundle editor offers an input only for an editable one
+        PropertySources.Entry? Source(string property) => PropertySources.Current.TryGet(property, out var e) ? e : null;
         return Ok(new
         {
             catalogueHash = c.CatalogueHash, count = c.Count, executionPlanHash = ExecutionPlans.InstalledHash(),
             properties = c.Properties.Select(p => new { p.Id, p.Gate, p.Property, p.Type, p.Unit, @default = p.Default, commissioningRequired = p.CommissioningRequired, validation = p.Validation, p.ChangeClass, p.Consumers, p.Dependencies, p.Effect,
-                notReadByBuild = UnsupportedInBuild.Reasons.TryGetValue(p.Property, out var reason) ? reason : null }),
+                notReadByBuild = UnsupportedInBuild.Reasons.TryGetValue(p.Property, out var reason) ? reason : null,
+                kind = Source(p.Property)?.Kind, editable = Source(p.Property)?.Editable ?? false, setIn = Source(p.Property)?.SetIn, registryField = Source(p.Property)?.RegistryField }),
             workers = members.Select(m => new { jobName = m.JobName, jarSha256 = m.JarSha256, catalogueHash = m.CatalogueHash, catalogueMatches = m.CatalogueHash == c.CatalogueHash, readsProperties = m.ReadsProperties }),
             factoryLayerAvailable = FactoryLayers.Available, profileIds = FactoryLayers.ProfileIds(), executionPlan = ExecutionPlans.Installed(),
         });
     }
 
-    /// <summary>The effective configuration for a loop: the ACTIVE bundle of the most specific scope, its sources, and the actual worker versions.</summary>
+    /// <summary>
+    /// The effective configuration for a loop: the ACTIVE bundle of the most specific scope, its sources, and the actual worker versions.
+    /// CHG-224: <c>entries</c> = per catalogue property the value in use for this loop, where it is set and why (EffectiveEntries).
+    /// </summary>
     [HttpGet("effective")]
     [Authorize(Policy = "cpm.config.read")]
-    public async Task<IActionResult> Effective([FromQuery] string loopId, [FromQuery] DateTimeOffset? at, [FromQuery] string? regime, CancellationToken ct)
+    public async Task<IActionResult> Effective([FromQuery] string loopId, [FromQuery] DateTimeOffset? at, [FromQuery] string? regime, CancellationToken ct,
+        [FromServices] LoopValueReads? values = null)
     {
         var loop = await _registry.GetAsync(loopId, ct);
         if (loop is null) return NotFound(new { error = $"Loop '{loopId}' is not registered" });
         var profileId = ConfigStore.ProfileIdFor(loop.LoopType);
+        values ??= HttpContext?.RequestServices?.GetService<LoopValueReads>();
+        var facts = values is null ? LoopValueFacts.None : await values.ReadAsync(loop.LoopId, ct);
         var active = await _store.ActiveForLoopAsync(loop.Site, loop.LoopId, profileId, ct);
         var members = await _deployments.MembershipAsync(ct);
         // gap #2a: the bundle each worker really runs for this loop (its newest APPLY ACK per scope) - differs from config_active
@@ -81,7 +90,8 @@ public sealed class CpmConfigurationController : ControllerBase
             var r = EffectiveConfigResolver.Resolve(layers);
             return Ok(new { loopId = loop.LoopId, site = loop.Site, profileId, bundle = (object?)null, state = "NO_ACTIVE_BUNDLE", note = "no governed bundle is active for this loop: the engine runs the factory layer (class packs) exactly as before v2.5",
                 properties = r.Properties, sources = r.Sources, effectiveHash = r.Hash,
-                workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties, runs = Runs(m.JobName) }) });
+                workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties, runs = Runs(m.JobName) }),
+                entries = EffectiveEntries.Build(new EffectiveEntries.Context(loop, profileId, r, null, facts)) });
         }
         var activeRow = (await _store.ActiveAsync(loop.Site, ct)).FirstOrDefault(a => a.BundleId == active.BundleId);
         var acks = activeRow?.DeploymentId is { } did ? await _deployments.GetAsync(did, ct) : null;
@@ -96,6 +106,7 @@ public sealed class CpmConfigurationController : ControllerBase
             workers = members.Select(m => new { m.JobName, m.JarSha256, m.CatalogueHash, required = m.ReadsProperties,
                 ack = acks?.Acks.Where(a => a.JobName == m.JobName && a.Phase == "APPLY").Select(a => new { a.Status, a.BundleHash, a.JarSha256, a.ReceivedAt }).LastOrDefault(),
                 runs = Runs(m.JobName) }),
+            entries = EffectiveEntries.Build(new EffectiveEntries.Context(loop, profileId, effective, active, facts)),
         });
     }
 
@@ -253,8 +264,9 @@ public sealed class CpmConfigurationController : ControllerBase
 
     /// <summary>
     /// A second person approves the draft's current content. CHG-108 gap #5 (owner, 23 Nov): an Admin or SuperAdmin may approve
-    /// their own draft (recorded as a self-approval, as in Per-loop settings); site-wide, objective and test-permission changes
-    /// need a SuperAdmin (or the ControlAuthority role); an expired approval can be approved again.
+    /// their own draft (recorded as a self-approval, as in Per-loop settings); a plant-wide (SITE) bundle needs a SuperAdmin (or the
+    /// ControlAuthority role); an expired approval can be approved again. CHG-224 (owner decision D2): objective and evidence-type
+    /// edits no longer need a SuperAdmin - neither changes a result, and neither can be edited any more.
     /// </summary>
     [HttpPost("drafts/{id:guid}/approve")]
     [Authorize(Policy = "cpm.config.approve")]
@@ -262,8 +274,7 @@ public sealed class CpmConfigurationController : ControllerBase
     {
         var b = await _store.GetAsync(id, ct);
         if (b is null) return NotFound(new { error = $"bundle {id} not found" });
-        var props = b.Resolved.GetProperty("properties");
-        var sensitive = b.ScopeKind == "SITE" || props.EnumerateObject().Any(p => (p.Name == "G3.objective_type" || p.Name == "G14.allowed_evidence_types") && p.Value.ValueKind != JsonValueKind.Null && Edited(b, p.Name));
+        var sensitive = b.ScopeKind == "SITE";
         try
         {
             var roles = Roles();
@@ -278,15 +289,6 @@ public sealed class CpmConfigurationController : ControllerBase
         }
         catch (ConfigForbiddenException ex) { return StatusCode(403, new { error = ex.Message }); }
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
-    }
-
-    private static bool Edited(BundleView b, string property)
-    {
-        foreach (var layer in b.Layers.EnumerateArray())
-        {
-            if (layer.GetProperty("kind").GetString() == b.ScopeKind && layer.GetProperty("content").ValueKind == JsonValueKind.Object && layer.GetProperty("content").TryGetProperty(property, out _)) return true;
-        }
-        return false;
     }
 
     internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals) => new

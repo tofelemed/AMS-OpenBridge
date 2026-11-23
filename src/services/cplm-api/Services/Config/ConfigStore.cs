@@ -136,6 +136,9 @@ public sealed class ConfigStore
         {
             layers = FactoryLayers.InitialLayers(site, scopeKind, reference, profileId);
         }
+        // CHG-224 (owner decision D1): a value stored for a property that cannot be changed in Gate Configuration is dropped from
+        // every non-FACTORY layer of a new version - the engine ignores it (or takes it from elsewhere) either way
+        layers = PropertySources.Current.WithoutNonEditable(layers);
         var version = await conn.ExecuteScalarAsync<int>("SELECT COALESCE(MAX(version), 0) + 1 FROM cpm.gate_config_bundle WHERE site = @site AND scope_kind = @scopeKind AND scope_ref IS NOT DISTINCT FROM @ref", new { site, scopeKind, @ref = reference });
         var id = Guid.NewGuid();
         var resolved = Resolve(layers, inherit ? reference : null);
@@ -203,6 +206,7 @@ public sealed class ConfigStore
         if (current.State is "ACTIVE_VERIFIED" or "SUPERSEDED" or "ROLLED_BACK" or "SCHEDULED" or "PREPARED") throw new ConfigStateException($"a bundle in state {current.State} is immutable; create a new draft from it");
         if (current.Inherits) throw new ConfigStateException("this version uses the plant-wide settings: it has nothing of its own to edit");
         var catalogue = PropertyCatalogue.Current;
+        var sources = PropertySources.Current;
         var layers = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(current.Layers.GetRawText())!;
         var own = layers.FirstOrDefault(l => l["kind"].GetString() == current.ScopeKind) ?? throw new ConfigStateException("the bundle has no layer of its own scope");
         var content = own["content"].ValueKind == JsonValueKind.Object ? own["content"].EnumerateObject().ToDictionary(p => p.Name, p => p.Value, StringComparer.Ordinal) : new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -210,9 +214,12 @@ public sealed class ConfigStore
         foreach (var op in ops)
         {
             if (!catalogue.TryGet(op.Property, out _)) throw new ArgumentException($"'{op.Property}' is not a catalogue property");
+            var editable = sources.IsEditable(op.Property);
             switch (op.Op.ToLowerInvariant())
             {
                 case "set":
+                    // CHG-224 (D1): an edit that would change nothing is refused, saying where the value is really changed
+                    if (!editable) throw new ArgumentException(sources.Refusal(op.Property));
                     if (op.Value is null || op.Value.Value.ValueKind == JsonValueKind.Null) throw new ArgumentException($"'{op.Property}': set needs a value (use reset to inherit)");
                     // lab finding (2026-09-17): a draft must never hold a value the catalogue forbids - the type / bounds /
                     // enum / fraction-vs-percent check runs on the requested value itself, naming the field (NR-048/049)
@@ -222,17 +229,20 @@ public sealed class ConfigStore
                     content[op.Property] = op.Value.Value;
                     break;
                 case "reset":
-                    content[op.Property] = JsonDocument.Parse("\"RESET_TO_INHERITED\"").RootElement;
+                    // CHG-224 (D1): "Remove" for a value stored before - the property leaves this layer (no reset marker stays behind)
+                    if (!editable) content.Remove(op.Property);
+                    else content[op.Property] = JsonDocument.Parse("\"RESET_TO_INHERITED\"").RootElement;
                     break;
                 default: throw new ArgumentException($"unknown op '{op.Op}' (set | reset)");
             }
-            edited.Add(op.Property);
+            if (editable) edited.Add(op.Property);
         }
         own["content"] = JsonDocument.Parse(JsonSerializer.Serialize(content)).RootElement;
         own["content_hash"] = JsonDocument.Parse(JsonSerializer.Serialize(CanonicalJson.Sha256(own["content"]))).RootElement;
         var layersJson = JsonSerializer.Serialize(layers);
         var resolved = Resolve(JsonDocument.Parse(layersJson).RootElement);
-        var changeClass = ChangeClassifier.Classify(ChangeClassifier.Diff(current.Resolved.GetProperty("properties"), resolved.Properties).Concat(edited));
+        // CHG-224: removing a value that changes nothing never raises the change class
+        var changeClass = ChangeClassifier.Classify(ChangeClassifier.Diff(current.Resolved.GetProperty("properties"), resolved.Properties).Where(sources.IsEditable).Concat(edited));
         var etag = NewEtag(id);
         await conn.ExecuteAsync("""
             UPDATE cpm.gate_config_bundle SET layers = @layers::jsonb, resolved = @resolved::jsonb, content_hash = @hash, change_class = @changeClass,
@@ -249,22 +259,32 @@ public sealed class ConfigStore
         if (b.State is not ("DRAFT" or "VALIDATED" or "REJECTED" or "SHADOW_EVALUATED")) throw new ConfigStateException($"cannot validate a bundle in state {b.State}");
         // the change class is the class of what THIS bundle changes: its own layer's edits, plus whatever differs from
         // the parent version's resolved values - never every resolved property (a factory value is not an edit)
+        // CHG-224 (D1): a property that cannot be changed in Gate Configuration is no edit (the copy's cleanup never raises the class),
+        // and a value still stored for one in the draft's own layer is an error naming where it is really changed
+        var sources = PropertySources.Current;
         var edited = new SortedSet<string>(StringComparer.Ordinal);
+        var leftovers = new List<string>();
         foreach (var layer in b.Layers.EnumerateArray())
         {
             if (layer.GetProperty("kind").GetString() != b.ScopeKind || layer.GetProperty("content").ValueKind != JsonValueKind.Object) continue;
-            foreach (var prop in layer.GetProperty("content").EnumerateObject()) edited.Add(prop.Name);
+            foreach (var prop in layer.GetProperty("content").EnumerateObject())
+            {
+                if (sources.IsEditable(prop.Name)) edited.Add(prop.Name);
+                else if (!(prop.Value.ValueKind == JsonValueKind.String && prop.Value.GetString() == EffectiveConfigResolver.ResetToInherited))
+                    leftovers.Add(sources.Refusal(prop.Name) + " - remove it from this draft");
+            }
         }
         await using var conn = await _db.OpenConnectionAsync(ct);
         if (b.ParentBundleId is { } parentId)
         {
             var parentResolved = await conn.ExecuteScalarAsync<string?>("SELECT (resolved->'properties')::text FROM cpm.gate_config_bundle WHERE bundle_id = @parentId", new { parentId });
             if (parentResolved is not null)
-                foreach (var d in ChangeClassifier.Diff(JsonDocument.Parse(parentResolved).RootElement, b.Resolved.GetProperty("properties"))) edited.Add(d);
+                foreach (var d in ChangeClassifier.Diff(JsonDocument.Parse(parentResolved).RootElement, b.Resolved.GetProperty("properties")).Where(sources.IsEditable)) edited.Add(d);
         }
         var report = BundleValidator.Report(b.Resolved.GetProperty("properties"), b.Resolved.GetProperty("execution_plan"), edited);
-        var state = report.Errors.Count == 0 ? "VALIDATED" : "REJECTED";
-        var validation = JsonSerializer.Serialize(new { errors = report.Errors, warnings = report.Warnings, notReadByBuild = report.NotReadByBuild, changeClass = report.ChangeClass, edited, validatedAt = DateTimeOffset.UtcNow, catalogueHash = PropertyCatalogue.Current.CatalogueHash });
+        var errors = leftovers.Concat(report.Errors).ToList();
+        var state = errors.Count == 0 ? "VALIDATED" : "REJECTED";
+        var validation = JsonSerializer.Serialize(new { errors, warnings = report.Warnings, notReadByBuild = report.NotReadByBuild, changeClass = report.ChangeClass, edited, validatedAt = DateTimeOffset.UtcNow, catalogueHash = PropertyCatalogue.Current.CatalogueHash });
         await conn.ExecuteAsync("UPDATE cpm.gate_config_bundle SET state = @state, validation = @validation::jsonb, change_class = @cc, etag = @etag, updated_at = now() WHERE bundle_id = @id",
             new { id, state, validation, cc = report.ChangeClass, etag = NewEtag(id) });
         return (await GetAsync(id, ct))!;
@@ -273,7 +293,8 @@ public sealed class ConfigStore
     /// <summary>Roles that may approve their own bundle (owner, 22-23 Nov, every Gate Configuration approval); everyone else needs a second person.</summary>
     public static readonly IReadOnlyList<string> SelfApprovingRoles = new[] { "SuperAdmin", "Admin" };
 
-    /// <summary>Roles that count as ControlAuthority for site-wide / objective / test-permission changes (owner, 23 Nov: SuperAdmin).</summary>
+    /// <summary>Roles that count as ControlAuthority for plant-wide (SITE) changes (owner, 23 Nov: SuperAdmin; CHG-224 D2: objective and
+    /// evidence-type edits no longer count - neither is editable).</summary>
     public static readonly IReadOnlyList<string> ControlAuthorityRoles = new[] { "ControlAuthority", "SuperAdmin" };
 
     /// <summary>
@@ -297,7 +318,7 @@ public sealed class ConfigStore
             throw new ConfigStateException($"only a VALIDATED or SHADOW_EVALUATED bundle (or an APPROVED one whose approval expired) can be approved (state {b.State})");
         if (!allowSelfApproval && string.Equals(b.CreatedBy, approver, StringComparison.OrdinalIgnoreCase)) throw new ConfigForbiddenException("self-approval is refused: the approver must differ from the author");
         if (controlAuthorityRequired && !approverRoles.Any(r => ControlAuthorityRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
-            throw new ConfigForbiddenException("a site-wide or objective / test-permission change needs a SuperAdmin (or the ControlAuthority role) to approve it");
+            throw new ConfigForbiddenException("a plant-wide (site) change needs a SuperAdmin (or the ControlAuthority role) to approve it");
         await using var conn = await _db.OpenConnectionAsync(ct);
         await conn.ExecuteAsync("""
             INSERT INTO cpm.config_approval (approval_id, bundle_id, content_hash, approver, role, decision, note, expires_at)

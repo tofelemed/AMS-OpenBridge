@@ -161,6 +161,8 @@ builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ShadowComparison>
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.ConfigBatchService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.RegionBulkService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.LoopSettingsService>();
+// CHG-224: the per-loop reads behind the /configuration/effective entries (retention rows, latest validated dead time, sample interval)
+builder.Services.AddSingleton<Traverse.CplmApi.Services.Config.LoopValueReads>();
 // v2.5 (1H.3): effective-dated primary Instrumental device bindings per loop signal.
 builder.Services.AddSingleton<Traverse.CplmApi.Services.IInstrumentBindingService, Traverse.CplmApi.Services.InstrumentBindingService>();
 builder.Services.AddSingleton<Traverse.CplmApi.Services.InstrumentHealthReads>();

@@ -1,6 +1,7 @@
 // CHG-108 gap #5 (owner, 23 Nov): the same approval rule everywhere in Gate Configuration - a second person, except an Admin or
-// SuperAdmin may approve their own draft (recorded as a self-approval); site-wide / objective / test-permission changes need a
-// SuperAdmin (or ControlAuthority); an expired approval can be approved again. Against the lab database.
+// SuperAdmin may approve their own draft (recorded as a self-approval); a plant-wide (SITE) bundle needs a SuperAdmin (or
+// ControlAuthority); an expired approval can be approved again. CHG-224 (owner decision D2): objective and evidence-type values no
+// longer need a SuperAdmin. Against the lab database.
 using System.Security.Claims;
 using Dapper;
 using FluentAssertions;
@@ -95,6 +96,26 @@ public sealed class GateApprovalRulesTests : IAsyncLifetime
 
         var own = await ValidatedAsync("SITE", null, "sam");
         Status(await Api("sam", "SuperAdmin").Approve(own.BundleId, null, default)).Should().Be(200, "a SuperAdmin may approve their own site-wide bundle");
+    }
+
+    [Fact]
+    public async Task An_objective_or_evidence_type_value_no_longer_needs_a_superadmin()
+    {
+        // a LOOP bundle validated before CHG-224 could hold both in its own layer; the old rule sent it to a SuperAdmin, but neither
+        // changes a result (owner decision D2): a second person with no special role approves it
+        var d = await ValidatedAsync("LOOP", "AP_FIC5", "erin");
+        await using (var conn = await _db.OpenConnectionAsync())
+            await conn.ExecuteAsync("""
+                UPDATE cpm.gate_config_bundle
+                SET layers = (SELECT jsonb_agg(CASE WHEN l->>'kind' = 'LOOP'
+                                                    THEN jsonb_set(l, '{content}', (l->'content') || '{"G3.objective_type": "AVERAGING", "G14.allowed_evidence_types": ["NON_FOLLOWING_RECORD"]}'::jsonb)
+                                                    ELSE l END ORDER BY o)
+                              FROM jsonb_array_elements(layers) WITH ORDINALITY AS t(l, o)),
+                    resolved = jsonb_set(jsonb_set(resolved, '{properties,G3.objective_type}', '"AVERAGING"'), '{properties,G14.allowed_evidence_types}', '["NON_FOLLOWING_RECORD"]')
+                WHERE bundle_id = @id
+                """, new { id = d.BundleId });
+        Status(await Api("bob", "Engineer").Approve(d.BundleId, null, default)).Should().Be(200);
+        (await _store.GetAsync(d.BundleId, default))!.State.Should().Be("APPROVED");
     }
 
     [Fact]

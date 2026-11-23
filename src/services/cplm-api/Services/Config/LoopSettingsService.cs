@@ -77,7 +77,8 @@ public sealed partial class LoopSettingsService
             if (loop is null || !loop.IsActive || await get(row.BundleId) is not { } loopBundle) continue;
             var profileId = ConfigStore.ProfileIdFor(loop.LoopType);
             var plant = await PlantWideAsync(site, loop.LoopId, profileId, map, get);
-            if (Signature(Without(loopBundle.Layers, OwnKinds)) == Signature(plant.Layers)) continue;
+            // CHG-224: compared without the values that change nothing - a new version drops them, an older bundle may still hold them
+            if (Signature(PropertySources.Current.WithoutNonEditable(Without(loopBundle.Layers, OwnKinds))) == Signature(plant.Layers)) continue;
             var own = loopBundle.Layers.EnumerateArray().FirstOrDefault(l => l.GetProperty("kind").GetString() == "LOOP");
             if (own.ValueKind != JsonValueKind.Object) continue;
             var ownProps = own.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.Object ? c.EnumerateObject().Select(p => p.Name).ToList() : new List<string>();
@@ -97,7 +98,8 @@ public sealed partial class LoopSettingsService
         var name = "FACTORY";
         if (active.TryGetValue(("PROFILE", profileId), out var pid) && await get(pid) is { } pb) { bundle = pb; name = "PROFILE"; }
         else if (active.TryGetValue(("SITE", ""), out var sid) && await get(sid) is { } sb) { bundle = sb; name = "SITE"; }
-        return new PlantWide(name, bundle, Without(bundle?.Layers ?? FactoryLayers.InitialLayers(site, "LOOP", loopId, profileId), OwnKinds));
+        return new PlantWide(name, bundle, PropertySources.Current.WithoutNonEditable(
+            Without(bundle?.Layers ?? FactoryLayers.InitialLayers(site, "LOOP", loopId, profileId), OwnKinds)));
     }
 
     private static IReadOnlyDictionary<(string Kind, string Ref), Guid> ActiveMap(IEnumerable<ConfigStore.ActiveRow> active) =>

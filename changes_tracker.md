@@ -6991,3 +6991,20 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Services updated:** Flink jar (every CPLM job; the marker must be understood by every worker before one is deployed) and cplm-api, shipped together. No migration.
 
 **Tests:** `EffectiveBundleSelectorTest` +3 (marker falls back to the PROFILE bundle and a newer own version governs again; no plant-wide bundle -> class pack; only a LOOP version can be a marker), `LoopInheritTests` 7 (marker content and hash, no edit, endpoint rows and reasons, deploy drops the loop's row and every read shows the profile bundle, factory base without a plant-wide bundle, later region edit on the plant-wide base, rollback re-deploys the marker) on the lab database; with the region / approval / deployment-gap tests 26 pass.
+
+## CHG-224 — Gate property values: what is really used, and where it is set (2026-11-23, branch feat/sr-engine-fixes, unreleased)
+
+**Why:** owner, 23 Nov. The Gate Configuration page listed 165 properties per loop: 60 read "No value / unset" although the system used a value from elsewhere (Loop Registry, evidence retention, a fixed or worked-out rule), 40 showed a number nothing used, a few showed a number other than the one applied (G12 step / settling band / gain limit are scaled to the PV range), and edits to 55 properties were accepted although they changed nothing. Design and owner decisions: `docs/next-release/gate-property-values-design.md` (section 0); per-property detail: `docs/next-release/gate-property-sources-inventory.md`.
+
+**Change (cplm-api):**
+- New embedded source map `Config/property-sources.json` + `Config/PropertySources.cs`: one entry per catalogue property - kind (EDITABLE 61, DECISION 2, REGISTRY 3, RETENTION 17, AUTOMATIC_FIXED 43, AUTOMATIC_DERIVED 17, NOT_APPLIED 22), editable, plain sentence, where it is set. EDITABLE + DECISION = exactly the properties the engine applies, minus the G6 / G7 / G9 copies of G5 values and the unused G7 / G8 / G10 roles.
+- `GET configuration/effective` adds `entries[]` {property, gate, kind, editable, value (in use for the loop), configured, level, setIn, registryField, basis, unit} (`Services/Config/EffectiveEntries*.cs`, `LoopValueReads.cs`: registry, retention rows, latest validated dead time, latest sample interval; the G12 span scaling shown as applied). `GET configuration/catalogue` adds kind, editable, setIn, registryField.
+- Edits: a draft cannot set a non-editable property (plain reason with where it is changed); `reset` removes such a stored value; every new draft drops non-editable values from its non-factory layers; Validate names any left; the cleanup never raises the change class; the re-stack "stale" check compares after cleanup.
+- Approval: only a site-wide bundle needs a SuperAdmin (the control goal and the accepted proof are no longer edited here). Governance How-to-read says so (frontend).
+- Screens: the Gate Configuration redesign (CHG-221) lists only editable properties, with the value in use and where it comes from.
+
+**Services updated:** cplm-api (+ ams-frontend for the Governance sentence and the redesign). No migration, no Flink change, the catalogue file is unchanged.
+
+**Tests:** `PropertySourcesTests` (no database) and `GatePropertyValuesTests` (lab database), 15 new; the config filter (Config, RegionBulk, GateApproval, GateDeploymentGaps, LoopInherit, PropertySources, GatePropertyValues, PropertyCatalogue) 70 pass.
+
+**Found, not changed here:** the class packs TEMP_SLOW_SELF_REG and PRESSURE_VAPOUR_SLOW set `G9.role` PRIMARY, which validation forbids (R07), so no loop or class bundle for temperature or vapour-pressure loops passes Validate - decision pending (owner / SME).

@@ -10,6 +10,8 @@
  * no talk of ids; the filters, the chain and the stored versions without "server", "rows fetched", "walk" or "payload".
  * CHG-220 (owner, 23 Nov 2026): an Admin or SuperAdmin may approve their own draft; a site-wide change needs a SuperAdmin (who
  * counts as ControlAuthority, a role nobody held); an expired approval can be given again.
+ * CHG-224 (owner, 23 Nov): the control goal and the accepted proof are no longer edited in Gate Configuration, so only a
+ * site-wide change needs a SuperAdmin.
  */
 import React from 'react';
 import { Dialog } from '../../../ui/Dialog';
@@ -23,7 +25,7 @@ interface Part { title: string; rows?: Array<[Term, string]>; text?: string }
 /** The approval rules, in plain words (Gate Configuration enforces them; CHG-202). */
 export const APPROVE_RULE = 'Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own.';
 export const APPROVAL_BINDS = 'An approval holds only for the content approved, and it expires; an expired one can be given again. Approving content changed since is refused.';
-export const CONTROL_AUTHORITY = 'A site-wide change, or a change to an objective or a test permission, needs a SuperAdmin to approve it.';
+export const CONTROL_AUTHORITY = 'A site-wide change needs a SuperAdmin to approve it.';
 export const SIGN_OUT = 'Everyone with this role is signed out within a few seconds, and gets the new permissions when they sign in again.';
 
 export const HOW_TO: Record<GovernanceTab, Part[]> = {

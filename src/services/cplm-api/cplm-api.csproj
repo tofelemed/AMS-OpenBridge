@@ -26,6 +26,8 @@
     <EmbeddedResource Include="Config\unsupported-in-build.json" LogicalName="Traverse.CplmApi.Config.unsupported-in-build.json" />
     <EmbeddedResource Include="Config\execution-plan.installed.json" LogicalName="Traverse.CplmApi.Config.execution-plan.installed.json" />
     <EmbeddedResource Include="Config\factory-layer.json" LogicalName="Traverse.CplmApi.Config.factory-layer.json" />
+    <!-- CHG-224: per catalogue property, what decides the value in use and where it is changed (kind, wording, resolver). -->
+    <EmbeddedResource Include="Config\property-sources.json" LogicalName="Traverse.CplmApi.Config.property-sources.json" />
   </ItemGroup>
 
   <ItemGroup>
