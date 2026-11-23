@@ -198,7 +198,7 @@ describe('LoopDetailPage sections', () => {
     expect(facts('Analysis settings')).toEqual({
       'Assessment settings': 'Standard Gate Configuration ↗', 'Step tests': 'Not allowed', 'Data arrives': 'At regular intervals', Monitoring: 'On',
     });
-    expect(within(card('Analysis settings')).getByRole('link', { name: 'Gate Configuration ↗' }).getAttribute('href')).toBe('/cpm/config?loop=FIC10401&view=effective');
+    expect(within(card('Analysis settings')).getByRole('link', { name: 'Gate Configuration ↗' }).getAttribute('href')).toBe('/cpm/config/loops/FIC10401');
     cleanup();
     asUser(['cpm.manage']);
     loopQuery = { data: base({ thresholdProfileId: 'Reactor feeds', stepTestApproved: true }) };

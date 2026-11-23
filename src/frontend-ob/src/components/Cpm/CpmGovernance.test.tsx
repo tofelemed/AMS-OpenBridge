@@ -138,7 +138,9 @@ describe('words', () => {
   // CHG-203: Gate Configuration says the approval rules in the same plain words, word for word (the parity CHG-202 had to drop)
   it('the approval rules are the words Gate Configuration shows', () => {
     expect(readFileSync(join(__dirname, 'config', 'lifecycle.ts'), 'utf8')).toContain(`'${APPROVE_RULE}'`);
-    expect(readFileSync(join(__dirname, 'config', 'ApprovalTab.tsx'), 'utf8')).toContain(`<p>${APPROVAL_BINDS}</p>`);
+    const page = readFileSync(join(__dirname, 'config', 'ConfigChangePage.tsx'), 'utf8');
+    expect(page).toContain('APPROVAL_BINDS');
+    expect(page).toContain('<p>{APPROVAL_BINDS}</p>');
   });
 
   it('the sign-out sentence is the one Roles shows', () => {

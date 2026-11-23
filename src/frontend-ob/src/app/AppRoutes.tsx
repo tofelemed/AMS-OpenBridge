@@ -30,7 +30,10 @@ const CpmHistorical    = React.lazy(() => import('../components/Cpm/CpmHistorica
 const CpmWindows       = React.lazy(() => import('../components/Cpm/CpmWindows'));
 const CpmReplay        = React.lazy(() => import('../components/Cpm/CpmReplay'));
 const ResponseWorkspace = React.lazy(() => import('../components/Cpm/response/ResponseWorkspace'));
-const GateConfigurationWorkspace = React.lazy(() => import('../components/Cpm/config/GateConfigurationWorkspace'));
+const ConfigStartPage = React.lazy(() => import('../components/Cpm/config/ConfigStartPage'));
+const ConfigScopePage = React.lazy(() => import('../components/Cpm/config/ConfigScopePage'));
+const ConfigRegionsPage = React.lazy(() => import('../components/Cpm/config/ConfigRegionsPage'));
+const ConfigChangePage = React.lazy(() => import('../components/Cpm/config/ConfigChangePage'));
 const CpmInvestigation = React.lazy(() => import('../components/Cpm/CpmInvestigation'));
 const CpmPipeline      = React.lazy(() => import('../components/Cpm/CpmPipeline'));
 const CpmGovernance    = React.lazy(() => import('../components/Cpm/CpmGovernance'));
@@ -82,7 +85,12 @@ export const AppRoutes: React.FC = () => (
         <Route path="/cpm/system"    element={<LegacyRoute>{null}</LegacyRoute>} />
         <Route path="/cpm/response"  element={<RequirePermission permission="analytics.view"><ResponseWorkspace /></RequirePermission>} />
         {/* v2.5 (3D.1): the governed gate configuration - reading needs cpm.config.read; every step beyond is its own permission on the server */}
-        <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><GateConfigurationWorkspace /></RequirePermission>} />
+        <Route path="/cpm/config"    element={<RequirePermission permission="cpm.config.read"><ConfigStartPage /></RequirePermission>} />
+        <Route path="/cpm/config/loops/:loopId" element={<RequirePermission permission="cpm.config.read"><ConfigScopePage kind="LOOP" /></RequirePermission>} />
+        <Route path="/cpm/config/types/:profileId" element={<RequirePermission permission="cpm.config.read"><ConfigScopePage kind="PROFILE" /></RequirePermission>} />
+        <Route path="/cpm/config/plant/:site" element={<RequirePermission permission="cpm.config.read"><ConfigScopePage kind="SITE" /></RequirePermission>} />
+        <Route path="/cpm/config/regions" element={<RequirePermission permission="cpm.config.read"><ConfigRegionsPage /></RequirePermission>} />
+        <Route path="/cpm/config/changes/:bundleId" element={<RequirePermission permission="cpm.config.read"><ConfigChangePage /></RequirePermission>} />
         <Route path="/cpm/investigation" element={<RequirePermission permission="analytics.view"><CpmInvestigation /></RequirePermission>} />
         {/* CHG-081: Pipeline is SuperAdmin only. CHG-174: Governance opens with system.manage or admin.audit.view (the trail), as in the sidebar and the palette; its other tabs stay with system.manage. */}
         <Route path="/cpm/pipeline"  element={<RequirePermission permission="system.manage"><CpmPipeline /></RequirePermission>} />

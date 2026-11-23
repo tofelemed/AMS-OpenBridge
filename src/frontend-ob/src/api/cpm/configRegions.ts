@@ -13,6 +13,8 @@ export interface LoopRegion {
   loopId: string; displayName: string | null; loopType: string | null; site: string;
   pvRangeMin: number | null; pvRangeMax: number | null; regionMin: number | null; regionMax: number | null;
   source: RegionSource; bundleId: string | null; bundleVersion: number | null;
+  /** The loop's own version is a marker that says it uses the plant-wide settings (CHG-223). */
+  inherits?: boolean;
 }
 export interface RegionsPage { count: number; loops: LoopRegion[] }
 
@@ -22,6 +24,8 @@ export interface BatchRow {
   error: string | null; problems: string[]; deploymentId: string | null; deploymentState: string | null;
   /** The draft author's username. */
   createdBy?: string | null;
+  /** The row is a marker: the loop uses the plant-wide settings (CHG-223). */
+  inherits?: boolean;
 }
 export interface BatchResult { batchId: string; count: number; drafts?: number; failed: number; rows: BatchRow[] }
 /** `createdBy`: the author's username; with the viewer's role it decides Approve / "Approve alone (Admin)" (the server enforces the same rule). */
@@ -65,3 +69,7 @@ export const approveBatch = (batchId: string, site: string, note: string, validi
 
 export const deployBatch = (batchId: string, site: string) =>
   send<{ scheduled: number; failed: number; rows: BatchRow[] }>(`/configuration/batches/${encodeURIComponent(batchId)}/deploy?${q(site)}`, 'POST').then(fullRows);
+
+/** CHG-223: loops give up their own settings and use the plant-wide ones. One batch (approve / deploy as any other). */
+export const inheritLoops = (site: string, loopIds: string[], note: string) =>
+  send<BatchResult>('/configuration/loop-settings/inherit', 'POST', { site, loopIds, note }).then(fullRows);

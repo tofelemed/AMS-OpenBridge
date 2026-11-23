@@ -1,7 +1,7 @@
 // CHG-220 (owner, 23 Nov 2026; gap 5): Approve is offered only where cplm-api accepts it - a second person, or the author as
-// Admin / SuperAdmin; a SITE bundle, or the bundle's own change to an objective or a test permission, needs a SuperAdmin.
+// Admin / SuperAdmin; a SITE bundle needs a SuperAdmin (CHG-224: no property does).
 import { describe, expect, it } from 'vitest';
-import { bundleApproveRule, needsSuperAdmin } from './approvalRules';
+import { SUPERADMIN_PROPERTIES, bundleApproveRule, needsSuperAdmin } from './approvalRules';
 import type { Bundle, ConfigLayer } from '../../../api/cpm/config';
 
 const layer = (kind: ConfigLayer['kind'], content: Record<string, unknown>): ConfigLayer => ({ kind, ref: null, ordinal: 0, content, content_hash: 'h' });
@@ -29,11 +29,11 @@ describe('bundleApproveRule', () => {
     expect(bundleApproveRule(site, alice('SuperAdmin'))).toEqual({ label: 'Approve alone (Admin)', reason: null });
   });
 
-  it('the bundle\'s own change to an objective or a test permission needs a SuperAdmin; an inherited one does not', () => {
-    const own = bundle({ layers: [layer('FACTORY', {}), layer('LOOP', { 'G14.allowed_evidence_types': ['SERVO_STEP'] })],
-      resolved: { properties: { 'G14.allowed_evidence_types': ['SERVO_STEP'] }, sources: {}, execution_plan: {} } });
-    expect(needsSuperAdmin(own)).toBe('PROPERTY');
-    expect(bundleApproveRule(own, bob('Admin')).reason).toBe('A change to an objective or a test permission needs a SuperAdmin to approve it.');
-    expect(needsSuperAdmin(bundle())).toBeNull();   // G3 set only by the factory layer
+  it('CHG-224: no property needs a SuperAdmin any more - an objective or a test permission is not edited in Gate Configuration', () => {
+    expect(SUPERADMIN_PROPERTIES).toEqual([]);
+    const profile = bundle({ scopeKind: 'PROFILE', layers: [layer('FACTORY', {}), layer('PROFILE', { 'G3.objective_type': 'TIGHT', 'G14.allowed_evidence_types': ['SERVO_STEP'] })],
+      resolved: { properties: { 'G3.objective_type': 'TIGHT', 'G14.allowed_evidence_types': ['SERVO_STEP'] }, sources: {}, execution_plan: {} } });
+    expect(needsSuperAdmin(profile)).toBeNull();
+    expect(bundleApproveRule(profile, bob('Admin'))).toEqual({ label: 'Approve', reason: null });
   });
 });

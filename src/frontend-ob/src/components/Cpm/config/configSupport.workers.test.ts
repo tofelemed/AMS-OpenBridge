@@ -38,8 +38,9 @@ describe('workers that run another version (CHG-220)', () => {
   it('names the version and how many run it; observers and matching workers are not counted', () => {
     const eff = { ...base, workers: [w('a', { bundleId: 'b8', version: 8, scopeKind: 'LOOP' }), w('b', { bundleId: 'b8', version: 8, scopeKind: 'LOOP' }), w('c', { bundleId: 'b', version: 1, scopeKind: 'LOOP' }),
       w('obs', { bundleId: 'b9', version: 9, scopeKind: 'LOOP' }, false)] } as unknown as EffectiveConfig;
-    expect(runsElsewhere(eff)).toEqual({ count: 2, text: 'LOOP v8 on 2' });
-    expect(workerAlignment(eff)).toEqual({ value: '2 of 3 run another version', sub: 'LOOP v8 on 2', tone: 'bad' });
+    expect(runsElsewhere({ ...eff, workers: [w('z', { bundleId: 'b7', version: 7, scopeKind: 'LOOP' })] } as unknown as EffectiveConfig)?.text).toBe('Own settings v7 on 1 part');
+    expect(runsElsewhere(eff)).toEqual({ count: 2, text: 'Own settings v8 on 2 parts' });
+    expect(workerAlignment(eff)).toEqual({ value: '2 of 3 run another version', sub: 'Own settings v8 on 2 parts', tone: 'bad' });
   });
   it('nothing to say when every worker runs the version named, or the server sends no runs', () => {
     expect(runsElsewhere({ ...base, workers: [w('a', { bundleId: 'b', version: 1, scopeKind: 'LOOP' }), w('b', null)] } as unknown as EffectiveConfig)).toBeNull();

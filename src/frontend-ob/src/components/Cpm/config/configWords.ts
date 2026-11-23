@@ -2,13 +2,13 @@
  * CHG-169 (owner review, the approved sample docs/theme/redesign/samples/gate-configuration-proposal.html): the words of the
  * Gate Configuration page in one place. A state is tone + glyph + word ("✓ Active (verified)") on every view, as How to read
  * keys it; a change class is "Policy", "◆ State boundary" or "✕ Deployment"; a number carries its unit ("3600 s", "0.5 pp")
- * and an unset value reads "No value"; a source names its layer (the bundle's version when the value comes from the loop's
- * own bundle). Presentation only: every value is still the server's.
+ * and an unset one reads a dash (CHG-224: never "No value"); a source reads in the page's words. Presentation only: every value is still the server's.
  */
 import type { CpmTone } from '../shared';
-import { codeLabel, humanise } from '../vocabulary';
+import { humanise } from '../vocabulary';
 import { stamp, zoneTag } from '../events/eventTime';
 import { deploymentStateTone, valueText } from './configSupport';
+import { stateWord } from './levelWords';
 
 /** "25 Sept 18:37 UTC": a time where no column heading names the zone (a panel, a dialog). */
 export function stampZoned(ts: string | number | null | undefined): string {
@@ -43,7 +43,7 @@ const GLYPH: Record<CpmTone, string> = { good: '✓', warn: '◐', bad: '✕', m
 /** A deployment's state in words; the tone is the server's (an ACK-window verification is not proven). */
 export function deploymentStateWord(d: { state: string; probeResults?: unknown }): StateWord {
   const tone = deploymentStateTone(d.state, d);
-  return { label: LABEL[d.state] ?? codeLabel(d.state), tone, glyph: GLYPH[tone] };
+  return { label: stateWord(d.state), tone, glyph: GLYPH[tone] };
 }
 
 /** The change class in words: Policy plain, a state boundary and a deployment marked. */
@@ -53,39 +53,45 @@ export function classWord(changeClass: string | null | undefined): StateWord {
   return { label: changeClass && changeClass !== 'POLICY' ? humanise(changeClass) : 'Policy', tone: 'muted', glyph: '' };
 }
 
-/** A value as words: an unset one reads "No value" (the engine's NO_VALUE). */
-export const valueWords = (v: unknown): string => (v === null || v === undefined ? 'No value' : valueText(v));
+/** A value as words: an unset one reads a dash (CHG-224: never "No value"). */
+export const valueWords = (v: unknown): string => (v === null || v === undefined ? '—' : valueText(v));
 
 /** The catalogue units a number is read with; any other unit (fraction, ratio, state…) is said in the property's panel. */
 const UNIT: Record<string, string> = {
   s: 's', day: 'days', sample: 'samples', percentage_point: 'pp', PV_EU: 'PV units', 'sample/cycle': 'samples / cycle', cycle: 'cycles', degree: '°',
 };
 
-/** "3600 s", "0.5 pp", "4.5"; an unset value reads "No value". */
+/** "3600 s", "0.5 pp", "4.5"; an unset value reads a dash. */
 export function valueWithUnit(v: unknown, unit: string | null | undefined): string {
-  if (v === null || v === undefined) return 'No value';
+  if (v === null || v === undefined) return '—';
   const suffix = typeof v === 'number' && unit ? UNIT[unit] : undefined;
   return suffix ? `${valueText(v)}${suffix === '°' ? '' : ' '}${suffix}` : valueText(v);
 }
 
-const LAYERS = new Set(['FACTORY', 'SITE', 'PROFILE', 'LOOP', 'REGIME']);
+const FROM: Record<string, string> = { LOOP: 'This loop', PROFILE: 'Loop type', SITE: 'Plant', FACTORY: 'Factory' };
 
-/** The source of a value in a list row: the layer, "LOOP v6" for the loop's own bundle level, "Unset" when no layer sets it. */
-export function sourceShort(src: string | null | undefined, bundle: { scopeKind: string; version: number } | null | undefined): string {
-  if (!src || !LAYERS.has(src)) return 'Unset';
-  return bundle && bundle.scopeKind === src ? `${src} v${bundle.version}` : src;
-}
-
-/** The source in a property's panel: where that layer comes from. */
-export function sourceFull(src: string | null | undefined, bundle: { scopeKind: string; version: number } | null | undefined, profileId: string): string {
-  if (!src || !LAYERS.has(src)) return 'Unset · no layer sets it';
-  if (bundle && bundle.scopeKind === src) return `${src} · bundle v${bundle.version}`;
-  if (src === 'FACTORY') return 'FACTORY · shipped default';
-  if (src === 'PROFILE') return `PROFILE · ${codeLabel(profileId)}`;
-  return src;
-}
+/** Where a value comes from, in the page's words; no layer sets it = the system works it out. */
+export const sourceWord = (level: string | null | undefined): string => (level ? FROM[level] : undefined) ?? 'Worked out automatically';
 
 /** A property name in pieces that may break after "_" and ".", so a long name wraps between words, never inside one. */
 export function breakableParts(name: string): string[] {
   return name.split(/(?<=[._])/).filter(Boolean);
+}
+
+const SETTING_NAME: Record<string, string> = {
+  'G2r.pv_region_min': 'Region minimum', 'G2r.pv_region_max': 'Region maximum',
+  'G2r.out_of_domain_warn_fraction': 'Warn when outside the region', 'G2r.mode': 'Region checked on', 'G2r.role': 'Region role',
+  'G2r.applied_input_region_min': 'Input region minimum', 'G2r.applied_input_region_max': 'Input region maximum',
+  'G2r.evidence_retention_days': 'Evidence kept (days)',
+};
+const WORD: Record<string, string> = { min: 'minimum', max: 'maximum', pv: 'PV', sp: 'SP', op: 'OP', vp: 'VP' };
+
+/** A property as the person reads it: a plain name, or the part after the gate made into words. The code stays in a title. */
+export function settingName(property: string): string {
+  if (SETTING_NAME[property]) return SETTING_NAME[property];
+  const rest = property.includes('.') ? property.slice(property.indexOf('.') + 1) : property;
+  const unit = rest.endsWith('_s') ? ' (s)' : rest.endsWith('_pct') ? ' (%)' : '';
+  const words = (unit ? rest.replace(/_(s|pct)$/, '') : rest).split('_').filter(Boolean).map(w => WORD[w] ?? w);
+  const text = words.join(' ');
+  return (text.charAt(0).toUpperCase() + text.slice(1)) + unit;
 }

@@ -10,8 +10,10 @@ import { Link } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { PanelHead, QueryError, TonePill } from '../shared';
 import { useEffectiveConfig } from './useConfig';
-import { bundleLabel, bundleStateTone } from './configSupport';
+import { bundleStateTone } from './configSupport';
+import { versionLabel } from './levelWords';
 import { EffectiveView } from './EffectiveView';
+import { loopPath } from './configRoutes';
 
 export const EffectiveConfigDrawer: React.FC<{ loopId: string; onClose?: () => void }> = ({ loopId, onClose }) => {
   const q = useEffectiveConfig(loopId);
@@ -20,8 +22,8 @@ export const EffectiveConfigDrawer: React.FC<{ loopId: string; onClose?: () => v
     <section className="cpm-surface cpm-config-effective-drawer" data-testid="effective-config-drawer">
       <PanelHead eyebrow="Effective configuration" title={loopId}
         right={<span className="cpm-config-inline">
-          {eff && <TonePill tone={bundleStateTone(eff.state)}>{eff.bundle ? bundleLabel(eff.bundle) : 'factory layer'}</TonePill>}
-          <Link className="cpm-link" to={`/cpm/config?loop=${encodeURIComponent(loopId)}&view=effective`}>Open in Gate Configuration ↗</Link>
+          {eff && <TonePill tone={bundleStateTone(eff.state)}>{eff.bundle ? versionLabel(eff.bundle) : 'Factory settings'}</TonePill>}
+          <Link className="cpm-link" to={loopPath(loopId)}>Open in Gate Configuration ↗</Link>
           {onClose && <ObcButton variant="flat" onClick={onClose}>Close</ObcButton>}
         </span>} />
       {q.isLoading && <div className="cpm-skeleton cpm-skeleton--result" role="status" aria-busy="true"><span className="cpm-skeleton__label">Loading the effective configuration…</span></div>}

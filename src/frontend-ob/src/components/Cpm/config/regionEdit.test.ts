@@ -1,7 +1,7 @@
 // CHG-219: the per-loop table's edit rules and the batch buttons, decided the way the server decides them.
 import { describe, expect, it } from 'vitest';
 import type { Batch, BatchRow, LoopRegion } from '../../../api/cpm/configRegions';
-import { approveAction, changedRows, deployAction, outsideRange, parseDraft, rangeText } from './regionEdit';
+import { approveAction, changedRows, deployAction, fromWord, outsideRange, parseDraft, rangeText } from './regionEdit';
 
 const loop = (loopId: string, over: Partial<LoopRegion> = {}): LoopRegion => ({
   loopId, displayName: null, loopType: 'LIC', site: 'hdpe', pvRangeMin: 0, pvRangeMax: 100, regionMin: null, regionMax: null,
@@ -45,12 +45,23 @@ describe('changedRows', () => {
 });
 
 describe('outsideRange and rangeText', () => {
-  it('flags a region reaching past the PV range; a range reads "min – max"', () => {
-    expect(outsideRange(loop('A'), -1, 50)).toBe(true);
-    expect(outsideRange(loop('A'), 10, 90)).toBe(false);
-    expect(outsideRange(loop('A', { pvRangeMin: null }), -1, 50)).toBe(false);
+  it('names the side a region reaches past the PV range; a range reads "min – max"', () => {
+    expect(outsideRange(loop('A'), -1, 50)).toBe('Below the PV range');
+    expect(outsideRange(loop('A'), 10, 150)).toBe('Above the PV range');
+    expect(outsideRange(loop('A'), 10, 90)).toBeNull();
+    expect(outsideRange(loop('A', { pvRangeMin: null }), -1, 50)).toBeNull();
     expect(rangeText(0, 100)).toBe('0 – 100');
     expect(rangeText(null, 100)).toBe('');
+  });
+});
+
+describe('fromWord', () => {
+  it('names the level a region comes from; a marker is not own settings', () => {
+    expect(fromWord(loop('A', { source: 'LOOP', bundleVersion: 12, regionMin: 1, regionMax: 2 }))).toBe('Own settings v12');
+    expect(fromWord(loop('A', { source: 'LOOP', bundleVersion: 12, inherits: true }))).toBe('—');
+    expect(fromWord(loop('A', { source: 'PROFILE' }))).toBe('Type settings');
+    expect(fromWord(loop('A', { source: 'SITE' }))).toBe('Plant settings');
+    expect(fromWord(loop('A'))).toBe('—');
   });
 });
 

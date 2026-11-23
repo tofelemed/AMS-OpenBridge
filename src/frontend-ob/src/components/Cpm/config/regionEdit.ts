@@ -42,9 +42,18 @@ export function changedRows(loops: LoopRegion[], drafts: Record<string, RegionDr
   return { changes, errors };
 }
 
-/** True when a region reaches outside the loop's PV range (the server warns too). */
-export const outsideRange = (l: LoopRegion, min: number | null, max: number | null) =>
-  min != null && max != null && l.pvRangeMin != null && l.pvRangeMax != null && (min < l.pvRangeMin || max > l.pvRangeMax);
+/** Which side of the loop's PV range a region reaches past (the server warns too), or null when it fits. */
+export function outsideRange(l: LoopRegion, min: number | null, max: number | null): string | null {
+  if (min == null || max == null || l.pvRangeMin == null || l.pvRangeMax == null) return null;
+  return max > l.pvRangeMax ? 'Above the PV range' : min < l.pvRangeMin ? 'Below the PV range' : null;
+}
+
+/** True when the loop's region is its own (a marker that says "uses the plant-wide settings" is not). */
+export const hasOwnSettings = (l: LoopRegion) => l.source === 'LOOP' && !l.inherits;
+
+/** Where a loop's region comes from, in the Gate Configuration words. */
+export const fromWord = (l: LoopRegion): string => (hasOwnSettings(l) ? `Own settings v${l.bundleVersion ?? '?'}`
+  : l.source === 'PROFILE' ? 'Type settings' : l.source === 'SITE' ? 'Plant settings' : '—');
 
 const APPROVABLE = new Set(['VALIDATED', 'SHADOW_EVALUATED']);
 const DEPLOYABLE = new Set(['APPROVED', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED']);

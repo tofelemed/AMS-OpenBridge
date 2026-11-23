@@ -2,7 +2,7 @@
 // layer sets), a gate dropdown with override counts, and a one-line workers verdict - instead of a 165-row
 // wall with "from" repeated per row.
 import { describe, expect, it } from 'vitest';
-import { bundleLabel, layerStack, overridesByGate, workersSummary } from './configSupport';
+import { bundleLabel, layerStack, overridesByGate, valueText, workersSummary } from './configSupport';
 import type { EffectiveConfig } from '../../../api/cpm/config';
 
 const eff = (over: Partial<EffectiveConfig> = {}): EffectiveConfig => ({
@@ -85,5 +85,13 @@ describe('bundleLabel', () => {
   it('names a bundle by level and version, with no hash (CHG-184)', () => {
     expect(bundleLabel({ scopeKind: 'LOOP', version: 2 })).toBe('LOOP v2');
     expect(bundleLabel(null)).toBe('factory layer');
+  });
+});
+
+describe('valueText', () => {
+  it('a missing value is a dash, never NO_VALUE', () => {
+    expect(valueText(null)).toBe('—');
+    expect(valueText(undefined)).toBe('—');
+    expect(valueText(4)).toBe('4');
   });
 });

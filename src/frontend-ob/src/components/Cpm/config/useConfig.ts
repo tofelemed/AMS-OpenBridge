@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '../../../api/apiFetch';
 import {
   approveDraft, createDeployment, createDraft, getBundle, getConfigCatalogue, getDeployment, getEffectiveConfig, getEffectiveSummary, listBundles, listBundleSummaries, listDeployments,
   patchDraft, rollbackDeployment, shadowDraft, validateDraft, type Bundle, type Deployment, type PatchOp, type ScopeKind,
@@ -53,6 +54,8 @@ export const useBundle = (id: string | undefined) => useQuery({
   queryFn: ({ signal }) => getBundle(id!, signal),
   enabled: !!id,
   staleTime: 10_000,
+  // a version that does not exist is not worth retrying: the page says "Change not found" at once
+  retry: (failures: number, error: unknown) => !(error instanceof ApiError && error.status === 404) && failures < 2,
 });
 
 export const useDeployments = (bundleId: string | undefined) => {

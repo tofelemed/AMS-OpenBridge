@@ -7037,3 +7037,22 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Script to run:** none (cplm-api image only).
 
 **Tests:** `ShadowWindowTests` 4 (newest end, whole days capped at 7, quarter-hour fallback, offset inside a day), `ShadowRunTests` 2 (a client giving up during the submit still gets the run linked; the run is planned on the newest LIVE 24 h window) plus the Gate Configuration sets: 30 pass on the lab database.
+
+## CHG-221 — Gate Configuration as a guided journey (2026-11-23, branch feat/sr-mine, unreleased)
+
+**Why (owner, 23 Nov 2026):** Gate Configuration had two loop searches, lost the loop context between its views (Effective | Bundles | Per-loop settings) and hid the lifecycle of a change. The owner approved the mockups for one guided journey.
+
+**What:**
+- Routes: `/cpm/config` (start page: one loop search, four cards, changes in progress, running now), `/cpm/config/loops/:id`, `/cpm/config/types/:profile`, `/cpm/config/plant/:site` (scope pages), `/cpm/config/changes/:id?step=` (change page with five steps: Edit, Check, Try on past data, Approve, Deploy), `/cpm/config/regions` (Operating regions).
+- Dialogs: Change settings, Edit region, Edit regions, Use plant-wide settings, Update them.
+- The old workspace is removed (GateConfigurationWorkspace, EffectiveLoops, BundlesView, BundleVersionPanel, LoopEffective, EditorView, DraftBundleDialog, PerLoopSettings, WorkersDialog, DetailsDialog). The rule for where a new version starts from now lives in `startChange.ts`.
+- Old `?loop=` / `?view=` / `?bundle=` addresses redirect to the new routes; `configHref` builds the new routes.
+- Permission reasons in plain words, shown once per group of buttons ("Needs permission to prepare changes", "…to check changes", "…to try changes", "…to deploy changes", "…to roll back"); no permission codes on screen (a text guard test checks every page state). How to read is five plain lines. Every removed or reworded text is listed in `docs/theme/redesign/text-changes.md` (CHG-221).
+
+**Task 11 (CHG-224 in the UI):** Gate Configuration lists only editable settings (owner D1-D6, server CHG-224): value in use and where it comes from; the two decisions read 'Not decided — … used'; SUPERADMIN_PROPERTIES empty (a site-wide change still needs a SuperAdmin).
+
+**Services updated:** ams-frontend. It ships together with CHG-223 and CHG-224 (cplm-api + Flink jar), never in a frontend-only build: the UI posts `loop-settings/inherit` (CHG-223) and the Edit step and Values in use read the catalogue's `editable` flag and the effective `entries` (CHG-224); with an older cplm-api the Edit step would be empty. No migration from this CHG, no new setting. prod_decision.md: the Gate Configuration deployments table was reworded ("Effective view" -> "the loop page (Values in use)") and gained the CHG-222 shadow-run-window row.
+
+**Script to run:** the usual frontend release build and deploy; nothing else.
+
+**Tests:** `npm run lint` 0 warnings, `npm run build` passes, `npx vitest run` 386 files, 3238 tests, all pass (final run after the whole-branch review fixes).

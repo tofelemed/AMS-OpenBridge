@@ -27,14 +27,13 @@ describe('DeploymentDetail', () => {
   it('a partial matrix never shows as active and names what is pending', () => {
     render(<DeploymentDetail deployment={base({ state: 'PARTIALLY_ACKNOWLEDGED', error: 'no acknowledgement within 5 min' })} />);
     expect(screen.getByTestId('deployment-status').getAttribute('data-state')).toBe('PARTIALLY_ACKNOWLEDGED');
-    expect(screen.getAllByText('pending').length).toBe(5);              // two PREPARE + three APPLY cells
-    expect(screen.getByText('1 of 3 PREPARE · 0 of 3 APPLY')).toBeTruthy();
-    expect(screen.getAllByText('not yet applied')).toHaveLength(3);     // a job that has not applied this hash: its column shows
+    expect(screen.getByText('0 of 3 ready')).toBeTruthy();
+    const text = screen.getByTestId('deployment-status').textContent ?? '';
+    expect(text).not.toMatch(/PREPARE|APPLY|ACK|pending|Epoch|Short Feature|ACTIVE_VERIFIED only/);
     expect(screen.queryByText(/Roll back/)).toBeNull();
-    expect(screen.getByText('ACTIVE_VERIFIED only after every required worker ACKed')).toBeTruthy();
   });
 
-  it('a NACK shows its reason and a mixed fleet is called out as different software releases, with no jar (CHG-184)', () => {
+  it('a refusal shows its reason and a mixed fleet is called out in words, with no jar (CHG-184)', () => {
     render(<DeploymentDetail deployment={base({
       state: 'ACTIVATION_FAILED',
       ackMatrix: [
@@ -43,8 +42,8 @@ describe('DeploymentDetail', () => {
         { jobName: 'AMS - CPLM Gate Fusion Engine', prepare: null, apply: null },
       ],
     })} />);
-    expect(screen.getByText('UNKNOWN_PROPERTY G4.activity_warn_ratioX')).toBeTruthy();
-    expect(screen.getByText(/2 different software releases/)).toBeTruthy();
+    expect(screen.getByText(/^Setting not known: /)).toBeTruthy();
+    expect(screen.getByText('Different software versions are running.')).toBeTruthy();
     expect(screen.queryByText(/jar/)).toBeNull();
   });
 
@@ -55,19 +54,46 @@ describe('DeploymentDetail', () => {
       ackMatrix: base({}).requiredMembers.map(jobName => ({ jobName, prepare: ack, apply: ack })) })} />);
     const text = screen.getByTestId('deployment-status').textContent ?? '';
     expect(text).not.toMatch(/dabe1862|617f2e13|aaaaaaaa|jar|Rolls back/);
-    expect(screen.getAllByText('ACK')).toHaveLength(6);
-    expect(screen.getByText(/648 result\(s\) pinned to this bundle/)).toBeTruthy();
-    expect(screen.getByText(/Observers: AMS - CPLM Instrument Context Engine/)).toBeTruthy();
-    expect(screen.getByText('Short Feature Engine')).toBeTruthy();
+    expect(screen.getByText('3 of 3 ready')).toBeTruthy();
+    expect(screen.getByText('Results on it').nextSibling?.textContent).toMatch(/^648/);
+    expect(text).not.toMatch(/Observers|ACK|PREPARE|APPLY/);
   });
 
   // CHG-193 (final review M8): that a deployment is a rollback is a fact again, as a word; never the rolled back id
   it('says whether the deployment is a rollback, as Yes or No, with no id', () => {
     render(<DeploymentDetail deployment={base({ kind: 'ROLLBACK', rollbackOf: '617f2e13-2ef0-4c5d-9a1b-0123456789ab' })} />);
     expect(screen.getByText('Rollback').nextSibling?.textContent).toBe('Yes');
+    expect(screen.getByText('Takes effect').nextSibling?.textContent).toMatch(/^immediately/);
     expect(screen.getByTestId('deployment-status').textContent).not.toMatch(/617f2e13/);
     cleanup();
     render(<DeploymentDetail deployment={base({})} />);
     expect(screen.getByText('Rollback').nextSibling?.textContent).toBe('No');
+  });
+
+  it('says nothing about workers; a refusal reads in words with the raw reason only in its title', () => {
+    const ack = (reason: string | null, status: 'ACK' | 'NACK' = 'NACK') => ({ status, bundleHash: HASH, jarSha256: 'jar-A', reason, receivedAt: 't' });
+    render(<DeploymentDetail deployment={base({
+      state: 'ACTIVATION_FAILED',
+      ackMatrix: [
+        { jobName: 'AMS - CPLM Short Feature Engine', prepare: ack('UNKNOWN_PROPERTY G4.activity_warn_ratioX'), apply: null },
+        { jobName: 'AMS - CPLM Long Diagnostics Engine', prepare: ack('CATALOGUE_HASH_MISMATCH'), apply: null },
+        { jobName: 'AMS - CPLM Gate Fusion Engine', prepare: ack('boom'), apply: null },
+      ],
+    })} />);
+    const view = screen.getByTestId('deployment-status');
+    expect(view.textContent).not.toMatch(/Worker|UNKNOWN_PROPERTY|CATALOGUE|boom/i);
+    expect(screen.getByText('Ready')).toBeTruthy();
+    expect(screen.getByText(/^Setting not known: /)).toBeTruthy();
+    expect(screen.getByText('Different settings list')).toBeTruthy();
+    expect(screen.getByText('Refused')).toBeTruthy();
+    expect(screen.getByText(/^Setting not known: /).getAttribute('title')).toBe('UNKNOWN_PROPERTY G4.activity_warn_ratioX');
+  });
+
+  it('a mixed fleet reads in words without "Worker"', () => {
+    const a = (jar: string) => ({ status: 'ACK' as const, bundleHash: HASH, jarSha256: jar, reason: null, receivedAt: 't' });
+    render(<DeploymentDetail deployment={base({ ackMatrix: [
+      { jobName: 'x', prepare: a('jar-A'), apply: null }, { jobName: 'y', prepare: a('jar-B'), apply: null }] })} />);
+    expect(screen.getByText('Different software versions are running.')).toBeTruthy();
+    expect(screen.getByTestId('deployment-status').textContent).not.toMatch(/Worker/i);
   });
 });

@@ -55,7 +55,7 @@ export const RegionBatchPanel: React.FC<RegionBatchPanelProps> = ({
             {rows.map(r => (
               <tr key={`${r.loopId}-${r.bundleId ?? 'x'}`}>
                 <td><strong>{r.loopId}</strong></td>
-                <td className="cpm-num">{rangeText(r.pvMin, r.pvMax) || 'No region'}</td>
+                <td className="cpm-num">{r.inherits ? 'Uses the plant-wide settings' : rangeText(r.pvMin, r.pvMax) || 'No region'}</td>
                 <td>
                   <BatchRowState row={r} />
                   {rowNote(r) && <div className="cpm-event-row__sub">{rowNote(r)}</div>}

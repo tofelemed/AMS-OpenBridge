@@ -14,7 +14,7 @@ afterEach(cleanup);
 
 const entry = (over: Partial<CatalogueEntry>): CatalogueEntry => ({
   id: 'CFG-041', gate: 'G3', property: 'G3.error_band_span_fraction', type: 'number', unit: 'fraction', default: 0.005, commissioningRequired: false,
-  validation: { minimum: 0, maximum: 1 }, changeClass: 'POLICY', consumers: ['flink:short'], dependencies: [], effect: 'Half-width of the acceptable error band as a fraction of the PV span.', notReadByBuild: null, ...over,
+  validation: { minimum: 0, maximum: 1 }, changeClass: 'POLICY', consumers: ['flink:short'], dependencies: [], effect: 'Half-width of the acceptable error band as a fraction of the PV span.', notReadByBuild: null, kind: 'EDITABLE', editable: true, setIn: 'GATE_CONFIGURATION', registryField: null, ...over,
 });
 
 const layers: ConfigLayer[] = [
@@ -53,13 +53,24 @@ describe('PropertyForm', () => {
     ]);
   });
 
-  it('shows the inherited value from the layer below, commissioning required, and locks an unread property with the reason', () => {
+  it('shows the inherited value from the layer below and commissioning required', () => {
     expect(inheritedValue(layers, 'LOOP', 'G3.error_band_span_fraction')).toEqual({ value: 0.01, from: 'PROFILE' });
     expect(inheritedValue(layers, 'PROFILE', 'G3.error_band_span_fraction')).toEqual({ value: 0.005, from: 'FACTORY' });
-    render(<PropertyForm entry={entry({ property: 'G0.mode', type: 'enum', unit: 'state', validation: ['OPERATIONAL', 'OBSERVE_ONLY'], notReadByBuild: 'DIAGNOSTIC_MODE_NOT_GOVERNED_IN_BUILD', default: null, commissioningRequired: true })}
+    render(<PropertyForm entry={entry({ property: 'G0.mode', type: 'enum', unit: 'state', validation: ['OPERATIONAL', 'OBSERVE_ONLY'], default: null, commissioningRequired: true })}
       layers={layers} scopeKind="LOOP" effective={null} source={undefined} errors={[]} editable pending={false} onOp={() => {}} />);
     expect(screen.getByText('Commissioning required')).toBeTruthy();
-    expect(screen.getByTestId('locked-reason').textContent).toMatch(/DIAGNOSTIC_MODE_NOT_GOVERNED_IN_BUILD/);
-    expect(screen.queryByText('Set')).toBeNull();
+  });
+
+  // CHG-224: an editable property is always settable here; nothing reads "No value", "unset", "Read-only" or "not used"
+  it('says where the value comes from in plain words and never No value, unset, FACTORY, Read-only or not used', () => {
+    render(<PropertyForm entry={entry({ default: null })} layers={layers.slice(0, 1)} scopeKind="LOOP" effective={0.005} source="FACTORY" errors={[]} editable pending={false} onOp={() => {}} />);
+    expect(screen.getAllByText(/Factory/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Set')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/No value|unset|FACTORY|Read-only|not used|NO_VALUE/);
+    cleanup();
+    render(<PropertyForm entry={entry({})} layers={layers.slice(0, 1)} scopeKind="LOOP" effective={null} source={undefined} errors={[]} editable pending={false} onOp={() => {}} />);
+    expect(screen.getByTestId('effective-value').textContent).toBe('—');
+    expect(document.body.textContent).toContain('Worked out automatically');
+    expect(document.body.textContent).not.toMatch(/No value|unset|FACTORY|Read-only|not used|NO_VALUE/);
   });
 });

@@ -1,13 +1,14 @@
 /**
  * Task 25: one effective property in a dialog: the facts the table row leaves out (unit, type, default, what it does) beside its
  * value, the layer it comes from and its change class. Read-only; every value is the server's resolution. CHG-184 (owner review
- * item 0): no catalogue id, no build wording.
+ * item 0): no catalogue id, no build wording. CHG-224: the setting by name (the code in a title), its source in plain words.
  */
 import React from 'react';
 import { Dialog } from '../../../ui/Dialog';
 import { KvRow, TonePill } from '../shared';
 import type { CatalogueEntry } from '../../../api/cpm/config';
-import { isLayerSource, valueText } from './configSupport';
+import { valueText } from './configSupport';
+import { settingName, sourceWord } from './configWords';
 
 export const classTone = (c: string | undefined) => (c === 'DEPLOYMENT' ? 'bad' : c === 'STATE_BOUNDARY' ? 'warn' : 'muted');
 
@@ -18,9 +19,9 @@ export const EffectivePropertyDialog: React.FC<{
   entry: CatalogueEntry | undefined;
   onClose: () => void;
 }> = ({ property, value, source, entry, onClose }) => (
-  <Dialog open title={property} onClose={onClose}>
+  <Dialog open title={settingName(property)} onClose={onClose}>
     <KvRow label="Value"><span className="cpm-mono">{valueText(value)}</span></KvRow>
-    <KvRow label="Source">{isLayerSource(source) ? <TonePill tone={source === 'FACTORY' ? 'muted' : 'good'}>{source}</TonePill> : 'unset'}</KvRow>
+    <KvRow label="From">{sourceWord(source)}</KvRow>
     {!entry && <p className="cpm-copy">The catalogue is not loaded, so class and unit are not shown.</p>}
     {entry && (
       <>

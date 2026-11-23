@@ -405,11 +405,11 @@ At a new plant: decide who holds SuperAdmin before the first site-wide change; t
 
 | Rule | Value | Why |
 |---|---|---|
-| What the Effective view shows for a loop | the bundle's layers over the loop's class pack (the engine's rule), per value with its source | a site-wide bundle used to show factory values the engine does not run |
+| What the loop page (Values in use) shows for a loop | the bundle's layers over the loop's class pack (the engine's rule), per value with its source | a site-wide bundle used to show factory values the engine does not run |
 | A deployment scheduled for later | never "active" before its effective time; the probe window counts from that time | the engine waits for the time; the page said active after 5 minutes |
 | Rollback | only from the scope's current deployment, to the version active before it; one rollback at a time; none for a first version | a superseded deployment "rolled back" to the running bundle, a second click went one more version back |
 | A lost PREPARE / APPLY message (Kafka down) | sent again after 1 minute; ACTIVATION_FAILED "the workers could not be reached" after the ACK window (5 min) | the deployment stayed scheduled for ever and the bundle could not be edited |
-| A partial deployment | the Effective view names, per worker, the bundle it really runs | some workers can run the new bundle while the page shows the old one |
+| A partial deployment | the loop page (Values in use) names, per worker, the bundle it really runs | some workers can run the new bundle while the page shows the old one |
 | Shadow run window ("Try on past data", CHG-222) | ends on the loop's newest LIVE 24 h window end (else now floored to 15 min), whole days only (1-7, the request's hours rounded up), window offset = that end mod 24 h | otherwise the shadow's 24 h windows never end where a LIVE window ends and nothing is compared |
 | Shadow comparison reads (before / after matrix) | JIT off for that one transaction only (`SET LOCAL jit = off`); the shadow rows read by run id with no ORDER BY (sorted in the service); the LIVE rows filtered by the loop list and the window_end range as well as the window join | TimescaleDB misestimates the compressed chunks: JIT compilation took ~8.7 s, an ordered scan 7.3 s and an unfiltered join 5.9 s for 0-8 rows; now milliseconds. The database's own `jit` setting is unchanged |
 - **A loop's own settings can be removed** ("Use plant-wide settings", CHG-223): it is a normal approved change (two-person rule, audited); afterwards the loop follows the plant-wide bundle again. Deploy the jar before anyone uses it: a worker without CHG-223 would apply the marker as the loop's own bundle. Removing own settings takes the probe window (about 5 minutes) to show as done.

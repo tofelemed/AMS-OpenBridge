@@ -101,7 +101,7 @@ describe('ResponseEmpty', () => {
     fireEvent.click(screen.getByText(/Review setpoint changes/));
     expect(screen.getByTestId('where').textContent).toBe('/cpm/historical?loop=FIC1');
     fireEvent.click(screen.getByText('Check G12 settings'));
-    expect(screen.getByTestId('where').textContent).toBe('/cpm/config?loop=FIC1&view=effective&gate=G12');
+    expect(screen.getByTestId('where').textContent).toBe('/cpm/config/loops/FIC1?gate=G12');
   });
 
   it('hides the G12 settings without cpm.config.read, and never repeats the censored count', () => {

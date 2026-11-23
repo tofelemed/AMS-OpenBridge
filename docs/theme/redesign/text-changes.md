@@ -2347,3 +2347,107 @@ Follow-ups to CHG-201 (task-18) and CHG-202 (task-19). Times keep their format (
 | Loop page · Linked loops, none yet | "No linked loops yet. Link the loops this one affects, or is affected by, in the plant model, then use Resend to analysis." | "No linked loops yet: link them in the plant model, then use Resend to analysis." |
 | Loop Registry list · below 820 px (each loop a card) | "Valve position" (no ?: the head row with its ? is hidden there) | "Valve position ?" in each card, the same four words |
 | Every page · a failed read (the shared QueryError; Governance now uses it too) | the error's own message (the server's detail when sent, e.g. "Npgsql…" or "The service is currently unavailable. Try again shortly."); Governance "Try again shortly." | 403 "You do not have permission to see this." · 404 "Not found." · no answer, 5xx or timeout "The service did not answer. Try again." · anything else "This could not be loaded. Try again."; Retry kept; the server's text goes to the console only |
+
+## CHG-221 Gate Configuration journey (23 Nov 2026)
+
+Gate Configuration is a guided journey (start page, scope pages, a five-step change page, Operating regions). One line per removed or reworded text.
+
+| Where | Was | Now |
+|---|---|---|
+| Gate Configuration · structure | Three-view toggle Effective \| Bundles \| Per-loop settings | Start page with four cards; scope pages (loop, type, plant); change page; Operating regions page |
+| Gate Configuration · structure | Second loop search "Loop, service, profile or unit" | removed (the one loop search on the start page) |
+| Gate Configuration · sub-pages | Eyebrow "SET UP · GATE CONFIGURATION" | removed |
+| Gate Configuration · loop page | Layer strip: FACTORY / PROFILE / SITE / LOOP cards | removed (the levels are rows in the settings table) |
+| Gate Configuration · deploy | Workers / APPLY acknowledgement box (Required worker, PREPARE, APPLY, Active bundle on this worker, ACK/NACK/pending, job names, semantics line, Observers) | "Ready · n of m ready" |
+| Gate Configuration · dialogs | Field labels in caps (small caption) in Change settings, Edit region, Edit regions, Restack, Use plant-wide settings | bold sentence-case labels |
+| Gate Configuration · loop page | Plain "Open loop" button text | link style "Open loop ↗" |
+| Gate Configuration · tables | Change-class pills (Policy, State boundary, Deployment) | removed |
+| Gate Configuration · tables | Property code in each row | the setting's name in the title; code removed |
+| Gate Configuration · How to read | Five parts: Levels, Change class, Flags, Bundle state, Gate roles | five short lines on the journey: pick what to change, five steps, who approves, no restart, Running now |
+| Gate Configuration · state | Active (verified) | Running |
+| Gate Configuration · permissions | Your account cannot prepare drafts (Operating regions) | Needs the cpm.config.draft permission (the one reason everywhere) |
+| Gate Configuration · shadow step | Shadow evaluation (heading) / Run shadow / Run again / Not run | Try on past data / Try on past data / Try again / Not tried |
+| Gate Configuration · shadow step | Starting… | Starting… (about 30 s) |
+| Gate Configuration · shadow step | What a shadow run does ? and its text | removed |
+| Gate Configuration · shadow step | Loop / Hours inputs on a loop bundle | removed (kept for type and plant changes) |
+| Gate Configuration · shadow step | Needs the cpm.config.shadow permission | Needs permission to try changes |
+| Gate Configuration · shadow step | Validate the bundle first — only a validated bundle can be shadow-run | Check the change first |
+| Gate Configuration · shadow step | Run state Submitted / Running after 2 minutes | Waiting for free capacity |
+| Gate Configuration · shadow step | Support | Period |
+| Gate Configuration · shadow step | <n> shadow row(s), <m> compared with a LIVE result | <m> of <n> windows |
+| Gate Configuration · shadow step | <RECLASS>: this draft makes previously reported symptoms disappear. Approval must state that it changes what the site calls a finding. | Reported symptoms disappear under this draft; say so in the approval note. |
+| Gate Configuration · shadow step | The run finished but no window had a LIVE counterpart … | No matching live results to compare; a failed or cancelled run reads "The run failed" / "The run was cancelled" |
+| Gate Configuration · approve step | No approval binds the current content (heading) | removed ("Approved by <who>" only when one binds) |
+| Gate Configuration · approve step | Approve heading + ? An approval holds only for the content approved… | removed |
+| Gate Configuration · approve step | Approval note + placeholder "Why this content is approved (recorded, hash-bound)" | Note (optional) |
+| Gate Configuration · approve step | Valid for (h) | removed (72 h) |
+| Gate Configuration · approve step | Approve alone (Admin) / (SuperAdmin) | Approve alone |
+| Gate Configuration · approve step | History columns Decision · Approver (name (role)) · Content · Expires · Note | Approver · Decision (Approved / Approved earlier version / Rejected) · When · Note |
+| Gate Configuration · approve step | (none) | new rows: Change, Applies to, Past 24 h |
+| Gate Configuration · deploy step | Effective from (optional, ISO) + placeholder "now" | Takes effect at · <zone> |
+| Gate Configuration · deploy step | Active and verified - a result carries this bundle hash | Running / Deploying / Scheduled / Partly deployed / Deploy failed / Rolled back |
+| Gate Configuration · deploy step | x of y PREPARE · x of y APPLY | x of y ready |
+| Gate Configuration · deploy step | Effective: immediately · by | Takes effect: immediately \| at <time zone> · by |
+| Gate Configuration · deploy step | Epoch | removed |
+| Gate Configuration · deploy step | Probe: n result(s) pinned to this bundle · checked | Results on it: n · checked |
+| Gate Configuration · deploy step | Workers | Ready |
+| Gate Configuration · deploy step | Workers run different versions of the software. | Different software versions are running. |
+| Gate Configuration · deploy step | A refusal's raw reason (UNKNOWN_PROPERTY <code>) | Setting not known: <name> / Different settings list / Refused |
+| Gate Configuration · roll back | Roll back to v11 / title Roll back to the previous bundle / Rolls back · Active again rows | Roll back to Own settings v11 / one line "Region maximum goes back from 125 to 120" |
+| Operating regions | Outside the PV range | Above the PV range / Below the PV range |
+| Operating regions | Columns Region min / Region max / Source / Pending | Region / From (Own settings v<n> / Type settings / Plant settings / —) |
+| Operating regions | Pick a site / page title Per-loop settings | Choose a plant in the header / Operating regions |
+| Operating regions | Edit regions / Save n changes / Change note | Edit regions (n) / Save / Reason |
+| Operating regions | Uses the plant-wide settings | Use plant-wide settings (button and dialog title "Use plant-wide settings · n loops"); help "The PV range where this loop is normally run. Windows spent mostly outside it are not judged." |
+| Gate Configuration · Permissions | "Needs the cpm.config.draft permission" | "Needs permission to prepare changes" (loop / type / plant page head, regions page head; once per button group, under the primary) |
+| Gate Configuration · Permissions | "Needs cpm.config.validate." | "Needs permission to check changes" (Check step) |
+| Gate Configuration · Permissions | "Needs cpm.config.shadow." | "Needs permission to try changes" |
+| Gate Configuration · Permissions | "Needs cpm.config.activate." | "Needs permission to deploy changes" (Deploy step) |
+| Gate Configuration · Permissions | "Needs cpm.config.rollback." | "Needs permission to roll back" (Deploy step) |
+| Gate Configuration · Start page | "Update them" disabled with no reason | disabled with "Needs permission to prepare changes" |
+| Gate Configuration · Loop page · Operating region tab | second "Edit region" button | removed (the page head keeps Edit region) |
+| Gate Configuration · Loop page | (no pill for a partly deployed / failed version) | "v13 partly deployed" / "v13 deploy failed" |
+| Gate Configuration · Start page · Changes in progress | partly deployed / failed versions not listed | listed, next step "Deploy" |
+| Gate Configuration · Type page | no type version while the plant has one: pill "Factory settings"; From "Factory" | pill "Plant settings vN"; From "Plant" for the plant's values |
+| Gate Configuration · Change page · Check step | Validate / Validating… | Check / Checking… |
+| Gate Configuration · Change page | Already validated; edit the draft to validate again. | Already checked; edit the change to check it again. |
+| Gate Configuration · Change page | Validate the draft first. | Check the change first. (Try on past data, Approve) |
+| Gate Configuration · Change page | The approval expired; approve again before activating. | The approval expired; approve again before deploying. |
+| Gate Configuration · Change page | Approve the content first. | Approve the change first. |
+| Gate Configuration · Change page · Deploy step | button Activate; row kind Activation; label "Activate and roll back" | Deploy; Deploy; "Deploy and roll back" |
+| Gate Configuration · Change page · Deploy step | Active (verified) / Partially acknowledged / Activation failed / Preparing, Prepared, Applying, Probing | Running / Partly deployed / Deploy failed / Deploying |
+| Gate Configuration · Change page · frozen line | This version is replaced / rolled back / deploying / approval expired / deploy failed — … | This version was replaced / was rolled back / is being deployed / The approval of this version expired / This version failed to deploy — … |
+| Gate Configuration · Change page · Approve step | ? help "Someone other than the author approves. An Admin or SuperAdmin may approve their own change; it is recorded. A whole-plant change needs a SuperAdmin. Approval lasts 72 h." | "Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own." / "A site-wide change needs a SuperAdmin to approve it." / "Approval lasts 72 h." |
+| Gate Configuration · Change page · Edit step | plant-wide marker: value editor (Set / Reset) | read-only |
+| Gate Configuration · Try on past data | field Hours (default 24) | Days (default 1, 1 to 7) |
+| Gate Configuration · Try on past data | loop field placeholder "loop id" | removed |
+| Gate Configuration · Try on past data | The draft changed after the last run. | This change was edited after the last run. |
+| Gate Configuration · Try on past data | Reported symptoms disappear under this draft; say so in the approval note. | Reported symptoms disappear under this change; say so in the approval note. |
+| Gate Configuration · Try on past data · window table | diagnoses as codes (SUSPECTED_OSCILLATION → NO_CALL) | words (Oscillation suspected → No fault identified) |
+| Gate Configuration · Try on past data · window table | gates as codes (G5: DETECTED→NOT_DETECTED) | words (Oscillation (ACF): Detected → Not detected) |
+| Gate Configuration · Approve step | row "Past 24 h" | "On past data" |
+| Gate Configuration · Versions | No own versions — this loop runs factory settings. | No own versions — this loop runs Factory settings. |
+| Gate Configuration · Operating regions | notice "<n> loops have their own settings on the previous plant-wide settings." with "Prepare their new versions" / "Preparing…" and its error lines | removed (the start page's notice and "Update them" own it) |
+| Gate Configuration · Values in use | unset value "Not set"; unset From "Not set" | "—"; "Worked out automatically" |
+| Gate Configuration · Values in use | (no line) | "Some parts run another version: …"; From words "Needs a decision" / "Worked out automatically"; a decision shows "Not decided — …" |
+| Gate Configuration · Values in use · Edit step | only editable settings listed; the gate list only gates with editable settings | other properties removed from the table and the gate list |
+| Gate Configuration · Edit step table | aria-label "Properties"; "No value"; "from FACTORY" / "from LOOP" / "from PROFILE"; "unset - no layer sets it"; flag "not used" | "Settings"; "—"; "Factory" / "This loop" / "Loop type"; "Worked out automatically"; flag removed |
+| Gate Configuration · Setting panel | Effective "from LOOP" / "unset"; Inherited "from PROFILE" / "No value"; Catalogue start "No value" | "This loop" / "Worked out automatically"; "Loop type" / "—"; "—" |
+| Gate Configuration · Setting panel | "not used" pill and "Read-only: <reason>" line | removed (the editor is no longer hidden for a not-read setting) |
+| Gate Configuration · Differences, roll back, lifecycle | "No value" | "—" |
+| Gate Configuration · Approve step | reason "A change to an objective or a test permission needs a SuperAdmin..." | no longer shown (a site-wide change still needs a SuperAdmin) |
+| Gate Configuration · Workers / parts | "LOOP v8 on 2" (runs-elsewhere text and worker tile sub) | "Own settings v8 on 2 parts" ("on 1 part" for one) |
+| Gate Configuration · Values in use | unset value "NO_VALUE" | "—" |
+| Gate Configuration · Settings drawer | column "Property" / "Source" | "Setting" / "From" |
+| Gate Configuration · Settings drawer | property code button | setting name (code only in the title) |
+| Gate Configuration · Settings drawer | source pill FACTORY / PROFILE / LOOP; "unset" | text Factory / Loop type / This loop; "Worked out automatically" |
+| Gate Configuration · Settings drawer | layer stack kinds FACTORY / PROFILE / SITE / LOOP | Factory / Type settings / Plant settings / Own settings |
+| Gate Configuration · Settings drawer | search "Find a property"; "No property matches" | "Find a setting" (also matches names); "No setting matches" |
+| Gate Configuration · Settings drawer | "Some workers run another version:" | "Some parts run another version:" |
+| Gate Configuration · Setting dialog | title = property code; row "Source" | title = setting name; row "From" |
+| Gate Configuration · Deployment state | Active (verified) / Activation failed / Scheduled (via the shared state words) | Running / Deploy failed / Deploying |
+| Gate Configuration · Settings drawer · details box | summary "APPLY acknowledgements"; column "job" | "Where it runs"; "Part" |
+| Gate Configuration · Settings drawer · details box | pill "ACK" / "NACK" | "Ready" / "Refused" |
+| Gate Configuration · Settings drawer · details box | "for another bundle"; "no ACK recorded" | "for another version"; "Not confirmed yet" |
+| Gate Configuration · Settings drawer · details box | "observer · reads no property"; "factory layer" | "Reads no setting"; "Factory settings" |
+| Gate Configuration · Settings drawer · details box | "runs LOOP v8"; row "bundle" "LOOP v2 · POLICY · effective <date>" | "runs Own settings v8"; row "Version" "Own settings v2 · Running" |

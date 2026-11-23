@@ -106,3 +106,55 @@
 .cpm-config-filters .cpm-input.cpm-region-note { flex: 2 1 14rem; }
 .cpm-region-rows .cpm-region-cell { width: 8rem; max-width: 100%; height: var(--traverse-space-8); padding-block: 0; text-align: end; }
 .cpm-region-rows tr[data-invalid] .cpm-region-cell { border-color: var(--traverse-status-danger-fg); }
+
+/* ── Gate Configuration change page: the five-step bar (numbered circles, check when done, current ringed, connector lines) ── */
+.cpm-config-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: var(--traverse-space-3) var(--traverse-space-4); list-style: none; border-bottom: 1px solid var(--traverse-border-subtle); }
+.cpm-config-step { display: flex; align-items: center; gap: var(--traverse-space-1); min-width: 0; }
+.cpm-config-step::after { content: ''; flex: 1; height: 2px; min-width: var(--traverse-space-3); margin: 0 var(--traverse-space-2); background: var(--traverse-border-subtle); }
+.cpm-config-step:last-child::after { display: none; }
+.cpm-config-step--done::after { background: var(--traverse-status-success-fg); }
+.cpm-config-step__btn { display: inline-flex; align-items: center; gap: var(--traverse-space-2); padding: 0; border: 0; background: none; color: var(--traverse-text-primary); font: inherit; cursor: pointer; }
+.cpm-config-step__n { display: grid; place-items: center; flex: none; width: var(--traverse-space-6); height: var(--traverse-space-6); border-radius: 50%; border: 2px solid var(--traverse-border-strong); background: var(--traverse-surface-panel); color: var(--traverse-text-secondary); font-weight: 600; }
+.cpm-config-step--done .cpm-config-step__n { background: var(--traverse-status-success-fg); border-color: var(--traverse-status-success-fg); color: var(--traverse-action-on); }
+.cpm-config-step--viewed .cpm-config-step__n { border-color: var(--traverse-action-primary); color: var(--traverse-action-primary); box-shadow: 0 0 0 4px var(--traverse-surface-selected); }
+.cpm-config-step__label { font-weight: 600; white-space: nowrap; }
+.cpm-config-step--todo .cpm-config-step__label { font-weight: 400; color: var(--traverse-text-secondary); }
+.cpm-config-step__opt { color: var(--traverse-text-secondary); }
+@media (max-width: 600px) { .cpm-config-steps { grid-template-columns: 1fr; gap: var(--traverse-space-2); } .cpm-config-step::after { display: none; } }
+
+/* ── Gate Configuration start page: four task cards, the stale notice, the five-segment progress bar ── */
+.cpm-config-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--traverse-space-3); margin: 0; padding: 0; list-style: none; }
+.cpm-config-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-3); min-width: 0; padding: var(--traverse-space-4); }
+.cpm-config-card__title { display: flex; align-items: center; gap: var(--traverse-space-2); margin: 0; font: inherit; font-weight: 600; }
+.cpm-config-card__now { flex: 1; margin: 0; color: var(--traverse-text-secondary); overflow-wrap: anywhere; }
+.cpm-config-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-3); padding: var(--traverse-space-3) var(--traverse-space-4); }
+.cpm-config-notice p { margin: 0; }
+.cpm-config-section { display: flex; align-items: baseline; gap: var(--traverse-space-2); margin: 0; font: inherit; font-weight: 600; }
+.cpm-config-section small { color: var(--traverse-text-secondary); font-weight: 400; }
+.cpm-config-prog { display: inline-flex; gap: var(--traverse-space-1); margin-inline-end: var(--traverse-space-2); vertical-align: middle; }
+.cpm-config-prog i { width: var(--traverse-space-4); height: var(--traverse-space-1); border-radius: var(--traverse-space-1); background: var(--traverse-border-subtle); }
+.cpm-config-prog i[data-seg='done'] { background: var(--traverse-status-success-fg); }
+.cpm-config-prog i[data-seg='current'] { background: var(--traverse-action-primary); }
+.cpm-config-choices { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-2); }
+@media (max-width: 1000px) { .cpm-config-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .cpm-config-cards { grid-template-columns: 1fr; } }
+
+/* ── Change page: the card around the step bar, the step body and the Back / Next foot ── */
+.cpm-config-change { padding: 0; overflow: hidden; }
+.cpm-config-change > .cpm-config-frozen { margin: var(--traverse-space-3) var(--traverse-space-4) 0; }
+.cpm-config-change__body { padding: var(--traverse-space-4); min-width: 0; }
+.cpm-config-change__foot { display: flex; justify-content: space-between; gap: var(--traverse-space-3); padding: var(--traverse-space-2) var(--traverse-space-4); border-top: 1px solid var(--traverse-border-subtle); background: var(--traverse-surface-page); }
+
+/* ── Gate Configuration journey, task 9: operating regions page and its dialogs ── */
+.cpm-region-pick { width: var(--traverse-space-8); }
+.cpm-region-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--traverse-space-3); }
+.cpm-region-pair .cpm-field { min-width: 0; }
+.cpm-region-bar { position: relative; height: var(--traverse-space-8); margin: var(--traverse-space-2) var(--traverse-space-3) var(--traverse-space-3); }
+.cpm-region-bar__track { position: absolute; inset-inline: 0; top: var(--traverse-space-2); height: var(--traverse-space-3); border-radius: var(--traverse-radius-control); background: var(--traverse-border-subtle); }
+.cpm-region-bar__region { position: absolute; top: 0; bottom: 0; border-radius: var(--traverse-radius-control); background: var(--traverse-action-primary); }
+.cpm-region-bar__tick { position: absolute; top: var(--traverse-space-5); transform: translateX(-50%); color: var(--traverse-text-secondary); white-space: nowrap; }
+.cpm-region-bar__tick--end { transform: translateX(-100%); }
+.cpm-region-bar__tick--start { transform: none; }
+.cpm-region-list { margin: 0; padding-inline-start: var(--traverse-space-4); }
+.cpm-region-rows--edit td { vertical-align: top; }
+.cpm-region-rows--edit .cpm-region-cell[aria-invalid='true'] { border-color: var(--traverse-status-danger-fg); }

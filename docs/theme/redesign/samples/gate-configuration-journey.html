@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate Configuration journey v2 (sample)</title>
+<style>
+  /* A PROPOSAL ONLY. v2 after the owner's review (23 Nov): flow kept; no explanations, no layer hierarchy, no backend terms
+     (property codes and rules on hover); buttons and headers as on the Loop Registry detail page. Lab data of 23 Nov. */
+  [data-theme="day"] { --page:#F3F6FA; --panel:#FFFFFF; --raised:#E8EEF5; --hover:#E5ECF4; --selected:#DDF3F6; --border:#D3DCE8; --strong:#75879C; --text:#152238; --text2:#4B5D73; --muted:#596B81; --action:#006B83; --on:#FFFFFF; --ok:#16724A; --warn:#8A5700; --warn-bg:#FFF3D6; --bad:#B42332; --info:#1764C0; --info-bg:#E9F1FC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 "Noto Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  .shell { width: 1440px; grid-template-columns: 220px 1fr; grid-template-rows: 64px auto; position: relative; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .top b { font-size: 18px; margin-inline-end: 22px; } .top b span { color: var(--action); font-size: 15px; }
+  .topf { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; color: var(--text2); }
+  .side { background: var(--page); border-inline-end: 1px solid var(--border); padding: 20px 8px; font-size: 13px; min-height: 860px; }
+  .side h6 { margin: 14px 12px 4px; font-size: 13px; font-weight: 600; color: var(--text); } .side h6:first-child { margin-top: 0; }
+  .side div { height: 32px; display: flex; align-items: center; padding: 0 12px 0 34px; border-radius: 6px; color: var(--text); }
+  .side div.on { background: var(--selected); color: var(--action); font-weight: 600; box-shadow: inset 3px 0 0 var(--action); }
+  main { padding: 24px; min-width: 0; }
+  .back { display: inline-block; margin-bottom: 6px; color: var(--text2); font-size: 13px; }
+  .eyebrow { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+  h1 { margin: 2px 0 0; font-size: 22px; font-weight: 600; } .grow { flex: 1; }
+  .lead { margin: 2px 0 6px; color: var(--text2); }
+  .dhead { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+  .acts { display: flex; gap: 8px; align-items: center; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .card h2 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .chead { display: flex; align-items: center; gap: 8px; padding: 18px 20px 6px; }
+  .btn { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 6px; font: inherit; white-space: nowrap; border: 0; cursor: pointer; }
+  .btn--soft { background: var(--raised); color: var(--text); } .btn--raised { background: var(--action); color: var(--on); font-weight: 600; }
+  .btn--link { background: none; color: var(--action); padding: 0 8px; } .btn[disabled] { background: var(--raised); color: var(--muted); }
+  .btn--sm { height: 32px; padding: 0 12px; }
+  .field { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--strong); border-radius: 6px; background: var(--panel); white-space: nowrap; color: var(--text2); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; }
+  .pill b { font-size: 12px; } .t-warn b { color: var(--warn); } .t-ok b { color: var(--ok); } .t-info b { color: var(--info); } .t-muted b { color: var(--muted); }
+  .sub { display: block; color: var(--text2); font-size: 12px; }
+  .q { position: relative; display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--strong); border-radius: 50%; font-size: 10px; color: var(--muted); font-weight: 400; flex: none; }
+  .tip { position: absolute; top: 24px; left: -12px; width: 300px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(21, 34, 56, .16); color: var(--text); font-size: 13px; line-height: 1.45; z-index: 6; text-align: start; }
+  .tip p { margin: 0 0 6px; } .tip p:last-child { margin: 0; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: start; padding: 12px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  .sect { display: flex; align-items: center; gap: 8px; margin: 24px 0 8px; font-size: 18px; font-weight: 600; } .sect small { font-size: 13px; font-weight: 400; color: var(--text2); }
+  /* landing */
+  .tasks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .task { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-height: 150px; }
+  .task h2 { font-size: 16px; } .task .now { color: var(--text2); } .task .btn { align-self: flex-start; margin-top: auto; }
+  .notice { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; margin-top: 16px; border-radius: 8px; background: var(--info-bg); }
+  .prog { display: inline-flex; gap: 3px; vertical-align: middle; margin-inline-end: 10px; } .prog i { width: 18px; height: 6px; border-radius: 3px; background: var(--border); }
+  .prog i.d { background: var(--ok); } .prog i.c { background: var(--action); }
+  /* loop page */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 20px; }
+  .tab { padding: 12px 14px 10px; border-bottom: 2px solid transparent; color: var(--text2); } .tab[aria-selected="true"] { color: var(--action); font-weight: 600; border-bottom-color: var(--action); }
+  .bar { display: flex; gap: 8px; padding: 16px 20px 4px; }
+  /* change page */
+  .stepper { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .step { display: flex; align-items: center; gap: 10px; }
+  .step .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--strong); font-weight: 600; color: var(--text2); background: var(--panel); flex: none; }
+  .step.done .n { background: var(--ok); border-color: var(--ok); color: #fff; } .step.cur .n { border-color: var(--action); color: var(--action); box-shadow: 0 0 0 4px var(--selected); }
+  .step b { font-weight: 600; white-space: nowrap; } .step.todo b { color: var(--text2); font-weight: 400; } .step small { color: var(--text2); font-size: 12px; margin-inline-start: 4px; }
+  .step::after { content: ''; flex: 1; height: 2px; background: var(--border); margin: 0 10px; min-width: 16px; } .step:last-child::after { display: none; } .step.done::after { background: var(--ok); }
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--border); } .kv > span:first-child { color: var(--text2); }
+  .ok { color: var(--ok); } .new { font-weight: 600; }
+  .nextf { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+  .approve { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  /* dialogs */
+  .scrim { position: absolute; inset: 0; background: rgba(21, 34, 56, .38); display: flex; justify-content: center; align-items: flex-start; padding-top: 120px; z-index: 5; }
+  .dlg { width: 560px; padding: 20px 24px; box-shadow: 0 8px 28px rgba(21, 34, 56, .2); } .dlg--wide { width: 780px; }
+  .dlg h3 { margin: 0 0 14px; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; } .dlg h3 .x { margin-inline-start: auto; color: var(--text2); font-weight: 400; }
+  .dlg .lbl { font-size: 13px; color: var(--text2); margin: 0 0 6px; }
+  .dlg table th, .dlg table td { padding: 10px 12px 10px 0; }
+  .opt { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .opt.sel { border-color: var(--action); background: var(--selected); } .opt .r { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--strong); } .opt.sel .r { border: 5px solid var(--action); }
+  .opt span:last-child { color: var(--text2); }
+  .fl { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); margin-top: 14px; }
+  .in { height: 40px; border: 1px solid var(--strong); border-radius: 6px; padding: 0 10px; font: inherit; color: var(--text); background: var(--panel); }
+  .in.err { border-color: var(--bad); } .errt { color: var(--bad); font-size: 12px; display: block; margin-top: 2px; }
+  textarea.in { height: 56px; padding: 8px 10px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .df { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .rbar { position: relative; height: 12px; background: var(--raised); border-radius: 6px; margin: 6px 0 28px; }
+  .rbar .r { position: absolute; top: -2px; bottom: -2px; background: var(--selected); border: 2px solid var(--action); border-radius: 6px; }
+  .rbar .lab { position: absolute; top: 16px; font-size: 12px; color: var(--text2); transform: translateX(-50%); white-space: nowrap; }
+  .cb { width: 16px; height: 16px; border: 1.5px solid var(--strong); border-radius: 3px; display: inline-block; vertical-align: middle; } .cb.on { background: var(--action); border-color: var(--action); box-shadow: inset 0 0 0 2px #fff; }
+  [data-screen] { display: none; } [data-screen].on { display: grid; }
+</style>
+</head>
+<body>
+<template id="chrome">
+  <div class="top"><b>Traverse <span>CPA</span></b><span class="topf" style="width:230px;white-space:nowrap">&#8962; HDPE Plant · 177 loops<span class="grow"></span>&#9662;</span><span class="topf" style="width:320px">&#x2315; Search loops, tags and records</span><span class="grow"></span><span>☀</span><span style="color:var(--text)">○ Super Administrator &#9662;</span></div>
+  <nav class="side">
+    <h6>Find problems</h6><div>Overview</div><div>Performance</div><div>Loop Events</div>
+    <h6>Check a loop</h6><div>Loop Explorer</div><div>Historical</div>
+    <h6>Understand the cause</h6><div>Investigation</div><div>Evidence Workbench</div><div>Evidence Replay</div><div>Window Inspector</div><div>Calculations</div><div>System Response</div>
+    <h6>Engineering</h6><div>Trend</div>
+    <h6>Set up</h6><div>Loop Registry</div><div class="on">Gate Configuration</div>
+    <h6>System</h6><div>Pipeline Health</div><div>Administration</div><div>Governance</div>
+  </nav>
+</template>
+
+<!-- 1. START PAGE -->
+<div class="shell" data-screen="start">
+  <main>
+    <div class="dhead"><div><span class="eyebrow">Set up</span><h1>Gate Configuration</h1></div><span class="grow"></span><div class="acts"><span class="field" style="width:320px">&#x2315; Find a loop<span class="grow"></span>&#9662;</span><span class="btn btn--soft">How to read</span></div></div>
+
+    <div class="tasks">
+      <div class="card task"><h2>One loop <span class="q">?</span></h2><span class="now">2 with own settings</span><span class="btn btn--soft btn--sm">Find a loop</span></div>
+      <div class="card task"><h2>A loop type <span class="q">?</span></h2><span class="now">Flow, fast self-regulating · v1</span><span class="btn btn--soft btn--sm">Choose a type</span></div>
+      <div class="card task"><h2>Whole plant <span class="q">?</span></h2><span class="now">Plant settings v1</span><span class="btn btn--soft btn--sm">Open</span></div>
+      <div class="card task"><h2>Operating regions <span class="q">?</span></h2><span class="now">2 loops have a region</span><span class="btn btn--soft btn--sm">Edit regions</span></div>
+    </div>
+    <div class="notice"><span>2 loops don't have the latest plant settings yet</span><span class="grow"></span><span class="btn btn--soft btn--sm">Update them</span></div>
+
+    <div class="sect">Changes in progress <small>2</small></div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Change</th><th>Next step</th><th>Started</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><strong>FIC10302 · own settings v13</strong><span class="sub">Wider region for the new feed rate</span></td><td><span class="prog"><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i></span>Approve</td><td>superadmin · 23 Nov 06:54</td><td style="text-align:end"><span class="btn btn--soft btn--sm">Continue</span></td></tr>
+          <tr><td><strong>FIC10301 · own settings v1</strong></td><td><span class="prog"><i class="c"></i><i></i><i></i><i></i><i></i></span>Check</td><td>engineer · 17 Sep 08:24</td><td style="text-align:end"><span class="btn btn--soft btn--sm">Continue</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sect">Running now</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Applies to</th><th>Settings</th><th>Since · UTC</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Whole plant</strong> <span class="sub">177 loops</span></td><td>Plant settings v1</td><td>23 Nov 06:14</td></tr>
+          <tr><td><strong>Flow, fast self-regulating</strong> <span class="sub">47 loops</span></td><td>Type settings v1</td><td>23 Nov 04:32</td></tr>
+          <tr><td><strong>FIC10302</strong> <span class="sub">Reactor feed flow</span></td><td>Own settings v12</td><td>23 Nov 06:23</td></tr>
+          <tr><td><strong>FIC10401</strong></td><td>Own settings v3</td><td>23 Nov 06:37</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- 2. LOOP PAGE -->
+<div class="shell" data-screen="loop">
+  <main>
+    <span class="back">‹ Gate Configuration</span>
+    <div class="dhead">
+      <div><h1>FIC10302</h1><p class="lead">Reactor feed flow · U1001</p>
+        <span class="pill">Own settings v12</span> <span class="pill t-info"><b>●</b> v13 waiting for approval</span></div>
+      <span class="grow"></span>
+      <div class="acts"><span class="btn btn--soft">Open loop ↗</span><span class="btn btn--soft">Edit region</span><span class="btn btn--raised">Change settings</span></div>
+    </div>
+    <div class="card">
+      <div class="tabs"><span class="tab" aria-selected="true">Values in use</span><span class="tab">Operating region</span><span class="tab">Versions</span></div>
+      <div class="bar"><span class="field" style="width:300px;height:36px">Operating region<span class="grow"></span>&#9662;</span><span class="field" style="width:240px;height:36px">&#x2315; Find a setting</span></div>
+      <table>
+        <thead><tr><th>Setting</th><th>Value</th><th>From</th></tr></thead>
+        <tbody>
+          <tr><td>Region minimum</td><td>90</td><td>This loop</td></tr>
+          <tr><td>Region maximum</td><td>120</td><td>This loop</td></tr>
+          <tr><td>Warn when outside the region</td><td>5 %</td><td>Factory</td></tr>
+          <tr><td>Region checked on</td><td>Process value</td><td>Factory</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- 3. START A CHANGE -->
+<div class="shell" data-screen="start-change">
+  <main data-copy="loop"></main>
+  <div class="scrim"><div class="card dlg">
+    <h3>Change settings<span class="x">✕</span></h3>
+    <p class="lbl">Apply to</p>
+    <div class="opt sel"><span class="r"></span><strong>This loop only</strong><span>1 loop</span></div>
+    <div class="opt"><span class="r"></span><strong>Every flow, fast self-regulating loop</strong><span>47 loops</span></div>
+    <div class="opt"><span class="r"></span><strong>The whole plant</strong><span>177 loops</span></div>
+    <label class="fl">Reason<textarea class="in" placeholder="Wider region for the new feed rate"></textarea></label>
+    <div class="df"><span class="btn btn--soft">Cancel</span><span class="btn btn--raised">Start</span></div>
+  </div></div>
+</div>
+
+<!-- 4. CHANGE PAGE, CHECK -->
+<div class="shell" data-screen="change-check">
+  <main>
+    <span class="back">‹ FIC10302</span>
+    <div class="dhead"><div><h1>Own settings v13</h1><p class="lead">Wider region for the new feed rate · superadmin · 23 Nov 06:40</p><span class="pill t-info"><b>●</b> In progress</span></div></div>
+    <div class="card">
+      <div class="stepper">
+        <div class="step done"><span class="n">✓</span><b>Edit</b></div>
+        <div class="step cur"><span class="n">2</span><b>Check</b></div>
+        <div class="step todo"><span class="n">3</span><b>Try on past data</b><small>optional</small></div>
+        <div class="step todo"><span class="n">4</span><b>Approve</b></div>
+        <div class="step todo"><span class="n">5</span><b>Deploy</b></div>
+      </div>
+      <table>
+        <thead><tr><th>Setting</th><th>Now</th><th>New</th></tr></thead>
+        <tbody><tr><td>Region maximum</td><td>120</td><td class="new">125</td></tr></tbody>
+      </table>
+      <div class="kv" style="border-top:1px solid var(--border)"><span>Check</span><span class="ok">✓ Valid</span></div>
+      <div class="kv" style="border-bottom:0"><span>Loops</span><span>1</span></div>
+      <div class="nextf"><span class="btn btn--link">‹ Back</span><span class="grow"></span><span class="btn btn--soft">Check again</span><span class="btn btn--raised">Next</span></div>
+    </div>
+  </main>
+</div>
+
+<!-- 5. CHANGE PAGE, APPROVE (the ? open, as on hover) -->
+<div class="shell" data-screen="change-approve">
+  <main>
+    <span class="back">‹ FIC10302</span>
+    <div class="dhead"><div><h1>Own settings v13</h1><p class="lead">Wider region for the new feed rate · superadmin · 23 Nov 06:40</p><span class="pill t-warn"><b>●</b> Waiting for approval</span></div></div>
+    <div class="card">
+      <div class="stepper">
+        <div class="step done"><span class="n">✓</span><b>Edit</b></div>
+        <div class="step done"><span class="n">✓</span><b>Check</b></div>
+        <div class="step done"><span class="n">✓</span><b>Try on past data</b></div>
+        <div class="step cur"><span class="n">4</span><b>Approve</b><span class="q" style="margin-inline-start:6px">?<span class="tip"><p>Someone other than the author approves.</p><p>An Admin or SuperAdmin may approve their own change; it is recorded.</p><p>A whole-plant change needs a SuperAdmin. Approval lasts 72 h.</p></span></span></div>
+        <div class="step todo"><span class="n">5</span><b>Deploy</b></div>
+      </div>
+      <div class="kv"><span>Change</span><span>Region maximum 120 → 125</span></div>
+      <div class="kv"><span>Applies to</span><span>FIC10302</span></div>
+      <div class="kv"><span>Past 24 h</span><span>No result changes</span></div>
+      <div class="approve">
+        <label class="fl" style="margin:0">Note (optional)<textarea class="in"></textarea></label>
+        <div class="acts"><span class="btn btn--raised">Approve alone</span><span class="btn btn--soft">Send back</span></div>
+      </div>
+      <div class="nextf"><span class="btn btn--link">‹ Back</span><span class="grow"></span><span class="btn" disabled>Next</span></div>
+    </div>
+  </main>
+</div>
+
+<!-- 6. EDIT REGION, ONE LOOP -->
+<div class="shell" data-screen="region">
+  <main data-copy="loop"></main>
+  <div class="scrim"><div class="card dlg">
+    <h3>Operating region · FIC10302 <span class="q">?</span><span class="x">✕</span></h3>
+    <div class="rbar"><span class="r" style="left:45%;width:17.5%"></span><span class="lab" style="left:0%">0</span><span class="lab" style="left:45%">90</span><span class="lab" style="left:62.5%">125</span><span class="lab" style="left:100%">200</span></div>
+    <div class="row2"><label class="fl">Minimum<input class="in" value="90"></label><label class="fl">Maximum<input class="in" value="125"></label></div>
+    <span class="sub" style="margin-top:6px">Now 90 – 120 · PV range 0 – 200</span>
+    <label class="fl">Reason<textarea class="in">Wider region for the new feed rate</textarea></label>
+    <div class="df"><span class="btn btn--soft">Cancel</span><span class="btn btn--raised">Save</span></div>
+  </div></div>
+</div>
+
+<!-- 7. OPERATING REGIONS, MANY LOOPS -->
+<div class="shell" data-screen="regions">
+  <main>
+    <span class="back">‹ Gate Configuration</span>
+    <div class="dhead"><div><h1>Operating regions</h1></div><span class="grow"></span><div class="acts"><span class="btn btn--raised">Edit regions (2)</span></div></div>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:36px"><span class="cb"></span></th><th>Loop</th><th>Type</th><th>PV range</th><th>Region</th><th>From</th></tr></thead>
+        <tbody>
+          <tr><td><span class="cb on"></span></td><td><strong>FIC10301</strong></td><td>Flow</td><td>0 – 140</td><td>—</td><td>—</td></tr>
+          <tr><td><span class="cb on"></span></td><td><strong>FIC10302</strong><span class="sub">Reactor feed flow</span></td><td>Flow</td><td>0 – 200</td><td>90 – 120</td><td>Own settings v12</td></tr>
+          <tr><td><span class="cb"></span></td><td><strong>FIC10401</strong></td><td>Flow</td><td>—</td><td>771 – 829</td><td>Own settings v3</td></tr>
+          <tr><td><span class="cb"></span></td><td><strong>FIC10402</strong></td><td>Flow</td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+  <div class="scrim"><div class="card dlg dlg--wide">
+    <h3>Operating regions · 2 loops<span class="x">✕</span></h3>
+    <table>
+      <thead><tr><th>Loop</th><th>PV range</th><th>Now</th><th>Minimum</th><th>Maximum</th></tr></thead>
+      <tbody>
+        <tr><td><strong>FIC10301</strong></td><td>0 – 140</td><td>—</td><td><input class="in" style="width:110px" value="51.4"></td><td><input class="in err" style="width:110px" value="150"><span class="errt">Above the PV range</span></td></tr>
+        <tr><td><strong>FIC10302</strong></td><td>0 – 200</td><td>90 – 120</td><td><input class="in" style="width:110px" value="90"></td><td><input class="in" style="width:110px" value="125"></td></tr>
+      </tbody>
+    </table>
+    <label class="fl">Reason<textarea class="in">Recommended regions, SME review</textarea></label>
+    <div class="df"><span class="btn btn--soft">Cancel</span><span class="btn btn--raised">Save</span></div>
+  </div></div>
+</div>
+
+<script>
+  const chrome = document.getElementById('chrome').innerHTML;
+  const loopMain = document.querySelector('[data-screen="loop"] main').innerHTML;
+  document.querySelectorAll('[data-screen]').forEach(s => {
+    s.insertAdjacentHTML('afterbegin', chrome);
+    const m = s.querySelector('main[data-copy="loop"]'); if (m) m.innerHTML = loopMain;
+  });
+  const show = () => { const id = (location.hash || '#start').slice(1); document.querySelectorAll('[data-screen]').forEach(s => s.classList.toggle('on', s.dataset.screen === id)); };
+  window.addEventListener('hashchange', show); show();
+</script>
+</body>
+</html>

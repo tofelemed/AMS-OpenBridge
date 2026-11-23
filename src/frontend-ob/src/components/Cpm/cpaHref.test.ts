@@ -115,7 +115,9 @@ describe('links that carry the context (design 2026-11-06, section 4)', () => {
   });
 
   it('lets a link name the configuration view and gate', () => {
-    expect(configHref({ loop: 'A', gate: 'G12' })).toBe('/cpm/config?loop=A&view=effective&gate=G12');
-    expect(configHref({ bundle: 'B' })).toBe('/cpm/config?view=editor&bundle=B');
+    expect(configHref({ loop: 'A', gate: 'G12' })).toBe('/cpm/config/loops/A?gate=G12');
+    expect(configHref({ bundle: 'B' })).toBe('/cpm/config/changes/B');
+    expect(configHref({ bundle: 'b', tab: 'approval', gate: 'G12' })).toBe('/cpm/config/changes/b?step=approve&gate=G12');
+    expect(configHref({ bundle: 'b', gate: 'G12' })).toBe('/cpm/config/changes/b?gate=G12');
   });
 });

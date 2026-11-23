@@ -101,7 +101,7 @@ describe('approvals', () => {
     expect(kv('Author')).toBe('b_engineer');
     expect(kv('Waits for')).toBe('Approval');
     fireEvent.click(within(panel).getByText('Open approval →'));
-    expect(go).toHaveBeenCalledWith('/cpm/config?loop=FIC10301&view=editor&bundle=b-1&tab=approval');
+    expect(go).toHaveBeenCalledWith('/cpm/config/changes/b-1?step=approve');
   });
 
   it('an approved bundle waits for activation and opens its Deployments tab', async () => {
@@ -111,7 +111,7 @@ describe('approvals', () => {
     const panel = screen.getByRole('complementary');
     expect(within(panel).getByText('Waits for').nextElementSibling?.textContent).toBe('Activation');
     fireEvent.click(within(panel).getByText('Open deployments →'));
-    expect(go).toHaveBeenCalledWith('/cpm/config?loop=PIC30102&view=editor&bundle=b-2&tab=deployments');
+    expect(go).toHaveBeenCalledWith('/cpm/config/changes/b-2?step=deploy');
   });
 
   it('has no Record details: no bundle id or content hash (CHG-184)', async () => {

@@ -2,7 +2,7 @@
 // one carrying the reason it is disabled (state or permission) - the reader never guesses why a button
 // is grey; a deployment's ACK matrix is summarised in one line before it is unfolded.
 import { describe, expect, it } from 'vitest';
-import { ackSummary, editableState, frozenSentence, lifecycleActions, lifecycleSteps, tabMarks } from './lifecycle';
+import { ackSummary, changeWords, deploymentTitle, settingChanges, editableState, frozenLine, frozenSentence, lifecycleActions, lifecycleSteps, NEEDS, tabMarks } from './lifecycle';
 import type { Deployment } from '../../../api/cpm/config';
 
 const perms = { validate: true, shadow: true, approve: true, activate: true, rollback: true };
@@ -27,9 +27,9 @@ describe('lifecycleActions', () => {
     const a = lifecycleActions({ state: 'DRAFT' }, perms, false, NONE);
     expect(a.map(x => x.key)).toEqual(['validate', 'shadow', 'approve', 'deploy', 'rollback']);
     expect(a[0]).toMatchObject({ enabled: true, reason: null });
-    expect(a[1]).toMatchObject({ enabled: false, reason: 'Validate the draft first.' });
-    expect(a[2]).toMatchObject({ enabled: false, reason: 'Validate the draft first.' });
-    expect(a[3]).toMatchObject({ enabled: false, reason: 'Approve the content first.' });
+    expect(a[1]).toMatchObject({ enabled: false, reason: 'Check the change first.' });
+    expect(a[2]).toMatchObject({ enabled: false, reason: 'Check the change first.' });
+    expect(a[3]).toMatchObject({ enabled: false, reason: 'Approve the change first.' });
     expect(a[4]).toMatchObject({ enabled: false, reason: 'Only the version running now can be rolled back.' });
   });
   it('names the missing permission before the state', () => {
@@ -38,9 +38,33 @@ describe('lifecycleActions', () => {
     expect(a.find(x => x.key === 'shadow')).toMatchObject({ enabled: true });
   });
   it('an expired approval blocks deploy with that reason; a verified activation enables rollback', () => {
-    expect(lifecycleActions({ state: 'APPROVED' }, perms, true, NONE).find(x => x.key === 'deploy')).toMatchObject({ enabled: false, reason: 'The approval expired; approve again before activating.' });
+    expect(lifecycleActions({ state: 'APPROVED' }, perms, true, NONE).find(x => x.key === 'deploy')).toMatchObject({ enabled: false, reason: 'The approval expired; approve again before deploying.' });
     expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, BACK).find(x => x.key === 'rollback')).toMatchObject({ enabled: true });
     expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, BACK).find(x => x.key === 'validate')).toMatchObject({ enabled: false, reason: 'This version is Active (verified) - create a new version to change it.' });
+  });
+});
+
+describe('the actions in the step words and plain permission words (final review I3, M-a)', () => {
+  const none = { validate: false, shadow: false, approve: true, activate: false, rollback: false };
+  it('a missing permission is said in words, never its key', () => {
+    const a = lifecycleActions({ state: 'APPROVED' }, none, false, NONE);
+    expect(a.find(x => x.key === 'validate')).toMatchObject({ label: 'Check', reason: 'Needs permission to check changes' });
+    expect(a.find(x => x.key === 'shadow')).toMatchObject({ label: 'Try on past data', reason: 'Needs permission to try changes' });
+    expect(a.find(x => x.key === 'deploy')).toMatchObject({ label: 'Deploy', reason: 'Needs permission to deploy changes' });
+    expect(a.find(x => x.key === 'rollback')).toMatchObject({ reason: 'Needs permission to roll back' });
+    expect(NEEDS.draft).toBe('Needs permission to prepare changes');
+    for (const x of a) expect(`${x.label} ${x.reason ?? ''}`).not.toMatch(/cpm\.|Validat|Activat|draft/);
+  });
+  it('a checked version says so in the step word', () => {
+    expect(lifecycleActions({ state: 'VALIDATED' }, perms, false, NONE)[0]).toMatchObject({ enabled: false, reason: 'Already checked; edit the change to check it again.' });
+  });
+  it('the frozen line is one sentence per state', () => {
+    const line: Record<string, string> = {
+      ACTIVE_VERIFIED: 'This version is running', SUPERSEDED: 'This version was replaced', ROLLED_BACK: 'This version was rolled back',
+      SCHEDULED: 'This version is being deployed', PREPARED: 'This version is being deployed', APPROVED: 'This version is approved',
+      EXPIRED: 'The approval of this version expired', PARTIALLY_ACKNOWLEDGED: 'This version is partly deployed', ACTIVATION_FAILED: 'This version failed to deploy',
+    };
+    for (const [state, words] of Object.entries(line)) expect(frozenLine(state)).toBe(`${words} — start a new change to edit.`);
   });
 });
 
@@ -99,11 +123,35 @@ describe('ackSummary', () => {
     deploymentId: 'd', bundleId: 'b', contentHash: HASH, kind: 'ACTIVATE', rollbackOf: null, scheduledFor: null, state: 'PREPARING', error: null, epoch: 0, probeResults: null,
     createdBy: 'a', createdAt: 't', updatedAt: 't', requiredMembers: m.map(x => x.jobName), ackMatrix: m, active: false, semantics: '',
   });
-  it('counts the acknowledgements per phase and flags a NACK', () => {
+  it('counts the workers ready in words and flags a refusal', () => {
     expect(ackSummary(d([{ jobName: 'x', prepare: ack, apply: ack }, { jobName: 'y', prepare: ack, apply: null }])))
-      .toEqual({ text: '2 of 2 PREPARE · 1 of 2 APPLY', complete: false, nacks: 0 });
-    expect(ackSummary(d([{ jobName: 'x', prepare: ack, apply: ack }]))).toEqual({ text: '1 of 1 PREPARE · 1 of 1 APPLY', complete: true, nacks: 0 });
+      .toEqual({ text: '1 of 2 ready', complete: false, nacks: 0 });
+    expect(ackSummary(d([{ jobName: 'x', prepare: ack, apply: ack }]))).toEqual({ text: '1 of 1 ready', complete: true, nacks: 0 });
     expect(ackSummary(d([{ jobName: 'x', prepare: { ...ack, status: 'NACK', reason: 'UNKNOWN_PROPERTY' }, apply: null }])))
-      .toEqual({ text: '0 of 1 PREPARE · 0 of 1 APPLY · 1 refused', complete: false, nacks: 1 });
+      .toEqual({ text: '0 of 1 ready · 1 refused', complete: false, nacks: 1 });
+    const five = Array.from({ length: 5 }, (_, i) => ({ jobName: `j${i}`, prepare: ack, apply: ack }));
+    expect(ackSummary(d(five)).text).toBe('5 of 5 ready');
+    expect(ackSummary(d(five)).text).not.toMatch(/PREPARE|APPLY|ACK/);
+  });
+});
+
+describe('deploymentTitle', () => {
+  it('is a short phrase, never a technical sentence', () => {
+    expect(deploymentTitle({ state: 'PREPARING' })).toBe('Deploying');
+    expect(deploymentTitle({ state: 'PROBING' })).toBe('Deploying');
+    expect(deploymentTitle({ state: 'ACTIVE_VERIFIED' })).toBe('Running');
+    expect(deploymentTitle({ state: 'PARTIALLY_ACKNOWLEDGED' })).toBe('Partly deployed');
+    expect(deploymentTitle({ state: 'ACTIVATION_FAILED' })).toBe('Deploy failed');
+    expect(deploymentTitle({ state: 'ROLLED_BACK' })).toBe('Rolled back');
+  });
+});
+
+describe('settingChanges', () => {
+  it('lists the properties whose value differs, in words with arrows', () => {
+    const c = settingChanges({ 'G2r.pv_region_max': 120, 'G2r.pv_region_min': 90, x: 1 }, { 'G2r.pv_region_max': 125, 'G2r.pv_region_min': 90, x: 1 });
+    expect(c).toEqual([{ property: 'G2r.pv_region_max', before: 120, after: 125 }]);
+    expect(changeWords(c[0])).toBe('Region maximum 120 → 125');
+    expect(settingChanges(undefined, { a: 1 })).toEqual([{ property: 'a', before: undefined, after: 1 }]);
+    expect(changeWords({ property: 'G2r.pv_region_max', before: undefined, after: 125 })).toBe('Region maximum 125');
   });
 });

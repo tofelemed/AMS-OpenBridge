@@ -21,7 +21,8 @@
 import type { ScopeKind } from '../../api/cpm/config';
 import { DESTINATIONS } from '../../cpa/destinations';
 import { chosenKind } from '../../cpa/tabKind';
-import type { ConfigTab } from './config/EditorView';
+import type { BundleTab as ConfigTab } from './config/lifecycle';
+import { CONFIG_BASE, STEP_OF_TAB, changePath, loopPath, plantPath, typePath } from './config/configRoutes';
 import type { ExplorerTab } from './explorer/readinessCauses';
 import type { RowFilter } from './gateStatus';
 import type { LoopSort } from './performance/loopSort';
@@ -127,18 +128,20 @@ export const trendHref = (loop: string, opts: { roles?: string[]; range?: string
 /** Loop Registry: its list, or one loop's own page (CHG-201: `/cpm/registry/:loopId`; an old `?loop=` link is redirected there). */
 export const registryHref = (loop?: string | null) => (loop ? `/cpm/registry/${encodeURIComponent(loop)}` : '/cpm/registry');
 
-/** Links from other pages keep their shape; a bundle opens the editor, a LOOP scope names the loop. */
+/**
+ * Links from other pages into Gate Configuration: a bundle opens its change page (at the step of `tab`),
+ * a loop its page, a PROFILE ref its loop-type page, a SITE its plant page; `gate` rides on the loop or change page.
+ */
 export const configHref = (q: {
   site?: string; scope?: ScopeKind; ref?: string; bundle?: string; gate?: string; tab?: ConfigTab; loop?: string; view?: string;
 } = {}) => {
   const loop = q.loop ?? (q.scope === 'LOOP' ? q.ref : undefined);
-  return build('/cpm/config', {
-    loop,
-    view: q.view ?? (q.bundle ? 'editor' : loop ? 'effective' : undefined),
-    bundle: q.bundle,
-    gate: q.gate,
-    tab: q.tab === 'properties' ? undefined : q.tab,
-  });
+  const gate = (path: string) => (q.gate ? `${path}${path.includes('?') ? '&' : '?'}gate=${encodeURIComponent(q.gate)}` : path);
+  if (q.bundle) return gate(changePath(q.bundle, q.tab ? STEP_OF_TAB[q.tab] : undefined));
+  if (loop) return gate(loopPath(loop));
+  if (q.scope === 'PROFILE' && q.ref) return typePath(q.ref);
+  if (q.scope === 'SITE' && q.site) return plantPath(q.site);
+  return CONFIG_BASE;
 };
 
 type AdminSection = 'users' | 'roles' | 'data-sources' | 'plant-model' | 'aliases';

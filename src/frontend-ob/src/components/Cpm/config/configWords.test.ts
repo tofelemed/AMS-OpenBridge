@@ -1,9 +1,9 @@
 // CHG-169 (owner review): one vocabulary for the Gate Configuration page. A state reads as tone + glyph + word everywhere
 // ("✓ Active (verified)", never ACTIVE_VERIFIED); a class is "Policy" / "◆ State boundary" / "✕ Deployment"; a value carries
-// its unit ("3600 s", "0.5 pp") and an unset one reads "No value"; a source names the layer, the bundle's version when the
-// value comes from the loop's own bundle.
+// its unit ("3600 s", "0.5 pp") and an unset one reads a dash (CHG-224: never "No value"); a source reads in the plain words of the page (the
+// level) or "Worked out automatically".
 import { describe, expect, it } from 'vitest';
-import { breakableParts, bundleStateWord, classWord, deploymentStateWord, sourceFull, sourceShort, valueWithUnit, valueWords } from './configWords';
+import { breakableParts, bundleStateWord, classWord, deploymentStateWord, settingName, sourceWord, valueWithUnit, valueWords } from './configWords';
 
 describe('bundleStateWord', () => {
   it('names every bundle state with its tone and glyph, as How to read keys them', () => {
@@ -23,10 +23,10 @@ describe('bundleStateWord', () => {
 
 describe('deploymentStateWord', () => {
   it('reads the server state; a verification by the probe window only is not good', () => {
-    expect(deploymentStateWord({ state: 'ACTIVE_VERIFIED' })).toEqual({ label: 'Active (verified)', tone: 'good', glyph: '✓' });
+    expect(deploymentStateWord({ state: 'ACTIVE_VERIFIED' })).toEqual({ label: 'Running', tone: 'good', glyph: '✓' });
     expect(deploymentStateWord({ state: 'ACTIVE_VERIFIED', probeResults: { verifiedBy: 'ACK_WINDOW' } }).tone).toBe('warn');
     expect(deploymentStateWord({ state: 'PREPARING' })).toEqual({ label: 'Preparing', tone: 'warn', glyph: '◐' });
-    expect(deploymentStateWord({ state: 'ACTIVATION_FAILED' })).toEqual({ label: 'Activation failed', tone: 'bad', glyph: '✕' });
+    expect(deploymentStateWord({ state: 'ACTIVATION_FAILED' })).toEqual({ label: 'Deploy failed', tone: 'bad', glyph: '✕' });
     expect(deploymentStateWord({ state: 'ROLLED_BACK' })).toEqual({ label: 'Rolled back', tone: 'muted', glyph: '↺' });
   });
 });
@@ -40,34 +40,29 @@ describe('classWord', () => {
 });
 
 describe('values', () => {
-  it('a number carries its unit; an unset value reads No value', () => {
+  it('a number carries its unit; an unset value reads a dash', () => {
     expect(valueWithUnit(3600, 's')).toBe('3600 s');
     expect(valueWithUnit(0.5, 'percentage_point')).toBe('0.5 pp');
     expect(valueWithUnit(30, 'day')).toBe('30 days');
     expect(valueWithUnit(4.5, 'dimensionless')).toBe('4.5');
     expect(valueWithUnit(0.05, 'fraction')).toBe('0.05');
     expect(valueWithUnit('OPERATIONAL', 'state')).toBe('OPERATIONAL');
-    expect(valueWithUnit(null, 's')).toBe('No value');
-    expect(valueWithUnit(undefined, 's')).toBe('No value');
-    expect(valueWords(null)).toBe('No value');
+    expect(valueWithUnit(null, 's')).toBe('—');
+    expect(valueWithUnit(undefined, 's')).toBe('—');
+    expect(valueWords(null)).toBe('—');
     expect(valueWords(['a', 'b'])).toBe('a, b');
   });
 });
 
 describe('sources', () => {
-  const bundle = { scopeKind: 'LOOP', version: 6 };
-  it('the short source names the bundle version when it is the loop bundle level', () => {
-    expect(sourceShort('LOOP', bundle)).toBe('LOOP v6');
-    expect(sourceShort('PROFILE', bundle)).toBe('PROFILE');
-    expect(sourceShort('FACTORY', null)).toBe('FACTORY');
-    expect(sourceShort('NO_VALUE', null)).toBe('Unset');
-    expect(sourceShort(undefined, null)).toBe('Unset');
-  });
-  it('the full source says where the layer comes from', () => {
-    expect(sourceFull('LOOP', bundle, 'FLOW_FAST_SELF_REG')).toBe('LOOP · bundle v6');
-    expect(sourceFull('PROFILE', bundle, 'FLOW_FAST_SELF_REG')).toBe('PROFILE · Flow, fast self-regulating');
-    expect(sourceFull('FACTORY', null, 'X')).toBe('FACTORY · shipped default');
-    expect(sourceFull('NO_VALUE', null, 'X')).toBe('Unset · no layer sets it');
+  it('a level reads in the plain words of the page; no layer sets it reads as worked out automatically', () => {
+    expect(sourceWord('LOOP')).toBe('This loop');
+    expect(sourceWord('PROFILE')).toBe('Loop type');
+    expect(sourceWord('SITE')).toBe('Plant');
+    expect(sourceWord('FACTORY')).toBe('Factory');
+    expect(sourceWord('NO_VALUE')).toBe('Worked out automatically');
+    expect(sourceWord(undefined)).toBe('Worked out automatically');
+    expect(sourceWord(null)).toBe('Worked out automatically');
   });
 });
 
@@ -75,5 +70,21 @@ describe('breakableParts', () => {
   it('a long property name may break after its underscores and dots, never inside a word', () => {
     expect(breakableParts('G0.evidence_retention_days')).toEqual(['G0.', 'evidence_', 'retention_', 'days']);
     expect(breakableParts('mode')).toEqual(['mode']);
+  });
+});
+
+describe('settingName', () => {
+  it('names the region settings in plain words', () => {
+    expect(settingName('G2r.pv_region_min')).toBe('Region minimum');
+    expect(settingName('G2r.out_of_domain_warn_fraction')).toBe('Warn when outside the region');
+    expect(settingName('G2r.evidence_retention_days')).toBe('Evidence kept (days)');
+  });
+  it('humanises any other property from the part after the first dot', () => {
+    expect(settingName('G4.activity_warn_ratio')).toBe('Activity warn ratio');
+    expect(settingName('G5.settle_time_s')).toBe('Settle time (s)');
+    expect(settingName('G6.stiction_pct')).toBe('Stiction (%)');
+    expect(settingName('G3.pv_max_limit')).toBe('PV maximum limit');
+    expect(settingName('G3.op_min')).toBe('OP minimum');
+    expect(settingName('mode')).toBe('Mode');
   });
 });

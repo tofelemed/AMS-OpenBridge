@@ -7,8 +7,11 @@
 import type { CpmTone } from '../shared';
 import type { Deployment } from '../../../api/cpm/config';
 import { ApiError } from '../../../api/apiFetch';
-import { bundleStateWord } from './configWords';
+import { bundleStateWord, settingName, valueWords } from './configWords';
+import { humanise } from '../vocabulary';
 import type { ApproveRule } from './approvalRules';
+import { SETTLED } from './changeStates';
+import { stateWord } from './levelWords';
 
 /** A lifecycle step the server refused, as the column said it: "Refused: …" (403), "Conflict: …" (409), else its message. */
 export const errorText = (e: unknown): string | null => {
@@ -58,6 +61,12 @@ export interface LifecyclePerms { validate: boolean; shadow: boolean; approve: b
 export interface RollbackChoice { running: boolean; target: { version: number } | null; loading?: boolean }
 
 const TERMINAL = new Set(['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED', 'SCHEDULED', 'PREPARED']);
+
+/** Final review I3: a missing permission in words, never its key; each page says the reason of an action group once. */
+export const NEEDS = {
+  draft: 'Needs permission to prepare changes', validate: 'Needs permission to check changes', shadow: 'Needs permission to try changes',
+  activate: 'Needs permission to deploy changes', rollback: 'Needs permission to roll back',
+} as const;
 /** The states whose content can still be edited (with cpm.config.draft). */
 export const EDITABLE_STATES = new Set(['DRAFT', 'VALIDATED', 'SHADOW_EVALUATED', 'REJECTED']);
 /** CHG-220 (gap 5): an approved version whose approval expired can be edited again (the edit returns it to a draft). */
@@ -66,6 +75,15 @@ export const editableState = (state: string, approvalExpired: boolean) => EDITAB
 /** CHG-169: why a version cannot change, in the state's word ("Active (verified)"); said once, under the bundle's tabs. */
 export const frozenSentence = (state: string): string => `This version is ${bundleStateWord(state).label} - create a new version to change it.`;
 
+const FROZEN_PHRASE: Record<string, string> = {
+  ACTIVE_VERIFIED: 'This version is running', SUPERSEDED: 'This version was replaced', ROLLED_BACK: 'This version was rolled back',
+  SCHEDULED: 'This version is being deployed', PREPARED: 'This version is being deployed', APPROVED: 'This version is approved',
+  EXPIRED: 'The approval of this version expired', PARTIALLY_ACKNOWLEDGED: 'This version is partly deployed', ACTIVATION_FAILED: 'This version failed to deploy',
+};
+/** Final review M-a: the change page's one line under the step bar for a version that cannot be edited, a phrase per state. */
+export const frozenLine = (state: string): string =>
+  `${FROZEN_PHRASE[state] ?? `This version is ${stateWord(state).toLowerCase()}`} — start a new change to edit.`;
+
 /** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. CHG-203: Approve's reason is
  * Governance's approval rule, word for word (CpmGovernance.test.tsx). CHG-220: `rule` = this viewer's approval rule for this
  * bundle (approvalRules.ts) - its label, and the reason Approve stays off where the server would refuse it. */
@@ -73,28 +91,28 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
   rule: ApproveRule = { label: 'Approve', reason: null }): LifecycleAction[] {
   const s = bundle.state;
   const frozen = TERMINAL.has(s) ? frozenSentence(s) : null;
-  const validate: LifecycleAction = !perms.validate ? { key: 'validate', label: 'Validate', enabled: false, reason: 'Needs cpm.config.validate.' }
-    : frozen ? { key: 'validate', label: 'Validate', enabled: false, reason: frozen }
-    : s === 'DRAFT' || s === 'REJECTED' ? { key: 'validate', label: 'Validate', enabled: true, reason: null }
-    : { key: 'validate', label: 'Validate', enabled: false, reason: 'Already validated; edit the draft to validate again.' };
+  const validate: LifecycleAction = !perms.validate ? { key: 'validate', label: 'Check', enabled: false, reason: NEEDS.validate }
+    : frozen ? { key: 'validate', label: 'Check', enabled: false, reason: frozen }
+    : s === 'DRAFT' || s === 'REJECTED' ? { key: 'validate', label: 'Check', enabled: true, reason: null }
+    : { key: 'validate', label: 'Check', enabled: false, reason: 'Already checked; edit the change to check it again.' };
   const afterValidate = s === 'VALIDATED' || s === 'SHADOW_EVALUATED';
-  const shadow: LifecycleAction = !perms.shadow ? { key: 'shadow', label: 'Shadow', enabled: false, reason: 'Needs cpm.config.shadow.' }
-    : frozen ? { key: 'shadow', label: 'Shadow', enabled: false, reason: frozen }
-    : afterValidate || s === 'APPROVED' ? { key: 'shadow', label: 'Shadow', enabled: true, reason: null }
-    : { key: 'shadow', label: 'Shadow', enabled: false, reason: 'Validate the draft first.' };
+  const shadow: LifecycleAction = !perms.shadow ? { key: 'shadow', label: 'Try on past data', enabled: false, reason: NEEDS.shadow }
+    : frozen ? { key: 'shadow', label: 'Try on past data', enabled: false, reason: frozen }
+    : afterValidate || s === 'APPROVED' ? { key: 'shadow', label: 'Try on past data', enabled: true, reason: null }
+    : { key: 'shadow', label: 'Try on past data', enabled: false, reason: 'Check the change first.' };
   const approve: LifecycleAction = !perms.approve ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own.' }
     : frozen ? { key: 'approve', label: 'Approve', enabled: false, reason: frozen }
     : afterValidate || ((s === 'APPROVED' || s === 'EXPIRED') && (approvalExpired || s === 'EXPIRED'))
       ? { key: 'approve', label: rule.label, enabled: rule.reason == null, reason: rule.reason }
     : s === 'APPROVED' ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Already approved for this content.' }
-    : { key: 'approve', label: 'Approve', enabled: false, reason: 'Validate the draft first.' };
+    : { key: 'approve', label: 'Approve', enabled: false, reason: 'Check the change first.' };
   const deployable = s === 'APPROVED' || s === 'PARTIALLY_ACKNOWLEDGED' || s === 'ACTIVATION_FAILED';
-  const deploy: LifecycleAction = !perms.activate ? { key: 'deploy', label: 'Activate', enabled: false, reason: 'Needs cpm.config.activate.' }
-    : deployable && approvalExpired ? { key: 'deploy', label: 'Activate', enabled: false, reason: 'The approval expired; approve again before activating.' }
-    : deployable ? { key: 'deploy', label: 'Activate', enabled: true, reason: null }
-    : frozen ? { key: 'deploy', label: 'Activate', enabled: false, reason: frozen }
-    : { key: 'deploy', label: 'Activate', enabled: false, reason: 'Approve the content first.' };
-  const rollback: LifecycleAction = !perms.rollback ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Needs cpm.config.rollback.' }
+  const deploy: LifecycleAction = !perms.activate ? { key: 'deploy', label: 'Deploy', enabled: false, reason: NEEDS.activate }
+    : deployable && approvalExpired ? { key: 'deploy', label: 'Deploy', enabled: false, reason: 'The approval expired; approve again before deploying.' }
+    : deployable ? { key: 'deploy', label: 'Deploy', enabled: true, reason: null }
+    : frozen ? { key: 'deploy', label: 'Deploy', enabled: false, reason: frozen }
+    : { key: 'deploy', label: 'Deploy', enabled: false, reason: 'Approve the change first.' };
+  const rollback: LifecycleAction = !perms.rollback ? { key: 'rollback', label: 'Roll back', enabled: false, reason: NEEDS.rollback }
     : back.loading ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Reading the deployments…' }
     : back.target ? { key: 'rollback', label: `Roll back to v${back.target.version}`, enabled: true, reason: null }
     : back.running ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'There is no earlier version to go back to now.' }
@@ -107,7 +125,6 @@ export type BundleTab = 'properties' | 'diff' | 'shadow' | 'approval' | 'deploym
 export const BUNDLE_TABS: BundleTab[] = ['properties', 'diff', 'shadow', 'approval', 'deployments'];
 export type TabMark = 'done' | 'current' | null;
 const TAB_STEPS: Record<BundleTab, StepKey[]> = { properties: ['DRAFT'], diff: ['VALIDATED'], shadow: ['SHADOW'], approval: ['APPROVED'], deployments: ['DEPLOYING', 'ACTIVE'] };
-const SETTLED = new Set(['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED']);
 
 /** ✓ done, ● current, or nothing, per tab, from the server's state as the steps read it; a settled version has walked them all. */
 export function tabMarks(state: string): Record<BundleTab, TabMark> {
@@ -121,11 +138,38 @@ export function tabMarks(state: string): Record<BundleTab, TabMark> {
   return out;
 }
 
-/** One line for a deployment's ACK matrix: acknowledged per phase, refusals counted. */
+/** One line for a deployment's workers in words: "5 of 5 ready" (applied), refusals counted. */
 export function ackSummary(d: Deployment): { text: string; complete: boolean; nacks: number } {
   const n = d.ackMatrix.length;
   const prepare = d.ackMatrix.filter(m => m.prepare?.status === 'ACK').length;
-  const apply = d.ackMatrix.filter(m => m.apply?.status === 'ACK').length;
+  const ready = d.ackMatrix.filter(m => m.apply?.status === 'ACK').length;
   const nacks = d.ackMatrix.filter(m => m.prepare?.status === 'NACK' || m.apply?.status === 'NACK').length;
-  return { text: `${prepare} of ${n} PREPARE · ${apply} of ${n} APPLY${nacks ? ` · ${nacks} refused` : ''}`, complete: n > 0 && prepare === n && apply === n, nacks };
+  return { text: `${ready} of ${n} ready${nacks ? ` · ${nacks} refused` : ''}`, complete: n > 0 && prepare === n && ready === n, nacks };
 }
+
+/** A deployment's state as a short phrase for a panel title. */
+export function deploymentTitle(d: { state: string }): string {
+  switch (d.state) {
+    case 'SCHEDULED': return 'Scheduled';
+    case 'PREPARING': case 'PREPARED': case 'APPLYING': case 'PROBING': return 'Deploying';
+    case 'ACTIVE_VERIFIED': return 'Running';
+    case 'PARTIALLY_ACKNOWLEDGED': return 'Partly deployed';
+    case 'ACTIVATION_FAILED': return 'Deploy failed';
+    case 'ROLLED_BACK': return 'Rolled back';
+    default: return humanise(d.state);
+  }
+}
+
+export interface SettingChange { property: string; before: unknown; after: unknown }
+
+/** The properties whose value differs between two resolved sets, by property name. */
+export function settingChanges(before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined): SettingChange[] {
+  const b = before ?? {}; const a = after ?? {};
+  return [...new Set([...Object.keys(b), ...Object.keys(a)])].sort()
+    .filter(p => JSON.stringify(b[p]) !== JSON.stringify(a[p]))
+    .map(property => ({ property, before: b[property], after: a[property] }));
+}
+
+/** "Region maximum 120 → 125" (no earlier value: "Region maximum 125"). */
+export const changeWords = (c: SettingChange): string =>
+  `${settingName(c.property)} ${c.before === undefined ? '' : `${valueWords(c.before)} → `}${valueWords(c.after)}`;

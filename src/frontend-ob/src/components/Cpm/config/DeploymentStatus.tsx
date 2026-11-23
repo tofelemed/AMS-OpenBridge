@@ -8,69 +8,39 @@
  * alert, the semantics and the observers. CHG-184 (owner review item 0): no jar, no hash and no rolled back deployment id; a
  * worker on another build reads "different software releases", a job on another bundle "another bundle".
  * CHG-193 (final review M8): whether the deployment is a rollback is a row again (Yes / No), without the rolled back id.
+ * Task 8 (journey): the body reads in plain words - when it takes effect, "n of m ready", the refusals' reasons; no worker names,
+ * PREPARE / APPLY, ACK, epoch, semantics or observers (none of these is shown anywhere in Gate Configuration any more).
  */
 import React from 'react';
-import { KvRow, TonePill } from '../shared';
-import type { Deployment, WorkerAck } from '../../../api/cpm/config';
-import { stampZoned } from './configWords';
+import { KvRow } from '../shared';
+import type { Deployment } from '../../../api/cpm/config';
+import { settingName, stampZoned } from './configWords';
 import { ackSummary } from './lifecycle';
-
-const ackCell = (a: WorkerAck | null, expectedHash: string): React.ReactNode => {
-  if (!a) return <TonePill tone="muted">pending</TonePill>;
-  const ok = a.status === 'ACK' && a.bundleHash === expectedHash;
-  return (
-    <span className="cpm-config-ack">
-      <TonePill tone={ok ? 'good' : 'bad'} glyph={ok ? '✓' : '✕'}>{a.status}{a.status === 'ACK' && a.bundleHash !== expectedHash ? ' (other bundle)' : ''}</TonePill>
-      {a.reason && <span className="cpm-config-ack__reason">{a.reason}</span>}
-    </span>
-  );
-};
 
 /** The builds (jars) the workers answered from; more than one is a mixed fleet. */
 export const jarsOf = (d: Deployment): string[] =>
   [...new Set(d.ackMatrix.flatMap(m => [m.prepare?.jarSha256, m.apply?.jarSha256]).filter((x): x is string => !!x))];
 
+/** A refusal in words; the raw reason is kept for the element's title. */
+export const refusalWords = (reason: string): string => {
+  const unknown = /^UNKNOWN_PROPERTY\s+(\S+)/.exec(reason);
+  if (unknown) return `Setting not known: ${settingName(unknown[1])}`;
+  return /HASH|CATALOGUE/i.test(reason) ? 'Different settings list' : 'Refused';
+};
+
 export const DeploymentDetail: React.FC<{ deployment: Deployment }> = ({ deployment: d }) => {
-  const jars = jarsOf(d);
+  const mixed = jarsOf(d).length > 1;
   const probe = d.probeResults as { pinnedResults?: number; checkedAt?: string } | null;
   const summary = ackSummary(d);
-  const appliedHere = (m: Deployment['ackMatrix'][number]) => m.apply?.status === 'ACK' && m.apply.bundleHash === d.contentHash;
-  const showActive = d.ackMatrix.some(m => !appliedHere(m));
+  const refusals = d.ackMatrix.flatMap(m => [m.prepare, m.apply]).filter(a => a?.status === 'NACK' && a.reason).map(a => a!.reason!);
   return (
     <div className="cpm-config-depdetail" data-testid="deployment-status" data-state={d.state}>
-      <KvRow label="Effective">{d.scheduledFor ? stampZoned(d.scheduledFor) : 'immediately'} · by {d.createdBy}</KvRow>
-      <KvRow label="Epoch">{d.epoch ?? '—'}</KvRow>
+      <KvRow label="Takes effect">{d.scheduledFor ? `at ${stampZoned(d.scheduledFor)}` : 'immediately'} · by {d.createdBy}</KvRow>
+      <KvRow label="Ready"><span className={summary.complete ? undefined : 'cpm-config-deployment__partial'}>{summary.text}</span></KvRow>
       <KvRow label="Rollback">{d.kind === 'ROLLBACK' || d.rollbackOf ? 'Yes' : 'No'}</KvRow>
-      {probe && <KvRow label="Probe">{probe.pinnedResults ?? 0} result(s) pinned to this bundle{probe.checkedAt ? ` · checked ${stampZoned(probe.checkedAt)}` : ''}</KvRow>}
-      {jars.length > 1 && <p className="cpm-field__error" role="alert">Workers answered from {jars.length} different software releases - the control plane never verifies a mixed fleet.</p>}
-      <div className="cpm-config-deployment__matrix">
-        <p className="cpm-config-deployment__sum">
-          <strong className={summary.complete ? undefined : 'cpm-config-deployment__partial'}>{summary.text}</strong>
-          <span className="cpm-event-row__sub"> · {d.ackMatrix.length} required worker{d.ackMatrix.length === 1 ? '' : 's'}</span>
-        </p>
-        <div className="cpm-matrix-scroll">
-          <table className="cpm-table" data-table="ack-matrix">
-            <thead>
-              <tr>
-                <th>Required worker</th><th>PREPARE</th><th>APPLY</th>
-                {showActive && <th>Active bundle on this worker</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {d.ackMatrix.map(m => (
-                <tr key={m.jobName}>
-                  <td>{m.jobName.replace(/^AMS - CPLM /, '')}</td>
-                  <td>{ackCell(m.prepare, d.contentHash)}</td>
-                  <td>{ackCell(m.apply, d.contentHash)}</td>
-                  {showActive && <td>{appliedHere(m) ? 'this bundle' : m.apply?.status === 'ACK' ? 'another bundle' : m.apply?.status === 'NACK' ? 'refused' : 'not yet applied'}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="cpm-event-row__sub">{d.semantics}</p>
-        {d.observers && d.observers.length > 0 && <p className="cpm-event-row__sub">Observers: {d.observers.join(', ')} (read no catalogue property; not required to answer)</p>}
-      </div>
+      {probe && <KvRow label="Results on it">{probe.pinnedResults ?? 0}{probe.checkedAt ? ` · checked ${stampZoned(probe.checkedAt)}` : ''}</KvRow>}
+      {mixed && <p className="cpm-field__error" role="alert">Different software versions are running.</p>}
+      {refusals.map((r, i) => <p key={i} className="cpm-field__error" role="alert" title={r}>{refusalWords(r)}</p>)}
     </div>
   );
 };

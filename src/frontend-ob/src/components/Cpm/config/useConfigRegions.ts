@@ -3,7 +3,7 @@
  * its rows is still deploying, so each row follows its deployment until it is active.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { approveBatch, deployBatch, getBatch, getRegions, getStaleLoops, postRegions, restackLoops, type Batch, type RegionChange } from '../../../api/cpm/configRegions';
+import { approveBatch, deployBatch, getBatch, getRegions, getStaleLoops, inheritLoops, postRegions, restackLoops, type Batch, type RegionChange } from '../../../api/cpm/configRegions';
 
 // before the workers' answer settles it: the deployment record's states, and the bundle's own right after Deploy
 const MOVING_DEPLOYMENT = new Set(['SCHEDULED', 'PREPARING', 'PREPARED', 'APPLYING', 'APPLIED', 'PROBING']);
@@ -40,6 +40,7 @@ export function useRegionActions(site: string | undefined) {
   };
   return {
     save: useMutation({ mutationFn: (a: { regions: RegionChange[]; note: string }) => postRegions(a.regions, a.note), onSettled: settle }),
+    inherit: useMutation({ mutationFn: (a: { loopIds: string[]; note: string }) => inheritLoops(site!, a.loopIds, a.note), onSettled: settle }),
     restack: useMutation({ mutationFn: (a: { note: string; loopIds?: string[] }) => restackLoops(site!, a.note, a.loopIds), onSettled: settle }),
     approve: useMutation({ mutationFn: (a: { batchId: string; note: string }) => approveBatch(a.batchId, site!, a.note), onSettled: settle }),
     deploy: useMutation({ mutationFn: (batchId: string) => deployBatch(batchId, site!), onSettled: settle }),

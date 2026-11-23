@@ -8,7 +8,7 @@
 import type { AuditEventRow } from '../../../api/auditApi';
 import { isSliceNavPath } from '../../../productSlice';
 import { adminHref, configHref, registryHref } from '../cpaHref';
-import type { ConfigTab } from '../config/EditorView';
+import type { BundleTab as ConfigTab } from '../config/lifecycle';
 import { entityName, entityOne } from './auditCatalog';
 import { bundleName, type ConfigNames } from './useConfigNames';
 

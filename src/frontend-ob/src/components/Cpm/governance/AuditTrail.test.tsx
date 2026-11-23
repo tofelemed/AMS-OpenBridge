@@ -142,7 +142,7 @@ describe('links to the object', () => {
     render(<AuditTrail />);
     expect(within(rows()[0]).getByText('FIC10302 · v7')).toBeTruthy();
     fireEvent.click(within(panel()).getByText('FIC10302 · v7 ↗'));
-    expect(go).toHaveBeenCalledWith('/cpm/config?view=editor&bundle=b-1&tab=approval');
+    expect(go).toHaveBeenCalledWith('/cpm/config/changes/b-1?step=approve');
   });
 
   it('a rollback reads as a rollback naming the bundle, and opens its deployments', () => {
@@ -156,7 +156,7 @@ describe('links to the object', () => {
     expect(within(rows()[0]).getByText('Rollback scheduled')).toBeTruthy();
     expect(within(rows()[0]).getByText('FIC10302 · v6')).toBeTruthy();
     fireEvent.click(within(panel()).getByText('FIC10302 · v6 ↗'));
-    expect(go).toHaveBeenCalledWith('/cpm/config?view=editor&bundle=b-6&tab=deployments');
+    expect(go).toHaveBeenCalledWith('/cpm/config/changes/b-6?step=deploy');
   });
 
   it('without the configuration read a deployment reads by its type, with no id and no link (CHG-202)', () => {

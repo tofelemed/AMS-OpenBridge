@@ -19,11 +19,21 @@ export type DeploymentState = 'SCHEDULED' | 'PREPARING' | 'PREPARED' | 'APPLYING
 
 export const RESET_TO_INHERITED = 'RESET_TO_INHERITED';
 
+/** CHG-224 (cplm-api Config/PropertySources.cs): what decides a property's value, and where it is changed. */
+export type PropertyKind = 'EDITABLE' | 'DECISION' | 'REGISTRY' | 'RETENTION' | 'AUTOMATIC_FIXED' | 'AUTOMATIC_DERIVED' | 'NOT_APPLIED';
+export type PropertySetIn = 'GATE_CONFIGURATION' | 'LOOP_REGISTRY' | 'EVIDENCE_RETENTION' | 'AUTOMATIC' | 'NOT_APPLIED';
+
 export interface CatalogueEntry extends Omit<CatalogueProperty, 'change_class'> {
   changeClass: ChangeClass;
   commissioningRequired: boolean;
   /** The build's declared reason no running job reads it (unsupported-in-build.json), else null. */
   notReadByBuild: string | null;
+  /** CHG-224: what decides the value; only EDITABLE and DECISION properties are changed in Gate Configuration (`editable`). */
+  kind: PropertyKind;
+  editable: boolean;
+  setIn: PropertySetIn;
+  /** The Loop Registry field a REGISTRY property is set in, else null. */
+  registryField: string | null;
 }
 
 export interface ConfigCatalogue {
@@ -46,6 +56,8 @@ export interface Bundle {
   catalogueHash: string; executionPlanHash: string; changeClass: ChangeClass; state: BundleState;
   layers: ConfigLayer[]; resolved: ResolvedBlock; validation: ValidationReport | null; shadow: Record<string, unknown> | null;
   effectiveFrom: string | null; createdBy: string; createdAt: string; updatedAt: string; etag: string; note: string | null;
+  /** A LOOP marker that says the loop uses the plant-wide settings. */
+  inherits?: boolean;
   /** Present on GET drafts/{id}: every approval decision recorded, flagged when it binds the current content. */
   approvals?: ApprovalRecord[];
 }
@@ -70,11 +82,26 @@ export interface EffectiveWorker { jobName: string; jarSha256: string; catalogue
   /** CHG-220 (gap 2): the version this worker actually runs for the loop (its newest applied bundle); another than the page's after a partial deployment. */
   runs?: { bundleId: string; version: number; scopeKind: string } | null }
 
+/** CHG-224 (cplm-api EffectiveEntries.cs): one property as one loop runs it. `value` is null when `basis` says it in words; `configured` + `level` only for EDITABLE / DECISION. */
+export interface EffectiveEntry {
+  property: string; gate: string; kind: PropertyKind; editable: boolean;
+  value: number | string | string[] | Record<string, unknown> | null;
+  configured: unknown | null;
+  level: LayerKind | null;
+  setIn: PropertySetIn;
+  registryField: string | null;
+  basis: string | null;
+  /** The registry PV unit ("<pvUnit>/s", "<pvUnit> per %" for rates), else null. */
+  unit: string | null;
+}
+
 export interface EffectiveConfig {
   loopId: string; site: string; profileId: string; state: BundleState | 'NO_ACTIVE_BUNDLE'; note?: string;
   bundle: { bundleId: string; version: number; contentHash: string; scopeKind: ScopeKind; scopeRef: string | null; changeClass: ChangeClass; effectiveFrom: string | null; catalogueHash: string } | null;
   properties: Record<string, unknown>; sources: Record<string, string>; layers?: ConfigLayer[]; effectiveHash?: string;
   workers: EffectiveWorker[];
+  /** CHG-224: every catalogue property as this loop runs it (loop reads only). */
+  entries?: EffectiveEntry[];
 }
 
 export interface PatchOp { op: 'set' | 'reset'; property: string; value?: unknown }
@@ -84,6 +111,8 @@ export interface BundleSummary {
   bundleId: string; version: number; contentHash: string; site: string; scopeKind: ScopeKind; scopeRef: string | null; parentBundleId: string | null;
   changeClass: ChangeClass; state: BundleState; effectiveFrom: string | null; createdBy: string; createdAt: string; updatedAt: string; note: string | null;
   validationErrors: number;
+  /** A LOOP marker that says the loop uses the plant-wide settings (no values of its own). */
+  inherits?: boolean;
 }
 
 /** What one loop runs under today, from the fleet read (the per-loop rule of /effective applied in memory). */

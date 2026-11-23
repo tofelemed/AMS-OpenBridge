@@ -6,17 +6,18 @@
  * the server as a requested change and the recorded draft renders back.
  * CHG-169 (owner review, the approved sample): the body of the selected property's panel (it was the row that expanded into
  * the editor). The panel's heading names the property, so the form opens on its class and flags; values carry their
- * unit and "No value" when unset (the catalogue start read NO_VALUE when the catalogue has none); Set and Reset to inherited
+ * unit and a dash when unset; Set and Reset to inherited
  * say why under each when disabled. CHG-184 (owner review item 0): the heading names the property only (no catalogue id); no
- * "Read by" row (engine job codes) and no build wording ("not used", "Read-only").
+ * "Read by" row (engine job codes) and no build wording. CHG-224: only editable properties reach this form, so there is no
+ * "not used" / "Read-only" state; a source reads in the page's words ("Worked out automatically" when no layer sets it).
  */
 import React, { useMemo, useState } from 'react';
 import { KvRow, TonePill } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
 import type { CatalogueEntry, ConfigLayer, PatchOp } from '../../../api/cpm/config';
 import { RESET_TO_INHERITED } from '../../../api/cpm/config';
-import { isLayerSource, parseInput, valueText } from './configSupport';
-import { valueWithUnit } from './configWords';
+import { parseInput, valueText } from './configSupport';
+import { sourceWord, valueWithUnit } from './configWords';
 import { ClassWord } from './configBits';
 
 const ORDER = ['FACTORY', 'SITE', 'PROFILE', 'LOOP', 'REGIME'];
@@ -53,7 +54,6 @@ export const PropertyForm: React.FC<{
   const inherited = useMemo(() => inheritedValue(layers, scopeKind, entry.property), [layers, scopeKind, entry.property]);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const locked = entry.notReadByBuild != null;
   const commissioning = entry.commissioningRequired && (effective === null || effective === undefined);
   const bounds = !Array.isArray(entry.validation) ? (entry.validation as Record<string, unknown>) : {};
   const enumValues = Array.isArray(entry.validation) ? (entry.validation as string[]) : null;
@@ -71,15 +71,14 @@ export const PropertyForm: React.FC<{
       <div className="cpm-config-property__head">
         <ClassWord changeClass={entry.changeClass} />
         {commissioning && <TonePill tone="bad">Commissioning required</TonePill>}
-        {locked && <TonePill tone="muted">not used</TonePill>}
       </div>
       <p className="cpm-copy">{entry.effect}</p>
       <KvRow label="Effective">
         <span className="cpm-mono" data-testid="effective-value">{valueWithUnit(effective, entry.unit)}</span>
-        <span className="cpm-config-property__source"> {isLayerSource(source) ? `from ${source}` : 'unset'}</span>
+        <span className="cpm-config-property__source"> {sourceWord(source)}</span>
       </KvRow>
       <KvRow label="Inherited">
-        {inherited.from ? <><span className="cpm-mono">{valueWithUnit(inherited.value, entry.unit)}</span><span className="cpm-config-property__source"> from {inherited.from}</span></> : 'No value'}
+        {inherited.from ? <><span className="cpm-mono">{valueWithUnit(inherited.value, entry.unit)}</span><span className="cpm-config-property__source"> {sourceWord(inherited.from)}</span></> : '—'}
       </KvRow>
       <KvRow label="Catalogue start"><span className="cpm-mono">{valueWithUnit(entry.default, entry.unit)}</span></KvRow>
       {(bounds.minimum !== undefined || bounds.maximum !== undefined) && (
@@ -87,9 +86,8 @@ export const PropertyForm: React.FC<{
       )}
       {entry.dependencies.length > 0 && <KvRow label="Depends on"><span className="cpm-mono">{entry.dependencies.join(', ')}</span></KvRow>}
       <KvRow label="Type · unit">{entry.type} · {entry.unit || 'unitless'}</KvRow>
-      {locked && <p className="cpm-copy" data-testid="locked-reason">Read-only: {entry.notReadByBuild}</p>}
       {errors.map(e => <p key={e} className="cpm-field__error" role="alert">{e}</p>)}
-      {editable && !locked && (
+      {editable && (
         <div className="cpm-config-property__edit">
           {enumValues ? (
             <select className="cpm-select" value={text} aria-label={`${entry.property} value`} onChange={e => setText(e.target.value)}>

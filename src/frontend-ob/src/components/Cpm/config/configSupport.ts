@@ -7,6 +7,8 @@
 import type { CpmTone } from '../shared';
 import type { CatalogueEntry, DeploymentState, EffectiveConfig } from '../../../api/cpm/config';
 import { RESET_TO_INHERITED } from '../../../api/cpm/config';
+import type { ScopeKind } from '../../../api/cpm/config';
+import { versionLabel } from './levelWords';
 
 export function bundleStateTone(state: string | null | undefined): CpmTone {
   switch (state) {
@@ -51,7 +53,7 @@ export function deploymentStateText(d: { state: string; kind: string; error?: st
 export const shortHash = (h: string | null | undefined, n = 12): string => (h ? h.slice(0, n) : '—');
 
 export function valueText(v: unknown): string {
-  if (v === null || v === undefined) return 'NO_VALUE';
+  if (v === null || v === undefined) return '—';
   if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(10)));
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   if (Array.isArray(v)) return v.length === 0 ? '[]' : v.map(String).join(', ');
@@ -179,14 +181,14 @@ export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmT
 
 /**
  * CHG-220 (Gate Configuration check, gap 2): the required workers that run another version than the one the page names (a
- * deployment that stopped half way leaves the workers that applied it on the new version), as "LOOP v8 on 2".
+ * deployment that stopped half way leaves the workers that applied it on the new version), as "Own settings v8 on 2 parts".
  */
 export function runsElsewhere(eff: EffectiveConfig): { count: number; text: string } | null {
   const ws = eff.workers.filter(w => w.required !== false && w.runs && w.runs.bundleId !== eff.bundle?.bundleId);
   if (ws.length === 0) return null;
   const byVersion = new Map<string, number>();
-  for (const w of ws) { const k = bundleLabel(w.runs); byVersion.set(k, (byVersion.get(k) ?? 0) + 1); }
-  return { count: ws.length, text: [...byVersion].map(([v, n]) => `${v} on ${n}`).join(' · ') };
+  for (const w of ws) { const k = versionLabel(w.runs as { scopeKind: ScopeKind; version: number }); byVersion.set(k, (byVersion.get(k) ?? 0) + 1); }
+  return { count: ws.length, text: [...byVersion].map(([v, n]) => `${v} on ${n} part${n === 1 ? '' : 's'}`).join(' · ') };
 }
 
 /**

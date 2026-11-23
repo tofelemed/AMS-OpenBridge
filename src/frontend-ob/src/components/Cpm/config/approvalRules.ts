@@ -1,15 +1,15 @@
 /**
  * CHG-220 (owner, 23 Nov 2026; Gate Configuration check gap 5): who may approve a gate configuration bundle, the same rule in the
  * bundle editor, in Per-loop settings and in cplm-api. Someone other than the author approves; the author approves alone only as
- * Admin or SuperAdmin (recorded as a self-approval). A plant-wide (SITE) bundle, or a change of the bundle's own to an objective
- * or a test permission, needs a SuperAdmin (the owner's choice: a SuperAdmin counts as the ControlAuthority role, which nobody
- * held, so nobody could approve a SITE bundle before).
+ * Admin or SuperAdmin (recorded as a self-approval). A plant-wide (SITE) bundle needs a SuperAdmin (the owner's choice: a SuperAdmin
+ * counts as the ControlAuthority role, which nobody held, so nobody could approve a SITE bundle before). CHG-224 (owner decision
+ * D6): no property needs one any more - an objective or a test permission is no longer edited in Gate Configuration.
  */
 import type { Bundle } from '../../../api/cpm/config';
 
 export const ADMIN_ROLES = ['Admin', 'SuperAdmin'];
-/** The properties whose change needs a SuperAdmin, as the server lists them (CpmConfigurationController.Approve). */
-export const SUPERADMIN_PROPERTIES = ['G3.objective_type', 'G14.allowed_evidence_types'];
+/** The properties whose change needs a SuperAdmin: none since CHG-224 (the server's list is empty too). */
+export const SUPERADMIN_PROPERTIES: string[] = [];
 
 export type Viewer = { username?: string | null; role?: string | null } | null;
 export interface ApproveRule { label: string; reason: string | null }
