@@ -245,18 +245,20 @@ public sealed class CpmConfigurationController : ControllerBase
         var loop = await _registry.GetAsync(loopId, ct);
         if (loop is null) return NotFound(new { error = $"Loop '{loopId}' is not registered" });
         var hours = Math.Clamp(req?.Hours ?? 24, 1, 168);
-        var to = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var from = to - hours * 3600_000L;
+        // CHG-222: end on the newest LIVE 24 h window and cover whole days, so each shadow window ends where a LIVE one does
+        var plan = ShadowWindow.Plan(await _shadow.NewestLive24hEndAsync(loop.LoopId, ct), DateTimeOffset.UtcNow, hours);
+        var (from, to, offset) = (plan.FromMs, plan.ToMs, plan.OffsetMs);
         try
         {
-            var offset = await _recompute.GetWindowOffsetMsAsync(loop.LoopId, ct);
             // gap #1: the shadow run evaluates the loop's values the engine's way (the draft's layers over the loop's class pack)
             var loopProperties = LoopEffective.Resolve(b, ConfigStore.ProfileIdFor(loop.LoopType)).PropertiesElement().GetRawText();
+            // CHG-222: the Flink submit takes ~29 s; a client giving up at 30 s cancelled the request token after the run existed,
+            // so the change was never linked to it (an orphan run holding a slot). Once requested, the submit and the link finish.
             var handle = await _recompute.StartShadowAsync(loop.LoopId, b.ContentHash, loopProperties, offset, Actor(),
-                new ReplaySupport("iotdb", from, to, loop.Site, loop.LoopType), ct);
+                new ReplaySupport("iotdb", from, to, loop.Site, loop.LoopType), CancellationToken.None);
             var shadow = JsonSerializer.Serialize(new { analysisRunId = handle.AnalysisRunId, loopId = loop.LoopId, fromMs = from, toMs = to, state = "RUNNING", startedAt = DateTimeOffset.UtcNow, contentHash = b.ContentHash });
-            await _store.SetStateAsync(id, "SHADOW_EVALUATED", ct, null, shadow);
-            _audit.Emit("CONFIG_SHADOW_STARTED", Actor(), "gate_config_bundle", id.ToString(), new { handle.AnalysisRunId, loopId = loop.LoopId, hours });
+            await _store.SetStateAsync(id, "SHADOW_EVALUATED", CancellationToken.None, null, shadow);
+            _audit.Emit("CONFIG_SHADOW_STARTED", Actor(), "gate_config_bundle", id.ToString(), new { handle.AnalysisRunId, loopId = loop.LoopId, hours, days = plan.Days });
             return Accepted(new { bundleId = id, handle.AnalysisRunId, handle.JobId, loopId = loop.LoopId, fromMs = from, toMs = to, statusUrl = $"/api/v1/cpm/analysis-runs/{handle.AnalysisRunId}" });
         }
         catch (InvalidOperationException ex) { return StatusCode(502, new { error = ex.Message }); }

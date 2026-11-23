@@ -127,6 +127,21 @@ public sealed class ShadowComparison
         return report;
     }
 
+    /// <summary>CHG-222: the end of the loop's newest LIVE 24 h window in the last 8 days (null when none) - where a shadow run ends
+    /// so its windows meet LIVE ones (ShadowWindow.Plan). Lab, 23 Nov: 31 ms planning, 1.6 ms execution with JIT off.</summary>
+    public async Task<DateTimeOffset?> NewestLive24hEndAsync(string loopId, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await conn.ExecuteAsync("SET LOCAL jit = off", transaction: tx);
+        var end = await conn.ExecuteScalarAsync<DateTime?>("""
+            SELECT max(window_end) FROM analytics.cplm_gate_results
+            WHERE loop_id = @loopId AND window_kind = '24h' AND purpose = 'LIVE' AND window_end > now() - interval '8 days'
+            """, new { loopId }, tx);
+        await tx.CommitAsync(ct);
+        return end is null ? null : new DateTimeOffset(DateTime.SpecifyKind(end.Value, DateTimeKind.Utc));
+    }
+
     private static Dictionary<string, string?> Gates(Dictionary<string, object?> matrix)
     {
         var out_ = new Dictionary<string, string?>(StringComparer.Ordinal);

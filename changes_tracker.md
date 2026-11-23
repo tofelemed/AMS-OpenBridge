@@ -7022,3 +7022,18 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Also (owner, 23 Nov):** the UNKNOWN pack (loops of an unrecognised type) allowed G5 / G6 periods up to 24 h with 5 cycles, which needs 5 days of history while the long windows keep 24 h (87,000 s), so Validate and the workers refused any bundle for such a loop; its longest period is now 17,280 s (4.8 h, 5 cycles fit 24 h) in the Java pack, the YAML and the three factory-layer copies. Nothing detectable is lost: 5 cycles of a period above 4.8 h never fit a 24 h window.
 
 **Guards:** Flink `everyPacksCyclesFitTheKeptHistory` (every pack's period x cycles within the kept history) and cplm-api `ClassPackValidityTests` over all seven packs.
+
+## CHG-222 — "Try on past data" (shadow run): always linked to its change, and its windows meet the live ones (2026-11-23, branch feat/sr-mine, unreleased)
+
+**Why:** lab retest of the Gate Configuration gaps (cpa updates, 23 Nov): (a) starting a shadow run takes ~29 s (Flink submit); a browser that gave up at 30 s cancelled the request after the run existed, so the change was never linked to it and the run held a Flink slot (an orphan); (d) the historical replay evaluates 24 h tumbling windows at an offset taken from the data's own start, so a 2 h shadow over 04:53-06:53 became one window 22 Nov 11:28 -> 23 Nov 11:28 while the loop's LIVE 24 h windows end on quarter hours (06:00): the comparison never had a window to pair, "0 compared" for every shadow shorter than a day, and the approver saw no before / after.
+
+**Change (cplm-api):**
+- `CpmConfigurationController.Shadow`: once the run is requested, the Flink submit and the link to the change use a token the client cannot cancel.
+- `Services/Config/ShadowWindow.cs` (new): `Plan(newestLiveEnd, now, hours)` ends the run on the loop's newest LIVE 24 h window end (fallback: now floored to the quarter hour), covers whole days (hours rounded up, 1 to 7 days) and passes `offset = end mod 24 h`, so every shadow window ends exactly where a LIVE window ends.
+- `ShadowComparison.NewestLive24hEndAsync`: `max(window_end)` of the loop's LIVE 24 h rows in the last 8 days, JIT off for that transaction (lab: 31 ms planning, 1.6 ms execution). `GetWindowOffsetMsAsync` is no longer used by the shadow action.
+
+**Services updated:** cplm-api. No migration, no Flink change, no new setting.
+
+**Script to run:** none (cplm-api image only).
+
+**Tests:** `ShadowWindowTests` 4 (newest end, whole days capped at 7, quarter-hour fallback, offset inside a day), `ShadowRunTests` 2 (a client giving up during the submit still gets the run linked; the run is planned on the newest LIVE 24 h window) plus the Gate Configuration sets: 30 pass on the lab database.
