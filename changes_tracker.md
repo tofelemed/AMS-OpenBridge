@@ -6948,3 +6948,13 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Services updated:** ams-frontend. No migration, no Flink change.
 
 **Tests:** `DraftBundleDialog.test.tsx` +5 (first version from the active PROFILE, else SITE, else factory; says it; waits for the levels above), `approvalRules.test.ts` 3, `lifecycle.test.ts` +3; the new ones fail on the old code. All 276 CPM test files pass; tsc and eslint clean.
+
+**Follow-up, same day (owner: every Gate Configuration fix goes into this release; the API side is the system response Updates session's):**
+- Gap 2: the worker tile reads "N of M run another version" and the Effective view names the version each such worker runs (cplm-api `workers[].runs`); a deployment waiting for a later effective time says "takes effect …" in its row.
+- Gap 4: Roll back only on the scope's current deployment, labelled "Roll back to vN" from cplm-api's `rollbackTarget`; the dialog no longer works the target out itself; otherwise it says why ("Only the version running now can be rolled back." / "There is no earlier version to go back to now.").
+- Gap 6: when a version's deployment stops moving, the version, the level lists and the effective views are read again (state and Activate change without a reload); a rollback re-reads every version.
+- Gap 7: the shadow comparison is read again until the run ends (it stopped at "Submitted"), kept per run, and a run of other content is not shown as the draft's comparison.
+- Minors: Effective from must be an ISO date and time (said before sending); a 400 without an error shows the server's title, not "HTTP 400"; a saved edit's new ETag is cached at once, so two quick edits are no longer refused as stale.
+- Governance: a validated version "Waits for approval." (not "an independent approver").
+
+**Tests:** `useConfig.test.tsx` 2 (new), `DeploymentsTab.test.ts` 2 (new), `ShadowComparison.test.tsx` +2, `lifecycle.test.ts` +1, `configSupport.workers.test.ts` +2, `GateConfigurationWrites.test.tsx` rollback case updated; the new ones fail on the old code. All config + Governance tests pass; tsc and eslint clean.
