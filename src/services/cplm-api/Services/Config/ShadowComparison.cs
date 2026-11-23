@@ -45,26 +45,48 @@ public sealed class ShadowComparison
             catch (Exception ex) when (ex is not OperationCanceledException) { /* the stored state is still a valid answer */ }
         }
         await using var conn = await _db.OpenConnectionAsync(ct);
-        var run = await conn.QueryFirstOrDefaultAsync("SELECT state, loop_id, requested_from_ms, requested_to_ms FROM analytics.analysis_run WHERE analysis_run_id = @id", new { id = runId });
+        // lab, 23 Nov: one LATERAL query took 13-30 s (sometimes a read timeout) - TimescaleDB's ColumnarScan estimates ~100,000
+        // SHADOW rows for one run (0 actual), the 2.3 M cost crosses jit_above_cost, and JIT compilation alone took ~8.7 s.
+        // Two plain reads instead (the shadow rows by run, then the LIVE rows of exactly those windows), with JIT off for this
+        // transaction only - the database setting is left as it is.
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await conn.ExecuteAsync("SET LOCAL jit = off", transaction: tx);
+        var run = await conn.QueryFirstOrDefaultAsync("SELECT state, loop_id, requested_from_ms, requested_to_ms FROM analytics.analysis_run WHERE analysis_run_id = @id", new { id = runId }, tx);
         var rows = (await conn.QueryAsync("""
-            SELECT s.loop_id, s.window_kind, s.window_start, s.window_end, s.sample_count, s.diagnosis, s.severity, s.confidence, s.payload::text AS payload,
-                   l.diagnosis AS live_diagnosis, l.payload::text AS live_payload, l.sample_count AS live_sample_count, l.severity AS live_severity, l.confidence AS live_confidence
-            FROM analytics.cplm_gate_results s
-            LEFT JOIN LATERAL (
-                SELECT diagnosis, severity, confidence, sample_count, payload FROM analytics.cplm_gate_results l
-                WHERE l.loop_id = s.loop_id AND l.window_kind = s.window_kind AND l.window_end = s.window_end AND l.purpose = 'LIVE' AND l.source = 'flink'
-                ORDER BY l.result_revision DESC, l.created_at DESC LIMIT 1) l ON true
-            WHERE s.analysis_run_id = @id AND s.purpose = 'SHADOW'
-            ORDER BY s.window_end
-            """, new { id = runId })).ToList();
+            SELECT loop_id, window_kind, window_start, window_end, sample_count, diagnosis, severity, confidence, payload::text AS payload, created_at
+            FROM analytics.cplm_gate_results
+            WHERE analysis_run_id = @id AND purpose = 'SHADOW'
+            ORDER BY window_end
+            """, new { id = runId }, tx)).ToList();
+        var live = new Dictionary<(string Loop, string Kind, DateTime End), dynamic>();
+        if (rows.Count > 0)
+        {
+            var liveRows = await conn.QueryAsync("""
+                SELECT DISTINCT ON (l.loop_id, l.window_kind, l.window_end) l.loop_id, l.window_kind, l.window_end,
+                       l.diagnosis, l.severity, l.confidence, l.sample_count, l.payload::text AS payload, l.created_at
+                FROM analytics.cplm_gate_results l
+                JOIN unnest(@loops::text[], @kinds::text[], @ends::timestamptz[]) AS w(loop_id, window_kind, window_end)
+                  ON l.loop_id = w.loop_id AND l.window_kind = w.window_kind AND l.window_end = w.window_end
+                WHERE l.purpose = 'LIVE' AND l.source = 'flink'
+                ORDER BY l.loop_id, l.window_kind, l.window_end, l.result_revision DESC, l.created_at DESC
+                """, new
+            {
+                loops = rows.Select(r => (string)r.loop_id).ToArray(),
+                kinds = rows.Select(r => (string)r.window_kind).ToArray(),
+                ends = rows.Select(r => DateTime.SpecifyKind((DateTime)r.window_end, DateTimeKind.Utc)).ToArray(),
+            }, tx);
+            foreach (var l in liveRows) live[((string)l.loop_id, (string)l.window_kind, DateTime.SpecifyKind((DateTime)l.window_end, DateTimeKind.Utc))] = l;
+        }
+        await tx.CommitAsync(ct);
         var windows = new List<WindowDelta>();
         int removed = 0, added = 0, compared = 0;
         foreach (var row in rows)
         {
-            if (row.live_payload is null) continue;
+            if (!live.TryGetValue(((string)row.loop_id, (string)row.window_kind, DateTime.SpecifyKind((DateTime)row.window_end, DateTimeKind.Utc)), out var l)) continue;
             compared++;
             var after = GateMatrixProjection.Build(row);
-            var before = GateMatrixProjection.Build(new { row.loop_id, row.window_kind, row.window_start, row.window_end, sample_count = row.live_sample_count, diagnosis = row.live_diagnosis, severity = row.live_severity, confidence = row.live_confidence, payload = row.live_payload });
+            // created_at too: the projection reads it ("computed at"); without it every compared window threw
+            var before = GateMatrixProjection.Build(new { row.loop_id, row.window_kind, row.window_start, row.window_end, sample_count = l.sample_count, diagnosis = l.diagnosis, severity = l.severity, confidence = l.confidence, payload = l.payload, created_at = l.created_at });
             var changed = new List<GateDelta>();
             var afterGates = Gates(after);
             foreach (var (gate, statusBefore) in Gates(before))
@@ -75,8 +97,8 @@ public sealed class ShadowComparison
                 if (IsSymptom(statusBefore) && !IsSymptom(statusAfter)) removed++;
                 if (!IsSymptom(statusBefore) && IsSymptom(statusAfter)) added++;
             }
-            if (changed.Count > 0 || !string.Equals((string?)row.live_diagnosis, (string?)row.diagnosis, StringComparison.Ordinal))
-                windows.Add(new WindowDelta((string)row.window_kind, (DateTime)row.window_end, (string?)row.live_diagnosis, (string?)row.diagnosis, changed));
+            if (changed.Count > 0 || !string.Equals((string?)l.diagnosis, (string?)row.diagnosis, StringComparison.Ordinal))
+                windows.Add(new WindowDelta((string)row.window_kind, (DateTime)row.window_end, (string?)l.diagnosis, (string?)row.diagnosis, changed));
         }
         var runState = run is null ? "UNKNOWN" : (string)run.state;
         string? reclass = removed > 0 ? "POLICY_RECLASSIFICATION" : null;

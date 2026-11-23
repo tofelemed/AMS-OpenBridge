@@ -189,6 +189,37 @@ public sealed class GateDeploymentGapsTests : IAsyncLifetime
         failed.Error.Should().Contain("could not be reached");
     }
 
+    // lab 23 Nov: the one LATERAL query was JIT-compiled (~8.7 s for 0 rows); two plain reads must give the same comparison
+    [Fact]
+    public async Task Gap7_the_comparison_pairs_each_shadow_window_with_its_live_window()
+    {
+        const string loop = "GP_SHADOW";
+        var b = await ApprovedAsync(2.5);
+        var runId = Guid.NewGuid();
+        await using var conn = await _db.OpenConnectionAsync();
+        await conn.ExecuteAsync("DELETE FROM analytics.cplm_gate_results WHERE loop_id = @loop", new { loop });
+        try
+        {
+            await conn.ExecuteAsync("""
+                INSERT INTO analytics.cplm_gate_results (loop_id, window_kind, window_start, window_end, sample_count, diagnosis, payload, source, purpose, analysis_run_id, bundle_hash)
+                VALUES (@loop, '24h', date_trunc('hour', now()) - interval '24 hour', date_trunc('hour', now()), 17280, 'VALVE_STICTION_SUSPECTED', '{}'::jsonb, 'flink', 'LIVE', NULL, 'b:live'),
+                       (@loop, '24h', date_trunc('hour', now()) - interval '24 hour', date_trunc('hour', now()), 17280, 'NO_FAULT_IDENTIFIED', '{}'::jsonb, 'flink', 'SHADOW', @run, 'b:draft'),
+                       (@loop, '24h', date_trunc('hour', now()) - interval '25 hour', date_trunc('hour', now()) - interval '1 hour', 17280, 'NO_FAULT_IDENTIFIED', '{}'::jsonb, 'flink', 'SHADOW', @run, 'b:draft')
+                """, new { loop, run = runId });
+            await _store.SetStateAsync(b.BundleId, b.State, default, null, JsonSerializer.Serialize(new { analysisRunId = runId, state = "FINISHED" }));
+            var report = (await new ShadowComparison(_db, _store).CompareAsync(b.BundleId, default))!;
+            report.ShadowRows.Should().Be(2);
+            report.ComparedWindows.Should().Be(1, "only one shadow window has a LIVE window to compare with");
+            report.Windows.Should().ContainSingle();
+            report.Windows[0].DiagnosisBefore.Should().Be("VALVE_STICTION_SUSPECTED");
+            report.Windows[0].DiagnosisAfter.Should().Be("NO_FAULT_IDENTIFIED");
+        }
+        finally
+        {
+            await conn.ExecuteAsync("DELETE FROM analytics.cplm_gate_results WHERE loop_id = @loop", new { loop });
+        }
+    }
+
     [Fact]
     public async Task Gap7_the_comparison_refreshes_the_run_state_first()
     {
