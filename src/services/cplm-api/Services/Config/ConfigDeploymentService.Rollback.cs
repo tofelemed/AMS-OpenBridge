@@ -63,7 +63,7 @@ public sealed partial class ConfigDeploymentService
     }
 
     /// <summary>
-    /// Per worker, the bundle it applied last for this loop's governing scopes (LOOP over PROFILE over SITE), or no entry. CHG-223:
+    /// Per worker, the bundle of the newest deployment it acknowledged (deployment creation order, never ACK arrival: a restarted worker re-ACKs old deployments) for this loop's governing scopes (LOOP over PROFILE over SITE), or no entry. CHG-223:
     /// when the newest LOOP version a worker applied uses the plant-wide settings, the worker runs its PROFILE / SITE bundle.
     /// </summary>
     public async Task<IReadOnlyDictionary<string, WorkerRuns>> WorkerRunsAsync(string site, string loopId, string profileId, CancellationToken ct)
@@ -76,7 +76,7 @@ public sealed partial class ConfigDeploymentService
             JOIN cpm.gate_config_bundle b ON b.bundle_id = dep.bundle_id
             WHERE a.phase = 'APPLY' AND a.status = 'ACK' AND a.bundle_hash = dep.content_hash AND b.site = @site
               AND ((b.scope_kind = 'LOOP' AND b.scope_ref = @loopId) OR (b.scope_kind = 'PROFILE' AND b.scope_ref = @profileId) OR (b.scope_kind = 'SITE' AND b.scope_ref = ''))
-            ORDER BY a.job_name, b.scope_kind, a.received_at DESC
+            ORDER BY a.job_name, b.scope_kind, dep.created_at DESC, a.received_at DESC
             """, new { site, loopId, profileId });
         var rank = new Dictionary<string, int>(StringComparer.Ordinal) { ["LOOP"] = 0, ["PROFILE"] = 1, ["SITE"] = 2 };
         return rows.Where(r => !(r.ScopeKind == "LOOP" && r.Inherits)).GroupBy(r => r.JobName, StringComparer.Ordinal)

@@ -116,22 +116,6 @@ export const ShadowComparison: React.FC<{
       </div>
       {shadow?.analysisRunId && <KvRow label="Run on">{shadow.loopId}</KvRow>}
       {stale && <p className="cpm-copy">This change was edited after the last run.</p>}
-      <div className="cpm-config-inline">
-        {!isLoop && (
-          <>
-            <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Loop</span>
-              <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} /></label>
-            <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Days</span>
-              <input className="cpm-input" type="number" min={1} max={7} step={1} value={days} onChange={e => setDays(e.target.value)} inputMode="numeric" /></label>
-          </>
-        )}
-        <ReasonedButton variant="raised" disabled={!startable || starting}
-          reason={!canShadow ? 'Needs permission to try changes' : unvalidated ? 'Check the change first' : null}
-          onClick={() => onStart({ loopId: isLoop ? undefined : loopId || undefined, hours: isLoop ? 24 : daysToHours(days) })}>
-          {starting ? STARTING : recorded?.analysisRunId ? 'Try again' : 'Try on past data'}
-        </ReasonedButton>
-      </div>
-      {error && (!timedOut || (expired && !linked)) ? <p className="cpm-field__error" role="alert">{error instanceof Error ? error.message : String(error)}</p> : null}
       {report.isError && <QueryError error={report.error} retry={() => void report.refetch()} />}
       {report.data && shadow?.analysisRunId && (
         <>
@@ -153,11 +137,30 @@ export const ShadowComparison: React.FC<{
               </tbody>
             </table>
           )}
-          {report.data.runState === 'FINISHED' && report.data.comparedWindows === 0 && <p className="cpm-copy">No matching live results to compare</p>}
+          {report.data.runState === 'FINISHED' && report.data.comparedWindows === 0 && <p className="cpm-copy">{report.data.shadowRows === 0 ? 'No data in the chosen period' : 'No matching live results to compare'}</p>}
+          {report.data.runState === 'FINISHED' && report.data.comparedWindows > 0 && report.data.windows.length === 0 && (
+            <p className="cpm-copy">Same result in {report.data.comparedWindows === 1 ? 'the compared window' : `all ${report.data.comparedWindows} compared windows`}</p>
+          )}
           {(report.data.runState === 'FAILED' || report.data.runState === 'SUBMIT_FAILED') && <p className="cpm-field__error">The run failed</p>}
           {report.data.runState === 'CANCELED' && <p className="cpm-copy">The run was cancelled</p>}
         </>
       )}
+      <div className="cpm-config-inline">
+        {!isLoop && (
+          <>
+            <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Loop</span>
+              <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} /></label>
+            <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Days</span>
+              <input className="cpm-input" type="number" min={1} max={7} step={1} value={days} onChange={e => setDays(e.target.value)} inputMode="numeric" /></label>
+          </>
+        )}
+        <ReasonedButton variant="raised" disabled={!startable || starting}
+          reason={!canShadow ? 'Needs permission to try changes' : unvalidated ? 'Check the change first' : null}
+          onClick={() => onStart({ loopId: isLoop ? undefined : loopId || undefined, hours: isLoop ? 24 : daysToHours(days) })}>
+          {starting ? STARTING : recorded?.analysisRunId ? 'Try again' : 'Try on past data'}
+        </ReasonedButton>
+      </div>
+      {error && (!timedOut || (expired && !linked)) ? <p className="cpm-field__error" role="alert">{error instanceof Error ? error.message : String(error)}</p> : null}
     </section>
   );
 };

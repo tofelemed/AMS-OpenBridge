@@ -2451,3 +2451,27 @@ Gate Configuration is a guided journey (start page, scope pages, a five-step cha
 | Gate Configuration · Settings drawer · details box | "for another bundle"; "no ACK recorded" | "for another version"; "Not confirmed yet" |
 | Gate Configuration · Settings drawer · details box | "observer · reads no property"; "factory layer" | "Reads no setting"; "Factory settings" |
 | Gate Configuration · Settings drawer · details box | "runs LOOP v8"; row "bundle" "LOOP v2 · POLICY · effective <date>" | "runs Own settings v8"; row "Version" "Own settings v2 · Running" |
+
+Lab-retest fixes (23 Nov 2026, combined deploy 91d9b2aa). Source: retestfix-A and retestfix-B reports.
+
+| Where | Was | Now |
+|---|---|---|
+| Gate Configuration · plant page (retest) | Pill "Factory settings" while Plant settings v1 is active; Versions "No versions yet" | Pill "Plant settings v1"; Versions lists v1, v2 |
+| Gate Configuration · Roll back (running version) | "Only the version running now can be rolled back." on the running version | "There is no earlier version to go back to"; on the marker: "Start a new change to use own settings again"; on a version not running: "Only the running version can be rolled back." |
+| Gate Configuration · deployments | Row "◐ Running" (in-progress glyph) while the page says "✓ Running" | "✓ Running" |
+| Gate Configuration · regions batch panel | "Approve alone (Admin)" | "Approve alone" |
+| Gate Configuration · Check and Approve | Rows for values the person did not change ("Role PRIMARY → SUPPORTING" twice, period maximum and minimum "→ —") | only the real edits |
+| Gate Configuration · Check and Approve | Two rows named only "Role"; raw codes PRIMARY / SUPPORTING | "Role · Oscillation" (gate name added where names alike); codes shown as words (Primary → Supporting) |
+| Gate Configuration · Approve | "and 2 more" hiding the real edit | every real change listed (no "+n more") |
+| Gate Configuration · Approve, on past data | "No result changes" when 0 windows were compared | "Not compared — no data in the period" |
+| Gate Configuration · Try on past data | "No matching live results to compare" when the run made no windows | "No data in the chosen period" |
+| Gate Configuration · Try on past data | "No matching live results to compare" when windows ran but none could be compared | "Not compared — no live results to compare" |
+| Gate Configuration · Try on past data | No result row when windows were compared and nothing changed; "Try again" between "Run on" and "Period" | "Same result in the compared window" ("all n compared windows"); Run on, Period and the Try button below the result |
+| Gate Configuration · version note | "[batch <id> inherit] retest …" and "[self-approved as …]" tags in the lead and history note | tags removed, only the person's note |
+| Gate Configuration · values in use | Scaled factory value ("2 · Factory") with no hover | hover shows how it is set (basis) |
+| Gate Configuration · values in use | Region minimum / maximum basis "Not limited - set a region in Per-loop settings" | "Not limited - set a region in Operating regions" |
+| Gate Configuration · steps | A fresh draft opened with Edit "✓ done" and Check in progress; viewed step circle barely readable | Edit is the current step until a change is made (Edit follows Check); the viewed step keeps a readable number or tick |
+| Gate Configuration · Approve, on past data | "Not compared — no data in the period" for any run with 0 compared windows | "Not compared — no data in the period" only when the run had no rows; otherwise "Not compared — no live results to compare" |
+| Gate Configuration · changes in progress | Note "[batch <id> inherit] text" | "text" |
+| Gate Configuration · plant-wide settings version | Edit, Check and Try shown "✓ done" | not used (no tick) |
+| Gate Configuration · Check and Approve | Phantom change rows while the settings list is still loading | none until the list is read |

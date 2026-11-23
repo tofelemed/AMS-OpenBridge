@@ -156,7 +156,7 @@ public sealed class PropertySourcesTests
         e["G9.evidence_retention_days"].Basis.Should().Be("Live 6 hours · daily archive 30 days · diagnosis episodes 2 days after they close - evidence retention");
         e["G12.evidence_retention_days"].Basis.Should().Be("Charts 30 days · test results 90 days · rejected tests 90 days - evidence retention");
         (e["G4.activity_warn_ratio"].Basis, e["G4.activity_warn_ratio"].Level).Should().Be(("3.0 - set for this loop type", "PROFILE"));
-        e["G2r.pv_region_min"].Basis.Should().Be("Not limited - set a region in Per-loop settings");
+        e["G2r.pv_region_min"].Basis.Should().Be("Not limited - set a region in Operating regions");
         e["G9.role"].Basis.Should().Be("Supporting - set for this loop type");
         e["G7.role"].Basis.Should().Be("Not used - the part this check plays in a diagnosis is fixed");
     }

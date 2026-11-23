@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
-import { ApprovalTab, plainApproveLabel } from './ApprovalTab';
+import { ApprovalTab } from './ApprovalTab';
 import type { Bundle } from '../../../api/cpm/config';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
@@ -23,7 +23,7 @@ const bundle = (over: Partial<Bundle> = {}): Bundle => ({
   layers: [{ kind: 'LOOP', ref: 'FIC10302', ordinal: 0, content: { 'G2r.pv_region_max': 125 }, content_hash: 'x' }],
   resolved: { properties: {}, sources: {} }, approvals: [], ...over,
 } as unknown as Bundle);
-const action = { key: 'approve' as const, label: 'Approve alone (Admin)', enabled: true, reason: null };
+const action = { key: 'approve' as const, label: 'Approve alone', enabled: true, reason: null };
 const view = (b: Bundle, extra: Partial<React.ComponentProps<typeof ApprovalTab>> = {}) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <ApprovalTab bundle={b} action={action} reason={null} busy={false} error={null} onApprove={() => {}} {...extra} />
@@ -63,8 +63,6 @@ describe('ApprovalTab', () => {
     fireEvent.change(screen.getByLabelText('Note (optional)'), { target: { value: 'ok' } });
     fireEvent.click(screen.getByRole('button', { name: 'Approve alone' }));
     expect(onApprove).toHaveBeenCalledWith({ note: 'ok', validityHours: 72 });
-    expect(plainApproveLabel('Approve alone (SuperAdmin)')).toBe('Approve alone');
-    expect(plainApproveLabel('Approve')).toBe('Approve');
   });
 
   it('the history is who, decision, when - no hash, no role', () => {
@@ -73,5 +71,39 @@ describe('ApprovalTab', () => {
     expect(table.textContent).toMatch(/alice/);
     expect(table.textContent).not.toMatch(/deadbeef|Admin|Content|never expires/);
     expect(table.textContent).toMatch(/23 Nov [0-9]{2}:[0-9]{2}/);
+  });
+});
+
+describe('ApprovalTab retest fixes (issues 3, 4, 7)', () => {
+  const ch = (n: number) => Array.from({ length: n }, (_, i) => ({ property: `G4.setting_${i}`, before: i, after: i + 1 }));
+  it('lists every real change, with no +n more', () => {
+    view(bundle(), { changes: ch(7) });
+    expect(screen.getByText(/Setting 6 6 → 7/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/more/);
+  });
+  it('0 compared reads no live results to compare when shadow rows exist', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue({ runState: 'FINISHED', comparedWindows: 0, shadowRows: 2, windows: [] } as never);
+    view(bundle({ shadow: { analysisRunId: 'r1', contentHash: 'h' } as never }));
+    expect(await screen.findByText('Not compared — no live results to compare')).toBeTruthy();
+  });
+  it('two changes with one name carry the gate, codes in words', () => {
+    view(bundle(), { changes: [{ property: 'G7.role', before: 'PRIMARY', after: 'SUPPORTING' }, { property: 'G10.role', before: 'PRIMARY', after: 'SUPPORTING' }] });
+    expect(document.body.textContent).toMatch(/Role · .*Primary → Supporting.*Role · .*Primary → Supporting/);
+    expect(document.body.textContent).not.toMatch(/PRIMARY/);
+  });
+  it('On past data says Not compared when 0 windows were compared, No result changes only when some were', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue({ runState: 'FINISHED', comparedWindows: 0, shadowRows: 0, windows: [] } as never);
+    view(bundle({ shadow: { analysisRunId: 'r1', contentHash: 'h' } as never }));
+    expect(await screen.findByText('Not compared — no data in the period')).toBeTruthy();
+    cleanup();
+    vi.mocked(fetchMod.apiJson).mockResolvedValue({ runState: 'FINISHED', comparedWindows: 1, shadowRows: 1, windows: [] } as never);
+    view(bundle({ shadow: { analysisRunId: 'r1', contentHash: 'h' } as never }));
+    expect(await screen.findByText('No result changes')).toBeTruthy();
+  });
+  it('the approval history shows the note without the machine marker', () => {
+    view(bundle({ approvals: [{ approvalId: 'a1', approver: 'alice', decision: 'APPROVED', note: '[self-approved as SuperAdmin] e2e', expiresAt: null, createdAt: '2026-11-23T06:40:00Z', bindsCurrentContent: true }] as never }));
+    const t = screen.getByRole('table', { name: 'Approvals' });
+    expect(t.textContent).toMatch(/e2e/);
+    expect(t.textContent).not.toMatch(/self-approved/);
   });
 });

@@ -87,7 +87,7 @@ export const frozenLine = (state: string): string =>
 /** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. CHG-203: Approve's reason is
  * Governance's approval rule, word for word (CpmGovernance.test.tsx). CHG-220: `rule` = this viewer's approval rule for this
  * bundle (approvalRules.ts) - its label, and the reason Approve stays off where the server would refuse it. */
-export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, back: RollbackChoice,
+export function lifecycleActions(bundle: { state: string; inherits?: boolean }, perms: LifecyclePerms, approvalExpired: boolean, back: RollbackChoice,
   rule: ApproveRule = { label: 'Approve', reason: null }): LifecycleAction[] {
   const s = bundle.state;
   const frozen = TERMINAL.has(s) ? frozenSentence(s) : null;
@@ -114,9 +114,10 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
     : { key: 'deploy', label: 'Deploy', enabled: false, reason: 'Approve the change first.' };
   const rollback: LifecycleAction = !perms.rollback ? { key: 'rollback', label: 'Roll back', enabled: false, reason: NEEDS.rollback }
     : back.loading ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Reading the deployments…' }
+    : bundle.inherits && (s === 'ACTIVE_VERIFIED' || back.running) ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Start a new change to use own settings again' }
     : back.target ? { key: 'rollback', label: `Roll back to v${back.target.version}`, enabled: true, reason: null }
-    : back.running ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'There is no earlier version to go back to now.' }
-    : { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Only the version running now can be rolled back.' };
+    : back.running || s === 'ACTIVE_VERIFIED' ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'There is no earlier version to go back to' }
+    : { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Only the running version can be rolled back.' };
   return [validate, shadow, approve, deploy, rollback];
 }
 

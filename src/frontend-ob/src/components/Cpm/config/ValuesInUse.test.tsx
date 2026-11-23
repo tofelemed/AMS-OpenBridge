@@ -102,3 +102,11 @@ describe('ValuesInUse on a type or plant page (no entries)', () => {
     expect(within(rowOf('Minimum samples')).getByText('Loop type')).toBeTruthy();
   });
 });
+
+describe('ValuesInUse basis on hover (retest issue 9)', () => {
+  it('a scaled factory value carries its basis in the From hover', () => {
+    const e = [entry('G12.step_min_input_eu', { value: 2, configured: 1, level: 'FACTORY', basis: '2.0 - 1.0 per 100 of the PV range' })];
+    render(<ValuesInUse eff={eff({ entries: e, properties: { 'G12.step_min_input_eu': 2 } })} gate="G12" onGate={() => {}} />);
+    expect(within(rowOf('Step minimum input eu')).getByText('Factory').getAttribute('title')).toBe('2.0 - 1.0 per 100 of the PV range');
+  });
+});

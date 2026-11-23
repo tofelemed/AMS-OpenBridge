@@ -34,7 +34,7 @@ export function needsSuperAdmin(bundle: Pick<Bundle, 'scopeKind' | 'layers' | 'r
 /** The Approve button's label, and why this viewer cannot approve this bundle (null: they can). */
 export function bundleApproveRule(bundle: Pick<Bundle, 'createdBy' | 'scopeKind' | 'layers' | 'resolved'>, viewer: Viewer): ApproveRule {
   const who = standing(bundle.createdBy, viewer);
-  const label = who.mine && who.admin ? 'Approve alone (Admin)' : 'Approve';
+  const label = who.mine && who.admin ? 'Approve alone' : 'Approve';
   if (who.mine && !who.admin) return { label, reason: 'Needs a second person' };
   const sensitive = needsSuperAdmin(bundle);
   if (sensitive && !who.superAdmin) {

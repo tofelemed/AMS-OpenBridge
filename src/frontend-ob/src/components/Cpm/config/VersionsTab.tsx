@@ -17,7 +17,7 @@ export const VersionsTab: React.FC<{
   if (q.isLoading) return <p className="cpm-copy" role="status">Loading…</p>;
   if (q.isError) return <QueryError error={q.error} retry={() => void q.refetch()} />;
   // the server filters by scope; a loop page shows only its own versions
-  const rows = (q.data?.bundles ?? []).filter(b => b.scopeKind === kind && (b.scopeRef ?? null) === (scopeRef ?? null)).sort((a, b) => b.version - a.version);
+  const rows = (q.data?.bundles ?? []).filter(b => b.scopeKind === kind && (b.scopeRef || null) === (scopeRef || null)).sort((a, b) => b.version - a.version);
   if (rows.length === 0) {
     return <EmptyState title={kind === 'LOOP' && runsText ? `No own versions — this loop runs ${runsText}.` : 'No versions yet'} />;
   }

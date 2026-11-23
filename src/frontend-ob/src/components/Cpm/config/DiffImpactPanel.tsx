@@ -7,9 +7,9 @@
 import React, { useMemo } from 'react';
 import { KvRow } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
-import type { Bundle } from '../../../api/cpm/config';
+import type { Bundle, CatalogueEntry } from '../../../api/cpm/config';
 import { diffProperties, resolveBelow } from './configSupport';
-import { settingName, valueWords } from './configWords';
+import { changeNames, editableChanges, valueWords } from './configWords';
 import { errorText } from './lifecycle';
 
 export interface ValidateAction { enabled: boolean; reason: string | null; busy: boolean; error: unknown; onValidate: () => void }
@@ -20,11 +20,14 @@ export const DiffImpactPanel: React.FC<{
   /** The loops this version reaches; a loop's own version reaches 1. */
   loopCount?: number | undefined;
   validate: ValidateAction;
-}> = ({ bundle, parent, loopCount, validate }) => {
+  /** The catalogue: a setting it marks as not editable here (the server drops it) is not listed as a change. */
+  entries?: CatalogueEntry[] | null | undefined;
+}> = ({ bundle, parent, loopCount, validate, entries }) => {
   const diff = useMemo(() => {
     const before = parent?.resolved.properties ?? resolveBelow(bundle.layers, bundle.scopeKind);
-    return diffProperties(before, bundle.resolved.properties);
-  }, [parent, bundle.layers, bundle.scopeKind, bundle.resolved.properties]);
+    return editableChanges(diffProperties(before, bundle.resolved.properties), entries);
+  }, [parent, bundle.layers, bundle.scopeKind, bundle.resolved.properties, entries]);
+  const names = useMemo(() => changeNames(diff.map(d => d.property)), [diff]);
   const v = bundle.validation;
   const loops = bundle.scopeKind === 'LOOP' ? 1 : loopCount;
   const failed = errorText(validate.error);
@@ -37,7 +40,7 @@ export const DiffImpactPanel: React.FC<{
             <tbody>
               {diff.map(d => (
                 <tr key={d.property}>
-                  <td title={d.property}>{settingName(d.property)}</td>
+                  <td title={d.property}>{names.get(d.property)}</td>
                   <td>{valueWords(d.before)}</td>
                   <td>{valueWords(d.after)}</td>
                 </tr>

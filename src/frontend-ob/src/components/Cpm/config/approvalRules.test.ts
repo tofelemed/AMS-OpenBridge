@@ -18,15 +18,15 @@ describe('bundleApproveRule', () => {
   it('a second person approves; the author needs a second person unless Admin or SuperAdmin', () => {
     expect(bundleApproveRule(bundle(), bob('Engineer'))).toEqual({ label: 'Approve', reason: null });
     expect(bundleApproveRule(bundle(), alice('Engineer'))).toEqual({ label: 'Approve', reason: 'Needs a second person' });
-    expect(bundleApproveRule(bundle(), alice('Admin'))).toEqual({ label: 'Approve alone (Admin)', reason: null });
-    expect(bundleApproveRule(bundle(), alice('SuperAdmin'))).toEqual({ label: 'Approve alone (Admin)', reason: null });
+    expect(bundleApproveRule(bundle(), alice('Admin'))).toEqual({ label: 'Approve alone', reason: null });
+    expect(bundleApproveRule(bundle(), alice('SuperAdmin'))).toEqual({ label: 'Approve alone', reason: null });
   });
 
   it('a SITE bundle needs a SuperAdmin, alone too; an Admin cannot', () => {
     const site = bundle({ scopeKind: 'SITE', layers: [layer('FACTORY', {}), layer('SITE', { 'G4.min_samples': 40 })] });
     expect(bundleApproveRule(site, bob('Admin')).reason).toBe('A plant-wide bundle needs a SuperAdmin to approve it.');
     expect(bundleApproveRule(site, alice('Admin')).reason).toBe('A plant-wide bundle needs a SuperAdmin to approve it.');
-    expect(bundleApproveRule(site, alice('SuperAdmin'))).toEqual({ label: 'Approve alone (Admin)', reason: null });
+    expect(bundleApproveRule(site, alice('SuperAdmin'))).toEqual({ label: 'Approve alone', reason: null });
   });
 
   it('CHG-224: no property needs a SuperAdmin any more - an objective or a test permission is not edited in Gate Configuration', () => {

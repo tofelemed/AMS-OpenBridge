@@ -12,9 +12,9 @@
 import React, { useState } from 'react';
 import { KvRow, TonePill } from '../shared';
 import { ReasonedButton } from '../ReasonedButton';
-import { stampZoned } from './configWords';
+import { changeNames, plainNote, stampZoned, valueWords } from './configWords';
 import type { Bundle } from '../../../api/cpm/config';
-import { changeWords, errorText, type LifecycleAction, type SettingChange } from './lifecycle';
+import { errorText, type LifecycleAction, type SettingChange } from './lifecycle';
 import { useShadowReport } from './ShadowComparison';
 
 /** The states in which an expired approval still blocks something (approving again, activating again). */
@@ -27,16 +27,13 @@ export const currentApproval = (bundle: Bundle) => {
   return { current, expired };
 };
 
-/** The rule's label without the role in brackets: "Approve alone (Admin)" reads "Approve alone". */
-export const plainApproveLabel = (label: string): string => label.replace(/\s*\((?:Super)?Admin\)\s*$/i, '');
-
 /** The changed settings in words; without a before / after, the values the bundle's own layer sets. */
 export function changeLine(bundle: Bundle, changes?: SettingChange[]): string {
   const list = changes ?? bundle.layers.filter(l => l.kind === bundle.scopeKind)
     .flatMap(l => Object.entries(l.content ?? {}).map(([property, after]) => ({ property, before: undefined, after })));
   if (list.length === 0) return '—';
-  const shown = list.slice(0, 3).map(changeWords).join(', ');
-  return list.length > 3 ? `${shown} and ${list.length - 3} more` : shown;
+  const names = changeNames(list.map(c => c.property));
+  return list.map(c => `${names.get(c.property)} ${c.before === undefined ? '' : `${valueWords(c.before)} → `}${valueWords(c.after)}`).join(', ');
 }
 
 export const appliesToWord = (bundle: Bundle): string =>
@@ -62,6 +59,7 @@ export const ApprovalTab: React.FC<{
   const report = useShadowReport(bundle.bundleId, recorded?.analysisRunId, tried);
   const changed = report.data ? report.data.windows.filter(w => w.changed.length > 0 || w.diagnosisBefore !== w.diagnosisAfter).length : 0;
   const past = !tried ? 'Not tried' : report.data?.runState !== 'FINISHED' ? (report.isError ? 'Not read' : 'Not finished')
+    : report.data.comparedWindows === 0 ? (report.data.shadowRows === 0 ? 'Not compared — no data in the period' : 'Not compared — no live results to compare')
     : changed === 0 ? 'No result changes' : `${changed} ${changed === 1 ? 'result changes' : 'results change'}`;
   return (
     <section className="cpm-config-tabpanel" aria-label="Approval">
@@ -86,7 +84,7 @@ export const ApprovalTab: React.FC<{
                     ? <TonePill tone={a.bindsCurrentContent ? 'good' : 'muted'} glyph="✓">{a.bindsCurrentContent ? 'Approved' : 'Approved earlier version'}</TonePill>
                     : <TonePill tone="bad" glyph="✕">Rejected</TonePill>}</td>
                   <td>{stampZoned(a.createdAt)}</td>
-                  <td>{a.note ?? '—'}</td>
+                  <td>{plainNote(a.note) || '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -98,7 +96,7 @@ export const ApprovalTab: React.FC<{
           <textarea className="cpm-textarea" rows={2} value={note} onChange={e => setNote(e.target.value)} disabled={!action.enabled} /></label>
         <ReasonedButton variant={action.enabled ? 'raised' : 'normal'} disabled={!action.enabled || busy} reason={reason}
           onClick={() => onApprove({ note: note || undefined, validityHours: VALID_HOURS })}>
-          {busy ? 'Recording…' : plainApproveLabel(action.label)}
+          {busy ? 'Recording…' : action.label}
         </ReasonedButton>
       </div>
       {failed && <p className="cpm-field__error" role="alert">{failed}</p>}

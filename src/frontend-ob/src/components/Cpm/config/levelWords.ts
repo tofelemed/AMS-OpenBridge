@@ -24,9 +24,11 @@ const FINISHED: Record<string, number> = {
   APPROVED: 3, SCHEDULED: 3, PREPARED: 3, PARTIALLY_ACKNOWLEDGED: 3, ACTIVATION_FAILED: 3,
 };
 
-/** Done, current, or nothing, per change step. A state names the step just finished; the next step is the current one. */
-export function stepMarks(state: string): Record<ChangeStep, TabMark> {
-  const done = SETTLED.has(state) ? CHANGE_STEPS.length : (FINISHED[state] ?? 0) + 1;
+/** Done, current, or nothing, per change step. A state names the step just finished; the next step is the current one.
+ * `hasEdits` false (a DRAFT whose own layer differs from its parent in nothing) keeps Edit current. */
+export function stepMarks(state: string, hasEdits = true): Record<ChangeStep, TabMark> {
+  // a fresh draft whose own layer has no change yet has not finished Edit
+  const done = SETTLED.has(state) ? CHANGE_STEPS.length : state === 'DRAFT' && !hasEdits ? 0 : (FINISHED[state] ?? 0) + 1;
   const out = {} as Record<ChangeStep, TabMark>;
   CHANGE_STEPS.forEach((s, i) => { out[s] = i < done ? 'done' : i === done ? 'current' : null; });
   return out;

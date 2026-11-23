@@ -88,3 +88,35 @@ describe('settingName', () => {
     expect(settingName('mode')).toBe('Mode');
   });
 });
+
+describe('retest fixes (issue 3, 7)', () => {
+  it('enum codes read as words, other text stays', async () => {
+    const m = await import('./configWords');
+    expect(m.valueWords('SUPPORTING')).toBe('Supporting');
+    expect(m.enumWords('FAST_SELF_REG')).toBe('Fast self reg');
+    expect(m.valueWords('hdpe')).toBe('hdpe');
+    expect(m.valueWords(900)).toBe('900');
+  });
+  it('editableChanges leaves out properties the catalogue says are not editable', async () => {
+    const m = await import('./configWords');
+    const list = [{ property: 'G7.role' }, { property: 'G8.x' }];
+    expect(m.editableChanges(list, [{ property: 'G7.role', editable: false }, { property: 'G8.x', editable: true }])).toEqual([{ property: 'G8.x' }]);
+    expect(m.editableChanges(list, undefined)).toEqual(list);
+    expect(m.editableChanges(list, null)).toEqual([]);
+  });
+  it('changeNames adds the gate only where two names are alike', async () => {
+    const m = await import('./configWords');
+    const n = m.changeNames(['G7.role', 'G10.role', 'G8.asymmetry_display']);
+    expect(n.get('G7.role')).toMatch(/^Role · .+/);
+    expect(n.get('G7.role')).not.toBe(n.get('G10.role'));
+    expect(n.get('G8.asymmetry_display')).toBe('Asymmetry display');
+  });
+  it('plainNote strips the batch and self-approval markers', async () => {
+    const m = await import('./configWords');
+    expect(m.plainNote('[batch 3c410b59-00db-499d-a130-4e72f3f3764f inherit] retest one')).toBe('retest one');
+    expect(m.plainNote('[self-approved as SuperAdmin] e2e B2')).toBe('e2e B2');
+    expect(m.plainNote('[self-approved as SuperAdmin]')).toBe('');
+    expect(m.plainNote('keep [this] as is')).toBe('keep [this] as is');
+    expect(m.plainNote(null)).toBe('');
+  });
+});

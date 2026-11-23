@@ -66,7 +66,7 @@ const Frame: React.FC<{
     return { type: loops && profileId ? loops.filter(l => l.profileId === profileId).length : undefined, plant: loops?.length };
   }, [fleet.data, profileId]);
   const summaries = useBundleSummaries(site, kind, scopeRef ?? undefined);
-  const mine = useMemo(() => (summaries.data?.bundles ?? []).filter(b => b.scopeKind === kind && (b.scopeRef ?? null) === scopeRef), [summaries.data, kind, scopeRef]);
+  const mine = useMemo(() => (summaries.data?.bundles ?? []).filter(b => b.scopeKind === kind && sameRef(b.scopeRef, scopeRef)), [summaries.data, kind, scopeRef]);
 
   const tabs: Tab[] = kind === 'LOOP' ? ['values', 'region', 'versions'] : ['values', 'versions'];
   const asked = params.get('tab') as Tab | null;
@@ -159,9 +159,12 @@ const LoopScope: React.FC<{ loopId: string }> = ({ loopId }) => {
   );
 };
 
+/** A SITE bundle carries scopeRef "" (a loop or type carries its id): "" and null are the same, no reference. */
+const sameRef = (a: string | null | undefined, b: string | null | undefined) => (a || null) === (b || null);
+
 /** The newest active version of one level (a marker for the plant-wide settings is not one). */
 const activeAt = (bundles: BundleSummary[] | undefined, kind: ScopeKind, scopeRef: string | null) => (bundles ?? [])
-  .filter(b => b.state === 'ACTIVE_VERIFIED' && !b.inherits && b.scopeKind === kind && (b.scopeRef ?? null) === scopeRef).sort((a, b) => b.version - a.version)[0];
+  .filter(b => b.state === 'ACTIVE_VERIFIED' && !b.inherits && b.scopeKind === kind && sameRef(b.scopeRef, scopeRef)).sort((a, b) => b.version - a.version)[0];
 
 /**
  * A loop type or the whole plant: the active version of that level; a type without one runs the plant's active version (final

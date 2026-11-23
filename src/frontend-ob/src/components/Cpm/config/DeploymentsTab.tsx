@@ -108,7 +108,7 @@ export const DeploymentsTab: React.FC<DeploymentsTabProps> = ({ bundle, deployme
                       <button type="button" className="cpm-config-rowbtn" onClick={e => { e.stopPropagation(); select(d.deploymentId); }}>{d.kind === 'ROLLBACK' ? 'Rollback' : 'Deploy'}</button>
                       <div className="cpm-event-row__sub">{stamp(d.createdAt)}{takesEffect(d) ? ` · ${takesEffect(d)}` : ''}</div>
                     </td>
-                    <td><WordPill word={{ ...deploymentStateWord(d), label: deploymentTitle(d) }} /></td>
+                    <td><WordPill word={{ ...deploymentStateWord(d), ...(d.state === 'ACTIVE_VERIFIED' ? { tone: 'good' as const, glyph: '✓' } : {}), label: deploymentTitle(d) }} /></td>
                   </tr>
                 );
               })}

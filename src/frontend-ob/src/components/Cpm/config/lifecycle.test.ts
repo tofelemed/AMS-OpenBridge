@@ -30,7 +30,7 @@ describe('lifecycleActions', () => {
     expect(a[1]).toMatchObject({ enabled: false, reason: 'Check the change first.' });
     expect(a[2]).toMatchObject({ enabled: false, reason: 'Check the change first.' });
     expect(a[3]).toMatchObject({ enabled: false, reason: 'Approve the change first.' });
-    expect(a[4]).toMatchObject({ enabled: false, reason: 'Only the version running now can be rolled back.' });
+    expect(a[4]).toMatchObject({ enabled: false, reason: 'Only the running version can be rolled back.' });
   });
   it('names the missing permission before the state', () => {
     const a = lifecycleActions({ state: 'VALIDATED' }, { ...perms, approve: false }, false, NONE);
@@ -93,8 +93,13 @@ describe('roll back follows the server (CHG-220, gap 4)', () => {
   it('offers the version the server names, only on the version running now', () => {
     const roll = (back: { running: boolean; target: { version: number } | null }) => lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, back).find(x => x.key === 'rollback');
     expect(roll(BACK)).toMatchObject({ label: 'Roll back to v5', enabled: true, reason: null });
-    expect(roll({ running: true, target: null })).toMatchObject({ enabled: false, reason: 'There is no earlier version to go back to now.' });
-    expect(roll(NONE)).toMatchObject({ enabled: false, reason: 'Only the version running now can be rolled back.' });
+    expect(roll({ running: true, target: null })).toMatchObject({ enabled: false, reason: 'There is no earlier version to go back to' });
+    // retest 6: a version in the running state never reads "only the running version"
+    expect(roll(NONE)).toMatchObject({ enabled: false, reason: 'There is no earlier version to go back to' });
+    expect(lifecycleActions({ state: 'SUPERSEDED' }, perms, false, NONE).find(x => x.key === 'rollback')).toMatchObject({ enabled: false, reason: 'Only the running version can be rolled back.' });
+    // the marker (CHG-223) is not rolled back from; a new change starts own settings again
+    const marker = lifecycleActions({ state: 'ACTIVE_VERIFIED', inherits: true }, perms, false, BACK).find(x => x.key === 'rollback');
+    expect(marker).toMatchObject({ enabled: false, reason: 'Start a new change to use own settings again' });
     // lab retest: before the deployments are read, nothing is "not running" yet
     expect(roll({ ...NONE, loading: true })).toMatchObject({ enabled: false, reason: 'Reading the deployments…' });
   });

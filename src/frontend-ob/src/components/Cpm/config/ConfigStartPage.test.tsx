@@ -47,7 +47,7 @@ const BUNDLES = [
   summary('l3', 3, 'ACTIVE_VERIFIED', { scopeRef: 'FIC10301' }),
   summary('s1', 1, 'ACTIVE_VERIFIED', { scopeKind: 'SITE', scopeRef: null }),
   summary('p1', 1, 'ACTIVE_VERIFIED', { scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG' }),
-  summary('l13', 13, 'SHADOW_EVALUATED', { scopeRef: 'FIC10302', note: 'Wider region for the new feed rate' }),
+  summary('l13', 13, 'SHADOW_EVALUATED', { scopeRef: 'FIC10302', note: '[batch 3c410b59-00db-499d-a130-4e72f3f3764f inherit] Wider region for the new feed rate' }),
 ];
 
 describe('ConfigStartPage', () => {

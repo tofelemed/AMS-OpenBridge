@@ -210,3 +210,27 @@ describe('ShadowComparison after a gateway timeout and a failed run (fix round 1
   });
 });
 
+
+describe('ShadowComparison retest fixes (issue 5)', () => {
+  const rep = (over: Record<string, unknown>) => ({ bundleId: 'b1', analysisRunId: 'r1', runState: 'FINISHED', loopId: 'FIC10301', fromMs: 0, toMs: 1, shadowRows: 0,
+    comparedWindows: 0, symptomsRemoved: 0, symptomsAdded: 0, reclassification: null, comparedAt: 't', windows: [], ...over });
+  const tried = () => bundle({ state: 'SHADOW_EVALUATED', shadow: { analysisRunId: 'r1', loopId: 'FIC10301', contentHash: 'h' } as never });
+  it('0 of 0 windows says No data in the chosen period', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({}) as never);
+    view(tried());
+    expect(await screen.findByText('No data in the chosen period')).toBeTruthy();
+    expect(screen.queryByText('No matching live results to compare')).toBeNull();
+  });
+  it('compared windows with no change say the result is the same', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ shadowRows: 1, comparedWindows: 1 }) as never);
+    view(tried());
+    expect(await screen.findByText(/Same result/)).toBeTruthy();
+  });
+  it('Try again comes after the inputs (Period), not between Run on and Period', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ shadowRows: 1, comparedWindows: 1 }) as never);
+    view(tried());
+    const period = await screen.findByText('Period');
+    const btn = screen.getByRole('button', { name: 'Try again' });
+    expect(period.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

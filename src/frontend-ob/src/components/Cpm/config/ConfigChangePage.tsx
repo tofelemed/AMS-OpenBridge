@@ -24,7 +24,7 @@ import { editableState, frozenLine, frozenSentence, lifecycleActions, type Lifec
 import { APPROVAL_BINDS, APPROVE_RULE, CONTROL_AUTHORITY } from '../governance/GovernanceHowToRead';
 import { bundleApproveRule } from './approvalRules';
 import { diffProperties, resolveBelow } from './configSupport';
-import { bundleStateWord } from './configWords';
+import { bundleStateWord, editableChanges, plainNote } from './configWords';
 import { scopeTitle, stateWord, stepMarks, versionLabel } from './levelWords';
 import { CONFIG_BASE, loopPath, plantPath, scoped, typePath, type ChangeStep } from './configRoutes';
 import { CHANGE_STEPS as ORDER, SETTLED } from './changeStates';
@@ -63,7 +63,14 @@ export const ConfigChangePage: React.FC = () => {
   const deployments = useDeployments(bundleId);
   const actions = useConfigActions(b?.site);
   const requested = params.get('step');
-  const marks = stepMarks(b?.state ?? 'DRAFT');
+  // Edit is done exactly when Check lists a change (the same editable-filtered list); null = the catalogue is still loading
+  const changes = !b ? [] : editableChanges(diffProperties(parent.data?.resolved.properties ?? resolveBelow(b.layers, b.scopeKind), b.resolved.properties), catalogue.data ? entries : null);
+  const marks = stepMarks(b?.state ?? 'DRAFT', changes.length > 0);
+  // a marker for the plant-wide settings has nothing to edit, check or try: those steps carry no mark
+  if (b?.inherits) {
+    marks.edit = null; marks.check = null; marks.try = null;
+    if (marks.approve !== 'done' && marks.approve !== 'current' && marks.deploy !== 'current') marks.approve = 'current';
+  }
   const fallback: ChangeStep = b && SETTLED.has(b.state) ? 'deploy' : ORDER.find(s => marks[s] === 'current') ?? 'edit';
   const step = ORDER.includes(requested as ChangeStep) ? (requested as ChangeStep) : fallback;
   const fleet = useEffectiveSummary({ site: b?.site }, (step === 'check' || step === 'approve') && !!b && b.scopeKind !== 'LOOP');
@@ -93,12 +100,11 @@ export const ConfigChangePage: React.FC = () => {
   const reasonOf = (a: LifecycleAction) => (a.enabled || a.reason === frozen ? null : a.reason);
   const onOp = (op: PatchOp) => actions.patch.mutate({ id: b.bundleId, etag: b.etag, ops: [op] });
   const loopCount = b.scopeKind === 'PROFILE' ? fleet.data?.loops.filter(l => l.profileId === b.scopeRef).length : fleet.data?.count;
-  const changes = diffProperties(parent.data?.resolved.properties ?? resolveBelow(b.layers, b.scopeKind), b.resolved.properties);
   const appliesTo = b.scopeKind === 'LOOP' || b.scopeKind === 'REGIME' ? b.scopeRef ?? undefined
     : `${scopeTitle(b.scopeKind, b.scopeKind === 'SITE' ? b.site : b.scopeRef ?? '')}${loopCount != null ? ` · ${loopCount} ${loopCount === 1 ? 'loop' : 'loops'}` : ''}`;
   const back = backOf(b);
   const backHref = scoped(back.href, params);
-  const lead = [b.note, b.createdBy, stamp(b.createdAt)].filter(Boolean).join(' · ');
+  const lead = [plainNote(b.note), b.createdBy, stamp(b.createdAt)].filter(Boolean).join(' · ');
   const word = bundleStateWord(b.state);
 
   return (
@@ -115,7 +121,7 @@ export const ConfigChangePage: React.FC = () => {
             <PropertiesTab bundle={b} entries={entries} gate={gate} onGate={setGate} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
           )}
           {step === 'check' && (
-            <DiffImpactPanel bundle={b} parent={parent.data} loopCount={loopCount}
+            <DiffImpactPanel bundle={b} parent={parent.data} loopCount={loopCount} entries={catalogue.data ? entries : null}
               validate={{ enabled: validate.enabled, reason: reasonOf(validate), busy: actions.validate.isPending, error: actions.validate.error, onValidate: () => actions.validate.mutate(b.bundleId) }} />
           )}
           {step === 'try' && (

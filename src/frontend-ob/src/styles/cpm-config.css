@@ -117,6 +117,8 @@
 .cpm-config-step__n { display: grid; place-items: center; flex: none; width: var(--traverse-space-6); height: var(--traverse-space-6); border-radius: 50%; border: 2px solid var(--traverse-border-strong); background: var(--traverse-surface-panel); color: var(--traverse-text-secondary); font-weight: 600; }
 .cpm-config-step--done .cpm-config-step__n { background: var(--traverse-status-success-fg); border-color: var(--traverse-status-success-fg); color: var(--traverse-action-on); }
 .cpm-config-step--viewed .cpm-config-step__n { border-color: var(--traverse-action-primary); color: var(--traverse-action-primary); box-shadow: 0 0 0 4px var(--traverse-surface-selected); }
+/* a version being viewed that is also done: the number or tick stays on the success disc in the on-colour, the ring marks the view */
+.cpm-config-step--done.cpm-config-step--viewed .cpm-config-step__n { color: var(--traverse-action-on); border-color: var(--traverse-action-primary); }
 .cpm-config-step__label { font-weight: 600; white-space: nowrap; }
 .cpm-config-step--todo .cpm-config-step__label { font-weight: 400; color: var(--traverse-text-secondary); }
 .cpm-config-step__opt { color: var(--traverse-text-secondary); }
@@ -158,3 +160,7 @@
 .cpm-region-list { margin: 0; padding-inline-start: var(--traverse-space-4); }
 .cpm-region-rows--edit td { vertical-align: top; }
 .cpm-region-rows--edit .cpm-region-cell[aria-invalid='true'] { border-color: var(--traverse-status-danger-fg); }
+
+/* the scope page's card is the start card's flex column (items at the start): its table panel spans the card; so does the regions table */
+.cpm-config-card > [role='tabpanel'] { align-self: stretch; min-width: 0; }
+.cpm-config-values, .cpm-config-values > .cpm-table, .cpm-config-list > .cpm-table, .cpm-config-card .cpm-table[aria-label='Versions'] { width: 100%; }

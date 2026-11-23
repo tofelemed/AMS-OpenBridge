@@ -17,6 +17,10 @@ describe('levelWords', () => {
   it('marks the steps: a state names the step just finished, the next one is current', () => {
     const D = 'done', C = 'current';
     expect(stepMarks('DRAFT')).toEqual({ edit: D, check: C, try: null, approve: null, deploy: null });
+    // retest 12: a draft with no edit yet has Edit as the current step
+    expect(stepMarks('DRAFT', false)).toEqual({ edit: C, check: null, try: null, approve: null, deploy: null });
+    expect(stepMarks('DRAFT', true)).toEqual(stepMarks('DRAFT'));
+    expect(stepMarks('VALIDATED', false)).toEqual(stepMarks('VALIDATED'));
     expect(stepMarks('VALIDATED')).toEqual({ edit: D, check: D, try: C, approve: null, deploy: null });
     expect(stepMarks('SHADOW_EVALUATED')).toEqual({ edit: D, check: D, try: D, approve: C, deploy: null });
     expect(stepMarks('EXPIRED')).toEqual(stepMarks('SHADOW_EVALUATED'));

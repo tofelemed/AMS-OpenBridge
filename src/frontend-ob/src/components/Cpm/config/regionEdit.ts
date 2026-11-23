@@ -67,7 +67,7 @@ export interface BatchAction { label: string; enabled: boolean; reason: string |
 export function approveAction(batch: Batch | undefined, viewer: Viewer, canApprove: boolean): BatchAction {
   const waiting = !!batch?.rows.some(r => APPROVABLE.has(r.state) && !r.error);
   const { mine, admin } = standing(batch?.createdBy ?? batch?.rows.find(r => r.createdBy)?.createdBy ?? null, viewer);
-  const label = mine && admin ? 'Approve alone (Admin)' : 'Approve';
+  const label = mine && admin ? 'Approve alone' : 'Approve';
   if (!canApprove) return { label, enabled: false, reason: 'Your account cannot approve' };
   if (!waiting) return { label, enabled: false, reason: null };
   if (mine && !admin) return { label, enabled: false, reason: 'Needs a second person' };

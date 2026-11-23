@@ -1,6 +1,6 @@
 /**
  * CHG-219 (owner-approved design docs/next-release/gate-configuration-per-loop-design.md §3): the batch panel above the per-loop
- * table. Each loop of the batch with its state; Approve (a second person) or "Approve alone (Admin)" (the author as Admin /
+ * table. Each loop of the batch with its state; Approve (a second person) or "Approve alone" (the author as Admin /
  * SuperAdmin), then Deploy; each row then follows its deployment until it is active.
  */
 import React, { useState } from 'react';

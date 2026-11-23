@@ -224,4 +224,60 @@ describe('ConfigChangePage', () => {
       expect(screen.getByText(/Nothing on the plant changes\./)).toBeTruthy();
     });
   });
+
+  it('the lead leaves out the batch and self-approval markers of the note (retest issue 7)', async () => {
+    table = { ...BUNDLES, v13: { ...v13, note: '[batch 3c410b59-00db-499d-a130-4e72f3f3764f inherit] retest one' } };
+    renderAt('/cpm/config/changes/v13?step=edit');
+    expect(await screen.findByText(/retest one · alice/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/3c410b59|\[batch/);
+  });
+
+  it('a fresh draft with no own values shows Edit as the current step, not done (hasOwnEdits)', async () => {
+    const empty = { ...(BUNDLES.d1 as { layers: Array<{ kind: string; content: object }> }), bundleId: 'd0', layers: (BUNDLES.d1 as { layers: Array<{ kind: string; content: object }> }).layers.map(l => (l.kind === 'LOOP' ? { ...l, content: {} } : l)) };
+    table = { ...BUNDLES, d0: empty };
+    renderAt('/cpm/config/changes/d0');
+    expect((await screen.findByRole('button', { name: /^Edit/ })).getAttribute('aria-current')).toBe('step');
+    expect(stepButton('Edit').textContent).not.toMatch(/✓/);
+  });
+
+  describe('step marks follow the real changes (review round)', () => {
+    const base = BUNDLES.d1 as { layers: Array<{ kind: string; content: object }>; resolved: { properties: Record<string, unknown> } };
+    const withCatalogue = () => {
+      const prev = vi.mocked(fetchMod.apiJson).getMockImplementation()!;
+      vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string, ...r: never[]) => {
+        if (String(url).includes('/configuration/catalogue')) {
+          const c = respond(String(url)) as { properties: object[] };
+          return { ...c, properties: [...c.properties, { property: 'G7.role', gate: 'G7', type: 'enum', unit: null, kind: 'NOT_APPLIED', editable: false, setIn: 'NOT_APPLIED', registryField: null, changeClass: 'POLICY', validation: [], dependencies: [], consumers: [], default: null, commissioningRequired: false, notReadByBuild: null }] };
+        }
+        return prev(url, ...r);
+      });
+    };
+    const editStep = async () => (await screen.findByRole('button', { name: /^Edit/ }));
+
+    it('a loop draft started from a type bundle with no own values has Edit current', async () => {
+      table = { ...BUNDLES, d0: { ...base, bundleId: 'd0', parentBundleId: 'pp', layers: base.layers }, pp: { ...base, bundleId: 'pp', scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED' } };
+      renderAt('/cpm/config/changes/d0');
+      expect((await editStep()).textContent).toMatch(/in progress/);
+      expect(stepButton('Edit').textContent).not.toMatch(/✓/);
+    });
+    it('a parent with legacy non-editable keys and no real edit leaves Edit current; one real edit marks it done', async () => {
+      withCatalogue();
+      const parent = { ...base, bundleId: 'pp', state: 'ACTIVE_VERIFIED', resolved: { ...base.resolved, properties: { ...base.resolved.properties, 'G7.role': 'PRIMARY' } } };
+      table = { ...BUNDLES, d0: { ...base, bundleId: 'd0', parentBundleId: 'pp' }, pp: parent };
+      renderAt('/cpm/config/changes/d0');
+      await waitFor(() => expect(stepButton('Edit').textContent).toMatch(/in progress/));
+      cleanup();
+      table = { ...BUNDLES, d0: { ...base, bundleId: 'd0', parentBundleId: 'pp', resolved: { ...base.resolved, properties: { ...base.resolved.properties, 'G4.activity_warn_ratio': 9 } } }, pp: parent };
+      renderAt('/cpm/config/changes/d0');
+      await waitFor(() => expect(stepButton('Edit').textContent).toMatch(/not started|done|✓/));
+      await waitFor(() => expect(stepButton('Edit').textContent).toMatch(/✓/));
+    });
+    it('a plant-wide marker shows Edit, Check and Try as not used', async () => {
+      table = { ...BUNDLES, mk: { ...(BUNDLES.dv as object), bundleId: 'mk', inherits: true, state: 'VALIDATED' } };
+      renderAt('/cpm/config/changes/mk');
+      await screen.findByRole('button', { name: /^Edit/ });
+      for (const n of ['Edit', 'Check', 'Try on past data']) { expect(stepButton(n).textContent).not.toMatch(/✓|in progress/); expect(stepButton(n).textContent).toMatch(/not started/); }
+      expect(stepButton('Approve').textContent).toMatch(/in progress/);
+    });
+  });
 });

@@ -32,7 +32,7 @@ function entryRow(e: EffectiveEntry): Row {
   const worked = e.configured == null;
   return {
     key: e.property, value: e.value == null && e.basis ? e.basis : displayValue(e.property, e.value, e.unit),
-    from: worked ? sourceWord(null) : sourceWord(e.level), basis: worked ? e.basis : null, muted: worked,
+    from: worked ? sourceWord(null) : sourceWord(e.level), basis: e.basis ?? null, muted: worked,
   };
 }
 

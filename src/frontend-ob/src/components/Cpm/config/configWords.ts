@@ -9,6 +9,7 @@ import { humanise } from '../vocabulary';
 import { stamp, zoneTag } from '../events/eventTime';
 import { deploymentStateTone, valueText } from './configSupport';
 import { stateWord } from './levelWords';
+import { gateName } from '../gateStatus';
 
 /** "25 Sept 18:37 UTC": a time where no column heading names the zone (a panel, a dialog). */
 export function stampZoned(ts: string | number | null | undefined): string {
@@ -53,8 +54,37 @@ export function classWord(changeClass: string | null | undefined): StateWord {
   return { label: changeClass && changeClass !== 'POLICY' ? humanise(changeClass) : 'Policy', tone: 'muted', glyph: '' };
 }
 
-/** A value as words: an unset one reads a dash (CHG-224: never "No value"). */
-export const valueWords = (v: unknown): string => (v === null || v === undefined ? '—' : valueText(v));
+/** A code such as SUPPORTING or FAST_SELF_REG in words: "Supporting", "Fast self reg". Any other text is left as it is. */
+export const enumWords = (s: string): string => {
+  if (!/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/.test(s) || s.length < 2) return s;
+  const t = s.toLowerCase().replace(/_/g, ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/** A value as words: an unset one reads a dash (CHG-224: never "No value"); a code reads as a word. */
+export const valueWords = (v: unknown): string => (v === null || v === undefined ? '—' : typeof v === 'string' ? enumWords(valueText(v)) : valueText(v));
+
+/** The changes the person made: a property the catalogue says cannot be edited here (the server drops it) is not one of them. `null` entries = catalogue loading. */
+export const editableChanges = <T extends { property: string }>(list: T[], entries: ReadonlyArray<{ property: string; editable: boolean }> | null | undefined): T[] => {
+  if (entries === null) return []; // the catalogue is still loading: no row is shown rather than a phantom one
+  if (!entries?.length) return list;
+  const locked = new Set(entries.filter(e => e.editable === false).map(e => e.property));
+  return list.filter(c => !locked.has(c.property));
+};
+
+/** A note without the machine markers the server writes in front: "[batch <id> inherit]" and "[self-approved as <role>]". */
+export const plainNote = (note: string | null | undefined): string =>
+  (note ?? '').replace(/^(?:\s*\[(?:batch\s+[0-9a-f-]{8,}[^\]]*|self-approved as [^\]]*)\]\s*)+/i, '').trim();
+
+/** Setting names for a list of changes: the plain name, with the gate added ("Role · Oscillation") where two would read alike. */
+export function changeNames(properties: string[]): Map<string, string> {
+  const count = new Map<string, number>();
+  for (const p of properties) count.set(settingName(p), (count.get(settingName(p)) ?? 0) + 1);
+  return new Map(properties.map(p => {
+    const n = settingName(p);
+    return [p, (count.get(n) ?? 0) > 1 ? `${n} · ${gateName(p.split('.')[0])}` : n] as [string, string];
+  }));
+}
 
 /** The catalogue units a number is read with; any other unit (fraction, ratio, state…) is said in the property's panel. */
 const UNIT: Record<string, string> = {

@@ -47,6 +47,11 @@ describe('DeploymentsTab in words', () => {
     expect(document.body.textContent).not.toMatch(/verified/i);
   });
 
+  it('a settled running row has the same glyph as the page pill, even with an ACK-window probe (retest 8)', () => {
+    view({ deployments: [dep({ probeResults: { verifiedBy: 'ACK_WINDOW' } })] });
+    expect(within(screen.getByRole('region', { name: 'Deployments' })).getByText(/Running/).textContent).toMatch(/✓ ?Running/);
+  });
+
   it('the schedule is a datetime-local input named with the plant zone, sent as the instant in that zone', () => {
     const onDeploy = vi.fn();
     view({ onDeploy });

@@ -71,12 +71,12 @@ describe('approveAction', () => {
     expect(approveAction(waiting, { username: 'sara', role: 'Engineer' }, true)).toEqual({ label: 'Approve', enabled: true, reason: null });
   });
   it('the author approves alone only as Admin or SuperAdmin', () => {
-    expect(approveAction(waiting, { username: 'ALI', role: 'SuperAdmin' }, true)).toEqual({ label: 'Approve alone (Admin)', enabled: true, reason: null });
+    expect(approveAction(waiting, { username: 'ALI', role: 'SuperAdmin' }, true)).toEqual({ label: 'Approve alone', enabled: true, reason: null });
     expect(approveAction(waiting, { username: 'ali', role: 'Engineer' }, true)).toEqual({ label: 'Approve', enabled: false, reason: 'Needs a second person' });
   });
   it('the author is read from the rows when the batch carries none', () => {
     const b = { ...batch([row('VALIDATED', { createdBy: 'ali' })]), createdBy: null };
-    expect(approveAction(b, { username: 'ali', role: 'Admin' }, true).label).toBe('Approve alone (Admin)');
+    expect(approveAction(b, { username: 'ali', role: 'Admin' }, true).label).toBe('Approve alone');
   });
   it('nothing waiting, or no permission, disables it', () => {
     expect(approveAction(batch([row('APPROVED')]), { username: 'sara', role: 'Admin' }, true).enabled).toBe(false);

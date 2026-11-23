@@ -5,6 +5,7 @@ import type { CpmLoop } from '../../../api/cpmApi';
 import type { BundleSummary } from '../../../api/cpm/config';
 import { realName } from './loopNames';
 import { stamp, zoneTag } from '../events/eventTime';
+import { plainNote } from './configWords';
 import { levelWord, scopeTitle, versionLabel } from './levelWords';
 import type { ChangeStep } from './configRoutes';
 import type { InProgressRow, RunningRow } from './startPageData';
@@ -24,7 +25,7 @@ export const ChangesTable: React.FC<{ rows: InProgressRow[]; onContinue: (id: st
     <tbody>
       {rows.map(({ bundle: b, nextStep, done }) => (
         <tr key={b.bundleId}>
-          <td><strong>{changeName(b)}</strong>{b.note && <div className="cpm-event-row__sub">{b.note}</div>}</td>
+          <td><strong>{changeName(b)}</strong>{plainNote(b.note) && <div className="cpm-event-row__sub">{plainNote(b.note)}</div>}</td>
           <td>
             <span className="cpm-config-prog" aria-hidden>{[0, 1, 2, 3, 4].map(i => <i key={i} data-seg={i < done ? 'done' : i === done ? 'current' : undefined} />)}</span>
             {STEP_WORD[nextStep]}

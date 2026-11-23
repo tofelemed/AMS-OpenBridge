@@ -133,6 +133,22 @@ describe('ConfigScopePage', () => {
     expect(await screen.findByText('Loop type')).toBeTruthy();
   });
 
+  it('plant page: SITE versions carry scopeRef "" and still count as the own of the plant (retest 1)', async () => {
+    const base = vi.mocked(fetchMod.apiJson).getMockImplementation()!;
+    const site = [sum('s1', 1, 'ACTIVE_VERIFIED', { scopeKind: 'SITE', scopeRef: '' }), sum('s2', 2, 'DRAFT', { scopeKind: 'SITE', scopeRef: '' })];
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string, ...rest: unknown[]) => {
+      if (url.includes('/configuration/drafts?') && url.includes('scopeKind=SITE')) return { site: 'hdpe', projection: 'summary', bundles: site };
+      if (url.includes('/configuration/drafts/s1')) return { bundleId: 's1', version: 1, resolved: { properties: { 'G4.activity_high_ratio': 8 }, sources: { 'G4.activity_high_ratio': 'SITE' } } };
+      return (base as (u: string, ...r: unknown[]) => Promise<unknown>)(url, ...rest);
+    });
+    renderAt('/cpm/config/plant/hdpe');
+    expect(await screen.findByText('Plant settings v1')).toBeTruthy();
+    expect(screen.queryByText('Factory settings')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
+    expect(await screen.findByText('Plant settings v2')).toBeTruthy();
+    expect(screen.getAllByText('Plant settings v1').length).toBeGreaterThan(0);
+  });
+
   it('plant page title is Whole plant', async () => {
     renderAt('/cpm/config/plant/hdpe');
     expect(await screen.findByRole('heading', { name: 'Whole plant' })).toBeTruthy();

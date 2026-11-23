@@ -81,3 +81,23 @@ describe('DiffImpactPanel', () => {
     expect(screen.getByText('w1')).toBeTruthy();
   });
 });
+
+describe('DiffImpactPanel leaves out settings the person did not change (retest issue 3)', () => {
+  it('drops non-editable properties and names a duplicated name with its gate, values in words', () => {
+    const b = bundle({}, { 'G4.activity_warn_ratio': 4.5 });
+    const parent = bundle({ bundleId: 'p', version: 5 }, { 'G4.activity_warn_ratio': 3 });
+    (b.resolved.properties as Record<string, unknown>)['G7.role'] = 'SUPPORTING';
+    (b.resolved.properties as Record<string, unknown>)['G10.role'] = 'SUPPORTING';
+    (parent.resolved.properties as Record<string, unknown>)['G7.role'] = 'PRIMARY';
+    (parent.resolved.properties as Record<string, unknown>)['G10.role'] = 'PRIMARY';
+    const entries = [{ property: 'G7.role', editable: false }, { property: 'G10.role', editable: false }, { property: 'G4.activity_warn_ratio', editable: true }] as never;
+    const { rerender } = render(<DiffImpactPanel bundle={b} parent={parent} entries={entries} validate={idle} />);
+    expect(within(screen.getByRole('table')).getAllByRole('row').slice(1)).toHaveLength(1);
+    expect(screen.queryByText(/Role/)).toBeNull();
+    rerender(<DiffImpactPanel bundle={b} parent={parent} entries={[{ property: 'G7.role', editable: true }, { property: 'G10.role', editable: true }] as never} validate={idle} />);
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows.map(r => r.querySelector('td')?.textContent).filter(t => t?.startsWith('Role · '))).toHaveLength(2);
+    expect(rows.some(r => /Primary.*Supporting/.test(r.textContent ?? ''))).toBe(true);
+    expect(document.body.textContent).not.toMatch(/PRIMARY|SUPPORTING/);
+  });
+});

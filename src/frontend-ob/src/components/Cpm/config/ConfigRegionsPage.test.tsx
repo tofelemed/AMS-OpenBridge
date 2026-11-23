@@ -98,7 +98,7 @@ describe('ConfigRegionsPage', () => {
     expect(bodyOf(0)).toEqual({ regions: [{ loopId: 'FIC10301', pvMin: 51.4, pvMax: 150 }], note: 'Recommended regions' });
     await waitFor(() => expect(loc()).toBe('/cpm/config/regions?site=hdpe&batch=b1'));
     const panel = await screen.findByRole('region', { name: 'Batch' });
-    expect(await within(panel).findByRole('button', { name: 'Approve alone (Admin)' })).toBeTruthy();
+    expect(await within(panel).findByRole('button', { name: 'Approve alone' })).toBeTruthy();
     expect(within(panel).getByRole('button', { name: 'Deploy' })).toBeTruthy();
     expect(within(panel).getByText('Uses the plant-wide settings')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
