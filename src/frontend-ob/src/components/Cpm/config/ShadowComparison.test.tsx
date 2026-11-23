@@ -73,3 +73,33 @@ describe('ShadowComparison', () => {
     expect(screen.queryByText(/7c1e04a2/)).toBeNull();
   });
 });
+
+// CHG-220 (Gate Configuration check, gap 7): the comparison stopped at "Submitted" (only "Running" was read again), Run again
+// showed the previous run, and an edited draft showed the comparison of its old content.
+describe('ShadowComparison keeps to the current run and content (CHG-220)', () => {
+  const report = (over: Record<string, unknown>) => ({ bundleId: 'b1', analysisRunId: 'r1', runState: 'FINISHED', loopId: 'FIC10301', fromMs: 0, toMs: 1, shadowRows: 3,
+    comparedWindows: 3, symptomsRemoved: 1, symptomsAdded: 0, reclassification: null, comparedAt: 't', windows: [], ...over });
+
+  it('a submitted run reads as in progress and is read again until it ends', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(fetchMod.apiJson).mockResolvedValueOnce(report({ runState: 'SUBMITTED', shadowRows: 0, comparedWindows: 0, symptomsRemoved: 0 }) as never)
+        .mockResolvedValue(report({}) as never);
+      view(bundle({ state: 'SHADOW_EVALUATED', shadow: { analysisRunId: 'r1', loopId: 'FIC10301', contentHash: 'h' } as never }));
+      expect(await screen.findByText('Submitted')).toBeTruthy();
+      await vi.advanceTimersByTimeAsync(10_500);
+      expect(await screen.findByText('Finished')).toBeTruthy();
+      expect(screen.getByText(/1 removed · 0 added/)).toBeTruthy();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('a run of content the draft no longer has is not its comparison', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(report({}) as never);
+    view(bundle({ contentHash: 'h2', shadow: { analysisRunId: 'r1', loopId: 'FIC10301', contentHash: 'h1' } as never }));
+    expect(screen.getByText('The draft changed after the last run.')).toBeTruthy();
+    expect(screen.getByText('Not run')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Run again' })).toBeTruthy();
+    expect(screen.queryByText(/removed ·/)).toBeNull();
+    expect(fetchMod.apiJson).not.toHaveBeenCalled();
+  });
+});

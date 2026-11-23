@@ -7,6 +7,9 @@
  * switched to this tab); "Shadow evaluation ○ Not run ?" heads it. A frozen version no longer reads "Validate the bundle first"
  * (it is validated; why it cannot run is said once, under the tabs). Times read "6 Nov 10:45", the zone named once.
  * CHG-184 (owner review item 0): the run row names the loop only, never the run id.
+ * CHG-220 (Gate Configuration check, gap 7): the comparison is read again until the run ends (it stopped at "Submitted", which
+ * is not "Running"), it is kept per run (Run again shows the new run, not the last one), and a run of content the draft no
+ * longer has is not shown as its comparison.
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -26,12 +29,19 @@ export interface ShadowReport {
   windows: Array<{ windowKind: string; windowEnd: string; diagnosisBefore: string | null; diagnosisAfter: string | null; changed: Array<{ gate: string; before: string | null; after: string | null }> }>;
 }
 
-export const useShadowReport = (bundleId: string | undefined, enabled: boolean) => useQuery({
-  queryKey: ['cpm', 'config', 'shadow', bundleId ?? ''],
+/** The states in which a run is over; any other (submitted, running) is read again. */
+export const RUN_ENDED = new Set(['FINISHED', 'FAILED', 'CANCELED', 'SUBMIT_FAILED', 'NOT_RUN', 'UNKNOWN']);
+
+export const useShadowReport = (bundleId: string | undefined, runId: string | undefined, enabled: boolean) => useQuery({
+  queryKey: ['cpm', 'config', 'shadow', bundleId ?? '', runId ?? ''],
   queryFn: ({ signal }) => apiJson<ShadowReport>(`${CPM_BASE}/configuration/drafts/${encodeURIComponent(bundleId!)}/shadow`, { signal }),
   enabled: !!bundleId && enabled,
-  refetchInterval: q => ((q.state.data?.runState ?? 'RUNNING') === 'RUNNING' ? 10_000 : false),
+  refetchInterval: q => (RUN_ENDED.has(q.state.data?.runState ?? 'RUNNING') ? false : 10_000),
 });
+
+const runPill = (run: string) => (run === 'FINISHED' ? { tone: 'good' as const, glyph: '✓' }
+  : RUN_ENDED.has(run) ? { tone: (run === 'FAILED' || run === 'SUBMIT_FAILED' ? 'bad' : 'muted') as 'bad' | 'muted', glyph: run === 'FAILED' || run === 'SUBMIT_FAILED' ? '✕' : '○' }
+  : { tone: 'warn' as const, glyph: '◐' });
 
 export const ShadowComparison: React.FC<{
   bundle: Bundle;
@@ -41,10 +51,13 @@ export const ShadowComparison: React.FC<{
   error: unknown;
   onStart: (args: { loopId?: string; hours?: number }) => void;
 }> = ({ bundle, defaultLoopId, canShadow, pending, error, onStart }) => {
-  const shadow = bundle.shadow as { analysisRunId?: string; loopId?: string; state?: string } | null;
+  const recorded = bundle.shadow as { analysisRunId?: string; loopId?: string; state?: string; contentHash?: string } | null;
+  // a run of other content (the draft was edited since) is not this content's comparison
+  const stale = !!recorded?.analysisRunId && !!recorded.contentHash && recorded.contentHash !== bundle.contentHash;
+  const shadow = stale ? null : recorded;
   const [loopId, setLoopId] = useState(defaultLoopId ?? '');
   const [hours, setHours] = useState('24');
-  const report = useShadowReport(bundle.bundleId, !!shadow?.analysisRunId);
+  const report = useShadowReport(bundle.bundleId, shadow?.analysisRunId, !!shadow?.analysisRunId);
   const validated = bundle.state === 'VALIDATED' || bundle.state === 'SHADOW_EVALUATED';
   const startable = validated && canShadow;
   // a draft (or a rejected one) has to be validated first; a frozen version's reason is said once, under the bundle's tabs
@@ -55,8 +68,8 @@ export const ShadowComparison: React.FC<{
       <div className="cpm-panel-head">
         <div className="cpm-title-row">
           <h2 className="cpm-panel-title">Shadow evaluation</h2>
-          {run
-            ? <TonePill tone={run === 'FINISHED' ? 'good' : run === 'RUNNING' ? 'warn' : 'muted'} glyph={run === 'FINISHED' ? '✓' : run === 'RUNNING' ? '◐' : '○'}>{humanise(run)}</TonePill>
+          {run && shadow?.analysisRunId
+            ? <TonePill tone={runPill(run).tone} glyph={runPill(run).glyph}>{humanise(run)}</TonePill>
             : !shadow?.analysisRunId && <TonePill tone="muted" glyph="○">Not run</TonePill>}
           <Toggletip variant="how-to" label="What a shadow run does">
             <p>A shadow run re-evaluates a retained interval of one loop under this draft, isolated by purpose - no episode, no operational result. The comparison is against the LIVE results of the same windows.</p>
@@ -64,6 +77,7 @@ export const ShadowComparison: React.FC<{
         </div>
       </div>
       {shadow?.analysisRunId && <KvRow label="Run on">{shadow.loopId}</KvRow>}
+      {stale && <p className="cpm-copy">The draft changed after the last run.</p>}
       <div className="cpm-config-inline">
         <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Loop</span>
           <input className="cpm-input" value={loopId} onChange={e => setLoopId(e.target.value)} placeholder="loop id" disabled={bundle.scopeKind === 'LOOP'} /></label>
@@ -72,12 +86,12 @@ export const ShadowComparison: React.FC<{
         <ReasonedButton variant="raised" disabled={!startable || pending}
           reason={!canShadow ? 'Needs the cpm.config.shadow permission' : unvalidated ? 'Validate the bundle first — only a validated bundle can be shadow-run' : null}
           onClick={() => onStart({ loopId: bundle.scopeKind === 'LOOP' ? undefined : loopId || undefined, hours: Number(hours) || 24 })}>
-          {pending ? 'Starting…' : shadow?.analysisRunId ? 'Run again' : 'Run shadow'}
+          {pending ? 'Starting…' : recorded?.analysisRunId ? 'Run again' : 'Run shadow'}
         </ReasonedButton>
       </div>
       {error ? <p className="cpm-field__error" role="alert">{error instanceof Error ? error.message : String(error)}</p> : null}
       {report.isError && <QueryError error={report.error} retry={() => void report.refetch()} />}
-      {report.data && (
+      {report.data && shadow?.analysisRunId && (
         <>
           <KvRow label="Support">{report.data.fromMs != null ? `${stamp(report.data.fromMs)} → ${stampZoned(report.data.toMs)}` : '—'}</KvRow>
           <KvRow label="Windows">{report.data.shadowRows} shadow row(s), {report.data.comparedWindows} compared with a LIVE result</KvRow>

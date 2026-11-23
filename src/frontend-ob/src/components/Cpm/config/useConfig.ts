@@ -2,11 +2,16 @@
  * v2.5 Task 3D.1: the configuration workspace's data hooks. The catalogue is the build's (stable
  * for the session); a bundle is re-read after every server-owned step so what renders is what the
  * server recorded, never an optimistic state; a deployment polls while it is in flight.
+ * CHG-220 (Gate Configuration check): gap 6 - when a version's deployment ends (verified, partially acknowledged, failed) the
+ * version, its level lists and the effective views are read again, so Activate and the state change without a reload. Minor -
+ * a saved edit's answer (with its new ETag) replaces the cached version at once, so a second edit right after is not stale.
+ * Gap 7 - a shadow run or an edit reads the comparison again; a rollback re-reads every version and deployment.
  */
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   approveDraft, createDeployment, createDraft, getBundle, getConfigCatalogue, getDeployment, getEffectiveConfig, getEffectiveSummary, listBundles, listBundleSummaries, listDeployments,
-  patchDraft, rollbackDeployment, shadowDraft, validateDraft, type Deployment, type PatchOp, type ScopeKind,
+  patchDraft, rollbackDeployment, shadowDraft, validateDraft, type Bundle, type Deployment, type PatchOp, type ScopeKind,
 } from '../../../api/cpm/config';
 
 const IN_FLIGHT = new Set(['SCHEDULED', 'PREPARING', 'PREPARED', 'APPLYING', 'PROBING']);
@@ -50,12 +55,26 @@ export const useBundle = (id: string | undefined) => useQuery({
   staleTime: 10_000,
 });
 
-export const useDeployments = (bundleId: string | undefined) => useQuery({
-  queryKey: ['cpm', 'config', 'deployments', bundleId ?? ''],
-  queryFn: ({ signal }) => listDeployments({ bundleId, limit: 20 }, signal),
-  enabled: !!bundleId,
-  refetchInterval: q => ((q.state.data?.deployments ?? []).some(d => IN_FLIGHT.has(d.state)) ? 5_000 : false),
-});
+export const useDeployments = (bundleId: string | undefined) => {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ['cpm', 'config', 'deployments', bundleId ?? ''],
+    queryFn: ({ signal }) => listDeployments({ bundleId, limit: 20 }, signal),
+    enabled: !!bundleId,
+    refetchInterval: query => ((query.state.data?.deployments ?? []).some(d => IN_FLIGHT.has(d.state)) ? 5_000 : false),
+  });
+  const moving = (q.data?.deployments ?? []).some(d => IN_FLIGHT.has(d.state));
+  const wasMoving = useRef(moving);
+  useEffect(() => {
+    if (wasMoving.current && !moving && bundleId) {
+      for (const key of ['bundle', 'bundles', 'bundle-summaries', 'effective', 'effective-summary']) {
+        void qc.invalidateQueries({ queryKey: key === 'bundle' ? ['cpm', 'config', 'bundle', bundleId] : ['cpm', 'config', key] });
+      }
+    }
+    wasMoving.current = moving;
+  }, [moving, bundleId, qc]);
+  return q;
+};
 
 export const useDeployment = (id: string | undefined) => useQuery({
   queryKey: ['cpm', 'config', 'deployment', id ?? ''],
@@ -76,11 +95,21 @@ export function useConfigActions(site: string | undefined) {
     void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'effective'] });
   };
   const create = useMutation({ mutationFn: (req: { site: string; scopeKind: ScopeKind; scopeRef?: string | null; parentBundleId?: string | null; note?: string }) => createDraft(req), onSettled: () => settle() });
-  const patch = useMutation({ mutationFn: (a: { id: string; etag: string; ops: PatchOp[] }) => patchDraft(a.id, a.etag, a.ops), onSettled: (_d, _e, a) => settle(a.id) });
+  const shadowOf = (id: string) => void qc.invalidateQueries({ queryKey: ['cpm', 'config', 'shadow', id] });
+  const patch = useMutation({
+    mutationFn: (a: { id: string; etag: string; ops: PatchOp[] }) => patchDraft(a.id, a.etag, a.ops),
+    // the answer carries the new ETag: cache it before the re-read, keeping the approvals the edit answer leaves out
+    onSuccess: (saved, a) => qc.setQueryData<Bundle>(['cpm', 'config', 'bundle', a.id], old => (old ? { ...old, ...saved } : saved)),
+    onSettled: (_d, _e, a) => { settle(a.id); shadowOf(a.id); },
+  });
   const validate = useMutation({ mutationFn: (id: string) => validateDraft(id), onSettled: (_d, _e, id) => settle(id) });
-  const shadow = useMutation({ mutationFn: (a: { id: string; loopId?: string; hours?: number }) => shadowDraft(a.id, { loopId: a.loopId, hours: a.hours }), onSettled: (_d, _e, a) => settle(a.id) });
+  const shadow = useMutation({ mutationFn: (a: { id: string; loopId?: string; hours?: number }) => shadowDraft(a.id, { loopId: a.loopId, hours: a.hours }), onSettled: (_d, _e, a) => { settle(a.id); shadowOf(a.id); } });
   const approve = useMutation({ mutationFn: (a: { id: string; note?: string; validityHours?: number }) => approveDraft(a.id, { note: a.note, validityHours: a.validityHours }), onSettled: (_d, _e, a) => settle(a.id) });
   const deploy = useMutation({ mutationFn: (a: { bundleId: string; scheduledFor?: string | null }) => createDeployment(a), onSettled: (_d, _e, a) => settle(a.bundleId) });
-  const rollback = useMutation({ mutationFn: (id: string) => rollbackDeployment(id), onSettled: () => settle() });
+  const rollback = useMutation({
+    mutationFn: (id: string) => rollbackDeployment(id),
+    // the rollback deploys another version: every version and deployment read may have changed
+    onSettled: () => { settle(); for (const key of ['bundle', 'deployments']) void qc.invalidateQueries({ queryKey: ['cpm', 'config', key] }); },
+  });
   return { create, patch, validate, shadow, approve, deploy, rollback };
 }

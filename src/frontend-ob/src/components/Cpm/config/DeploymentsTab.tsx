@@ -5,6 +5,8 @@
  * it (a drawer below 1280 px) with its ACK matrix. Activate sends { scheduledFor } as before; Roll back now asks first (owner
  * answer 2a) and then sends the rollback of the verified activation, as before. Polling while a deployment is in flight stays
  * in the deployments read.
+ * CHG-220 (Gate Configuration check): gap 2 - a deployment with a later effective time says when it takes effect while it
+ * waits; minor - an Effective from that is not a date and time is said here, before anything is sent.
  */
 import React, { useState } from 'react';
 import { Inspector } from '../../../ui/Inspector';
@@ -37,6 +39,18 @@ export interface DeploymentsTabProps {
   onRollback: (deploymentId: string) => void;
 }
 
+const WAITING = new Set(['SCHEDULED', 'PREPARING', 'PREPARED', 'APPLYING', 'PROBING']);
+/** "takes effect 24 Nov 06:00" while a deployment waits for a later effective time, else null. */
+export const takesEffect = (d: Pick<Deployment, 'state' | 'scheduledFor'>, now = Date.now()): string | null =>
+  d.scheduledFor && WAITING.has(d.state) && Date.parse(d.scheduledFor) > now ? `takes effect ${stamp(d.scheduledFor)}` : null;
+/** The date and time forms the server reads (ISO 8601: a date, optionally a time, optionally a zone). */
+const ISO = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+/** Why an Effective from cannot be sent, or null (empty = now). It is sent as typed. */
+export const scheduleProblem = (text: string): string | null => {
+  const t = text.trim();
+  return t === '' || (ISO.test(t) && !Number.isNaN(Date.parse(t))) ? null : 'Not a date and time, e.g. 2026-11-24T06:00';
+};
+
 export const DeploymentsTab: React.FC<DeploymentsTabProps> = ({ bundle, deployments, deploymentsLoading, deploymentsError, retryDeployments, activate, rollback, reasons, busy, errors, verifiedActivation, onDeploy, onRollback }) => {
   const [schedule, setSchedule] = useState('');
   const [asking, setAsking] = useState(false);
@@ -46,14 +60,17 @@ export const DeploymentsTab: React.FC<DeploymentsTabProps> = ({ bundle, deployme
   const select = (id: string) => { setChosen(id); setDrawer(true); };
   const deployFailed = errorText(errors.deploy);
   const rollbackFailed = errorText(errors.rollback);
+  const badSchedule = scheduleProblem(schedule);
 
   return (
     <>
       <section className="cpm-surface cpm-config-head" aria-label="Activate and roll back">
         <label className="cpm-field cpm-field--compact"><span className="cpm-field__label">Effective from (optional, ISO)</span>
-          <input className="cpm-input" value={schedule} onChange={e => setSchedule(e.target.value)} placeholder="now" disabled={!activate.enabled} /></label>
-        <ReasonedButton variant={activate.enabled ? 'raised' : 'normal'} disabled={!activate.enabled || busy.deploy} reason={reasons.activate}
-          onClick={() => onDeploy({ scheduledFor: schedule || null })}>
+          <input className="cpm-input" value={schedule} onChange={e => setSchedule(e.target.value)} placeholder="now" disabled={!activate.enabled}
+            aria-invalid={badSchedule != null} aria-describedby={badSchedule ? 'cpm-config-schedule-error' : undefined} />
+          {badSchedule && <span id="cpm-config-schedule-error" className="cpm-field__error">{badSchedule}</span>}</label>
+        <ReasonedButton variant={activate.enabled ? 'raised' : 'normal'} disabled={!activate.enabled || busy.deploy || badSchedule != null} reason={reasons.activate}
+          onClick={() => onDeploy({ scheduledFor: schedule.trim() || null })}>
           {busy.deploy ? 'Scheduling…' : 'Activate'}
         </ReasonedButton>
         <ReasonedButton variant={rollback.enabled ? 'raised' : 'normal'} disabled={!rollback.enabled || busy.rollback || !verifiedActivation} reason={reasons.rollback}
@@ -77,7 +94,7 @@ export const DeploymentsTab: React.FC<DeploymentsTabProps> = ({ bundle, deployme
                   <tr key={d.deploymentId} className={`cpm-reg-row${isSelected ? ' cpm-reg-row--selected' : ''}`} aria-current={isSelected ? 'true' : undefined} onClick={() => select(d.deploymentId)}>
                     <td>
                       <button type="button" className="cpm-config-rowbtn" onClick={e => { e.stopPropagation(); select(d.deploymentId); }}>{d.kind === 'ROLLBACK' ? 'Rollback' : 'Activation'}</button>
-                      <div className="cpm-event-row__sub">{stamp(d.createdAt)} · {ackSummary(d).text}</div>
+                      <div className="cpm-event-row__sub">{stamp(d.createdAt)} · {ackSummary(d).text}{takesEffect(d) ? ` · ${takesEffect(d)}` : ''}</div>
                     </td>
                     <td><WordPill word={deploymentStateWord(d)} /></td>
                   </tr>

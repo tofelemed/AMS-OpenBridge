@@ -140,7 +140,8 @@ export async function send<T>(path: string, method: string, body?: unknown, head
   if (!res.ok) {
     let detail: string | undefined;
     let payload: unknown;
-    try { payload = await res.json(); detail = (payload as { error?: string }).error; } catch { /* no body */ }
+    // CHG-220: a request the server could not read (HTTP 400) answers with a title instead of an error; say that, not "HTTP 400"
+    try { payload = await res.json(); const p = payload as { error?: string; detail?: string; title?: string }; detail = p.error ?? p.detail ?? p.title; } catch { /* no body */ }
     const message = res.status === 409 ? (detail ?? 'The bundle changed under you; reload and edit again.')
       : res.status === 403 ? (detail ?? 'Your account lacks the permission for this step.')
       : res.status === 422 ? (detail ?? 'Rejected by validation.')
