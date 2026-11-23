@@ -21,11 +21,13 @@ public sealed class ShadowComparison
 
     private readonly NpgsqlDataSource _db;
     private readonly ConfigStore _store;
+    private readonly ICplmRecomputeService? _recompute;
 
-    public ShadowComparison([Microsoft.Extensions.DependencyInjection.FromKeyedServices("cplm")] NpgsqlDataSource db, ConfigStore store)
+    public ShadowComparison([Microsoft.Extensions.DependencyInjection.FromKeyedServices("cplm")] NpgsqlDataSource db, ConfigStore store, ICplmRecomputeService? recompute = null)
     {
         _db = db;
         _store = store;
+        _recompute = recompute;
     }
 
     public async Task<Report?> CompareAsync(Guid bundleId, CancellationToken ct)
@@ -35,6 +37,13 @@ public sealed class ShadowComparison
         var shadow = b.Shadow;
         Guid? runId = shadow is { ValueKind: JsonValueKind.Object } s && s.TryGetProperty("analysisRunId", out var r) && Guid.TryParse(r.GetString(), out var g) ? g : null;
         if (runId is null) return new Report(bundleId, null, "NOT_RUN", null, null, null, 0, 0, Array.Empty<WindowDelta>(), 0, 0, null, DateTimeOffset.UtcNow);
+        // gap #7: the run's state was only refreshed from Flink when something read GET analysis-runs/{id}, so the comparison
+        // stayed "SUBMITTED"; refresh it here the same way (a Flink hiccup leaves the stored state as it was)
+        if (_recompute is not null)
+        {
+            try { await _recompute.GetAnalysisRunAsync(runId.Value, ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { /* the stored state is still a valid answer */ }
+        }
         await using var conn = await _db.OpenConnectionAsync(ct);
         var run = await conn.QueryFirstOrDefaultAsync("SELECT state, loop_id, requested_from_ms, requested_to_ms FROM analytics.analysis_run WHERE analysis_run_id = @id", new { id = runId });
         var rows = (await conn.QueryAsync("""

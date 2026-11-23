@@ -6958,3 +6958,20 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 - Governance: a validated version "Waits for approval." (not "an independent approver").
 
 **Tests:** `useConfig.test.tsx` 2 (new), `DeploymentsTab.test.ts` 2 (new), `ShadowComparison.test.tsx` +2, `lifecycle.test.ts` +1, `configSupport.workers.test.ts` +2, `GateConfigurationWrites.test.tsx` rollback case updated; the new ones fail on the old code. All config + Governance tests pass; tsc and eslint clean.
+
+## CHG-108 follow-up 2 — Gate Configuration gaps #1, #2, #4, #7, #9, server side (2026-11-23, branch feat/sr-mine, unreleased)
+
+**Why:** owner, 23 Nov (relayed by CPA Updates): every gap of the Gate Configuration end-to-end check goes into this release. Screens: CPA Updates (gaps 2, 4, 6, 7 and the two minors).
+
+**Change (cplm-api):**
+- #1: `Services/Config/LoopEffective.cs` resolves a loop's values the engine's way: FACTORY with the loop's class pack over it, then the bundle's SITE / PROFILE / LOOP layers (pack values reported with source PROFILE). Used by `GET configuration/effective` (was the bundle's own resolution: a SITE bundle, or a LOOP bundle stacked on one, read FACTORY values for 36-42 of 48 properties) and by the shadow run of a draft.
+- #2a: `GET configuration/effective` gives each worker `runs: { bundleId, version, scopeKind } | null` = the bundle it applied last for the loop's scopes (newest APPLY ACK per scope, LOOP over PROFILE over SITE), which differs from the active bundle while a deployment is partial (`ConfigDeploymentService.WorkerRunsAsync`).
+- #2b: a deployment scheduled for the future is never ACTIVE_VERIFIED before its effective time, and the probe window counts from the later of its last move and that time.
+- #4: rollback only from the scope's CURRENT deployment (config_active) with no rollback of it in flight, to the bundle of the newest ACTIVE_VERIFIED deployment of the scope created before it with another bundle (`RollbackTargetAsync`; 409 otherwise, also for a first version). The deployment shape: `active` = the scope's current deployment (an older one keeps ACTIVE_VERIFIED), `rollbackTarget: { bundleId, version } | null`, non-null exactly when a rollback is accepted.
+- #7: the shadow comparison refreshes the run's state from Flink first (it stayed SUBMITTED until something read the run). A draft edit already cleared the old comparison.
+- #9: a deployment left SCHEDULED or PREPARED by a failed Kafka publish is swept after a minute: the PREPARE / APPLY message is sent again; past the ACK window it is ACTIVATION_FAILED "the workers could not be reached" (was: stuck for ever, bundle uneditable).
+- `ConfigDeploymentService` is split in two files (state machine; rollback and worker runs) to stay under the file-size limit.
+
+**Services updated:** cplm-api. No migration, no Flink change.
+
+**Tests:** new `GateDeploymentGapsTests` 6 (class pack under a SITE bundle; partial deployment runs; future effective time; rollback current-only / first version / no second click; lost PREPARE re-sent then failed; comparison refreshes the run); with the approval, region, review-queue, tuning and config tests: 43 pass on the lab database.

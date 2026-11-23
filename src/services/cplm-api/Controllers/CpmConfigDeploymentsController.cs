@@ -32,7 +32,7 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
         try
         {
             var d = await _deployments.CreateAsync(req.BundleId, "ACTIVATE", req.ScheduledFor, null, Actor(), ct);
-            return Created($"/api/v1/cpm/configuration/deployments/{d.DeploymentId}", Shape(d));
+            return Created($"/api/v1/cpm/configuration/deployments/{d.DeploymentId}", await ShapeAsync(d, ct));
         }
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
         catch (ConfigConflictException ex) { return Conflict(new { error = ex.Message }); }
@@ -45,7 +45,9 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
     {
         if (bundleId is null && string.IsNullOrWhiteSpace(site)) return BadRequest(new { error = "bundleId or site is required" });
         var list = await _deployments.ListAsync(bundleId, string.IsNullOrWhiteSpace(site) ? null : site, limit, ct);
-        return Ok(new { count = list.Count, deployments = list.Select(Shape) });
+        var shaped = new List<object>();
+        foreach (var v in list) shaped.Add(await ShapeAsync(v, ct));
+        return Ok(new { count = list.Count, deployments = shaped });
     }
 
     [HttpGet("{id:guid}")]
@@ -53,7 +55,7 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         var d = await _deployments.AdvanceAsync(id, ct);            // a GET re-evaluates the matrix so a stalled deployment reports PARTIALLY_ACKNOWLEDGED, never "pending" for ever
-        return d is null ? NotFound(new { error = $"deployment {id} not found" }) : Ok(Shape(d));
+        return d is null ? NotFound(new { error = $"deployment {id} not found" }) : Ok(await ShapeAsync(d, ct));
     }
 
     [HttpPost("{id:guid}/rollback")]
@@ -63,13 +65,17 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
         try
         {
             var d = await _deployments.RollbackAsync(id, Actor(), ct);
-            return Created($"/api/v1/cpm/configuration/deployments/{d.DeploymentId}", Shape(d));
+            return Created($"/api/v1/cpm/configuration/deployments/{d.DeploymentId}", await ShapeAsync(d, ct));
         }
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
-    internal static object Shape(DeploymentView d)
+    /// <summary>Gap #4: the shape with `active` = the scope's current deployment and `rollbackTarget` (non-null exactly when a rollback is accepted).</summary>
+    private async Task<object> ShapeAsync(DeploymentView d, CancellationToken ct) =>
+        Shape(d, await _deployments.IsCurrentAsync(d, ct), await _deployments.RollbackTargetAsync(d, ct));
+
+    internal static object Shape(DeploymentView d, bool current = false, ConfigDeploymentService.BundleRef? rollbackTarget = null)
     {
         var required = d.RequiredMembers.EnumerateArray().Where(m => !m.TryGetProperty("parallelism", out var par) || par.GetInt32() > 0).Select(m => m.GetProperty("job_name").GetString()!).ToList();
         var observers = d.RequiredMembers.EnumerateArray().Where(m => m.TryGetProperty("parallelism", out var par) && par.GetInt32() == 0).Select(m => m.GetProperty("job_name").GetString()!).ToList();
@@ -83,7 +89,9 @@ public sealed class CpmConfigDeploymentsController : ControllerBase
         {
             d.DeploymentId, d.BundleId, d.ContentHash, d.Kind, d.RollbackOf, d.ScheduledFor, d.State, d.Error, d.Epoch, d.ProbeResults, d.CreatedBy, d.CreatedAt, d.UpdatedAt,
             requiredMembers = required, observers, ackMatrix = matrix, acks = d.Acks,
-            active = d.State == "ACTIVE_VERIFIED",
+            // gap #4: "active" = the deployment its scope runs under now (an older deployment keeps its ACTIVE_VERIFIED state)
+            active = current,
+            rollbackTarget = rollbackTarget is null ? null : new { rollbackTarget.BundleId, rollbackTarget.Version },
             // CHG-066: the old text claimed a pinned result always exists; probe_results.verifiedBy says which rule applied
             semantics = "ACTIVE_VERIFIED after every required worker ACKed PREPARE and APPLY with this hash on one jar, and either a result carries the hash (probeResults.verifiedBy = RESULT) or the probe window passed with no result from the scope (ACK_WINDOW); a partial matrix is PARTIALLY_ACKNOWLEDGED, never active",
         };

@@ -400,3 +400,13 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 
 At a new plant: decide who holds SuperAdmin before the first site-wide change; the self-approvals are listed in the audit trail.
 - A loop's (or class's) **first own bundle** starts from the plant-wide bundle it runs under (active PROFILE, else active SITE), never from the factory layers while one is active (CHG-220; before, activating it dropped the plant-wide changes). A loop that got its first own bundle before this release may sit on the factory base: check `loop-settings/stale` after the deploy and re-stack what it lists.
+
+## Gate Configuration deployments (CHG-108 follow-up 2, unreleased, branch feat/sr-mine)
+
+| Rule | Value | Why |
+|---|---|---|
+| What the Effective view shows for a loop | the bundle's layers over the loop's class pack (the engine's rule), per value with its source | a site-wide bundle used to show factory values the engine does not run |
+| A deployment scheduled for later | never "active" before its effective time; the probe window counts from that time | the engine waits for the time; the page said active after 5 minutes |
+| Rollback | only from the scope's current deployment, to the version active before it; one rollback at a time; none for a first version | a superseded deployment "rolled back" to the running bundle, a second click went one more version back |
+| A lost PREPARE / APPLY message (Kafka down) | sent again after 1 minute; ACTIVATION_FAILED "the workers could not be reached" after the ACK window (5 min) | the deployment stayed scheduled for ever and the bundle could not be edited |
+| A partial deployment | the Effective view names, per worker, the bundle it really runs | some workers can run the new bundle while the page shows the old one |
