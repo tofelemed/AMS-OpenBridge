@@ -90,8 +90,9 @@ describe('the header plant travels with every journey link (I1)', () => {
 
   it('a type chosen on the start page opens with the header plant, not "Choose a plant"', async () => {
     renderAt('/cpm/config?site=hdpe');
-    fireEvent.click(within(screen.getByRole('list', { name: 'Where to start' })).getByRole('button', { name: 'Choose a type' }));
-    fireEvent.click(await within(screen.getByRole('dialog', { name: 'Choose a type' })).findByRole('button', { name: 'Flow, fast self-regulating' }));
+    const type = screen.getByLabelText('Loop type') as HTMLSelectElement;
+    await waitFor(() => expect(type.disabled).toBe(false));
+    fireEvent.change(type, { target: { value: 'FLOW_FAST_SELF_REG' } });
     expect(loc()).toBe('/cpm/config/types/FLOW_FAST_SELF_REG?site=hdpe');
     expect(await screen.findByRole('heading', { name: 'Flow, fast self-regulating' })).toBeTruthy();
     expect(screen.queryByText(/Choose a plant/)).toBeNull();
@@ -113,11 +114,11 @@ describe('the header plant travels with every journey link (I1)', () => {
 
   it('Edit regions, the loop search and Continue keep the header plant; so do the change page links', async () => {
     renderAt('/cpm/config?site=hdpe');
-    fireEvent.click(within(screen.getByRole('list', { name: 'Where to start' })).getByRole('button', { name: 'Edit regions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Operating regions' }));
     expect(loc()).toBe('/cpm/config/regions?site=hdpe');
     cleanup();
     renderAt('/cpm/config?site=hdpe');
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Loop' }));
     fireEvent.mouseDown(await screen.findByRole('option', { name: /FIC10302/ }));
     await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?site=hdpe'));
     cleanup();
@@ -183,6 +184,6 @@ describe('an old link (M-f)', () => {
     renderAt('/cpm/config?site=hdpe&loop=FIC10302&view=bundles', true);
     await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?site=hdpe&tab=versions'));
     expect(vi.mocked(fetchMod.apiJson).mock.calls.map(c => String(c[0]))).toEqual([]);
-    expect(screen.queryByRole('list', { name: 'Where to start' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Choose what to change' })).toBeNull();
   });
 });

@@ -7050,6 +7050,7 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 - The old workspace is removed (GateConfigurationWorkspace, EffectiveLoops, BundlesView, BundleVersionPanel, LoopEffective, EditorView, DraftBundleDialog, PerLoopSettings, WorkersDialog, DetailsDialog). The rule for where a new version starts from now lives in `startChange.ts`.
 - Old `?loop=` / `?view=` / `?bundle=` addresses redirect to the new routes; `configHref` builds the new routes.
 - Permission reasons in plain words, shown once per group of buttons ("Needs permission to prepare changes", "…to check changes", "…to try changes", "…to deploy changes", "…to roll back"); no permission codes on screen (a text guard test checks every page state). How to read is five plain lines. Every removed or reworded text is listed in `docs/theme/redesign/text-changes.md` (CHG-221).
+- Start page: the four cards became one filter bar like the other pages (loop search, Loop type, Whole plant, Operating regions) — owner, 23 Nov.
 
 **Task 11 (CHG-224 in the UI):** Gate Configuration lists only editable settings (owner D1-D6, server CHG-224): value in use and where it comes from; the two decisions read 'Not decided — … used'; SUPERADMIN_PROPERTIES empty (a site-wide change still needs a SuperAdmin).
 

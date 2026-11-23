@@ -1,10 +1,9 @@
 /**
- * The Gate Configuration start page (/cpm/config): one loop search, four places to start, the plant-wide notice, the changes
+ * The Gate Configuration start page (/cpm/config): one filter bar (loop search, loop type, plant, operating regions), the plant-wide notice, the changes
  * in progress and what runs now. Old links (?loop=&view=&bundle=) are replaced by their new page before anything is read. The
- * header's site decides which plant the cards and the notice speak about; with several plants and none chosen, "Whole plant" asks
- * which. Every link keeps the header's plant scope (`scoped`).
+ * header's site decides which plant the notice speaks about. Every link keeps the header's plant scope (`scoped`).
  */
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
 import { useQueries } from '@tanstack/react-query';
@@ -17,13 +16,13 @@ import { listBundleSummaries } from '../../../api/cpm/config';
 import { codeLabel } from '../vocabulary';
 import { ReasonedButton } from '../ReasonedButton';
 import { useEffectiveSummary } from './useConfig';
-import { useRegions, useRegionActions, useStaleLoops } from './useConfigRegions';
+import { useRegionActions, useStaleLoops } from './useConfigRegions';
 import { ConfigHowToRead } from './ConfigHowToRead';
 import { changePath, legacyTarget, loopPath, plantPath, regionsBatchPath, regionsPath, scoped, typePath } from './configRoutes';
 import { NEEDS } from './lifecycle';
-import { versionLabel } from './levelWords';
 import { changesInProgress, runningNow } from './startPageData';
-import { StartCards, ChoiceDialog, type CardSpec } from './StartCards';
+import { StartBar } from './StartBar';
+import { useSiteName } from '../governance/useConfigNames';
 import { ChangesTable, RunningTable } from './StartTables';
 import { RestackDialog } from './RestackDialog';
 
@@ -46,9 +45,8 @@ const StartPage: React.FC = () => {
   const canRead = useAuthStore(s => s.hasPermission('cpm.config.read'));
   const canDraft = useAuthStore(s => s.hasPermission('cpm.config.draft'));
   const [guide, setGuide] = useState(false);
-  const [choice, setChoice] = useState<'type' | 'plant' | null>(null);
   const [updating, setUpdating] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+  const siteName = useSiteName();
 
   const sites = useMemo(() => [...new Set(loopList.map(l => l.site).filter(Boolean))].sort(), [loopList]);
   const site = scope.params.site || (sites.length === 1 ? sites[0] : undefined);
@@ -63,7 +61,6 @@ const StartPage: React.FC = () => {
   });
   const bundles = useMemo(() => summaries.flatMap(q => q.data?.bundles ?? []), [summaries]);
   const effective = useEffectiveSummary(scope.params, canRead);
-  const regions = useRegions(site, canRead);
   const stale = useStaleLoops(site, canRead);
   const restack = useRegionActions(site).restack;
 
@@ -76,36 +73,17 @@ const StartPage: React.FC = () => {
   const retryBundles = () => { void loopsQ.refetch(); summaries.forEach(q => void q.refetch()); };
   const runningLoading = bundlesLoading || effective.isLoading;
   const runningError = bundleFail ? bundleFail : effective.isError ? effective : loopsQ.isError ? loopsQ : undefined;
-  const regionsBad = !!site && (regions.isLoading || regions.isError);
 
-  const active = useMemo(() => bundles.filter(b => b.state === 'ACTIVE_VERIFIED'), [bundles]);
   const changes = useMemo(() => changesInProgress(bundles), [bundles]);
   const running = useMemo(() => runningNow(bundles, effective.data?.loops ?? []), [bundles, effective.data]);
   const byId = useMemo(() => new Map(loopList.map(l => [l.loopId, l])), [loopList]);
-  const types = useMemo(() => [...new Set((effective.data?.loops ?? []).map(l => l.profileId).filter(Boolean))].sort(), [effective.data]);
+  const typeOptions = useMemo(() => [...new Set((effective.data?.loops ?? []).map(l => l.profileId).filter(Boolean))]
+    .map(t => ({ value: t, label: codeLabel(t) })).sort((x, y) => x.label.localeCompare(y.label)), [effective.data]);
+  const plantOptions = useMemo(() => sites.map(s => ({ value: s, label: siteName(s) })), [sites, siteName]);
 
   if (!canRead) return <div className="cpm-screen"><EmptyState title="Gate Configuration" copy="You don't have access to Gate Configuration." /></div>;
 
-  const own = active.filter(b => b.scopeKind === 'LOOP' && !b.inherits).length;
-  const profiles = active.filter(b => b.scopeKind === 'PROFILE');
-  const plants = active.filter(b => b.scopeKind === 'SITE');
-  const withRegion = (regions.data?.loops ?? []).filter(l => l.regionMin != null && l.regionMax != null).length;
   const staleCount = stale.data?.count ?? 0;
-
-  const cards: CardSpec[] = [
-    { id: 'loop', title: 'One loop', hint: 'Values and operating region of a single loop.', action: 'Find a loop',
-      now: bundlesBad ? '—' : own === 0 ? 'None with own settings' : `${own} with own settings`,
-      onAction: () => searchRef.current?.querySelector('input')?.focus() },
-    { id: 'type', title: 'A loop type', hint: 'Values shared by every loop of one type.', action: 'Choose a type',
-      now: bundlesBad ? '—' : profiles.length === 0 ? 'Factory settings' : profiles.length === 1 ? `${codeLabel(profiles[0].scopeRef)} · v${profiles[0].version}` : `${profiles.length} types with own settings`,
-      onAction: () => setChoice('type') },
-    { id: 'plant', title: 'Whole plant', hint: 'Values every loop in the plant starts from.', action: 'Open',
-      now: bundlesBad ? '—' : plants.length === 0 ? 'Factory settings' : plants.length === 1 ? versionLabel(plants[0]) : `${plants.length} plants with own settings`,
-      onAction: () => (site ? go(plantPath(site)) : setChoice('plant')) },
-    { id: 'regions', title: 'Operating regions', hint: 'The range each loop is expected to work in.', action: 'Edit regions',
-      now: !site ? 'Choose a plant' : regionsBad ? '—' : plural(withRegion, 'loop has a region', 'loops have a region'),
-      onAction: () => go(regionsPath()) },
-  ];
 
   const update = (note: string) => restack.mutate({ note }, {
     onSuccess: r => { setUpdating(false); go(regionsBatchPath(r.batchId)); },
@@ -114,14 +92,13 @@ const StartPage: React.FC = () => {
   return (
     <div className="cpm-screen cpm-config-workspace">
       <WorkspaceHeader eyebrow="Set up" title="Gate Configuration" copy=""
-        actions={<>
-          <div ref={searchRef}>
-            <LoopCombobox loops={loopList.filter(l => scope.matches(l))} loopId={undefined} loop={undefined} onSelect={id => go(loopPath(id))}
-              isLoading={loopsQ.isLoading} isError={loopsQ.isError} retry={() => void loopsQ.refetch()} />
-          </div>
-          <ObcButton variant="normal" onClick={() => setGuide(true)}>How to read</ObcButton>
-        </>} />
-      <StartCards cards={cards} />
+        actions={<ObcButton variant="normal" onClick={() => setGuide(true)}>How to read</ObcButton>} />
+      {effective.isError && <QueryError title="Loop types unavailable" error={effective.error} retry={() => void effective.refetch()} />}
+      <StartBar
+        search={<LoopCombobox loops={loopList.filter(l => scope.matches(l))} loopId={undefined} loop={undefined} onSelect={id => go(loopPath(id))}
+          isLoading={loopsQ.isLoading} isError={loopsQ.isError} retry={() => void loopsQ.refetch()} />}
+        types={typeOptions} typesLoading={effective.isLoading} plants={plantOptions}
+        onType={t => go(typePath(t))} onPlant={s => go(plantPath(s))} onRegions={() => go(regionsPath())} />
       {staleCount > 0 && (
         <div className="cpm-surface cpm-config-notice" role="status">
           <p>{plural(staleCount, "loop doesn't", "loops don't")} have the latest plant settings yet</p>
@@ -142,10 +119,6 @@ const StartPage: React.FC = () => {
           : running.length > 0 ? <RunningTable rows={running} loops={byId} />
           : <p className="cpm-copy">Every loop runs on factory settings.</p>}
       </section>
-      {choice === 'type' && <ChoiceDialog title="Choose a type" options={types.map(t => ({ value: t, label: codeLabel(t) }))}
-        onPick={t => go(typePath(t))} onClose={() => setChoice(null)} />}
-      {choice === 'plant' && <ChoiceDialog title="Choose a plant" options={sites.map(s => ({ value: s, label: s }))}
-        onPick={s => go(plantPath(s))} onClose={() => setChoice(null)} />}
       {updating && <RestackDialog count={staleCount} pending={restack.isPending} onCancel={() => setUpdating(false)} onUpdate={update}
         error={restack.isError ? (restack.error instanceof Error ? restack.error.message : String(restack.error)) : null} />}
       <ConfigHowToRead open={guide} onClose={() => setGuide(false)} />

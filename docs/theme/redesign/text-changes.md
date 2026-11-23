@@ -2483,3 +2483,8 @@ Lab-retest fixes (23 Nov 2026, combined deploy 91d9b2aa). Source: retestfix-A an
 | Gate Configuration · Try on past data (type or plant change) | "No data in the chosen period" | "No data in the last 3 days" ("1 day" singular; the run's own period) |
 | Gate Configuration · Approve, on past data | "Not compared — no data in the period" | "Not compared — no data in the last 24 hours" (or "n days") |
 | Gate Configuration · deployments (past deployment) | Red alert "Different software versions are running." | Plain line "At this deployment, parts ran different software versions"; the red alert stays only while the deployment is still going out |
+| Gate Configuration · start page | Four cards: One loop, A loop type, Whole plant, Operating regions | one filter bar: Find a loop, Loop type, Whole plant, Operating regions button (owner, 23 Nov) |
+| Gate Configuration · start page | Card hints in a ? (Values and operating region of a single loop. / Values shared by every loop of one type. / Values every loop in the plant starts from. / The range each loop is expected to work in.) | removed |
+| Gate Configuration · start page | Card status lines (N with own settings, Factory settings, name · vN, Plant settings vN, N types / plants with own settings, N loops have a region, Choose a plant) | removed (Running now shows these) |
+| Gate Configuration · start page | Card buttons Find a loop / Choose a type / Open / Edit regions; Choose a type and Choose a plant dialogs | dropdowns Loop type and Whole plant; button Operating regions |
+| Gate Configuration · start page | Loop search in the page header | the loop search is the first control of the filter bar |

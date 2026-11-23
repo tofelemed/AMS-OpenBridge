@@ -1,4 +1,4 @@
-// The Gate Configuration start page: one loop search, four cards, the plant-wide notice, the two tables, the old-link redirect.
+// The Gate Configuration start page: one filter bar, the plant-wide notice, the two tables, the old-link redirect.
 import React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -71,25 +71,45 @@ describe('ConfigStartPage', () => {
   });
   afterEach(cleanup);
 
-  it('header has one loop search and How to read; picking a loop opens its page', async () => {
+  it('the loop search and How to read; picking a loop opens its page', async () => {
     renderAt('');
-    expect(screen.getAllByRole('combobox').length).toBe(1);
+    expect(screen.getAllByRole('combobox', { name: 'Loop' }).length).toBe(1);
     expect(screen.getByRole('button', { name: 'How to read' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Loop' }));
     fireEvent.mouseDown(await screen.findByRole('option', { name: /FIC10302/ }));
     await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302'));
   });
 
-  it('shows four cards with one status line each', async () => {
+  it('has one filter bar: loop search, Loop type, Whole plant, Operating regions - and no cards', async () => {
     renderAt('');
-    const cards = within(screen.getByRole('list', { name: 'Where to start' }));
-    await waitFor(() => expect(cards.getByText('2 with own settings')).toBeTruthy());
-    expect(cards.getByText('Flow, fast self-regulating · v1')).toBeTruthy();
-    expect(cards.getByText('Plant settings v1')).toBeTruthy();
-    await waitFor(() => expect(cards.getByText('2 loops have a region')).toBeTruthy());
-    expect(cards.getAllByRole('listitem').length).toBe(4);
-    fireEvent.click(cards.getByRole('button', { name: 'Edit regions' }));
+    const bar = screen.getByRole('group', { name: 'Choose what to change' });
+    expect(within(bar).getAllByRole('combobox', { name: 'Loop' }).length).toBe(1);
+    expect(within(bar).getByLabelText('Loop type')).toBeTruthy();
+    expect(within(bar).getByLabelText('Whole plant')).toBeTruthy();
+    expect(within(bar).getByRole('button', { name: 'Operating regions' })).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Where to start' })).toBeNull();
+    for (const t of ['One loop', 'A loop type', 'with own settings', 'Edit regions', 'Choose a type']) expect(screen.queryByText(new RegExp(t))).toBeNull();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Operating regions' }));
     expect(loc()).toBe('/cpm/config/regions');
+  });
+
+  it('choosing a loop type opens its page and the select goes back to its label', async () => {
+    renderAt('?site=hdpe');
+    const type = screen.getByLabelText('Loop type') as HTMLSelectElement;
+    await waitFor(() => expect(type.disabled).toBe(false));
+    expect(Array.from(type.options).map(o => o.textContent)).toEqual(['Loop type', 'Flow, fast self-regulating']);
+    fireEvent.change(type, { target: { value: 'FLOW_FAST_SELF_REG' } });
+    expect(loc()).toBe('/cpm/config/types/FLOW_FAST_SELF_REG?site=hdpe');
+    expect(type.value).toBe('');
+  });
+
+  it('choosing a plant opens the plant page', async () => {
+    twoSites = true;
+    renderAt('');
+    const plant = screen.getByLabelText('Whole plant') as HTMLSelectElement;
+    await waitFor(() => expect(plant.options.length).toBe(3));
+    fireEvent.change(plant, { target: { value: 'other' } });
+    expect(loc()).toBe('/cpm/config/plant/other');
   });
 
   it('lists the changes in progress and Continue goes to the next step', async () => {
@@ -124,7 +144,7 @@ describe('ConfigStartPage', () => {
     fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'plant review' } });
     fireEvent.click(update);
     await waitFor(() => expect(loc()).toBe('/cpm/config/regions?batch=b7'));
-    expect(JSON.parse(String((vi.mocked(fetchMod.apiFetch).mock.calls[0][1] as RequestInit).body))).toMatchObject({ site: 'hdpe', note: 'plant review' });
+    expect(JSON.parse(String((vi.mocked(fetchMod.apiFetch).mock.calls.find(c => (c[1] as RequestInit | undefined)?.body)![1] as RequestInit).body))).toMatchObject({ site: 'hdpe', note: 'plant review' });
   });
 
   it('a failed summaries read says so with Retry, never "Factory settings" or "Nothing in progress"', async () => {
@@ -141,7 +161,8 @@ describe('ConfigStartPage', () => {
     pendingDrafts = true;
     renderAt('');
     await screen.findByRole('region', { name: 'Changes in progress' });
-    await waitFor(() => expect(screen.getByRole('list', { name: 'Where to start' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Choose what to change' })).toBeTruthy());
+    expect((screen.getByLabelText('Loop type') as HTMLSelectElement).disabled).toBe(false);
     expect(screen.queryByText('Nothing in progress.')).toBeNull();
     expect(screen.queryByText('Every loop runs on factory settings.')).toBeNull();
     expect(screen.queryByText('Factory settings')).toBeNull();
@@ -150,17 +171,5 @@ describe('ConfigStartPage', () => {
   it('an old link goes to its new page', async () => {
     renderAt('?loop=FIC10302&view=bundles');
     await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?tab=versions'));
-  });
-
-  it('with two plants and none in the header, Whole plant asks which', async () => {
-    twoSites = true;
-    renderAt('');
-    await waitFor(() => expect(screen.getByText('Choose a plant')).toBeTruthy());
-    const card = within(screen.getByRole('list', { name: 'Where to start' }));
-    fireEvent.click(card.getByRole('button', { name: 'Open' }));
-    expect(loc()).toBe('/cpm/config');
-    const dialog = screen.getByRole('dialog', { name: 'Choose a plant' });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'other' }));
-    expect(loc()).toBe('/cpm/config/plant/other');
   });
 });

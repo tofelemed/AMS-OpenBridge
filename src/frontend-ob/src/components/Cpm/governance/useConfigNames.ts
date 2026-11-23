@@ -32,7 +32,7 @@ export const bundleName = (b: Pick<BundleSummary, 'scopeKind' | 'scopeRef' | 'si
 export function useSiteName(): SiteName {
   const sites = useSiteFilters();
   return useMemo(() => {
-    const byCode = new Map((sites.data ?? []).map(o => [o.segment, o.name]));
+    const byCode = new Map((Array.isArray(sites.data) ? sites.data : []).map(o => [o.segment, o.name]));
     return (site: string) => byCode.get(site) || site;
   }, [sites.data]);
 }

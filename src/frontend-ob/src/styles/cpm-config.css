@@ -125,10 +125,6 @@
 @media (max-width: 600px) { .cpm-config-steps { grid-template-columns: 1fr; gap: var(--traverse-space-2); } .cpm-config-step::after { display: none; } }
 
 /* ── Gate Configuration start page: four task cards, the stale notice, the five-segment progress bar ── */
-.cpm-config-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--traverse-space-3); margin: 0; padding: 0; list-style: none; }
-.cpm-config-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-3); min-width: 0; padding: var(--traverse-space-4); }
-.cpm-config-card__title { display: flex; align-items: center; gap: var(--traverse-space-2); margin: 0; font: inherit; font-weight: 600; }
-.cpm-config-card__now { flex: 1; margin: 0; color: var(--traverse-text-secondary); overflow-wrap: anywhere; }
 .cpm-config-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--traverse-space-3); padding: var(--traverse-space-3) var(--traverse-space-4); }
 .cpm-config-notice p { margin: 0; }
 .cpm-config-section { display: flex; align-items: baseline; gap: var(--traverse-space-2); margin: 0; font: inherit; font-weight: 600; }
@@ -137,9 +133,6 @@
 .cpm-config-prog i { width: var(--traverse-space-4); height: var(--traverse-space-1); border-radius: var(--traverse-space-1); background: var(--traverse-border-subtle); }
 .cpm-config-prog i[data-seg='done'] { background: var(--traverse-status-success-fg); }
 .cpm-config-prog i[data-seg='current'] { background: var(--traverse-action-primary); }
-.cpm-config-choices { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-2); }
-@media (max-width: 1000px) { .cpm-config-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .cpm-config-cards { grid-template-columns: 1fr; } }
 
 /* ── Change page: the card around the step bar, the step body and the Back / Next foot ── */
 .cpm-config-change { padding: 0; overflow: hidden; }
@@ -162,5 +155,11 @@
 .cpm-region-rows--edit .cpm-region-cell[aria-invalid='true'] { border-color: var(--traverse-status-danger-fg); }
 
 /* the scope page's card is the start card's flex column (items at the start): its table panel spans the card; so does the regions table */
-.cpm-config-card > [role='tabpanel'] { align-self: stretch; min-width: 0; }
 .cpm-config-values, .cpm-config-values > .cpm-table, .cpm-config-list > .cpm-table, .cpm-config-card .cpm-table[aria-label='Versions'] { width: 100%; }
+.cpm-config-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--traverse-space-3); min-width: 0; padding: var(--traverse-space-4); }
+.cpm-config-card > [role='tabpanel'] { align-self: stretch; min-width: 0; }
+
+/* CHG-221: the start page's one filter bar (loop search, loop type, plant, regions), as the other pages' filters */
+.cpm-config-choosebar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--traverse-space-2); padding: var(--traverse-space-3) var(--traverse-space-4); }
+.cpm-config-choosebar .cpm-select { width: auto; min-width: 0; max-width: 100%; }
+@media (max-width: 640px) { .cpm-config-choosebar > * { flex: 1 1 100%; } }
