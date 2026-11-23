@@ -1,6 +1,7 @@
 // CHG-098 (SME review 2 #24): the default Performance gate view lists, per loop, only the checks behind its
 // result - by readable name, with mark and word - and each check opens the same evidence as a matrix cell.
 // Task 8: the verdict is the Result column, so G15 is not repeated as a check, and a quiet row says nothing.
+// CHG-226: a loop kept at its last stored result says so under its result, once per row.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -8,6 +9,7 @@ import type { CpmHeatmapLoop } from '../../api/cpmApi';
 import { MemoryRouter } from 'react-router-dom';
 import { GateMatrixChecks } from './GateMatrixChecks';
 
+vi.mock('../../cpa/siteTime', async orig => ({ ...(await orig<typeof import('../../cpa/siteTime')>()), siteZone: () => 'UTC' }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
 }));
@@ -63,5 +65,25 @@ describe('GateMatrixChecks as cards at phone width', () => {
     show([row('FIC-1', { G0: 'PASS', G3: 'FAIL', G15: 'SUSPECTED' })]);
     const cells = [...document.querySelectorAll('tbody td')];
     expect(cells.map(c => c.getAttribute('data-label'))).toEqual(['Result', 'Checks behind the result', 'Evidence', null]);
+  });
+});
+
+describe('GateMatrixChecks, a last stored result (CHG-226)', () => {
+  it('says "Last stored result" with the time under the result, once per row', () => {
+    show([
+      { ...row('FIC-1', { G3: 'FAIL', G15: 'SUSPECTED' }), lastStored: true, resultAt: '2026-11-23T10:15:00Z', updatingSince: '2026-11-23T11:00:00Z' },
+      row('FIC-2', { G3: 'FAIL', G15: 'SUSPECTED' }),
+    ]);
+    const [first, second] = [...document.querySelectorAll('tbody tr')];
+    const result = first.querySelector('td[data-label="Result"]')!;
+    expect(result.querySelector('.cpm-pill')).toBeTruthy();
+    expect(result.querySelector('.cpm-matrix__stored')?.textContent).toBe('Last stored result · 23 Nov · 10:15');
+    expect(first.textContent!.match(/Last stored result/g)).toHaveLength(1);
+    expect(second.textContent).not.toMatch(/Last stored result/);
+  });
+
+  it('says nothing for a new result or when the fields are absent', () => {
+    show([{ ...row('FIC-1', { G15: 'SUSPECTED' }), lastStored: false, resultAt: '2026-11-23T10:15:00Z' }, row('FIC-2', { G15: 'SUSPECTED' })]);
+    expect(screen.queryByText(/Last stored result/)).toBeNull();
   });
 });

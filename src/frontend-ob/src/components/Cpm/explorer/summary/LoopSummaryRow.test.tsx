@@ -2,6 +2,7 @@
 /**
  * The assessment in the band, on Summary only: the result and its age, one fact line, Review evidence → and Open details.
  * A stale or blocked loop cannot look fine without a click (CHG-129); the window end is said once (CHG-158).
+ * CHG-226: a result kept until a new one arrives says "Last stored result · <time>" on the fact line, once.
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +11,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { CpmLoop } from '../../../../api/cpmApi';
 
 const hooks = vi.hoisted(() => ({ gates: vi.fn(), readiness: vi.fn(), events: vi.fn(), kpis: vi.fn() }));
+vi.mock('../../../../cpa/siteTime', async orig => ({ ...(await orig<typeof import('../../../../cpa/siteTime')>()), siteZone: () => 'UTC' }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: (p: { children?: React.ReactNode; onClick?: () => void; variant?: string }) =>
     React.createElement('button', { type: 'button', onClick: p.onClick, 'data-variant': p.variant }, p.children),
@@ -103,6 +105,40 @@ describe('LoopSummaryRow', () => {
     expect(headline(container)).toMatch(/not enough data/i);
     expect(headline(container)).toMatch(/window ended 26 days ago/);
     expect(headline(container)).toMatch(/1 blocking/);
+  });
+
+  describe('a last stored result (CHG-226)', () => {
+    const stored = (windowEnd: string, resultAt: string) => hooks.gates.mockReturnValue({
+      data: { diagnosis: 'SUSPECTED_OSCILLATION', confidence: 1, windowEnd, gates: [], lastStored: true, resultAt, updatingSince: new Date().toISOString() },
+      isLoading: false, isError: false,
+    });
+
+    it('says "Last stored result" with its time on the fact line, in place of the window end it is', () => {
+      stored('2026-11-23T10:15:00Z', '2026-11-23T10:15:00Z');
+      const { container } = row();
+      expect(facts(container)).toMatch(/^Last stored result · 23 Nov · 10:15 · 13 % in band/);
+      expect(band(container).match(/Last stored result/g)).toHaveLength(1);
+      expect(band(container)).not.toMatch(/window ended/);
+      expect(band(container).match(/23 Nov · 10:15/g)).toHaveLength(1);
+      expect(band(container)).not.toMatch(/restart|warm|refill|flink|engine|refresh/i);
+    });
+
+    it('keeps a different window end and adds the label after it', () => {
+      const end = new Date(Date.now() - 30 * 60_000).toISOString();
+      stored(end, '2026-11-23T10:15:00Z');
+      const { container } = row();
+      expect(facts(container)).toMatch(/^window ended [0-9]{1,2} [A-Z][a-z]{2} · [0-9]{2}:[0-9]{2} · Last stored result · 23 Nov · 10:15 · 13 % in band/);
+    });
+
+    it('says nothing when the result is new or the fields are absent', () => {
+      hooks.gates.mockReturnValue({
+        data: { diagnosis: 'SUSPECTED_OSCILLATION', confidence: 1, windowEnd: new Date(Date.now() - 30 * 60_000).toISOString(), gates: [], lastStored: false, resultAt: '2026-11-23T10:15:00Z' },
+        isLoading: false, isError: false,
+      });
+      const { container } = row();
+      expect(band(container)).not.toMatch(/Last stored result/);
+      expect(facts(container)).toMatch(/^window ended /);
+    });
   });
 
   it('says so when the verdict could not be read', () => {

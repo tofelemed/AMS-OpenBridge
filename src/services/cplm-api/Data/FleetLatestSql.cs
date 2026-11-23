@@ -95,19 +95,23 @@ public static class FleetLatestSql
         _ => null,
     };
 
+    // CHG-226: last_stored / updating_since - the verdict shown is the loop's last stored result while the engine refills after
+    // a Flink restart (Data/RefillSql; rf = the newest row's refill facts)
     public static string Rankings(string rankExpr, string healthWhere = "") => $"""
         SELECT r.loop_id, r.display_name, r.site, r.area, r.unit, r.loop_type, r.criticality,
                l.window_end, l.diagnosis, l.severity, l.confidence,
                l.effort_ratio, l.triangularity, l.horch_oddness, l.acf_period_s,
-               l.good_error_pct, l.mae, l.flags, l.leading_hypothesis
+               l.good_error_pct, l.mae, l.flags, l.leading_hypothesis,
+               {RefillSql.LastStored("l")} AS last_stored, {RefillSql.UpdatingSince()} AS updating_since
         FROM cpm.loop_registry r
         {LatestProbe("""
             g.window_end, g.diagnosis, g.severity, g.confidence,
                     g.effort_ratio, g.triangularity, g.horch_oddness, g.acf_period_s,
                     g.good_error_pct, g.mae,
                     (g.payload->'observability_flags')::text AS flags,
-                    g.payload->>'leading_hypothesis' AS leading_hypothesis
+                    g.payload->>'leading_hypothesis' AS leading_hypothesis, g.source
             """)}
+        {RefillSql.NewestProbe}
         {MonitoredInScope}
         {healthWhere}
         ORDER BY
@@ -127,22 +131,32 @@ public static class FleetLatestSql
 
     /// <summary>CHG-066: the heatmap under a fleet health filter (same clause as the rankings), with the newest
     /// window's observability flags so a pass judged without one of its inputs reads "OK on available data".</summary>
+    /// <remarks>CHG-226: while the newest window is a refill window after a Flink restart and the older verdict is in reach
+    /// (Data/RefillSql), <c>last_stored</c> is true and the verdict's gates / run ids / flags / reason ride as <c>v_*</c> (read only
+    /// then): the controller serves the verdict as the row.</remarks>
     public static string HeatmapFiltered(string healthWhere) => $"""
         SELECT r.loop_id, r.display_name, r.site, r.loop_type,
                n.window_end, n.diagnosis, n.confidence, n.gates, n.method_run_ids, n.insufficient_reason, n.flags,
-               v.window_end AS v_window_end, v.diagnosis AS v_diagnosis, v.confidence AS v_confidence
+               v.window_end AS v_window_end, v.diagnosis AS v_diagnosis, v.confidence AS v_confidence,
+               ls.last_stored, {RefillSql.UpdatingSince("n")} AS updating_since,
+               CASE WHEN ls.last_stored THEN (v.payload->'gates')::text END AS v_gates,
+               CASE WHEN ls.last_stored THEN v.method_run_ids::text END AS v_method_run_ids,
+               CASE WHEN ls.last_stored THEN v.payload->>'insufficient_evidence_reason' END AS v_insufficient_reason,
+               CASE WHEN ls.last_stored THEN (v.payload->'observability_flags')::text END AS v_flags
         FROM cpm.loop_registry r
         LEFT JOIN LATERAL (
             SELECT g.window_end, g.diagnosis, g.confidence, (g.payload->'gates')::text AS gates,
                    g.method_run_ids::text AS method_run_ids, g.payload->>'insufficient_evidence_reason' AS insufficient_reason,
-                   (g.payload->'observability_flags')::text AS flags
+                   (g.payload->'observability_flags')::text AS flags,
+                   {RefillSql.IsVerdict("g")} AS newest_is_verdict, {RefillSql.Refilling("g")} AS refilling,
+                   {RefillSql.CoverageFrom("g")} AS coverage_from
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) n ON TRUE
         LEFT JOIN LATERAL (
-            SELECT g.window_end, g.diagnosis, g.confidence
+            SELECT g.window_end, g.diagnosis, g.confidence, g.source, g.payload, g.method_run_ids
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
@@ -150,6 +164,7 @@ public static class FleetLatestSql
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) v ON TRUE
+        CROSS JOIN LATERAL (SELECT {RefillSql.LastStored("v", "n")} AS last_stored) ls
         {MonitoredInScope}
         {healthWhere}
         ORDER BY r.loop_id
@@ -189,11 +204,14 @@ public static class FleetLatestSql
     ///    CONFIRMED_/SUSPECTED_/DETECTED_/CLASSIFIED_* → POOR (a finding);
     ///  - anything else (NOT_EVALUATED, an unknown token) → UNCLASSIFIED, counted, never dropped.
     /// </summary>
-    public const string SummaryByStatus = """
+    /// <remarks>CHG-226: while the engine refills after a Flink restart (the newest row is a refill window and the verdict is in
+    /// reach, Data/RefillSql) the verdict is the loop's result and STALE is judged by the newest row, which proves the pipeline
+    /// runs. "Has LIVE rows" is that same newest-row probe (it replaced an EXISTS of the same rows).</remarks>
+    public static readonly string SummaryByStatus = $"""
         SELECT s.status AS "Status", COUNT(*)::int AS "Count"
         FROM cpm.loop_registry r
         LEFT JOIN LATERAL (
-            SELECT g.diagnosis, g.window_end
+            SELECT g.diagnosis, g.window_end, g.source
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
@@ -201,13 +219,12 @@ public static class FleetLatestSql
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) v ON TRUE
+        {RefillSql.NewestProbe}
+        CROSS JOIN LATERAL (SELECT CASE WHEN {RefillSql.LastStored("v")} THEN rf.newest_end ELSE v.window_end END AS judged_end) j
         CROSS JOIN LATERAL (SELECT CASE
             WHEN v.diagnosis IS NULL THEN
-                CASE WHEN EXISTS (SELECT 1 FROM analytics.cplm_gate_results g
-                                  WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
-                                    AND g.purpose = 'LIVE')
-                     THEN 'INSUFFICIENT_DATA' ELSE 'NO_RESULT' END
-            WHEN v.window_end IS NULL OR v.window_end < now() - make_interval(secs => @staleSeconds) THEN 'STALE'
+                CASE WHEN rf.has_row THEN 'INSUFFICIENT_DATA' ELSE 'NO_RESULT' END
+            WHEN j.judged_end IS NULL OR j.judged_end < now() - make_interval(secs => @staleSeconds) THEN 'STALE'
             WHEN v.diagnosis LIKE 'EXCLUDED%' THEN 'EXCLUDED'
             WHEN v.diagnosis IN ('NORMAL', 'NONE', 'HEALTHY') THEN 'HEALTHY'
             WHEN v.diagnosis ~ '^(CONFIRMED|SUSPECTED|DETECTED|CLASSIFIED)_' THEN 'POOR'

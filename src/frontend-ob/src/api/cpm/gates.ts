@@ -6,6 +6,7 @@
 import { apiJson } from '../apiFetch';
 import { CPM_BASE as BASE } from './base';
 import type { CpmVerdictV2 } from './verdict';
+import type { CpmStoredResult } from './storedResult';
 import { g15StatusFor } from '../../components/Cpm/vocabulary';
 
 // ── Gates & KPIs (U1/U3/U5/U8) ──────────────────────────────────────────────
@@ -34,7 +35,8 @@ export interface CpmWindowReference {
   computedAt: string;
 }
 
-export interface CpmGateMatrix {
+/** CHG-226: gates/latest may serve the loop's last stored result (`lastStored`, `resultAt`, `updatingSince`; absent = not stored). */
+export interface CpmGateMatrix extends CpmStoredResult {
   /** 'newest' (default: the loop's newest evaluated window) or 'verdict' (?prefer=verdict). */
   served?: 'newest' | 'verdict';
   /** The newest OLDER real verdict when the served row is a newer window without one; null otherwise. */

@@ -11,6 +11,7 @@
 import { apiJson } from './apiFetch';
 import { CPM_BASE as BASE } from './cpm/base';
 import type { CpmTrendPoint } from './cpm/kpis';
+import type { CpmStoredResult } from './cpm/storedResult';
 import { g15StatusFor } from '../components/Cpm/vocabulary';
 // v2.5: the gate matrix, KPI/trend/resolutions and the fusion v2 verdict types live in
 // ./cpm/* (file-size rule); they are re-exported here so existing imports keep working.
@@ -445,7 +446,8 @@ export const getPipelineStatus = () =>
 
 // ── Fleet rankings & heatmap (U1/U3) ────────────────────────────────────────
 
-export interface CpmRankedLoop {
+/** CHG-226: a ranked loop may be its last stored result (`lastStored`, `resultAt`, `updatingSince`; absent = not stored). */
+export interface CpmRankedLoop extends CpmStoredResult {
   rank: number;
   loopId: string;
   displayName: string;
@@ -508,7 +510,8 @@ export const getFleetRankings = (
   }>(`${BASE}/fleet/rankings?${params.toString()}`);
 };
 
-export interface CpmHeatmapLoop {
+/** CHG-226: a heat map row may be the loop's last stored result (`lastStored`, `resultAt`, `updatingSince`; absent = not stored). */
+export interface CpmHeatmapLoop extends CpmStoredResult {
   loopId: string;
   displayName: string;
   loopType: string;

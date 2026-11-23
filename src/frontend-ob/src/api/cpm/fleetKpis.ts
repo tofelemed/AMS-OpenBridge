@@ -5,6 +5,7 @@
 import { apiJson } from '../apiFetch';
 import { CPM_BASE } from './base';
 import type { CpmFleetScope } from '../cpmApi';
+import type { CpmStoredResult } from './storedResult';
 
 export type FleetKpiKey =
   | 'all' | 'assessed' | 'acceptable' | 'no-fault-limited' | 'finding' | 'symptom' | 'oscillating' | 'valve' | 'effort'
@@ -84,7 +85,8 @@ export interface FleetKpiDeciding {
   measured: boolean;
 }
 
-export interface FleetKpiRow {
+/** CHG-226: a row may be the loop's last stored result (`lastStored`, `resultAt`, `updatingSince`; absent = not stored). */
+export interface FleetKpiRow extends CpmStoredResult {
   /** CHG-127: the card whose measure explains this row; absent on an older cplm-api. */
   rowKey?: FleetKpiKey;
   loopId: string;

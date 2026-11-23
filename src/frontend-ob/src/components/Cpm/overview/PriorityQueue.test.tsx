@@ -3,12 +3,14 @@
 // CHG-177 (owner review, Overview v2): one line per row (priority, tag, state, diagnosis, in band, ?) under a heading line
 // that says the column words once; no name and no section; an empty queue is one line; no shelved link (owner: "remove
 // shelve link"); View all is a flat link; the order rule moved to How to read.
+// CHG-226: a loop kept at its last stored result says so after its diagnosis, once per row.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render as rtlRender, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { CpmRankedLoop } from '../../../api/cpmApi';
 
+vi.mock('../../../cpa/siteTime', async orig => ({ ...(await orig<typeof import('../../../cpa/siteTime')>()), siteZone: () => 'UTC' }));
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
   ObcButton: ({ children, onClick, title, variant, ...rest }: { children?: React.ReactNode; onClick?: () => void; title?: string; variant?: string; 'aria-label'?: string }) =>
     <button type="button" title={title} data-variant={variant} aria-label={rest['aria-label']} onClick={() => onClick?.()}>{children}</button>,
@@ -151,5 +153,22 @@ describe('priority queue head and empty line (CHG-177)', () => {
   it('has no ? on the title: the order rule is in How to read', () => {
     queue({ loops: [loop('FIC1')] });
     expect(screen.queryByRole('button', { name: 'How this is ordered' })).toBeNull();
+  });
+});
+
+describe('priority queue, a last stored result (CHG-226)', () => {
+  it('says "Last stored result" with the time after the diagnosis, once in the row', () => {
+    const { container } = queue({ loops: [loop('FIC1', { lastStored: true, resultAt: '2026-11-23T10:15:00Z', updatingSince: '2026-11-23T11:00:00Z' }), loop('FIC2')] });
+    const [first, second] = container.querySelectorAll('.cpm-queue-row');
+    const dx = first.querySelector('.cpm-ov-queue__dx')!;
+    expect(dx.textContent).toContain('Oscillation confirmed');
+    expect(dx.textContent).toMatch(/Last stored result · 23 Nov · 10:15$/);
+    expect(first.textContent!.match(/Last stored result/g)).toHaveLength(1);
+    expect(second.textContent).not.toMatch(/Last stored result/);
+  });
+
+  it('says nothing for a new result or when the fields are absent', () => {
+    queue({ loops: [loop('FIC1', { lastStored: false, resultAt: '2026-11-23T10:15:00Z' }), loop('FIC2')] });
+    expect(screen.queryByText(/Last stored result/)).toBeNull();
   });
 });

@@ -4,29 +4,34 @@ namespace Traverse.CplmApi.Services.Kpi;
 
 public static class FleetKpiRows
 {
-    public static KpiLoopRow FromDb(dynamic r)
+    /// <summary>A FleetKpiSql.Rows row. CHG-226: the window values come from the refill fallback (f_*) when FleetKpiSql found
+    /// one, else from the newest row (n_*); WindowEnd is always the newest row's, so freshness is judged by it.</summary>
+    public static KpiLoopRow FromDb(dynamic row)
     {
+        var r = (IDictionary<string, object?>)row;
         static double? D(object? v) => v is null or DBNull ? null : Convert.ToDouble(v);
-        static DateTimeOffset? T(object? v) => v switch
-        {
-            DateTimeOffset o => o,
-            DateTime t => new DateTimeOffset(DateTime.SpecifyKind(t, DateTimeKind.Utc)),
-            _ => null,
-        };
+        static string? S(object? v) => v as string;
+        object? V(string col) => r.TryGetValue(col, out var v) && v is not DBNull ? v : null;
+        var lastStored = V("f_window_end") is not null;
+        var p = lastStored ? "f_" : "n_";
+        object? W(string col) => V(p + col);
         return new KpiLoopRow
         {
-            LoopId = (string)r.loop_id, DisplayName = (string?)r.display_name, Site = (string?)r.site, Area = (string?)r.area,
-            Unit = (string?)r.unit, LoopType = (string?)r.loop_type, Criticality = (string?)r.criticality,
-            WindowEnd = T(r.n_window_end), Diagnosis = (string?)r.n_diagnosis, Confidence = D(r.n_confidence),
-            AutoPct = D(r.auto_pct), ManualPct = D(r.manual_pct), SaturationPct = D(r.saturation_pct),
-            LimitSource = (string?)r.limit_source, SatLimitDwellS = D(r.sat_limit_dwell_s), Completeness = D(r.completeness),
-            BadQualityPct = D(r.bad_quality_pct), SampleCount = D(r.sample_count), ExpectedSampleCount = D(r.expected_sample_count),
-            MaxGapS = D(r.max_gap_s), Gate0Reason = (string?)r.gate0_reason, PeriodStatus = (string?)r.period_status,
-            ValidatedPeriodS = D(r.validated_period_s), AcfRegularity = D(r.acf_regularity), EffortRatio = D(r.effort_ratio),
-            TravelPerDay = D(r.travel_per_day), ReversalsPerHour = D(r.reversals_per_hour), G14State = (string?)r.g14_state,
-            LastVerdictWindowEnd = T(r.v_window_end), LastVerdictDiagnosis = (string?)r.v_diagnosis,
-            G3Status = (string?)r.g3_status, G4Status = (string?)r.g4_status, GoodErrorPct = D(r.good_error_pct),
-            Mae = D(r.mae), PvSpan = D(r.pv_span), VpExpectedUnmapped = (bool)(r.vp_expected_unmapped ?? false),
+            LoopId = (string)V("loop_id")!, DisplayName = S(V("display_name")), Site = S(V("site")), Area = S(V("area")),
+            Unit = S(V("unit")), LoopType = S(V("loop_type")), Criticality = S(V("criticality")),
+            WindowEnd = Data.RefillSql.Utc(V("n_window_end")), Diagnosis = S(W("diagnosis")), Confidence = D(W("confidence")),
+            AutoPct = D(W("auto_pct")), ManualPct = D(W("manual_pct")), SaturationPct = D(W("saturation_pct")),
+            LimitSource = S(W("limit_source")), SatLimitDwellS = D(W("sat_limit_dwell_s")), Completeness = D(W("completeness")),
+            BadQualityPct = D(W("bad_quality_pct")), SampleCount = D(W("sample_count")), ExpectedSampleCount = D(W("expected_sample_count")),
+            MaxGapS = D(W("max_gap_s")), Gate0Reason = S(W("gate0_reason")), PeriodStatus = S(W("period_status")),
+            ValidatedPeriodS = D(W("validated_period_s")), AcfRegularity = D(W("acf_regularity")), EffortRatio = D(W("effort_ratio")),
+            TravelPerDay = D(W("travel_per_day")), ReversalsPerHour = D(W("reversals_per_hour")), G14State = S(W("g14_state")),
+            LastVerdictWindowEnd = Data.RefillSql.Utc(V("v_window_end")), LastVerdictDiagnosis = S(V("v_diagnosis")),
+            G3Status = S(W("g3_status")), G4Status = S(W("g4_status")), GoodErrorPct = D(W("good_error_pct")),
+            Mae = D(W("mae")), PvSpan = D(V("pv_span")), VpExpectedUnmapped = V("vp_expected_unmapped") is true,
+            LastStored = lastStored,
+            ResultAt = Data.RefillSql.Utc(W("window_end")),
+            UpdatingSince = V("n_refilling") is true ? Data.RefillSql.Utc(V("n_coverage_from")) : null,
         };
     }
 
@@ -98,6 +103,11 @@ public static class FleetKpiRows
                 errorPctOfSpan = FleetKpiPerformance.ErrorOfSpan(r),
             },
             lastVerdict = r.LastVerdictDiagnosis is null ? null : new { diagnosis = r.LastVerdictDiagnosis, windowEnd = r.LastVerdictWindowEnd },
+            // CHG-226: the loop shows its last stored result while the engine refills after a restart (windowEnd / ageSeconds
+            // stay the newest row: freshness); a day stored before rule v2 has no resultAt, its result was the newest row
+            lastStored = r.LastStored,
+            resultAt = r.ResultAt ?? r.WindowEnd,
+            updatingSince = r.UpdatingSince,
         };
     }
 }

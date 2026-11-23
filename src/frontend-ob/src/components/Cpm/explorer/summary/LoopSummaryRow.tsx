@@ -4,6 +4,8 @@
  * said once — its age when old (the time on hover), else its time — and not with the window kind the page switch shows.
  * Review evidence → is the next step (the Evidence Workbench); Open details holds the full card, next check, readiness and
  * limitations. The dialog does not repeat who the loop is: the band names it, Loop model & setup holds its type and criticality.
+ * CHG-226: a result kept until a new one arrives says so on the fact line, where the window time is ("Last stored result · 23 Nov
+ * · 10:15"); when that is the window's own end, the label takes the place of the window end and its age.
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -25,6 +27,7 @@ import { readinessCauses, type ExplorerTab } from '../readinessCauses';
 import LoopSummaryCard, { workbenchExit } from './LoopSummaryCard';
 import { useLoopKpis } from './useLoopKpis';
 import { conditionOf, windowAgeOf } from './summaryText';
+import { lastStoredText, storedAtShownTime } from '../../storedResult';
 
 export const LoopSummaryRow: React.FC<{
   loop: CpmLoop;
@@ -44,7 +47,9 @@ export const LoopSummaryRow: React.FC<{
   const failed = gates.isError && !isNoVerdictYet(gates.error);
   const condition = conditionOf(gates.data?.diagnosis ?? 'NOT_EVALUATED');
   const result = gates.isLoading ? 'Loading…' : failed ? 'Verdict unavailable' : condition.label;
-  const age = gates.data ? windowAgeOf(gates.data, windowKind) : null;
+  const stored = lastStoredText(gates.data);
+  const storedIsWindowEnd = storedAtShownTime(gates.data, gates.data?.windowEnd);
+  const age = gates.data && !storedIsWindowEnd ? windowAgeOf(gates.data, windowKind) : null;
   const summary = readinessCauses(readiness.data, loop.loopId);
   const readinessInCard = !!gates.data && !!summary && summary.blocking === 0;
   const health = loopHealthSummary(instrumentHealth.data);
@@ -55,7 +60,7 @@ export const LoopSummaryRow: React.FC<{
   const ended = gates.data?.windowEnd ? fmtWhen(gates.data.windowEnd) : '';
   // Missing facts are left out, never shown as zero. A recent window says when it ended here; an old one says its age above.
   const fact = [
-    !age && ended ? `window ended ${ended}` : '',
+    !age && ended && !storedIsWindowEnd ? `window ended ${ended}` : '', stored ?? '',
     inBand != null ? `${Math.round(inBand * 100)} % in band` : '', persisting !== '—' ? persisting : '', score,
   ].filter(Boolean).join(' · ');
 

@@ -57,6 +57,7 @@ load_env() {
   FLINK_JOBMANAGER_CONTAINER="${FLINK_JOBMANAGER_CONTAINER:-ams-flink-jobmanager}"
   FLINK_JOBMANAGER_PORT="${FLINK_JOBMANAGER_PORT:-8081}"
   FLINK_JAR_PATH="${FLINK_JAR_PATH:-/opt/flink/usrlib/ams-flink-1.0-SNAPSHOT.jar}"
+  MINIO_CONTAINER="${MINIO_CONTAINER:-ams-minio}"   # Flink checkpoints + savepoints: s3://ams-flink/... = /data/ams-flink/...
   TOPIC_PREFIX="${TOPIC_PREFIX:-traverse.cpa.}"
 }
 

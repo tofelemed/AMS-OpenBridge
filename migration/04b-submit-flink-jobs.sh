@@ -35,15 +35,43 @@ flink() {
   docker exec "$JM" /opt/flink/bin/flink "$@"
 }
 
+rest() {
+  docker exec "$JM" curl -sf "http://localhost:${JM_PORT}$1"
+}
+
 job_present() {
   flink list -m "localhost:${JM_PORT}" 2>/dev/null \
     | grep -F "$1" | grep -qE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)'
 }
 
+# CHG-226: optional resume from a savepoint for the two jobs whose memory takes hours to refill (Long: the 12 h / 24 h
+# windows; Fusion: the persistence history and open conditions). The lines come from migration/flink-stop-with-savepoint.sh.
+# Not set = a fresh submit, exactly as before. Never put them in migration/.env: a later release would restore an old state.
+#   RESUME_LONG_FROM=s3://ams-flink/savepoints/savepoint-...    (+ RESUME_LONG_ALLOW_NON_RESTORED=yes only when the lab
+#                                                                 rehearsal of this jar needed it)
+#   RESUME_FUSION_FROM=s3://ams-flink/savepoints/savepoint-...  (always --allowNonRestoredState: its Kafka sources have no uid)
+# RESUME_MAX_AGE_MIN (240) refuses an older savepoint: the topics it resumes from keep 6 h (long features) / 12 h (samples).
+# RESUME_VERIFY_TIMEOUT_S (900) bounds the restore check at the end. The Response job is stateless by rule and the other
+# jobs refill within the hour: they always start fresh. Procedure: docs/next-release/flink-savepoint-procedure.md.
+unset JOB_RESUME_FROM JOB_ALLOW_NON_RESTORED   # set per call below, never inherited
+RESUMED=()                                      # "job id|savepoint|name", checked at the end
+
+check_resume_path() {
+  local path="$1" obj mtime age max="${RESUME_MAX_AGE_MIN:-240}"
+  [[ "$path" == s3://*/* ]] || die "resume path '$path' is not an s3:// savepoint path"
+  obj="/data/${path#s3://}"; obj="${obj%/}"; obj="${obj%/_metadata}"
+  require_container "$MINIO_CONTAINER"
+  mtime="$(docker exec "$MINIO_CONTAINER" stat -c %Y "$obj/_metadata" 2>/dev/null)" \
+    || die "no savepoint at $path ($obj/_metadata not in $MINIO_CONTAINER): deleted or mistyped. Unset the variable for a fresh submit"
+  age=$(( ($(date +%s) - mtime) / 60 ))
+  (( age <= max )) || die "savepoint $path is $age min old (limit $max min): Kafka no longer holds everything after it. Unset the variable for a fresh submit"
+  info "savepoint $path found, $age min old"
+}
+
 submit_if_missing() {
   local name="$1" class="$2"
   shift 2
-  local n
+  local n out jid restore=()
   n="$(flink list -m "localhost:${JM_PORT}" 2>/dev/null | grep -F "$name" | grep -cE '\((CREATED|INITIALIZING|RUNNING|RESTARTING|RECONCILING)\)' || true)"
   if [[ "${n:-0}" -gt 1 ]]; then
     warn "$n copies of '$name' already present — not submitting another"
@@ -51,14 +79,55 @@ submit_if_missing() {
   fi
   if [[ "${n:-0}" -ge 1 ]]; then
     ok "'$name' already present — skip"
+    [[ -z "${JOB_RESUME_FROM:-}" ]] || warn "'$name' still runs, so it is NOT restored from $JOB_RESUME_FROM (stop it with flink-stop-with-savepoint.sh first)"
     return 0
   fi
-  info "submitting $class as '$name' (parallelism ${SUBMIT_PARALLELISM:-1})"
+  if [[ -n "${JOB_RESUME_FROM:-}" ]]; then
+    check_resume_path "$JOB_RESUME_FROM"
+    restore=(-s "$JOB_RESUME_FROM")
+    if [[ "${JOB_ALLOW_NON_RESTORED:-}" == yes ]]; then restore+=(--allowNonRestoredState); fi
+  fi
+  info "submitting $class as '$name' (parallelism ${SUBMIT_PARALLELISM:-1})${JOB_RESUME_FROM:+, restoring from $JOB_RESUME_FROM}"
   # Marun 2026-09-27: six sliding windows over 142 loops saturate one core; a job that cannot keep up
   # falls behind on every partition and its results arrive late for ever. SUBMIT_PARALLELISM is set per
   # call below from migration/.env (deploy.sh exports it); a keyed job spreads its windows across cores.
-  flink run -d -p "${SUBMIT_PARALLELISM:-1}" -m "localhost:${JM_PORT}" -c "$class" "$JAR" "$@"
+  # A restored job keeps its savepoint's max parallelism (128): any parallelism up to that restores.
+  out="$(flink run -d -p "${SUBMIT_PARALLELISM:-1}" -m "localhost:${JM_PORT}" ${restore[@]+"${restore[@]}"} -c "$class" "$JAR" "$@" 2>&1)" \
+    || { printf '%s\n' "$out"; die "submit of '$name' failed"; }
+  printf '%s\n' "$out"
+  if [[ -n "${JOB_RESUME_FROM:-}" ]]; then
+    jid="$(grep -oE 'JobID [0-9a-f]{32}' <<<"$out" | tail -1 | cut -d' ' -f2 || true)"
+    [[ -n "$jid" ]] || die "no JobID in the submit output of '$name': check its restore by hand"
+    RESUMED+=("$jid|$JOB_RESUME_FROM|$name")
+  fi
   sleep 8
+}
+
+# CHG-226: a restored job proves the restore: RUNNING, restored from exactly that path, and one checkpoint completed
+# since (the state is in use; from then on the savepoint is not needed). Long checkpoints every 5 min, Fusion every 3.
+verify_restore() {
+  local jid="$1" path="$2" name="$3" t st ck from done again limit="${RESUME_VERIFY_TIMEOUT_S:-900}"
+  path="${path%/}"; path="${path%/_metadata}"
+  for (( t = 0; t <= limit; t += 15 )); do
+    st="$(rest "/jobs/$jid" | grep -oE '"state":"[A-Z]+"' | head -1 | cut -d'"' -f4 || true)"
+    ck="$(rest "/jobs/$jid/checkpoints" || true)"
+    from="$(grep -oE '"restored":\{[^}]*\}' <<<"$ck" | grep -oE '"external_path":"[^"]*"' | cut -d'"' -f4 || true)"
+    done="$(grep -oE '"counts":\{[^}]*\}' <<<"$ck" | grep -oE '"completed":[0-9]+' | cut -d: -f2 || true)"
+    again="$(grep -oE '"counts":\{[^}]*\}' <<<"$ck" | grep -oE '"restored":[0-9]+' | cut -d: -f2 || true)"
+    case "$st" in
+      FAILED|FAILING|CANCELED|CANCELLING|FINISHED|SUSPENDED)
+        fail "'$name' ($jid) is $st after the restore from $path"; return 1 ;;
+    esac
+    if (( ${again:-0} > 1 )); then
+      fail "'$name' ($jid) restarted after the restore (restored ${again} times): read /jobs/$jid/exceptions"; return 1
+    fi
+    if [[ "$st" == RUNNING && "${from%/}" == "$path" && "${done:-0}" -ge 1 ]]; then
+      ok "'$name' restored from $path and completed a checkpoint: its windows run on"; return 0
+    fi
+    sleep 15
+  done
+  fail "'$name' ($jid) not proven within ${limit} s: state ${st:-?}, restored from ${from:-nothing}, ${done:-0} checkpoints"
+  return 1
 }
 
 info "waiting for JobManager REST on ${JM}:${JM_PORT}"
@@ -127,6 +196,7 @@ submit_if_missing "AMS - CPLM Short Feature Engine" \
   "${COMMON[@]}" \
   --job-name "AMS - CPLM Short Feature Engine"
 
+JOB_RESUME_FROM="${RESUME_LONG_FROM:-}" JOB_ALLOW_NON_RESTORED="${RESUME_LONG_ALLOW_NON_RESTORED:-}" \
 submit_if_missing "AMS - CPLM Long Diagnostics Engine" \
   com.ams.flink.cplm.CplmLongDiagnosticsStreamJob \
   "${COMMON[@]}" \
@@ -162,6 +232,7 @@ submit_if_missing "AMS - CPLM Response Engine" \
   --response-topic "${CPLM_RESPONSE_TOPIC:-traverse.cpa.clpm.response.results.v1}" \
   --evidence-topic "${CPLM_EVIDENCE_TOPIC:-traverse.cpa.clpm.gate.evidence.v1}"
 
+JOB_RESUME_FROM="${RESUME_FUSION_FROM:-}" JOB_ALLOW_NON_RESTORED=yes \
 submit_if_missing "AMS - CPLM Gate Fusion Engine" \
   com.ams.flink.cplm.CplmGateFusionStreamJob \
   "${COMMON[@]}" \
@@ -197,6 +268,15 @@ do
   else
     fail "'$name' not present after submit"
     rc=1
+  fi
+done
+
+# CHG-226: the restore checks come last, so the tail of deploy.sh's output shows them.
+for r in ${RESUMED[@]+"${RESUMED[@]}"}; do
+  IFS='|' read -r jid path name <<<"$r"
+  if ! verify_restore "$jid" "$path" "$name"; then
+    rc=1
+    warn "keep $path and do not run the checkpoint sweep yet. Fall back to a fresh submit: cancel $jid if it is still listed, then rerun 04b without its RESUME_ variable"
   fi
 done
 exit "$rc"

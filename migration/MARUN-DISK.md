@@ -77,6 +77,10 @@ Everything below is safe with the stack running **except A and B**, which need F
 Needs Flink down. Jobs come back with fresh window state either way — that is already the cost
 of any Flink restart here (no HA, no savepoint resume).
 
+**Never between `flink-stop-with-savepoint.sh` and the resubmit that restores from it (CHG-226):** this
+deletes `/data/ams-flink/savepoints/*`, so 04b's `RESUME_*_FROM` would point at nothing and the 12 h / 24 h
+windows start empty after all. Wait until 04b reports every restore with a completed checkpoint.
+
 ```bash
 docker exec ams-minio du -sh /data/ams-flink/* 2>/dev/null                     # measure
 docker rm -f ams-flink-taskmanager ams-flink-jobmanager

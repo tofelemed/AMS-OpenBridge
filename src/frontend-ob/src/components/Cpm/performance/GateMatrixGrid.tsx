@@ -8,6 +8,7 @@
  * model. The loop, gate and result cells are native buttons on purpose: the roving tabindex moves focus with
  * `element.focus()`, and `obc-button` keeps its <button> in a shadow root without delegatesFocus, so it can neither
  * take that focus nor give up its own tab stop.
+ * CHG-226: a loop kept at its last stored result says so under its result link, once per row, as in the Findings view.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +17,7 @@ import type { CpmHeatmapLoop } from '../../../api/cpmApi';
 import { gateMark, gateName } from '../gateStatus';
 import { diagnosisLabel } from '../vocabulary';
 import { investigationHref } from '../cpaHref';
+import { lastStoredText } from '../storedResult';
 
 const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
 
@@ -90,6 +92,7 @@ export const GateMatrixGrid: React.FC<{
         <tbody onKeyDown={onKeyDown}>
           {rows.map((row, r) => {
             const selected = selectedLoopId?.toLowerCase() === row.loopId.toLowerCase();
+            const stored = lastStoredText(row);
             return (
               <tr key={row.loopId} aria-rowindex={start + r + 3} aria-selected={selected}
                 className={selected ? 'cpm-matrix__row--selected' : undefined}>
@@ -124,6 +127,7 @@ export const GateMatrixGrid: React.FC<{
                     onClick={() => navigate(investigationHref(row.loopId, { kind: windowKind }))}>
                     {diagnosisLabel(row.diagnosis)}
                   </button>
+                  {stored && <span className="cpm-event-row__sub cpm-matrix__stored">{stored}</span>}
                 </td>
               </tr>
             );

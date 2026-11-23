@@ -42,6 +42,9 @@ import java.util.Map;
  * timer. A slice with fewer than {@link #MIN_SAMPLES} samples is not emitted at all, which is the
  * usual reason a sparse loop never produces a verdict.
  *
+ * <p>CHG-226: every result carries {@code coverage_from_ms} / {@code warming_up} - whether its window opens
+ * before the loop's buffer covers (a refill after a fresh submit), see {@link LongBufferCoverage}.
+ *
  * <p>Only the 12h and 24h records trigger the fusion engine — see
  * {@code CplmGateFusionStreamJob.processElement2}. The API mirrors all of this in
  * {@code GET /api/v1/cpm/resolutions}; keep the two in step.
@@ -140,6 +143,8 @@ public class CplmLongDiagnosticsStreamJob {
         /** CHG-049: per loop (the key), by window kind - the last emitted finding signature and its time. */
         private transient MapState<String, String> lastEvidenceSig;
         private transient MapState<String, Long> lastEvidenceMs;
+        /** CHG-226: per loop, from when the rolling buffer covers (LongBufferCoverage); a restore keeps it, absent = set from the buffer. */
+        private transient ValueState<Long> coverageFromMs;
 
         LongDiagnosticsProcessFunction() {
             this(new EvidencePolicy(EvidencePolicy.Mode.EPISODES));
@@ -190,6 +195,9 @@ public class CplmLongDiagnosticsStreamJob {
                     new MapStateDescriptor<>("cplm-evidence-last-sig", String.class, String.class));
             lastEvidenceMs = getRuntimeContext().getMapState(
                     new MapStateDescriptor<>("cplm-evidence-last-ms", String.class, Long.class));
+            // CHG-226: a new state name, so a checkpoint or savepoint from an older jar restores with it empty
+            coverageFromMs = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("cplm-buffer-coverage-from-ms", Long.class));
         }
 
         @Override
@@ -202,6 +210,11 @@ public class CplmLongDiagnosticsStreamJob {
             }
             // Add sample to rolling buffer
             rollingBuffer.add(sample);
+            // CHG-226: the buffer's coverage start - the first sample after a fresh start, the oldest buffered one
+            // after a restore without it (the buffer is read only then), moved back by a late older sample
+            Long stored = coverageFromMs.value();
+            long coverage = LongBufferCoverage.afterSample(stored, stored == null ? rollingBuffer.get() : null, sample.eventTsMs);
+            if (stored == null || coverage != stored) coverageFromMs.update(coverage);
 
             // Register the next 15-minute cadence timer if not already set
             Long currentNext = nextTimerTs.value();
@@ -246,6 +259,12 @@ public class CplmLongDiagnosticsStreamJob {
             }
             peerBuffer.update(peerRetained);
             CplmNormalizedSample newest = retained.isEmpty() ? null : retained.get(retained.size() - 1);
+            // CHG-226: a timer restored from an older jar's state can fire before the loop's next sample
+            Long coverage = coverageFromMs.value();
+            if (coverage == null) {
+                coverage = LongBufferCoverage.oldest(retained);
+                if (coverage != null) coverageFromMs.update(coverage);
+            }
             LongDiagnosticsCalculator.PeerContext peers = new LongDiagnosticsCalculator.PeerContext(
                     newest == null ? null : newest.configuredPeers, peersById, newest == null ? 0 : newest.relationshipRevision);
 
@@ -262,6 +281,7 @@ public class CplmLongDiagnosticsStreamJob {
                         slice4h, cutoff4h, timestamp, "4h", null, peers);
                 r4h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice4h, cutoff4h, timestamp, "4h");
+                LongBufferCoverage.stamp(r4h, coverage);
                 out.collect(r4h);
                 emitEvidence(ctx, r4h, timestamp);
             }
@@ -279,6 +299,7 @@ public class CplmLongDiagnosticsStreamJob {
                         slice12h, cutoff12h, timestamp, "12h", null, peers);
                 r12h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice12h, cutoff12h, timestamp, "12h");
+                LongBufferCoverage.stamp(r12h, coverage);
                 out.collect(r12h);
                 emitEvidence(ctx, r12h, timestamp);
             }
@@ -296,6 +317,7 @@ public class CplmLongDiagnosticsStreamJob {
                         slice24h, cutoff24h, timestamp, "24h", null, peers);
                 r24h.alignedShort = CplmGateEngine.computeShortFeatures(
                         slice24h, cutoff24h, timestamp, "24h");
+                LongBufferCoverage.stamp(r24h, coverage);
                 out.collect(r24h);
                 emitEvidence(ctx, r24h, timestamp);
             }

@@ -281,6 +281,9 @@ public final class CplmGateFusionEngine implements Serializable {
         result.samplePeriodSec = longD.samplePeriodSec > 0 ? longD.samplePeriodSec : shortF.samplePeriodSec;
         result.expectedSampleCount = shortF.expectedSampleCount;
         result.sampleCount = longD.sampleCount > 0 ? longD.sampleCount : shortF.sampleCount;
+        // CHG-226: the Long buffer's coverage rides the verdict as is (null on evaluations and replays: not published)
+        result.coverageFromMs = longD.coverageFromMs;
+        result.warmingUp = longD.warmingUp;
         // v2.5 R10: the support this verdict rests on - accepted samples x period, never more than the window.
         long spanMs = Math.max(0, result.windowEndMs - result.windowStartMs);
         long bySamples = result.samplePeriodSec > 0 ? (long) (result.sampleCount * result.samplePeriodSec * 1000.0) : spanMs;

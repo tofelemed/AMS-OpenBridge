@@ -223,7 +223,12 @@ public sealed class CpmFleetController : ControllerBase
                 priority = isPriority ? FleetPrioritySql.PriorityLabel((int?)r.priority) : null,
                 episodeOpenedAt = isPriority ? (DateTime?)r.episode_opened_at : null,
                 episodeWindowCount = isPriority ? (int?)r.episode_window_count : null,
-                ackState = isPriority ? (string?)r.ack_state : null
+                ackState = isPriority ? (string?)r.ack_state : null,
+                // CHG-226: the verdict is the loop's last stored result while the engine refills after a Flink restart
+                // (not stale meanwhile); resultAt = the window end of the result shown, updatingSince = the refill's coverage start
+                lastStored = (bool?)r.last_stored ?? false,
+                resultAt = RefillSql.Utc((object?)r.window_end),
+                updatingSince = RefillSql.Utc((object?)r.updating_since)
             }).ToList();
 
             // orderBy echoes back: with a LIMIT, the ordering determines WHICH loops
@@ -277,11 +282,14 @@ public sealed class CpmFleetController : ControllerBase
             var gateKeys = new[] { "G0","G1","G2","G2r","G3","G4","G5","G6","G7","G8","G9","G10","G11","G12","G13","G14","G15" };
             var cells = rows.Select(r =>
             {
+                // CHG-226: while the engine refills after a Flink restart the last verdict in reach is served as the row (its
+                // gates, run ids, flags), marked lastStored; otherwise the newest window as before
+                bool lastStored = (bool?)r.last_stored ?? false;
                 // `gates` is payload->'gates' ({"G0":"PASS",...}); never the whole message.
-                var stored = ParseJson((string?)r.gates);
+                var stored = ParseJson(lastStored ? (string?)r.v_gates : (string?)r.gates);
                 var gates = new Dictionary<string, string>();
                 foreach (var key in gateKeys) gates[key] = ReadGateStatus(stored, key);
-                var runIds = ParseJson((string?)r.method_run_ids);
+                var runIds = ParseJson(lastStored ? (string?)r.v_method_run_ids : (string?)r.method_run_ids);
                 var methodRunIds = new Dictionary<string, string>();
                 if (runIds.ValueKind == JsonValueKind.Object)
                     foreach (var p in runIds.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.String) methodRunIds[p.Name] = p.Value.GetString()!;
@@ -291,20 +299,23 @@ public sealed class CpmFleetController : ControllerBase
                     loopId = r.loop_id,
                     displayName = r.display_name,
                     loopType = r.loop_type,
-                    windowEnd = r.window_end,
-                    diagnosis = (string?)r.diagnosis ?? "NOT_EVALUATED",
-                    confidence = r.confidence,
-                    insufficientEvidenceReason = (string?)r.insufficient_reason,
-                    observabilityFlags = ReadStringArray((string?)r.flags),
+                    windowEnd = lastStored ? r.v_window_end : r.window_end,
+                    diagnosis = (string?)(lastStored ? r.v_diagnosis : r.diagnosis) ?? "NOT_EVALUATED",
+                    confidence = lastStored ? r.v_confidence : r.confidence,
+                    insufficientEvidenceReason = (string?)(lastStored ? r.v_insufficient_reason : r.insufficient_reason),
+                    observabilityFlags = ReadStringArray(lastStored ? (string?)r.v_flags : (string?)r.flags),
                     gates,
                     // 2026-09-17 audit F4: the newest window's run ids (the workbench launcher) and the last real
                     // verdict when it is an OLDER window than the one shown - stated with its age, never as current
                     methodRunIds,
-                    lastVerdict = vEnd is null ? null : new
+                    lastVerdict = vEnd is null || lastStored ? null : new
                     {
                         windowEnd = r.v_window_end, diagnosis = (string?)r.v_diagnosis, confidence = r.v_confidence,
                         ageMs = (long)(DateTime.UtcNow - vEnd.Value).TotalMilliseconds,
                     },
+                    lastStored,
+                    resultAt = RefillSql.Utc(lastStored ? (object?)r.v_window_end : (object?)r.window_end),
+                    updatingSince = RefillSql.Utc((object?)r.updating_since),
                 };
             }).ToList();
 

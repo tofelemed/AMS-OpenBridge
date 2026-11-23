@@ -21,17 +21,19 @@ namespace Traverse.CplmApi.Data;
 /// window is not stale). An actively shelved episode leaves the queue (ISA-18.2: shelved alarms are
 /// removed from the active list and listed separately); an expired shelf brings the loop back;
 /// acknowledged loops stay, marked. Change the matrix here and in prod_decision.md together.
+/// CHG-226: while the engine refills after a Flink restart (Data/RefillSql) a verdict in reach is current as long as the
+/// newest (refill) row is - the queue keeps the finding instead of dropping it as stale; the row says so (last_stored).
 /// </summary>
 public static class FleetPrioritySql
 {
-    private const string Current = """
+    private static readonly string Current = $"""
         FROM cpm.loop_registry r
         JOIN LATERAL (
             SELECT g.window_end, g.diagnosis, g.severity, g.confidence,
                    g.effort_ratio, g.triangularity, g.horch_oddness, g.acf_period_s,
                    g.good_error_pct, g.mae,
                    (g.payload->'observability_flags')::text AS flags,
-                   g.payload->>'leading_hypothesis' AS leading_hypothesis
+                   g.payload->>'leading_hypothesis' AS leading_hypothesis, g.source
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
@@ -39,6 +41,7 @@ public static class FleetPrioritySql
             ORDER BY g.window_end DESC NULLS LAST, g.created_at DESC
             LIMIT 1
         ) v ON TRUE
+        {RefillSql.NewestProbe}
         LEFT JOIN LATERAL (
             SELECT f.opened_at, f.window_count, f.ack_state, f.shelve_until
             FROM analytics.cplm_event_frames f
@@ -50,7 +53,7 @@ public static class FleetPrioritySql
           AND (@area::text IS NULL OR r.area = @area)
           AND (@unit::text IS NULL OR r.unit = @unit)
           AND COALESCE((r.monitoring->>'enabled')::boolean, FALSE)
-          AND v.window_end >= now() - make_interval(secs => @staleSeconds)
+          AND (CASE WHEN {RefillSql.LastStored("v")} THEN rf.newest_end ELSE v.window_end END) >= now() - make_interval(secs => @staleSeconds)
           AND v.diagnosis ~ '^(CONFIRMED|SUSPECTED|DETECTED|CLASSIFIED)_'
         """;
 
@@ -79,7 +82,8 @@ public static class FleetPrioritySql
                v.effort_ratio, v.triangularity, v.horch_oddness, v.acf_period_s,
                v.good_error_pct, v.mae, v.flags, v.leading_hypothesis,
                {Priority} AS priority,
-               e.opened_at AS episode_opened_at, e.window_count AS episode_window_count, e.ack_state
+               e.opened_at AS episode_opened_at, e.window_count AS episode_window_count, e.ack_state,
+               {RefillSql.LastStored("v")} AS last_stored, {RefillSql.UpdatingSince()} AS updating_since
         {Current}
           AND NOT {ActivelyShelved}
         {healthWhere}

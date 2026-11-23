@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 // CHG-132 / CHG-155: each fact once in a row. A shared measure and its limit are named in the column heading, a verdict the
 // KPI already states is left out, an empty "Also check" column goes, and the loop column holds the tag only.
-import { afterEach, describe, expect, it } from 'vitest';
+// CHG-226: a loop kept at its last stored result says so in its Window cell, with the time, once.
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { FleetKpiKey, FleetKpiRow } from '../../../api/cpm/fleetKpis';
 import { KpiRowsTable } from './KpiRowsTable';
+
+vi.mock('../../../cpa/siteTime', async orig => ({ ...(await orig<typeof import('../../../cpa/siteTime')>()), siteZone: () => 'UTC' }));
 
 const stale = (loopId: string, extra: Partial<FleetKpiRow> = {}): FleetKpiRow => ({
   loopId, displayName: 'Reactor pressure', state: 'Stale', windowKind: '12h', windowEnd: '2026-10-10T12:00:00Z', ageSeconds: 7200,
@@ -83,5 +86,29 @@ describe('KpiRowsTable', () => {
   it('keeps every proof link', () => {
     show([stale('A')]);
     expect(screen.getAllByRole('link').map(l => l.textContent)).toEqual(['Loop ↗', 'Window ↗', 'Trend ↗']);
+  });
+});
+
+describe('KpiRowsTable, a last stored result (CHG-226)', () => {
+  const windowCell = (i: number) => within(screen.getAllByRole('row')[i + 1]).getAllByRole('cell').find(c => c.dataset.label === 'Window')!;
+
+  it('says "Last stored result" with the time of the result, once in the row, in place of the same window time', () => {
+    show([{ ...assessed('A', 'NO_CALL'), lastStored: true, resultAt: '2026-10-10T12:00:00Z', updatingSince: '2026-10-10T13:00:00Z' }], 'assessed');
+    const row = screen.getAllByRole('row')[1];
+    expect(windowCell(0).textContent).toBe('Last stored result · 10 Oct · 12:001 min ago');
+    expect(row.textContent!.match(/Last stored result/g)).toHaveLength(1);
+    expect(row.textContent!.match(/10 Oct · 12:00/g)).toHaveLength(1);
+  });
+
+  it('keeps a different window time with its age, and adds the label under them', () => {
+    show([{ ...assessed('A', 'NO_CALL'), lastStored: true, resultAt: '2026-10-10T09:15:00Z' }], 'assessed');
+    expect(windowCell(0).textContent).toBe('10 Oct · 12:001 min agoLast stored result · 10 Oct · 09:15');
+  });
+
+  it('says nothing when the row is a new result or the fields are absent', () => {
+    show([{ ...assessed('A', 'NO_CALL'), lastStored: false, resultAt: '2026-10-10T12:00:00Z' }, assessed('B', 'NO_CALL')], 'assessed');
+    expect(screen.queryByText(/Last stored result/)).toBeNull();
+    expect(windowCell(0).textContent).toBe('10 Oct · 12:001 min ago');
+    expect(windowCell(1).textContent).toBe('10 Oct · 12:001 min ago');
   });
 });

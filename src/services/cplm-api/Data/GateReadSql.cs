@@ -20,10 +20,11 @@ public static class GateReadSql
         LIMIT 1
         """;
 
-    /// <summary>The loop's newest REAL verdict (diagnosis other than INSUFFICIENT_DATA), or no row.</summary>
+    /// <summary>The loop's newest REAL verdict (diagnosis other than INSUFFICIENT_DATA), or no row. CHG-226: with its
+    /// <c>source</c>, which the refill rule (RefillSql.Qualifies) needs.</summary>
     public const string NewestVerdictForLoop = """
         SELECT loop_id, window_kind, window_start, window_end, sample_count,
-               diagnosis, severity, confidence, payload::text AS payload, created_at
+               diagnosis, severity, confidence, payload::text AS payload, created_at, source
         FROM analytics.cplm_gate_results
         WHERE lower(loop_id) = lower(@loopId) AND window_kind = @windowKind AND purpose = 'LIVE'
           AND diagnosis IS NOT NULL AND diagnosis <> 'INSUFFICIENT_DATA'

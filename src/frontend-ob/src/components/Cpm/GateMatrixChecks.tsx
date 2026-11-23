@@ -7,6 +7,7 @@
  * to review it. Only gates that move the result are named; all 17 stay one toggle away in the gate matrix. A check is
  * a native button that opens the gate's dialog. The row set, paging and filters are the matrix's (GateMatrix owns
  * them), so switching views never changes which loops are shown.
+ * CHG-226: a loop kept at its last stored result says so under its result, once per row ("Last stored result · 23 Nov · 10:15").
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,11 +20,18 @@ import { diagnosisLabel } from './vocabulary';
 import { evidenceScore } from './evidenceScore';
 import { hasVerdict } from './metricAvailability';
 import { investigationHref } from './cpaHref';
+import { lastStoredText } from './storedResult';
 
-/** The verdict both views share: the diagnosis pill. An older verdict is named in the band and the dialog, not per row. */
-export const ResultCell: React.FC<{ row: CpmHeatmapLoop }> = ({ row }) => (
-  <TonePill tone={toneFor(row.diagnosis)}>{diagnosisLabel(row.diagnosis)}</TonePill>
-);
+/** The verdict: the diagnosis pill. An older verdict is named in the band and the dialog, not per row; a stored result is named here. */
+export const ResultCell: React.FC<{ row: CpmHeatmapLoop }> = ({ row }) => {
+  const stored = lastStoredText(row);
+  return (
+    <>
+      <TonePill tone={toneFor(row.diagnosis)}>{diagnosisLabel(row.diagnosis)}</TonePill>
+      {stored && <span className="cpm-event-row__sub cpm-matrix__stored">{stored}</span>}
+    </>
+  );
+};
 
 export interface GateMatrixChecksProps {
   rows: CpmHeatmapLoop[];

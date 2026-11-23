@@ -20,6 +20,8 @@
 /* The result is a link in the matrix and a pill in Findings; both stay on one line */
 .cpm-matrix__result-link { white-space: nowrap; }
 .cpm-checks__score { font-variant-numeric: tabular-nums; }
+/* CHG-226: "Last stored result · <time>" under a row's result, in the caption style of the loop's name beside it */
+.cpm-matrix__stored { display: block; }
 
 /* A disclosure under a panel (Relationships › Lineage). CHG-191: the gate dialog no longer hides its evidence behind one. */
 .cpm-gate-more { margin-top: var(--traverse-space-3); }

@@ -17,6 +17,7 @@
  * phone the heading hides and the words come back on the row); the loop's name and section went. Empty, the queue is one
  * line. The head's "n shelved ↗" went (owner: "remove shelve link"); View all → is a flat link; the order rule moved from
  * the title's ? into How to read.
+ * CHG-226: a loop kept at its last stored result says so after its diagnosis ("Last stored result · 23 Nov · 10:15"), once per row.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +31,7 @@ import FacetPill from '../FacetPill';
 import { priorityBadge, priorityReasons } from './priorityReason';
 import { reviewView, reviewWord } from '../events/shelfState';
 import { investigationHref } from '../cpaHref';
+import { lastStoredText } from '../storedResult';
 
 const QUEUE_SIZE = 6;
 
@@ -81,6 +83,7 @@ export const PriorityQueue: React.FC<{
             const isSelected = selectedId === l.loopId;
             const badge = priorityBadge(l.priority);
             const done = rowState(l.ackState);
+            const stored = lastStoredText(l);
             return (
               // CHG-100: the whole row previews the loop (pointer); the preview button stays the keyboard control
               <div key={l.loopId} onClick={() => onPreview(l.loopId)}
@@ -100,6 +103,7 @@ export const PriorityQueue: React.FC<{
                 <span className="cpm-ov-queue__dx">
                   {done && <TonePill tone={done.tone} glyph={done.glyph}>{done.label}</TonePill>}
                   <FacetPill facet="diagnosis" tone={toneFor(l.diagnosis)}>{conditionOf(l.diagnosis).label}</FacetPill>
+                  {stored && <span className="cpm-event-row__sub">{stored}</span>}
                 </span>
                 <button type="button" className="cpm-queue-row__preview" aria-pressed={isSelected}
                   onClick={ev => { ev.stopPropagation(); onPreview(l.loopId); }}>

@@ -57,13 +57,22 @@ public sealed class CpmAnalyticsController : ControllerBase
             return NotFound(new { error = $"No gate results for loop '{loopId}' at resolution '{windowKind}'" });
         var verdict = await conn.QueryFirstOrDefaultAsync(Traverse.CplmApi.Data.GateReadSql.NewestVerdictForLoop, new { loopId, windowKind });
         var now = DateTime.UtcNow;
-        var preferVerdict = string.Equals(prefer, "verdict", StringComparison.OrdinalIgnoreCase) && verdict is not null;
+        // CHG-226: while the engine refills after a Flink restart (the newest window is a fresh refill window, RefillSql) the last
+        // verdict in reach is the loop's result: served as the matrix by default, the refill window beside it as `newestWindow`
+        var refill = Traverse.CplmApi.Data.RefillSql.Read((string?)newest.payload,
+            Traverse.CplmApi.Data.RefillSql.Utc((object?)newest.window_end), DateTimeOffset.UtcNow);
+        var lastStored = verdict is not null && Traverse.CplmApi.Data.RefillSql.Qualifies(refill, (string?)newest.diagnosis,
+            Traverse.CplmApi.Data.RefillSql.Utc((object?)verdict.window_end), (string?)verdict.diagnosis, (string?)verdict.source, windowKind);
+        var preferVerdict = verdict is not null && (lastStored || string.Equals(prefer, "verdict", StringComparison.OrdinalIgnoreCase));
         var served = preferVerdict ? verdict! : newest;
         var matrix = Traverse.CplmApi.Data.GateMatrixProjection.Build(served);
         var sameRow = verdict is not null && (DateTime?)verdict.window_end == (DateTime?)newest.window_end && (DateTime?)verdict.created_at == (DateTime?)newest.created_at;
         matrix["served"] = preferVerdict ? "verdict" : "newest";
         matrix["lastVerdict"] = verdict is null || sameRow || preferVerdict ? null : Traverse.CplmApi.Data.GateMatrixProjection.WindowReference(verdict, now);
         matrix["newestWindow"] = preferVerdict && !sameRow ? Traverse.CplmApi.Data.GateMatrixProjection.WindowReference(newest, now) : null;
+        matrix["lastStored"] = lastStored;
+        matrix["resultAt"] = Traverse.CplmApi.Data.RefillSql.Utc((object?)served.window_end);
+        matrix["updatingSince"] = refill.UpdatingSince;
         return Ok(matrix);
     }
 

@@ -31,7 +31,8 @@ public static class FleetKpiSnapshot
         var at = asOf.ToUniversalTime();
         await using var conn = await db.OpenConnectionAsync(ct);
         var raw = await conn.QueryAsync(new CommandDefinition(FleetKpiSql.Rows,
-            new { site, area, unit, windowKind = t.WindowKind, asOf = at }, cancellationToken: ct));
+            // CHG-226: freshSeconds - a refill counts only while its newest row is fresh (the same rule as the Stale KPI)
+            new { site, area, unit, windowKind = t.WindowKind, asOf = at, freshSeconds = t.FreshSeconds }, cancellationToken: ct));
         return raw.Select(r => FleetKpiClassifier.Classify((KpiLoopRow)FleetKpiRows.FromDb(r), t, at)).ToList();
     }
 }

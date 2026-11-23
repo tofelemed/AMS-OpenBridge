@@ -77,6 +77,10 @@ public class CplmGateResult extends CplmGateResultFields {
         out.put("sample_period_sec", samplePeriodSec);
         out.put("expected_sample_count", expectedSampleCount);
         out.put("sample_count", sampleCount);
+        if (coverageFromMs != null) {                                    // CHG-226: both, or neither (evaluations and replays)
+            out.put("warming_up", warmingUp);
+            out.put("coverage_from_ms", coverageFromMs.longValue());
+        }
 
         out.put("completeness", completeness);
         out.put("bad_quality_pct", badQualityPct);

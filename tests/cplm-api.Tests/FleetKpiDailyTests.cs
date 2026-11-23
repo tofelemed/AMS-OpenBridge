@@ -150,6 +150,39 @@ public sealed class FleetKpiDailyTests : IClassFixture<KpiDailyCplmDb>, IAsyncLi
             .Should().Be(1, "the KD_NEW row 5 min after the day end belongs to today");
     }
 
+    // CHG-226: a day that ends while the engine refills after a Flink restart is stored from the loop's last verdict in reach,
+    // and the stored row says so (inputs.lastStored / resultAt / updatingSince); a real outage (KD_GAP) stays Not assessable
+    [Fact]
+    public async Task A_day_ending_inside_a_refill_is_stored_from_the_last_verdict_and_says_so()
+    {
+        var end = Clock.DayEnd(Yesterday);
+        await using var conn = await Db.OpenConnectionAsync();
+        await conn.ExecuteAsync("""
+            INSERT INTO cpm.loop_registry (loop_id, display_name, loop_type, site, area, unit, monitoring)
+            VALUES ('KD_REF', 'kpi daily probe', 'FIC', @site, 'a', 'u', '{"enabled":true}'::jsonb);
+            INSERT INTO analytics.cplm_gate_results (loop_id, window_kind, window_end, diagnosis, confidence, purpose, payload, created_at)
+            VALUES ('KD_REF', '12h', @verdictAt, 'CONFIRMED_OSCILLATION', 0.9, 'LIVE', '{"auto_pct":0.99,"saturation_pct":0.0}'::jsonb, @verdictAt),
+                   ('KD_REF', '12h', @refillAt, 'INSUFFICIENT_DATA', 0, 'LIVE',
+                    jsonb_build_object('warming_up', true, 'coverage_from_ms', @coverMs, 'completeness', 0.17, 'gate0_reason', 'INCOMPLETE'), @refillAt);
+            """, new { site = Site, verdictAt = end.AddHours(-3), refillAt = end.AddMinutes(-5), coverMs = end.AddHours(-2).ToUnixTimeMilliseconds() });
+        var live = Json(await Api().GetKpiLoops("oscillating", site: Site, pageSize: 200, asOf: end));
+
+        (await RunAsync()).Computed.Should().Be(26);
+        var rows = (await conn.QueryAsync<(string Loop, string State, string? Diagnosis, bool? LastStored, DateTime? ResultAt, DateTime? UpdatingSince)>("""
+            SELECT loop_id, state, diagnosis, (inputs->>'lastStored')::boolean, (inputs->>'resultAt')::timestamptz, (inputs->>'updatingSince')::timestamptz
+            FROM analytics.cplm_kpi_daily WHERE day = @d::date AND window_kind = '12h' AND loop_id IN ('KD_REF', 'KD_GAP')
+            """, new { d = Yesterday.ToString("yyyy-MM-dd") })).ToDictionary(x => x.Loop);
+        rows["KD_REF"].Should().Be(("KD_REF", "Assessed", "CONFIRMED_OSCILLATION", true, end.AddHours(-3).UtcDateTime, end.AddHours(-2).UtcDateTime));
+        (rows["KD_GAP"].State, rows["KD_GAP"].LastStored, rows["KD_GAP"].UpdatingSince).Should().Be(("NotAssessable", false, (DateTime?)null));
+        (await conn.ExecuteScalarAsync<int>("SELECT min(rule_version) FROM analytics.cplm_kpi_daily")).Should().Be(FleetKpiClassifier.RuleVersion);
+
+        var stored = Json(await Api().GetKpiLoops("oscillating", site: Site, pageSize: 200, asOf: end));
+        stored.GetProperty("source").GetString().Should().Be("daily");
+        stored.GetProperty("rows").GetRawText().Should().Be(live.GetProperty("rows").GetRawText(), "the stored day is the live drill-down as of its end");
+        stored.GetProperty("rows").EnumerateArray().Select(x => (x.GetProperty("loopId").GetString(), x.GetProperty("lastStored").GetBoolean()))
+            .Should().BeEquivalentTo(new[] { ("KD_OSC", false), ("KD_REF", true) }, "only the refilling loop is a stored result");
+    }
+
     [Fact]
     public async Task A_second_pass_changes_nothing_and_a_rule_version_change_recomputes_only_kept_days()
     {

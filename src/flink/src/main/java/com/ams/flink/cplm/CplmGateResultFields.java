@@ -19,6 +19,10 @@ public abstract class CplmGateResultFields implements Serializable {
     public double samplePeriodSec;
     public int expectedSampleCount;
     public int sampleCount;
+    /** CHG-226: copied from the fused long result - from when the Long buffer covers; null = unknown, not published. */
+    public Long coverageFromMs;
+    /** CHG-226: copied from the fused long result - the window opens before {@link #coverageFromMs} (a refill). */
+    public boolean warmingUp;
 
     // Gate 0
     public double completeness;

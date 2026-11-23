@@ -16,7 +16,8 @@ public sealed record KpiThresholds(
     public static readonly string[] Windows = { "12h", "24h" };
 }
 
-/// <summary>One registry loop with its newest LIVE row (n_*) and its newest real verdict (v_*), as FleetKpiSql reads it.</summary>
+/// <summary>One registry loop with its newest LIVE row (n_*) and its newest real verdict (v_*), as FleetKpiSql reads it;
+/// during a refill after a Flink restart (CHG-226) the window values are the last verdict's (f_*).</summary>
 public sealed record KpiLoopRow
 {
     public string LoopId { get; init; } = "";
@@ -58,6 +59,14 @@ public sealed record KpiLoopRow
     public bool VpExpectedUnmapped { get; init; }
     public DateTimeOffset? LastVerdictWindowEnd { get; init; }
     public string? LastVerdictDiagnosis { get; init; }
+    /// <summary>CHG-226: true when the window values above are the loop's last real verdict, shown in place of a refill window
+    /// after a Flink restart (Data/RefillSql). WindowEnd stays the newest row's (freshness); ResultAt is the verdict's window end.
+    /// Stored with every daily row (inputs.lastStored), so a day kept from the last result says so.</summary>
+    public bool LastStored { get; init; }
+    /// <summary>CHG-226: window end of the result the values come from (= WindowEnd unless LastStored).</summary>
+    public DateTimeOffset? ResultAt { get; init; }
+    /// <summary>CHG-226: from when the engine's buffer covers again (coverage_from_ms of the newest row) while it refills; else null.</summary>
+    public DateTimeOffset? UpdatingSince { get; init; }
 }
 
 /// <summary>Where a loop stands now — exactly one per monitored loop (they sum to the monitored count).</summary>

@@ -7056,3 +7056,18 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Script to run:** the usual frontend release build and deploy; nothing else.
 
 **Tests:** `npm run lint` 0 warnings, `npm run build` passes, `npx vitest run` 386 files, 3238 tests, all pass (final run after the whole-branch review fixes).
+
+## CHG-226 — After a Flink restart, keep the last results on screen; planned restarts keep the windows (2026-11-23, branch feat/sr-engine-fixes, unreleased)
+
+**Why:** owner, 23 Nov: after a Flink restart the KPIs and gate results went to "not enough data" for hours although the data is in IoTDB; the last calculated results must stay until new ones arrive. Plant check (`docs/next-release/flink-restart-data-gap.md` section 4, run 23 Nov): the v2.9.0 fresh submit on 13 Nov 12:16 UTC left 76 loops without a 12 h verdict for 11.7 h and without a 24 h verdict for 23.7 h, and the daily KPI of 13 Nov stored 0 assessed / 142 incomplete. Cause: every submit starts the Long job's per-loop 24 h buffer empty, and every window is judged against its full length.
+
+**Change:**
+- Flink: the Long job keeps per loop, in keyed state (`cplm-buffer-coverage-from-ms`, restore-compatible; uids unchanged), from when its buffer covers (`LongBufferCoverage`), and stamps every 4 h / 12 h / 24 h result with `coverage_from_ms` and `warming_up` (window start before it); Gate Fusion copies both into the gate result. On-Demand Evaluation and Historical Replay leave them out. Payload only, G0 unchanged.
+- cplm-api (`Data/RefillSql.cs`, one rule): a loop shows its last real verdict, `lastStored` true with `resultAt` and `updatingSince`, only while its newest 12 h / 24 h row is a fresh warming-up window and a real flink verdict ended within one window length before the refill began; otherwise exactly as before. Endpoints: fleet/kpis/loops (and the classification behind fleet/kpis), rankings and the priority queue, fleet/summary (no Stale while refilling), heat map, loops/{id}/gates/latest, loops/{id}/kpi-summary. Daily KPI job stores such a day from the verdict (`inputs.lastStored`); `FleetKpiClassifier.RuleVersion` 2.
+- Screens: "Last stored result · 23 Nov · 10:15" once per row where a loop's result and time are shown (KPI drill-down rows, Overview loops requiring review, Performance findings and gate matrix, Loop Explorer band), only when `lastStored`; no technical words.
+- Planned restarts: `migration/flink-stop-with-savepoint.sh` (new) stops Long and Fusion with a savepoint; `migration/04b-submit-flink-jobs.sh` resumes them with `RESUME_LONG_FROM` / `RESUME_FUSION_FROM` (checks age and the restore); `migration/lib.sh` (`MINIO_CONTAINER`), `migration/deploy/stub-04b.sh`, `migration/MARUN-DISK.md` 3A warning; procedure `docs/next-release/flink-savepoint-procedure.md`.
+
+**Services updated:** Flink jar (Long Diagnostics, Gate Fusion), cplm-api, ams-frontend; deploy scripts in `migration/`. No migration. Script to run for the version: for a planned restart `ALLOW_FLINK_STOP=yes bash migration/flink-stop-with-savepoint.sh --out /tmp/resume.env`, then `source /tmp/resume.env` before `04b`.
+
+**Tests (targeted, owner 23 Nov):** Flink 12 classes, 92 run, 0 failures (new `LongWarmupCoverageTest` 6, `FusionWarmupCopyTest` 3, with restore round-trips); cplm-api 18 classes, 140 pass, 2 known lab-state failures (new `FleetRefillFallbackTests` with one probe loop per case, `RefillRuleTests`); frontend 7 files, 61 pass, tsc and eslint clean; scripts `bash -n`. Lab proof of stop + resume with the current jar (23 Nov, an accidental stop of Long + Fusion at 11:38 UTC, resumed from the savepoints at 11:40).
+

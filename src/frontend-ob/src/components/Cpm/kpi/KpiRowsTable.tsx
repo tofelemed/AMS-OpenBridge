@@ -7,6 +7,8 @@
  * the verdict already says all it would.
  * CHG-155 (owner review): the loop column holds the tag only; a limit every row shares joins the heading; the verdict column
  * goes for a KPI whose rule fixes it (Stale, Never evaluated); "Also check" goes when no row has anything; times are short.
+ * CHG-226: a loop kept at its last stored result says so in its Window cell, "Last stored result · 23 Nov · 10:15"; when the
+ * window time is the same minute, the label takes its place, so the time is said once.
  */
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
@@ -14,6 +16,7 @@ import type { FleetKpiDeciding, FleetKpiKey, FleetKpiRow } from '../../../api/cp
 import { TonePill, type CpmTone } from '../shared';
 import { fmtWhen } from '../blocks/whenText';
 import { ageText } from '../verdictAge';
+import { lastStoredText, storedAtShownTime } from '../storedResult';
 import { commonLimit, commonMeasure, contextText, decidingNumber, decidingText, decidingValue, proofLinks, verdictText } from './kpiProof';
 
 /** KPIs whose rule fixes every row's verdict: the KPI's own name already says it. */
@@ -39,6 +42,20 @@ const Meter: React.FC<{ d: FleetKpiDeciding }> = ({ d }) => {
       <span className="cpm-kpimeter__mark" style={{ left: `${m.threshold}%` }} />
     </span>
   );
+};
+
+/**
+ * The window the row was judged on: its time short with its age under it, then the stored-result label when the row is one.
+ * The age stays with the time it is the age of; when the label names that same minute it takes the time's place.
+ */
+const WindowCell: React.FC<{ r: FleetKpiRow }> = ({ r }) => {
+  const stored = lastStoredText(r);
+  if (!r.windowEnd && !stored) return <>none yet</>;
+  const time = r.windowEnd && !storedAtShownTime(r, r.windowEnd) ? fmtWhen(r.windowEnd) : null;
+  const age = r.windowEnd && r.ageSeconds != null && r.deciding.unit !== 'seconds'
+    ? <span className="cpm-kpi-table__sub">{ageText(r.ageSeconds * 1000)}</span> : null;
+  const label = stored && <span className="cpm-kpi-table__sub">{stored}</span>;
+  return time ? <><span className="cpm-kpi-table__when">{time}</span>{age}{label}</> : <>{label}{age}</>;
 };
 
 export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> = ({ rows, kpi }) => {
@@ -73,10 +90,7 @@ export const KpiRowsTable: React.FC<{ rows: FleetKpiRow[]; kpi: FleetKpiKey }> =
               </td>
             )}
             {showVerdict && <td data-label="Verdict"><TonePill tone={verdictTone(r)}>{verdictText(r)}</TonePill></td>}
-            <td data-label="Window">
-              {r.windowEnd ? <><span className="cpm-kpi-table__when">{fmtWhen(r.windowEnd)}</span>
-                {r.ageSeconds != null && r.deciding.unit !== 'seconds' && <span className="cpm-kpi-table__sub">{ageText(r.ageSeconds * 1000)}</span>}</> : 'none yet'}
-            </td>
+            <td data-label="Window"><WindowCell r={r} /></td>
             {showContext && <td data-label="Also check" className="cpm-kpi-table__context">{context[i] || '—'}</td>}
             <td data-label="Proof">
               <span className="cpm-kpi-table__links">

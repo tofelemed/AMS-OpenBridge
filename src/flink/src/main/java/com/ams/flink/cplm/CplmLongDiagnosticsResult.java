@@ -23,6 +23,10 @@ public final class CplmLongDiagnosticsResult implements Serializable {
     public int sampleCount;
     public double samplePeriodSec;
     public boolean hasVp;
+    /** CHG-226: from when the Long job's buffer for this loop covers (LongBufferCoverage); null = not from that buffer, not published. */
+    public Long coverageFromMs;
+    /** CHG-226: the window opens before {@link #coverageFromMs} (a refill after a fresh start); published only with it. */
+    public boolean warmingUp;
 
     public double acfPeriodS;
     public double acfRegularity;
@@ -172,6 +176,10 @@ public final class CplmLongDiagnosticsResult implements Serializable {
         out.put("sample_count", sampleCount);
         out.put("sample_period_sec", samplePeriodSec);
         out.put("vp_available", hasVp);
+        if (coverageFromMs != null) {                                    // CHG-226: both, or neither
+            out.put("warming_up", warmingUp);
+            out.put("coverage_from_ms", coverageFromMs.longValue());
+        }
         out.put("acf_period_s", acfPeriodS);
         out.put("acf_regularity", acfRegularity);
         out.put("acf_gamma0", acfGamma0);
@@ -324,6 +332,10 @@ public final class CplmLongDiagnosticsResult implements Serializable {
             r.sampleCount = root.path("sample_count").asInt(0);
             r.samplePeriodSec = root.path("sample_period_sec").asDouble(0);
             r.hasVp = root.path("vp_available").asBoolean(false);
+            if (root.path("coverage_from_ms").isIntegralNumber()) {      // CHG-226: absent on rows from an older jar
+                r.coverageFromMs = root.path("coverage_from_ms").asLong();
+                r.warmingUp = root.path("warming_up").asBoolean(false);
+            }
             r.acfPeriodS = root.path("acf_period_s").asDouble(0);
             r.acfRegularity = root.path("acf_regularity").asDouble(0);
             r.acfGamma0 = root.path("acf_gamma0").asDouble(0);
