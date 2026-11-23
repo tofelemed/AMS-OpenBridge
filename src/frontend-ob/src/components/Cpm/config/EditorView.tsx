@@ -72,7 +72,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
   const deploymentList = deployments.data?.deployments ?? [];
   // CHG-220 (gap 4): only the scope's current deployment rolls back, to the version the server names
   const current = deploymentList.find(d => d.active);
-  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, { running: !!current, target: current?.rollbackTarget ?? null }, bundleApproveRule(b, viewer));
+  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, { running: !!current, target: current?.rollbackTarget ?? null, loading: deployments.isLoading }, bundleApproveRule(b, viewer));
   // the frozen reason is said once, under the tabs; a disabled action with that reason says nothing more under itself
   const reasonOf = (a: LifecycleAction) => (a.enabled || a.reason === frozen ? null : a.reason);
   const marks = tabMarks(b.state);

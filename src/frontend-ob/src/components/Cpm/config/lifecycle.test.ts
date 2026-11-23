@@ -71,6 +71,8 @@ describe('roll back follows the server (CHG-220, gap 4)', () => {
     expect(roll(BACK)).toMatchObject({ label: 'Roll back to v5', enabled: true, reason: null });
     expect(roll({ running: true, target: null })).toMatchObject({ enabled: false, reason: 'There is no earlier version to go back to now.' });
     expect(roll(NONE)).toMatchObject({ enabled: false, reason: 'Only the version running now can be rolled back.' });
+    // lab retest: before the deployments are read, nothing is "not running" yet
+    expect(roll({ ...NONE, loading: true })).toMatchObject({ enabled: false, reason: 'Reading the deployments…' });
   });
 });
 

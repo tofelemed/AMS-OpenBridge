@@ -55,7 +55,7 @@ export type ActionKey = 'validate' | 'shadow' | 'approve' | 'deploy' | 'rollback
 export interface LifecycleAction { key: ActionKey; label: string; enabled: boolean; reason: string | null }
 export interface LifecyclePerms { validate: boolean; shadow: boolean; approve: boolean; activate: boolean; rollback: boolean }
 /** CHG-220 (gap 4): whether this version runs now (its deployment is the scope's current one) and what a rollback brings back. */
-export interface RollbackChoice { running: boolean; target: { version: number } | null }
+export interface RollbackChoice { running: boolean; target: { version: number } | null; loading?: boolean }
 
 const TERMINAL = new Set(['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED', 'SCHEDULED', 'PREPARED']);
 /** The states whose content can still be edited (with cpm.config.draft). */
@@ -95,6 +95,7 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
     : frozen ? { key: 'deploy', label: 'Activate', enabled: false, reason: frozen }
     : { key: 'deploy', label: 'Activate', enabled: false, reason: 'Approve the content first.' };
   const rollback: LifecycleAction = !perms.rollback ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Needs cpm.config.rollback.' }
+    : back.loading ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Reading the deployments…' }
     : back.target ? { key: 'rollback', label: `Roll back to v${back.target.version}`, enabled: true, reason: null }
     : back.running ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'There is no earlier version to go back to now.' }
     : { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Only the version running now can be rolled back.' };
