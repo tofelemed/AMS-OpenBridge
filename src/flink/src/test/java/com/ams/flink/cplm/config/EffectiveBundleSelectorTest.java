@@ -40,6 +40,25 @@ public class EffectiveBundleSelectorTest {
         return b;
     }
 
+    /** CHG-223: a LOOP version that uses the plant-wide settings - the plant-wide layers, no own layer, resolved.inherit. */
+    private ObjectNode activateMarker(String loopId, long effectiveFromMs, String dep) throws Exception {
+        ObjectNode b = marker(loopId, "LOOP");
+        assertEquals("ACK", TestBundles.M.readTree(BundleBroadcastHandler.handle(TestBundles.message(b, "PREPARE", dep, effectiveFromMs, TestBundles.KEY), state, TestBundles.SHORT, TestBundles.KEY).get(0)).get("record_kind").asText());
+        assertEquals("ACK", TestBundles.M.readTree(BundleBroadcastHandler.handle(TestBundles.message(b, "APPLY", dep, effectiveFromMs, TestBundles.KEY), state, TestBundles.SHORT, TestBundles.KEY).get(0)).get("record_kind").asText());
+        return b;
+    }
+
+    private static ObjectNode marker(String ref, String scopeKind) {
+        ObjectNode b = TestBundles.bundle(SITE, scopeKind, ref, "FLOW_FAST_SELF_REG", "POLICY",
+                TestBundles.layers(SITE, "PROFILE", "FLOW_FAST_SELF_REG", null, null, null), CAT);
+        ((ObjectNode) b.get("resolved")).putObject("inherit").put("loop_id", ref);
+        ObjectNode hashInput = TestBundles.M.createObjectNode();
+        hashInput.set("layers", b.get("layers"));
+        hashInput.set("resolved", b.get("resolved"));
+        b.put("hash", CanonicalJson.sha256(hashInput));
+        return b;
+    }
+
     private EffectiveBundleSelector.Selected select(String loopId, long at) throws Exception {
         return EffectiveBundleSelector.select(state, SITE, loopId, "FLOW_FAST_SELF_REG", at, parsed);
     }
@@ -129,5 +148,36 @@ public class EffectiveBundleSelectorTest {
         EffectiveBundleSelector.apply(b, again);
         assertEquals(ProfileHash.of(a), ProfileHash.of(b));
         assertEquals(0.02, a.spStabilityBandSpanFraction, 0.0);
+    }
+
+    // CHG-223 (owner, 23 Nov): "Use plant-wide settings" removes a loop's own settings. The marker version is stored and
+    // acknowledged like any bundle (audited, deployed through the same steps), but never governs: the PROFILE (else SITE)
+    // bundle in force does, and follows later plant-wide changes; a newer own version governs again.
+    @Test
+    public void aLoopThatUsesThePlantWideSettingsFallsBackToTheProfileBundle() throws Exception {
+        ObjectNode profile = activate("PROFILE", "FLOW_FAST_SELF_REG", "POLICY", null, TestBundles.content("G4.activity_warn_ratio", 6.0), null, 1_000L, "d-profile");
+        ObjectNode own = activate("LOOP", "FIC-101", "POLICY", null, null, TestBundles.content("G4.activity_warn_ratio", 7.0), 2_000L, "d-own");
+        assertEquals(own.get("hash").asText(), select("FIC-101", 2_500L).bundle.hash);
+
+        ObjectNode marker = activateMarker("FIC-101", 3_000L, "d-marker");
+        assertTrue(GateConfigBundle.parse(marker).inherits);
+        assertEquals("before the marker's effective time the own version still governs", own.get("hash").asText(), select("FIC-101", 2_999L).bundle.hash);
+        assertEquals(profile.get("hash").asText(), select("FIC-101", 3_000L).bundle.hash);
+
+        ObjectNode again = activate("LOOP", "FIC-101", "POLICY", null, null, TestBundles.content("G4.activity_warn_ratio", 8.0), 4_000L, "d-own-2");
+        assertEquals(again.get("hash").asText(), select("FIC-101", 4_000L).bundle.hash);
+    }
+
+    @Test
+    public void withNothingPlantWideAboveIt_aMarkedLoopRunsOnTheClassPack() throws Exception {
+        activate("LOOP", "FIC-101", "POLICY", null, null, TestBundles.content("G4.activity_warn_ratio", 7.0), 1_000L, "d-own");
+        activateMarker("FIC-101", 2_000L, "d-marker");
+        assertNull(select("FIC-101", 2_500L).bundle);
+    }
+
+    @Test
+    public void onlyALoopVersionCanUseThePlantWideSettings() {
+        assertTrue(GateConfigBundle.parse(marker("FIC-101", "LOOP")).validate("j").isEmpty());
+        assertTrue(GateConfigBundle.parse(marker("FLOW_FAST_SELF_REG", "PROFILE")).validate("j").stream().anyMatch(r -> r.startsWith("INVALID: only a LOOP version")));
     }
 }

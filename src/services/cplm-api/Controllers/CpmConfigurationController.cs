@@ -293,11 +293,13 @@ public sealed class CpmConfigurationController : ControllerBase
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note, approvals,
+        inherits = b.Inherits,
     };
 
     public static object ShapeSummary(BundleView b) => new
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ChangeClass, b.State, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Note,
+        inherits = b.Inherits,
         validationErrors = b.Validation is { } v && v.ValueKind == JsonValueKind.Object && v.TryGetProperty("errors", out var e) && e.ValueKind == JsonValueKind.Array ? e.GetArrayLength() : 0,
     };
 
@@ -305,5 +307,6 @@ public sealed class CpmConfigurationController : ControllerBase
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note,
+        inherits = b.Inherits,
     };
 }

@@ -13,7 +13,7 @@ using static Traverse.CplmApi.Services.Config.ConfigBatchService;
 
 namespace Traverse.CplmApi.Services.Config;
 
-public sealed class LoopSettingsService
+public sealed partial class LoopSettingsService
 {
     public const string BatchKind = "restack";
 
@@ -68,33 +68,50 @@ public sealed class LoopSettingsService
     private async Task<List<Plan>> PlanAsync(string site, CancellationToken ct)
     {
         var active = await _store.ActiveAsync(site, ct);
-        var map = active.ToDictionary(a => (a.ScopeKind, a.ScopeRef), a => a.BundleId);
-        var cache = new Dictionary<Guid, BundleView?>();
-        async Task<BundleView?> Get(Guid id)
-        {
-            if (!cache.TryGetValue(id, out var b)) cache[id] = b = await _store.GetAsync(id, ct);
-            return b;
-        }
+        var map = ActiveMap(active);
+        var get = Cached(ct);
         var plans = new List<Plan>();
         foreach (var row in active.Where(a => a.ScopeKind == "LOOP").OrderBy(a => a.ScopeRef, StringComparer.Ordinal))
         {
             var loop = await _registry.GetAsync(row.ScopeRef, ct);
-            if (loop is null || !loop.IsActive || await Get(row.BundleId) is not { } loopBundle) continue;
+            if (loop is null || !loop.IsActive || await get(row.BundleId) is not { } loopBundle) continue;
             var profileId = ConfigStore.ProfileIdFor(loop.LoopType);
-            JsonElement baseLayers;
-            string baseName = "FACTORY";
-            BundleView? baseBundle = null;
-            if (map.TryGetValue(("PROFILE", profileId), out var pid) && await Get(pid) is { } pb) { baseBundle = pb; baseName = "PROFILE"; }
-            else if (map.TryGetValue(("SITE", ""), out var sid) && await Get(sid) is { } sb) { baseBundle = sb; baseName = "SITE"; }
-            baseLayers = Without(baseBundle?.Layers ?? FactoryLayers.InitialLayers(site, "LOOP", loop.LoopId, profileId), OwnKinds);
-            if (Signature(Without(loopBundle.Layers, OwnKinds)) == Signature(baseLayers)) continue;
+            var plant = await PlantWideAsync(site, loop.LoopId, profileId, map, get);
+            if (Signature(Without(loopBundle.Layers, OwnKinds)) == Signature(plant.Layers)) continue;
             var own = loopBundle.Layers.EnumerateArray().FirstOrDefault(l => l.GetProperty("kind").GetString() == "LOOP");
             if (own.ValueKind != JsonValueKind.Object) continue;
             var ownProps = own.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.Object ? c.EnumerateObject().Select(p => p.Name).ToList() : new List<string>();
-            plans.Add(new Plan(new StaleLoop(loop.LoopId, loop.DisplayName, loop.LoopType, loopBundle.BundleId, loopBundle.Version, baseName,
-                baseBundle?.BundleId, baseBundle?.Version, ownProps), loopBundle, profileId, Append(baseLayers, own)));
+            plans.Add(new Plan(new StaleLoop(loop.LoopId, loop.DisplayName, loop.LoopType, loopBundle.BundleId, loopBundle.Version, plant.Name,
+                plant.Bundle?.BundleId, plant.Bundle?.Version, ownProps), loopBundle, profileId, Append(plant.Layers, own)));
         }
         return plans;
+    }
+
+    /// <summary>The plant-wide base a loop runs under without its own bundle: the layers (LOOP / REGIME removed) of the active PROFILE bundle, else SITE bundle, else the build's factory layers.</summary>
+    private sealed record PlantWide(string Name, BundleView? Bundle, JsonElement Layers);
+
+    private static async Task<PlantWide> PlantWideAsync(string site, string loopId, string profileId, IReadOnlyDictionary<(string Kind, string Ref), Guid> active,
+        Func<Guid, Task<BundleView?>> get)
+    {
+        BundleView? bundle = null;
+        var name = "FACTORY";
+        if (active.TryGetValue(("PROFILE", profileId), out var pid) && await get(pid) is { } pb) { bundle = pb; name = "PROFILE"; }
+        else if (active.TryGetValue(("SITE", ""), out var sid) && await get(sid) is { } sb) { bundle = sb; name = "SITE"; }
+        return new PlantWide(name, bundle, Without(bundle?.Layers ?? FactoryLayers.InitialLayers(site, "LOOP", loopId, profileId), OwnKinds));
+    }
+
+    private static IReadOnlyDictionary<(string Kind, string Ref), Guid> ActiveMap(IEnumerable<ConfigStore.ActiveRow> active) =>
+        active.ToDictionary(a => (a.ScopeKind, a.ScopeRef), a => a.BundleId);
+
+    /// <summary>A bundle reader that reads each bundle once per call.</summary>
+    private Func<Guid, Task<BundleView?>> Cached(CancellationToken ct)
+    {
+        var cache = new Dictionary<Guid, BundleView?>();
+        return async id =>
+        {
+            if (!cache.TryGetValue(id, out var b)) cache[id] = b = await _store.GetAsync(id, ct);
+            return b;
+        };
     }
 
     private static JsonElement Without(JsonElement layers, string[] kinds)

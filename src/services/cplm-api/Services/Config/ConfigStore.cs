@@ -9,10 +9,13 @@ using Traverse.CplmApi.Config;
 namespace Traverse.CplmApi.Services.Config;
 
 /// <summary>A bundle row as the API serves it.</summary>
+/// <param name="Inherits">CHG-223: a LOOP version that makes the loop use the plant-wide settings again (resolved.inherit; SQL
+/// <c>resolved ? 'inherit'</c>). It holds no layer of its own; once verified the loop has no active LOOP row.</param>
 public sealed record BundleView(
     Guid BundleId, int Version, string ContentHash, string Site, string ScopeKind, string? ScopeRef, Guid? ParentBundleId, string? ParentHash,
     string CatalogueHash, string ExecutionPlanHash, string ChangeClass, string State, JsonElement Layers, JsonElement Resolved, JsonElement? Validation,
-    JsonElement? Shadow, DateTimeOffset? EffectiveFrom, string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string Etag, string? Note);
+    JsonElement? Shadow, DateTimeOffset? EffectiveFrom, string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string Etag, string? Note,
+    bool Inherits = false);
 
 public sealed class ConfigConflictException : Exception { public ConfigConflictException(string m) : base(m) { } }
 public sealed class ConfigForbiddenException : Exception { public ConfigForbiddenException(string m) : base(m) { } }
@@ -105,12 +108,15 @@ public sealed class ConfigStore
     /// the parent then only records the lineage (version chain, change class against the parent's resolved values).
     /// </summary>
     public async Task<BundleView> CreateDraftAsync(string site, string scopeKind, string? scopeRef, Guid? parentBundleId, string? profileId, string createdBy, string? note, CancellationToken ct,
-        JsonElement? layersOverride = null)
+        JsonElement? layersOverride = null, bool inherit = false)
     {
         scopeKind = scopeKind.ToUpperInvariant();
         if (!EffectiveConfigResolver.Order.Contains(scopeKind) || scopeKind == "FACTORY") throw new ArgumentException("scopeKind must be SITE, PROFILE, LOOP or REGIME");
         if (scopeKind != "SITE" && string.IsNullOrWhiteSpace(scopeRef)) throw new ArgumentException("scopeRef is required for a " + scopeKind + " scope");
         var reference = scopeKind == "SITE" ? "" : scopeRef!.Trim();
+        if (inherit && (scopeKind != "LOOP" || layersOverride is not { } baseLayers
+                        || baseLayers.EnumerateArray().Any(l => l.GetProperty("kind").GetString() is "LOOP" or "REGIME")))
+            throw new ArgumentException("only a LOOP version can use the plant-wide settings, and it holds the plant-wide layers only");
         await using var conn = await _db.OpenConnectionAsync(ct);
         JsonElement layers;
         if (layersOverride is { } given)
@@ -132,7 +138,7 @@ public sealed class ConfigStore
         }
         var version = await conn.ExecuteScalarAsync<int>("SELECT COALESCE(MAX(version), 0) + 1 FROM cpm.gate_config_bundle WHERE site = @site AND scope_kind = @scopeKind AND scope_ref IS NOT DISTINCT FROM @ref", new { site, scopeKind, @ref = reference });
         var id = Guid.NewGuid();
-        var resolved = Resolve(layers);
+        var resolved = Resolve(layers, inherit ? reference : null);
         var etag = NewEtag(id);
         var parentHash = parentBundleId is { } p2 ? await conn.ExecuteScalarAsync<string>("SELECT content_hash FROM cpm.gate_config_bundle WHERE bundle_id = @p2", new { p2 }) : null;
         await conn.ExecuteAsync("""
@@ -147,6 +153,15 @@ public sealed class ConfigStore
         });
         return (await GetAsync(id, ct))!;
     }
+
+    /// <summary>
+    /// CHG-223 "Use plant-wide settings": a LOOP draft whose layers are the plant-wide base the loop would run under without its
+    /// own bundle (no LOOP / REGIME layer) and whose resolved block carries <c>"inherit": {"loop_id": ...}</c>. The engine
+    /// acknowledges it like any bundle and then passes over it to the PROFILE (else SITE) bundle in force; the parent is the
+    /// loop's own bundle it replaces (lineage, change class).
+    /// </summary>
+    public Task<BundleView> CreateInheritDraftAsync(string site, string loopId, Guid ownBundleId, JsonElement plantWideLayers, string createdBy, string? note, CancellationToken ct) =>
+        CreateDraftAsync(site, "LOOP", loopId, ownBundleId, null, createdBy, note, ct, plantWideLayers, inherit: true);
 
     /// <summary>
     /// CHG-108 gap #8a: every bundle of a scope kind whose note starts with <paramref name="notePrefix"/> (a batch marker), with no
@@ -186,6 +201,7 @@ public sealed class ConfigStore
         var current = await GetAsync(id, ct) ?? throw new KeyNotFoundException($"bundle {id} not found");
         if (!string.Equals(current.Etag, ifMatch?.Trim('"', ' '), StringComparison.Ordinal)) throw new ConfigConflictException("stale etag: the bundle changed since you read it");
         if (current.State is "ACTIVE_VERIFIED" or "SUPERSEDED" or "ROLLED_BACK" or "SCHEDULED" or "PREPARED") throw new ConfigStateException($"a bundle in state {current.State} is immutable; create a new draft from it");
+        if (current.Inherits) throw new ConfigStateException("this version uses the plant-wide settings: it has nothing of its own to edit");
         var catalogue = PropertyCatalogue.Current;
         var layers = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(current.Layers.GetRawText())!;
         var own = layers.FirstOrDefault(l => l["kind"].GetString() == current.ScopeKind) ?? throw new ConfigStateException("the bundle has no layer of its own scope");
@@ -323,13 +339,18 @@ public sealed class ConfigStore
     // ── helpers ────────────────────────────────────────────────────────────
     internal sealed record Resolution(string ContentHash, string ResolvedJson, JsonElement Properties);
 
-    /// <summary>Resolve the layers, build the resolved block {properties, sources, execution_plan}, hash {scope-less} layers + resolved (RFC 8785).</summary>
-    internal static Resolution Resolve(JsonElement layers)
+    /// <summary>
+    /// Resolve the layers, build the resolved block {properties, sources, execution_plan}, hash {scope-less} layers + resolved (RFC 8785).
+    /// CHG-223: <paramref name="inheritLoopId"/> adds <c>"inherit": {"loop_id": ...}</c> to the resolved block (inside the hash).
+    /// </summary>
+    internal static Resolution Resolve(JsonElement layers, string? inheritLoopId = null)
     {
         var list = layers.EnumerateArray().Select(l => new ConfigLayer(l.GetProperty("kind").GetString()!, l.TryGetProperty("ref", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null, l.GetProperty("content"))).ToList();
         var res = EffectiveConfigResolver.Resolve(list);
         if (res.Errors.Count > 0) throw new ArgumentException("layers do not resolve: " + string.Join("; ", res.Errors));
-        var resolved = new { properties = res.Properties, sources = res.Sources, execution_plan = ExecutionPlans.Installed() };
+        object resolved = inheritLoopId is null
+            ? new { properties = res.Properties, sources = res.Sources, execution_plan = ExecutionPlans.Installed() }
+            : new { properties = res.Properties, sources = res.Sources, execution_plan = ExecutionPlans.Installed(), inherit = new { loop_id = inheritLoopId } };
         var resolvedJson = JsonSerializer.Serialize(resolved);
         var hashInput = JsonDocument.Parse(JsonSerializer.Serialize(new { layers, resolved })).RootElement;
         return new Resolution(CanonicalJson.Sha256(hashInput), resolvedJson, res.PropertiesElement());
@@ -339,7 +360,8 @@ public sealed class ConfigStore
 
     private const string Select = """
         SELECT bundle_id, version, content_hash, site, scope_kind, scope_ref, parent_bundle_id, parent_hash, catalogue_hash, execution_plan_hash, change_class, state,
-               layers::text AS layers, resolved::text AS resolved, validation::text AS validation, shadow::text AS shadow, effective_from, created_by, created_at, updated_at, etag, note
+               layers::text AS layers, resolved::text AS resolved, validation::text AS validation, shadow::text AS shadow, effective_from, created_by, created_at, updated_at, etag, note,
+               (resolved ? 'inherit') AS inherits
         FROM cpm.gate_config_bundle
         """;
 
@@ -350,5 +372,5 @@ public sealed class ConfigStore
         r.validation is string v ? JsonDocument.Parse(v).RootElement.Clone() : null, r.shadow is string s ? JsonDocument.Parse(s).RootElement.Clone() : null,
         r.effective_from is DateTime ef ? new DateTimeOffset(DateTime.SpecifyKind(ef, DateTimeKind.Utc)) : null,
         (string)r.created_by, new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.created_at, DateTimeKind.Utc)), new DateTimeOffset(DateTime.SpecifyKind((DateTime)r.updated_at, DateTimeKind.Utc)),
-        (string)r.etag, (string?)r.note);
+        (string)r.etag, (string?)r.note, r.inherits is bool inherits && inherits);
 }

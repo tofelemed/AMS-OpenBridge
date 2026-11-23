@@ -33,6 +33,9 @@ public final class GateConfigBundle {
     public final String changeClass;        // POLICY | STATE_BOUNDARY | DEPLOYMENT
     public final String catalogueHash;
     public final long effectiveFromMs;      // event time from which the bundle governs (0 = immediately)
+    /** CHG-223: a LOOP version that drops the loop's own settings ("use the plant-wide settings", resolved.inherit): stored and
+     * acknowledged like any bundle, but the selector passes over it to the PROFILE / SITE bundle in force. */
+    public final boolean inherits;
     public final JsonNode bundle;           // the whole bundle document (what the signature covers)
 
     private GateConfigBundle(JsonNode bundle, long effectiveFromMs) {
@@ -49,6 +52,8 @@ public final class GateConfigBundle {
         this.changeClass = bundle.path("change_class").asText("POLICY");
         this.catalogueHash = bundle.path("requires").path("catalogue_hash").asText("");
         this.effectiveFromMs = effectiveFromMs;
+        JsonNode inherit = bundle.path("resolved").path("inherit");
+        this.inherits = inherit.isObject() || (inherit.isBoolean() && inherit.asBoolean());
     }
 
     private static String text(JsonNode n, String field) {
@@ -125,6 +130,7 @@ public final class GateConfigBundle {
         if ("REGIME".equals(scopeKind)) reasons.add("DEPLOYMENT_REQUIRED: REGIME-scoped bundles need a regime selector this build does not have");
         else if (!"SITE".equals(scopeKind) && !"PROFILE".equals(scopeKind) && !"LOOP".equals(scopeKind)) reasons.add("INVALID: scope kind '" + scopeKind + "'");
         if (site.isEmpty()) reasons.add("INVALID: scope.site is empty");
+        if (inherits && !"LOOP".equals(scopeKind)) reasons.add("INVALID: only a LOOP version can use the plant-wide settings (scope " + scopeKind + ")");
         if ("DEPLOYMENT".equals(changeClass)) reasons.add("DEPLOYMENT_REQUIRED: a DEPLOYMENT-class change ships in a build, never in a bundle");
         JsonNode props = resolvedProperties();
         if (!props.isObject()) reasons.add("INVALID: resolved.properties must be an object");

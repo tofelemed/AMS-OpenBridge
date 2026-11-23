@@ -5,6 +5,8 @@
 //     "rolled back" to the bundle running now, a second click rolled back one more version, and a first version got 409.
 // #2a: the bundle each worker really runs for a loop (its newest APPLY ACK per governing scope, most specific wins), which can
 //     differ from config_active while a deployment is partial.
+// CHG-223: a "use the plant-wide settings" LOOP version that verified leaves no config_active row, so nothing rolls back from it;
+//     a later own version whose rollback target is that marker re-deploys the marker, and ProbeAsync deletes the row again.
 using Dapper;
 
 namespace Traverse.CplmApi.Services.Config;
@@ -60,12 +62,15 @@ public sealed partial class ConfigDeploymentService
         return await CreateAsync(target.BundleId, "ROLLBACK", null, deploymentId, actor, ct);
     }
 
-    /// <summary>Per worker, the bundle it applied last for this loop's governing scopes (LOOP over PROFILE over SITE), or no entry.</summary>
+    /// <summary>
+    /// Per worker, the bundle it applied last for this loop's governing scopes (LOOP over PROFILE over SITE), or no entry. CHG-223:
+    /// when the newest LOOP version a worker applied uses the plant-wide settings, the worker runs its PROFILE / SITE bundle.
+    /// </summary>
     public async Task<IReadOnlyDictionary<string, WorkerRuns>> WorkerRunsAsync(string site, string loopId, string profileId, CancellationToken ct)
     {
         await using var conn = await _db.OpenConnectionAsync(ct);
-        var rows = await conn.QueryAsync<(string JobName, string ScopeKind, Guid BundleId, int Version)>("""
-            SELECT DISTINCT ON (a.job_name, b.scope_kind) a.job_name, b.scope_kind, b.bundle_id, b.version
+        var rows = await conn.QueryAsync<(string JobName, string ScopeKind, Guid BundleId, int Version, bool Inherits)>("""
+            SELECT DISTINCT ON (a.job_name, b.scope_kind) a.job_name, b.scope_kind, b.bundle_id, b.version, (b.resolved ? 'inherit') AS inherits
             FROM cpm.config_worker_ack a
             JOIN cpm.config_deployment dep ON dep.deployment_id = a.deployment_id
             JOIN cpm.gate_config_bundle b ON b.bundle_id = dep.bundle_id
@@ -74,7 +79,7 @@ public sealed partial class ConfigDeploymentService
             ORDER BY a.job_name, b.scope_kind, a.received_at DESC
             """, new { site, loopId, profileId });
         var rank = new Dictionary<string, int>(StringComparer.Ordinal) { ["LOOP"] = 0, ["PROFILE"] = 1, ["SITE"] = 2 };
-        return rows.GroupBy(r => r.JobName, StringComparer.Ordinal)
+        return rows.Where(r => !(r.ScopeKind == "LOOP" && r.Inherits)).GroupBy(r => r.JobName, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => rank.GetValueOrDefault(r.ScopeKind, 9)).Select(r => new WorkerRuns(r.BundleId, r.Version, r.ScopeKind)).First(),
                 StringComparer.Ordinal);
     }

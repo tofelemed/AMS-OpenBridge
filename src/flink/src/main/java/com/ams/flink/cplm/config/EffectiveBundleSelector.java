@@ -17,6 +17,8 @@ import java.util.Map;
  * its end time, so a window ending before a bundle's effective time keeps the previous bundle and
  * one ending after uses the new one; nothing is ever mixed inside one result. Restoring the same
  * broadcast state selects the same hash.
+ * CHG-223: a LOOP version in force that uses the plant-wide settings ({@link GateConfigBundle#inherits}) governs nothing: the
+ * PROFILE (else SITE) bundle in force does, so the loop follows later plant-wide changes; a newer own version governs again.
  */
 public final class EffectiveBundleSelector {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -68,6 +70,7 @@ public final class EffectiveBundleSelector {
                     b = GateConfigBundle.parse(bundleJson);
                     parsed.put(hash, b);
                 }
+                if (b.inherits) continue;                                          // CHG-223: the scope above governs
                 chosen = new Selected(b, best.path("epoch").asInt(0), best.path("effective_from_ms").asLong(0L), best.path("change_class").asText("POLICY"), Long.MAX_VALUE);
             }
         }

@@ -7,7 +7,8 @@ namespace Traverse.CplmApi.Controllers;
 /// <summary>
 /// CHG-108 (System Response plan Phase 4): per-loop settings apart from the plant-wide ones, through the same governed lifecycle
 /// as one bundle. Operating regions for many loops at once (one LOOP draft per loop: G2r.pv_region_min / _max; both bounds null
-/// clears it), the loops whose own settings sit on an older plant-wide base and their re-stack, and the batch they form
+/// clears it), the loops whose own settings sit on an older plant-wide base and their re-stack, loops returned to the plant-wide
+/// settings (CHG-223), and the batch they form
 /// (approved by an independent reviewer, one deployment per bundle). A region also drives gate G2r: a window mostly outside it
 /// loses its fused verdict, so it changes the Overview and KPIs too.
 /// </summary>
@@ -17,6 +18,7 @@ public sealed class CpmConfigRegionsController : ControllerBase
 {
     public sealed record BulkRequest(IReadOnlyList<RegionBulkService.RegionRow>? Regions, string? Note);
     public sealed record RestackRequest(string? Site, IReadOnlyList<string>? LoopIds, string? Note);
+    public sealed record InheritRequest(string? Site, IReadOnlyList<string>? LoopIds, string? Note);
     public sealed record ApproveRequest(string? Note, int? ValidityHours);
 
     private readonly RegionBulkService _regions;
@@ -70,6 +72,23 @@ public sealed class CpmConfigRegionsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req?.Site)) return BadRequest(new { error = "site is required" });
         var (batchId, results) = await _loopSettings.RestackAsync(req.Site.Trim(), req.LoopIds, req.Note, Actor(), ct);
+        return Ok(new { batchId, count = results.Count, drafts = results.Count(r => r.BundleId is not null), failed = results.Count(r => r.Error is not null), rows = results });
+    }
+
+    /// <summary>
+    /// CHG-223 "Use plant-wide settings": per loop with its own active LOOP bundle, a validated draft that drops the loop's own
+    /// settings (one batch; approve + deploy through batches/{id}). Once it verifies the loop has no active LOOP row and runs under
+    /// its PROFILE (else SITE) bundle, following later plant-wide changes.
+    /// </summary>
+    [HttpPost("loop-settings/inherit")]
+    [Authorize(Policy = "cpm.config.draft")]
+    public async Task<IActionResult> Inherit([FromBody] InheritRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req?.Site)) return BadRequest(new { error = "site is required" });
+        if (req.LoopIds is not { Count: > 0 } loopIds) return BadRequest(new { error = "loopIds[] is required" });
+        if (loopIds.Count > LoopSettingsService.MaxInheritLoops)
+            return BadRequest(new { error = $"{loopIds.Count} loops exceeds the {LoopSettingsService.MaxInheritLoops}-loop limit; split the list" });
+        var (batchId, results) = await _loopSettings.InheritAsync(req.Site.Trim(), loopIds, req.Note, Actor(), ct);
         return Ok(new { batchId, count = results.Count, drafts = results.Count(r => r.BundleId is not null), failed = results.Count(r => r.Error is not null), rows = results });
     }
 

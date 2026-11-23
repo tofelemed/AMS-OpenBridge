@@ -39,7 +39,8 @@ public sealed class KafkaGateConfigPublisher : IGateConfigPublisher, IDisposable
 /// v2.5 Task 3B.3 (spec v6 §5.6; NR-051, NR-054): the deployment state machine. SCHEDULED → PREPARE
 /// broadcast → every required member ACKs PREPARE with the same bundle hash and one jar sha →
 /// PREPARED → APPLY broadcast at effective_from → APPLY ACKs → PROBING (results carrying the
-/// hash appear) → ACTIVE_VERIFIED (config_active updated, the previous bundle SUPERSEDED). Any
+/// hash appear) → ACTIVE_VERIFIED (config_active updated - CHG-223: the LOOP row deleted for a "use the plant-wide settings"
+/// version - the previous bundle SUPERSEDED). Any
 /// NACK → ACTIVATION_FAILED (audited CONFIG_REJECTED). A rollback is a new deployment of the
 /// previously active bundle; history is kept. Membership = the jobs that announced a capability.
 /// </summary>
@@ -248,14 +249,23 @@ public sealed partial class ConfigDeploymentService
             await conn.ExecuteAsync("UPDATE cpm.config_deployment SET probe_results = @probe::jsonb WHERE deployment_id = @id", new { id = d.DeploymentId, probe });
             return;
         }
+        // CHG-223: a LOOP version that uses the plant-wide settings leaves the scope with NO active row (the loop is then governed
+        // by its PROFILE, else SITE, bundle in force - as the engine's selector does); any other version upserts the row. Either
+        // way, whatever was in force for the scope before is SUPERSEDED: the row's bundle, or a marker that verified earlier.
+        var inherits = b.Inherits && b.ScopeKind == "LOOP";
         await conn.ExecuteAsync("""
             UPDATE cpm.config_deployment SET state = 'ACTIVE_VERIFIED', probe_results = @probe::jsonb, updated_at = now() WHERE deployment_id = @id;
             UPDATE cpm.gate_config_bundle SET state = 'SUPERSEDED', updated_at = now()
-             WHERE bundle_id IN (SELECT bundle_id FROM cpm.config_active WHERE site = @site AND scope_kind = @kind AND scope_ref = @ref) AND bundle_id <> @bundleId;
+             WHERE bundle_id <> @bundleId
+               AND (bundle_id IN (SELECT bundle_id FROM cpm.config_active WHERE site = @site AND scope_kind = @kind AND scope_ref = @ref)
+                    OR (site = @site AND scope_kind = @kind AND scope_ref = @ref AND state = 'ACTIVE_VERIFIED' AND (resolved ? 'inherit')));
+            """ + (inherits ? """
+            DELETE FROM cpm.config_active WHERE site = @site AND scope_kind = @kind AND scope_ref = @ref
+            """ : """
             INSERT INTO cpm.config_active (site, scope_kind, scope_ref, bundle_id, content_hash, since, deployment_id)
             VALUES (@site, @kind, @ref, @bundleId, @hash, now(), @id)
             ON CONFLICT (site, scope_kind, scope_ref) DO UPDATE SET bundle_id = EXCLUDED.bundle_id, content_hash = EXCLUDED.content_hash, since = EXCLUDED.since, deployment_id = EXCLUDED.deployment_id
-            """, new { id = d.DeploymentId, probe, site = b.Site, kind = b.ScopeKind, @ref = b.ScopeRef ?? "", bundleId = b.BundleId, hash = b.ContentHash });
+            """), new { id = d.DeploymentId, probe, site = b.Site, kind = b.ScopeKind, @ref = b.ScopeRef ?? "", bundleId = b.BundleId, hash = b.ContentHash });
         await _store.SetStateAsync(b.BundleId, "ACTIVE_VERIFIED", ct);
         if (d.Kind == "ROLLBACK" && d.RollbackOf is { } prev)
         {
@@ -263,7 +273,7 @@ public sealed partial class ConfigDeploymentService
             var prevBundle = await conn.ExecuteScalarAsync<Guid?>("SELECT bundle_id FROM cpm.config_deployment WHERE deployment_id = @prev", new { prev });
             if (prevBundle is { } pb) await _store.SetStateAsync(pb, "ROLLED_BACK", ct);
         }
-        _audit.Emit("CONFIG_ACTIVE_VERIFIED", "system", "config_deployment", d.DeploymentId.ToString(), new { bundleId = b.BundleId, contentHash = b.ContentHash, pinnedResults = pinned });
+        _audit.Emit("CONFIG_ACTIVE_VERIFIED", "system", "config_deployment", d.DeploymentId.ToString(), new { bundleId = b.BundleId, contentHash = b.ContentHash, pinnedResults = pinned, inherit = inherits });
     }
 
     public async Task<DeploymentView?> GetAsync(Guid id, CancellationToken ct)
