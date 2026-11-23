@@ -239,7 +239,11 @@ public sealed class CpmConfigurationController : ControllerBase
         catch (InvalidOperationException ex) { return StatusCode(502, new { error = ex.Message }); }
     }
 
-    /// <summary>An independent reviewer approves the draft's current content; site-wide, objective and test-permission changes need the ControlAuthority role.</summary>
+    /// <summary>
+    /// A second person approves the draft's current content. CHG-108 gap #5 (owner, 23 Nov): an Admin or SuperAdmin may approve
+    /// their own draft (recorded as a self-approval, as in Per-loop settings); site-wide, objective and test-permission changes
+    /// need a SuperAdmin (or the ControlAuthority role); an expired approval can be approved again.
+    /// </summary>
     [HttpPost("drafts/{id:guid}/approve")]
     [Authorize(Policy = "cpm.config.approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveRequest? req, CancellationToken ct)
@@ -251,8 +255,13 @@ public sealed class CpmConfigurationController : ControllerBase
         try
         {
             var roles = Roles();
-            var approved = await _store.ApproveAsync(id, Actor(), roles.FirstOrDefault() ?? "unknown", req?.Note, TimeSpan.FromHours(Math.Clamp(req?.ValidityHours ?? 72, 1, 24 * 30)), sensitive, roles, ct);
-            _audit.Emit("CONFIG_DRAFT_APPROVED", Actor(), "gate_config_bundle", id.ToString(), new { approved.ContentHash, approved.ChangeClass, sensitive });
+            var elevated = ConfigStore.SelfApprovingRoles.FirstOrDefault(r => roles.Contains(r, StringComparer.OrdinalIgnoreCase));
+            var selfApproved = elevated is not null && string.Equals(b.CreatedBy, Actor(), StringComparison.OrdinalIgnoreCase);
+            var role = selfApproved ? elevated! : roles.FirstOrDefault() ?? "unknown";
+            var note = selfApproved ? $"[self-approved as {elevated}]" + (string.IsNullOrWhiteSpace(req?.Note) ? "" : " " + req!.Note!.Trim()) : req?.Note;
+            var approved = await _store.ApproveAsync(id, Actor(), role, note, TimeSpan.FromHours(Math.Clamp(req?.ValidityHours ?? 72, 1, 24 * 30)), sensitive, roles, ct,
+                allowSelfApproval: elevated is not null);
+            _audit.Emit("CONFIG_DRAFT_APPROVED", Actor(), "gate_config_bundle", id.ToString(), new { approved.ContentHash, approved.ChangeClass, sensitive, selfApproved, role });
             return Ok(Shape(approved));
         }
         catch (ConfigForbiddenException ex) { return StatusCode(403, new { error = ex.Message }); }

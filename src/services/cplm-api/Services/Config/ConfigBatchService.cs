@@ -48,8 +48,8 @@ public sealed class ConfigBatchService
         return results;
     }
 
-    /// <summary>Roles that may approve their own per-loop settings batch (owner, 22 Nov); everyone else needs a second person.</summary>
-    public static readonly IReadOnlyList<string> SelfApprovingRoles = new[] { "SuperAdmin", "Admin" };
+    /// <summary>Roles that may approve their own drafts (ConfigStore.SelfApprovingRoles, owner 22-23 Nov); everyone else needs a second person.</summary>
+    public static IReadOnlyList<string> SelfApprovingRoles => ConfigStore.SelfApprovingRoles;
 
     /// <summary>
     /// A second person approves every VALIDATED draft of the batch. An Admin or SuperAdmin may approve their own drafts; that
@@ -63,7 +63,9 @@ public sealed class ConfigBatchService
         {
             var (min, max) = RegionOf(b.Resolved);
             RowResult Row(string state, string? error) => new(b.ScopeRef ?? "", b.Site, b.BundleId, b.Version, state, min, max, null, null, error, Array.Empty<string>(), CreatedBy: b.CreatedBy);
-            if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED"))
+            var expired = b.State == "APPROVED" && await _store.ValidApprovalAsync(b.BundleId, b.ContentHash, ct) is var valid
+                && (valid is null || valid.Value.ExpiresAt is { } exp && exp < DateTimeOffset.UtcNow);
+            if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED") && !expired)
             {
                 results.Add(Row(b.State, b.State == "APPROVED" ? null : $"not approvable in state {b.State}"));
                 continue;
@@ -114,9 +116,8 @@ public sealed class ConfigBatchService
 
     private async Task<IReadOnlyList<BundleView>> BundlesAsync(string site, Guid batchId, CancellationToken ct)
     {
-        var prefix = $"[batch {batchId} ";
-        return (await _store.ListAsync(site, "LOOP", null, null, ct))
-            .Where(b => b.Note is not null && b.Note.StartsWith(prefix, StringComparison.Ordinal))
+        // gap #8a: selected by the batch marker in the database, not from the 200 newest LOOP bundles
+        return (await _store.ListByNotePrefixAsync(site, "LOOP", $"[batch {batchId} ", ct))
             .OrderBy(b => b.ScopeRef, StringComparer.Ordinal).ToList();
     }
 

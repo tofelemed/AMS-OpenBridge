@@ -250,6 +250,18 @@ public sealed class RegionBulkServiceTests : IAsyncLifetime
         none.Should().BeEmpty("RG_LIC1 is not stale");
     }
 
+    // gap #8a: a batch is found by its marker even when more than 200 newer LOOP bundles exist in the site
+    [Fact]
+    public async Task An_older_batch_is_found_whole_behind_more_than_200_newer_loop_bundles()
+    {
+        var (batch, _) = await _svc.CreateAsync(new[] { R("RG_FIC1", 10, 20), R("RG_LIC1", 5, 8) }, null, "alice", default);
+        for (var i = 0; i < 205; i++)
+            await _store.CreateDraftAsync(Site, "LOOP", $"RG_FILL{i:D3}", null, "FLOW_FAST_SELF_REG", "alice", null, default);
+        (await _batches.GetAsync(Site, batch, default)).Select(r => r.LoopId).Should().Equal("RG_FIC1", "RG_LIC1");
+        (await _batches.ApproveAsync(Site, batch, "bob", new[] { "Supervisor" }, null, TimeSpan.FromHours(1), default))
+            .Should().HaveCount(2).And.OnlyContain(r => r.State == "APPROVED");
+    }
+
     // owner, 22 Nov: two people approve a region change, but an Admin or SuperAdmin may approve their own
     [Fact]
     public async Task An_admin_or_superadmin_may_approve_their_own_batch_and_it_is_recorded_as_a_self_approval()

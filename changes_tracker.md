@@ -6924,3 +6924,15 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Services updated:** cplm-api. No migration (reads `analytics.system_model`, `analytics.response_metric`, `cpm.loop_registry`; the model table holds ~16-22 k rows at Marun after the 14-day purge of unreviewed models, so the per-loop DISTINCT ON is cheap).
 
 **Tests:** `ModelReviewQueueTests` 2 (newest unreviewed candidate per loop, baseline, pending count, last review, metrics; no-baseline first; reviewed and retired loops left out; site filter and limit) pass on the lab database.
+
+## CHG-108 follow-up — Gate Configuration gaps #5 and #8a (2026-11-23, branch feat/sr-mine, unreleased)
+
+**Why:** the Gate Configuration end-to-end check (CPA Updates, `docs/next-release/gate-configuration-e2e-check.md`) found that Approve was refused or impossible where the owner wants it allowed, and that a batch was looked up among only 200 bundles. Owner, 23 Nov: fix #3 (UI, CPA Updates), #5 and #8a in this release; Admin / SuperAdmin self-approval applies to **every** Gate Configuration approval; a **SuperAdmin** counts as ControlAuthority.
+
+**Change (cplm-api):**
+- #5: `CpmConfigurationController.Approve` (the editor's single-bundle path) now follows the same rule as the batch path: a second person, except an Admin or SuperAdmin may approve their own draft, recorded as `[self-approved as <role>]` in the approval note and `selfApproved` / `role` in the `CONFIG_DRAFT_APPROVED` audit. `ConfigStore.ApproveAsync`: a SuperAdmin (or the ControlAuthority role, which no user held) may approve site-wide / objective / test-permission changes, an Admin may not; an APPROVED bundle whose approval has expired can be approved again (a valid approval still refuses a second one). `ConfigStore.SelfApprovingRoles` / `ControlAuthorityRoles` hold the two role lists; the batch path re-approves expired approvals too.
+- #8a: `ConfigStore.ListByNotePrefixAsync` selects a batch's drafts by their marker in the database; `ConfigBatchService` no longer filters the 200 newest LOOP bundles.
+
+**Services updated:** cplm-api. No migration.
+
+**Tests:** new `GateApprovalRulesTests` 3 (editor: Admin self-approval recorded, Engineer refused, a second person allowed; site-wide: Admin refused, SuperAdmin allowed, alone too; expired approval re-approved, a valid one refused) and `RegionBulkServiceTests` +1 (a batch found whole behind 205 newer LOOP bundles); with `ConfigLifecycleTests`, `ConfigEffectiveSummaryTests`, `ConfigLibraryTests`: 29 pass on the lab database.

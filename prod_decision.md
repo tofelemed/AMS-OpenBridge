@@ -389,3 +389,13 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 
 - A region change needs **no Flink restart**: a deployed bundle reaches the running jobs through the gate-config broadcast and applies from its effective time; the workers' ACKs make it active.
 - After a release with a new factory layer, loops with their own bundle and no plant-wide bundle also show as stale (their base is the build's factory layers): re-stacking them takes the new factory values.
+
+## Gate Configuration approval rules (CHG-108 follow-up, unreleased, branch feat/sr-mine)
+
+| Rule | Value | Why |
+|---|---|---|
+| Who approves a bundle (editor or per-loop batch) | a second person; **an Admin or SuperAdmin may approve their own**, recorded as `[self-approved as <role>]` (approval note) and `selfApproved` (audit) | owner, 22-23 Nov: two-person approval, with the plant's administrators able to act alone and leave a trace |
+| Site-wide bundles and objective / test-permission changes | need a **SuperAdmin** (or the ControlAuthority role); an Admin is refused | owner, 23 Nov: no user held ControlAuthority, so no site-wide bundle could be approved |
+| An approval that expired (default 72 h) | can be approved again; while it is valid a second approval is refused | the deployment refuses an expired approval, and the bundle had no way back |
+
+At a new plant: decide who holds SuperAdmin before the first site-wide change; the self-approvals are listed in the audit trail.

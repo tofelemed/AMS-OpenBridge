@@ -148,6 +148,20 @@ public sealed class ConfigStore
         return (await GetAsync(id, ct))!;
     }
 
+    /// <summary>
+    /// CHG-108 gap #8a: every bundle of a scope kind whose note starts with <paramref name="notePrefix"/> (a batch marker), with no
+    /// row cap - ListAsync's 200 newest could lose the rows of an older batch.
+    /// </summary>
+    public async Task<IReadOnlyList<BundleView>> ListByNotePrefixAsync(string site, string scopeKind, string notePrefix, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync(Select + """
+             WHERE site = @site AND scope_kind = @scopeKind AND note IS NOT NULL AND left(note, length(@prefix)) = @prefix
+             ORDER BY scope_ref, created_at
+            """, new { site, scopeKind, prefix = notePrefix });
+        return rows.Select(Shape).ToList();
+    }
+
     /// <summary>The layers with an empty layer of <paramref name="kind"/> appended when they have none (ordinal = last + 1).</summary>
     internal static JsonElement WithOwnLayer(JsonElement layers, string kind, string reference)
     {
@@ -240,17 +254,34 @@ public sealed class ConfigStore
         return (await GetAsync(id, ct))!;
     }
 
-    /// <summary>An independent reviewer approves THIS content hash; self-approval is refused; the approval expires.</summary>
-    /// <param name="allowSelfApproval">CHG-108 (owner, 22 Nov): per-loop settings batches only - an Admin or SuperAdmin may approve
-    /// what they drafted themselves; everyone else needs a second person. The caller records it as a self-approval.</param>
+    /// <summary>Roles that may approve their own bundle (owner, 22-23 Nov, every Gate Configuration approval); everyone else needs a second person.</summary>
+    public static readonly IReadOnlyList<string> SelfApprovingRoles = new[] { "SuperAdmin", "Admin" };
+
+    /// <summary>Roles that count as ControlAuthority for site-wide / objective / test-permission changes (owner, 23 Nov: SuperAdmin).</summary>
+    public static readonly IReadOnlyList<string> ControlAuthorityRoles = new[] { "ControlAuthority", "SuperAdmin" };
+
+    /// <summary>
+    /// A second person approves THIS content hash; the approval expires. CHG-108 gap #5 (owner, 23 Nov): an APPROVED bundle whose
+    /// approval has expired can be approved again; a SuperAdmin counts as ControlAuthority.
+    /// </summary>
+    /// <param name="allowSelfApproval">an Admin or SuperAdmin may approve what they drafted themselves (the caller decides from
+    /// the roles and records it as a self-approval); everyone else needs a second person.</param>
     public async Task<BundleView> ApproveAsync(Guid id, string approver, string role, string? note, TimeSpan validity, bool controlAuthorityRequired, IReadOnlyList<string> approverRoles, CancellationToken ct,
         bool allowSelfApproval = false)
     {
         var b = await GetAsync(id, ct) ?? throw new KeyNotFoundException($"bundle {id} not found");
-        if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED")) throw new ConfigStateException($"only a VALIDATED or SHADOW_EVALUATED bundle can be approved (state {b.State})");
+        var reapproval = false;
+        if (b.State == "APPROVED")
+        {
+            // only when no approval binds the current content any more: none at all, or the newest has expired
+            var valid = await ValidApprovalAsync(id, b.ContentHash, ct);
+            reapproval = valid is null || valid.Value.ExpiresAt is { } expires && expires < DateTimeOffset.UtcNow;
+        }
+        if (b.State is not ("VALIDATED" or "SHADOW_EVALUATED") && !reapproval)
+            throw new ConfigStateException($"only a VALIDATED or SHADOW_EVALUATED bundle (or an APPROVED one whose approval expired) can be approved (state {b.State})");
         if (!allowSelfApproval && string.Equals(b.CreatedBy, approver, StringComparison.OrdinalIgnoreCase)) throw new ConfigForbiddenException("self-approval is refused: the approver must differ from the author");
-        if (controlAuthorityRequired && !approverRoles.Contains("ControlAuthority", StringComparer.OrdinalIgnoreCase))
-            throw new ConfigForbiddenException("a site-wide or objective / test-permission change needs an approver with the ControlAuthority role");
+        if (controlAuthorityRequired && !approverRoles.Any(r => ControlAuthorityRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+            throw new ConfigForbiddenException("a site-wide or objective / test-permission change needs a SuperAdmin (or the ControlAuthority role) to approve it");
         await using var conn = await _db.OpenConnectionAsync(ct);
         await conn.ExecuteAsync("""
             INSERT INTO cpm.config_approval (approval_id, bundle_id, content_hash, approver, role, decision, note, expires_at)
