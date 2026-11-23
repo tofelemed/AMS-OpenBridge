@@ -44,7 +44,7 @@ export const HOW_TO: Record<GovernanceTab, Part[]> = {
   ],
   approvals: [
     { title: 'State', rows: [
-      [{ pill: [['warn', '◐', 'Validated'], ['warn', '◐', 'Shadow evaluated']] }, 'Waits for an independent approver.'],
+      [{ pill: [['warn', '◐', 'Validated'], ['warn', '◐', 'Shadow evaluated']] }, 'Waits for approval.'],
       [{ pill: [['warn', '◐', 'Approved']] }, 'Waits for activation.'],
       [{ pill: [['bad', '✕', 'Activation failed'], ['bad', '✕', 'Partially acknowledged']] }, 'NOT active: activate again once the cause is fixed.'],
     ] },
