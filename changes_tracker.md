@@ -7008,3 +7008,17 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Tests:** `PropertySourcesTests` (no database) and `GatePropertyValuesTests` (lab database), 15 new; the config filter (Config, RegionBulk, GateApproval, GateDeploymentGaps, LoopInherit, PropertySources, GatePropertyValues, PropertyCatalogue) 70 pass.
 
 **Found, not changed here:** the class packs TEMP_SLOW_SELF_REG and PRESSURE_VAPOUR_SLOW set `G9.role` PRIMARY, which validation forbids (R07), so no loop or class bundle for temperature or vapour-pressure loops passes Validate - decision pending (owner / SME).
+
+## CHG-225 — Valve geometry never decides alone on slow temperature and vapour-pressure loops (2026-11-23, branch feat/sr-engine-fixes, unreleased)
+
+**Why:** owner, 23 Nov, found during CHG-224. The class packs TEMP_SLOW_SELF_REG and PRESSURE_VAPOUR_SLOW set `G9.role` PRIMARY with "geometry alone" allowed, so valve geometry (the PV-OP plot) could be the only evidence of a valve diagnosis on those loops - against rule R07 ("phase geometry can never be decisive on its own"), which Validate enforces, so no loop or class bundle for those loops could be approved. On a slow loop the PV-OP plot loops for almost any oscillation cause, so geometry is weakest exactly there; valve diagnosis needs independent evidence and confirmation. Plant impact (read-only query `docs/next-release/chg225-geometry-impact.sql`, 23 Nov): only TEMP_SLOW_SELF_REG is used (15 active TIC loops, no vapour-pressure loop); over 14 days 2.4 % of the 12 h and 3.5 % of the 24 h temperature verdicts rested on geometry (8 / 7 of 35 loops), 576 / 1,056 of them without qualified stiction evidence; one loop's current verdict changes (TIC80105, suspected final element nonlinearity 0.89 -> no valve diagnosis).
+
+**Change (Flink + the pack copies):** both packs now `G9.role` SUPPORTING with geometry alone forbidden, like every other pack: `CplmLoopDynamicsProfilePacks.java`, `loop-dynamics-profiles.yaml`, and `factory-layer.json` (contracts, Flink resources, cplm-api). A geometry-only verdict on those loops becomes "insufficient evidence" (no valve diagnosis); verdicts with stiction, shape, cross-correlation or cycle evidence are unchanged.
+
+**Services updated:** Flink jar (all CPLM jobs) and cplm-api (its factory layer), shipped together. No migration.
+
+**Tests:** Flink `CplmLoopDynamicsAwareTest.geometryAloneCannotSelectOnSlowTemperatureOrVapourLoops` (failed before the fix); cplm-api `ClassPackValidityTests` (every pack as a new draft starts passes Validate; the two slow packs are SUPPORTING); config filter 79 pass on the lab database.
+
+**Also (owner, 23 Nov):** the UNKNOWN pack (loops of an unrecognised type) allowed G5 / G6 periods up to 24 h with 5 cycles, which needs 5 days of history while the long windows keep 24 h (87,000 s), so Validate and the workers refused any bundle for such a loop; its longest period is now 17,280 s (4.8 h, 5 cycles fit 24 h) in the Java pack, the YAML and the three factory-layer copies. Nothing detectable is lost: 5 cycles of a period above 4.8 h never fit a 24 h window.
+
+**Guards:** Flink `everyPacksCyclesFitTheKeptHistory` (every pack's period x cycles within the kept history) and cplm-api `ClassPackValidityTests` over all seven packs.

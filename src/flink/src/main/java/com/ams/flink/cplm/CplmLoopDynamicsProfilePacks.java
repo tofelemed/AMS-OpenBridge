@@ -112,9 +112,10 @@ final class CplmLoopDynamicsProfilePacks {
     }
 
     private static CplmLoopDynamicsProfile picVapourDefaults() {
+        // CHG-225 (owner, 23 Nov; R07): geometry supports, never decides alone - on a slow loop the PV-OP plot loops for any cause
         return base(LoopClass.PIC_VAPOUR, "PRESSURE_VAPOUR_SLOW", DynamicClass.SLOW_SELF_REG, ServiceObjective.TIGHT,
                 300, 28800, 3, 45, 0.25, 1.0, 0.03, 0.05, 2.0, 1.0, false, true, 5,
-                GateRole.PRIMARY, false);
+                GateRole.SUPPORTING, true);
     }
 
     private static CplmLoopDynamicsProfile licDefaults() {
@@ -124,17 +125,19 @@ final class CplmLoopDynamicsProfilePacks {
     }
 
     private static CplmLoopDynamicsProfile ticDefaults() {
+        // CHG-225 (owner, 23 Nov; R07): geometry supports, never decides alone - on a slow loop the PV-OP plot loops for any cause
         CplmLoopDynamicsProfile p = base(LoopClass.TIC, "TEMP_SLOW_SELF_REG", DynamicClass.SLOW_SELF_REG, ServiceObjective.TIGHT,
                 300, 28800, 3, 45, 0.25, 1.0, 0.03, 0.05, 2.0, 1.0, false, true, 5,
-                GateRole.PRIMARY, false);
+                GateRole.SUPPORTING, true);
         p.shapeRole = GateRole.PRIMARY;
         p.horchRole = GateRole.PRIMARY;
         return p;
     }
 
     private static CplmLoopDynamicsProfile unknownDefaults() {
+        // CHG-225: 5 cycles of at most 4.8 h fit the 24 h history (86400 s x 5 never could, and Validate refused the pack)
         return base(LoopClass.UNKNOWN, "UNKNOWN", DynamicClass.FAST_SELF_REG, ServiceObjective.TIGHT,
-                5, 86400, 5, 65, 0.5, 2.0, 0.05, 0.05, 1.5, 0.0, false, false, 5,
+                5, 17280, 5, 65, 0.5, 2.0, 0.05, 0.05, 1.5, 0.0, false, false, 5,
                 GateRole.DISPLAY_ONLY, true);
     }
 

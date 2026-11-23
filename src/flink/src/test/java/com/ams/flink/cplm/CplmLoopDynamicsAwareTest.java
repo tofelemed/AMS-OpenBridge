@@ -156,6 +156,59 @@ public class CplmLoopDynamicsAwareTest {
         Assert.assertEquals("CONFIRMED_FINAL_ELEMENT_NONLINEARITY", r.diagnosis);
     }
 
+    /** The geometry-only evidence of {@link #geometryAloneCannotSelectOnFic}, fused under the given class pack. */
+    private static CplmGateResult geometryOnly(CplmLoopDynamicsProfile.LoopClass cls) {
+        CplmShortFeatureResult shortF = baseShort(cls + "_GEO");
+        shortF.effortRatio = 0.01;
+        shortF.gate4Status = "PASS";
+        shortF.reversalCount = 0;
+        CplmLongDiagnosticsResult longD = baseLong(cls + "_GEO");
+        longD.acfRegularity = 0;
+        longD.fftPeakRatio = 0;
+        longD.triangularity = 0;
+        longD.horchOddness = 0;
+        longD.cornerScoreQualified = 0.95;
+        longD.cornerScoreRaw = 0.95;
+        longD.phaseAreaNormPerCycle = 0.4;
+        longD.opRangePct = 5;
+        longD.effortRatio = 0.01;
+        longD.periodStatus = "VALID";
+        longD.completedCycles = 10;
+        longD.gate5Status = "PASS";
+        longD.gate6Status = "PASS";
+        longD.gate7Status = "PASS";
+        longD.gate8Status = "PASS";
+        longD.gate9Status = "STRONG";
+        longD.gate10Status = "PASS";
+        longD.hasVp = false;
+        return CplmGateFusionEngine.fuse(shortF, longD, false, false, CplmLoopDynamicsProfile.forClass(cls));
+    }
+
+    // CHG-225 (owner, 23 Nov; rule R07): valve geometry is never decisive on its own, on any loop class. The slow temperature
+    // and vapour-pressure packs were PRIMARY with geometry alone allowed (plant: 2-3.5 % of temperature verdicts over 14 days
+    // rested on it), and Validate refused every loop or class bundle for those loops.
+    @Test
+    public void geometryAloneCannotSelectOnSlowTemperatureOrVapourLoops() {
+        for (CplmLoopDynamicsProfile.LoopClass cls : new CplmLoopDynamicsProfile.LoopClass[] {
+                CplmLoopDynamicsProfile.LoopClass.TIC, CplmLoopDynamicsProfile.LoopClass.PIC_VAPOUR }) {
+            CplmLoopDynamicsProfile p = CplmLoopDynamicsProfile.forClass(cls);
+            Assert.assertEquals(cls + " geometry role", CplmLoopDynamicsProfile.GateRole.SUPPORTING, p.geometryRole);
+            Assert.assertTrue(cls + " geometry alone forbidden", p.geometryAloneForbidden);
+            CplmGateResult r = geometryOnly(cls);
+            Assert.assertEquals(cls + ": no valve diagnosis on geometry alone", "NONE", r.selectedFamily);
+            Assert.assertEquals("INSUFFICIENT_EVIDENCE", r.gate15Status);
+        }
+    }
+
+    // CHG-225: every pack's oscillation limits fit the history the engine keeps (UNKNOWN asked for 5 cycles of 24 h)
+    @Test
+    public void everyPacksCyclesFitTheKeptHistory() {
+        for (CplmLoopDynamicsProfile.LoopClass cls : CplmLoopDynamicsProfile.LoopClass.values()) {
+            CplmLoopDynamicsProfile p = CplmLoopDynamicsProfile.forClass(cls);
+            Assert.assertEquals(cls + " capacity", "", com.ams.flink.cplm.config.ExecutionPlanCapacity.periodCapacity(p.tauMaxS, p.minValidCycles));
+        }
+    }
+
     @Test
     public void ticSlowProfileRetainsHorchStictionPath() {
         CplmShortFeatureResult shortF = baseShort("TIC20803");

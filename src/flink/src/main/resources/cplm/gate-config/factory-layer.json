@@ -273,7 +273,7 @@
       "G9.geometry_contribution_cap" : 1.0,
       "G9.min_accepted_cycles" : 3,
       "G9.min_command_range_pp" : 1.0,
-      "G9.role" : "PRIMARY"
+      "G9.role" : "SUPPORTING"
     },
     "LEVEL_INTEGRATING" : {
       "G0.bad_fraction_max" : 0.05,
@@ -373,7 +373,7 @@
       "G9.geometry_contribution_cap" : 1.0,
       "G9.min_accepted_cycles" : 3,
       "G9.min_command_range_pp" : 1.0,
-      "G9.role" : "PRIMARY"
+      "G9.role" : "SUPPORTING"
     },
     "UNKNOWN" : {
       "G0.bad_fraction_max" : 0.05,
@@ -404,12 +404,12 @@
       "G4.reversal_deadband_pp" : 0.5,
       "G5.min_complete_cycles" : 5,
       "G5.min_samples_per_period" : 8,
-      "G5.period_max_s" : 86400.0,
+      "G5.period_max_s" : 17280.0,
       "G5.period_min_s" : 5.0,
       "G5.regularity_min" : 0.1,
       "G6.overlap_fraction" : 0.5,
       "G6.peak_to_background_min" : 3.0,
-      "G6.period_max_s" : 86400.0,
+      "G6.period_max_s" : 17280.0,
       "G6.period_min_s" : 5.0,
       "G6.segment_samples" : 256,
       "G7.min_accepted_cycles" : 5,

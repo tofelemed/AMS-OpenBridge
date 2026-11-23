@@ -133,13 +133,13 @@ classes:
       effort: 1.0
       geometry: 1.0
     integrating: false
-    geometryRole: PRIMARY
+    geometryRole: SUPPORTING   # CHG-225: R07, never decisive alone
     shapeRole: PRIMARY
     horchRole: PRIMARY
     saturationRole: PRIMARY
     requireOscillationForStiction: true
     minNonGeometryEvidences: 2
-    geometryAloneForbidden: false
+    geometryAloneForbidden: true
     spRangePassMax: 1.0
     spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
@@ -203,13 +203,13 @@ classes:
       effort: 1.0
       geometry: 1.0
     integrating: false
-    geometryRole: PRIMARY
+    geometryRole: SUPPORTING   # CHG-225: R07, never decisive alone
     shapeRole: PRIMARY
     horchRole: PRIMARY
     saturationRole: PRIMARY
     requireOscillationForStiction: true
     minNonGeometryEvidences: 2
-    geometryAloneForbidden: false
+    geometryAloneForbidden: true
     spRangePassMax: 1.0
     spStabilityBandSpanFraction: 0.01   # v2.5 R06: 1 % of the declared PV span (= the old 1.0 EU on a 0-100 span)
     goodErrorPctPassMin: 0.5
@@ -223,7 +223,7 @@ classes:
     dynamicClass: FAST_SELF_REG
     serviceObjective: TIGHT
     tauMinS: 5
-    tauMaxS: 86400
+    tauMaxS: 17280   # CHG-225: 5 cycles must fit the 24 h history
     minSamplesPerPeriod: 8
     minValidCycles: 5
     cornerAngleDeg: 65
