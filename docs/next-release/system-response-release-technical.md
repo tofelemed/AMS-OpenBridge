@@ -33,7 +33,7 @@ Also in the branch: v2.9.1 (CHG-183..203, built 15 Nov, not deployed) with migra
 | Ship together | the jar and cplm-api carry the same property catalogue (hash `aee93593…`): a deployment needs workers on the catalogue cplm-api validated against |
 | Database | **No new migration** from this work. `cpm-22` (v2.9.1) only if v2.9.1 is not deployed first. Tables newly written: `cpm.controller_snapshot` (tuning history, kept; a row only per tuning change); batches use the existing `note` column |
 | Kafka | no new topic. P / I / D ride on `traverse.cpa.loop.samples.v1` as extra fields (ingestion already maps P → p, I → i, D → d) |
-| Compose / `.env` | `PLANT_DAY_START` (cplm-api `Cpm__PlantDayStart`, both Flink submitters); default `00:00` |
+| Compose / `.env` | `PLANT_DAY_START` (cplm-api `Cpm__PlantDayStart`, both Flink submitters); default `00:00`. **Marun: add `PLANT_DAY_START=06:00` to `migration/.env` before the Flink swap** (shifts confirmed 23 Nov), so the day start rides the release's own Flink restart |
 | New job arguments (all optional, defaults apply) | `--response-capture-modes` (AUT), `--g12-lambda-rule` (DEAD_TIME), `--g12-controller-scan-s` (1), `--g12-settle-noise-multiplier`, `--g12-actuator-limit-band-fraction`, `--g12-actuator-limit-dwell-s`, `--g12-region-exit-dwell-s` (10), `--plant-day-start` (00:00) |
 | New API | `GET .../loops/{id}/controller-tuning`; `GET/POST .../configuration/regions`; `GET .../configuration/loop-settings/stale`; `POST .../loop-settings/restack`; `GET .../configuration/batches/{id}`, `POST .../batches/{id}/approve`, `.../deploy`; `GET .../models/review-queue` (base `/api/v1/cpm`) |
 
@@ -42,7 +42,7 @@ Also in the branch: v2.9.1 (CHG-183..203, built 15 Nov, not deployed) with migra
 | Job | At the deploy | After |
 |---|---|---|
 | **AMS - CPLM Response Engine** | **Resubmit without state** (new fields in its keyed state; never a savepoint upgrade, never a ZK-HA restore of the old jar) | Event and result identities change for loops without a bundle. A loop's model check and band start from its **second** accepted event after the deploy. Expect more `ACTUATOR_CONSTRAINT` / `REGION_EXIT` / `TUNING_CHANGED` censors, far fewer models rejected as "no better than a flat line", setpoint steps getting models for the first time |
-| Short, Long, Fusion and the other CPLM jobs | New jar. They may restore from savepoints (the sample class only gained nullable fields), or start fresh in the plant's usual full swap | With a fresh start the 12 h / 24 h verdicts refill in about 11 h / 23 h. Long and Fusion read `--plant-day-start` (00:00: no change) |
+| Short, Long, Fusion and the other CPLM jobs | New jar. They may restore from savepoints (the sample class only gained nullable fields), or start fresh in the plant's usual full swap | With a fresh start the 12 h / 24 h verdicts refill in about 11 h / 23 h. Long and Fusion read `--plant-day-start`: at Marun `06:00`, so the saved 12 h sets end 06:00 / 18:00 and the 24 h set and the daily KPI day run 06:00 → 06:00 |
 | All CPLM workers | Announce the new catalogue in their CAPABILITY record | A region deployment now also waits for the Response Engine's ACK |
 
 ## 4. What needs a restart, and what does not
@@ -75,7 +75,7 @@ Also in the branch: v2.9.1 (CHG-183..203, built 15 Nov, not deployed) with migra
 2. Retire the 18 non-PID tags in Loop Registry.
 3. Declare the PV range of every loop that publishes tuning.
 4. I&C: publish P / I / D under `PIDParams` with PV / SV / MV / MODE.
-5. When the SME confirms the shifts: set `PLANT_DAY_START=06:00` (section 4).
+5. Plant day start: already set to `06:00` at the deploy (section 2). Check: the long / fusion log line `CHG-102: evidence emit=…` shows day start 06:00; the newest saved 12 h set ends 06:00 or 18:00 (+03:30); after the first 06:00 + 1 h the daily KPI pass logs "recomputed" for the kept days (about 14) and the newest day ends 06:00. Record the switch date in `prod_decision.md`. The long job emits its first sets once every sample partition has data, at the latest 30 min after the swap (watermark idleness): check after that. Lab-proven 23 Nov with day start 11:45.
 
 ## 6a. Lifecycle: adding or changing an operating region
 

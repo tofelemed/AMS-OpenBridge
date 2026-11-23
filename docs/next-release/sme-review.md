@@ -89,8 +89,8 @@ The advice uses λ = dead time (tight control) on every loop. A surge or buffer 
 
 | Question | Default now | Your answer |
 |---|---|---|
-| Are the shifts exactly 06:00 – 18:00 and 18:00 – 06:00, every day? | | |
-| Does the daily production report run 06:00 to 06:00? If yes, the plant day, the daily KPI history and the saved evidence sets move to 06:00 / 18:00 (one setting) | 00:00 to 00:00 | |
+| Are the shifts exactly 06:00 – 18:00 and 18:00 – 06:00, every day? | | **Yes** (owner, 23 Nov) |
+| Does the daily production report run 06:00 to 06:00? If yes, the plant day, the daily KPI history and the saved evidence sets move to 06:00 / 18:00 (one setting) | 00:00 to 00:00 | **Yes**: `PLANT_DAY_START=06:00` at the deploy (owner, 23 Nov) |
 | Is a 06:00 – 06:00 day named by the date it starts or ends on? | start date | |
 
 ## 7. Questions for I&C (Yokogawa CENTUM)

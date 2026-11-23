@@ -6863,7 +6863,7 @@ IoTDB for 3 years with long Model history ranges; "Rebuild this event" from IoTD
 
 **Deploy:** ships in the System Response release (one jar). With the default nothing changes. To switch the plant: add `PLANT_DAY_START=06:00` to `migration/.env` **before** the Flink swap and `deploy.sh`. The long and fusion jobs must be resubmitted to take it (a full swap does that; their 12 h / 24 h verdicts refill within a day). cplm-api re-stores the kept KPI days on its first daily pass: only days whose gate results are still kept (14 d) can be recomputed; older days keep their midnight end and stay readable. Record the switch date in `prod_decision.md`.
 
-**Waiting on the SME:** the shift pattern; a 06:00–06:00 production day (if the production day stays at midnight, only the 12 h sets should move, which needs a second setting: not built); whether a day is named by its start or its end date (default: start date).
+**Confirmed 23 Nov (owner):** the shifts are exactly 06:00–18:00 / 18:00–06:00 every day and the daily production report runs 06:00–06:00. **Marun deploy step:** add `PLANT_DAY_START=06:00` to `migration/.env` before the System Response release's Flink swap and `deploy.sh` (no extra restart). Still open with the SME: whether a day is named by its start or its end date (default: start date).
 
 ## CHG-107 — Controller tuning history from the System Response results (2026-11-22, branch feat/sr-mine, unreleased)
 
