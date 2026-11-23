@@ -3,6 +3,7 @@
  * row's problem out. Both cells empty clears a loop's own region; a plant-wide region cannot be cleared from a loop row.
  */
 import type { Batch, LoopRegion, RegionChange, RegionSource } from '../../../api/cpm/configRegions';
+import { standing, type Viewer } from './approvalRules';
 
 export interface RegionDraft { min: string; max: string }
 
@@ -47,7 +48,6 @@ export const outsideRange = (l: LoopRegion, min: number | null, max: number | nu
 
 const APPROVABLE = new Set(['VALIDATED', 'SHADOW_EVALUATED']);
 const DEPLOYABLE = new Set(['APPROVED', 'PARTIALLY_ACKNOWLEDGED', 'ACTIVATION_FAILED']);
-export const ADMIN_ROLES = ['Admin', 'SuperAdmin'];
 
 export interface BatchAction { label: string; enabled: boolean; reason: string | null }
 
@@ -55,11 +55,9 @@ export interface BatchAction { label: string; enabled: boolean; reason: string |
  * The approve button of a batch, decided from the viewer as the server decides it: someone other than the author approves;
  * the author approves alone only as Admin or SuperAdmin (recorded as a self-approval); otherwise a second person is needed.
  */
-export function approveAction(batch: Batch | undefined, viewer: { username?: string | null; role?: string | null } | null, canApprove: boolean): BatchAction {
+export function approveAction(batch: Batch | undefined, viewer: Viewer, canApprove: boolean): BatchAction {
   const waiting = !!batch?.rows.some(r => APPROVABLE.has(r.state) && !r.error);
-  const author = batch?.createdBy ?? batch?.rows.find(r => r.createdBy)?.createdBy ?? null;
-  const mine = !!author && !!viewer?.username && author.toLowerCase() === viewer.username.toLowerCase();
-  const admin = !!viewer?.role && ADMIN_ROLES.some(r => r.toLowerCase() === viewer.role!.toLowerCase());
+  const { mine, admin } = standing(batch?.createdBy ?? batch?.rows.find(r => r.createdBy)?.createdBy ?? null, viewer);
   const label = mine && admin ? 'Approve alone (Admin)' : 'Approve';
   if (!canApprove) return { label, enabled: false, reason: 'Your account cannot approve' };
   if (!waiting) return { label, enabled: false, reason: null };

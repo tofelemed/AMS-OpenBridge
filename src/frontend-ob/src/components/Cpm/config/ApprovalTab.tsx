@@ -6,6 +6,7 @@
  * warning: its expiry only matters while the version still waits to be activated.
  * CHG-184 (owner review item 0): the Content column says Current or Previous content, never the hash.
  * CHG-203: the Approve ? says Governance's approval rule word for word, in plain words (no hash, no server).
+ * CHG-220 (owner, 23 Nov): the button says "Approve alone (Admin)" for an Admin's own draft; an expired approval can be given again.
  */
 import React, { useState } from 'react';
 import { TonePill } from '../shared';
@@ -69,7 +70,7 @@ export const ApprovalTab: React.FC<{
       <div className="cpm-title-row">
         <h3 className="cpm-howto__title">Approve</h3>
         <Toggletip variant="how-to" label="How an approval binds">
-          <p>An approval holds only for the content approved, and it expires. Approving your own draft, an expired approval or an approval of content changed since is refused.</p>
+          <p>An approval holds only for the content approved, and it expires; an expired one can be given again. Approving content changed since is refused.</p>
         </Toggletip>
       </div>
       <div className="cpm-config-form">
@@ -80,7 +81,7 @@ export const ApprovalTab: React.FC<{
           <input className="cpm-input" value={hours} onChange={e => setHours(e.target.value)} inputMode="numeric" disabled={!action.enabled} /></label>
         <ReasonedButton variant={action.enabled ? 'raised' : 'normal'} disabled={!action.enabled || busy} reason={reason}
           onClick={() => onApprove({ note: note || undefined, validityHours: Number(hours) || undefined })}>
-          {busy ? 'Recording…' : 'Approve'}
+          {busy ? 'Recording…' : action.label}
         </ReasonedButton>
       </div>
       {failed && <p className="cpm-field__error" role="alert">{failed}</p>}

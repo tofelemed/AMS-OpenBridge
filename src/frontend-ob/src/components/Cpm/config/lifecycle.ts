@@ -8,6 +8,7 @@ import type { CpmTone } from '../shared';
 import type { Deployment } from '../../../api/cpm/config';
 import { ApiError } from '../../../api/apiFetch';
 import { bundleStateWord } from './configWords';
+import type { ApproveRule } from './approvalRules';
 
 /** A lifecycle step the server refused, as the column said it: "Refused: …" (403), "Conflict: …" (409), else its message. */
 export const errorText = (e: unknown): string | null => {
@@ -57,13 +58,17 @@ export interface LifecyclePerms { validate: boolean; shadow: boolean; approve: b
 const TERMINAL = new Set(['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED', 'SCHEDULED', 'PREPARED']);
 /** The states whose content can still be edited (with cpm.config.draft). */
 export const EDITABLE_STATES = new Set(['DRAFT', 'VALIDATED', 'SHADOW_EVALUATED', 'REJECTED']);
+/** CHG-220 (gap 5): an approved version whose approval expired can be edited again (the edit returns it to a draft). */
+export const editableState = (state: string, approvalExpired: boolean) => EDITABLE_STATES.has(state) || (state === 'APPROVED' && approvalExpired);
 
 /** CHG-169: why a version cannot change, in the state's word ("Active (verified)"); said once, under the bundle's tabs. */
 export const frozenSentence = (state: string): string => `This version is ${bundleStateWord(state).label} - create a new version to change it.`;
 
 /** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. CHG-203: Approve's reason is
- * Governance's approval rule, word for word (CpmGovernance.test.tsx). */
-export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, hasVerifiedActivation: boolean): LifecycleAction[] {
+ * Governance's approval rule, word for word (CpmGovernance.test.tsx). CHG-220: `rule` = this viewer's approval rule for this
+ * bundle (approvalRules.ts) - its label, and the reason Approve stays off where the server would refuse it. */
+export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, hasVerifiedActivation: boolean,
+  rule: ApproveRule = { label: 'Approve', reason: null }): LifecycleAction[] {
   const s = bundle.state;
   const frozen = TERMINAL.has(s) ? frozenSentence(s) : null;
   const validate: LifecycleAction = !perms.validate ? { key: 'validate', label: 'Validate', enabled: false, reason: 'Needs cpm.config.validate.' }
@@ -75,10 +80,11 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
     : frozen ? { key: 'shadow', label: 'Shadow', enabled: false, reason: frozen }
     : afterValidate || s === 'APPROVED' ? { key: 'shadow', label: 'Shadow', enabled: true, reason: null }
     : { key: 'shadow', label: 'Shadow', enabled: false, reason: 'Validate the draft first.' };
-  const approve: LifecycleAction = !perms.approve ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration.' }
+  const approve: LifecycleAction = !perms.approve ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own.' }
     : frozen ? { key: 'approve', label: 'Approve', enabled: false, reason: frozen }
-    : afterValidate ? { key: 'approve', label: 'Approve', enabled: true, reason: null }
-    : s === 'APPROVED' || s === 'EXPIRED' ? { key: 'approve', label: 'Approve', enabled: approvalExpired || s === 'EXPIRED', reason: approvalExpired || s === 'EXPIRED' ? null : 'Already approved for this content.' }
+    : afterValidate || ((s === 'APPROVED' || s === 'EXPIRED') && (approvalExpired || s === 'EXPIRED'))
+      ? { key: 'approve', label: rule.label, enabled: rule.reason == null, reason: rule.reason }
+    : s === 'APPROVED' ? { key: 'approve', label: 'Approve', enabled: false, reason: 'Already approved for this content.' }
     : { key: 'approve', label: 'Approve', enabled: false, reason: 'Validate the draft first.' };
   const deployable = s === 'APPROVED' || s === 'PARTIALLY_ACKNOWLEDGED' || s === 'ACTIVATION_FAILED';
   const deploy: LifecycleAction = !perms.activate ? { key: 'deploy', label: 'Activate', enabled: false, reason: 'Needs cpm.config.activate.' }

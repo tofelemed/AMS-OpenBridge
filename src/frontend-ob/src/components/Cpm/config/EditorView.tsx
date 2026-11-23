@@ -8,6 +8,7 @@
  * lifecycle column; the column's "Shadow" button, which only switched tabs, went. Why a version cannot change is said once,
  * under the tabs, in the state's word; the disabled actions under it do not repeat it. A bundle the server does not know reads
  * "Bundle not found". Every action sends what the column sent, with the same permissions and the same server refusals.
+ * CHG-220 (gap 5): Approve follows the viewer's approval rule (approvalRules.ts); an expired approval reopens Edit.
  */
 import React, { useEffect, useMemo } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -21,7 +22,8 @@ import { DiffImpactPanel } from './DiffImpactPanel';
 import { ShadowComparison } from './ShadowComparison';
 import { ApprovalTab, currentApproval } from './ApprovalTab';
 import { DeploymentsTab } from './DeploymentsTab';
-import { BUNDLE_TABS, EDITABLE_STATES, frozenSentence, lifecycleActions, tabMarks, type BundleTab, type LifecycleAction } from './lifecycle';
+import { BUNDLE_TABS, editableState, frozenSentence, lifecycleActions, tabMarks, type BundleTab, type LifecycleAction } from './lifecycle';
+import { bundleApproveRule, type Viewer } from './approvalRules';
 
 export type ConfigTab = BundleTab;
 export const TABS: ConfigTab[] = BUNDLE_TABS;
@@ -36,6 +38,8 @@ export interface EditorViewProps {
   gate: string;
   tab: ConfigTab;
   perms: ConfigPerms;
+  /** The signed-in user: decides whether Approve is theirs to give (CHG-220). */
+  viewer?: Viewer;
   /** The loop the shell is on (a LOOP bundle's loop, else the loop chosen for a shadow run). */
   loopId: string | undefined;
   siteLoopCount: number | undefined;
@@ -46,7 +50,7 @@ export interface EditorViewProps {
   onSiteKnown?: (site: string) => void;
 }
 
-export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, perms, loopId, siteLoopCount, onGate, onTab, onBack, onSiteKnown }) => {
+export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, perms, viewer = null, loopId, siteLoopCount, onGate, onTab, onBack, onSiteKnown }) => {
   const catalogue = useConfigCatalogue();
   const entries = useMemo(() => catalogue.data?.properties ?? [], [catalogue.data]);
   const byProperty = useMemo(() => new Map(entries.map(p => [p.property, p])), [entries]);
@@ -62,12 +66,12 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
   if (bundle.isError) return bundle.error instanceof ApiError && bundle.error.status === 404 ? missing : <QueryError error={bundle.error} retry={() => void bundle.refetch()} />;
   if (!b) return missing;
 
-  const editable = EDITABLE_STATES.has(b.state) && perms.draft;
-  const frozen = EDITABLE_STATES.has(b.state) ? null : frozenSentence(b.state);
   const { expired } = currentApproval(b);
+  const editable = editableState(b.state, expired) && perms.draft;
+  const frozen = editableState(b.state, expired) ? null : frozenSentence(b.state);
   const deploymentList = deployments.data?.deployments ?? [];
   const verifiedActivation = deploymentList.find(d => d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE');
-  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, !!verifiedActivation);
+  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, !!verifiedActivation, bundleApproveRule(b, viewer));
   // the frozen reason is said once, under the tabs; a disabled action with that reason says nothing more under itself
   const reasonOf = (a: LifecycleAction) => (a.enabled || a.reason === frozen ? null : a.reason);
   const marks = tabMarks(b.state);

@@ -125,7 +125,7 @@ describe('Gate Configuration write paths', () => {
   it('without the approve permission Approve says what it needs (four eyes)', async () => {
     useAuthStore.setState({ user: { user_id: 'u', username: 'admin', email: '', role: 'Admin', is_active: true, permissions: ALL.filter(p => p !== 'cpm.config.approve') }, status: 'authenticated', accessToken: 't' });
     renderAt('?loop=FIC10301&view=editor&bundle=dv&tab=approval');
-    await screen.findByText('Someone other than the author, with permission to approve gate configuration.');
+    await screen.findByText('Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own.');
     expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true);
   });
 

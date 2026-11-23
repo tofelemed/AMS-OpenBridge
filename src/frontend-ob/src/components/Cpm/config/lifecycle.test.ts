@@ -2,7 +2,7 @@
 // one carrying the reason it is disabled (state or permission) - the reader never guesses why a button
 // is grey; a deployment's ACK matrix is summarised in one line before it is unfolded.
 import { describe, expect, it } from 'vitest';
-import { ackSummary, frozenSentence, lifecycleActions, lifecycleSteps, tabMarks } from './lifecycle';
+import { ackSummary, editableState, frozenSentence, lifecycleActions, lifecycleSteps, tabMarks } from './lifecycle';
 import type { Deployment } from '../../../api/cpm/config';
 
 const perms = { validate: true, shadow: true, approve: true, activate: true, rollback: true };
@@ -32,13 +32,34 @@ describe('lifecycleActions', () => {
   });
   it('names the missing permission before the state', () => {
     const a = lifecycleActions({ state: 'VALIDATED' }, { ...perms, approve: false }, false, false);
-    expect(a.find(x => x.key === 'approve')).toMatchObject({ enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration.' });
+    expect(a.find(x => x.key === 'approve')).toMatchObject({ enabled: false, reason: 'Someone other than the author, with permission to approve gate configuration. An Admin or SuperAdmin may approve their own.' });
     expect(a.find(x => x.key === 'shadow')).toMatchObject({ enabled: true });
   });
   it('an expired approval blocks deploy with that reason; a verified activation enables rollback', () => {
     expect(lifecycleActions({ state: 'APPROVED' }, perms, true, false).find(x => x.key === 'deploy')).toMatchObject({ enabled: false, reason: 'The approval expired; approve again before activating.' });
     expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, true).find(x => x.key === 'rollback')).toMatchObject({ enabled: true });
     expect(lifecycleActions({ state: 'ACTIVE_VERIFIED' }, perms, false, true).find(x => x.key === 'validate')).toMatchObject({ enabled: false, reason: 'This version is Active (verified) - create a new version to change it.' });
+  });
+});
+
+describe("the viewer's approval rule (CHG-220, gap 5)", () => {
+  it("Approve carries the rule's label, and stays off with its reason", () => {
+    const own = lifecycleActions({ state: 'VALIDATED' }, perms, false, false, { label: 'Approve alone (Admin)', reason: null }).find(x => x.key === 'approve');
+    expect(own).toMatchObject({ label: 'Approve alone (Admin)', enabled: true, reason: null });
+    const blocked = lifecycleActions({ state: 'SHADOW_EVALUATED' }, perms, false, false, { label: 'Approve', reason: 'Needs a second person' }).find(x => x.key === 'approve');
+    expect(blocked).toMatchObject({ enabled: false, reason: 'Needs a second person' });
+  });
+  it('an expired approval can be given again, under the same rule; a valid one cannot', () => {
+    expect(lifecycleActions({ state: 'APPROVED' }, perms, true, false, { label: 'Approve', reason: 'A plant-wide bundle needs a SuperAdmin to approve it.' }).find(x => x.key === 'approve'))
+      .toMatchObject({ enabled: false, reason: 'A plant-wide bundle needs a SuperAdmin to approve it.' });
+    expect(lifecycleActions({ state: 'APPROVED' }, perms, true, false).find(x => x.key === 'approve')).toMatchObject({ enabled: true });
+    expect(lifecycleActions({ state: 'APPROVED' }, perms, false, false).find(x => x.key === 'approve')).toMatchObject({ enabled: false, reason: 'Already approved for this content.' });
+  });
+  it('an approved version opens for edit again only once its approval expired', () => {
+    expect(editableState('APPROVED', true)).toBe(true);
+    expect(editableState('APPROVED', false)).toBe(false);
+    expect(editableState('DRAFT', false)).toBe(true);
+    expect(editableState('PREPARED', true)).toBe(false);
   });
 });
 

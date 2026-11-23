@@ -6,6 +6,10 @@
  * copies the layers of the `parentBundleId` it is given, so the choice is the request's. Each level says the version it
  * starts from ("Starts from"); the callout moved here from the Bundles list; a disabled Create draft says why.
  * CHG-192 (owner review item 16): "Nothing changes for a loop until a bundle is activated." moved behind the Level ?.
+ * CHG-220 (Gate Configuration check, gap 3): a level's FIRST version starts from the plant-wide bundle the loop runs under
+ * now - LOOP: the active PROFILE, else the active SITE bundle; PROFILE: the active SITE bundle - as the per-loop re-stack does
+ * (LoopSettingsService). Before, it started from the factory layers and activating it dropped the plant-wide changes. The
+ * server keeps the parent's layers and adds the draft's own empty layer. Only with no active bundle above: the factory layers.
  */
 import React, { useState } from 'react';
 import { ObcButton } from '@oicl/openbridge-webcomponents-react/components/button/button';
@@ -27,34 +31,68 @@ export const LEVEL_COPY: Record<keyof Levels, string> = {
   SITE: 'Every loop of the site without a PROFILE or LOOP bundle.',
 };
 
-/** The version a draft of this level starts from: its active one, else its newest by number; null for a first version. */
-export function startsFrom(level: LevelData): BundleSummary | null {
-  const newestFirst = [...level.bundles].sort((a, b) => b.version - a.version);
-  return newestFirst.find(v => v.state === 'ACTIVE_VERIFIED') ?? newestFirst[0] ?? null;
+const ABOVE: Record<keyof Levels, (keyof Levels)[]> = { LOOP: ['PROFILE', 'SITE'], PROFILE: ['SITE'], SITE: [] };
+const newestFirst = (level: LevelData) => [...level.bundles].sort((a, b) => b.version - a.version);
+const activeOf = (level: LevelData) => newestFirst(level).find(v => v.state === 'ACTIVE_VERIFIED') ?? null;
+
+export type Start = { kind: keyof Levels; bundle: BundleSummary };
+
+/**
+ * The version a draft of this level starts from: its active one, else its newest by number; for a first version, the active
+ * bundle of the nearest level above; null when there is none (the factory layers).
+ */
+export function startsFrom(kind: keyof Levels, levels: Levels): Start | null {
+  const own = levels[kind];
+  const mine = activeOf(own) ?? newestFirst(own)[0];
+  if (mine) return { kind, bundle: mine };
+  for (const up of ABOVE[kind]) {
+    const active = activeOf(levels[up]);
+    if (active) return { kind: up, bundle: active };
+  }
+  return null;
 }
 
 export function draftRequest(kind: keyof Levels, levels: Levels, note: string): DraftRequest {
   const level = levels[kind];
-  return { scopeKind: kind, scopeRef: kind === 'SITE' ? null : level.ref, parentBundleId: startsFrom(level)?.bundleId ?? null, note: note.trim() || undefined };
+  return { scopeKind: kind, scopeRef: kind === 'SITE' ? null : level.ref, parentBundleId: startsFrom(kind, levels)?.bundle.bundleId ?? null, note: note.trim() || undefined };
 }
 
-/** Why Create draft is disabled for this level, or null. */
-function blockedBy(kind: keyof Levels, level: LevelData): string | null {
+/** Why one level cannot be read yet, or null. */
+function unread(kind: keyof Levels, level: LevelData): string | null {
   if (level.loading && level.bundles.length === 0) return `Loading the ${kind} versions…`;
   if (level.error != null) return `The ${kind} versions could not be read, so a draft cannot start from the right one.`;
   if (kind !== 'SITE' && level.ref === '…') return `The ${kind} reference is not known yet.`;   // the loop's profile is not read yet
   return null;
 }
 
+/** Why Create draft is disabled for this level, or null. A first version also waits for the levels above it. */
+function blockedBy(kind: keyof Levels, levels: Levels): string | null {
+  const own = unread(kind, levels[kind]);
+  if (own != null || levels[kind].bundles.length > 0) return own;
+  for (const up of ABOVE[kind]) {
+    const reason = unread(up, levels[up]);
+    if (reason != null) return reason;
+    if (activeOf(levels[up])) return null;
+  }
+  return null;
+}
+
 const refLabel = (kind: keyof Levels, ref: string) => (kind === 'PROFILE' && ref !== '…' ? codeLabel(ref) : ref);
 
-const StartCell: React.FC<{ level: LevelData }> = ({ level }) => {
+const StartCell: React.FC<{ kind: keyof Levels; levels: Levels }> = ({ kind, levels }) => {
+  const level = levels[kind];
   if (level.loading && level.bundles.length === 0) return <>…</>;
   if (level.error != null) return <>—</>;
-  const start = startsFrom(level);
+  const start = startsFrom(kind, levels);
+  if (!start && blockedBy(kind, levels) != null) return <>…</>;   // a first version: the levels above are not read yet
   if (!start) return <>First version at this level</>;
-  const w = bundleStateWord(start.state);
-  return <span className="cpm-config-inline"><span>v{start.version}</span><TonePill tone={w.tone} glyph={w.glyph}>{w.label}</TonePill></span>;
+  const w = bundleStateWord(start.bundle.state);
+  return (
+    <span className="cpm-config-inline">
+      <span>{start.kind === kind ? '' : `${start.kind} `}v{start.bundle.version}</span>
+      <TonePill tone={w.tone} glyph={w.glyph}>{w.label}</TonePill>
+    </span>
+  );
 };
 
 export const DraftBundleDialog: React.FC<{
@@ -67,7 +105,7 @@ export const DraftBundleDialog: React.FC<{
 }> = ({ levels, creating, error, onClose, onCreate }) => {
   const [kind, setKind] = useState<keyof Levels>('LOOP');
   const [note, setNote] = useState('');
-  const reason = blockedBy(kind, levels[kind]);
+  const reason = blockedBy(kind, levels);
   return (
     <Dialog open title="Prepare bundle draft" size="wide" onClose={onClose}
       footer={(
@@ -98,7 +136,7 @@ export const DraftBundleDialog: React.FC<{
                   </label>
                 </td>
                 <td>{refLabel(k, levels[k].ref)}</td>
-                <td><StartCell level={levels[k]} /></td>
+                <td><StartCell kind={k} levels={levels} /></td>
               </tr>
             ))}
           </tbody>

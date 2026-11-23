@@ -2,6 +2,8 @@
 // CHG-169 (owner answer 2b): the parent is the level's ACTIVE version when it has one (a FIC10302 LOOP draft starts from v6,
 // active, not v7, rolled back), else the newest by number; the dialog says which ("Starts from"). A disabled Create draft
 // says why; the callout sits in the dialog.
+// CHG-220 (gap 3): a FIRST version starts from the plant-wide bundle the loop runs under (active PROFILE, else active SITE),
+// never from the factory layers while one is active - activating it would drop the plant-wide changes.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -38,9 +40,9 @@ describe('draftRequest', () => {
   });
 
   it('starts from the active version of the level, not the newest by number', () => {
-    expect(startsFrom(lab.LOOP)?.bundleId).toBe('v6');
+    expect(startsFrom('LOOP', lab)?.bundle.bundleId).toBe('v6');
     expect(draftRequest('LOOP', lab, 'next')).toEqual({ scopeKind: 'LOOP', scopeRef: 'FIC10302', parentBundleId: 'v6', note: 'next' });
-    expect(startsFrom(levels.PROFILE)).toBeNull();
+    expect(startsFrom('PROFILE', levels)).toBeNull();   // the SITE v4 is only a draft: the factory layers
   });
 });
 
@@ -90,5 +92,49 @@ describe('DraftBundleDialog', () => {
     fireEvent.click(screen.getByRole('radio', { name: /SITE/ }));
     expect((screen.getByRole('button', { name: 'Create draft' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('The SITE versions could not be read, so a draft cannot start from the right one.')).toBeTruthy();
+  });
+});
+
+describe('a first version starts from the plant-wide bundle in force (CHG-220, gap 3)', () => {
+  const firstLoop = (profile: BundleSummary[], site: BundleSummary[], over: Partial<Levels> = {}): Levels => ({
+    LOOP: { ref: 'FIC10303', bundles: [], loading: false, error: null },
+    PROFILE: { ref: 'FLOW_FAST_SELF_REG', bundles: profile, loading: false, error: null },
+    SITE: { ref: 'hdpe', bundles: site, loading: false, error: null },
+    ...over,
+  });
+  const p2 = b({ bundleId: 'p2', version: 2, scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG', state: 'ACTIVE_VERIFIED' });
+  const p3 = b({ bundleId: 'p3', version: 3, scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG', state: 'DRAFT' });
+  const s1 = b({ bundleId: 's1', version: 1, scopeKind: 'SITE', scopeRef: null, state: 'ACTIVE_VERIFIED' });
+
+  it('LOOP: the active PROFILE bundle, not a newer PROFILE draft', () => {
+    const lv = firstLoop([p3, p2], [s1]);
+    expect(startsFrom('LOOP', lv)).toEqual({ kind: 'PROFILE', bundle: p2 });
+    expect(draftRequest('LOOP', lv, '')).toEqual({ scopeKind: 'LOOP', scopeRef: 'FIC10303', parentBundleId: 'p2', note: undefined });
+  });
+
+  it('LOOP without an active PROFILE bundle, and PROFILE: the active SITE bundle', () => {
+    const lv = firstLoop([p3], [s1]);
+    expect(draftRequest('LOOP', lv, '').parentBundleId).toBe('s1');
+    expect(draftRequest('PROFILE', firstLoop([], [s1]), '').parentBundleId).toBe('s1');
+  });
+
+  it('nothing active above: the factory layers (no parent)', () => {
+    expect(draftRequest('LOOP', firstLoop([p3], []), '').parentBundleId).toBeNull();
+  });
+
+  it('says where the first version starts and sends that bundle', () => {
+    const onCreate = vi.fn();
+    render(<DraftBundleDialog levels={firstLoop([p2], [s1])} creating={false} onClose={() => {}} onCreate={onCreate} />);
+    expect(screen.getByRole('radio', { name: /LOOP/ }).closest('tr')!.textContent).toMatch(/PROFILE v2.*Active \(verified\)/);
+    expect(screen.getByRole('radio', { name: /PROFILE/ }).closest('tr')!.textContent).toMatch(/^PROFILE.*v2/);
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }));
+    expect(onCreate).toHaveBeenCalledWith({ scopeKind: 'LOOP', scopeRef: 'FIC10303', parentBundleId: 'p2', note: undefined });
+  });
+
+  it('waits for the PROFILE versions before a first LOOP version, and says why', () => {
+    const lv = firstLoop([], [s1], { PROFILE: { ref: 'FLOW_FAST_SELF_REG', bundles: [], loading: true, error: null } });
+    render(<DraftBundleDialog levels={lv} creating={false} onClose={() => {}} onCreate={() => {}} />);
+    expect((screen.getByRole('button', { name: 'Create draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Loading the PROFILE versions…')).toBeTruthy();
   });
 });

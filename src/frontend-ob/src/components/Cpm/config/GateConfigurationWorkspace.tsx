@@ -164,7 +164,7 @@ export const GateConfigurationWorkspace: React.FC = () => {
           viewer={viewer} batchId={batchId} onBatch={id => go({ batch: id })} />
       )}
       {view === 'editor' && bundleId && (
-        <EditorView key={bundleId} bundleId={bundleId} gate={gate ?? 'G0'} tab={tab} perms={perms} loopId={loopId}
+        <EditorView key={bundleId} bundleId={bundleId} gate={gate ?? 'G0'} tab={tab} perms={perms} viewer={viewer} loopId={loopId}
           siteLoopCount={loopId ? loopList.filter(l => l.site === site).length : undefined}
           onGate={g => go({ gate: g })} onTab={t => go({ tab: t === 'properties' ? null : t })} onBack={toBundles} />
       )}
