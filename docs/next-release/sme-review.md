@@ -16,6 +16,12 @@ Please fill in the **Your answer** column ("OK", or the value you want instead).
 | Controller tuning | Read from the DCS: P, I and D are published on change with PV / SP / OP; nobody enters tuning by hand |
 | Operating regions | The recommended values in section 3 are loaded with the release; you confirm or change them |
 | Plant day | Stays 00:00 to 00:00 until you confirm the shift pattern (section 6) |
+| Gate Configuration: what is listed | Only settings that can really be changed. Retention, Loop Registry values, fixed rules and automatically worked-out values are not listed |
+| Gate Configuration: each setting | Shows the value in use and where it comes from |
+| Two settings still open | At-limit dwell warning and tuning target λ show "Not decided: <value> used" (section 9) |
+| Who may change what | Objective type and evidence types no longer need a SuperAdmin. A whole-plant change still does |
+| Approval | Someone other than the author approves. An Admin or SuperAdmin may approve their own change (recorded). Region changes follow the same rule |
+| Restarts | A settings change never restarts the analysis |
 
 ## 2. Defaults built into the engine
 
@@ -110,7 +116,71 @@ The advice uses λ = dead time (tight control) on every loop. A surge or buffer 
   IIC20101A / B / C, SIC20303, SIC20511, SIC20521 and SIC20531 are not in the historian at all. Please check their feed.
 - FIC10302 (priority A) was never in Auto in the last 30 days: is that its normal mode?
 
-## 9. Later phases (no answer needed now)
+## 9. Gate Configuration: how a change is made
+
+**Where to start:** Set up → Gate Configuration. The start page has one loop search and four choices (One loop · A loop type ·
+Whole plant · Operating regions). Below them, "Changes in progress" shows each change with its next step, and "Running now"
+shows what each level runs.
+
+| Level | What it changes |
+|---|---|
+| One loop | Only that loop ("own settings") |
+| A loop type | Every loop of that type, unless a loop has its own settings |
+| Whole plant | Every loop, unless its type or the loop has its own settings |
+| Operating regions | Region minimum and maximum for many loops at once |
+
+The most specific level wins: loop, then type, then plant, then factory.
+
+```mermaid
+flowchart LR
+  A[Change settings: choose where it applies + reason] --> B[1 Edit]
+  B --> C[2 Check: now vs new]
+  C --> D[3 Try on past data - optional]
+  D --> E[4 Approve]
+  C -.-> E
+  E --> F[5 Deploy: now or at a chosen plant time]
+  F --> G[Running]
+  G -- Roll back --> H[Version before]
+```
+
+- Check shows exactly what changes. Try on past data runs the change on the loop's recent data and compares the results;
+  nothing on the plant changes.
+- Approve: a second person. An Admin or SuperAdmin may approve alone. A whole-plant change needs a SuperAdmin. An approval
+  lasts 72 h.
+- Running: no restart. The analysis confirms it in about 5 minutes.
+
+**Per-loop settings**
+
+```mermaid
+flowchart LR
+  L[Loop page: Edit region] --> R[Reason]
+  M[Operating regions: select loops, Edit regions] --> R
+  R --> S[Save: one change for those loops]
+  S --> P[Approve] --> Q[Deploy]
+  U[Use plant-wide settings] --> P
+  V[Start page: Update them] --> W[New versions prepared] --> P
+```
+
+"Use plant-wide settings" removes a loop's own settings, so it goes back to its type or plant settings (same approve, then
+deploy). "Update them" appears on the start page when loops with own settings are on older plant settings.
+
+**What changes in the results**
+
+- New results use the new settings from the time the change takes effect. Stored results are not rewritten.
+- 12 h and 24 h verdicts move gradually as their windows fill (up to 12 h or 24 h).
+- A region decides when a window counts as outside the operating region (more than 20 % of a window outside: the region
+  check fails and the window gets no verdict). Regions can therefore change the verdicts and KPIs of those loops.
+- Only a plant-day-start change, a new analysis version or adding Cascade need an analysis restart.
+
+**What we ask you to review**
+
+- At-limit dwell warning (seconds): keep the default or give a value?
+- Tuning target λ: keep the default or give a value?
+- Are the recommended operating regions right (section 3)?
+- Does the approval rule fit the plant (second person; Admin or SuperAdmin alone)?
+- Is anything on the screens unclear?
+
+## 10. Later phases (no answer needed now)
 
 Cascade and master / slave loops (their own event type); Manual bump tests if the plant adopts them; keeping key System
 Response parameters for 3 years.
