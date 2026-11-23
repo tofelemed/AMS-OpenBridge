@@ -6956,6 +6956,7 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 - Gap 7: the shadow comparison is read again until the run ends (it stopped at "Submitted"), kept per run, and a run of other content is not shown as the draft's comparison.
 - Minors: Effective from must be an ISO date and time (said before sending); a 400 without an error shows the server's title, not "HTTP 400"; a saved edit's new ETag is cached at once, so two quick edits are no longer refused as stale.
 - Governance: a validated version "Waits for approval." (not "an independent approver").
+- Lab retest: until the deployments are read, Roll back says "Reading the deployments…" (it read "Only the version running now can be rolled back." for the running version in the first seconds).
 
 **Tests:** `useConfig.test.tsx` 2 (new), `DeploymentsTab.test.ts` 2 (new), `ShadowComparison.test.tsx` +2, `lifecycle.test.ts` +1, `configSupport.workers.test.ts` +2, `GateConfigurationWrites.test.tsx` rollback case updated; the new ones fail on the old code. All config + Governance tests pass; tsc and eslint clean.
 
