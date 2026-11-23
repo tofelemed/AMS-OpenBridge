@@ -52,15 +52,19 @@ public sealed class ShadowComparison
         await using var tx = await conn.BeginTransactionAsync(ct);
         await conn.ExecuteAsync("SET LOCAL jit = off", transaction: tx);
         var run = await conn.QueryFirstOrDefaultAsync("SELECT state, loop_id, requested_from_ms, requested_to_ms FROM analytics.analysis_run WHERE analysis_run_id = @id", new { id = runId }, tx);
+        // no ORDER BY here: it made TimescaleDB walk (and decompress) every chunk in window_end order - 7.3 s for 0 rows,
+        // 4.6 ms without it (lab, 23 Nov); the few rows of one run are sorted below instead
         var rows = (await conn.QueryAsync("""
             SELECT loop_id, window_kind, window_start, window_end, sample_count, diagnosis, severity, confidence, payload::text AS payload, created_at
             FROM analytics.cplm_gate_results
             WHERE analysis_run_id = @id AND purpose = 'SHADOW'
-            ORDER BY window_end
-            """, new { id = runId }, tx)).ToList();
+            """, new { id = runId }, tx)).OrderBy(r => (DateTime)r.window_end).ToList();
         var live = new Dictionary<(string Loop, string Kind, DateTime End), dynamic>();
         if (rows.Count > 0)
         {
+            var ends = rows.Select(r => DateTime.SpecifyKind((DateTime)r.window_end, DateTimeKind.Utc)).ToArray();
+            // the loop list and the window_end range are repeated as plain filters: the unnest join alone gave TimescaleDB no
+            // chunk exclusion, so it decompressed every chunk's LIVE rows (5.9 s for 8 windows); with them 5-121 ms (lab, 23 Nov)
             var liveRows = await conn.QueryAsync("""
                 SELECT DISTINCT ON (l.loop_id, l.window_kind, l.window_end) l.loop_id, l.window_kind, l.window_end,
                        l.diagnosis, l.severity, l.confidence, l.sample_count, l.payload::text AS payload, l.created_at
@@ -68,12 +72,16 @@ public sealed class ShadowComparison
                 JOIN unnest(@loops::text[], @kinds::text[], @ends::timestamptz[]) AS w(loop_id, window_kind, window_end)
                   ON l.loop_id = w.loop_id AND l.window_kind = w.window_kind AND l.window_end = w.window_end
                 WHERE l.purpose = 'LIVE' AND l.source = 'flink'
+                  AND l.loop_id = ANY(@loopSet::text[]) AND l.window_end >= @fromEnd AND l.window_end <= @toEnd
                 ORDER BY l.loop_id, l.window_kind, l.window_end, l.result_revision DESC, l.created_at DESC
                 """, new
             {
                 loops = rows.Select(r => (string)r.loop_id).ToArray(),
                 kinds = rows.Select(r => (string)r.window_kind).ToArray(),
-                ends = rows.Select(r => DateTime.SpecifyKind((DateTime)r.window_end, DateTimeKind.Utc)).ToArray(),
+                ends,
+                loopSet = rows.Select(r => (string)r.loop_id).Distinct().ToArray(),
+                fromEnd = ends.Min(),
+                toEnd = ends.Max(),
             }, tx);
             foreach (var l in liveRows) live[((string)l.loop_id, (string)l.window_kind, DateTime.SpecifyKind((DateTime)l.window_end, DateTimeKind.Utc))] = l;
         }
