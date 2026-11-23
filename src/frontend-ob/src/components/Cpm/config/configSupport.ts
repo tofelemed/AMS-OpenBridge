@@ -178,6 +178,18 @@ export function workersSummary(eff: EffectiveConfig): { text: string; tone: CpmT
 }
 
 /**
+ * CHG-220 (Gate Configuration check, gap 2): the required workers that run another version than the one the page names (a
+ * deployment that stopped half way leaves the workers that applied it on the new version), as "LOOP v8 on 2".
+ */
+export function runsElsewhere(eff: EffectiveConfig): { count: number; text: string } | null {
+  const ws = eff.workers.filter(w => w.required !== false && w.runs && w.runs.bundleId !== eff.bundle?.bundleId);
+  if (ws.length === 0) return null;
+  const byVersion = new Map<string, number>();
+  for (const w of ws) { const k = bundleLabel(w.runs); byVersion.set(k, (byVersion.get(k) ?? 0) + 1); }
+  return { count: ws.length, text: [...byVersion].map(([v, n]) => `${v} on ${n}`).join(' · ') };
+}
+
+/**
  * The worker tile: how many workers applied this loop's configuration, with no build identifier. CHG-184 (owner review item 0):
  * workers on different builds read "different software releases", never a jar.
  */
@@ -190,6 +202,8 @@ export function workerAlignment(eff: EffectiveConfig): { value: string; sub: str
   if (!eff.bundle) return { value: n, sub: `${jars > 1 ? `${releases} · ` : ''}factory layer, nothing to acknowledge`, tone: jars > 1 ? 'warn' : 'muted' };
   const applied = ws.filter(w => w.ack?.status === 'ACK' && w.ack.bundleHash === eff.bundle!.contentHash).length;
   const catalogueOff = ws.filter(w => w.catalogueHash !== eff.bundle!.catalogueHash).length;
+  const elsewhere = runsElsewhere(eff);
+  if (elsewhere) return { value: `${elsewhere.count} of ${ws.length} run another version`, sub: elsewhere.text, tone: 'bad' };
   const sub = jars > 1 ? releases : catalogueOff ? `catalogue differs on ${catalogueOff}` : 'catalogue matches';
   return { value: `${applied} of ${ws.length} applied`, sub, tone: applied < ws.length || jars > 1 || catalogueOff > 0 ? 'bad' : 'good' };
 }

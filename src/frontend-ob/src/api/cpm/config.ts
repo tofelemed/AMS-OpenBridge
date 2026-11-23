@@ -66,7 +66,9 @@ export interface Deployment {
 }
 
 /** `required` (2026-09-18): the worker reads catalogue properties and must acknowledge; an observer (false) reads none and never does. */
-export interface EffectiveWorker { jobName: string; jarSha256: string; catalogueHash: string; required?: boolean; ack?: { status: string; bundleHash: string; jarSha256: string; receivedAt: string } | null }
+export interface EffectiveWorker { jobName: string; jarSha256: string; catalogueHash: string; required?: boolean; ack?: { status: string; bundleHash: string; jarSha256: string; receivedAt: string } | null;
+  /** CHG-220 (gap 2): the version this worker actually runs for the loop (its newest applied bundle); another than the page's after a partial deployment. */
+  runs?: { bundleId: string; version: number; scopeKind: string } | null }
 
 export interface EffectiveConfig {
   loopId: string; site: string; profileId: string; state: BundleState | 'NO_ACTIVE_BUNDLE'; note?: string;

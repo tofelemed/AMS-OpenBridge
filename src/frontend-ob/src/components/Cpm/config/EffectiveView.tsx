@@ -5,11 +5,12 @@
  * table shows at a time; a search crosses gates; the workers fold to one line with a tone. CHG-184: no hash,
  * jar or run bundle (the Workbench's "Configuration used by this run" went).
  * Read-only: every value is the server's resolution.
+ * CHG-220 (gap 2): a worker that runs another version than the one named here (a deployment stopped half way) says which.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, KvRow, PanelHead, TonePill, fmtDateTime } from '../shared';
 import type { CatalogueEntry, EffectiveConfig } from '../../../api/cpm/config';
-import { bundleLabel, isLayerSource, layerStack, overridesByGate, valueText } from './configSupport';
+import { bundleLabel, isLayerSource, layerStack, overridesByGate, runsElsewhere, valueText } from './configSupport';
 import { Toggletip } from '../../../ui/Toggletip';
 import { EffectivePropertyDialog, classTone } from './EffectivePropertyDialog';
 
@@ -94,6 +95,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, catalogue, co
         </table>
       )}
 
+      {runsElsewhere(eff) && <p className="cpm-field__error" role="status">Some workers run another version: {runsElsewhere(eff)!.text}</p>}
       <details className="cpm-config-workers" id="config-workers" ref={workersBox}>
         <summary>APPLY acknowledgements</summary>
         <table className="cpm-table" data-table="effective-workers">
@@ -101,7 +103,7 @@ export const EffectiveView: React.FC<EffectiveViewProps> = ({ eff, catalogue, co
           <tbody>
             {eff.workers.map(w => (
               <tr key={w.jobName}>
-                <td>{w.jobName}</td>
+                <td>{w.jobName}{w.runs && w.runs.bundleId !== eff.bundle?.bundleId && w.required !== false ? <div className="cpm-event-row__sub">runs {bundleLabel(w.runs)}</div> : null}</td>
                 <td>{w.required === false ? <span className="cpm-muted">observer · reads no property</span> : w.ack ? <><TonePill tone={w.ack.status === 'ACK' ? 'good' : 'bad'}>{w.ack.status}</TonePill>{eff.bundle && w.ack.bundleHash !== eff.bundle.contentHash ? ' for another bundle' : ''}</> : eff.bundle ? <TonePill tone="muted">no ACK recorded</TonePill> : <span className="cpm-copy">factory layer</span>}</td>
               </tr>
             ))}
