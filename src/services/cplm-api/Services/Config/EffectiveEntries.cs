@@ -168,7 +168,9 @@ public static partial class EffectiveEntries
             var s = x.ToString("0.00", Inv).TrimEnd('0');
             return s.EndsWith('.') ? s + "0" : s;
         }
-        return x.ToString("G2", Inv);
+        // Below 0.01: two significant digits as a plain decimal ("0.0035", "0.000000001"), never "1E-09".
+        var places = Math.Min(15, (int)Math.Ceiling(-Math.Log10(a)) + 1);
+        return Math.Round(x, places).ToString("0." + new string('#', places), Inv);
     }
 
     /// <summary>A percentage or ratio with no trailing zeros ("1", "0.5").</summary>

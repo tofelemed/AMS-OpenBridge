@@ -7007,6 +7007,8 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 
 **Tests:** `PropertySourcesTests` (no database) and `GatePropertyValuesTests` (lab database), 15 new; the config filter (Config, RegionBulk, GateApproval, GateDeploymentGaps, LoopInherit, PropertySources, GatePropertyValues, PropertyCatalogue) 70 pass.
 
+**Re-check follow-up (23 Nov):** a value below 0.01 in Values in use and its hover text is now written as a plain decimal with two significant digits (`0.000000001`, `0.0035`), never `1E-09`; `EffectiveEntries.Fmt`, new `EffectiveNumberFormatTests` (11, no database). Services updated: cplm-api.
+
 **Found, not changed here:** the class packs TEMP_SLOW_SELF_REG and PRESSURE_VAPOUR_SLOW set `G9.role` PRIMARY, which validation forbids (R07), so no loop or class bundle for temperature or vapour-pressure loops passes Validate - decision pending (owner / SME).
 
 ## CHG-225 — Valve geometry never decides alone on slow temperature and vapour-pressure loops (2026-11-23, branch feat/sr-engine-fixes, unreleased)
