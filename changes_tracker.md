@@ -6936,3 +6936,15 @@ Plan: `docs/next-release/system-response-implementation-plan.md`, Phase 4 (owner
 **Services updated:** cplm-api. No migration.
 
 **Tests:** new `GateApprovalRulesTests` 3 (editor: Admin self-approval recorded, Engineer refused, a second person allowed; site-wide: Admin refused, SuperAdmin allowed, alone too; expired approval re-approved, a valid one refused) and `RegionBulkServiceTests` +1 (a batch found whole behind 205 newer LOOP bundles); with `ConfigLifecycleTests`, `ConfigEffectiveSummaryTests`, `ConfigLibraryTests`: 29 pass on the lab database.
+
+## CHG-220 — Gate Configuration gaps #3 and #5, the screens (2026-11-23, branch feat/sr-engine-fixes, unreleased)
+
+**Why:** the same Gate Configuration check. #3: a loop's (or class's) first own bundle started from the factory layers, so activating it dropped the plant-wide changes the loop ran under, silently. #5: the editor offered Approve where the server refuses it. Owner, 23 Nov: fix both in this release; the server side of #5 and #8a is the CHG-108 follow-up above.
+
+**Change (ams-frontend):**
+- #3: `DraftBundleDialog` - a level with no version yet starts from the active bundle of the nearest level above (LOOP: PROFILE, else SITE; PROFILE: SITE), the same base the per-loop re-stack uses; the factory layers only when nothing above is active. "Starts from" says it ("PROFILE v2" + its state); Create draft waits until the levels above are read.
+- #5: `approvalRules.ts` (new) holds the one approval rule for the editor and Per-loop settings: a second person, or the author as Admin / SuperAdmin ("Approve alone (Admin)"); a SITE bundle, or the bundle's own change to `G3.objective_type` / `G14.allowed_evidence_types`, needs a SuperAdmin. Approve stays off with that reason where the server would refuse. An expired approval can be given again and reopens Edit. Governance's approval rules say the new rules.
+
+**Services updated:** ams-frontend. No migration, no Flink change.
+
+**Tests:** `DraftBundleDialog.test.tsx` +5 (first version from the active PROFILE, else SITE, else factory; says it; waits for the levels above), `approvalRules.test.ts` 3, `lifecycle.test.ts` +3; the new ones fail on the old code. All 276 CPM test files pass; tsc and eslint clean.

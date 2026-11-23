@@ -399,3 +399,4 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 | An approval that expired (default 72 h) | can be approved again; while it is valid a second approval is refused | the deployment refuses an expired approval, and the bundle had no way back |
 
 At a new plant: decide who holds SuperAdmin before the first site-wide change; the self-approvals are listed in the audit trail.
+- A loop's (or class's) **first own bundle** starts from the plant-wide bundle it runs under (active PROFILE, else active SITE), never from the factory layers while one is active (CHG-220; before, activating it dropped the plant-wide changes). A loop that got its first own bundle before this release may sit on the factory base: check `loop-settings/stale` after the deploy and re-stack what it lists.
