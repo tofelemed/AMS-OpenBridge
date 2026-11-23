@@ -33,7 +33,7 @@ export interface DeploymentsTabProps {
   reasons: { activate: string | null; rollback: string | null };
   busy: { deploy: boolean; rollback: boolean };
   errors: { deploy: unknown; rollback: unknown };
-  /** The verified activation a rollback undoes (the newest ACTIVE_VERIFIED activation of this version). */
+  /** The deployment a rollback undoes: this version's current one, when the server offers a rollback of it (CHG-220). */
   verifiedActivation: Deployment | undefined;
   onDeploy: (args: { scheduledFor?: string | null }) => void;
   onRollback: (deploymentId: string) => void;
@@ -75,7 +75,7 @@ export const DeploymentsTab: React.FC<DeploymentsTabProps> = ({ bundle, deployme
         </ReasonedButton>
         <ReasonedButton variant={rollback.enabled ? 'raised' : 'normal'} disabled={!rollback.enabled || busy.rollback || !verifiedActivation} reason={reasons.rollback}
           onClick={() => setAsking(true)}>
-          {busy.rollback ? 'Rolling back…' : 'Roll back'}
+          {busy.rollback ? 'Rolling back…' : rollback.label}
         </ReasonedButton>
         {deployFailed && <span className="cpm-field__error" role="alert">{deployFailed}</span>}
         {rollbackFailed && <span className="cpm-field__error" role="alert">{rollbackFailed}</span>}

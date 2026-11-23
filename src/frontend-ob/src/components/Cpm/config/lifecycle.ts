@@ -54,6 +54,8 @@ export function lifecycleSteps(state: string): LifecycleStep[] {
 export type ActionKey = 'validate' | 'shadow' | 'approve' | 'deploy' | 'rollback';
 export interface LifecycleAction { key: ActionKey; label: string; enabled: boolean; reason: string | null }
 export interface LifecyclePerms { validate: boolean; shadow: boolean; approve: boolean; activate: boolean; rollback: boolean }
+/** CHG-220 (gap 4): whether this version runs now (its deployment is the scope's current one) and what a rollback brings back. */
+export interface RollbackChoice { running: boolean; target: { version: number } | null }
 
 const TERMINAL = new Set(['ACTIVE_VERIFIED', 'ROLLED_BACK', 'SUPERSEDED', 'SCHEDULED', 'PREPARED']);
 /** The states whose content can still be edited (with cpm.config.draft). */
@@ -67,7 +69,7 @@ export const frozenSentence = (state: string): string => `This version is ${bund
 /** The actions in lifecycle order; a disabled one names the permission or the state that blocks it. CHG-203: Approve's reason is
  * Governance's approval rule, word for word (CpmGovernance.test.tsx). CHG-220: `rule` = this viewer's approval rule for this
  * bundle (approvalRules.ts) - its label, and the reason Approve stays off where the server would refuse it. */
-export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, hasVerifiedActivation: boolean,
+export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerms, approvalExpired: boolean, back: RollbackChoice,
   rule: ApproveRule = { label: 'Approve', reason: null }): LifecycleAction[] {
   const s = bundle.state;
   const frozen = TERMINAL.has(s) ? frozenSentence(s) : null;
@@ -93,8 +95,9 @@ export function lifecycleActions(bundle: { state: string }, perms: LifecyclePerm
     : frozen ? { key: 'deploy', label: 'Activate', enabled: false, reason: frozen }
     : { key: 'deploy', label: 'Activate', enabled: false, reason: 'Approve the content first.' };
   const rollback: LifecycleAction = !perms.rollback ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Needs cpm.config.rollback.' }
-    : hasVerifiedActivation ? { key: 'rollback', label: 'Roll back', enabled: true, reason: null }
-    : { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Only a verified activation can be rolled back.' };
+    : back.target ? { key: 'rollback', label: `Roll back to v${back.target.version}`, enabled: true, reason: null }
+    : back.running ? { key: 'rollback', label: 'Roll back', enabled: false, reason: 'There is no earlier version to go back to now.' }
+    : { key: 'rollback', label: 'Roll back', enabled: false, reason: 'Only the version running now can be rolled back.' };
   return [validate, shadow, approve, deploy, rollback];
 }
 

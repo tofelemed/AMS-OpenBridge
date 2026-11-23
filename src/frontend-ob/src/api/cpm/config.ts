@@ -59,7 +59,10 @@ export interface Deployment {
   /** Announced jobs that read no catalogue property: listed, never a required answer. */
   observers?: string[];
   ackMatrix: Array<{ jobName: string; prepare: WorkerAck | null; apply: WorkerAck | null }>;
+  /** CHG-220 (gap 4): true for the scope's current deployment only (a superseded one's row still reads ACTIVE_VERIFIED). */
   active: boolean; semantics: string;
+  /** CHG-220 (gap 4): the version a rollback of this deployment brings back, set exactly when the server accepts one. */
+  rollbackTarget?: { bundleId: string; version: number } | null;
 }
 
 /** `required` (2026-09-18): the worker reads catalogue properties and must acknowledge; an observer (false) reads none and never does. */

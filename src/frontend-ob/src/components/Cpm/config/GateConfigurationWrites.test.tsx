@@ -139,25 +139,25 @@ describe('Gate Configuration write paths', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
     await waitFor(() => expect(writes()).toHaveLength(2));
     expect(writes()[1].body).toEqual({ bundleId: 'da', scheduledFor: '2026-11-12T06:00:00Z' });
-    expect(screen.getByText('Only a verified activation can be rolled back.')).toBeTruthy();
+    expect(screen.getByText('Only the version running now can be rolled back.')).toBeTruthy();
   });
 
   it('Roll back is offered once and asks first, naming the activation and the version that runs again', async () => {
     renderAt('?loop=FIC10302&view=editor&bundle=l6&tab=deployments');
     await screen.findByRole('heading', { name: 'Rollback verified - the previous bundle is active again' });
     expect(screen.getAllByRole('button', { name: /Roll back/ })).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Roll back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Roll back to v4' }));
     const dialog = screen.getByRole('dialog', { name: 'Roll back to the previous bundle' });
     expect(writes()).toHaveLength(0);                                                   // nothing is sent on the first click
-    expect(dialog.textContent).toMatch(/Rolls backThe activation of v6, 25 Sept 18:37 UTC/);
-    await waitFor(() => expect(dialog.textContent).toMatch(/Active againv4⊘Superseded/));   // the server rule: newest SUPERSEDED / ACTIVE_VERIFIED of the scope but v6
+    expect(dialog.textContent).toMatch(/Rolls backThe activation of v6, 25 Sept 18:38 UTC/);   // CHG-220: the current deployment (the rollback that brought v6 back)
+    expect(dialog.textContent).toMatch(/Active againv4The bundle that ran before it/);       // the server's rollbackTarget
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(writes()).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Roll back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Roll back to v4' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roll back' }));
     await waitFor(() => expect(writes()).toHaveLength(1));
-    expect(writes()[0]).toMatchObject({ method: 'POST', url: '/api/v1/cpm/configuration/deployments/d-act/rollback' });
+    expect(writes()[0]).toMatchObject({ method: 'POST', url: '/api/v1/cpm/configuration/deployments/d-rb/rollback' });
   });
 
   it('a frozen version says why once; its disabled actions do not repeat it', async () => {

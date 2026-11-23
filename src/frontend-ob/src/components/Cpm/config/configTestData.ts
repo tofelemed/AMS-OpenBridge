@@ -67,7 +67,9 @@ const deployment = (id: string, kind: string, over: Record<string, unknown> = {}
   requiredMembers: matrix.map(m => m.jobName), ackMatrix: matrix, active: true, semantics: 'ACTIVE_VERIFIED after every required worker ACKed', ...over,
 });
 export const DEPLOYMENTS: Record<string, unknown[]> = {
-  l6: [deployment('d-rb', 'ROLLBACK', { rollbackOf: '617f2e13-2ef0-4c5d-9a1b-0123456789ab', createdAt: '2026-09-25T18:38:00Z' }), deployment('d-act', 'ACTIVATE')],
+  // CHG-220: the rollback that brought v6 back is the scope's current deployment (active, rolls back to v4); the activation is not
+  l6: [deployment('d-rb', 'ROLLBACK', { rollbackOf: '617f2e13-2ef0-4c5d-9a1b-0123456789ab', createdAt: '2026-09-25T18:38:00Z', rollbackTarget: { bundleId: 'l4', version: 4 } }),
+    deployment('d-act', 'ACTIVATE', { active: false })],
 };
 
 /** The GET answers of the page; a test may override any of them. */

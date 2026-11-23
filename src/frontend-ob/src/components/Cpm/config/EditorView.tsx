@@ -70,8 +70,9 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
   const editable = editableState(b.state, expired) && perms.draft;
   const frozen = editableState(b.state, expired) ? null : frozenSentence(b.state);
   const deploymentList = deployments.data?.deployments ?? [];
-  const verifiedActivation = deploymentList.find(d => d.state === 'ACTIVE_VERIFIED' && d.kind === 'ACTIVATE');
-  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, !!verifiedActivation, bundleApproveRule(b, viewer));
+  // CHG-220 (gap 4): only the scope's current deployment rolls back, to the version the server names
+  const current = deploymentList.find(d => d.active);
+  const [validate, , approve, deploy, rollback] = lifecycleActions(b, perms, expired, { running: !!current, target: current?.rollbackTarget ?? null }, bundleApproveRule(b, viewer));
   // the frozen reason is said once, under the tabs; a disabled action with that reason says nothing more under itself
   const reasonOf = (a: LifecycleAction) => (a.enabled || a.reason === frozen ? null : a.reason);
   const marks = tabMarks(b.state);
@@ -120,7 +121,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ bundleId, gate, tab, per
           <DeploymentsTab bundle={b} deployments={deploymentList} deploymentsLoading={deployments.isLoading} deploymentsError={deployments.isError ? deployments.error : null} retryDeployments={() => void deployments.refetch()}
             activate={deploy} rollback={rollback} reasons={{ activate: reasonOf(deploy), rollback: reasonOf(rollback) }}
             busy={{ deploy: actions.deploy.isPending, rollback: actions.rollback.isPending }} errors={{ deploy: actions.deploy.error, rollback: actions.rollback.error }}
-            verifiedActivation={verifiedActivation}
+            verifiedActivation={current?.rollbackTarget ? current : undefined}
             onDeploy={a => actions.deploy.mutate({ bundleId: b.bundleId, ...a })} onRollback={id => actions.rollback.mutate(id)} />
         )}
       </div>
