@@ -77,7 +77,7 @@ describe('ConfigStartPage', () => {
     expect(screen.getByRole('button', { name: 'How to read' })).toBeTruthy();
     fireEvent.click(screen.getByRole('combobox', { name: 'Loop' }));
     fireEvent.mouseDown(await screen.findByRole('option', { name: /FIC10302/ }));
-    await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302'));
+    await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?loop=FIC10302'));
   });
 
   it('has one filter bar: loop search, Loop type, Whole plant, Operating regions - and no cards', async () => {
@@ -110,6 +110,14 @@ describe('ConfigStartPage', () => {
     await waitFor(() => expect(plant.options.length).toBe(3));
     fireEvent.change(plant, { target: { value: 'other' } });
     expect(loc()).toBe('/cpm/config/plant/other');
+  });
+
+  it('with a plant chosen in the header, Whole plant offers only that plant', async () => {
+    twoSites = true;
+    renderAt('?site=hdpe');
+    await screen.findByRole('region', { name: 'Running now' });
+    const plant = screen.getByLabelText('Whole plant') as HTMLSelectElement;
+    await waitFor(() => expect(Array.from(plant.options).map(o => o.value)).toEqual(['', 'hdpe']));
   });
 
   it('lists the changes in progress and Continue goes to the next step', async () => {
@@ -171,5 +179,11 @@ describe('ConfigStartPage', () => {
   it('an old link goes to its new page', async () => {
     renderAt('?loop=FIC10302&view=bundles');
     await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?tab=versions'));
+  });
+
+  it('a bare ?loop= is the carried loop, not an old link: the start page stays', async () => {
+    renderAt('?loop=FIC10302');
+    expect(await screen.findByRole('group', { name: 'Choose what to change' })).toBeTruthy();
+    expect(loc()).toBe('/cpm/config?loop=FIC10302');
   });
 });

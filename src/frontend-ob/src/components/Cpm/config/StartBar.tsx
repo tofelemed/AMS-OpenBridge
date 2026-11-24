@@ -26,6 +26,6 @@ export const StartBar: React.FC<Props> = ({ search, types, typesLoading, plants,
     {search}
     <Pick label="Loop type" options={types} disabled={typesLoading} onPick={onType} />
     <Pick label="Whole plant" options={plants} onPick={onPlant} />
-    <ObcButton variant="normal" onClick={onRegions}>Operating regions</ObcButton>
+    <ObcButton variant="normal" fullWidth onClick={onRegions}>Operating regions</ObcButton>
   </div>
 );

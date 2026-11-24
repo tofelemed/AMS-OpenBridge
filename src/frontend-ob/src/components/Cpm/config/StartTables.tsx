@@ -20,7 +20,7 @@ function changeName(b: BundleSummary): string {
 }
 
 export const ChangesTable: React.FC<{ rows: InProgressRow[]; onContinue: (id: string, step: ChangeStep) => void }> = ({ rows, onContinue }) => (
-  <table className="cpm-table">
+  <div className="cpm-config-tablewrap"><table className="cpm-table">
     <thead><tr><th>Change</th><th>Next step</th><th>Started</th><th><span className="cpm-sr-only">Continue</span></th></tr></thead>
     <tbody>
       {rows.map(({ bundle: b, nextStep, done }) => (
@@ -35,11 +35,11 @@ export const ChangesTable: React.FC<{ rows: InProgressRow[]; onContinue: (id: st
         </tr>
       ))}
     </tbody>
-  </table>
+  </table></div>
 );
 
 export const RunningTable: React.FC<{ rows: RunningRow[]; loops: Map<string, CpmLoop> }> = ({ rows, loops }) => (
-  <table className="cpm-table">
+  <div className="cpm-config-tablewrap"><table className="cpm-table">
     <thead><tr><th>Applies to</th><th>Settings</th><th>Since · {zoneTag()}</th></tr></thead>
     <tbody>
       {rows.map(({ bundle: b, loopCount }) => {
@@ -54,5 +54,5 @@ export const RunningTable: React.FC<{ rows: RunningRow[]; loops: Map<string, Cpm
         );
       })}
     </tbody>
-  </table>
+  </table></div>
 );

@@ -48,15 +48,23 @@ export function scoped(path: string, search: URLSearchParams | string): string {
   return query ? `${base}?${query}` : base;
 }
 
-/** The new address of an old Gate Configuration link, or null when the query names nothing. */
+/**
+ * The new address of an old Gate Configuration link, or null when the query names nothing. A bare `?loop=` is not an old link:
+ * it is the loop the app carries from page to page (useContextCarry), so the start page shows with that loop in its search.
+ * Only an old-only key beside it (`view`, `gate`) makes it an old loop link.
+ */
 export function legacyTarget(search: URLSearchParams): string | null {
   const bundle = search.get('bundle');
   const loop = search.get('loop');
   const view = search.get('view');
   const tab = search.get('tab');
+  const gate = search.get('gate');
   if (bundle) return changePath(bundle, tab && Object.prototype.hasOwnProperty.call(STEP_OF_TAB, tab) ? STEP_OF_TAB[tab as BundleTab] : undefined);
   if (view === 'per-loop') return withParam(regionsPath(), 'batch', search.get('batch'));
   if (loop && view === 'bundles') return `${loopPath(loop)}?tab=versions`;
-  if (loop && (!view || view === 'effective')) return withParam(loopPath(loop), 'gate', search.get('gate'));
+  if (loop && (view === 'effective' || (!view && gate))) return withParam(loopPath(loop), 'gate', gate);
   return null;
 }
+
+/** A loop's page that also names the loop as the carried context, so the next page follows the loop just chosen. */
+export const loopContextPath = (loopId: string) => `${loopPath(loopId)}?loop=${enc(loopId)}`;

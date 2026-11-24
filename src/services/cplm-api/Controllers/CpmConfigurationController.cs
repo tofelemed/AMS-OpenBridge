@@ -163,7 +163,12 @@ public sealed class CpmConfigurationController : ControllerBase
         var b = await _store.GetAsync(id, ct);
         if (b is null) return NotFound(new { error = $"bundle {id} not found" });
         Response.Headers.ETag = $"\"{b.Etag}\"";
-        return Ok(ShapeWithApprovals(b, await _store.ApprovalsAsync(id, b.ContentHash, ct)));
+        // re-check item 5: the Check step's Now / New the engine's way - a loop version takes its loop type's pack from the registry
+        string? loopProfile = null;
+        if (b.ScopeKind is "LOOP" or "REGIME" && b.ScopeRef is { Length: > 0 } scopeRef && await _registry.GetAsync(scopeRef.Split('@')[0], ct) is { } loop)
+            loopProfile = ConfigStore.ProfileIdFor(loop.LoopType);
+        var pack = BundleBelow.PackFor(b, loopProfile);
+        return Ok(ShapeWithApprovals(b, await _store.ApprovalsAsync(id, b.ContentHash, ct), BundleBelow.Below(b, pack), BundleBelow.Effective(b, pack)));
     }
 
     /// <summary>The shadow run's before / after gate matrix (SHADOW rows vs the LIVE rows of the same windows), materialised server-side; marks POLICY_RECLASSIFICATION when symptoms disappear.</summary>
@@ -293,11 +298,14 @@ public sealed class CpmConfigurationController : ControllerBase
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
     }
 
-    internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals) => new
+    /// <param name="below">What the scope's loops run without this version, the class pack under it (the Check step's Now).</param>
+    /// <param name="effective">What they run with it, the same order (the Check step's New).</param>
+    internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals, JsonElement? below = null, JsonElement? effective = null) => new
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note, approvals,
         inherits = b.Inherits,
+        below, effective,
     };
 
     public static object ShapeSummary(BundleView b) => new

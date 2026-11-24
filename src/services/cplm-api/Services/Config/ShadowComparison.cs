@@ -16,8 +16,11 @@ public sealed class ShadowComparison
 {
     public sealed record GateDelta(string Gate, string? Before, string? After);
     public sealed record WindowDelta(string WindowKind, DateTime WindowEnd, string? DiagnosisBefore, string? DiagnosisAfter, IReadOnlyList<GateDelta> Changed);
+    /// <summary>Re-check item 6 (owner, 24 Nov): how many compared windows kept each diagnosis, so "Same result" can say which.</summary>
+    public sealed record DiagnosisCount(string? Diagnosis, int Windows);
     public sealed record Report(Guid BundleId, Guid? AnalysisRunId, string RunState, string? LoopId, long? FromMs, long? ToMs, int ShadowRows, int ComparedWindows,
-        IReadOnlyList<WindowDelta> Windows, int SymptomsRemoved, int SymptomsAdded, string? Reclassification, DateTimeOffset ComparedAt);
+        IReadOnlyList<WindowDelta> Windows, int SymptomsRemoved, int SymptomsAdded, string? Reclassification, DateTimeOffset ComparedAt,
+        IReadOnlyList<DiagnosisCount>? Unchanged = null);
 
     private readonly NpgsqlDataSource _db;
     private readonly ConfigStore _store;
@@ -87,6 +90,7 @@ public sealed class ShadowComparison
         }
         await tx.CommitAsync(ct);
         var windows = new List<WindowDelta>();
+        var unchanged = new Dictionary<string, int>(StringComparer.Ordinal);   // diagnosis ("" = none) -> windows that kept it
         int removed = 0, added = 0, compared = 0;
         foreach (var row in rows)
         {
@@ -107,10 +111,16 @@ public sealed class ShadowComparison
             }
             if (changed.Count > 0 || !string.Equals((string?)l.diagnosis, (string?)row.diagnosis, StringComparison.Ordinal))
                 windows.Add(new WindowDelta((string)row.window_kind, (DateTime)row.window_end, (string?)l.diagnosis, (string?)row.diagnosis, changed));
+            else
+            {
+                var key = (string?)row.diagnosis ?? "";
+                unchanged[key] = unchanged.GetValueOrDefault(key) + 1;
+            }
         }
         var runState = run is null ? "UNKNOWN" : (string)run.state;
         string? reclass = removed > 0 ? "POLICY_RECLASSIFICATION" : null;
-        var report = new Report(bundleId, runId, runState, (string?)run?.loop_id, (long?)run?.requested_from_ms, (long?)run?.requested_to_ms, rows.Count, compared, windows, removed, added, reclass, DateTimeOffset.UtcNow);
+        var report = new Report(bundleId, runId, runState, (string?)run?.loop_id, (long?)run?.requested_from_ms, (long?)run?.requested_to_ms, rows.Count, compared, windows, removed, added, reclass, DateTimeOffset.UtcNow,
+            Unchanged(unchanged));
         if (shadow is { ValueKind: JsonValueKind.Object } sh)
         {
             // record the comparison on the bundle so the approver reads the same numbers the workspace showed
@@ -126,6 +136,11 @@ public sealed class ShadowComparison
         }
         return report;
     }
+
+    /// <summary>The unchanged windows per diagnosis, most windows first (then by name), none ("") as null.</summary>
+    internal static IReadOnlyList<DiagnosisCount> Unchanged(IReadOnlyDictionary<string, int> counts) => counts
+        .OrderByDescending(c => c.Value).ThenBy(c => c.Key, StringComparer.Ordinal)
+        .Select(c => new DiagnosisCount(c.Key.Length == 0 ? null : c.Key, c.Value)).ToList();
 
     /// <summary>CHG-222: the end of the loop's newest LIVE 24 h window in the last 8 days (null when none) - where a shadow run ends
     /// so its windows meet LIVE ones (ShadowWindow.Plan). Lab, 23 Nov: 31 ms planning, 1.6 ms execution with JIT off.</summary>

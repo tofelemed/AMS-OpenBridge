@@ -52,6 +52,54 @@ describe('DiffImpactPanel', () => {
     expect(within(screen.getByRole('table')).getAllByRole('row')[1].textContent).toMatch(/5.*4\.5/);
   });
 
+  it('a type version started from the plant version: Now and New both the engine way, so only the real edit is listed', () => {
+    // what the server stores: the plant's layers and the edit, no copy of the pack - its own resolution never saw the pack
+    const typeLayers = [
+      { kind: 'FACTORY', ref: null, ordinal: 0, content: { 'G0.coverage_min': 0.9, 'G4.activity_warn_ratio': 2 }, content_hash: 'f' },
+      { kind: 'SITE', ref: 'hdpe', ordinal: 1, content: {}, content_hash: 's' },
+      { kind: 'PROFILE', ref: 'FLOW_FAST_SELF_REG', ordinal: 2, content: { 'G4.activity_warn_ratio': 4.5 }, content_hash: 'p' },
+    ];
+    const b = bundle({
+      bundleId: 't1', scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG', parentBundleId: 'p1', layers: typeLayers as Bundle['layers'],
+      resolved: { properties: { 'G0.coverage_min': 0.9, 'G4.activity_warn_ratio': 4.5 }, sources: {}, execution_plan: {} },
+      below: { 'G0.coverage_min': 0.95, 'G4.activity_warn_ratio': 3 },
+      effective: { 'G0.coverage_min': 0.95, 'G4.activity_warn_ratio': 4.5 },
+    });
+    const plant = bundle({ bundleId: 'p1', scopeKind: 'SITE', scopeRef: null }, {});
+    render(<DiffImpactPanel bundle={b} parent={plant} validate={idle} />);
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);                                     // the pack value the loops already run is not a change
+    expect(rows[0].textContent).toMatch(/3.*4\.5/);                   // Now = the pack value, not the factory 2
+  });
+
+  it('a version with an earlier version of its own level compares the two the engine way', () => {
+    const parent = bundle({ bundleId: 'v5', version: 5, effective: { 'G4.activity_warn_ratio': 5 } }, { 'G4.activity_warn_ratio': 9 });
+    render(<DiffImpactPanel bundle={bundle({ effective: { 'G4.activity_warn_ratio': 4.5 } })} parent={parent} validate={idle} />);
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toMatch(/5.*4\.5/);
+  });
+
+  it('without the engine pair (an older server) both columns come from the own resolution', () => {
+    render(<DiffImpactPanel bundle={bundle({ effective: { 'G4.activity_warn_ratio': 1 } })} parent={undefined} validate={idle} />);
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toMatch(/3.*4\.5/);                   // the layers below (PROFILE 3) against resolved, never one of each
+  });
+
+  it('between an edit and its re-read (below kept, effective dropped) it waits instead of mixing the two ways', () => {
+    render(<DiffImpactPanel bundle={bundle({ below: { 'G0.mode': 'OPERATIONAL', 'G0.coverage_min': 0.5, 'G4.activity_warn_ratio': 1 } })} parent={undefined} validate={idle} />);
+    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('waits for the earlier version it names instead of comparing with something else', () => {
+    render(<DiffImpactPanel bundle={bundle({ parentBundleId: 'v5', below: {}, effective: {} })} parent={undefined} parentPending validate={idle} />);
+    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByText('Nothing changed yet.')).toBeNull();
+  });
+
   it('a plant or type version shows the loop count it was given', () => {
     render(<DiffImpactPanel bundle={bundle({ scopeKind: 'PROFILE', scopeRef: 'FLOW_FAST_SELF_REG' })} parent={undefined} loopCount={7} validate={idle} />);
     expect(screen.getByText('Loops').nextSibling?.textContent).toBe('7');

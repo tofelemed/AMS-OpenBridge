@@ -2488,3 +2488,4 @@ Lab-retest fixes (23 Nov 2026, combined deploy 91d9b2aa). Source: retestfix-A an
 | Gate Configuration · start page | Card status lines (N with own settings, Factory settings, name · vN, Plant settings vN, N types / plants with own settings, N loops have a region, Choose a plant) | removed (Running now shows these) |
 | Gate Configuration · start page | Card buttons Find a loop / Choose a type / Open / Edit regions; Choose a type and Choose a plant dialogs | dropdowns Loop type and Whole plant; button Operating regions |
 | Gate Configuration · start page | Loop search in the page header | the loop search is the first control of the filter bar |
+| Gate Configuration · Try on past data | "Same result in all n compared windows" | "Same result in all n compared windows: No problem found 10 · Oscillation confirmed 2" (the diagnoses the windows kept; one window: "…: No problem found") (owner, 24 Nov) |

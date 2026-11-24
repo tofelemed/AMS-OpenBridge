@@ -60,6 +60,12 @@ export interface Bundle {
   inherits?: boolean;
   /** Present on GET drafts/{id}: every approval decision recorded, flagged when it binds the current content. */
   approvals?: ApprovalRecord[];
+  /**
+   * Present on GET drafts/{id} (re-check item 5): what the scope's loops run without this version (`below`) and with it
+   * (`effective`), both with the loop type's class pack under every layer, as the engine lays them. Null for an unknown scope.
+   */
+  below?: Record<string, unknown> | null;
+  effective?: Record<string, unknown> | null;
 }
 
 export interface WorkerAck { status: 'ACK' | 'NACK'; bundleHash: string; jarSha256: string; reason: string | null; receivedAt: string }

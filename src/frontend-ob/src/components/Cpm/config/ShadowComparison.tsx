@@ -15,6 +15,7 @@
  * "No matching live results to compare"; the loop and hours are asked only for a type or plant change.
  * Final review: M-e - the period is asked in days (1-7, the server runs whole days; sent as hours); M-d - the window table names
  * diagnoses and gate results in words (the CPA vocabulary), never engine codes; M-a - "change", not "draft".
+ * Re-check item 6 (owner, 24 Nov): "Same result" names the diagnoses the compared windows kept (server `unchanged`).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,8 @@ export interface ShadowReport {
   bundleId: string; analysisRunId: string | null; runState: string; loopId: string | null; fromMs: number | null; toMs: number | null;
   shadowRows: number; comparedWindows: number; symptomsRemoved: number; symptomsAdded: number; reclassification: string | null; comparedAt: string;
   windows: Array<{ windowKind: string; windowEnd: string; diagnosisBefore: string | null; diagnosisAfter: string | null; changed: Array<{ gate: string; before: string | null; after: string | null }> }>;
+  /** The compared windows that kept their result, per diagnosis, most windows first. */
+  unchanged?: Array<{ diagnosis: string | null; windows: number }> | null;
 }
 
 /** The states in which a run is over; any other (submitted, running) is read again. */
@@ -66,6 +69,14 @@ export const noDataWords = (isLoop: boolean, fromMs: number | null, toMs: number
 export const daysToHours = (text: string): number => {
   const d = Math.round(Number(text));
   return (Number.isFinite(d) && d >= 1 ? Math.min(7, d) : 1) * 24;
+};
+
+/** "Same result in all 12 compared windows: No problem found 10 · Oscillation confirmed 2" (one window: "…: No problem found"); without the counts, the sentence alone. */
+export const sameResultWords = (compared: number, unchanged: ShadowReport['unchanged']): string => {
+  const head = compared === 1 ? 'Same result in the compared window' : `Same result in all ${compared} compared windows`;
+  const kept = (unchanged ?? []).filter(u => u.windows > 0);
+  if (kept.length === 0) return head;
+  return compared === 1 ? `${head}: ${diagnosisLabel(kept[0].diagnosis)}` : `${head}: ${kept.map(u => `${diagnosisLabel(u.diagnosis)} ${u.windows}`).join(' · ')}`;
 };
 
 /** "Operating region: Warning → Pass": a gate's result change in words. */
@@ -145,7 +156,7 @@ export const ShadowComparison: React.FC<{
           )}
           {report.data.runState === 'FINISHED' && report.data.comparedWindows === 0 && <p className="cpm-copy">{report.data.shadowRows === 0 ? noDataWords(isLoop, report.data.fromMs, report.data.toMs) : 'No matching live results to compare'}</p>}
           {report.data.runState === 'FINISHED' && report.data.comparedWindows > 0 && report.data.windows.length === 0 && (
-            <p className="cpm-copy">Same result in {report.data.comparedWindows === 1 ? 'the compared window' : `all ${report.data.comparedWindows} compared windows`}</p>
+            <p className="cpm-copy">{sameResultWords(report.data.comparedWindows, report.data.unchanged)}</p>
           )}
           {(report.data.runState === 'FAILED' || report.data.runState === 'SUBMIT_FAILED') && <p className="cpm-field__error">The run failed</p>}
           {report.data.runState === 'CANCELED' && <p className="cpm-copy">The run was cancelled</p>}

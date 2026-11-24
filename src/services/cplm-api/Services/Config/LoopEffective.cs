@@ -34,7 +34,7 @@ public static class LoopEffective
 
     private static JsonElement Content(JsonElement layer) => layer.TryGetProperty("content", out var c) ? c : default;
 
-    private static JsonElement Merge(JsonElement under, JsonElement over)
+    internal static JsonElement Merge(JsonElement under, JsonElement over)
     {
         var merged = JsonNode.Parse(under.GetRawText())!.AsObject();
         foreach (var prop in over.EnumerateObject()) merged[prop.Name] = JsonNode.Parse(prop.Value.GetRawText());

@@ -5,7 +5,7 @@
  * server validates again; this only keeps an obviously wrong value from being sent.
  */
 import type { CpmTone } from '../shared';
-import type { CatalogueEntry, DeploymentState, EffectiveConfig } from '../../../api/cpm/config';
+import type { Bundle, CatalogueEntry, DeploymentState, EffectiveConfig } from '../../../api/cpm/config';
 import { RESET_TO_INHERITED } from '../../../api/cpm/config';
 import type { ScopeKind } from '../../../api/cpm/config';
 import { versionLabel } from './levelWords';
@@ -118,6 +118,29 @@ export function resolveBelow(layers: Array<{ kind: string; content: Record<strin
     for (const [k, v] of Object.entries(layer?.content ?? {})) if (v !== RESET_TO_INHERITED) out[k] = v;
   }
   return out;
+}
+
+type CheckBundle = Pick<Bundle, 'layers' | 'scopeKind' | 'resolved' | 'below' | 'effective'>;
+
+/**
+ * The Check step's two columns (owner answer 2d; re-check item 5, 24 Nov). Now = the earlier version of the same level, else what
+ * the scope's loops run without this version; New = this version. Both sides come the engine's way (the server's `effective` /
+ * `below`, the class pack under every layer) when both are there, else both from the bundles' own resolution - never one of each,
+ * or the pack shows up as changes nobody made (a type version started from the plant's version holds no copy of it). Null while
+ * the earlier version named by the bundle is still being read, and between an edit and its re-read (`below` kept, `effective`
+ * dropped: the own resolution of a stack holding a copy of the pack would list the pack).
+ */
+export function checkSides(bundle: CheckBundle, parent?: CheckBundle, parentPending = false): { before: Record<string, unknown>; after: Record<string, unknown> } | null {
+  if (parentPending) return null;
+  if (parent && parent.scopeKind === bundle.scopeKind) {
+    return parent.effective && bundle.effective
+      ? { before: parent.effective, after: bundle.effective }
+      : { before: parent.resolved.properties, after: bundle.resolved.properties };
+  }
+  if (bundle.below && !bundle.effective) return null;
+  return bundle.below && bundle.effective
+    ? { before: bundle.below, after: bundle.effective }
+    : { before: resolveBelow(bundle.layers, bundle.scopeKind), after: bundle.resolved.properties };
 }
 
 /** Properties whose value differs between two resolved blocks (the diff of a draft against its parent or the effective config). */

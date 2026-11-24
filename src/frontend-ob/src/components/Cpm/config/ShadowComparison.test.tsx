@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
-import { ShadowComparison } from './ShadowComparison';
+import { sameResultWords, ShadowComparison } from './ShadowComparison';
 import type { Bundle } from '../../../api/cpm/config';
 
 vi.mock('../../../api/apiFetch', async (importOriginal) => {
@@ -236,6 +236,17 @@ describe('ShadowComparison retest fixes (issue 5)', () => {
     vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ shadowRows: 1, comparedWindows: 1 }) as never);
     view(tried());
     expect(await screen.findByText(/Same result/)).toBeTruthy();
+  });
+  it('Same result names the diagnoses the compared windows kept (re-check item 6)', async () => {
+    vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ shadowRows: 12, comparedWindows: 12, unchanged: [{ diagnosis: 'HEALTHY', windows: 10 }, { diagnosis: 'CONFIRMED_OSCILLATION', windows: 2 }] }) as never);
+    view(tried());
+    expect(await screen.findByText('Same result in all 12 compared windows: No problem found 10 · Oscillation confirmed 2')).toBeTruthy();
+  });
+  it('sameResultWords: one window names its diagnosis; without the counts (an older server) the sentence alone', () => {
+    expect(sameResultWords(1, [{ diagnosis: 'HEALTHY', windows: 1 }])).toBe('Same result in the compared window: No problem found');
+    expect(sameResultWords(3, undefined)).toBe('Same result in all 3 compared windows');
+    expect(sameResultWords(3, [])).toBe('Same result in all 3 compared windows');
+    expect(sameResultWords(2, [{ diagnosis: null, windows: 2 }])).toBe('Same result in all 2 compared windows: Not evaluated yet 2');
   });
   it('Try again comes after the inputs (Period), not between Run on and Period', async () => {
     vi.mocked(fetchMod.apiJson).mockResolvedValue(rep({ shadowRows: 1, comparedWindows: 1 }) as never);

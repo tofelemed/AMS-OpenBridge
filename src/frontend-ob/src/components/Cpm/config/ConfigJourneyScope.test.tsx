@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as fetchMod from '../../../api/apiFetch';
 import { useAuthStore } from '../../../store/authStore';
 import { setActiveZone } from '../../../cpa/activeZone';
+import { useContextCarry } from '../../../cpa/useContextCarry';
 import { ConfigStartPage } from './ConfigStartPage';
 import { ConfigScopePage } from './ConfigScopePage';
 import { ConfigRegionsPage } from './ConfigRegionsPage';
@@ -52,7 +53,9 @@ function answer(url: string): unknown {
 }
 
 const Probe: React.FC = () => { const l = useLocation(); return <div data-testid="loc">{l.pathname + l.search}</div>; };
-function renderAt(url: string, onlyStart = false) {
+/** The app shell's context carry (AppShell): puts the last page's loop back on a link that lacks it. */
+const Carry: React.FC = () => { useContextCarry(); return null; };
+function renderAt(url: string, onlyStart = false, carry = false) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -69,6 +72,7 @@ function renderAt(url: string, onlyStart = false) {
           <Route path="*" element={null} />
         </Routes>
         <Probe />
+        {carry && <Carry />}
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -120,7 +124,7 @@ describe('the header plant travels with every journey link (I1)', () => {
     renderAt('/cpm/config?site=hdpe');
     fireEvent.click(screen.getByRole('combobox', { name: 'Loop' }));
     fireEvent.mouseDown(await screen.findByRole('option', { name: /FIC10302/ }));
-    await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?site=hdpe'));
+    await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10302?site=hdpe&loop=FIC10302'));
     cleanup();
     renderAt('/cpm/config?site=hdpe');
     const changes = await screen.findByRole('region', { name: 'Changes in progress' });
@@ -169,6 +173,38 @@ describe('the header plant travels with every journey link (I1)', () => {
     fireEvent.change(within(dlg).getByLabelText('Reason'), { target: { value: 'Wider' } });
     fireEvent.click(within(dlg).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(loc()).toBe('/cpm/config/regions?site=hdpe&batch=b7'));
+  });
+});
+
+describe('the loop the app carries (re-check of 007eebcc)', () => {
+  beforeAll(() => setActiveZone('UTC'));
+  beforeEach(() => {
+    vi.mocked(fetchMod.apiJson).mockReset();
+    vi.mocked(fetchMod.apiJson).mockImplementation(async (url: string) => answer(url));
+    useAuthStore.setState({ user: { user_id: 'u', username: 'admin', email: '', role: 'Admin', is_active: true, permissions: ['cpm.config.read', 'cpm.config.draft'] }, status: 'authenticated', accessToken: 't' });
+  });
+  afterEach(cleanup);
+
+  it('the sidebar link with a loop in context shows the start page, with that loop in the search', async () => {
+    renderAt('/cpm/config?site=hdpe&loop=FIC10302', false, true);
+    const bar = await screen.findByRole('group', { name: 'Choose what to change' });
+    expect(loc()).toBe('/cpm/config?site=hdpe&loop=FIC10302');
+    expect(within(bar).getByRole('combobox', { name: /^Loop FIC10302/ })).toBeTruthy();
+  });
+
+  it('the back link from a loop page reaches the start page even though the carry puts the loop back', async () => {
+    renderAt('/cpm/config/loops/FIC10302?site=hdpe&loop=FIC10302', false, true);
+    expect(await screen.findByRole('heading', { name: 'FIC10302' })).toBeTruthy();
+    fireEvent.click(backLink());
+    expect(await screen.findByRole('group', { name: 'Choose what to change' })).toBeTruthy();
+    expect(loc()).toBe('/cpm/config?site=hdpe&loop=FIC10302');
+  });
+
+  it('a loop chosen in the search becomes the carried loop, not the one the page came with', async () => {
+    renderAt('/cpm/config?site=hdpe&loop=FIC10302', false, true);
+    fireEvent.click(await screen.findByRole('combobox', { name: /^Loop FIC10302/ }));
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /FIC10301/ }));
+    await waitFor(() => expect(loc()).toBe('/cpm/config/loops/FIC10301?site=hdpe&loop=FIC10301'));
   });
 });
 

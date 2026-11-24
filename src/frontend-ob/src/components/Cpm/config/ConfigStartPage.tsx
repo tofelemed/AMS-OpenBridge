@@ -18,7 +18,7 @@ import { ReasonedButton } from '../ReasonedButton';
 import { useEffectiveSummary } from './useConfig';
 import { useRegionActions, useStaleLoops } from './useConfigRegions';
 import { ConfigHowToRead } from './ConfigHowToRead';
-import { changePath, legacyTarget, loopPath, plantPath, regionsBatchPath, regionsPath, scoped, typePath } from './configRoutes';
+import { changePath, legacyTarget, loopContextPath, plantPath, regionsBatchPath, regionsPath, scoped, typePath } from './configRoutes';
 import { NEEDS } from './lifecycle';
 import { changesInProgress, runningNow } from './startPageData';
 import { StartBar } from './StartBar';
@@ -79,7 +79,10 @@ const StartPage: React.FC = () => {
   const byId = useMemo(() => new Map(loopList.map(l => [l.loopId, l])), [loopList]);
   const typeOptions = useMemo(() => [...new Set((effective.data?.loops ?? []).map(l => l.profileId).filter(Boolean))]
     .map(t => ({ value: t, label: codeLabel(t) })).sort((x, y) => x.label.localeCompare(y.label)), [effective.data]);
-  const plantOptions = useMemo(() => sites.map(s => ({ value: s, label: siteName(s) })), [sites, siteName]);
+  // the header's plant, when one is chosen, is the only plant offered
+  const plantOptions = useMemo(() => summarySites.map(s => ({ value: s, label: siteName(s) })), [summarySites, siteName]);
+  // the loop carried from the last page shows in the search; choosing a loop makes it the carried one
+  const contextLoop = params.get('loop') || undefined;
 
   if (!canRead) return <div className="cpm-screen"><EmptyState title="Gate Configuration" copy="You don't have access to Gate Configuration." /></div>;
 
@@ -95,7 +98,8 @@ const StartPage: React.FC = () => {
         actions={<ObcButton variant="normal" onClick={() => setGuide(true)}>How to read</ObcButton>} />
       {effective.isError && <QueryError title="Loop types unavailable" error={effective.error} retry={() => void effective.refetch()} />}
       <StartBar
-        search={<LoopCombobox loops={loopList.filter(l => scope.matches(l))} loopId={undefined} loop={undefined} onSelect={id => go(loopPath(id))}
+        search={<LoopCombobox loops={loopList.filter(l => scope.matches(l))} loopId={contextLoop} loop={contextLoop ? byId.get(contextLoop) : undefined}
+          onSelect={id => go(loopContextPath(id))}
           isLoading={loopsQ.isLoading} isError={loopsQ.isError} retry={() => void loopsQ.refetch()} />}
         types={typeOptions} typesLoading={effective.isLoading} plants={plantOptions}
         onType={t => go(typePath(t))} onPlant={s => go(plantPath(s))} onRegions={() => go(regionsPath())} />

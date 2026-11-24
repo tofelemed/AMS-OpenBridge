@@ -23,7 +23,7 @@ import { SubPageHead } from './SubPageHead';
 import { editableState, frozenLine, frozenSentence, lifecycleActions, type LifecycleAction } from './lifecycle';
 import { APPROVAL_BINDS, APPROVE_RULE, CONTROL_AUTHORITY } from '../governance/GovernanceHowToRead';
 import { bundleApproveRule } from './approvalRules';
-import { diffProperties, resolveBelow } from './configSupport';
+import { checkSides, diffProperties } from './configSupport';
 import { bundleStateWord, editableChanges, plainNote } from './configWords';
 import { scopeTitle, stateWord, stepMarks, versionLabel } from './levelWords';
 import { CONFIG_BASE, loopPath, plantPath, scoped, typePath, type ChangeStep } from './configRoutes';
@@ -64,7 +64,9 @@ export const ConfigChangePage: React.FC = () => {
   const actions = useConfigActions(b?.site);
   const requested = params.get('step');
   // Edit is done exactly when Check lists a change (the same editable-filtered list); null = the catalogue is still loading
-  const changes = !b ? [] : editableChanges(diffProperties(parent.data?.resolved.properties ?? resolveBelow(b.layers, b.scopeKind), b.resolved.properties), catalogue.data ? entries : null);
+  const parentPending = !!b?.parentBundleId && parent.isLoading;
+  const sides = b ? checkSides(b, parent.data, parentPending) : null;
+  const changes = !sides ? [] : editableChanges(diffProperties(sides.before, sides.after), catalogue.data ? entries : null);
   const marks = stepMarks(b?.state ?? 'DRAFT', changes.length > 0);
   // no try ran on this version: the Try step is not done, whatever the state
   if (marks.try === 'done' && !(b?.shadow as { analysisRunId?: string } | null)?.analysisRunId) marks.try = null;
@@ -123,7 +125,7 @@ export const ConfigChangePage: React.FC = () => {
             <PropertiesTab bundle={b} entries={entries} gate={gate} onGate={setGate} editable={editable} pending={actions.patch.isPending} onOp={onOp} />
           )}
           {step === 'check' && (
-            <DiffImpactPanel bundle={b} parent={parent.data} loopCount={loopCount} entries={catalogue.data ? entries : null}
+            <DiffImpactPanel bundle={b} parent={parent.data} parentPending={parentPending} loopCount={loopCount} entries={catalogue.data ? entries : null}
               validate={{ enabled: validate.enabled, reason: reasonOf(validate), busy: actions.validate.isPending, error: actions.validate.error, onValidate: () => actions.validate.mutate(b.bundleId) }} />
           )}
           {step === 'try' && (

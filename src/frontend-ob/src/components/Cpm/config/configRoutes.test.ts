@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changePath, legacyTarget, loopPath, plantPath, regionsBatchPath, regionsPath, scoped, STEP_OF_TAB, typePath } from './configRoutes';
+import { changePath, legacyTarget, loopContextPath, loopPath, plantPath, regionsBatchPath, regionsPath, scoped, STEP_OF_TAB, typePath } from './configRoutes';
 import { configHref } from '../cpaHref';
 
 const lt = (s: string) => legacyTarget(new URLSearchParams(s));
@@ -47,9 +47,17 @@ describe('legacyTarget', () => {
     expect(lt('view=per-loop&batch=x1')).toBe('/cpm/config/regions?batch=x1');
     expect(lt('view=per-loop')).toBe('/cpm/config/regions');
   });
-  it('sends a loop alone to the loop page, keeping the gate', () => {
-    expect(lt('loop=FIC10302')).toBe('/cpm/config/loops/FIC10302');
+  it('sends an old loop link (view=effective or a gate) to the loop page, keeping the gate', () => {
+    expect(lt('loop=FIC10302&view=effective')).toBe('/cpm/config/loops/FIC10302');
     expect(lt('loop=FIC10302&view=effective&gate=G12')).toBe('/cpm/config/loops/FIC10302?gate=G12');
+    expect(lt('loop=FIC10302&gate=G12')).toBe('/cpm/config/loops/FIC10302?gate=G12');
+  });
+  it('leaves a bare loop alone: it is the loop the app carries, so the start page shows', () => {
+    expect(lt('loop=FIC10302')).toBeNull();
+    expect(lt('site=hdpe&loop=FIC10302&range=24h')).toBeNull();
+  });
+  it('a loop page link that names the loop as the carried one', () => {
+    expect(loopContextPath('FIC 1')).toBe('/cpm/config/loops/FIC%201?loop=FIC%201');
   });
   it('returns null when there is nothing to map', () => {
     expect(lt('')).toBeNull();
