@@ -7125,5 +7125,7 @@ Flink and `cplm-api` ship together (same gate catalogue). The Response job is re
 - **Found by this run and fixed:** the CHG-226 fleet heatmap read (CHG-226 above, 4.4 s to 0.29 s). Seven fleet reads were timed on both versions; the other six are unchanged.
 - Not tested on the lab (no data): the regime-level value "This regime" and the several-window form of "Same result".
 
+**Built (24 Nov 2026, not deployed):** bundle `release-out/v2.10.0-20261124` (809 MB, 45 checksums OK) from commit 76bfe55a, jar `7a51c3d12f591284`. Pushed to GitHub (`feat/sr-engine-fixes`, plain push, no force). Verification of the bundle: images PROD, digests match, the frontend bakes `root.hdpe.cpm` only, the release code is inside the images; the docs commit after the build adds only the filled facts.
+
 **Open with the owner:** whether the 9 recommended operating regions are entered right after the release or only after the SME confirms; the savepoint path needs a lab rehearsal of this
 jar; plant side: the 18 non-PID tags, PV ranges for the loops whose P / I / D we use, P / I / D over MQTT.
