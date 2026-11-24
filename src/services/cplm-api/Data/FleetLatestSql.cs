@@ -133,16 +133,18 @@ public static class FleetLatestSql
     /// window's observability flags so a pass judged without one of its inputs reads "OK on available data".</summary>
     /// <remarks>CHG-226: while the newest window is a refill window after a Flink restart and the older verdict is in reach
     /// (Data/RefillSql), <c>last_stored</c> is true and the verdict's gates / run ids / flags / reason ride as <c>v_*</c> (read only
-    /// then): the controller serves the verdict as the row.</remarks>
+    /// then): the controller serves the verdict as the row. The verdict probe <c>v</c> must not select the payload: on a hypertable
+    /// the old chunks are compressed and reading it decompressed a segment per loop (0.25 s -> 4.4 s on the lab, 24 Nov 2026). The
+    /// lookup <c>vp</c> reads it for the one row of a loop that shows its last stored result; its WHERE is a one-time filter otherwise.</remarks>
     public static string HeatmapFiltered(string healthWhere) => $"""
         SELECT r.loop_id, r.display_name, r.site, r.loop_type,
                n.window_end, n.diagnosis, n.confidence, n.gates, n.method_run_ids, n.insufficient_reason, n.flags,
                v.window_end AS v_window_end, v.diagnosis AS v_diagnosis, v.confidence AS v_confidence,
                ls.last_stored, {RefillSql.UpdatingSince("n")} AS updating_since,
-               CASE WHEN ls.last_stored THEN (v.payload->'gates')::text END AS v_gates,
-               CASE WHEN ls.last_stored THEN v.method_run_ids::text END AS v_method_run_ids,
-               CASE WHEN ls.last_stored THEN v.payload->>'insufficient_evidence_reason' END AS v_insufficient_reason,
-               CASE WHEN ls.last_stored THEN (v.payload->'observability_flags')::text END AS v_flags
+               (vp.payload->'gates')::text AS v_gates,
+               vp.method_run_ids::text AS v_method_run_ids,
+               vp.payload->>'insufficient_evidence_reason' AS v_insufficient_reason,
+               (vp.payload->'observability_flags')::text AS v_flags
         FROM cpm.loop_registry r
         LEFT JOIN LATERAL (
             SELECT g.window_end, g.diagnosis, g.confidence, (g.payload->'gates')::text AS gates,
@@ -156,7 +158,7 @@ public static class FleetLatestSql
             LIMIT 1
         ) n ON TRUE
         LEFT JOIN LATERAL (
-            SELECT g.window_end, g.diagnosis, g.confidence, g.source, g.payload, g.method_run_ids
+            SELECT g.window_end, g.diagnosis, g.confidence, g.source, g.created_at
             FROM analytics.cplm_gate_results g
             WHERE lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
               AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
@@ -165,6 +167,15 @@ public static class FleetLatestSql
             LIMIT 1
         ) v ON TRUE
         CROSS JOIN LATERAL (SELECT {RefillSql.LastStored("v", "n")} AS last_stored) ls
+        LEFT JOIN LATERAL (
+            SELECT g.payload, g.method_run_ids
+            FROM analytics.cplm_gate_results g
+            WHERE ls.last_stored
+              AND lower(g.loop_id) = lower(r.loop_id) AND g.window_kind = @windowKind AND g.purpose = 'LIVE'
+              AND g.diagnosis IS NOT NULL AND g.diagnosis <> 'INSUFFICIENT_DATA'
+              AND g.window_end = v.window_end AND g.created_at = v.created_at
+            LIMIT 1
+        ) vp ON TRUE
         {MonitoredInScope}
         {healthWhere}
         ORDER BY r.loop_id
