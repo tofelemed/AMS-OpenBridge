@@ -43,6 +43,8 @@ vi.mock('../../hooks/useBindingResolver', () => ({
         resolved: !p.startsWith('x.'),
         provenance: p.startsWith('f.') ? 'fallback' : 'asset-model',
         history: { ioTDbPath: `root.s.${p.replace(/\W/g, '_')}.${p.split('.').pop()}` },
+        // CHG-227: a path under l. has a live binding (one device topic for the loop).
+        ...(p.startsWith('l.') ? { live: { sparkplugTopic: 'spBv1.0/g/DDATA/e/L1', sparkplugDevice: 'L1', sparkplugMetric: p.split('.').pop() } } : {}),
       })) } });
     }
     return st.resolved.get(key);
@@ -56,6 +58,8 @@ const store = vi.hoisted(() => ({
     return [{ ts: t0, [m]: 1 }, { ts: t0 + 60_000, [m]: 2 }];
   }),
   connect: () => undefined,
+  subscribeScreen: vi.fn(),
+  unsubscribeScreen: vi.fn(),
 }));
 vi.mock('../../store/mqttStore', () => ({
   useMqttStore: (pick: (s: typeof store) => unknown) => pick(store),
@@ -101,6 +105,22 @@ describe('the cursor tooltip', () => {
     rerender(<TrendCore pens={PENS} controlledWindow={{ ...PIN, end: PIN.end + 4000, live: true }} showTimeBar={false} />);
     await new Promise(r => setTimeout(r, 50));
     expect(st.dispatch.filter(a => a.type === 'showTip')).toEqual([]);
+  });
+});
+
+describe('live values (CHG-227)', () => {
+  it('subscribes to the live topic its pens\' bindings name while the window is live, and not for a fixed one', async () => {
+    const pens = [{ path: 'l.pv', label: 'PV' }, { path: 'l.sp', label: 'SP' }];
+    store.subscribeScreen.mockClear();
+    const { unmount } = render(<TrendCore pens={pens} controlledWindow={{ ...PIN, live: true }} showTimeBar={false} />);
+    await loaded();
+    expect(store.subscribeScreen).toHaveBeenCalledWith(['spBv1.0/g/DDATA/e/L1']);
+    unmount();
+    expect(store.unsubscribeScreen).toHaveBeenCalledWith(['spBv1.0/g/DDATA/e/L1']);
+    store.subscribeScreen.mockClear();
+    render(<TrendCore pens={pens} controlledWindow={PIN} showTimeBar={false} />);
+    await loaded();
+    expect(store.subscribeScreen).not.toHaveBeenCalled();
   });
 });
 

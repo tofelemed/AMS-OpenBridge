@@ -34,6 +34,8 @@ export interface Pen extends PenSpec {
   iotSeries?: string;    // root.<site>.<unit>.<device>
   measurement?: string;  // metric
   liveKey?: string;      // device/metric (matches the mqtt ring-buffer key)
+  /** CHG-227: the Sparkplug DDATA topic the pen's live values arrive on; a tailing trend subscribes to it. */
+  liveTopic?: string;
   /** CHG-175: a loop pen without a binding from the asset model; nothing is read for it. */
   unread?: boolean;
   /** CHG-176: why the pen's binding is not trusted (a Designer fallback pen); the legend names it, NE107 Uncertain. */

@@ -3,6 +3,7 @@
  * both show the same number. Live values first, then the newest trend bucket, then the last stored value, the only
  * plane with no time bound. A value is live or old, never both (CHG-078). CHG-158 (owner review): every value says where it
  * came from — live, last received …, from historian or last stored … — as it did before the redesign.
+ * CHG-227: a live value that stopped arriving (older than STALE_LIVE_MS) gives way to a newer trend bucket (./signalSource).
  */
 import { useMemo } from 'react';
 import type { CpmLoop } from '../../../../api/cpmApi';
@@ -13,6 +14,7 @@ import { loopSeries } from '../../../../utils/loopSeries';
 import { modeLabel } from '../../../../utils/modeVocabulary';
 import { STALE_LIVE_MS, liveSignalQuality } from '../../FacetPill';
 import { useTrendRange } from '../../trend/useTrendRange';
+import { pickSource, type ValueSource } from './signalSource';
 import { ageText } from './summaryText';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -59,35 +61,40 @@ export function useSignalValues(loop: CpmLoop) {
   const noData = !live.hasData && !trend.isLoading && !trend.isError && points.length === 0
     && !lastStored.isLoading && Object.keys(held).length === 0;
 
-  const note = (liveTs: number | undefined, liveShown: boolean, heldTs: number | undefined, fromTrend: boolean): string =>
-    liveShown ? liveSource(liveTs) : fromTrend ? 'from historian' : heldTs ? `last stored ${ageLabel(heldTs)}` : '';
+  const note = (from: ValueSource | null, liveTs: number | undefined, heldTs: number | undefined): string =>
+    from === 'live' ? liveSource(liveTs) : from === 'trend' ? 'from historian' : from === 'held' && heldTs ? `last stored ${ageLabel(heldTs)}` : '';
   /** A live value whose feed is current: the note under it reads "live". */
-  const current = (liveTs: number | undefined, liveShown: boolean) => liveShown && liveSource(liveTs) === 'live';
+  const current = (from: ValueSource | null, liveTs: number | undefined) => from === 'live' && liveSource(liveTs) === 'live';
+  // CHG-227: a live value that stopped arriving gives way to a newer bucket (re-read every minute), so the values move.
+  const now = Date.now();
 
   const signals: SignalValue[] = (['pv', 'sp', 'op'] as const).map(m => {
     const lv = live[m];
-    const liveNum = lv ? num(lv.value) : null;
-    const stored = bucketValue(last, m);
-    const heldVal = num(held[m]?.value);
-    const shownNum = liveNum ?? stored ?? heldVal;
+    const planes = { live: lv ? num(lv.value) : null, trend: bucketValue(last, m), held: num(held[m]?.value) };
+    const from = pickSource({ value: planes.live, ts: lv?.ts }, { value: planes.trend, ts: last?.ts },
+      { value: planes.held, ts: held[m]?.ts }, now);
+    const shownNum = from ? planes[from] : null;
     return {
       role: m.toUpperCase() as SignalValue['role'], value: shownNum != null ? shownNum.toFixed(2) : null, unit: m === 'op' ? '%' : '',
-      note: note(lv?.ts, liveNum != null, heldVal != null ? held[m]?.ts : undefined, stored != null),
-      num: shownNum, live: current(lv?.ts, liveNum != null),
+      note: note(from, lv?.ts, held[m]?.ts),
+      num: shownNum, live: current(from, lv?.ts),
     };
   });
 
-  const liveMode = live.mode?.value;
-  const mode = modeLabel(liveMode ?? last?.mode ?? held.mode?.value);
+  const modePlanes = { live: live.mode?.value, trend: last?.mode, held: held.mode?.value };
+  const modeFrom = pickSource({ value: modePlanes.live, ts: live.mode?.ts }, { value: modePlanes.trend, ts: last?.ts },
+    { value: modePlanes.held, ts: held.mode?.ts }, now);
+  const modeToken = modeFrom ? modePlanes[modeFrom] : undefined;
+  const mode = modeLabel(modeToken);
   // Good news is not repeated on the card; a mode that excludes the loop at G1 is a warning and stays.
   const modeNote = [mode.tone === 'warn' || mode.tone === 'bad' ? mode.note : '',
-    note(live.mode?.ts, liveMode != null, held.mode?.ts, last?.mode != null)].filter(Boolean).join(' · ');
+    note(modeFrom, live.mode?.ts, held.mode?.ts)].filter(Boolean).join(' · ');
   const sq = liveSignalQuality(liveQuality(live), live.lastSourceTs);
 
   return {
     signals, mode, modeNote, noData, series, rolling,
     /** CHG-185: the shown mode is live and current; `modeToken` is the value behind its label. */
-    modeLive: current(live.mode?.ts, liveMode != null), modeToken: liveMode ?? last?.mode ?? held.mode?.value,
+    modeLive: current(modeFrom, live.mode?.ts), modeToken,
     hasLive: live.hasData,
     quality: { tone: live.hasData ? sq.tone : ('muted' as const), text: live.hasData ? sq.text : 'No live publisher' },
   };

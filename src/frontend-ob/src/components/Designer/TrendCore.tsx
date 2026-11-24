@@ -133,7 +133,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
     const resolved = (batch?.bindings ?? []) as Array<Record<string, unknown>>;
     return penSpecs.map((spec, i) => {
       const b = resolved[i] as
-        | { resolved?: boolean; provenance?: string; live?: { sparkplugDevice?: string; sparkplugMetric?: string }; history?: { ioTDbPath?: string } }
+        | { resolved?: boolean; provenance?: string; live?: { sparkplugTopic?: string; sparkplugDevice?: string; sparkplugMetric?: string }; history?: { ioTDbPath?: string } }
         | undefined;
       const label = spec.label ?? spec.path.split('/').pop() ?? spec.path;
       // CHG-175: a loop's signal is never read from a binding the resolver only derived from the path, or could not make.
@@ -154,6 +154,7 @@ export const TrendCore: React.FC<TrendCoreProps> = ({
         iotSeries: series,
         measurement,
         liveKey: dev && met ? `${dev}/${met}` : undefined,
+        liveTopic: b?.live?.sparkplugTopic,
         ...(t === 'fallback' ? { trustReason: trustReason(t) } : {}),
       };
     });

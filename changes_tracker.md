@@ -7076,3 +7076,20 @@ Lab retest fixes (23 Nov, combined deploy 91d9b2aa): items 1 to 11 of the lab re
 
 **Tests (targeted, owner 23 Nov):** Flink 12 classes, 92 run, 0 failures (new `LongWarmupCoverageTest` 6, `FusionWarmupCopyTest` 3, with restore round-trips); cplm-api 18 classes, 140 pass, 2 known lab-state failures (new `FleetRefillFallbackTests` with one probe loop per case, `RefillRuleTests`); frontend 7 files, 61 pass, tsc and eslint clean; scripts `bash -n`. Lab proof of stop + resume with the current jar (23 Nov, an accidental stop of Long + Fusion at 11:38 UTC, resumed from the savepoints at 11:40).
 
+## CHG-227 — The Trend page and the Loop Explorer values update by themselves, without a refresh (2026-11-24, branch feat/sr-engine-fixes, unreleased)
+
+**Why:** owner, 24 Nov: on the Trend page and on Loop Explorer, PV / SP / OP and the trend only changed when the page was reloaded ("if I sit with the trend page open, values should update automatically, not on refresh").
+
+**Found (code, lab 24 Nov):**
+- Trend page: the chart read the historian once when it opened (live windows re-read only on a new span) and drew newer values only from the browser's live MQTT buffer, but nothing on the page subscribed to the loop's live topic (`useTrendHistory` only connected). So the line stopped at the moment the page was opened while the time axis moved on. The binding resolver gives the right topic (`spBv1.0/ams_site1/DDATA/ams_edge1/<loop>`, metric pv / sp / op).
+- Loop Explorer values (Summary strip and Signals table): any live value won over the historian however old it was. When the live feed stops reaching the browser, the numbers stayed at the snapshot loaded when the page opened, although the trend under them is re-read every minute; a reload loaded a newer snapshot.
+- Lab facts, not code: the lab's `ams-sparkplug-edge-node` has been stopped since 2026-11-03 (exit 137) and the lab has had no loop samples since 23 Nov 12:36 UTC, so the lab shows no live values at all. The browser's MQTT login through the gateway works (CONNACK 0, subscription granted, read-only probe).
+
+**Change (ams-frontend only):**
+- `Designer/trend/useTrendHistory.ts`: while the chart tails, it subscribes to its pens' live topics (one per device, reference-counted in the store, released on a fixed period or unmount) and reads the historian again each minute (`HISTORY_REFRESH_MS`), so the line keeps up while the live feed is quiet (report by exception) or down. `trendSupport.ts` `Pen.liveTopic`; `TrendCore.tsx` takes it from the binding (`live.sparkplugTopic`). Also applies to the Designer's trend dialog and canvas symbol.
+- `Cpm/explorer/summary/signalSource.ts` (new) + `useSignalValues.ts`: a live value wins while its feed is current; one older than 10 minutes (two live repeats) gives way to a newer historian bucket, with its note "from historian". PV, SP, OP and Mode. Still one plane per value (CHG-078).
+- Loop Explorer's trend is unchanged: it already re-reads every minute (8 h window, 2-minute points), so its newest point is up to about 3 minutes behind.
+
+**Services updated:** ams-frontend. No migration, no Flink, no cplm-api change, no script to run.
+
+**Tests (targeted):** new `useTrendHistory.test.ts` (5: subscribes once per topic while tailing and lets go, keeps it while the window steps, none for a fixed period, re-reads each minute up to the new end, a fixed period once) and `signalSource.test.ts` (5), `TrendCore.test.tsx` + 1 (the binding's topic is subscribed while live, not for a fixed window); with TrendCore, TrendCore.trust, TrendPage and SignalsTab: 63 pass. `tsc` 0 errors, eslint clean on the changed files.

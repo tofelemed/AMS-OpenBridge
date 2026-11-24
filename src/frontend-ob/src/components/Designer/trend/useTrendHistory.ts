@@ -2,10 +2,17 @@
  * The trend's data (split out of TrendCore, CHG-175, unchanged in what it reads): the history of every pen, read when
  * the window or the pens change, the live tail from the MQTT ring buffer while the chart tails, and the pens whose
  * read failed. `penData` keeps its identity until the data may have changed, so a cursor move re-applies nothing.
+ *
+ * CHG-227 (owner, 24 Nov 2026: the trend only moved on refresh): while the chart tails, it subscribes to its pens' live
+ * topics, so new values reach the ring buffer (nothing else on the Trend page subscribed), and it reads the historian
+ * again once a minute, so the line keeps up while the live feed is quiet (report by exception) or down.
  */
 import { useEffect, useMemo, useState, type MutableRefObject } from 'react';
 import { useMqttStore, getLiveSeries } from '../../../store/mqttStore';
 import { FETCH_FAILED, type Pen, type TrendPoint } from './trendSupport';
+
+/** CHG-227: how often a tailing trend reads its history again. */
+export const HISTORY_REFRESH_MS = 60_000;
 
 interface History { map: Record<string, TrendPoint[]>; failed: string[] }
 
@@ -25,11 +32,28 @@ export function useTrendHistory(o: {
   const { pens, windowStart, windowEnd, fetchKey, tailing, tick, widthRef } = o;
   const fetchTrend = useMqttStore(s => s.fetchTrend);
   const connect = useMqttStore(s => s.connect);
+  const subscribeScreen = useMqttStore(s => s.subscribeScreen);
+  const unsubscribeScreen = useMqttStore(s => s.unsubscribeScreen);
   const [hist, setHist] = useState<History>({ map: {}, failed: [] });
 
   useEffect(() => { connect(); }, [connect]);
 
-  // Historical fetch per pen, on window/pen change (identical to Phase C).
+  // CHG-227: one subscription per live topic (a loop's PV, SP and OP share its device topic), only while tailing. The
+  // store counts references, so a faceplate or a Loop Explorer row on the same loop keeps its own.
+  const topicsKey = tailing
+    ? [...new Set(pens.map(p => p.liveTopic).filter((t): t is string => !!t))].sort().join('|')
+    : '';
+  useEffect(() => {
+    if (!topicsKey) return undefined;
+    const topics = topicsKey.split('|');
+    subscribeScreen(topics);
+    return () => unsubscribeScreen(topics);
+  }, [topicsKey, subscribeScreen, unsubscribeScreen]);
+
+  // CHG-227: while tailing, the history is read again each time the window end enters a new minute.
+  const refreshSlot = tailing ? Math.floor(windowEnd / HISTORY_REFRESH_MS) : -1;
+
+  // Historical fetch per pen, on window/pen change (identical to Phase C), and each minute while tailing (CHG-227).
   useEffect(() => {
     if (pens.length === 0) return undefined;
     let cancelled = false;
@@ -69,8 +93,8 @@ export function useTrendHistory(o: {
       setHist({ map, failed });
     });
     return () => { cancelled = true; };
-    // re-fetch when the window span/bounds change (fetchKey), the pens change, or fetchTrend changes
-  }, [pens, fetchKey, fetchTrend]); // eslint-disable-line react-hooks/exhaustive-deps
+    // re-fetch when the window span/bounds change (fetchKey), the pens change, fetchTrend changes, or a tailing minute passes
+  }, [pens, fetchKey, fetchTrend, refreshSlot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merged (history + live tail) data per pen — also what the legend reads at the cursor.
   const penData = useMemo(() => pens.map(pen => {
