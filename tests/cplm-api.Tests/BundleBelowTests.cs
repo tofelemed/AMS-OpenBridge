@@ -39,8 +39,8 @@ public sealed class BundleBelowTests
     private static List<string> Changes(BundleView b, string? loopProfile = null)
     {
         var pack = BundleBelow.PackFor(b, loopProfile);
-        var below = BundleBelow.Below(b, pack)!.Value;
-        var effective = BundleBelow.Effective(b, pack)!.Value;
+        var below = BundleBelow.Below(b, pack)!.Properties;
+        var effective = BundleBelow.Effective(b, pack)!.Properties;
         var names = below.EnumerateObject().Select(p => p.Name).Union(effective.EnumerateObject().Select(p => p.Name));
         return names.Where(n => Raw(below, n) != Raw(effective, n)).OrderBy(n => n, StringComparer.Ordinal).ToList();
     }
@@ -56,9 +56,41 @@ public sealed class BundleBelowTests
         var b = View("PROFILE", Pack, Factory(), plant, Layer("PROFILE", Pack, 2, Props((edited.Name, 0.123))));
         Changes(b).Should().Equal(edited.Name);
         var pack = BundleBelow.PackFor(b);
-        Raw(BundleBelow.Below(b, pack)!.Value, edited.Name).Should().Be(edited.Value.GetRawText(), "Now is the pack value the type's loops run");
-        Raw(BundleBelow.Effective(b, pack)!.Value, edited.Name).Should().Be("0.123");
-        Raw(BundleBelow.Below(b, pack)!.Value, SiteProp).Should().Be("2.75", "the plant's value lies over the pack");
+        Raw(BundleBelow.Below(b, pack)!.Properties, edited.Name).Should().Be(edited.Value.GetRawText(), "Now is the pack value the type's loops run");
+        Raw(BundleBelow.Effective(b, pack)!.Properties, edited.Name).Should().Be("0.123");
+        Raw(BundleBelow.Below(b, pack)!.Properties, SiteProp).Should().Be("2.75", "the plant's value lies over the pack");
+    }
+
+    [Fact]
+    public void Each_side_says_where_a_value_comes_from_a_pack_value_from_the_loop_type()
+    {
+        // round 4: the Edit step shows these words ("Loop type", "Plant", ...) for the values Check compares
+        var edited = Differing();
+        var untouched = Differing(edited.Name);
+        var b = View("PROFILE", Pack, Factory(), Layer("SITE", "lab", 1, Props((SiteProp, 2.75))), Layer("PROFILE", Pack, 2, Props((edited.Name, 0.123))));
+        var pack = BundleBelow.PackFor(b);
+        var below = BundleBelow.Below(b, pack)!;
+        var effective = BundleBelow.Effective(b, pack)!;
+        below.Sources[untouched.Name].Should().Be("PROFILE", "the type's pack sets it");
+        below.Sources[SiteProp].Should().Be("SITE");
+        below.Sources[edited.Name].Should().Be("PROFILE", "inherited from the pack before the edit");
+        effective.Sources[edited.Name].Should().Be("PROFILE");
+        effective.Sources[untouched.Name].Should().Be("PROFILE");
+        var factoryOnly = FactoryLayers.Factory().EnumerateObject().Select(p => p.Name)
+            .FirstOrDefault(n => n != SiteProp && !FactoryLayers.Profile(Pack)!.Value.TryGetProperty(n, out _));
+        if (factoryOnly is not null) effective.Sources[factoryOnly].Should().Be("FACTORY");
+    }
+
+    [Fact]
+    public void A_loop_version_says_this_loop_for_its_own_values_and_loop_type_for_the_pack()
+    {
+        var own = Differing();
+        var packOnly = Differing(own.Name);
+        var b = View("LOOP", "FIC10302", Factory(), Layer("SITE", "lab", 1, Props()), Layer("LOOP", "FIC10302", 3, Props((own.Name, 0.123))));
+        var effective = BundleBelow.Effective(b, Pack)!;
+        effective.Sources[own.Name].Should().Be("LOOP");
+        effective.Sources[packOnly.Name].Should().Be("PROFILE", "the registry's loop type names the pack");
+        BundleBelow.Below(b, Pack)!.Sources[own.Name].Should().Be("PROFILE", "inherited from the pack before the loop's edit");
     }
 
     [Fact]
@@ -88,7 +120,7 @@ public sealed class BundleBelowTests
         BundleBelow.PackFor(b).Should().BeNull("no PROFILE layer names one");
         BundleBelow.PackFor(b, Pack).Should().Be(Pack);
         Changes(b, Pack).Should().Equal(edited.Name);
-        Raw(BundleBelow.Below(b, Pack)!.Value, edited.Name).Should().Be(edited.Value.GetRawText());
+        Raw(BundleBelow.Below(b, Pack)!.Properties, edited.Name).Should().Be(edited.Value.GetRawText());
     }
 
     [Fact]
@@ -97,7 +129,7 @@ public sealed class BundleBelowTests
         var b = View("LOOP", "FIC10302", Factory(), Layer("SITE", "lab", 1, Props()), Layer("PROFILE", Pack, 2, Props((SiteProp, 3.5))), Layer("LOOP", "FIC10302", 3, Props()));
         BundleBelow.PackFor(b).Should().Be(Pack);
         Changes(b).Should().BeEmpty();
-        Raw(BundleBelow.Below(b, Pack)!.Value, SiteProp).Should().Be("3.5");
+        Raw(BundleBelow.Below(b, Pack)!.Properties, SiteProp).Should().Be("3.5");
     }
 
     [Fact]
@@ -108,7 +140,7 @@ public sealed class BundleBelowTests
         Changes(b).Should().Equal(SiteProp);
         var differing = Differing();
         var factory = FactoryLayers.Factory();
-        Raw(BundleBelow.Below(b, null)!.Value, differing.Name).Should().Be(factory.TryGetProperty(differing.Name, out var f) ? f.GetRawText() : "null");
+        Raw(BundleBelow.Below(b, null)!.Properties, differing.Name).Should().Be(factory.TryGetProperty(differing.Name, out var f) ? f.GetRawText() : "null");
     }
 
     [Fact]

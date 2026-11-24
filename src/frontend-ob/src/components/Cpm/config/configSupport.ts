@@ -143,6 +143,17 @@ export function checkSides(bundle: CheckBundle, parent?: CheckBundle, parentPend
     : { before: resolveBelow(bundle.layers, bundle.scopeKind), after: bundle.resolved.properties };
 }
 
+/**
+ * Round 4 (owner, 24 Nov): the value the Edit step shows for a setting and where it comes from - the engine's way (the class pack
+ * under every layer, as Check compares) when the server gives it, else the bundle's own resolution. A type version started from
+ * the plant's version read "—" there while Check showed the type's value.
+ */
+export function shownValue(bundle: Pick<Bundle, 'resolved' | 'effective' | 'effectiveSources'>, property: string): { value: unknown; source: string | undefined } {
+  return bundle.effective && bundle.effectiveSources
+    ? { value: bundle.effective[property], source: bundle.effectiveSources[property] }
+    : { value: bundle.resolved.properties[property], source: bundle.resolved.sources[property] };
+}
+
 /** Properties whose value differs between two resolved blocks (the diff of a draft against its parent or the effective config). */
 export function diffProperties(before: Record<string, unknown>, after: Record<string, unknown>): Array<{ property: string; before: unknown; after: unknown }> {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);

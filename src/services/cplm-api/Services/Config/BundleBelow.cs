@@ -6,6 +6,8 @@
 //   Below     = FACTORY with the class pack over it, then the layers below the version's own level (what the loops run without it);
 //   Effective = the same, then every layer including the version's own (what they run with it) - LoopEffective's order.
 // A plant version has no single pack (each loop type has its own), so both sides keep FACTORY alone there.
+// Round 4 (owner, 24 Nov): each side carries where every value comes from, so the Edit step shows the values Check compares
+// (a pack value reads "Loop type", as in LoopEffective).
 using System.Text.Json;
 using Traverse.CplmApi.Config;
 
@@ -13,6 +15,9 @@ namespace Traverse.CplmApi.Services.Config;
 
 public static class BundleBelow
 {
+    /// <summary>One side: the resolved properties and, per property, the level it comes from (FACTORY, PROFILE, SITE, LOOP, REGIME, NO_VALUE).</summary>
+    public sealed record Side(JsonElement Properties, IReadOnlyDictionary<string, string> Sources);
+
     /// <summary>
     /// The class pack under a version: a loop type's own; a loop's (or regime's) from the registry's loop type
     /// (<paramref name="loopProfileId"/>), else its PROFILE layer; none for the plant.
@@ -25,17 +30,17 @@ public static class BundleBelow
     };
 
     /// <summary>What the loops of the version's scope run without it, or null when the scope is unknown or nothing resolves.</summary>
-    public static JsonElement? Below(BundleView b, string? pack)
+    public static Side? Below(BundleView b, string? pack)
     {
         var own = Array.IndexOf(EffectiveConfigResolver.Order, b.ScopeKind);
         return own <= 0 ? null : Resolve(b, pack, k => k < own);            // unknown scope, or FACTORY itself
     }
 
     /// <summary>What the loops of the version's scope run with it (every layer over the pack), or null when the scope is unknown.</summary>
-    public static JsonElement? Effective(BundleView b, string? pack) =>
+    public static Side? Effective(BundleView b, string? pack) =>
         Array.IndexOf(EffectiveConfigResolver.Order, b.ScopeKind) <= 0 ? null : Resolve(b, pack, _ => true);
 
-    private static JsonElement? Resolve(BundleView b, string? pack, Func<int, bool> takes)
+    private static Side? Resolve(BundleView b, string? pack, Func<int, bool> takes)
     {
         var stack = Stack(b);
         var factory = stack.Where(l => Kind(l) == "FACTORY").Select(Content).FirstOrDefault(c => c.ValueKind == JsonValueKind.Object);
@@ -48,7 +53,12 @@ public static class BundleBelow
             .OrderBy(l => l.TryGetProperty("ordinal", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt32() : 0)
             .Select(l => new ConfigLayer(Kind(l), Ref(l), Content(l))));
         var result = EffectiveConfigResolver.Resolve(layers);
-        return result.Properties.Count == 0 ? null : result.PropertiesElement();
+        if (result.Properties.Count == 0) return null;
+        var sources = new SortedDictionary<string, string>(result.Sources, StringComparer.Ordinal);
+        if (packContent is { ValueKind: JsonValueKind.Object } set)
+            foreach (var prop in set.EnumerateObject())
+                if (sources.TryGetValue(prop.Name, out var source) && source == "FACTORY") sources[prop.Name] = "PROFILE";
+        return new Side(result.PropertiesElement(), sources);
     }
 
     private static List<JsonElement> Stack(BundleView b) =>

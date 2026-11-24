@@ -167,3 +167,14 @@
    scrolling block that shrinks to its content; here the wrapper scrolls instead and the table stays a table */
 .cpm-config-tablewrap { max-width: 100%; overflow-x: auto; }
 .cpm-screen .cpm-config-tablewrap > table.cpm-table { display: table; width: 100%; }
+/* Round 4: on a phone each change is two lines (change · next step, then started · Continue), so Continue is never off the card;
+   the headings stay for screen readers. The same pattern as the audit trail (cpm-audit.css). */
+@media (max-width: 600px) {
+  .cpm-screen .cpm-config-tablewrap > table.cpm-table.cpm-config-changes, .cpm-config-changes tbody { display: block; }
+  .cpm-config-changes thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cpm-config-changes tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--traverse-space-1) var(--traverse-space-3);
+    padding: var(--traverse-space-2) var(--traverse-space-3); border-bottom: 1px solid var(--border-divider-color);
+  }
+  .cpm-config-changes tr > td { padding: 0; border: 0; background: none; box-shadow: none; overflow-wrap: break-word; }
+}

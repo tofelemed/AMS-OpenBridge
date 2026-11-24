@@ -10,6 +10,8 @@
  * say why under each when disabled. CHG-184 (owner review item 0): the heading names the property only (no catalogue id); no
  * "Read by" row (engine job codes) and no build wording. CHG-224: only editable properties reach this form, so there is no
  * "not used" / "Read-only" state; a source reads in the page's words ("Worked out automatically" when no layer sets it).
+ * Round 4 (owner, 24 Nov): Inherited is the engine's value below this level when the server gives it (the type's pack included),
+ * as the Check step's Now; else the layers below.
  */
 import React, { useMemo, useState } from 'react';
 import { KvRow, TonePill } from '../shared';
@@ -38,20 +40,30 @@ export function inheritedValue(layers: ConfigLayer[], scopeKind: string, propert
   return { value, from };
 }
 
+/** The inherited value the engine's way: the server's values below this level and where each comes from (none = unset). */
+export function engineInherited(below: Record<string, unknown>, sources: Record<string, string>, property: string): { value: unknown; from: string | null } {
+  const from = sources[property];
+  return from && ORDER.includes(from) ? { value: below[property], from } : { value: undefined, from: null };
+}
+
 export const PropertyForm: React.FC<{
   entry: CatalogueEntry;
   layers: ConfigLayer[];
   scopeKind: string;
   effective: unknown;
   source: string | undefined;
+  /** The server's values below this level, the class pack included, and their sources (absent: the layers below are read). */
+  below?: Record<string, unknown> | null | undefined;
+  belowSources?: Record<string, string> | null | undefined;
   errors: string[];
   editable: boolean;
   pending: boolean;
   onOp: (op: PatchOp) => void;
-}> = ({ entry, layers, scopeKind, effective, source, errors, editable, pending, onOp }) => {
+}> = ({ entry, layers, scopeKind, effective, source, below, belowSources, errors, editable, pending, onOp }) => {
   const own = layers.find(l => l.kind === scopeKind)?.content ?? {};
   const overridden = entry.property in own && own[entry.property] !== RESET_TO_INHERITED;
-  const inherited = useMemo(() => inheritedValue(layers, scopeKind, entry.property), [layers, scopeKind, entry.property]);
+  const inherited = useMemo(() => (below && belowSources ? engineInherited(below, belowSources, entry.property) : inheritedValue(layers, scopeKind, entry.property)),
+    [below, belowSources, layers, scopeKind, entry.property]);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const commissioning = entry.commissioningRequired && (effective === null || effective === undefined);

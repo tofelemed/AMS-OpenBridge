@@ -13,6 +13,7 @@ import { PropertyTable } from './PropertyTable';
 import { PropertyForm } from './PropertyForm';
 import { bundleGateOptions, errorsFor, invalidByGate } from './configLists';
 import { settingName } from './configWords';
+import { shownValue } from './configSupport';
 
 export interface PropertiesTabProps {
   bundle: Bundle;
@@ -62,7 +63,8 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({ bundle, entries: a
       {selected && (
         <Inspector title={settingName(selected.property)} open={drawer} onClose={() => setDrawer(false)}>
           <PropertyForm key={selected.property} entry={selected} layers={bundle.layers} scopeKind={bundle.scopeKind}
-            effective={bundle.resolved.properties[selected.property]} source={bundle.resolved.sources[selected.property]}
+            effective={shownValue(bundle, selected.property).value} source={shownValue(bundle, selected.property).source}
+            below={bundle.below} belowSources={bundle.belowSources}
             errors={errorsFor(errors, selected.property)} editable={editable} pending={pending} onOp={onOp} />
         </Inspector>
       )}

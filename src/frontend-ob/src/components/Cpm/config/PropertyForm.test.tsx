@@ -4,7 +4,7 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { PropertyForm, inheritedValue } from './PropertyForm';
+import { PropertyForm, engineInherited, inheritedValue } from './PropertyForm';
 import type { CatalogueEntry, ConfigLayer, PatchOp } from '../../../api/cpm/config';
 
 vi.mock('@oicl/openbridge-webcomponents-react/components/button/button', () => ({
@@ -59,6 +59,18 @@ describe('PropertyForm', () => {
     render(<PropertyForm entry={entry({ property: 'G0.mode', type: 'enum', unit: 'state', validation: ['OPERATIONAL', 'OBSERVE_ONLY'], default: null, commissioningRequired: true })}
       layers={layers} scopeKind="LOOP" effective={null} source={undefined} errors={[]} editable pending={false} onOp={() => {}} />);
     expect(screen.getByText('Commissioning required')).toBeTruthy();
+  });
+
+  it('round 4: Inherited is the engine value below this level (the type pack included) when the server gives it', () => {
+    // a type version started from the plant's version: its layers hold no pack, the server's below does
+    const typeLayers = layers.slice(0, 2).concat({ kind: 'PROFILE', ref: 'FLOW_FAST_SELF_REG', ordinal: 2, content: {}, content_hash: 'p' });
+    expect(engineInherited({ 'G3.error_band_span_fraction': 0.7 }, { 'G3.error_band_span_fraction': 'PROFILE' }, 'G3.error_band_span_fraction')).toEqual({ value: 0.7, from: 'PROFILE' });
+    expect(engineInherited({ 'G3.error_band_span_fraction': null }, { 'G3.error_band_span_fraction': 'NO_VALUE' }, 'G3.error_band_span_fraction')).toEqual({ value: undefined, from: null });
+    render(<PropertyForm entry={entry({})} layers={typeLayers} scopeKind="PROFILE" effective={0.7} source="PROFILE"
+      below={{ 'G3.error_band_span_fraction': 0.7 }} belowSources={{ 'G3.error_band_span_fraction': 'PROFILE' }} errors={[]} editable pending={false} onOp={() => {}} />);
+    const inherited = screen.getByText('Inherited').parentElement!;
+    expect(inherited.textContent).toMatch(/0\.7.*Loop type/);
+    expect(screen.getByTestId('effective-value').textContent).toMatch(/0\.7/);
   });
 
   // CHG-224: an editable property is always settable here; nothing reads "No value", "unset", "Read-only" or "not used"

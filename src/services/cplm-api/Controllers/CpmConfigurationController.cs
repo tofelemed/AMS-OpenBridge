@@ -153,7 +153,7 @@ public sealed class CpmConfigurationController : ControllerBase
         var rows = await _store.ListAsync(site, scopeKind?.ToUpperInvariant(), scopeRef, state?.ToUpperInvariant(), ct);
         return string.Equals(projection, "summary", StringComparison.OrdinalIgnoreCase)
             ? Ok(new { site, projection = "summary", bundles = rows.Select(ShapeSummary) })
-            : Ok(new { site, bundles = rows.Select(Shape) });
+            : Ok(new { site, bundles = rows.Select(r => Shape(r)) });
     }
 
     [HttpGet("drafts/{id:guid}")]
@@ -163,12 +163,21 @@ public sealed class CpmConfigurationController : ControllerBase
         var b = await _store.GetAsync(id, ct);
         if (b is null) return NotFound(new { error = $"bundle {id} not found" });
         Response.Headers.ETag = $"\"{b.Etag}\"";
-        // re-check item 5: the Check step's Now / New the engine's way - a loop version takes its loop type's pack from the registry
+        var (below, effective) = await SidesAsync(b, ct);
+        return Ok(ShapeWithApprovals(b, await _store.ApprovalsAsync(id, b.ContentHash, ct), below, effective));
+    }
+
+    /// <summary>
+    /// Re-check item 5 / round 4: the version's values the engine's way, without it and with it (the Check step's Now / New, the Edit
+    /// step's value and Inherited) - a loop version takes its loop type's pack from the registry.
+    /// </summary>
+    private async Task<(BundleBelow.Side? Below, BundleBelow.Side? Effective)> SidesAsync(BundleView b, CancellationToken ct)
+    {
         string? loopProfile = null;
         if (b.ScopeKind is "LOOP" or "REGIME" && b.ScopeRef is { Length: > 0 } scopeRef && await _registry.GetAsync(scopeRef.Split('@')[0], ct) is { } loop)
             loopProfile = ConfigStore.ProfileIdFor(loop.LoopType);
         var pack = BundleBelow.PackFor(b, loopProfile);
-        return Ok(ShapeWithApprovals(b, await _store.ApprovalsAsync(id, b.ContentHash, ct), BundleBelow.Below(b, pack), BundleBelow.Effective(b, pack)));
+        return (BundleBelow.Below(b, pack), BundleBelow.Effective(b, pack));
     }
 
     /// <summary>The shadow run's before / after gate matrix (SHADOW rows vs the LIVE rows of the same windows), materialised server-side; marks POLICY_RECLASSIFICATION when symptoms disappear.</summary>
@@ -215,7 +224,10 @@ public sealed class CpmConfigurationController : ControllerBase
             var b = await _store.PatchAsync(id, ifMatch.ToString(), req.Ops, Actor(), ct);
             _audit.Emit("CONFIG_DRAFT_EDITED", Actor(), "gate_config_bundle", id.ToString(), new { ops = req.Ops.Select(o => new { o.Op, o.Property }), b.ContentHash, b.ChangeClass });
             Response.Headers.ETag = $"\"{b.Etag}\"";
-            return Ok(Shape(b));
+            // round 4 review: the edit answer carries both engine-way sides, so the Edit step never shows the own resolution between
+            // the answer and the re-read
+            var (below, effective) = await SidesAsync(b, ct);
+            return Ok(Shape(b, below, effective));
         }
         catch (ConfigConflictException ex) { return Conflict(new { error = ex.Message }); }
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
@@ -298,14 +310,15 @@ public sealed class CpmConfigurationController : ControllerBase
         catch (ConfigStateException ex) { return Conflict(new { error = ex.Message }); }
     }
 
-    /// <param name="below">What the scope's loops run without this version, the class pack under it (the Check step's Now).</param>
-    /// <param name="effective">What they run with it, the same order (the Check step's New).</param>
-    internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals, JsonElement? below = null, JsonElement? effective = null) => new
+    /// <param name="below">What the scope's loops run without this version, the class pack under it (the Check step's Now; the Edit step's Inherited).</param>
+    /// <param name="effective">What they run with it, the same order (the Check step's New; the Edit step's value and where it comes from).</param>
+    internal static object ShapeWithApprovals(BundleView b, IReadOnlyList<ConfigStore.ApprovalView> approvals, BundleBelow.Side? below = null, BundleBelow.Side? effective = null) => new
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note, approvals,
         inherits = b.Inherits,
-        below, effective,
+        below = below?.Properties, belowSources = below?.Sources,
+        effective = effective?.Properties, effectiveSources = effective?.Sources,
     };
 
     public static object ShapeSummary(BundleView b) => new
@@ -315,10 +328,13 @@ public sealed class CpmConfigurationController : ControllerBase
         validationErrors = b.Validation is { } v && v.ValueKind == JsonValueKind.Object && v.TryGetProperty("errors", out var e) && e.ValueKind == JsonValueKind.Array ? e.GetArrayLength() : 0,
     };
 
-    internal static object Shape(BundleView b) => new
+    /// <summary>A bundle; with <paramref name="below"/> / <paramref name="effective"/> also its engine-way sides (left out when null).</summary>
+    internal static object Shape(BundleView b, BundleBelow.Side? below = null, BundleBelow.Side? effective = null) => new
     {
         b.BundleId, b.Version, b.ContentHash, b.Site, b.ScopeKind, b.ScopeRef, b.ParentBundleId, b.ParentHash, b.CatalogueHash, b.ExecutionPlanHash, b.ChangeClass, b.State,
         b.Layers, b.Resolved, b.Validation, b.Shadow, b.EffectiveFrom, b.CreatedBy, b.CreatedAt, b.UpdatedAt, b.Etag, b.Note,
         inherits = b.Inherits,
+        below = below?.Properties, belowSources = below?.Sources,
+        effective = effective?.Properties, effectiveSources = effective?.Sources,
     };
 }

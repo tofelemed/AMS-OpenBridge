@@ -103,7 +103,7 @@ export function useConfigActions(site: string | undefined) {
     mutationFn: (a: { id: string; etag: string; ops: PatchOp[] }) => patchDraft(a.id, a.etag, a.ops),
     // the answer carries the new ETag: cache it before the re-read, keeping the approvals the edit answer leaves out; the engine-way
     // values it leaves out are dropped, not kept from before the edit (Check reads the own resolution until the re-read)
-    onSuccess: (saved, a) => qc.setQueryData<Bundle>(['cpm', 'config', 'bundle', a.id], old => (old ? { ...old, ...saved, effective: saved.effective } : saved)),
+    onSuccess: (saved, a) => qc.setQueryData<Bundle>(['cpm', 'config', 'bundle', a.id], old => (old ? { ...old, ...saved, effective: saved.effective, effectiveSources: saved.effectiveSources } : saved)),
     onSettled: (_d, _e, a) => { settle(a.id); shadowOf(a.id); },
   });
   const validate = useMutation({ mutationFn: (id: string) => validateDraft(id), onSettled: (_d, _e, id) => settle(id) });

@@ -5,11 +5,13 @@
  * CHG-169 (owner review, the approved sample): a row no longer expands into the editor - it selects the property, and its
  * editor is the panel beside the list (a drawer below 1280 px). The name reads short within its gate (the full key while a
  * search crosses gates, and in the panel); the class in words under it; the value with its unit, a dash when unset.
+ * Round 4: the value and its source the engine's way (shownValue), the ones Check compares.
  */
 import React from 'react';
 import { TonePill } from '../shared';
 import type { Bundle, CatalogueEntry } from '../../../api/cpm/config';
 import { settingName, sourceWord, valueWithUnit } from './configWords';
+import { shownValue } from './configSupport';
 import { errorsFor } from './configLists';
 import { ClassWord } from './configBits';
 
@@ -27,8 +29,7 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({ entries, bundle, s
     <tbody>
       {entries.map(p => {
         const errors = errorsFor(bundle.validation?.errors ?? [], p.property);
-        const effective = bundle.resolved.properties[p.property];
-        const source = bundle.resolved.sources[p.property];
+        const { value: effective, source } = shownValue(bundle, p.property);
         const commissioning = p.commissioningRequired && (effective === null || effective === undefined);
         const isSelected = p.property === selected;
         return (

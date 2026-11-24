@@ -108,7 +108,7 @@ export function valueWithUnit(v: unknown, unit: string | null | undefined): stri
   return suffix ? `${valueText(v)}${suffix === '°' ? '' : ' '}${suffix}` : valueText(v);
 }
 
-const FROM: Record<string, string> = { LOOP: 'This loop', PROFILE: 'Loop type', SITE: 'Plant', FACTORY: 'Factory' };
+const FROM: Record<string, string> = { REGIME: 'This regime', LOOP: 'This loop', PROFILE: 'Loop type', SITE: 'Plant', FACTORY: 'Factory' };
 
 /** Where a value comes from, in the page's words; no layer sets it = the system works it out. */
 export const sourceWord = (level: string | null | undefined): string => (level ? FROM[level] : undefined) ?? 'Worked out automatically';

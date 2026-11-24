@@ -45,6 +45,15 @@ describe('PropertyTable', () => {
     expect(onSelect).toHaveBeenCalledWith('G0.max_gap_s');
   });
 
+  it('round 4: the value and its source the engine way when the server gives them (a type pack value reads Loop type)', () => {
+    const engine = { ...bundle, effective: { 'G0.min_samples': 12, 'G0.max_gap_s': 45, 'G0.evidence_retention_days': null },
+      effectiveSources: { 'G0.min_samples': 'PROFILE', 'G0.max_gap_s': 'LOOP', 'G0.evidence_retention_days': 'NO_VALUE' } } as unknown as Bundle;
+    render(<PropertyTable entries={entries} bundle={engine} selected={null} onSelect={() => {}} />);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0].textContent).toMatch(/12 samples.*Loop type/);
+    expect(rows[1].textContent).toMatch(/45 s.*This loop/);
+  });
+
   it('the name is in words, the code only in the title, also while searching across gates', () => {
     render(<PropertyTable entries={entries.slice(0, 1)} bundle={bundle} selected={null} onSelect={() => {}} />);
     const b = screen.getByRole('button', { name: 'Minimum samples' });

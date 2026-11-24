@@ -60,6 +60,7 @@ describe('sources', () => {
     expect(sourceWord('PROFILE')).toBe('Loop type');
     expect(sourceWord('SITE')).toBe('Plant');
     expect(sourceWord('FACTORY')).toBe('Factory');
+    expect(sourceWord('REGIME')).toBe('This regime');
     expect(sourceWord('NO_VALUE')).toBe('Worked out automatically');
     expect(sourceWord(undefined)).toBe('Worked out automatically');
     expect(sourceWord(null)).toBe('Worked out automatically');

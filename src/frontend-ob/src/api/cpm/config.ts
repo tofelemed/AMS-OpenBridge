@@ -66,6 +66,9 @@ export interface Bundle {
    */
   below?: Record<string, unknown> | null;
   effective?: Record<string, unknown> | null;
+  /** Where each `below` / `effective` value comes from (FACTORY, PROFILE - a pack value too -, SITE, LOOP, REGIME, NO_VALUE). */
+  belowSources?: Record<string, string> | null;
+  effectiveSources?: Record<string, string> | null;
 }
 
 export interface WorkerAck { status: 'ACK' | 'NACK'; bundleHash: string; jarSha256: string; reason: string | null; receivedAt: string }

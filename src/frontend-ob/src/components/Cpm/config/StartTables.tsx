@@ -20,7 +20,7 @@ function changeName(b: BundleSummary): string {
 }
 
 export const ChangesTable: React.FC<{ rows: InProgressRow[]; onContinue: (id: string, step: ChangeStep) => void }> = ({ rows, onContinue }) => (
-  <div className="cpm-config-tablewrap"><table className="cpm-table">
+  <div className="cpm-config-tablewrap"><table className="cpm-table cpm-config-changes">
     <thead><tr><th>Change</th><th>Next step</th><th>Started</th><th><span className="cpm-sr-only">Continue</span></th></tr></thead>
     <tbody>
       {rows.map(({ bundle: b, nextStep, done }) => (
