@@ -7116,8 +7116,14 @@ Flink and `cplm-api` ship together (same gate catalogue). The Response job is re
 
 **New release tooling:** directives `!chg106-daystart` (step 4j) and `!chg226-savepoint` (step 4k, just before step 5) in `release_blocks.py`; `test_release_blocks.py` +2 (with `test_build_release.py` 67 pass).
 
-**Verification (before the bundle):** the targeted runs of each CHG above; lab rounds 1-5 of browser checks (Day and Night; 1440 / 1000 / 768 / 390) on the changed pages; the full test run
-before the bundle is recorded here after it ran. Not tested on the lab (no data): the regime-level value "This regime" and the several-window form of "Same result".
+**Verification (before the bundle):** the targeted runs of each CHG above; lab rounds 1-5 of browser checks (Day and Night; 1440 / 1000 / 768 / 390) on the changed pages. Full test run 24 Nov, commit 7c5c350a:
+- Frontend: vitest 389 files / 3311 tests, 0 failed; `tsc` 0 errors; lint and theme check clean.
+- Flink: 105 of 105 test classes, 537 run, 0 failures, 2 skipped (clean checkout, without the uncommitted probe file).
+- cplm-api (lab database, all classes, run alone): 821 tests, 13 failed. **8 also fail on v2.9.1 (7e4b8f69) on the same database** and are the lab's state, not this release: `PipelineStatusOtherJobsTests` x2, `MethodRunLookupIndexTests`,
+  `FleetPrioritySqlTests.Queue_is_current_findings_in_matrix_then_impact_then_persistence_order`, `EvaluationRunTests`, `EvidenceApiTests` x3. 5 are 30 s timeouts under the load of the whole suite (`FleetHealthFilterTests`,
+  `FleetHeatmapApiTests`, `KpiReadsTests` 15m, `FleetPrioritySqlTests.An_actively_shelved...`, `ConfigLifecycleTests` Nr047, a connect timeout): all pass alone (24 of 24 in 8 s).
+- **Found by this run and fixed:** the CHG-226 fleet heatmap read (CHG-226 above, 4.4 s to 0.29 s). Seven fleet reads were timed on both versions; the other six are unchanged.
+- Not tested on the lab (no data): the regime-level value "This regime" and the several-window form of "Same result".
 
 **Open with the owner:** whether the 9 recommended operating regions are entered right after the release or only after the SME confirms; the savepoint path needs a lab rehearsal of this
 jar; plant side: the 18 non-PID tags, PV ranges for the loops whose P / I / D we use, P / I / D over MQTT.
