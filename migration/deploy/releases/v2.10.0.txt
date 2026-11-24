@@ -1,0 +1,23 @@
+# Release v2.10.0 - System Response (plan Phases 1-4), Gate Configuration journey, plant day start 06:00, last results kept after a
+# Flink restart, live trends (CHG-106..109, CHG-204..227), on top of plant v2.9.1 (7e4b8f69, deployed; jar 88ffd109 from v2.9.0).
+# Consumed by: python migration/deploy/build-release.py --release v2.10.0        (the jar IS rebuilt: no --skip-jar)
+# Build from feat/sr-engine-fixes. Build box migration/.env must keep LOOP_ROOT_PREFIX=root.hdpe.cpm (the frontend bakes it).
+#
+#   flink-jobmanager   (the TaskManager uses the same image) CHG-204..211 System Response engine fixes + AUT-only capture; CHG-212..215
+#                      controller tuning from P / I / D; CHG-216..219 setpoint-step models for level loops, dead time, review shortlist;
+#                      CHG-223 "use plant-wide settings"; CHG-225 valve geometry never decides alone on slow loops; CHG-226 Long and
+#                      Fusion resume; CHG-106 plant day start. Full swap: the jar and cplm-api ship together (gate catalogue hash).
+#                      The Response job is resubmitted WITHOUT state (new keyed-state fields).
+#   cplm-api           CHG-107 controller tuning history, CHG-108/109 regions + batches + review queue, CHG-222..224 gate values and
+#                      Try on past data, CHG-226 last stored results, CHG-106 plant day start. Same catalogue copies as the jar.
+#   ams-frontend       CHG-221 Gate Configuration journey, CHG-218 review shortlist, CHG-212..215 tuning, CHG-224 values in use,
+#                      CHG-226 last stored result, CHG-227 the Trend page and Loop Explorer values update without a refresh.
+#
+# No migration, no topic, no .env change except PLANT_DAY_START (directive below, 06:00 at Marun; CHG-106, confirmed by the owner 23 Nov).
+# Long / Fusion may resume from a savepoint (CHG-226); default is a fresh submit (refill 11.4 h for 12 h, 22.8 h for 24 h; until
+# then the last real result stays on screen with its time). Details and the order: docs/next-release/v2.10.0-VM-COMMANDS.md.
+!chg106-daystart
+!chg226-savepoint
+flink-jobmanager
+cplm-api
+ams-frontend

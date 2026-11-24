@@ -5,7 +5,7 @@ measurements and deliberate trade-offs. If this application is deployed on anoth
 below must be decided again for that server, and this file says what we chose here and why. Keep it
 current with every release (`changes_tracker.md` CHG entries are the history; this file is the state).
 
-Last updated: 2026-10-10 (**v2.7.0 live at Marun since 2026-10-10 09:17 UTC**: SME batch + CHG-049/060-062/068/075/076; values formerly marked "deployed 2026-10-10, v2.7.0" are now live; v2.6.6 / CHG-039 since 2026-10-05; cpm-12/12b/13 applied 2026-10-10).
+Last updated: 2026-11-24 (**v2.10.0 built, not deployed**; v2.9.1 is live at Marun, deploy date not recorded; v2.9.0 since 2026-11-13). Older notes in this file name v2.7.0 and v2.6.6 as they went live.
 
 ## 1. Where it runs
 
@@ -35,7 +35,8 @@ Last updated: 2026-10-10 (**v2.7.0 live at Marun since 2026-10-10 09:17 UTC**: S
 | 2026-10-16 08:00 | **v2.8.0.1** = CHG-100 (ams-frontend only): light selected-row tint + accent edge on every CPM page, whole-row click (Loop Events, Overview queue), Performance › Checks header flush; src-43d1948e. No jar, no schema, no backend. Proof: integrity 28/28, init images present, `deploy.sh --prod` finished with 05-validate passed and all Flink jobs still RUNNING (untouched). VM trap: `/tmp/pre-<rel>-images.txt` gave Permission denied for `lean`, so the rollback list was written to `/tmp/v2.8.0.1/pre-v2.8.0.1-images.txt` (52 images) | `release-out/v2.8.0.1-20261016` |
 | 2026-11-05 (built, not deployed) | **v2.8.0.2** = CHG-104 (ams-frontend only): signal quality no longer read from the PV value. Built from the plant source 43d1948e plus the fix, on branch `release/v2.8.0.2`. **Rule while v2.9.0 is undeployed:** a hotfix never comes from the head of `feat/v25-next-release`, because bundles ship `git archive HEAD` and that head also holds the v2.9.0 frontend, which needs the v2.9.0 backend | `release-out/v2.8.0.2-20261104` (src-2ef184bb, 28/28 checksums) |
 | 2026-11-13 12:18:22 UTC (T_FLIP) | **v2.9.0 + CPA redesign** deployed at Marun: CHG-101..105 + CHG-110..182 (8 images; IoTDB tree moved to `root.hdpe.cpm`, delta VERIFY OK; 175 / 175 loops republished; all 6 Flink workers on jar 88ffd109) | `release-out/v2.9.0-20261112`, src 7ba43a0e |
-| built 2026-11-15, not deployed (waits for the owner's go) | **v2.9.1** = CPA owner production review CHG-183..203 on top of v2.9.0: `ams-frontend` 296645028b8e + `cplm-api` 705f1255d7bf (CHG-196 censored charts 3 d, CHG-199 accepted values 90 d / stored charts 30 d, CHG-201 loop read adds createdAt / updatedAt / sourceTags, CHG-203 readiness message text); one online SQL step after the swap (`ops/cpm-22-response-redraw-retention.sql`, VM-STEPS 6m); no Flink swap (`--skip-jar`) | `AMS-release-v291/release-out/v2.9.1-20261115` (src 7e4b8f69, 43 checksums OK); plant commands `docs/next-release/v2.9.1-VM-COMMANDS.md` (AMS-open, ab077a69); `changes_tracker.md` "CHG-183..203" |
+| built 2026-11-15; **deployed at Marun** (owner, 24 Nov 2026; deploy date not recorded) | **v2.9.1** = CPA owner production review CHG-183..203 on top of v2.9.0: `ams-frontend` 296645028b8e + `cplm-api` 705f1255d7bf (CHG-196 censored charts 3 d, CHG-199 accepted values 90 d / stored charts 30 d, CHG-201 loop read adds createdAt / updatedAt / sourceTags, CHG-203 readiness message text); one online SQL step after the swap (`ops/cpm-22-response-redraw-retention.sql`, VM-STEPS 6m); no Flink swap (`--skip-jar`) | `AMS-release-v291/release-out/v2.9.1-20261115` (src 7e4b8f69, 43 checksums OK); plant commands `docs/next-release/v2.9.1-VM-COMMANDS.md` (AMS-open, ab077a69); `changes_tracker.md` "CHG-183..203" |
+| built 2026-11-24, not deployed (waits for the owner's go) | **v2.10.0** = System Response (CHG-204 to CHG-219), Gate Configuration journey (CHG-220 to CHG-225), plant day start 06:00 (CHG-106), last results kept after a Flink restart (CHG-226), Trend and Loop Explorer update live (CHG-227), controller tuning history and review queue (CHG-107 to CHG-109): Flink image (full swap) + `cplm-api` + `ams-frontend`; no SQL, no topic; `.env` gains `PLANT_DAY_START=06:00`. Commands: `docs/next-release/v2.10.0-VM-COMMANDS.md`. Base: v2.9.1 (`7e4b8f69`, jar 88ffd109) | `release-out/v2.10.0-<date>`; commit, jar and image ids in the command sheet, section 0 |
 | 2026-10-04 08:28 | **v2.6.5** = Flink image (CHG-038 Short checkpointing + patch-4 replay fixes; jar `0fd03445aa6deb59` for engine and replay) + cplm-api 0556248e (CHG-036 fallbacks); full Flink swap, window state rebuilds | `release-out/v2.6.5-20261004` |
 | 2026-10-04 07:03 | **v2.6.4** = ams-frontend (CHG-037: evidence checksums without SubtleCrypto; workbench polls a pending reconstruction) | `release-out/v2.6.4-20261003` (src-2a737e30) |
 | 2026-10-03 13:19 | **v2.6.3 add-on, replay jar patch 4** (CHG-036; patch 3 = the 10:21 UTC interim jar 26020dfd, superseded): host jar `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` → sha `043a645633a56579` (bounded source + IOTDB_PASS + writer device path) + overlay `CplmRecompute__BootstrapServers`; engine jobs stay on f7c99294e0767ea9. Proof: cplm-api reconstruction of PIC10412 → 3 manifests in 20 s | `release-out/v2.6.3-20261003/flink-replay-jar-patch4/` |
@@ -177,6 +178,8 @@ about 25 GB free after the 26 September cleanup. The 24 h measurement in the v2.
 | 2026-11-07 (lab, during CHG-133 to 153) | The Flink JobManager lost ZooKeeper leadership four times: 6 Nov 23:55 UTC and 7 Nov 04:46, 07:02 and 08:27 UTC. Host RAM free was 0.4 to 0.7 GB each time. Jobs went RESTARTING. | Recreating the JobManager, or waiting, restored the 8 CPA jobs (04:46 to 04:57; 07:02 to 07:10; 08:27 recovered by itself). Cause: host memory pressure on the shared lab PC paging the Docker VM out. The plant runs its own host. | CHG-153 |
 | 2026-11-07 (lab) | Two lab simulators with the same MQTT client id threw each other off 5,594 times ("session taken over"). | Give a second simulator its own `SIM_OT_CLIENT_ID` and `--exclude` the loops the first one feeds. Lab only; the plant has one gateway. | CHG-133 |
 | 2026-11-12 (plant query) | System Response showed every event older than 6 h with empty chart panels: the G12 arrays were live evidence (`TRANSIENT`, 6 h) while the event stayed listed 14 days (563 of 17,773 accepted events had charts); the panel text said "reconstruct the evidence", which G12 refuses, and the Workbench pointed at a System Response rebuild that does not exist. The CHG-102 archive (boundary windows only) and episode capture (0 G12 captures on the lab) never covered G12 | **CHG-105**: charts of accepted events kept with the event, `RESPONSE` 14 -> 30 d, 2 GiB chart cap; the API states the retention and both pages say the charts cannot be rebuilt; daily check evidence thresholds raised with the bigger disk (WARN 2560 / ACT 4096 MB) | `changes_tracker.md` CHG-105 |
+| 2026-11-24 (plant daily check, 08:37 UTC) | 0 of 8 Flink jobs RUNNING and slots-available 16, all Flink state gone; the Short job group 351,141 samples behind (~8 h); short features, long features and verdicts empty. Cause: **Docker on the plant VM was restarted** (owner). The containers show RestartCount 0: a daemon restart is not counted, and the plant has no Flink HA. The Loop Live RBE job was among the lost jobs, so Loop Explorer showed historian values | 04b brought the jobs back (owner; live values confirmed the same day). Until the Long job has refilled, 12 h / 24 h verdicts are "Not enough data"; CHG-226 (v2.10.0) keeps the last real result on screen meanwhile | `MARUN-DAILY-CHECK.md` section 4 (the same check, recipe and `04b`) |
+| 2026-11-03 to 11-24 (lab) | the lab showed no live loop values for three weeks: `ams-sparkplug-edge-node` had been stopped on 3 Nov (exit 137), and its consumer group expired | started for a test on 24 Nov (only a few retained messages replayed), stopped again after it (owner). Lab only | CHG-227 |
 
 ## 7. Deploying to another server: what to decide again
 
@@ -332,7 +335,7 @@ Services: `ams-frontend` and `cplm-api` (CHG-196, CHG-199). Source of the decisi
 - **Error messages (CHG-203):** the shared error panel says what happened in plain words by status (permission, not found, no answer, anything else) and keeps Retry; the server's own text goes to the browser console only. For troubleshooting, read the console or the service logs.
 - **Build trap (v2.9.1 build, 2026-11-15):** `build-prod-images.py` needs `src/flink/target/ams-flink-1.0-SNAPSHOT.jar` to exist even with `--skip-jar`, because compose bind-mounts it into cplm-api. On a frontend / cplm-api-only release, copy in the plant's current jar (v2.9.1 used v2.9.0's 88ffd109); it is not shipped.
 
-## System Response engine (CHG-204 to CHG-211, unreleased, branch feat/sr-engine-fixes)
+## System Response engine (CHG-204 to CHG-211; in v2.10.0, not deployed)
 
 Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels). Source of the decisions: plant checks of 17 Nov 2026 (`docs/system-response-prod-prechecks.md`), `docs/system-response-fixes-for-sme.md` (the defaults below await the SME's confirmation; the owner asked to build them first).
 
@@ -360,7 +363,7 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 - **Controller scan:** `--g12-controller-scan-s` (default 1 s, CENTUM basic scan) is recorded with the tuning; the frequency analysis does not use it.
 - **Tuning history:** every result whose event had a known P carries `controller_snapshot`; cplm-api keeps it effective-dated per loop (CHG-107) and the Frequency tab lists it. **On a new server:** make sure the gateway publishes P / I / D under these names, or add a `param_roles` overlay in the data source (configuration, no code).
 
-## Plant day start (CHG-106, unreleased, branch feat/sr-mine)
+## Plant day start (CHG-106; in v2.10.0, not deployed)
 
 | Setting | Where | Value | Why |
 |---|---|---|---|
@@ -370,7 +373,7 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 - Changing it: set it before the Flink swap and `deploy.sh`; the long and fusion jobs are resubmitted (fresh state, verdicts refill within a day). The kept KPI days (14 d of gate results) are re-stored on the new day; older days keep their old end and stay readable. **Record the switch date here: it is where the daily KPI definition changes.** Evidence sets saved before stay readable until their 30 days pass.
 - At a new plant: set it with `PLANT_TIME_ZONE` before the first data; then nothing needs re-storing.
 
-## Controller tuning history (CHG-107, unreleased, branch feat/sr-mine)
+## Controller tuning history (CHG-107; in v2.10.0, not deployed)
 
 | Data | Where | Retention | Why |
 |---|---|---|---|
@@ -379,7 +382,7 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 - The source is the plant feed (MQTT, the same payload and rules as PV / SP / OP; ingestion maps P → p, I → i, D → d). Nobody enters tuning by hand.
 - At a new plant: publish P / I / D with the loop's other signals; if the gateway names them differently, map them with a `param_roles` overlay on the ingestion source (configuration, no code). CENTUM convention: P = proportional band %, I and D in seconds; another DCS needs its own adapter in the engine.
 
-## Per-loop settings and operating regions (CHG-108, unreleased, branch feat/sr-mine)
+## Per-loop settings and operating regions (CHG-108; in v2.10.0, not deployed)
 
 | Setting | Where | Rule | Why |
 |---|---|---|---|
@@ -390,7 +393,7 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 - A region change needs **no Flink restart**: a deployed bundle reaches the running jobs through the gate-config broadcast and applies from its effective time; the workers' ACKs make it active.
 - After a release with a new factory layer, loops with their own bundle and no plant-wide bundle also show as stale (their base is the build's factory layers): re-stacking them takes the new factory values.
 
-## Gate Configuration approval rules (CHG-108 follow-up, unreleased, branch feat/sr-mine)
+## Gate Configuration approval rules (CHG-108 follow-up; in v2.10.0, not deployed)
 
 | Rule | Value | Why |
 |---|---|---|
@@ -401,7 +404,7 @@ Services: Flink jar (`CplmResponseAnalysisJob`) and `ams-frontend` (two labels).
 At a new plant: decide who holds SuperAdmin before the first site-wide change; the self-approvals are listed in the audit trail.
 - A loop's (or class's) **first own bundle** starts from the plant-wide bundle it runs under (active PROFILE, else active SITE), never from the factory layers while one is active (CHG-220; before, activating it dropped the plant-wide changes). A loop that got its first own bundle before this release may sit on the factory base: check `loop-settings/stale` after the deploy and re-stack what it lists.
 
-## Gate Configuration deployments (CHG-108 follow-up 2, unreleased, branch feat/sr-mine)
+## Gate Configuration deployments (CHG-108 follow-up 2; in v2.10.0, not deployed)
 
 | Rule | Value | Why |
 |---|---|---|
@@ -417,3 +420,14 @@ At a new plant: decide who holds SuperAdmin before the first site-wide change; t
 - **Valve geometry is supporting evidence only, on every loop class** (CHG-225, 23 Nov): the temperature and vapour-pressure packs no longer let the PV-OP plot shape decide a valve diagnosis alone. From the deploy, a temperature loop needs stiction, shape, cross-correlation or cycle evidence (or the valve confirmation) for a valve diagnosis. Plant impact measured before the change: about 2-3.5 % of temperature verdicts, one loop's current verdict (TIC80105).
 - **After a Flink restart the screens keep each loop's last real result** (CHG-226, owner 23 Nov): the Long job marks the windows it is still refilling (`warming_up`, `coverage_from_ms` in the result payload); while a loop's newest 12 h / 24 h row is such a window and less than an hour old, the KPIs, rankings, heat map, loop gate matrix and KPI summary show its last real verdict (if it ended no more than one window length before the refill began), labelled "Last stored result · <time>". A real data outage (no mark) still reads "Not assessable"; a stopped pipeline still reads "Stale". The daily KPI history stores such a day from the verdict and records it in `analytics.cplm_kpi_daily.inputs` (`lastStored`). `FleetKpiClassifier.RuleVersion` 1 -> 2: the first daily pass after the deploy re-stores the kept 14 days once (~30 s); days before the new jar have no mark, so their numbers do not change (13 Nov stays as stored).
 - **Planned Flink restarts use a savepoint** for Long Diagnostics and Gate Fusion (CHG-226): never `--drain`; resume within the topics' retention (long features 6 h, samples 12 h at the plant; `04b` refuses a savepoint older than 240 min); keep the savepoint until the restored job's first completed checkpoint; the disk clean-up (`migration/MARUN-DISK.md` 3A) must not run between stop and resubmit; a failed restore falls back to a fresh submit (the screens then show the last stored results while the windows refill). Lab proof 23 Nov: stop 14-17 s, savepoints 0.3-0.4 MB, both resumed from them.
+
+## Trend and Loop Explorer live updates (CHG-227; in v2.10.0, not deployed)
+
+| Setting | Value | Why |
+|---|---|---|
+| Trend page while it follows now | the pens' live topics are subscribed (one per loop device); the historian is read again every 60 s (`HISTORY_REFRESH_MS`) | the line stopped at the moment the page was opened; with report by exception a quiet signal publishes only every 300 s, so the minute re-read keeps the line moving |
+| Loop Explorer PV / SP / OP / Mode | a live value wins while it is at most 10 minutes old (two live repeats, `STALE_LIVE_MS`); an older one gives way to a newer historian bucket | a stalled live feed froze the numbers until a refresh |
+| Loop Explorer trend | 8 h window, 2-minute points, re-read every 60 s (unchanged) | its newest point can be about 3 minutes behind |
+
+- At a new plant: the edge node (`ams-sparkplug-edge-node`) and EMQX must run, with the same `SPARKPLUG_GROUP` / `SPARKPLUG_EDGE` as the frontend build; without them every
+  value reads "from historian". Frontend only: no migration, no Flink, no setting.

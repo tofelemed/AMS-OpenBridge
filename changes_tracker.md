@@ -7096,3 +7096,26 @@ Lab retest fixes (23 Nov, combined deploy 91d9b2aa): items 1 to 11 of the lab re
 **Services updated:** ams-frontend. No migration, no Flink, no cplm-api change, no script to run.
 
 **Tests (targeted):** new `useTrendHistory.test.ts` (5: subscribes once per topic while tailing and lets go, keeps it while the window steps, none for a fixed period, re-reads each minute up to the new end, a fixed period once) and `signalSource.test.ts` (5), `TrendCore.test.tsx` + 1 (the binding's topic is subscribed while live, not for a fixed window); with TrendCore, TrendCore.trust, TrendPage and SignalsTab: 63 pass. `tsc` 0 errors, eslint clean on the changed files.
+
+## Release v2.10.0 (proposed, 2026-11-24, branch feat/sr-engine-fixes; on top of plant v2.9.1, src 7e4b8f69)
+
+**What it is.** System Response phases 1-4 (CHG-204..219, CHG-106..109), Gate Configuration journey (CHG-220..225), last results kept after a Flink restart (CHG-226),
+Trend and Loop Explorer update without a refresh (CHG-227). Owner, 23-24 Nov: one release; every Gate Configuration gap and re-check issue is in it.
+
+**Services updated:** `ams-flink` image (JobManager + TaskManager; CHG-204..219, 223, 225, 226, 106), `cplm-api`, `ams-frontend`. No SQL migration, no Kafka topic, no other service.
+Flink and `cplm-api` ship together (same gate catalogue). The Response job is resubmitted without state; Long Diagnostics and Gate Fusion may resume from a savepoint (CHG-226), else start fresh.
+
+**Scripts to run (version):**
+- Build box: `python migration/deploy/build-release.py --release v2.10.0` (manifest `migration/deploy/releases/v2.10.0.txt`; jar rebuilt).
+- Plant VM: the bundle's `VM-STEPS.md` plus `docs/next-release/v2.10.0-VM-COMMANDS.md` (the order): read-only checks `docs/next-release/chg224-plant-bundle-check.sql` and
+  `docs/next-release/chg225-geometry-impact.sql`; `.env` `PLANT_DAY_START=06:00` before the swap (CHG-106); full Flink swap (`04b` through `deploy.sh`); option
+  `ALLOW_FLINK_STOP=yes bash migration/flink-stop-with-savepoint.sh --out ...` before the swap, only after the lab rehearsal.
+- No data step, no republish, no bulk edit.
+
+**New release tooling:** directives `!chg106-daystart` (step 4j) and `!chg226-savepoint` (step 4k, just before step 5) in `release_blocks.py`; `test_release_blocks.py` +2 (with `test_build_release.py` 67 pass).
+
+**Verification (before the bundle):** the targeted runs of each CHG above; lab rounds 1-5 of browser checks (Day and Night; 1440 / 1000 / 768 / 390) on the changed pages; the full test run
+before the bundle is recorded here after it ran. Not tested on the lab (no data): the regime-level value "This regime" and the several-window form of "Same result".
+
+**Open with the owner:** whether the 9 recommended operating regions are entered right after the release or only after the SME confirms; the savepoint path needs a lab rehearsal of this
+jar; plant side: the 18 non-PID tags, PV ranges for the loops whose P / I / D we use, P / I / D over MQTT.

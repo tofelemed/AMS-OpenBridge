@@ -3,12 +3,13 @@
 Each block is opt-in through a `!directive` in the release manifest and is inserted into the generated
 VM-STEPS.md just before the "# 8. post-update checks" section, i.e. after every image swap (step 6) - or, for a
 PRE_SWAP block (v2.8.0+), just before "# 4. load": after the source extract (4a) and before step 5, whose
-deploy.sh --prod already recreates every changed service.
+deploy.sh --prod already recreates every changed service - or, for a PRE_FLINK block (v2.10.0+), just before "# 5. Flink":
+the Flink jobs still run and the new images and source are in place.
 """
 from __future__ import annotations
 
 DIRECTIVES = {"chg081-superadmin", "chg088-vp-republish", "chg099-cpm15", "chg091-cpm16", "chg102-cpm17", "chg102-cpm18",
-              "chg102-cpm19", "chg102-cpm20", "chg105-cpm21", "chg199-cpm22"}
+              "chg102-cpm19", "chg102-cpm20", "chg105-cpm21", "chg199-cpm22", "chg106-daystart", "chg226-savepoint"}
 
 
 def chg081_superadmin(release: str) -> str:
@@ -175,11 +176,51 @@ docker exec -i instrumental-postgres psql -U postgres -d traverse_cplm -v ON_ERR
 """
 
 
+def chg106_daystart(release: str) -> str:
+    # CHG-106: cplm-api and the Flink submitters read ONE PLANT_DAY_START (owner, 23 Nov 2026: Marun's shifts are 06:00-18:00).
+    return """
+# 4j. CHG-106 plant day start 06:00 (owner, 23 Nov 2026: shifts 06:00-18:00 / 18:00-06:00, production day 06:00-06:00) -
+#     BEFORE step 5: deploy.sh (cplm-api) and 04b (long + fusion jobs) read migration/.env. The same value for both, or the KPI days
+#     and the evidence boundaries run on different clocks. Write the date of this step in prod_decision.md.
+sed -i '/^PLANT_DAY_START=/d' migration/.env
+echo 'PLANT_DAY_START=06:00' >> migration/.env
+grep -nE '^PLANT_(DAY_START|TIME_ZONE)=' migration/.env          # PLANT_DAY_START=06:00 and PLANT_TIME_ZONE=IR
+#     After step 5: 04b printed "day start: 06:00"; after step 6: docker exec traverse-cplm-api printenv Cpm__PlantDayStart   # 06:00
+#     cplm-api re-stores the kept KPI days (14 d) on its first daily pass; older days keep their midnight end. The KPI history
+#     shows one longer / shorter day at the switch. A day keeps its START date as its name (SME answer still open).
+#     Back out (before the next Flink swap): sed -i '/^PLANT_DAY_START=/d' migration/.env, then deploy.sh; the kept days re-store again.
+"""
+
+
+def chg226_savepoint(release: str) -> str:
+    # CHG-226: Long and Fusion may resume from a savepoint instead of a fresh submit. Not a step until the lab rehearsal passed.
+    return f"""
+# 4k. CHG-226 OPTION: Long Diagnostics and Gate Fusion resume from a savepoint (the 12 h / 24 h windows run on). Only after the
+#     lab rehearsal of THIS jar passed (docs/next-release/flink-savepoint-procedure.md sections 5 and 7). Otherwise skip this block:
+#     a fresh submit, as always - "Not enough data" for 11.4 h (12 h windows) and 22.8 h (24 h windows), while the last real
+#     result stays on screen with its time (CHG-226). Short, Condition, Instrument Context, Live RBE, On-Demand and Response
+#     always start fresh; Response is stateless by rule. Never --drain; no clean-up between this and step 5; within 240 min.
+df -h / | tail -1; ID=$(docker exec ams-flink-jobmanager flink list -m localhost:8081 2>/dev/null | grep 'Long Diagnostics' | awk '{{print $4}}')
+docker exec ams-minio du -sh /data/ams-flink/checkpoints/$ID      # free disk must be at least 3 x this
+ALLOW_FLINK_STOP=yes bash migration/flink-stop-with-savepoint.sh --out /tmp/{release}/flink-resume.env
+cat /tmp/{release}/flink-resume.env                               # export RESUME_LONG_FROM=... and RESUME_FUSION_FROM=...
+. /tmp/{release}/flink-resume.env                                 # in THIS shell, then go straight on to step 5
+#     Step 5 then cancels the other jobs (Long and Fusion are no longer listed) and 04b restores the two. Read its lines:
+#       grep -E 'restored from|FAIL' "$(ls -t migration/deploy/logs/deploy-*.log | head -1)"   # two [OK] ... restored from ... lines
+#     A restore that fails: unset its RESUME_ variable, ALLOW_FLINK_SUBMIT=yes bash migration/04b-submit-flink-jobs.sh (fresh submit).
+#     After the checks of step 8: unset RESUME_LONG_FROM RESUME_FUSION_FROM; delete the two savepoints in /data/ams-flink/savepoints
+#     (docker exec ams-minio rm -rf ...; docker exec ams-minio du -sh /data/ams-flink/savepoints). Never put RESUME_* in migration/.env.
+"""
+
+
 BLOCKS = {"chg081-superadmin": chg081_superadmin, "chg088-vp-republish": chg088_vp_republish,
           "chg099-cpm15": chg099_cpm15, "chg091-cpm16": chg091_cpm16, "chg102-cpm17": chg102_cpm17,
           "chg102-cpm18": chg102_cpm18, "chg102-cpm19": chg102_cpm19, "chg102-cpm20": chg102_cpm20,
-          "chg105-cpm21": chg105_cpm21, "chg199-cpm22": chg199_cpm22}
-PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20", "chg105-cpm21"}
+          "chg105-cpm21": chg105_cpm21, "chg199-cpm22": chg199_cpm22, "chg106-daystart": chg106_daystart,
+          "chg226-savepoint": chg226_savepoint}
+PRE_SWAP = {"chg099-cpm15", "chg102-cpm17", "chg102-cpm18", "chg102-cpm19", "chg102-cpm20", "chg105-cpm21", "chg106-daystart"}
+# Just before step 5: the Flink jobs must still be running, and the source tree (4a) and images (4) already there.
+PRE_FLINK = {"chg226-savepoint"}
 
 
 def _at(steps: str, marker: str, extra: str) -> str:
@@ -190,8 +231,11 @@ def _at(steps: str, marker: str, extra: str) -> str:
 
 
 def insert(steps: str, release: str, flags: set[str]) -> str:
-    """Insert the blocks the manifest asks for (PRE_SWAP before step 4, the rest before step 8); unchanged when it asks for none."""
+    """Insert the blocks the manifest asks for (PRE_SWAP before step 4, PRE_FLINK before step 5, the rest before step 8); unchanged
+    when it asks for none."""
     chosen = sorted(flags & DIRECTIVES)
     pre = "".join(BLOCKS[d](release) for d in chosen if d in PRE_SWAP)
-    post = "".join(BLOCKS[d](release) for d in chosen if d not in PRE_SWAP)
-    return _at(_at(steps, "\n# 4. load", pre), "\n# 8. post-update checks", post)
+    flink = "".join(BLOCKS[d](release) for d in chosen if d in PRE_FLINK)
+    post = "".join(BLOCKS[d](release) for d in chosen if d not in PRE_SWAP and d not in PRE_FLINK)
+    steps = _at(_at(steps, "\n# 4. load", pre), "\n# 5. Flink", flink)
+    return _at(steps, "\n# 8. post-update checks", post)

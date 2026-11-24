@@ -223,3 +223,34 @@ def test_chg199_cpm22_ships_runs_online_after_the_swap_and_is_mirrored():
     assert "DELETE FROM analytics.retention_policy WHERE record_class = 'RESPONSE_CHARTS'" in rb
     for mirror in ("database/scripts/70_cplm_response_redraw_retention.sql", "migration/schema/03-traverse_cplm.sql"):
         assert "RESPONSE_CHARTS" in (root / mirror).read_text(encoding="utf-8"), mirror
+
+
+# ── v2.10.0: plant day start (CHG-106) and the Long / Fusion savepoint option (CHG-226) ──
+def v2100_steps(flags: set[str]) -> str:
+    rows = [("flink-jobmanager", "ams-flink", "PROD"), ("cplm-api", "ams-cpa-cplm-api", "PROD")]
+    steps = br.vm_steps("v0.0.0-test", "abc1234", rows, True, ["flink-jobmanager", "cplm-api"], False, False)
+    return br.release_blocks.insert(steps, "v0.0.0-test", flags)
+
+
+def test_chg106_daystart_is_set_in_the_env_before_the_flink_swap():
+    assert "chg106-daystart" in br.release_blocks.DIRECTIVES and "chg106-daystart" in br.release_blocks.PRE_SWAP
+    assert "PLANT_DAY_START=06:00" not in v2100_steps(set())
+    s = v2100_steps({"chg106-daystart"})
+    blk = s[s.index("# 4j. CHG-106"):s.index("\n# 4. load")]
+    assert s.index("tar -xzf /tmp/v0.0.0-test/src-abc1234.tar.gz") < s.index("# 4j. CHG-106") < s.index("deploy.sh --prod")
+    # idempotent: an old value is replaced, never left next to a new one
+    assert "sed -i '/^PLANT_DAY_START=/d' migration/.env" in blk and "echo 'PLANT_DAY_START=06:00' >> migration/.env" in blk
+    assert "PLANT_TIME_ZONE" in blk and "Cpm__PlantDayStart" in blk
+
+
+def test_chg226_savepoint_block_stops_long_and_fusion_before_the_cancel_loop():
+    assert (HERE.parent / "flink-stop-with-savepoint.sh").is_file()
+    assert "chg226-savepoint" in br.release_blocks.DIRECTIVES and "chg226-savepoint" not in br.release_blocks.PRE_SWAP
+    assert "flink-stop-with-savepoint.sh" not in v2100_steps(set())
+    s = v2100_steps({"chg226-savepoint"})
+    blk = s[s.index("# 4k. CHG-226"):s.index("\n# 5. Flink")]
+    assert s.index("\n# 4. load") < s.index("# 4k. CHG-226") < s.index("\n# 5. Flink") < s.index("docker rm -f ams-flink-taskmanager")
+    assert "ALLOW_FLINK_STOP=yes bash migration/flink-stop-with-savepoint.sh --out /tmp/v0.0.0-test/flink-resume.env" in blk
+    assert ". /tmp/v0.0.0-test/flink-resume.env" in blk and "unset RESUME_LONG_FROM RESUME_FUSION_FROM" in blk
+    # the option needs a lab rehearsal with this jar; without it the steps stay as they are (fresh submit)
+    assert "lab rehearsal" in blk and "fresh" in blk
