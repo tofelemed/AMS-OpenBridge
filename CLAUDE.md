@@ -134,4 +134,11 @@ as we are deploying version as well - so need to maintain a prod_decision.md whi
 <!-- claude-reflect: learned rules (saved from the band; edit freely) -->
 ## Learned rules
 - Every KPI should have a drilldown that shows the loops and values behind it, so the number can be verified, where feasible.
+- When redesigning pages, only move or regroup content; never add or remove elements, and keep design, trends and filters identical to the core design.
+- Show each trend in its own row in the UI redesign; never place two trends side by side in columns or merge them into one chart.
+- Region updates need two approvers, but admin and super admin users may apply them without a second approval.
+- Keep UI text minimal and user-friendly, avoid backend terms, and move non-essential detail into hover tooltips.
+
+
+use subagents when the task is big and can be done fast through subagents 
 <!-- end claude-reflect -->
