@@ -20,7 +20,7 @@ param(
     [string]$DiskPath = 'C:\Users\Admin\DockerDesktopWSL\disk\docker_data.vhdx',
     [string]$LogDir = 'D:\DockerSupport',
     [double]$WarnGB = 40,
-    [double]$StopGB = 20
+    [double]$StopGB = 5   # lowered from 20 on 2026-11-10 at the owner's request (C: had 15 GB free); still stops Docker before C: fills
 )
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
